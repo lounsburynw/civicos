@@ -1,9 +1,9 @@
 <script lang="ts">
   import { sendMessage } from '../lib/messaging.js';
-  import { getCityPulse, getDecisionDetail, getDataProvenance, getVoiceCountsBatch, submitVoice, revokeVoice, getInitiatives, getCivicActions, getCivicActionProgress, commitToCivicAction, completeCivicAction, withdrawCivicAction, createInitiative, createCivicAction, getIssueGeography, getBudgetSummary } from '../lib/api.js';
+  import { getCityPulse, getDecisionDetail, getDataProvenance, getVoiceCountsBatch, submitVoice, revokeVoice, getInitiatives, getCivicActions, getCivicActionProgress, commitToCivicAction, completeCivicAction, withdrawCivicAction, createInitiative, createCivicAction, getIssueGeography, getBudgetSummary, getComments, getCommentCountsBatch, submitComment, getCommentSynthesis } from '../lib/api.js';
   import type { IdentityInfo, NostrEvent, SignedNostrEvent } from '../lib/providers/types.js';
   import { CivicEventKinds, createVoiceContent, createVoiceTags, createCommitmentContent, createCommitmentTags, createCompletionContent, createCompletionTags, generateCommitmentId, generateCompletionId, generateActionRef } from '../lib/providers/types.js';
-  import type { CityPulseData, DecisionDetailData, DataProvenance, VoiceCounts, Initiative, CivicAction, CivicActionProgress, IssuePoint, BudgetCategory } from '../lib/types.js';
+  import type { CityPulseData, DecisionDetailData, DataProvenance, VoiceCounts, Initiative, CivicAction, CivicActionProgress, IssuePoint, BudgetCategory, Comment, CommentSynthesis } from '../lib/types.js';
   import 'leaflet/dist/leaflet.css';
   import L from 'leaflet';
   import { Chart, DoughnutController, ArcElement, Tooltip, Legend } from 'chart.js';
@@ -46,6 +46,16 @@
   let votingInProgress = $state(new Set<string>());
   const STANCES_STORAGE_KEY = 'civicos_user_stances';
 
+  // Comment thread state
+  let commentCounts = $state(new Map<string, number>());
+  let openThreads = $state(new Set<string>());
+  let threadComments = $state(new Map<string, Comment[]>());
+  let threadDrafts = $state(new Map<string, string>());
+  let threadSubmitting = $state(new Set<string>());
+  let threadLoading = $state(new Set<string>());
+  let threadErrors = $state(new Map<string, string>());
+  let synthData = $state(new Map<string, CommentSynthesis>());
+
   // Calendar dropdown
   let calendarOpen: string | null = $state(null);
 
@@ -67,15 +77,121 @@
   const COMPLETIONS_STORAGE_KEY = 'civicos_user_completions';
   const COMMITMENT_META_STORAGE_KEY = 'civicos_commitment_meta';
 
+  // Inline unlock
+  let unlockPassword = $state('');
+  let unlocking = $state(false);
+  let unlockError: string | null = $state(null);
+
   // Create initiative form
   let showCreateInitiative = $state(false);
   let newInitiative = $state({ topic: '', title: '', description: '', coordination_url: '' });
   let creatingInitiative = $state(false);
+  let customTopic = $state('');
+  const INITIATIVE_TOPICS = ['Traffic Safety', 'Housing', 'Parks', 'Budget', 'Environment', 'Public Safety', 'Infrastructure', 'Education'];
+
+  function selectTopic(t: string) {
+    if (newInitiative.topic === t) {
+      newInitiative.topic = '';
+    } else {
+      newInitiative.topic = t;
+      customTopic = '';
+    }
+  }
+  function selectCustomTopic() {
+    newInitiative.topic = '__custom__';
+  }
+  function effectiveTopic(): string {
+    return newInitiative.topic === '__custom__' ? customTopic.trim().toLowerCase() : newInitiative.topic.toLowerCase();
+  }
 
   // Create action form (per initiative)
   let showCreateAction: string | null = $state(null); // initiative ID
-  let newAction = $state({ action_type: 'written_comment', description: '', target: '', deadline: '' });
+  let newAction = $state({ action_type: 'written_comment', description: '', target: '', deadline: '', template: '', deadlineContext: '', targetCount: null as number | null });
   let creatingAction = $state(false);
+
+  // Dynamic config per action type — matches Open WebUI's CreateActionModal
+  const ACTION_TYPE_CONFIG: Record<string, {
+    descPlaceholder: string;
+    targetLabel: string;
+    targetPlaceholder: string;
+    showTemplate: boolean;
+    templateLabel: string;
+    templatePlaceholder: string;
+    deadlineLabel: string;
+    deadlineContextPlaceholder: string;
+  }> = {
+    written_comment: {
+      descPlaceholder: 'e.g., Submit a written comment opposing the median removal',
+      targetLabel: 'Submission link',
+      targetPlaceholder: 'https://city.gov/comment-form',
+      showTemplate: true,
+      templateLabel: 'Draft text',
+      templatePlaceholder: 'Dear Planning Commission, I urge you to...',
+      deadlineLabel: 'Deadline',
+      deadlineContextPlaceholder: 'e.g., Comment period closes March 1',
+    },
+    attend_meeting: {
+      descPlaceholder: 'e.g., Show up to the City Council meeting to oppose the redesign',
+      targetLabel: 'Meeting location or link',
+      targetPlaceholder: 'City Hall, Council Chambers',
+      showTemplate: true,
+      templateLabel: 'Logistics',
+      templatePlaceholder: 'Meeting at 7pm. Public comment is item 6 (~8pm). Free parking on 5th Ave after 6pm.',
+      deadlineLabel: 'Meeting date',
+      deadlineContextPlaceholder: 'e.g., Council votes at this meeting',
+    },
+    public_comment: {
+      descPlaceholder: 'e.g., Speak during public comment about pedestrian safety',
+      targetLabel: 'Meeting link',
+      targetPlaceholder: 'https://cityofsanrafael.org/city-council-meeting',
+      showTemplate: true,
+      templateLabel: 'Talking points',
+      templatePlaceholder: 'Key points: 1) Safety audit flagged this, 2) Schools nearby, 3) Request traffic calming',
+      deadlineLabel: 'Meeting date',
+      deadlineContextPlaceholder: 'e.g., Public comment heard before the vote',
+    },
+    contact_official: {
+      descPlaceholder: 'e.g., Email Councilmember about the median removal',
+      targetLabel: 'Email or phone',
+      targetPlaceholder: 'council@cityofsanrafael.org',
+      showTemplate: true,
+      templateLabel: 'Draft message',
+      templatePlaceholder: 'Dear Councilmember, I am writing to express my concern about...',
+      deadlineLabel: 'Deadline',
+      deadlineContextPlaceholder: 'e.g., Council votes March 3 — contact them before then',
+    },
+    signature: {
+      descPlaceholder: 'e.g., Sign the petition to preserve pedestrian islands',
+      targetLabel: 'Petition link',
+      targetPlaceholder: 'https://change.org/...',
+      showTemplate: false,
+      templateLabel: '',
+      templatePlaceholder: '',
+      deadlineLabel: 'Deadline',
+      deadlineContextPlaceholder: 'e.g., Petition submitted to Council on March 1',
+    },
+    share: {
+      descPlaceholder: 'e.g., Share the community letter on Nextdoor',
+      targetLabel: 'Link to share',
+      targetPlaceholder: 'https://...',
+      showTemplate: true,
+      templateLabel: 'Suggested post',
+      templatePlaceholder: 'The City wants to remove safety islands. Here\'s what you can do...',
+      deadlineLabel: 'Deadline',
+      deadlineContextPlaceholder: 'e.g., Share before the Council meeting for maximum impact',
+    },
+    custom: {
+      descPlaceholder: 'Describe what people should do',
+      targetLabel: 'Link',
+      targetPlaceholder: 'https://...',
+      showTemplate: true,
+      templateLabel: 'Instructions',
+      templatePlaceholder: 'Step-by-step instructions for this action...',
+      deadlineLabel: 'Deadline',
+      deadlineContextPlaceholder: 'Why does this need to happen by this date?',
+    },
+  };
+  const DEFAULT_ACTION_CONFIG = ACTION_TYPE_CONFIG.custom;
 
   // Issue map state
   let issuePoints: IssuePoint[] = $state([]);
@@ -118,13 +234,35 @@
     loading = false;
   }
 
+  async function handleUnlock() {
+    if (identity?.tier === 'private' && !unlockPassword) return;
+    unlocking = true;
+    unlockError = null;
+
+    const response = await sendMessage<boolean>({
+      type: 'UNLOCK',
+      password: unlockPassword,
+    });
+
+    if (response.success && response.data) {
+      identity = identity ? { ...identity, isUnlocked: true } : identity;
+    } else {
+      unlockError = identity?.tier === 'easy'
+        ? 'Passkey auth failed. Try from Options page.'
+        : 'Wrong password';
+    }
+    unlockPassword = '';
+    unlocking = false;
+  }
+
   async function loadCityPulse() {
     pulseLoading = true;
     pulseError = null;
     try {
       pulseData = await getCityPulse();
-      // Load voice counts and initiatives in background after pulse data arrives
+      // Load voice counts, comment counts, and initiatives in background
       loadVoiceCounts();
+      loadCommentCounts();
       loadInitiatives();
     } catch (err) {
       pulseError = err instanceof Error ? err.message : 'Failed to load civic data';
@@ -144,6 +282,128 @@
     if (ids.length > 0) {
       voiceCounts = await getVoiceCountsBatch(ids);
     }
+  }
+
+  async function loadCommentCounts() {
+    if (!pulseData) return;
+    const ids: string[] = [];
+    if (pulseData.upcoming_items) {
+      ids.push(...pulseData.upcoming_items.filter(i => i.comment_eligible).map(i => `agenda-item:${i.id}`));
+    }
+    if (ids.length > 0) {
+      commentCounts = await getCommentCountsBatch(ids);
+    }
+  }
+
+  async function toggleCommentThread(entityId: string) {
+    if (openThreads.has(entityId)) {
+      openThreads.delete(entityId);
+      openThreads = new Set(openThreads);
+      return;
+    }
+    openThreads.add(entityId);
+    openThreads = new Set(openThreads);
+
+    // Fetch comments and synthesis if not already loaded
+    if (!threadComments.has(entityId)) {
+      threadLoading.add(entityId);
+      threadLoading = new Set(threadLoading);
+      try {
+        const [comments, synth] = await Promise.all([
+          getComments(entityId),
+          getCommentSynthesis(entityId),
+        ]);
+        threadComments.set(entityId, comments);
+        threadComments = new Map(threadComments);
+        if (synth) {
+          synthData.set(entityId, synth);
+          synthData = new Map(synthData);
+        }
+      } catch {
+        threadErrors.set(entityId, 'Failed to load comments');
+        threadErrors = new Map(threadErrors);
+      }
+      threadLoading.delete(entityId);
+      threadLoading = new Set(threadLoading);
+    }
+  }
+
+  async function handleSubmitComment(entityId: string) {
+    const draft = (threadDrafts.get(entityId) || '').trim();
+    if (!draft || !identity?.isUnlocked) return;
+
+    threadSubmitting.add(entityId);
+    threadSubmitting = new Set(threadSubmitting);
+    threadErrors.delete(entityId);
+    threadErrors = new Map(threadErrors);
+
+    try {
+      const createdAt = Math.floor(Date.now() / 1000);
+      const content = `civicos:comment:v1:${entityId}:${createdAt}`;
+      const unsigned: NostrEvent = {
+        created_at: createdAt,
+        kind: 30803,
+        tags: [['d', `comment:${entityId}`], ['entity', entityId]],
+        content,
+      };
+
+      const signResult = await sendMessage<SignedNostrEvent>({ type: 'SIGN_EVENT', event: unsigned });
+      if (!signResult.success) {
+        threadErrors.set(entityId, 'Signing failed');
+        threadErrors = new Map(threadErrors);
+        threadSubmitting.delete(entityId);
+        threadSubmitting = new Set(threadSubmitting);
+        return;
+      }
+
+      // Determine stance from user's current voice on this entity
+      const userStance = userStances.get(entityId);
+
+      const ok = await submitComment(
+        entityId,
+        draft,
+        signResult.data.pubkey,
+        signResult.data.sig,
+        createdAt,
+        'city-san-rafael',
+        userStance
+      );
+
+      if (ok) {
+        // Add comment to thread optimistically
+        const newComment: Comment = {
+          entity: entityId,
+          comment_text: draft,
+          public_key: signResult.data.pubkey,
+          signature: signResult.data.sig,
+          timestamp: new Date().toISOString(),
+          jurisdiction: 'city-san-rafael',
+          stance: userStance,
+          deleted: false,
+        };
+        const existing = threadComments.get(entityId) || [];
+        threadComments.set(entityId, [newComment, ...existing]);
+        threadComments = new Map(threadComments);
+
+        // Update count
+        const prevCount = commentCounts.get(entityId) || 0;
+        commentCounts.set(entityId, prevCount + 1);
+        commentCounts = new Map(commentCounts);
+
+        // Clear draft
+        threadDrafts.delete(entityId);
+        threadDrafts = new Map(threadDrafts);
+      } else {
+        threadErrors.set(entityId, 'Failed to submit comment');
+        threadErrors = new Map(threadErrors);
+      }
+    } catch {
+      threadErrors.set(entityId, 'Error submitting comment');
+      threadErrors = new Map(threadErrors);
+    }
+
+    threadSubmitting.delete(entityId);
+    threadSubmitting = new Set(threadSubmitting);
   }
 
   async function toggleDecisionDetail(title: string) {
@@ -215,6 +475,33 @@
     calendarOpen = calendarOpen === meetingTitle ? null : meetingTitle;
   }
 
+  // Calendar helpers for committed actions with deadlines
+  function actionGoogleCalendarUrl(meta: { action_type: string; description: string; deadline?: string }): string {
+    if (!meta.deadline) return '#';
+    const start = new Date(meta.deadline);
+    const end = new Date(start.getTime() + 1 * 60 * 60 * 1000);
+    const fmt = (d: Date) => d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+    const label = actionTypeLabel(meta.action_type);
+    return `https://www.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(`${label}: ${meta.description}`)}&dates=${fmt(start)}/${fmt(end)}`;
+  }
+
+  function downloadActionIcs(meta: { action_type: string; description: string; deadline?: string }) {
+    if (!meta.deadline) return;
+    const start = new Date(meta.deadline);
+    const end = new Date(start.getTime() + 1 * 60 * 60 * 1000);
+    const fmt = (d: Date) => d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+    const label = actionTypeLabel(meta.action_type);
+    const summary = `${label}: ${meta.description}`.slice(0, 100);
+    const ics = `BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//CivicOS//Action Calendar//EN\nBEGIN:VEVENT\nDTSTAMP:${fmt(new Date())}\nDTSTART:${fmt(start)}\nDTEND:${fmt(end)}\nSUMMARY:${summary}\nDESCRIPTION:${meta.description}\nEND:VEVENT\nEND:VCALENDAR`;
+    const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `civicos-action-${meta.action_type}.ics`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   // === Issue Map ===
 
   const ISSUE_COLORS: Record<string, string> = {
@@ -225,7 +512,7 @@
     'Street Light': '#eab308',
     'Tree': '#22c55e',
     'Traffic': '#f97316',
-    'Other': '#64748b',
+    'Other': '#6b7280',
   };
 
   function getIssueColor(type: string): string {
@@ -302,8 +589,8 @@
   // === Budget Chart ===
 
   const BUDGET_COLORS = [
-    '#6366f1', '#ec4899', '#14b8a6', '#f59e0b', '#ef4444',
-    '#8b5cf6', '#22c55e', '#3b82f6', '#f97316', '#64748b',
+    '#3b82f6', '#ec4899', '#14b8a6', '#f59e0b', '#ef4444',
+    '#8b5cf6', '#22c55e', '#3b82f6', '#f97316', '#6b7280',
     '#a855f7', '#06b6d4', '#84cc16', '#e11d48',
   ];
 
@@ -573,10 +860,20 @@
       };
 
       const signResult = await sendMessage<SignedNostrEvent>({ type: 'SIGN_EVENT', event: unsigned });
-      if (!signResult.success) throw new Error('Signing failed');
+      if (!signResult.success) {
+        showToast(`Signing failed: ${(signResult as { error?: string }).error || 'unknown error'}`);
+        actionInProgress.delete(action.id);
+        actionInProgress = new Set(actionInProgress);
+        return;
+      }
 
       const ok = await commitToCivicAction(action.id, signResult.data.pubkey, signResult.data.sig, createdAt, jurisdiction);
-      if (!ok) throw new Error('Relay submission failed');
+      if (!ok) {
+        showToast('Failed to commit. Relay may be unreachable.');
+        actionInProgress.delete(action.id);
+        actionInProgress = new Set(actionInProgress);
+        return;
+      }
 
       // Optimistic update
       committedActions.add(action.id);
@@ -591,8 +888,9 @@
         actionProgress.set(action.id, { ...prev, commitment_count: prev.commitment_count + 1 });
         actionProgress = new Map(actionProgress);
       }
-    } catch {
-      // No rollback needed — commitment wasn't added on failure
+      showToast('Committed!');
+    } catch (err) {
+      showToast(`Error: ${err instanceof Error ? err.message : 'unknown'}`);
     }
 
     actionInProgress.delete(action.id);
@@ -617,10 +915,20 @@
       };
 
       const signResult = await sendMessage<SignedNostrEvent>({ type: 'SIGN_EVENT', event: unsigned });
-      if (!signResult.success) throw new Error('Signing failed');
+      if (!signResult.success) {
+        showToast(`Signing failed: ${(signResult as { error?: string }).error || 'unknown error'}`);
+        actionInProgress.delete(action.id);
+        actionInProgress = new Set(actionInProgress);
+        return;
+      }
 
       const ok = await completeCivicAction(action.id, signResult.data.pubkey, signResult.data.sig, createdAt, jurisdiction);
-      if (!ok) throw new Error('Relay submission failed');
+      if (!ok) {
+        showToast('Failed to mark action complete. Relay may be unreachable.');
+        actionInProgress.delete(action.id);
+        actionInProgress = new Set(actionInProgress);
+        return;
+      }
 
       completedActions.add(action.id);
       completedActions = new Set(completedActions);
@@ -631,8 +939,9 @@
         actionProgress.set(action.id, { ...prev, completion_count: prev.completion_count + 1 });
         actionProgress = new Map(actionProgress);
       }
-    } catch {
-      // No rollback needed
+      showToast('Marked complete!');
+    } catch (err) {
+      showToast(`Error: ${err instanceof Error ? err.message : 'unknown'}`);
     }
 
     actionInProgress.delete(action.id);
@@ -656,13 +965,25 @@
       };
 
       const signResult = await sendMessage<SignedNostrEvent>({ type: 'SIGN_EVENT', event: unsigned });
-      if (!signResult.success) throw new Error('Signing failed');
+      if (!signResult.success) {
+        showToast(`Signing failed: ${(signResult as { error?: string }).error || 'unknown error'}`);
+        actionInProgress.delete(action.id);
+        actionInProgress = new Set(actionInProgress);
+        return;
+      }
 
       const ok = await withdrawCivicAction(action.id, signResult.data.pubkey, signResult.data.sig, createdAt);
-      if (!ok) throw new Error('Relay submission failed');
+      if (!ok) {
+        showToast('Failed to withdraw. Relay may be unreachable.');
+        actionInProgress.delete(action.id);
+        actionInProgress = new Set(actionInProgress);
+        return;
+      }
 
       committedActions.delete(action.id);
       committedActions = new Set(committedActions);
+      committedActionMeta.delete(action.id);
+      committedActionMeta = new Map(committedActionMeta);
       persistCommitments();
 
       const prev = actionProgress.get(action.id);
@@ -670,8 +991,9 @@
         actionProgress.set(action.id, { ...prev, commitment_count: Math.max(0, prev.commitment_count - 1) });
         actionProgress = new Map(actionProgress);
       }
-    } catch {
-      // No rollback needed
+      showToast('Withdrawn');
+    } catch (err) {
+      showToast(`Error: ${err instanceof Error ? err.message : 'unknown'}`);
     }
 
     actionInProgress.delete(action.id);
@@ -716,26 +1038,31 @@
 
   async function handleCreateInitiative() {
     if (creatingInitiative || !identity?.isUnlocked) return;
-    if (!newInitiative.topic.trim() || !newInitiative.title.trim() || !newInitiative.description.trim()) return;
+    const topic = effectiveTopic();
+    if (!topic || !newInitiative.title.trim() || !newInitiative.description.trim()) return;
 
     creatingInitiative = true;
     try {
       const jurisdiction = pulseData?.jurisdiction || 'city-san-rafael';
       const createdAt = Math.floor(Date.now() / 1000);
-      const content = `civicos:initiative:v1:${jurisdiction}:${newInitiative.topic}:${createdAt}`;
+      const content = `civicos:initiative:v1:${jurisdiction}:${topic}:${createdAt}`;
       const unsigned: NostrEvent = {
         created_at: createdAt,
-        kind: 30800, // Use voice kind for initiative signing
-        tags: [['d', `initiative:${jurisdiction}:${newInitiative.topic}`], ['j', jurisdiction]],
+        kind: 30800,
+        tags: [['d', `initiative:${jurisdiction}:${topic}`], ['j', jurisdiction]],
         content,
       };
 
       const signResult = await sendMessage<SignedNostrEvent>({ type: 'SIGN_EVENT', event: unsigned });
-      if (!signResult.success) throw new Error('Signing failed');
+      if (!signResult.success) {
+        showToast(`Signing failed: ${(signResult as { error?: string }).error || 'unknown error'}`);
+        creatingInitiative = false;
+        return;
+      }
 
       const created = await createInitiative(
         jurisdiction,
-        newInitiative.topic.trim(),
+        topic,
         newInitiative.title.trim(),
         newInitiative.description.trim(),
         signResult.data.pubkey,
@@ -747,9 +1074,13 @@
         initiatives = [created, ...initiatives];
         showCreateInitiative = false;
         newInitiative = { topic: '', title: '', description: '', coordination_url: '' };
+        customTopic = '';
+        showToast('Initiative created!');
+      } else {
+        showToast('Failed to create initiative. Relay may be unreachable.');
       }
-    } catch {
-      // Show nothing — form stays open for retry
+    } catch (err) {
+      showToast(`Error: ${err instanceof Error ? err.message : 'unknown'}`);
     }
     creatingInitiative = false;
   }
@@ -770,7 +1101,11 @@
       };
 
       const signResult = await sendMessage<SignedNostrEvent>({ type: 'SIGN_EVENT', event: unsigned });
-      if (!signResult.success) throw new Error('Signing failed');
+      if (!signResult.success) {
+        showToast(`Signing failed: ${(signResult as { error?: string }).error || 'unknown error'}`);
+        creatingAction = false;
+        return;
+      }
 
       const created = await createCivicAction(
         initiativeId,
@@ -780,17 +1115,22 @@
         signResult.data.sig,
         newAction.target.trim() || undefined,
         newAction.deadline || undefined,
-        undefined
+        newAction.targetCount ?? undefined,
+        newAction.template.trim() || undefined,
+        newAction.deadlineContext.trim() || undefined
       );
       if (created) {
         const existing = initiativeActions.get(initiativeId) || [];
         initiativeActions.set(initiativeId, [...existing, created]);
         initiativeActions = new Map(initiativeActions);
         showCreateAction = null;
-        newAction = { action_type: 'written_comment', description: '', target: '', deadline: '' };
+        newAction = { action_type: 'written_comment', description: '', target: '', deadline: '', template: '', deadlineContext: '', targetCount: null };
+        showToast('Action created!');
+      } else {
+        showToast('Failed to create action. Relay may be unreachable.');
       }
-    } catch {
-      // Form stays open for retry
+    } catch (err) {
+      showToast(`Error: ${err instanceof Error ? err.message : 'unknown'}`);
     }
     creatingAction = false;
   }
@@ -1014,9 +1354,15 @@
         <span class="tier-badge" class:easy={identity.tier === 'easy'} class:private={identity.tier === 'private'}>
           {identity.tier}
         </span>
-        <span class="lock-status" class:unlocked={identity.isUnlocked}>
-          {identity.isUnlocked ? 'unlocked' : 'locked'}
-        </span>
+        {#if identity.isUnlocked}
+          <span class="lock-status unlocked">unlocked</span>
+        {:else if identity.tier === 'easy'}
+          <button class="lock-status lock-btn" onclick={handleUnlock} disabled={unlocking}>
+            {unlocking ? 'unlocking...' : 'locked — tap to unlock'}
+          </button>
+        {:else}
+          <span class="lock-status">locked</span>
+        {/if}
       </div>
       <div class="npub">{truncateNpub(identity.npub)}</div>
     </div>
@@ -1159,6 +1505,102 @@
                     {/if}
                   </div>
                 {/if}
+                <!-- Comment Thread -->
+                {#if item.comment_eligible}
+                  {@const commentEntityId = `agenda-item:${item.id}`}
+                  <div class="comment-section">
+                    <button class="comment-toggle" onclick={() => toggleCommentThread(commentEntityId)}>
+                      <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M2 3h12v7H5l-3 3V3z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>
+                      {commentCounts.get(commentEntityId) || 0} comments
+                      <span class="chevron-sm" class:open={openThreads.has(commentEntityId)}></span>
+                    </button>
+                    {#if openThreads.has(commentEntityId)}
+                      <div class="comment-thread">
+                        {#if threadLoading.has(commentEntityId)}
+                          <div class="thread-loading">Loading comments...</div>
+                        {:else}
+                          <!-- Synthesis bar -->
+                          {#if synthData.has(commentEntityId)}
+                            {@const synth = synthData.get(commentEntityId)!}
+                            {#if synth.total > 0}
+                              <div class="synthesis-bar-wrapper">
+                                <div class="synthesis-bar">
+                                  {#if synth.support > 0}
+                                    <div class="bar-seg bar-support" style="width: {(synth.support / synth.total) * 100}%" title="{synth.support} support"></div>
+                                  {/if}
+                                  {#if synth.oppose > 0}
+                                    <div class="bar-seg bar-oppose" style="width: {(synth.oppose / synth.total) * 100}%" title="{synth.oppose} oppose"></div>
+                                  {/if}
+                                  {#if synth.neutral > 0}
+                                    <div class="bar-seg bar-neutral" style="width: {(synth.neutral / synth.total) * 100}%" title="{synth.neutral} neutral"></div>
+                                  {/if}
+                                </div>
+                                <div class="synthesis-labels">
+                                  {#if synth.support > 0}<span class="synth-label synth-support">{synth.support} support</span>{/if}
+                                  {#if synth.oppose > 0}<span class="synth-label synth-oppose">{synth.oppose} oppose</span>{/if}
+                                  {#if synth.neutral > 0}<span class="synth-label synth-neutral">{synth.neutral} neutral</span>{/if}
+                                </div>
+                              </div>
+                            {/if}
+                          {/if}
+
+                          <!-- Comment list -->
+                          {#if (threadComments.get(commentEntityId) || []).length > 0}
+                            <div class="thread-list">
+                              {#each (threadComments.get(commentEntityId) || []) as comment}
+                                <div class="thread-comment" class:stance-support={comment.stance === 'support'} class:stance-oppose={comment.stance === 'oppose'}>
+                                  <div class="thread-comment-meta">
+                                    <span class="thread-author">{identity?.publicKey && comment.public_key === identity.publicKey ? 'You' : comment.public_key.slice(0, 8) + '...'}</span>
+                                    {#if comment.stance}
+                                      <span class="thread-stance" class:support={comment.stance === 'support'} class:oppose={comment.stance === 'oppose'}>{comment.stance}</span>
+                                    {/if}
+                                    <span class="thread-time">{new Date(comment.timestamp).toLocaleDateString()}</span>
+                                  </div>
+                                  <div class="thread-text">{comment.comment_text}</div>
+                                </div>
+                              {/each}
+                            </div>
+                          {:else}
+                            <div class="thread-empty">No comments yet. Be the first!</div>
+                          {/if}
+
+                          <!-- Compose area -->
+                          {#if identity?.isUnlocked}
+                            <div class="thread-compose">
+                              <textarea
+                                class="thread-textarea"
+                                placeholder="Add a comment..."
+                                rows={2}
+                                maxlength={500}
+                                value={threadDrafts.get(commentEntityId) || ''}
+                                oninput={(e: Event) => { threadDrafts.set(commentEntityId, (e.target as HTMLTextAreaElement).value); threadDrafts = new Map(threadDrafts); }}
+                              ></textarea>
+                              <div class="thread-compose-footer">
+                                <span class="ini-char-count" class:near-limit={(threadDrafts.get(commentEntityId) || '').length > 400}>
+                                  {(threadDrafts.get(commentEntityId) || '').length}/500
+                                </span>
+                                <button
+                                  class="thread-submit"
+                                  disabled={!(threadDrafts.get(commentEntityId) || '').trim() || threadSubmitting.has(commentEntityId)}
+                                  onclick={() => handleSubmitComment(commentEntityId)}
+                                >
+                                  {threadSubmitting.has(commentEntityId) ? 'Posting...' : 'Post'}
+                                </button>
+                              </div>
+                            </div>
+                          {:else if identity}
+                            <div class="thread-locked">Unlock to comment</div>
+                          {/if}
+
+                          {#if threadErrors.has(commentEntityId)}
+                            <div class="thread-error">{threadErrors.get(commentEntityId)}</div>
+                          {/if}
+                        {/if}
+                      </div>
+                    {/if}
+                  </div>
+                {/if}
+
                 <button class="ask-ai-btn" onclick={() => askAI(composeAgendaContext(item))}>
                   Ask AI about this
                 </button>
@@ -1296,118 +1738,154 @@
     </section>
 
     <!-- Community Initiatives -->
-    <section class="feed-section">
+    <section class="feed-section ini">
       <div class="section-header-row">
         <button class="section-header" onclick={() => toggle('initiatives')}>
           <span class="section-title">
             Community Initiatives
             {#if initiatives.length > 0}
-              <span class="count-badge">{initiatives.length}</span>
+              <span class="ini-count">{initiatives.length}</span>
             {/if}
           </span>
           <span class="chevron" class:open={expanded.initiatives}></span>
         </button>
         {#if expanded.initiatives}
-          <button
-            class="add-btn"
-            title="Start initiative"
-            onclick={() => { showCreateInitiative = !showCreateInitiative; }}
-          >+</button>
+          <button class="ini-add-btn" title="Start initiative" onclick={() => { showCreateInitiative = !showCreateInitiative; }}>
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+          </button>
         {/if}
       </div>
       {#if expanded.initiatives}
         <!-- Create initiative form -->
         {#if showCreateInitiative}
-          <div class="create-form">
-            {#if !identity?.isUnlocked}
-              <div class="form-hint">Set up identity in Options to sign initiatives.</div>
+          <div class="ini-form">
+            <div class="ini-form-title">Start a Community Initiative</div>
+
+            {#if !identity}
+              <div class="ini-hint">Set up identity in <button class="link-btn" onclick={openOptions}>Options</button> to sign initiatives.</div>
+            {:else if !identity.isUnlocked}
+              <div class="unlock-inline">
+                {#if identity.tier === 'private'}
+                  <form class="unlock-row" onsubmit={(e: Event) => { e.preventDefault(); handleUnlock(); }}>
+                    <input type="password" class="ini-input" placeholder="Password to unlock" bind:value={unlockPassword} autocomplete="off" />
+                    <button type="submit" class="ini-btn-primary" disabled={unlocking || !unlockPassword}>{unlocking ? 'Unlocking...' : 'Unlock'}</button>
+                  </form>
+                {:else}
+                  <button class="ini-btn-primary" onclick={handleUnlock} disabled={unlocking}>{unlocking ? 'Authenticating...' : 'Unlock with Passkey'}</button>
+                {/if}
+                {#if unlockError}
+                  <div class="ini-error">{unlockError}</div>
+                {/if}
+              </div>
             {/if}
-            <input class="form-input" type="text" placeholder="Topic (e.g. traffic safety)" bind:value={newInitiative.topic} />
-            <input class="form-input" type="text" placeholder="Title" bind:value={newInitiative.title} />
-            <textarea class="form-textarea" placeholder="Description" bind:value={newInitiative.description} rows="2"></textarea>
-            <input class="form-input" type="url" placeholder="Coordination URL (optional)" bind:value={newInitiative.coordination_url} />
-            <div class="form-actions">
-              <button class="action-btn btn-commit" disabled={!identity?.isUnlocked || creatingInitiative || !newInitiative.topic.trim() || !newInitiative.title.trim() || !newInitiative.description.trim()} onclick={handleCreateInitiative}>
+
+            <label class="ini-field-label">
+              Topic
+              <div class="ini-topic-chips">
+                {#each INITIATIVE_TOPICS as t}
+                  <button class="ini-chip" class:active={newInitiative.topic === t} onclick={() => selectTopic(t)}>{t}</button>
+                {/each}
+                <button class="ini-chip" class:active={newInitiative.topic === '__custom__'} onclick={selectCustomTopic}>Other...</button>
+              </div>
+              {#if newInitiative.topic === '__custom__'}
+                <input type="text" class="ini-input" placeholder="Enter topic" maxlength={50} bind:value={customTopic} />
+              {/if}
+            </label>
+
+            <label class="ini-field-label">
+              Title
+              <input type="text" class="ini-input" placeholder="e.g., Safer crosswalks on 4th Street" maxlength={100} bind:value={newInitiative.title} />
+              <span class="ini-char-hint">{newInitiative.title.length}/100</span>
+            </label>
+
+            <label class="ini-field-label">
+              Description
+              <textarea class="ini-textarea" placeholder="What's the issue? What outcome do you want?" maxlength={1000} rows={3} bind:value={newInitiative.description}></textarea>
+              <span class="ini-char-hint">{newInitiative.description.length}/1000</span>
+            </label>
+
+            <label class="ini-field-label">
+              Coordination Channel <span class="ini-optional">(optional)</span>
+              <input type="url" class="ini-input" placeholder="Signal, SimpleX, Matrix, or Discord link" bind:value={newInitiative.coordination_url} />
+            </label>
+
+            <div class="ini-form-actions">
+              <button class="ini-btn-cancel" onclick={() => { showCreateInitiative = false; }}>Cancel</button>
+              <button class="ini-btn-primary" disabled={!identity?.isUnlocked || creatingInitiative || !effectiveTopic() || !newInitiative.title.trim() || !newInitiative.description.trim()} onclick={handleCreateInitiative}>
                 {creatingInitiative ? 'Creating...' : 'Create Initiative'}
               </button>
-              <button class="action-btn btn-withdraw" onclick={() => { showCreateInitiative = false; }}>Cancel</button>
             </div>
           </div>
         {/if}
 
         <div class="section-body">
           {#if initiativesLoading && initiatives.length === 0}
-            <div class="empty-section">Loading initiatives...</div>
+            <div class="ini-empty">Loading initiatives...</div>
           {:else if initiatives.length === 0 && !showCreateInitiative}
-            <div class="empty-section">
-              No active initiatives
-              <button class="link-btn" onclick={() => { showCreateInitiative = true; }}>Start one</button>
+            <div class="ini-empty">
+              No active initiatives yet.
+              <button class="ini-start-link" onclick={() => { showCreateInitiative = true; }}>Start one</button>
             </div>
           {:else}
             {#each initiatives as initiative}
-              <div class="card initiative-card" class:expanded-card={expandedInitiatives.has(initiative.id)}>
-                <button class="initiative-toggle" onclick={() => toggleInitiativeDetail(initiative.id)}>
-                  <div class="initiative-header">
-                    <span class="initiative-topic">{initiative.topic}</span>
-                    {#if initiative.voice_count > 0}
-                      <span class="voice-inline">{initiative.voice_count} voices</span>
-                    {/if}
+              <div class="ini-card" class:ini-card-expanded={expandedInitiatives.has(initiative.id)}>
+                <button class="ini-card-toggle" onclick={() => toggleInitiativeDetail(initiative.id)}>
+                  <div class="ini-card-top">
+                    <span class="ini-topic-pill">{initiative.topic}</span>
+                    <div class="ini-card-badges">
+                      {#if initiative.voice_count > 0}
+                        <span class="ini-voice-badge">{initiative.voice_count} voices</span>
+                      {/if}
+                      <span class="ini-status-badge" class:active={initiative.status === 'active'}>{initiative.status}</span>
+                    </div>
                   </div>
-                  <div class="card-title">{initiative.title}</div>
-                  <div class="card-desc">{initiative.description}</div>
-                  <div class="card-meta">
-                    <span class="initiative-status">{initiative.status}</span>
-                    {#if initiative.coordination_url}
-                      <span class="meta-sep">&middot;</span>
-                      <span class="coord-link-label">coordination channel</span>
-                    {/if}
-                    <span class="expand-chevron" class:open={expandedInitiatives.has(initiative.id)}></span>
-                  </div>
+                  <div class="ini-card-title">{initiative.title}</div>
+                  <div class="ini-card-desc">{initiative.description}</div>
+                  {#if initiative.coordination_url}
+                    <div class="ini-card-coord">Has coordination channel</div>
+                  {/if}
                 </button>
 
                 {#if expandedInitiatives.has(initiative.id)}
-                  <div class="initiative-detail">
+                  <div class="ini-detail">
                     {#if initiative.coordination_url}
-                      <a href={initiative.coordination_url} target="_blank" rel="noopener" class="coord-link">
+                      <a href={initiative.coordination_url} target="_blank" rel="noopener" class="ini-coord-link">
+                        <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M6 3H3v10h10v-3M9 2h5v5M14 2L7 9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
                         Join coordination channel
                       </a>
                     {/if}
 
                     {#if actionsLoading.has(initiative.id)}
-                      <div class="detail-loading">Loading actions...</div>
+                      <div class="ini-detail-msg">Loading actions...</div>
                     {:else if initiativeActions.has(initiative.id)}
                       {@const actions = initiativeActions.get(initiative.id)!}
                       {#if actions.length === 0 && showCreateAction !== initiative.id}
-                        <div class="detail-empty">No civic actions defined yet</div>
+                        <div class="ini-detail-msg">No civic actions defined yet</div>
                       {/if}
                       {#if actions.length > 0}
-                        <div class="detail-label">Civic Actions</div>
+                        <div class="ini-detail-label">Civic Actions</div>
                         {#each actions as action}
-                          <div class="action-card">
-                            <div class="action-header">
-                              <span class="action-type-badge">{actionTypeLabel(action.action_type)}</span>
+                          <div class="ini-action">
+                            <div class="ini-action-top">
+                              <span class="ini-action-type">{actionTypeLabel(action.action_type)}</span>
                               {#if action.deadline}
-                                <span class="deadline-badge {deadlineClass(action.deadline)}">
+                                <span class="ini-deadline {deadlineClass(action.deadline)}">
                                   {deadlineLabel(action.deadline)}
                                 </span>
                               {/if}
                             </div>
-                            <div class="action-desc">{action.description}</div>
+                            <div class="ini-action-desc">{action.description}</div>
                             {#if action.target}
-                              <div class="action-target">Target: {action.target}</div>
+                              <div class="ini-action-target">Target: {action.target}</div>
                             {/if}
 
-                            <!-- Progress bar -->
                             {#if actionProgress.has(action.id)}
                               {@const progress = actionProgress.get(action.id)!}
-                              <div class="progress-row">
-                                <div class="progress-bar">
-                                  <div
-                                    class="progress-fill"
-                                    style="width: {progress.progress_percent ?? 0}%"
-                                  ></div>
+                              <div class="ini-progress">
+                                <div class="ini-progress-bar">
+                                  <div class="ini-progress-fill" style="width: {progress.progress_percent ?? 0}%"></div>
                                 </div>
-                                <span class="progress-text">
+                                <span class="ini-progress-text">
                                   {progress.completion_count}/{progress.target_count ?? '?'}
                                   {#if progress.commitment_count > 0}
                                     ({progress.commitment_count} committed)
@@ -1416,64 +1894,102 @@
                               </div>
                             {/if}
 
-                            <!-- Action buttons -->
-                            <div class="action-buttons">
+                            <div class="ini-action-btns">
                               {#if identity?.isUnlocked}
                                 {#if completedActions.has(action.id)}
-                                  <span class="action-done">Completed</span>
+                                  <span class="ini-completed-label">Completed</span>
                                 {:else if committedActions.has(action.id)}
-                                  <button
-                                    class="action-btn btn-complete"
-                                    disabled={actionInProgress.has(action.id)}
-                                    onclick={() => handleComplete(action)}
-                                  >Mark Done</button>
-                                  <button
-                                    class="action-btn btn-withdraw"
-                                    disabled={actionInProgress.has(action.id)}
-                                    onclick={() => handleWithdraw(action)}
-                                  >Withdraw</button>
+                                  <button class="ini-btn-primary ini-btn-sm" disabled={actionInProgress.has(action.id)} onclick={() => handleComplete(action)}>Mark Done</button>
+                                  <button class="ini-btn-cancel ini-btn-sm" disabled={actionInProgress.has(action.id)} onclick={() => handleWithdraw(action)}>Withdraw</button>
                                 {:else}
-                                  <button
-                                    class="action-btn btn-commit"
-                                    disabled={actionInProgress.has(action.id)}
-                                    onclick={() => handleCommit(action)}
-                                  >Commit</button>
+                                  <button class="ini-btn-primary ini-btn-sm" disabled={actionInProgress.has(action.id)} onclick={() => handleCommit(action)}>Commit</button>
                                 {/if}
                               {:else if identity}
-                                <span class="voice-locked">Unlock to participate</span>
+                                <span class="ini-locked-hint">Unlock to participate</span>
                               {/if}
                             </div>
                           </div>
                         {/each}
                       {/if}
-                      <!-- Add Action button -->
-                      {#if identity?.isUnlocked}
-                        {#if showCreateAction === initiative.id}
-                          <div class="create-form action-create-form">
-                            <select class="form-input" bind:value={newAction.action_type}>
-                              <option value="written_comment">Write Comment</option>
-                              <option value="attend_meeting">Attend Meeting</option>
-                              <option value="public_comment">Public Comment</option>
-                              <option value="contact_official">Contact Official</option>
-                              <option value="signature">Sign Petition</option>
-                              <option value="share">Share</option>
-                              <option value="custom">Custom</option>
-                            </select>
-                            <input class="form-input" type="text" placeholder="What needs to be done?" bind:value={newAction.description} />
-                            <input class="form-input" type="text" placeholder="Target (optional, e.g. City Council)" bind:value={newAction.target} />
-                            <input class="form-input" type="date" placeholder="Deadline" bind:value={newAction.deadline} />
-                            <div class="form-actions">
-                              <button class="action-btn btn-commit" disabled={creatingAction || !newAction.description.trim()} onclick={() => handleCreateAction(initiative.id)}>
-                                {creatingAction ? 'Adding...' : 'Add Action'}
-                              </button>
-                              <button class="action-btn btn-withdraw" onclick={() => { showCreateAction = null; }}>Cancel</button>
+                      <!-- Add Action -->
+                      {#if showCreateAction === initiative.id}
+                        {@const actionConfig = ACTION_TYPE_CONFIG[newAction.action_type] || DEFAULT_ACTION_CONFIG}
+                        <div class="ini-form ini-action-form">
+                          {#if identity && !identity.isUnlocked}
+                            <div class="unlock-inline">
+                              {#if identity.tier === 'private'}
+                                <form class="unlock-row" onsubmit={(e: Event) => { e.preventDefault(); handleUnlock(); }}>
+                                  <input type="password" class="ini-input" placeholder="Password to unlock" bind:value={unlockPassword} autocomplete="off" />
+                                  <button type="submit" class="ini-btn-primary ini-btn-sm" disabled={unlocking || !unlockPassword}>{unlocking ? 'Unlocking...' : 'Unlock'}</button>
+                                </form>
+                              {:else}
+                                <button class="ini-btn-primary ini-btn-sm" onclick={handleUnlock} disabled={unlocking}>{unlocking ? 'Authenticating...' : 'Unlock with Passkey'}</button>
+                              {/if}
+                              {#if unlockError}
+                                <div class="ini-error">{unlockError}</div>
+                              {/if}
                             </div>
+                          {/if}
+                          <select class="ini-input" bind:value={newAction.action_type}>
+                            <option value="written_comment">Write Comment</option>
+                            <option value="attend_meeting">Attend Meeting</option>
+                            <option value="public_comment">Public Comment</option>
+                            <option value="contact_official">Contact Official</option>
+                            <option value="signature">Sign Petition</option>
+                            <option value="share">Share</option>
+                            <option value="custom">Custom</option>
+                          </select>
+                          <label class="ini-field-label">Description
+                            <div class="ini-field">
+                              <textarea class="ini-input ini-textarea" placeholder={actionConfig.descPlaceholder} maxlength={500} rows={2} bind:value={newAction.description}></textarea>
+                              <span class="ini-char-count" class:near-limit={newAction.description.length > 400}>{newAction.description.length}/500</span>
+                            </div>
+                          </label>
+                          <label class="ini-field-label">{actionConfig.targetLabel}
+                            <div class="ini-field">
+                              <input class="ini-input" type="text" placeholder={actionConfig.targetPlaceholder} bind:value={newAction.target} />
+                            </div>
+                          </label>
+                          {#if actionConfig.showTemplate}
+                            <label class="ini-field-label">{actionConfig.templateLabel}
+                              <div class="ini-field">
+                                <textarea class="ini-input ini-textarea" placeholder={actionConfig.templatePlaceholder} maxlength={2000} rows={3} bind:value={newAction.template}></textarea>
+                                <span class="ini-char-count" class:near-limit={newAction.template.length > 1600}>{newAction.template.length}/2000</span>
+                              </div>
+                            </label>
+                          {/if}
+                          <label class="ini-field-label">{actionConfig.deadlineLabel}
+                            <div class="ini-field">
+                              <input class="ini-input" type="date" bind:value={newAction.deadline} />
+                            </div>
+                          </label>
+                          {#if newAction.deadline}
+                            <label class="ini-field-label">Context
+                              <div class="ini-field">
+                                <input class="ini-input" type="text" placeholder={actionConfig.deadlineContextPlaceholder} maxlength={200} bind:value={newAction.deadlineContext} />
+                                <span class="ini-char-count" class:near-limit={newAction.deadlineContext.length > 160}>{newAction.deadlineContext.length}/200</span>
+                              </div>
+                            </label>
+                          {/if}
+                          {#if newAction.action_type === 'signature'}
+                            <div class="ini-field">
+                              <label class="ini-field-label">Signature goal
+                                <input class="ini-input" type="number" placeholder="e.g., 500" min={1} bind:value={newAction.targetCount} />
+                              </label>
+                            </div>
+                          {/if}
+                          <div class="ini-form-actions">
+                            <button class="ini-btn-cancel ini-btn-sm" onclick={() => { showCreateAction = null; }}>Cancel</button>
+                            <button class="ini-btn-primary ini-btn-sm" disabled={!identity?.isUnlocked || creatingAction || !newAction.description.trim()} onclick={() => handleCreateAction(initiative.id)}>
+                              {creatingAction ? 'Adding...' : 'Add Action'}
+                            </button>
                           </div>
-                        {:else}
-                          <button class="add-action-btn" onclick={() => { showCreateAction = initiative.id; }}>
-                            + Add Action
-                          </button>
-                        {/if}
+                        </div>
+                      {:else}
+                        <button class="ini-add-action" onclick={() => { showCreateAction = initiative.id; }}>
+                          <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+                          Add Action
+                        </button>
                       {/if}
                     {/if}
                   </div>
@@ -1507,6 +2023,12 @@
                 {/if}
               </div>
               <div class="action-desc">{meta.description}</div>
+              {#if meta.deadline && !completedActions.has(actionId)}
+                <div class="commitment-cal-row">
+                  <a href={actionGoogleCalendarUrl(meta)} target="_blank" rel="noopener" class="commitment-cal-btn">Google Calendar</a>
+                  <button class="commitment-cal-btn" onclick={() => downloadActionIcs(meta)}>Download .ics</button>
+                </div>
+              {/if}
             </div>
           {/each}
         </div>
@@ -1626,6 +2148,8 @@
     min-height: 100vh;
     font-size: 13px;
     line-height: 1.4;
+    background: #171717;
+    font-family: 'Inter', -apple-system, system-ui, sans-serif;
   }
 
   /* === Header === */
@@ -1635,7 +2159,7 @@
     align-items: center;
     margin-bottom: 12px;
     padding-bottom: 10px;
-    border-bottom: 1px solid #1e293b;
+    border-bottom: 1px solid #374151;
   }
 
   .header-left {
@@ -1647,13 +2171,13 @@
   h1 {
     font-size: 16px;
     font-weight: 700;
-    color: #f8fafc;
+    color: #eee;
     margin: 0;
   }
 
   .jurisdiction {
     font-size: 11px;
-    color: #64748b;
+    color: #6b7280;
   }
 
   .header-actions {
@@ -1664,14 +2188,14 @@
   .icon-btn {
     background: none;
     border: none;
-    color: #94a3b8;
+    color: #9ca3af;
     cursor: pointer;
     padding: 4px;
     border-radius: 4px;
     display: flex;
     align-items: center;
   }
-  .icon-btn:hover { color: #e2e8f0; background: #1e293b; }
+  .icon-btn:hover { color: #eee; background: #333; }
   .icon-btn:disabled { opacity: 0.5; cursor: default; }
 
   .spinning {
@@ -1684,7 +2208,7 @@
 
   /* === Identity Chip === */
   .identity-chip {
-    background: #1e293b;
+    background: #262626;
     border-radius: 8px;
     padding: 10px 12px;
     margin-bottom: 12px;
@@ -1697,7 +2221,7 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    color: #64748b;
+    color: #6b7280;
     font-size: 12px;
   }
 
@@ -1730,28 +2254,52 @@
     color: #ef4444;
   }
   .lock-status.unlocked { color: #22c55e; }
+  .lock-btn {
+    background: none;
+    border: 1px solid #ef4444;
+    border-radius: 4px;
+    cursor: pointer;
+    padding: 1px 6px;
+    font-size: 10px;
+    color: #ef4444;
+  }
+  .lock-btn:hover { background: rgba(239, 68, 68, 0.1); }
+  .lock-btn:disabled { opacity: 0.5; cursor: default; }
+
+  .unlock-inline {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 6px;
+  }
+  .unlock-row {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+  }
+  .unlock-row .form-input { flex: 1; min-width: 0; }
 
   .npub {
     font-family: 'SF Mono', 'Fira Code', monospace;
     font-size: 11px;
-    color: #64748b;
+    color: #6b7280;
   }
 
   .link-btn {
     background: none;
     border: none;
-    color: #6366f1;
+    color: #3b82f6;
     cursor: pointer;
     font-size: 12px;
     text-decoration: underline;
   }
-  .link-btn:hover { color: #818cf8; }
+  .link-btn:hover { color: #60a5fa; }
 
   /* === Loading / Error states === */
   .loading-state {
     text-align: center;
     padding: 40px 16px;
-    color: #94a3b8;
+    color: #9ca3af;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -1761,8 +2309,8 @@
   .pulse-anim {
     width: 32px;
     height: 32px;
-    border: 2px solid #334155;
-    border-top-color: #6366f1;
+    border: 2px solid #374151;
+    border-top-color: #3b82f6;
     border-radius: 50%;
     animation: spin 0.8s linear infinite;
   }
@@ -1770,7 +2318,7 @@
   .error-state {
     text-align: center;
     padding: 32px 16px;
-    color: #94a3b8;
+    color: #9ca3af;
   }
   .error-state .error-icon {
     display: inline-flex;
@@ -1792,15 +2340,15 @@
   }
 
   .btn-retry {
-    background: #1e293b;
-    color: #e2e8f0;
-    border: 1px solid #334155;
+    background: #262626;
+    color: #eee;
+    border: 1px solid #374151;
     padding: 6px 14px;
     border-radius: 6px;
     font-size: 12px;
     cursor: pointer;
   }
-  .btn-retry:hover { background: #334155; }
+  .btn-retry:hover { background: #374151; }
 
   /* === Feed Sections === */
   .feed-section {
@@ -1814,16 +2362,16 @@
     width: 100%;
     background: none;
     border: none;
-    color: #e2e8f0;
+    color: #eee;
     padding: 8px 4px;
     cursor: pointer;
     font-size: 12px;
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    border-bottom: 1px solid #1e293b;
+    border-bottom: 1px solid #374151;
   }
-  .section-header:hover { color: #f8fafc; }
+  .section-header:hover { color: #eee; }
 
   .section-title {
     display: flex;
@@ -1832,10 +2380,10 @@
   }
 
   .count-badge {
-    background: #334155;
-    color: #94a3b8;
+    background: rgba(59, 130, 246, 0.15);
+    color: #60a5fa;
     font-size: 10px;
-    font-weight: 500;
+    font-weight: 600;
     padding: 1px 5px;
     border-radius: 8px;
     text-transform: none;
@@ -1848,7 +2396,7 @@
     height: 0;
     border-left: 4px solid transparent;
     border-right: 4px solid transparent;
-    border-top: 5px solid #64748b;
+    border-top: 5px solid #6b7280;
     transition: transform 0.15s ease;
   }
   .chevron.open { transform: rotate(180deg); }
@@ -1859,22 +2407,28 @@
 
   .empty-section {
     padding: 12px 8px;
-    color: #475569;
+    color: #4b5563;
     font-size: 12px;
     font-style: italic;
   }
 
   /* === Cards === */
   .card {
-    background: #1e293b;
-    border-radius: 6px;
-    padding: 10px 12px;
+    background: #262626;
+    border-radius: 10px;
+    padding: 12px 14px;
     margin-bottom: 6px;
+    border: 1px solid #374151;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+  .card:hover {
+    border-color: #3b82f6;
+    box-shadow: 0 2px 8px rgba(59,130,246,0.1);
   }
 
   .card-title {
-    color: #f1f5f9;
-    font-size: 13px;
+    color: #eee;
+    font-size: 14px;
     font-weight: 500;
     line-height: 1.3;
   }
@@ -1884,15 +2438,15 @@
     align-items: center;
     gap: 4px;
     font-size: 11px;
-    color: #64748b;
+    color: #6b7280;
     margin-top: 4px;
     flex-wrap: wrap;
   }
 
-  .meta-sep { color: #475569; }
+  .meta-sep { color: #4b5563; }
 
   .card-desc {
-    color: #94a3b8;
+    color: #9ca3af;
     font-size: 12px;
     margin-top: 4px;
     display: -webkit-box;
@@ -1907,11 +2461,11 @@
     gap: 6px;
     margin-bottom: 4px;
     font-size: 11px;
-    color: #64748b;
+    color: #6b7280;
   }
 
   .item-number {
-    color: #818cf8;
+    color: #60a5fa;
     font-weight: 600;
   }
 
@@ -1926,8 +2480,8 @@
     font-size: 10px;
     padding: 1px 6px;
     border-radius: 3px;
-    background: #334155;
-    color: #94a3b8;
+    background: #374151;
+    color: #9ca3af;
   }
   .tag-voice { background: #1e3a5f; color: #60a5fa; }
   .tag-comment { background: #1a332e; color: #34d399; }
@@ -1953,7 +2507,7 @@
   }
   .outcome-icon.passed { background: #14532d; color: #4ade80; }
   .outcome-icon.failed { background: #7f1d1d; color: #f87171; }
-  .outcome-icon.other { background: #334155; color: #94a3b8; }
+  .outcome-icon.other { background: #374151; color: #9ca3af; }
 
   .decision-info { flex: 1; min-width: 0; }
 
@@ -1963,7 +2517,7 @@
   }
   .outcome-label.passed { color: #4ade80; }
   .outcome-label.failed { color: #f87171; }
-  .outcome-label.other { color: #94a3b8; }
+  .outcome-label.other { color: #9ca3af; }
 
   /* === Community Issues === */
   .issue-stats {
@@ -1977,10 +2531,10 @@
     padding: 6px 12px;
     font-size: 12px;
   }
-  .issue-type-row:nth-child(odd) { background: #1e293b; border-radius: 4px; }
+  .issue-type-row:nth-child(odd) { background: #262626; border-radius: 4px; }
 
-  .issue-type-name { color: #cbd5e1; }
-  .issue-type-count { color: #64748b; font-variant-numeric: tabular-nums; }
+  .issue-type-name { color: #d1d5db; }
+  .issue-type-count { color: #6b7280; font-variant-numeric: tabular-nums; }
 
   /* === Footer === */
   .pulse-footer {
@@ -1989,24 +2543,24 @@
     align-items: center;
     padding: 12px 4px 4px;
     margin-top: 8px;
-    border-top: 1px solid #1e293b;
+    border-top: 1px solid #374151;
     font-size: 10px;
-    color: #475569;
+    color: #4b5563;
   }
 
   .footer-link {
-    color: #6366f1;
+    color: #3b82f6;
     text-decoration: none;
   }
   .footer-link:hover { text-decoration: underline; }
 
   /* === Provenance Panel === */
   .provenance-panel {
-    background: #1e293b;
+    background: #262626;
     border-radius: 8px;
     padding: 10px 12px;
     margin-bottom: 12px;
-    border: 1px solid #334155;
+    border: 1px solid #374151;
   }
   .prov-header {
     display: flex;
@@ -2017,21 +2571,21 @@
   .prov-title {
     font-size: 12px;
     font-weight: 600;
-    color: #e2e8f0;
+    color: #eee;
   }
   .prov-jurisdiction {
     font-size: 10px;
-    color: #64748b;
+    color: #6b7280;
   }
   .prov-stats {
     display: flex;
     gap: 4px;
     font-size: 11px;
-    color: #94a3b8;
+    color: #9ca3af;
     margin-bottom: 8px;
   }
   .prov-corpora {
-    border-top: 1px solid #334155;
+    border-top: 1px solid #374151;
     padding-top: 6px;
   }
   .corpus-row {
@@ -2040,22 +2594,22 @@
     padding: 3px 0;
     font-size: 11px;
   }
-  .corpus-name { color: #cbd5e1; }
-  .corpus-count { color: #64748b; font-variant-numeric: tabular-nums; }
+  .corpus-name { color: #d1d5db; }
+  .corpus-count { color: #6b7280; font-variant-numeric: tabular-nums; }
   .prov-freshness {
-    border-top: 1px solid #334155;
+    border-top: 1px solid #374151;
     padding-top: 6px;
     margin-top: 6px;
     font-size: 10px;
-    color: #475569;
+    color: #4b5563;
   }
   .prov-loading {
     font-size: 11px;
-    color: #64748b;
+    color: #6b7280;
     padding: 8px 0;
   }
 
-  .icon-btn.active { color: #818cf8; background: #1e293b; }
+  .icon-btn.active { color: #60a5fa; background: #333; }
 
   /* === Past Meeting === */
   .past-meeting {
@@ -2077,12 +2631,12 @@
     flex-shrink: 0;
     background: none;
     border: none;
-    color: #64748b;
+    color: #6b7280;
     cursor: pointer;
     padding: 2px;
     border-radius: 3px;
   }
-  .cal-btn:hover:not(:disabled) { color: #818cf8; background: #334155; }
+  .cal-btn:hover:not(:disabled) { color: #60a5fa; background: #374151; }
   .cal-btn:disabled { opacity: 0.3; cursor: default; }
 
   .cal-dropdown {
@@ -2090,18 +2644,18 @@
     gap: 8px;
     margin-top: 6px;
     padding-top: 6px;
-    border-top: 1px solid #334155;
+    border-top: 1px solid #374151;
   }
   .cal-option {
     font-size: 11px;
-    color: #6366f1;
+    color: #3b82f6;
     background: none;
     border: none;
     cursor: pointer;
     padding: 0;
     text-decoration: none;
   }
-  .cal-option:hover { color: #818cf8; text-decoration: underline; }
+  .cal-option:hover { color: #60a5fa; text-decoration: underline; }
 
   /* === Voice Counts === */
   .voice-counts {
@@ -2116,10 +2670,10 @@
   }
   .vc-support { background: #14532d; color: #4ade80; }
   .vc-oppose { background: #7f1d1d; color: #f87171; }
-  .vc-watch { background: #334155; color: #94a3b8; }
+  .vc-watch { background: #374151; color: #9ca3af; }
 
   .voice-inline {
-    color: #818cf8;
+    color: #60a5fa;
     font-size: 10px;
   }
 
@@ -2133,7 +2687,7 @@
     text-align: left;
     color: inherit;
   }
-  .decision-toggle:hover .card-title { color: #818cf8; }
+  .decision-toggle:hover .card-title { color: #60a5fa; }
 
   .expand-chevron {
     display: inline-block;
@@ -2142,7 +2696,7 @@
     height: 0;
     border-left: 4px solid transparent;
     border-right: 4px solid transparent;
-    border-top: 5px solid #475569;
+    border-top: 5px solid #4b5563;
     transition: transform 0.15s ease;
     margin-left: 6px;
     margin-top: 6px;
@@ -2150,22 +2704,22 @@
   .expand-chevron.open { transform: rotate(180deg); }
 
   .expanded-card {
-    border: 1px solid #334155;
+    border: 1px solid #374151;
   }
 
   .decision-detail {
-    border-top: 1px solid #334155;
+    border-top: 1px solid #374151;
     padding-top: 8px;
     margin-top: 8px;
   }
   .detail-loading {
     font-size: 11px;
-    color: #64748b;
+    color: #6b7280;
     padding: 4px 0;
   }
   .detail-body {
     font-size: 12px;
-    color: #94a3b8;
+    color: #9ca3af;
     line-height: 1.4;
     margin-bottom: 8px;
   }
@@ -2175,7 +2729,7 @@
   .detail-label {
     font-size: 10px;
     font-weight: 600;
-    color: #64748b;
+    color: #6b7280;
     text-transform: uppercase;
     letter-spacing: 0.05em;
     margin-bottom: 4px;
@@ -2183,16 +2737,16 @@
   .testimony-item {
     font-size: 11px;
     padding: 4px 0;
-    border-bottom: 1px solid #1e293b;
+    border-bottom: 1px solid #374151;
   }
   .testimony-speaker {
-    color: #cbd5e1;
+    color: #d1d5db;
     font-weight: 500;
     margin-right: 4px;
   }
   .testimony-speaker::after { content: ':'; }
   .testimony-text {
-    color: #94a3b8;
+    color: #9ca3af;
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
@@ -2200,7 +2754,7 @@
   }
   .detail-more {
     font-size: 10px;
-    color: #6366f1;
+    color: #3b82f6;
     margin-top: 4px;
   }
   .related-item {
@@ -2218,12 +2772,12 @@
   }
   .outcome-dot.passed { background: #4ade80; }
   .outcome-dot.failed { background: #f87171; }
-  .outcome-dot.other { background: #94a3b8; }
-  .related-title { color: #cbd5e1; flex: 1; }
-  .related-date { color: #475569; }
+  .outcome-dot.other { background: #9ca3af; }
+  .related-title { color: #d1d5db; flex: 1; }
+  .related-date { color: #4b5563; }
   .detail-empty {
     font-size: 11px;
-    color: #475569;
+    color: #4b5563;
     font-style: italic;
   }
 
@@ -2235,7 +2789,7 @@
     align-items: center;
   }
   .detail-voice {
-    border-top: 1px solid #334155;
+    border-top: 1px solid #374151;
     padding-top: 8px;
     margin-top: 8px;
   }
@@ -2243,15 +2797,15 @@
     font-size: 11px;
     padding: 4px 10px;
     border-radius: 12px;
-    border: 1px solid #334155;
+    border: 1px solid #374151;
     background: transparent;
-    color: #94a3b8;
+    color: #9ca3af;
     cursor: pointer;
     transition: all 0.15s ease;
   }
   .voice-btn:hover:not(:disabled) {
-    border-color: #475569;
-    color: #e2e8f0;
+    border-color: #4b5563;
+    color: #eee;
   }
   .voice-btn:disabled {
     opacity: 0.5;
@@ -2274,7 +2828,7 @@
   }
   .voice-locked {
     font-size: 10px;
-    color: #64748b;
+    color: #6b7280;
     font-style: italic;
   }
 
@@ -2288,7 +2842,7 @@
     text-align: left;
     color: inherit;
   }
-  .initiative-toggle:hover .card-title { color: #818cf8; }
+  .initiative-toggle:hover .card-title { color: #60a5fa; }
 
   .initiative-header {
     display: flex;
@@ -2301,43 +2855,43 @@
     font-size: 10px;
     font-weight: 600;
     text-transform: uppercase;
-    color: #818cf8;
+    color: #60a5fa;
     letter-spacing: 0.03em;
   }
 
   .initiative-status {
     font-size: 10px;
-    color: #64748b;
+    color: #6b7280;
     text-transform: capitalize;
   }
 
   .coord-link-label {
     font-size: 10px;
-    color: #6366f1;
+    color: #3b82f6;
   }
 
   .coord-link {
     display: block;
     font-size: 11px;
-    color: #6366f1;
+    color: #3b82f6;
     text-decoration: none;
     margin-bottom: 8px;
   }
   .coord-link:hover { text-decoration: underline; }
 
   .initiative-detail {
-    border-top: 1px solid #334155;
+    border-top: 1px solid #374151;
     padding-top: 8px;
     margin-top: 8px;
   }
 
   /* === Action Cards (inside initiatives) === */
   .action-card {
-    background: #0f172a;
+    background: #171717;
     border-radius: 4px;
     padding: 8px 10px;
     margin-bottom: 6px;
-    border: 1px solid #1e293b;
+    border: 1px solid #374151;
   }
 
   .action-header {
@@ -2358,14 +2912,14 @@
 
   .action-desc {
     font-size: 12px;
-    color: #cbd5e1;
+    color: #d1d5db;
     line-height: 1.3;
     margin-bottom: 4px;
   }
 
   .action-target {
     font-size: 10px;
-    color: #64748b;
+    color: #6b7280;
     margin-bottom: 4px;
   }
 
@@ -2376,7 +2930,7 @@
     padding: 1px 6px;
     border-radius: 3px;
   }
-  .deadline-badge.normal { background: #334155; color: #94a3b8; }
+  .deadline-badge.normal { background: #374151; color: #9ca3af; }
   .deadline-badge.urgent { background: #78350f; color: #fbbf24; }
   .deadline-badge.overdue { background: #7f1d1d; color: #f87171; }
 
@@ -2391,7 +2945,7 @@
   .progress-bar {
     flex: 1;
     height: 4px;
-    background: #334155;
+    background: #374151;
     border-radius: 2px;
     overflow: hidden;
   }
@@ -2405,7 +2959,7 @@
 
   .progress-text {
     font-size: 10px;
-    color: #64748b;
+    color: #6b7280;
     white-space: nowrap;
   }
 
@@ -2418,10 +2972,10 @@
   }
 
   .action-btn {
-    font-size: 10px;
-    padding: 3px 10px;
-    border-radius: 10px;
-    border: 1px solid #334155;
+    font-size: 12px;
+    padding: 5px 12px;
+    border-radius: 8px;
+    border: 1px solid #374151;
     background: transparent;
     cursor: pointer;
     transition: all 0.15s ease;
@@ -2447,8 +3001,8 @@
   }
 
   .btn-withdraw {
-    color: #94a3b8;
-    border-color: #47556940;
+    color: #9ca3af;
+    border-color: #4b556340;
   }
   .btn-withdraw:hover:not(:disabled) {
     color: #f87171;
@@ -2464,7 +3018,7 @@
 
   /* === My Commitments Section === */
   .my-commitments-section {
-    border-top: 2px solid #334155;
+    border-top: 2px solid #374151;
     margin-top: 4px;
     padding-top: 4px;
   }
@@ -2475,8 +3029,8 @@
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    color: #e2e8f0;
-    border-bottom: 1px solid #1e293b;
+    color: #eee;
+    border-bottom: 1px solid #374151;
   }
 
   .commitment-card {
@@ -2493,8 +3047,25 @@
     padding: 1px 6px;
     border-radius: 3px;
   }
-  .commitment-status.active { background: #1e3a5f; color: #60a5fa; }
+  .commitment-status.active { background: rgba(59,130,246,0.12); color: #60a5fa; }
   .commitment-status.done { background: #14532d; color: #4ade80; }
+  .commitment-cal-row {
+    display: flex;
+    gap: 6px;
+    margin-top: 6px;
+  }
+  .commitment-cal-btn {
+    font-size: 10px;
+    color: #9ca3af;
+    background: none;
+    border: 1px solid #374151;
+    border-radius: 4px;
+    padding: 2px 8px;
+    cursor: pointer;
+    text-decoration: none;
+    transition: all 0.15s;
+  }
+  .commitment-cal-btn:hover { color: #60a5fa; border-color: #60a5fa; }
 
   /* === Section header with add button === */
   .section-header-row {
@@ -2507,8 +3078,8 @@
 
   .add-btn {
     background: none;
-    border: 1px solid #334155;
-    color: #818cf8;
+    border: 1px solid #374151;
+    color: #3b82f6;
     width: 22px;
     height: 22px;
     border-radius: 50%;
@@ -2520,27 +3091,27 @@
     margin-right: 4px;
     flex-shrink: 0;
   }
-  .add-btn:hover { background: #1e293b; border-color: #818cf8; }
+  .add-btn:hover { background: #333; border-color: #3b82f6; }
 
   .add-action-btn {
     display: block;
     width: 100%;
     background: none;
-    border: 1px dashed #334155;
-    color: #64748b;
+    border: 1px dashed #374151;
+    color: #6b7280;
     font-size: 11px;
     padding: 6px;
     border-radius: 4px;
     cursor: pointer;
     margin-top: 4px;
   }
-  .add-action-btn:hover { color: #818cf8; border-color: #818cf8; }
+  .add-action-btn:hover { color: #3b82f6; border-color: #3b82f6; }
 
   /* === Create forms === */
   .create-form {
-    background: #0f172a;
-    border: 1px solid #334155;
-    border-radius: 6px;
+    background: #262626;
+    border: 1px solid #374151;
+    border-radius: 10px;
     padding: 10px;
     margin-bottom: 8px;
   }
@@ -2560,10 +3131,10 @@
   .form-input, .form-textarea {
     display: block;
     width: 100%;
-    background: #1e293b;
-    border: 1px solid #334155;
-    color: #e2e8f0;
-    font-size: 11px;
+    background: transparent;
+    border: 1px solid #374151;
+    color: #eee;
+    font-size: 13px;
     padding: 5px 8px;
     border-radius: 4px;
     margin-bottom: 6px;
@@ -2572,7 +3143,7 @@
   }
   .form-input:focus, .form-textarea:focus {
     outline: none;
-    border-color: #6366f1;
+    border-color: #60a5fa;
   }
   .form-textarea {
     resize: vertical;
@@ -2588,13 +3159,13 @@
   /* === Visualization Shared === */
   .viz-loading {
     font-size: 11px;
-    color: #64748b;
+    color: #6b7280;
     padding: 12px 0;
     text-align: center;
   }
   .viz-stat {
     font-size: 10px;
-    color: #475569;
+    color: #4b5563;
     text-align: center;
     margin-top: 4px;
   }
@@ -2611,7 +3182,7 @@
     height: 220px;
     border-radius: 6px;
     overflow: hidden;
-    border: 1px solid #334155;
+    border: 1px solid #374151;
   }
   .map-legend {
     display: flex;
@@ -2619,7 +3190,7 @@
     gap: 6px 10px;
     margin-top: 6px;
     font-size: 10px;
-    color: #94a3b8;
+    color: #9ca3af;
   }
   .legend-item {
     display: flex;
@@ -2637,11 +3208,11 @@
   .budget-total {
     font-size: 18px;
     font-weight: 700;
-    color: #e2e8f0;
+    color: #eee;
   }
   .budget-year {
     font-size: 11px;
-    color: #64748b;
+    color: #6b7280;
   }
   .chart-wrapper {
     display: flex;
@@ -2664,19 +3235,19 @@
   }
   .budget-cat-name {
     flex: 1;
-    color: #cbd5e1;
+    color: #d1d5db;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
   .budget-cat-amount {
-    color: #64748b;
+    color: #6b7280;
     font-variant-numeric: tabular-nums;
     white-space: nowrap;
   }
   .budget-legend-more {
     font-size: 10px;
-    color: #475569;
+    color: #4b5563;
     margin-top: 4px;
   }
 
@@ -2689,18 +3260,172 @@
   }
   .summarize-btn {
     font-size: 10px;
-    color: #818cf8;
+    color: #60a5fa;
     background: none;
-    border: 1px solid #4f46e540;
+    border: 1px solid #3b82f640;
     border-radius: 4px;
     padding: 1px 8px;
     cursor: pointer;
     transition: all 0.15s ease;
   }
   .summarize-btn:hover {
-    background: #1e1b4b40;
-    border-color: #6366f1;
-    color: #a5b4fc;
+    background: rgba(59,130,246,0.12);
+    border-color: #3b82f6;
+    color: #93c5fd;
+  }
+
+  /* === Comment Thread === */
+  .comment-section { margin-top: 8px; }
+  .comment-toggle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: #9ca3af;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px 0;
+    transition: color 0.15s;
+  }
+  .comment-toggle:hover { color: #d1d5db; }
+  .comment-toggle svg { opacity: 0.6; }
+  .chevron-sm {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-right: 1.5px solid currentColor;
+    border-bottom: 1.5px solid currentColor;
+    transform: rotate(-45deg);
+    transition: transform 0.15s;
+    margin-left: 2px;
+  }
+  .chevron-sm.open { transform: rotate(45deg); }
+  .comment-thread {
+    margin-top: 6px;
+    padding: 8px;
+    background: #1e1e1e;
+    border: 1px solid #2a2a2a;
+    border-radius: 8px;
+  }
+  .thread-loading, .thread-empty, .thread-locked {
+    font-size: 11px;
+    color: #6b7280;
+    text-align: center;
+    padding: 8px 0;
+  }
+
+  /* Synthesis bar */
+  .synthesis-bar-wrapper { margin-bottom: 8px; }
+  .synthesis-bar {
+    display: flex;
+    height: 6px;
+    border-radius: 3px;
+    overflow: hidden;
+    background: #262626;
+  }
+  .bar-seg { min-width: 4px; }
+  .bar-support { background: #22c55e; }
+  .bar-oppose { background: #ef4444; }
+  .bar-neutral { background: #9ca3af; }
+  .synthesis-labels {
+    display: flex;
+    gap: 8px;
+    margin-top: 4px;
+  }
+  .synth-label {
+    font-size: 10px;
+    color: #6b7280;
+  }
+  .synth-support { color: #22c55e; }
+  .synth-oppose { color: #ef4444; }
+
+  /* Thread list */
+  .thread-list {
+    max-height: 200px;
+    overflow-y: auto;
+    margin-bottom: 8px;
+  }
+  .thread-comment {
+    padding: 6px 8px;
+    border-radius: 6px;
+    margin-bottom: 4px;
+    background: #262626;
+  }
+  .thread-comment.stance-support { border-left: 2px solid rgba(34, 197, 94, 0.3); }
+  .thread-comment.stance-oppose { border-left: 2px solid rgba(239, 68, 68, 0.3); }
+  .thread-comment-meta {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    margin-bottom: 2px;
+  }
+  .thread-author {
+    font-size: 10px;
+    font-weight: 600;
+    color: #d1d5db;
+  }
+  .thread-stance {
+    font-size: 9px;
+    padding: 1px 5px;
+    border-radius: 8px;
+    background: #374151;
+    color: #9ca3af;
+  }
+  .thread-stance.support { background: rgba(34,197,94,0.15); color: #22c55e; }
+  .thread-stance.oppose { background: rgba(239,68,68,0.15); color: #ef4444; }
+  .thread-time {
+    font-size: 10px;
+    color: #6b7280;
+  }
+  .thread-text {
+    font-size: 12px;
+    color: #d1d5db;
+    line-height: 1.4;
+    white-space: pre-wrap;
+  }
+
+  /* Compose area */
+  .thread-compose { margin-top: 8px; }
+  .thread-textarea {
+    display: block;
+    width: 100%;
+    padding: 6px 8px;
+    background: transparent;
+    border: 1px solid #374151;
+    border-radius: 6px;
+    color: #eee;
+    font-size: 12px;
+    font-family: inherit;
+    outline: none;
+    resize: vertical;
+    min-height: 40px;
+    box-sizing: border-box;
+  }
+  .thread-textarea:focus { border-color: #60a5fa; }
+  .thread-compose-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 4px;
+  }
+  .thread-submit {
+    font-size: 11px;
+    font-weight: 500;
+    padding: 4px 12px;
+    background: #3b82f6;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .thread-submit:hover:not(:disabled) { background: #2563eb; }
+  .thread-submit:disabled { opacity: 0.4; cursor: default; }
+  .thread-error {
+    font-size: 10px;
+    color: #ef4444;
+    margin-top: 4px;
   }
 
   /* === Ask AI Button === */
@@ -2711,17 +3436,17 @@
     padding: 5px 0;
     font-size: 11px;
     font-weight: 500;
-    color: #818cf8;
-    background: #1e1b4b20;
-    border: 1px dashed #4f46e540;
+    color: #60a5fa;
+    background: rgba(59,130,246,0.06);
+    border: 1px dashed #3b82f640;
     border-radius: 6px;
     cursor: pointer;
     transition: all 0.15s ease;
   }
   .ask-ai-btn:hover {
-    background: #1e1b4b40;
-    border-color: #6366f1;
-    color: #a5b4fc;
+    background: rgba(59,130,246,0.12);
+    border-color: #3b82f6;
+    color: #93c5fd;
   }
 
   /* === Toast === */
@@ -2730,12 +3455,12 @@
     bottom: 16px;
     left: 50%;
     transform: translateX(-50%);
-    background: #1e293b;
-    color: #e2e8f0;
+    background: #262626;
+    color: #eee;
     font-size: 12px;
     padding: 8px 16px;
     border-radius: 8px;
-    border: 1px solid #334155;
+    border: 1px solid #374151;
     box-shadow: 0 4px 12px rgba(0,0,0,0.4);
     z-index: 100;
     animation: toast-in 0.2s ease;
@@ -2744,4 +3469,392 @@
     from { opacity: 0; transform: translateX(-50%) translateY(8px); }
     to { opacity: 1; transform: translateX(-50%) translateY(0); }
   }
+
+  /* ======================================== */
+  /* Community Initiatives — Open WebUI style */
+  /* ======================================== */
+
+  .ini .ini-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    background: rgba(59, 130, 246, 0.15);
+    color: #60a5fa;
+    font-size: 11px;
+    font-weight: 600;
+    border-radius: 9px;
+    text-transform: none;
+    letter-spacing: 0;
+  }
+
+  .ini-add-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    background: transparent;
+    border: 1px solid #374151;
+    border-radius: 8px;
+    color: #9ca3af;
+    cursor: pointer;
+    flex-shrink: 0;
+    margin-right: 4px;
+    transition: all 0.15s;
+  }
+  .ini-add-btn:hover { color: #3b82f6; border-color: #3b82f6; background: rgba(59, 130, 246, 0.08); }
+
+  /* === Create Initiative Form === */
+  .ini-form {
+    background: #262626;
+    border: 1px solid #374151;
+    border-radius: 10px;
+    padding: 14px;
+    margin-bottom: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .ini-form-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #eee;
+  }
+  .ini-field-label {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #9ca3af;
+  }
+  .ini-optional { font-weight: 400; color: #6b7280; }
+  .ini-char-hint { font-size: 10px; font-weight: 400; color: #6b7280; text-align: right; }
+  .ini-hint {
+    font-size: 12px;
+    color: #fbbf24;
+    padding: 8px 10px;
+    background: rgba(251, 191, 36, 0.08);
+    border: 1px solid rgba(251, 191, 36, 0.2);
+    border-radius: 8px;
+  }
+  .ini-error {
+    font-size: 12px;
+    color: #ef4444;
+    padding: 6px 10px;
+    background: rgba(239, 68, 68, 0.08);
+    border-radius: 6px;
+  }
+  .ini-input, .ini-textarea {
+    display: block;
+    width: 100%;
+    padding: 8px 10px;
+    background: transparent;
+    border: 1px solid #374151;
+    border-radius: 8px;
+    color: #eee;
+    font-size: 13px;
+    font-family: inherit;
+    outline: none;
+    transition: border-color 0.15s;
+    box-sizing: border-box;
+  }
+  .ini-input:focus, .ini-textarea:focus { border-color: #60a5fa; }
+  .ini-textarea { resize: vertical; min-height: 48px; }
+  select.ini-input { appearance: auto; }
+
+  /* Field wrapper with char counter */
+  .ini-field {
+    position: relative;
+  }
+  .ini-char-count {
+    display: block;
+    text-align: right;
+    font-size: 10px;
+    color: #6b7280;
+    margin-top: 2px;
+  }
+  .ini-char-count.near-limit { color: #dc2626; }
+  .ini-field-label {
+    display: block;
+    font-size: 11px;
+    color: #9ca3af;
+    margin-bottom: 3px;
+  }
+
+  /* Topic chips */
+  .ini-topic-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 2px;
+  }
+  .ini-chip {
+    padding: 4px 10px;
+    border: 1px solid #374151;
+    border-radius: 12px;
+    background: transparent;
+    font-size: 12px;
+    color: #9ca3af;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .ini-chip:hover { border-color: #4b5563; color: #d1d5db; }
+  .ini-chip.active { background: #2563eb; border-color: #2563eb; color: white; }
+
+  /* Form buttons */
+  .ini-form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 2px;
+  }
+  .ini-btn-primary {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 8px;
+    background: #3b82f6;
+    color: white;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .ini-btn-primary:hover:not(:disabled) { background: #2563eb; }
+  .ini-btn-primary:disabled { opacity: 0.4; cursor: default; }
+  .ini-btn-cancel {
+    padding: 8px 14px;
+    border: 1px solid #374151;
+    border-radius: 8px;
+    background: transparent;
+    color: #9ca3af;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .ini-btn-cancel:hover { border-color: #4b5563; color: #d1d5db; }
+  .ini-btn-sm { padding: 5px 12px; font-size: 12px; }
+
+  /* Empty state */
+  .ini-empty {
+    padding: 16px 8px;
+    color: #6b7280;
+    font-size: 13px;
+    text-align: center;
+  }
+  .ini-start-link {
+    background: none;
+    border: none;
+    color: #3b82f6;
+    cursor: pointer;
+    font-size: 13px;
+    text-decoration: underline;
+  }
+  .ini-start-link:hover { color: #60a5fa; }
+
+  /* === Initiative Cards === */
+  .ini-card {
+    background: #262626;
+    border: 1px solid #374151;
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin-bottom: 8px;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  .ini-card:hover { border-color: #3b82f6; box-shadow: 0 2px 8px rgba(59, 130, 246, 0.1); }
+  .ini-card-expanded { border-color: #3b82f6; }
+
+  .ini-card-toggle {
+    width: 100%;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    text-align: left;
+    color: inherit;
+  }
+  .ini-card-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+    gap: 8px;
+  }
+  .ini-topic-pill {
+    display: inline-block;
+    padding: 2px 8px;
+    background: rgba(59, 130, 246, 0.12);
+    color: #60a5fa;
+    font-size: 11px;
+    font-weight: 600;
+    border-radius: 10px;
+    text-transform: capitalize;
+  }
+  .ini-card-badges {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .ini-voice-badge {
+    font-size: 11px;
+    color: #a78bfa;
+    font-weight: 500;
+  }
+  .ini-status-badge {
+    font-size: 10px;
+    font-weight: 600;
+    padding: 1px 6px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    background: rgba(107, 114, 128, 0.15);
+    color: #9ca3af;
+  }
+  .ini-status-badge.active {
+    background: rgba(34, 197, 94, 0.12);
+    color: #4ade80;
+  }
+  .ini-card-title {
+    color: #eee;
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 1.3;
+  }
+  .ini-card-toggle:hover .ini-card-title { color: #60a5fa; }
+  .ini-card-desc {
+    color: #9ca3af;
+    font-size: 13px;
+    margin-top: 4px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    line-height: 1.4;
+  }
+  .ini-card-coord {
+    font-size: 11px;
+    color: #6b7280;
+    margin-top: 4px;
+  }
+
+  /* === Initiative Detail (expanded) === */
+  .ini-detail {
+    border-top: 1px solid #374151;
+    padding-top: 10px;
+    margin-top: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .ini-coord-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: #3b82f6;
+    text-decoration: none;
+    transition: color 0.15s;
+  }
+  .ini-coord-link:hover { color: #60a5fa; text-decoration: underline; }
+  .ini-detail-msg { font-size: 12px; color: #6b7280; font-style: italic; }
+  .ini-detail-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: #9ca3af;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  /* === Action Cards (inside initiatives) === */
+  .ini-action {
+    background: #1a1a1a;
+    border: 1px solid #333;
+    border-radius: 8px;
+    padding: 10px 12px;
+  }
+  .ini-action-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px;
+  }
+  .ini-action-type {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 6px;
+    background: rgba(59, 130, 246, 0.12);
+    color: #60a5fa;
+  }
+  .ini-deadline {
+    font-size: 11px;
+    font-weight: 500;
+    padding: 2px 8px;
+    border-radius: 6px;
+  }
+  .ini-deadline.normal { background: rgba(107, 114, 128, 0.12); color: #9ca3af; }
+  .ini-deadline.urgent { background: rgba(251, 191, 36, 0.12); color: #fbbf24; }
+  .ini-deadline.overdue { background: rgba(239, 68, 68, 0.12); color: #f87171; }
+  .ini-action-desc { font-size: 13px; color: #d1d5db; line-height: 1.4; }
+  .ini-action-target { font-size: 12px; color: #6b7280; margin-top: 2px; }
+
+  .ini-progress {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 6px;
+  }
+  .ini-progress-bar {
+    flex: 1;
+    height: 4px;
+    background: #333;
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  .ini-progress-fill {
+    height: 100%;
+    background: #3b82f6;
+    border-radius: 2px;
+    transition: width 0.3s ease;
+  }
+  .ini-progress-text { font-size: 11px; color: #6b7280; white-space: nowrap; }
+
+  .ini-action-btns {
+    display: flex;
+    gap: 6px;
+    margin-top: 8px;
+    align-items: center;
+  }
+  .ini-completed-label {
+    font-size: 12px;
+    font-weight: 500;
+    color: #4ade80;
+  }
+  .ini-locked-hint {
+    font-size: 11px;
+    color: #6b7280;
+    font-style: italic;
+  }
+
+  /* Add Action button */
+  .ini-add-action {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    width: 100%;
+    background: transparent;
+    border: 1px dashed #374151;
+    border-radius: 8px;
+    color: #6b7280;
+    font-size: 12px;
+    padding: 8px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .ini-add-action:hover { color: #3b82f6; border-color: #3b82f6; }
+
+  .ini-action-form { margin-top: 4px; padding: 12px; }
 </style>
