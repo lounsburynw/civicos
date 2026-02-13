@@ -8,6 +8,9 @@
     "storage",
     "alarms"
   ],
+  "host_permissions": [
+    "https://*.civicosproject.org/*"
+  ],
   "optional_host_permissions": [
     "https://*.civicos.dev/*",
     "https://*.openai.com/*",
