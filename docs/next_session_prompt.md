@@ -1,100 +1,90 @@
-# Handoff: Browser Extension Phase 2b — Debug & Complete
+# Handoff: Browser Extension Phase 4 — Lightning/Cashu Micropayments
 
 **Priority:** P0
 **Area:** edge_intelligence > browser_extension
 **Date:** 2026-02-12
 
-> Session 584 implemented Phase 2b (initiatives + commitments) but the user reports they don't see changes in the extension. Debug and complete.
+> Session 585 completed Phase 3 (AI + visualizations). Phase 4 adds micropayments to create a sustainable economic model.
 
-## What Was Built (This Session)
+## What Was Completed (Sessions 581-585)
 
-### Relay Routes (NEW — `packages/civicos-relay/src/civicos_relay/server/app.py`)
-- `POST /coordination/initiative` — create initiative
-- `GET /coordination/initiatives/{jurisdiction}` — list initiatives
-- `GET /coordination/initiative/{id}` — get detail
-- `POST /coordination/civic-action` — create civic action (Kind 30810)
-- `GET /coordination/civic-actions/{initiative_id}` — list actions
-- `GET /coordination/civic-action/{id}/progress` — progress counts
-- `POST /coordination/civic-action/{id}/commit` — Kind 30811
-- `POST /coordination/civic-action/{id}/complete` — Kind 30812
-- `POST /coordination/civic-action/{id}/withdraw` — withdraw
-- Wired `CivicActionService` + `initiative_storage` in `lifespan()`
-- Added request models: `CreateInitiativeRequest`, `CreateCivicActionRequest`, `CivicCommitRequest`, `CivicCompleteRequest`
+Phases 1-3 of the browser extension are all built and committed:
+- **Phase 1:** City Pulse feed (meetings, agenda items, decisions, community issues)
+- **Phase 1b:** Decision detail expansion, data provenance, voice counts
+- **Phase 2:** Voice submission with Nostr signing (support/oppose/watch)
+- **Phase 2b:** Initiatives, civic actions, commitments + CORS fix
+- **Phase 3:** AI context injection, testimony summarization, Leaflet issue map, Chart.js budget chart
 
-### Extension Changes
-1. **`apps/civicos-extension/src/lib/types.ts`** — Added `Initiative`, `CivicAction`, `CivicActionProgress` interfaces
-2. **`apps/civicos-extension/src/lib/api.ts`** — Added 8 relay API methods: `getInitiatives`, `getCivicActions`, `getCivicActionProgress`, `commitToCivicAction`, `completeCivicAction`, `withdrawCivicAction`, `createInitiative`, `createCivicAction`
-3. **`apps/civicos-extension/src/side-panel/SidePanel.svelte`** (~2100 lines now):
-   - Meetings label "Upcoming Meetings" → "Meetings", calendar buttons disabled for past
-   - Community Initiatives section with expandable cards, voice counts, coordination links
-   - "+" button to create initiatives (form: topic, title, description, coordination URL)
-   - Nested civic actions with progress bars, deadline badges (normal/urgent/overdue)
-   - "+ Add Action" form inside expanded initiatives (type dropdown, description, target, deadline)
-   - Commit/Complete/Withdraw buttons with Kind 30811/30812 Nostr signing
-   - My Commitments section using stored metadata (renders without expanding parent initiative)
-   - `committedActionMeta` Map persisted to `chrome.storage.local`
+**Extension size:** 356KB JS, 34KB CSS (112KB + 10KB gzipped). Builds clean, all features working.
 
-### What Builds Successfully
-- Extension: `cd apps/civicos-extension && npm run build` — 789ms, clean
-- Relay: `from civicos_relay.server.app import create_app` — imports clean
+## Phase 4: Micropayments Architecture
 
-## Problem: User Can't See Changes
+Reference: `docs/critical/BROWSER_EXTENSION_ARCHITECTURE.md` (payments section)
 
-Likely causes to investigate:
-1. **Extension not reloaded in Chrome** — user needs to go to `chrome://extensions`, click reload on CivicOS extension, then reopen the side panel
-2. **Relay not redeployed** — the new routes exist in code but the production relay at `api.civicosproject.org` hasn't been redeployed. The extension calls that URL. Without redeploying, `getInitiatives()` returns `[]` and the section shows "No active initiatives"
-3. **CORS issue** — `app.py` line ~228 has `allow_origins` limited to `localhost:5173` and `localhost:8080`. Chrome extension origins (`chrome-extension://...`) are not listed. Need to add `"*"` or the extension's origin
-4. **Modal deployment needed** — relay deploys via Modal, not local. Code changes aren't live until `modal deploy` runs
+### Core Concept
+- Civic participation (voice, view, commit) is **always free**
+- Compute-intensive MCP tools (prepare, suggestions, coordinate) are gated with **L402**
+- Users connect Lightning wallets via **NWC (NIP-47)**
+- Privacy-preserving relay payments via **Cashu (NIP-60/61)**
 
-## Debugging Steps
+### Features to Implement
 
-```bash
-# 1. Rebuild extension
-cd apps/civicos-extension && npm run build
+1. **L402 Middleware (server-side)**
+   - Add L402 challenge/response middleware to Jurisdiction MCP HTTP server
+   - Gate compute-intensive endpoints: `compose-public-comment`, `neighborhood-report`, `comment-synthesis`
+   - Free endpoints remain ungated: `city-pulse`, `decision-detail`, `voice-counts`, `issue-geography`, `budget-summary`
+   - MCP server lives in `apps/civicos-mcp/rest_api.py` and `apps/civicos-mcp/modal_mcp.py`
 
-# 2. Check CORS in relay
-grep -n "allow_origins" packages/civicos-relay/src/civicos_relay/server/app.py
+2. **NWC Client (extension)**
+   - NWC (Nostr Wallet Connect, NIP-47) client in the browser extension
+   - User enters wallet connection string in Options page
+   - Extension can request payments on behalf of user
+   - Store connection in `chrome.storage.local` (encrypted)
 
-# 3. Fix CORS if needed (add chrome-extension origins)
-# allow_origins=["*"] for dev, or add chrome-extension://<id>
+3. **Cashu Wallet (extension)**
+   - NIP-60/61 Cashu ecash tokens for privacy-preserving relay payments
+   - Mint integration for token issuance
+   - Token spending for relay operations
 
-# 4. Test relay locally
-cd packages/civicos-relay && python3 -m civicos_relay.server.app
-# Then curl http://localhost:8000/coordination/initiatives/city-san-rafael
+4. **Spending Controls (extension UI)**
+   - Per-request threshold (auto-approve below X sats)
+   - Daily spending limit
+   - Transaction history in Options page
+   - Clear confirmation dialog for larger payments
 
-# 5. Deploy relay to Modal
-modal deploy packages/civicos-relay/src/civicos_relay/modal_app.py
+5. **Graceful Degradation**
+   - Free tier always works without any wallet configured
+   - Gated features show "Upgrade" button instead of results
+   - Progressive disclosure: show what you'd get, offer to connect wallet
 
-# 6. Reload extension in chrome://extensions
-# 7. Open side panel, check console for errors (right-click side panel → Inspect)
-```
+### Key References
+- L402 docs: https://docs.lightning.engineering/the-lightning-network/l402
+- NWC (NIP-47): https://nips.nostr.com/47
+- Cashu (NIP-60): https://nips.nostr.com/60
+- Alby MCP example: https://github.com/getAlby/mcp
+- Sustainability model: `docs/funding/SUSTAINABILITY_MODEL.md`
 
-## CORS Fix (Almost Certainly Needed)
+### Key Files
+- `apps/civicos-mcp/rest_api.py` — REST API endpoints (add L402 middleware here)
+- `apps/civicos-mcp/modal_mcp.py` — Modal deployment config
+- `apps/civicos-extension/src/options/Options.svelte` — Add wallet connection UI
+- `apps/civicos-extension/src/side-panel/SidePanel.svelte` — Add upgrade prompts
+- `apps/civicos-extension/src/lib/api.ts` — Add L402 payment flow to API client
+- `apps/civicos-extension/src/background/service-worker.ts` — Handle NWC messages
 
-In `packages/civicos-relay/src/civicos_relay/server/app.py`, around line 228:
-```python
-# Current (too restrictive):
-allow_origins=["http://localhost:5173", "http://localhost:8080"],
+### Constraints
+- Foundation-funded (<$7/month operational)
+- Payments must be optional — never block civic participation
+- Extension must work fully offline for free-tier features
+- Lightning payments should be sub-second for good UX
 
-# Fix:
-allow_origins=["*"],  # Extensions use chrome-extension:// origins
-```
-
-## Key Files
-- `packages/civicos-relay/src/civicos_relay/server/app.py` — relay routes (all new routes here)
-- `apps/civicos-extension/src/side-panel/SidePanel.svelte` — main UI
-- `apps/civicos-extension/src/lib/api.ts` — API client
-- `apps/civicos-extension/src/lib/types.ts` — TypeScript interfaces
-- `apps/civicos-extension/src/lib/providers/types.ts` — Nostr event helpers (unchanged)
+### Suggested Approach
+1. Start with L402 middleware on the server (simplest, no extension changes yet)
+2. Add NWC client to extension Options page
+3. Wire up API client to handle 402 responses and auto-pay
+4. Add Cashu for relay payments (more complex, can be Phase 4b)
+5. Add spending controls and transaction history
 
 ## pilot.json Status
-- `extension_phase2b_commitments`: marked `ready` (may need to revert to `not_ready` if debugging reveals issues)
-- `extension_phase3_ai_viz`: set as P0
-
-## Success Criteria
-- [ ] User can see Community Initiatives section in side panel
-- [ ] User can create an initiative via the "+" button
-- [ ] User can add civic actions to an initiative
-- [ ] Commit/Complete/Withdraw buttons work with relay
-- [ ] My Commitments section shows after committing
-- [ ] Relay deployed to Modal with CORS fix
+- `extension_phase4_micropayments`: P0, not_ready
+- All Phase 1-3 items: ready
