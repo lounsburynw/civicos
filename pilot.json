@@ -4273,7 +4273,14 @@
         "civicos-personal-mcp/lib/providers/ \u2192 extension lib/providers/ (signing providers)",
         "civicos-openwebui CityPulse.svelte \u2192 extension side-panel/ (dashboard UI)",
         "civicos-personal-mcp/lib/jurisdiction-mcp-client.ts \u2192 extension lib/mcp-client.ts"
-      ]
+      ],
+      "extension_phase1_city_pulse": {
+        "status": "not_ready",
+        "priority": 0,
+        "artifact": "Browser extension Phase 1 \u2014 City Pulse feed with live civic data via WebMCP",
+        "note": "Phase 0 (identity scaffold) complete. Phase 1: connect side panel to CivicOS API, populate City Pulse with meetings/decisions/issues, WebMCP integration for real-time data.",
+        "pattern": "Use existing REST API endpoints, same data patterns as Open WebUI CityPulse dashboard"
+      }
     },
     "micropayments": {
       "status": "not_ready",
