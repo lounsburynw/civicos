@@ -6,7 +6,7 @@
  * to the San Rafael production endpoint.
  */
 
-import type { CityPulseData, DecisionDetailData, DataProvenance, VoiceCounts, ToolResponse, Initiative, CivicAction, CivicActionProgress } from './types.js';
+import type { CityPulseData, DecisionDetailData, DataProvenance, VoiceCounts, ToolResponse, Initiative, CivicAction, CivicActionProgress, IssueGeography, BudgetSummary } from './types.js';
 
 const DEFAULT_API_URL = 'https://san-rafael.civicosproject.org';
 const STORAGE_KEY = 'civicos_api_url';
@@ -56,6 +56,14 @@ export async function getDecisionDetail(title: string): Promise<DecisionDetailDa
 
 export async function getDataProvenance(): Promise<DataProvenance> {
   return apiRequest<DataProvenance>('/api/tools/data-provenance');
+}
+
+export async function getIssueGeography(limit = 500): Promise<IssueGeography> {
+  return apiRequest<IssueGeography>(`/api/tools/issue-geography?limit=${limit}`);
+}
+
+export async function getBudgetSummary(groupBy = 'department'): Promise<BudgetSummary> {
+  return apiRequest<BudgetSummary>(`/api/tools/budget-summary?group_by=${groupBy}`);
 }
 
 export async function getVoiceCountsBatch(entityIds: string[]): Promise<Map<string, VoiceCounts>> {

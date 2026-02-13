@@ -1,9 +1,14 @@
 <script lang="ts">
   import { sendMessage } from '../lib/messaging.js';
-  import { getCityPulse, getDecisionDetail, getDataProvenance, getVoiceCountsBatch, submitVoice, revokeVoice, getInitiatives, getCivicActions, getCivicActionProgress, commitToCivicAction, completeCivicAction, withdrawCivicAction, createInitiative, createCivicAction } from '../lib/api.js';
+  import { getCityPulse, getDecisionDetail, getDataProvenance, getVoiceCountsBatch, submitVoice, revokeVoice, getInitiatives, getCivicActions, getCivicActionProgress, commitToCivicAction, completeCivicAction, withdrawCivicAction, createInitiative, createCivicAction, getIssueGeography, getBudgetSummary } from '../lib/api.js';
   import type { IdentityInfo, NostrEvent, SignedNostrEvent } from '../lib/providers/types.js';
   import { CivicEventKinds, createVoiceContent, createVoiceTags, createCommitmentContent, createCommitmentTags, createCompletionContent, createCompletionTags, generateCommitmentId, generateCompletionId, generateActionRef } from '../lib/providers/types.js';
-  import type { CityPulseData, DecisionDetailData, DataProvenance, VoiceCounts, Initiative, CivicAction, CivicActionProgress } from '../lib/types.js';
+  import type { CityPulseData, DecisionDetailData, DataProvenance, VoiceCounts, Initiative, CivicAction, CivicActionProgress, IssuePoint, BudgetCategory } from '../lib/types.js';
+  import 'leaflet/dist/leaflet.css';
+  import L from 'leaflet';
+  import { Chart, DoughnutController, ArcElement, Tooltip, Legend } from 'chart.js';
+
+  Chart.register(DoughnutController, ArcElement, Tooltip, Legend);
 
   let identity: (IdentityInfo & { isUnlocked?: boolean }) | null = $state(null);
   let loading = $state(true);
@@ -18,6 +23,8 @@
     outcomes: true,
     initiatives: true,
     community: false,
+    issueMap: false,
+    budget: false,
   });
 
   // Decision detail expansion
@@ -69,6 +76,32 @@
   let showCreateAction: string | null = $state(null); // initiative ID
   let newAction = $state({ action_type: 'written_comment', description: '', target: '', deadline: '' });
   let creatingAction = $state(false);
+
+  // Issue map state
+  let issuePoints: IssuePoint[] = $state([]);
+  let issueMapLoading = $state(false);
+  let issueMapLoaded = $state(false);
+  let leafletMap: L.Map | null = null;
+  let mapContainer: HTMLDivElement | undefined = $state(undefined);
+
+  // Budget chart state
+  let budgetCategories: BudgetCategory[] = $state([]);
+  let budgetTotal = $state(0);
+  let budgetYear = $state('');
+  let budgetLoading = $state(false);
+  let budgetLoaded = $state(false);
+  let chartCanvas: HTMLCanvasElement | undefined = $state(undefined);
+  let budgetChart: Chart | null = null;
+
+  // Toast notification
+  let toastMessage: string | null = $state(null);
+  let toastTimeout: ReturnType<typeof setTimeout> | null = null;
+
+  function showToast(message: string, durationMs = 4000) {
+    toastMessage = message;
+    if (toastTimeout) clearTimeout(toastTimeout);
+    toastTimeout = setTimeout(() => { toastMessage = null; }, durationMs);
+  }
 
   function toggle(section: string) {
     expanded[section] = !expanded[section];
@@ -180,6 +213,217 @@
 
   function toggleCalendar(meetingTitle: string) {
     calendarOpen = calendarOpen === meetingTitle ? null : meetingTitle;
+  }
+
+  // === Issue Map ===
+
+  const ISSUE_COLORS: Record<string, string> = {
+    'Pothole': '#ef4444',
+    'Graffiti': '#f59e0b',
+    'Illegal Dumping': '#8b5cf6',
+    'Sidewalk': '#3b82f6',
+    'Street Light': '#eab308',
+    'Tree': '#22c55e',
+    'Traffic': '#f97316',
+    'Other': '#64748b',
+  };
+
+  function getIssueColor(type: string): string {
+    for (const [key, color] of Object.entries(ISSUE_COLORS)) {
+      if (type.toLowerCase().includes(key.toLowerCase())) return color;
+    }
+    return ISSUE_COLORS['Other'];
+  }
+
+  async function loadIssueMap() {
+    if (issueMapLoaded || issueMapLoading) return;
+    issueMapLoading = true;
+    try {
+      const data = await getIssueGeography(500);
+      issuePoints = data.points;
+      issueMapLoaded = true;
+      // Render map after DOM updates
+      await new Promise(r => setTimeout(r, 50));
+      renderMap();
+    } catch (e) {
+      console.error('Failed to load issue map:', e);
+    } finally {
+      issueMapLoading = false;
+    }
+  }
+
+  function renderMap() {
+    if (!mapContainer || issuePoints.length === 0) return;
+    if (leafletMap) { leafletMap.remove(); leafletMap = null; }
+
+    leafletMap = L.map(mapContainer, { zoomControl: false }).setView([37.9735, -122.5311], 13);
+    L.control.zoom({ position: 'topright' }).addTo(leafletMap);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+      attribution: '&copy; <a href="https://carto.com/">CARTO</a>',
+      maxZoom: 19,
+    }).addTo(leafletMap);
+
+    for (const pt of issuePoints) {
+      L.circleMarker([pt.lat, pt.lng], {
+        radius: 5,
+        color: getIssueColor(pt.type),
+        fillColor: getIssueColor(pt.type),
+        fillOpacity: 0.7,
+        weight: 1,
+      }).bindPopup(`<b>${pt.type}</b><br>${pt.address}<br><small>${pt.status}</small>`)
+        .addTo(leafletMap);
+    }
+
+    // Fit bounds to points
+    if (issuePoints.length > 1) {
+      const bounds = L.latLngBounds(issuePoints.map(p => [p.lat, p.lng] as [number, number]));
+      leafletMap.fitBounds(bounds, { padding: [20, 20] });
+    }
+  }
+
+  // === Budget Chart ===
+
+  const BUDGET_COLORS = [
+    '#6366f1', '#ec4899', '#14b8a6', '#f59e0b', '#ef4444',
+    '#8b5cf6', '#22c55e', '#3b82f6', '#f97316', '#64748b',
+    '#a855f7', '#06b6d4', '#84cc16', '#e11d48',
+  ];
+
+  async function loadBudget() {
+    if (budgetLoaded || budgetLoading) return;
+    budgetLoading = true;
+    try {
+      const data = await getBudgetSummary('department');
+      budgetCategories = data.categories;
+      budgetTotal = data.total_budgeted_dollars;
+      budgetYear = data.fiscal_year;
+      budgetLoaded = true;
+      await new Promise(r => setTimeout(r, 50));
+      renderBudgetChart();
+    } catch (e) {
+      console.error('Failed to load budget:', e);
+    } finally {
+      budgetLoading = false;
+    }
+  }
+
+  function renderBudgetChart() {
+    if (!chartCanvas || budgetCategories.length === 0) return;
+    if (budgetChart) { budgetChart.destroy(); budgetChart = null; }
+
+    budgetChart = new Chart(chartCanvas, {
+      type: 'doughnut',
+      data: {
+        labels: budgetCategories.map(c => c.category),
+        datasets: [{
+          data: budgetCategories.map(c => c.budgeted_dollars),
+          backgroundColor: budgetCategories.map((_, i) => BUDGET_COLORS[i % BUDGET_COLORS.length]),
+          borderWidth: 0,
+        }],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: (ctx) => {
+                const val = ctx.raw as number;
+                return ` $${(val / 1_000_000).toFixed(1)}M (${budgetCategories[ctx.dataIndex].percentage}%)`;
+              },
+            },
+          },
+        },
+      },
+    });
+  }
+
+  function formatDollars(amount: number): string {
+    if (amount >= 1_000_000) return `$${(amount / 1_000_000).toFixed(1)}M`;
+    if (amount >= 1_000) return `$${(amount / 1_000).toFixed(0)}K`;
+    return `$${amount.toFixed(0)}`;
+  }
+
+  // === Ask AI (context injection) ===
+
+  function composeAgendaContext(item: import('../lib/types.js').PulseAgendaItem): string {
+    const lines = [
+      `I'd like to understand this civic agenda item from ${pulseData?.jurisdiction || 'my city'}:`,
+      '',
+      `**${item.title}**`,
+      `Meeting: ${item.meeting_title} (${item.meeting_date})`,
+    ];
+    if (item.item_number) lines.push(`Item #${item.item_number}`);
+    if (item.project_type) lines.push(`Type: ${item.project_type}`);
+    if (item.description) lines.push('', item.description);
+    if (item.why_it_matters) lines.push('', `Why it matters: ${item.why_it_matters}`);
+    const eid = `agenda-item:${item.id}`;
+    const counts = voiceCounts.get(eid);
+    if (counts && counts.total > 0) {
+      lines.push('', `Community sentiment: ${counts.support} support, ${counts.oppose} oppose, ${counts.watching} watching`);
+    }
+    lines.push('', 'What are the key implications for residents? What questions should I ask at the public hearing?');
+    return lines.join('\n');
+  }
+
+  function composeDecisionContext(decision: import('../lib/types.js').PulseOutcome): string {
+    const detail = decisionDetails.get(decision.title);
+    const lines = [
+      `I'd like to understand this civic decision from ${pulseData?.jurisdiction || 'my city'}:`,
+      '',
+      `**${decision.title}**`,
+      `Outcome: ${decision.outcome}`,
+      `Date: ${decision.date}`,
+    ];
+    if (decision.vote_tally) lines.push(`Vote: ${decision.vote_tally}`);
+    if (detail?.decision?.body) lines.push('', detail.decision.body);
+    if (detail?.testimony?.public_comments && detail.testimony.public_comments.length > 0) {
+      lines.push('', `Public testimony (${detail.testimony.public_comments.length} speakers):`);
+      for (const c of detail.testimony.public_comments.slice(0, 5)) {
+        lines.push(`- ${c.speaker}: ${c.text}`);
+      }
+      if (detail.testimony.public_comments.length > 5) {
+        lines.push(`... and ${detail.testimony.public_comments.length - 5} more speakers`);
+      }
+    }
+    const counts = voiceCounts.get(decision.id);
+    if (counts && counts.total > 0) {
+      lines.push('', `Community sentiment: ${counts.support} support, ${counts.oppose} oppose, ${counts.watching} watching`);
+    }
+    lines.push('', 'What are the implications of this decision for residents? What should I know about this issue going forward?');
+    return lines.join('\n');
+  }
+
+  function composeTestimonySummary(decision: import('../lib/types.js').PulseOutcome, comments: import('../lib/types.js').TestimonyComment[]): string {
+    const lines = [
+      `Summarize the public testimony from this civic decision in ${pulseData?.jurisdiction || 'my city'}:`,
+      '',
+      `**${decision.title}**`,
+      `Outcome: ${decision.outcome} (${decision.date})`,
+      '',
+      `${comments.length} speakers testified:`,
+      '',
+    ];
+    for (const c of comments) {
+      lines.push(`**${c.speaker}:** ${c.text}`);
+      lines.push('');
+    }
+    lines.push('Please provide:');
+    lines.push('1. A concise summary of the key themes and concerns raised');
+    lines.push('2. Points of agreement and disagreement among speakers');
+    lines.push('3. Any action items or follow-ups mentioned');
+    return lines.join('\n');
+  }
+
+  async function askAI(context: string) {
+    try {
+      await navigator.clipboard.writeText(context);
+      chrome.tabs.create({ url: 'https://claude.ai/new' });
+      showToast('Context copied — paste into chat (Ctrl+V)');
+    } catch {
+      showToast('Could not copy to clipboard');
+    }
   }
 
   async function loadStances() {
@@ -892,6 +1136,9 @@
                     {/if}
                   </div>
                 {/if}
+                <button class="ask-ai-btn" onclick={() => askAI(composeAgendaContext(item))}>
+                  Ask AI about this
+                </button>
               </div>
             {/each}
           </div>
@@ -955,7 +1202,12 @@
                         {/if}
                         {#if detail.testimony?.public_comments && detail.testimony.public_comments.length > 0}
                           <div class="detail-section">
-                            <div class="detail-label">Public Testimony ({detail.testimony.public_comments.length})</div>
+                            <div class="detail-label-row">
+                              <div class="detail-label">Public Testimony ({detail.testimony.public_comments.length})</div>
+                              <button class="summarize-btn" onclick={() => askAI(composeTestimonySummary(decision, detail.testimony!.public_comments!))}>
+                                Summarize
+                              </button>
+                            </div>
                             {#each detail.testimony.public_comments.slice(0, 3) as comment}
                               <div class="testimony-item">
                                 <span class="testimony-speaker">{comment.speaker}</span>
@@ -1004,6 +1256,9 @@
                             <span class="voice-locked">Unlock to vote</span>
                           {/if}
                         </div>
+                        <button class="ask-ai-btn" onclick={() => askAI(composeDecisionContext(decision))}>
+                          Ask AI about this
+                        </button>
                       {:else}
                         <div class="detail-empty">No details available</div>
                       {/if}
@@ -1261,6 +1516,71 @@
       </section>
     {/if}
 
+    <!-- Issue Map -->
+    <section class="feed-section">
+      <button class="section-header" onclick={() => { toggle('issueMap'); if (!issueMapLoaded) loadIssueMap(); }}>
+        <span class="section-title">Issue Map</span>
+        <span class="chevron" class:open={expanded.issueMap}></span>
+      </button>
+      {#if expanded.issueMap}
+        <div class="section-body">
+          {#if issueMapLoading}
+            <div class="viz-loading">Loading issue locations...</div>
+          {:else if issuePoints.length === 0}
+            <div class="empty-section">No issue location data available</div>
+          {:else}
+            <div class="map-wrapper" bind:this={mapContainer}></div>
+            <div class="map-legend">
+              {#each Object.entries(ISSUE_COLORS).slice(0, -1) as [label, color]}
+                <span class="legend-item">
+                  <span class="legend-dot" style="background:{color}"></span>
+                  {label}
+                </span>
+              {/each}
+            </div>
+            <div class="viz-stat">{issuePoints.length} issues mapped</div>
+          {/if}
+        </div>
+      {/if}
+    </section>
+
+    <!-- Budget Breakdown -->
+    <section class="feed-section">
+      <button class="section-header" onclick={() => { toggle('budget'); if (!budgetLoaded) loadBudget(); }}>
+        <span class="section-title">Budget</span>
+        <span class="chevron" class:open={expanded.budget}></span>
+      </button>
+      {#if expanded.budget}
+        <div class="section-body">
+          {#if budgetLoading}
+            <div class="viz-loading">Loading budget data...</div>
+          {:else if budgetCategories.length === 0}
+            <div class="empty-section">No budget data available</div>
+          {:else}
+            <div class="budget-header">
+              <span class="budget-total">{formatDollars(budgetTotal)}</span>
+              <span class="budget-year">{budgetYear}</span>
+            </div>
+            <div class="chart-wrapper">
+              <canvas bind:this={chartCanvas} width="200" height="200"></canvas>
+            </div>
+            <div class="budget-legend">
+              {#each budgetCategories.slice(0, 8) as cat, i}
+                <div class="budget-legend-item">
+                  <span class="legend-dot" style="background:{BUDGET_COLORS[i % BUDGET_COLORS.length]}"></span>
+                  <span class="budget-cat-name">{cat.category}</span>
+                  <span class="budget-cat-amount">{formatDollars(cat.budgeted_dollars)} ({cat.percentage}%)</span>
+                </div>
+              {/each}
+              {#if budgetCategories.length > 8}
+                <div class="budget-legend-more">+{budgetCategories.length - 8} more departments</div>
+              {/if}
+            </div>
+          {/if}
+        </div>
+      {/if}
+    </section>
+
     <!-- Footer -->
     <footer class="pulse-footer">
       {#if pulseData.clerk_email}
@@ -1270,6 +1590,10 @@
     </footer>
   {/if}
 </div>
+
+{#if toastMessage}
+  <div class="toast">{toastMessage}</div>
+{/if}
 
 <style>
   /* === Base === */
@@ -2226,5 +2550,165 @@
     display: flex;
     gap: 6px;
     margin-top: 4px;
+  }
+
+  /* === Visualization Shared === */
+  .viz-loading {
+    font-size: 11px;
+    color: #64748b;
+    padding: 12px 0;
+    text-align: center;
+  }
+  .viz-stat {
+    font-size: 10px;
+    color: #475569;
+    text-align: center;
+    margin-top: 4px;
+  }
+  .legend-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  /* === Issue Map === */
+  .map-wrapper {
+    height: 220px;
+    border-radius: 6px;
+    overflow: hidden;
+    border: 1px solid #334155;
+  }
+  .map-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 10px;
+    margin-top: 6px;
+    font-size: 10px;
+    color: #94a3b8;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+  }
+
+  /* === Budget Chart === */
+  .budget-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 8px;
+  }
+  .budget-total {
+    font-size: 18px;
+    font-weight: 700;
+    color: #e2e8f0;
+  }
+  .budget-year {
+    font-size: 11px;
+    color: #64748b;
+  }
+  .chart-wrapper {
+    display: flex;
+    justify-content: center;
+    padding: 4px 0;
+  }
+  .chart-wrapper canvas {
+    max-width: 200px;
+    max-height: 200px;
+  }
+  .budget-legend {
+    margin-top: 8px;
+  }
+  .budget-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    padding: 3px 0;
+  }
+  .budget-cat-name {
+    flex: 1;
+    color: #cbd5e1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .budget-cat-amount {
+    color: #64748b;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  .budget-legend-more {
+    font-size: 10px;
+    color: #475569;
+    margin-top: 4px;
+  }
+
+  /* === Detail Label Row (with action button) === */
+  .detail-label-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px;
+  }
+  .summarize-btn {
+    font-size: 10px;
+    color: #818cf8;
+    background: none;
+    border: 1px solid #4f46e540;
+    border-radius: 4px;
+    padding: 1px 8px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .summarize-btn:hover {
+    background: #1e1b4b40;
+    border-color: #6366f1;
+    color: #a5b4fc;
+  }
+
+  /* === Ask AI Button === */
+  .ask-ai-btn {
+    display: block;
+    width: 100%;
+    margin-top: 8px;
+    padding: 5px 0;
+    font-size: 11px;
+    font-weight: 500;
+    color: #818cf8;
+    background: #1e1b4b20;
+    border: 1px dashed #4f46e540;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .ask-ai-btn:hover {
+    background: #1e1b4b40;
+    border-color: #6366f1;
+    color: #a5b4fc;
+  }
+
+  /* === Toast === */
+  .toast {
+    position: fixed;
+    bottom: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #1e293b;
+    color: #e2e8f0;
+    font-size: 12px;
+    padding: 8px 16px;
+    border-radius: 8px;
+    border: 1px solid #334155;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+    z-index: 100;
+    animation: toast-in 0.2s ease;
+  }
+  @keyframes toast-in {
+    from { opacity: 0; transform: translateX(-50%) translateY(8px); }
+    to { opacity: 1; transform: translateX(-50%) translateY(0); }
   }
 </style>
