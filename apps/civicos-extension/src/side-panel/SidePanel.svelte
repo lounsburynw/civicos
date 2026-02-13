@@ -242,9 +242,6 @@
       const data = await getIssueGeography(500);
       issuePoints = data.points;
       issueMapLoaded = true;
-      // Render map after DOM updates
-      await new Promise(r => setTimeout(r, 50));
-      renderMap();
     } catch (e) {
       console.error('Failed to load issue map:', e);
     } finally {
@@ -252,14 +249,32 @@
     }
   }
 
+  // Render map when container becomes available (after Svelte re-renders)
+  $effect(() => {
+    if (mapContainer && issuePoints.length > 0) {
+      // Use tick to ensure DOM is fully ready
+      requestAnimationFrame(() => renderMap());
+    }
+  });
+
   function renderMap() {
     if (!mapContainer || issuePoints.length === 0) return;
-    if (leafletMap) { leafletMap.remove(); leafletMap = null; }
 
-    leafletMap = L.map(mapContainer, { zoomControl: false }).setView([37.9735, -122.5311], 13);
+    // If map already exists, just invalidate size (handles re-expand)
+    if (leafletMap) {
+      leafletMap.invalidateSize();
+      return;
+    }
+
+    leafletMap = L.map(mapContainer, {
+      zoomControl: false,
+      attributionControl: false,
+    }).setView([37.9735, -122.5311], 13);
+
     L.control.zoom({ position: 'topright' }).addTo(leafletMap);
+    L.control.attribution({ position: 'bottomright', prefix: false }).addTo(leafletMap);
     L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-      attribution: '&copy; <a href="https://carto.com/">CARTO</a>',
+      attribution: '&copy; CARTO',
       maxZoom: 19,
     }).addTo(leafletMap);
 
@@ -279,6 +294,9 @@
       const bounds = L.latLngBounds(issuePoints.map(p => [p.lat, p.lng] as [number, number]));
       leafletMap.fitBounds(bounds, { padding: [20, 20] });
     }
+
+    // Invalidate size after a brief delay to ensure container has final dimensions
+    setTimeout(() => leafletMap?.invalidateSize(), 200);
   }
 
   // === Budget Chart ===
@@ -298,14 +316,19 @@
       budgetTotal = data.total_budgeted_dollars;
       budgetYear = data.fiscal_year;
       budgetLoaded = true;
-      await new Promise(r => setTimeout(r, 50));
-      renderBudgetChart();
     } catch (e) {
       console.error('Failed to load budget:', e);
     } finally {
       budgetLoading = false;
     }
   }
+
+  // Render chart when canvas becomes available (after Svelte re-renders)
+  $effect(() => {
+    if (chartCanvas && budgetCategories.length > 0) {
+      requestAnimationFrame(() => renderBudgetChart());
+    }
+  });
 
   function renderBudgetChart() {
     if (!chartCanvas || budgetCategories.length === 0) return;
@@ -1284,7 +1307,7 @@
           </span>
           <span class="chevron" class:open={expanded.initiatives}></span>
         </button>
-        {#if identity?.isUnlocked && expanded.initiatives}
+        {#if expanded.initiatives}
           <button
             class="add-btn"
             title="Start initiative"
@@ -1296,12 +1319,15 @@
         <!-- Create initiative form -->
         {#if showCreateInitiative}
           <div class="create-form">
+            {#if !identity?.isUnlocked}
+              <div class="form-hint">Set up identity in Options to sign initiatives.</div>
+            {/if}
             <input class="form-input" type="text" placeholder="Topic (e.g. traffic safety)" bind:value={newInitiative.topic} />
             <input class="form-input" type="text" placeholder="Title" bind:value={newInitiative.title} />
             <textarea class="form-textarea" placeholder="Description" bind:value={newInitiative.description} rows="2"></textarea>
             <input class="form-input" type="url" placeholder="Coordination URL (optional)" bind:value={newInitiative.coordination_url} />
             <div class="form-actions">
-              <button class="action-btn btn-commit" disabled={creatingInitiative || !newInitiative.topic.trim() || !newInitiative.title.trim() || !newInitiative.description.trim()} onclick={handleCreateInitiative}>
+              <button class="action-btn btn-commit" disabled={!identity?.isUnlocked || creatingInitiative || !newInitiative.topic.trim() || !newInitiative.title.trim() || !newInitiative.description.trim()} onclick={handleCreateInitiative}>
                 {creatingInitiative ? 'Creating...' : 'Create Initiative'}
               </button>
               <button class="action-btn btn-withdraw" onclick={() => { showCreateInitiative = false; }}>Cancel</button>
@@ -1315,9 +1341,7 @@
           {:else if initiatives.length === 0 && !showCreateInitiative}
             <div class="empty-section">
               No active initiatives
-              {#if identity?.isUnlocked}
-                <button class="link-btn" onclick={() => { showCreateInitiative = true; }}>Start one</button>
-              {/if}
+              <button class="link-btn" onclick={() => { showCreateInitiative = true; }}>Start one</button>
             </div>
           {:else}
             {#each initiatives as initiative}
@@ -2519,6 +2543,15 @@
     border-radius: 6px;
     padding: 10px;
     margin-bottom: 8px;
+  }
+  .form-hint {
+    font-size: 11px;
+    color: #f59e0b;
+    margin-bottom: 6px;
+    padding: 4px 8px;
+    background: #78350f20;
+    border-radius: 4px;
+    border: 1px solid #78350f40;
   }
   .action-create-form {
     margin-top: 8px;
