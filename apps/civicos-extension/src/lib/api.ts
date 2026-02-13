@@ -6,7 +6,7 @@
  * to the San Rafael production endpoint.
  */
 
-import type { CityPulseData, ToolResponse } from './types.js';
+import type { CityPulseData, DecisionDetailData, DataProvenance, VoiceCounts, ToolResponse } from './types.js';
 
 const DEFAULT_API_URL = 'https://san-rafael.civicosproject.org';
 const STORAGE_KEY = 'civicos_api_url';
@@ -45,6 +45,47 @@ export async function getCityPulse(daysAhead = 14, daysBack = 30): Promise<CityP
     method: 'POST',
     body: JSON.stringify({ days_ahead: daysAhead, days_back: daysBack }),
   });
+}
+
+export async function getDecisionDetail(title: string): Promise<DecisionDetailData> {
+  return apiRequest<DecisionDetailData>('/api/tools/decision-detail', {
+    method: 'POST',
+    body: JSON.stringify({ title }),
+  });
+}
+
+export async function getDataProvenance(): Promise<DataProvenance> {
+  return apiRequest<DataProvenance>('/api/tools/data-provenance');
+}
+
+export async function getVoiceCountsBatch(entityIds: string[]): Promise<Map<string, VoiceCounts>> {
+  const result = new Map<string, VoiceCounts>();
+  if (entityIds.length === 0) return result;
+
+  try {
+    const baseUrl = await getBaseUrl();
+    // Fetch counts for each entity individually (relay has per-entity endpoint)
+    const promises = entityIds.map(async (id) => {
+      try {
+        const url = `${baseUrl}/api/tools/voice-counts?entity_id=${encodeURIComponent(id)}`;
+        const response = await fetch(url, {
+          headers: { 'Content-Type': 'application/json' },
+        });
+        if (response.ok) {
+          const data: ToolResponse<VoiceCounts> = await response.json();
+          if (data.success && data.data) {
+            result.set(id, data.data);
+          }
+        }
+      } catch {
+        // Silently skip unavailable voice counts
+      }
+    });
+    await Promise.all(promises);
+  } catch {
+    // Voice counts are optional — return empty map
+  }
+  return result;
 }
 
 export async function setApiUrl(url: string): Promise<void> {

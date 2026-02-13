@@ -4282,8 +4282,8 @@
         "pattern": "Use existing REST API endpoints, same data patterns as Open WebUI CityPulse dashboard"
       },
       "extension_phase1b_read_enhancements": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 1,
         "artifact": "Browser extension Phase 1b — Read-only enhancements toward Open WebUI parity",
         "note": "Enrich the existing City Pulse sections without relay integration. Voice counts display (read-only via getVoiceCountsBatch), decision detail expansion (click to expand with testimony excerpts via decision-detail API), calendar buttons (Google Calendar URL + .ics download per meeting), data provenance info panel, past meeting visual indicator. All use existing REST API endpoints — no relay or signing needed.",
         "features": [
@@ -4301,7 +4301,7 @@
       },
       "extension_phase2_voice_signing": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "artifact": "Browser extension Phase 2 — Voice submission + relay WebSocket",
         "note": "Add support/oppose/watching buttons to agenda items and decisions. Sign voice events via identity manager in service worker (SIGN_EVENT already implemented). Connect to relay WebSocket (wss://relay.civicos.dev) for real-time voice count updates. Display inline comment threads with synthesis.",
         "features": [

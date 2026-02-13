@@ -1,4 +1,4 @@
-# Recommended: Browser Extension Phase 1b — Read-Only Enhancements
+# Recommended: Browser Extension Phase 2 — Voice Submission + Relay Integration
 
 **Priority:** P0
 **Area:** edge_intelligence > browser_extension
@@ -7,78 +7,78 @@
 > This is recommended context from the previous session. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
 
 ## Context
-Session 581 completed Phase 1 of the browser extension: the side panel now fetches live data from the CivicOS REST API and displays upcoming meetings, agenda items, recent decisions, and community issues (commit `b24d56d`). The user tested it in Chrome and confirmed it works — described as "a rudimentary version of the city pulse dashboard." They want to reach parity with the Open WebUI CityPulse component.
-
-A full gap analysis was done comparing the extension vs Open WebUI CityPulse. The work is broken into multiple sessions:
+Session 582 completed Phase 1b: the extension side panel now has expandable decision detail (with testimony), calendar buttons (Google Cal + .ics), data provenance panel, past meeting badges, and voice count display. All 5 read-only enhancements build cleanly. The user wants to continue with Phase 2: voice submission.
 
 | Phase | Item | Priority | Status |
 |---|---|---|---|
-| Phase 1 | `extension_phase1_city_pulse` | P0 | **ready** |
-| **Phase 1b** | **`extension_phase1b_read_enhancements`** | **P0** | **not_ready** (NEXT) |
-| Phase 2 | `extension_phase2_voice_signing` | P1 | not_ready |
+| Phase 1 | `extension_phase1_city_pulse` | P1 | **ready** |
+| Phase 1b | `extension_phase1b_read_enhancements` | P1 | **ready** |
+| **Phase 2** | **`extension_phase2_voice_signing`** | **P0** | **not_ready** (NEXT) |
 | Phase 2b | `extension_phase2b_commitments` | P1 | not_ready |
 | Phase 3 | `extension_phase3_ai_viz` | P2 | not_ready |
 
 ## Recommended Task
-Phase 1b: enrich the existing City Pulse sections with read-only enhancements. These all use existing REST API endpoints — no relay integration or signing needed.
-
-### Features to add
-1. **Voice counts display** (read-only) — show support/oppose/watching tallies on agenda items and decisions. Fetch via batch endpoint.
-2. **Expandable decision detail** — click a decision card to expand with full context, testimony excerpts, related decisions. Uses `POST /decision-detail` API.
-3. **Calendar buttons** — "Add to Google Calendar" URL and `.ics` file download per meeting. Port logic from Open WebUI CityPulse.
-4. **Data provenance panel** — info button in header revealing data sources, corpus counts, vector coverage, freshness. Uses `GET /data-provenance` API.
-5. **Past meeting badge** — visual indicator (clock icon, muted styling) for meetings that have already occurred. Simple date comparison.
+Add Support/Oppose/Watch buttons to agenda items and decisions. Sign voice events via the service worker's existing `SIGN_EVENT` handler. Submit to the relay coordination API. Include optimistic updates with rollback on failure.
 
 ## Key Files
-- `apps/civicos-extension/src/side-panel/SidePanel.svelte` — main UI to enhance (673 lines)
-- `apps/civicos-extension/src/lib/api.ts` — add new API methods (getCityPulse only right now)
-- `apps/civicos-extension/src/lib/types.ts` — add types for decision detail, provenance, voice counts
-- `apps/civicos-mcp/rest_api.py` — REST API reference for endpoint shapes
-- `~/projects/civicos-openwebui/src/lib/components/civic/CityPulse.svelte` — reference implementation (2000+ lines)
+- `apps/civicos-extension/src/side-panel/SidePanel.svelte` — main UI (1131 lines), add voice buttons to agenda item and decision cards
+- `apps/civicos-extension/src/lib/api.ts` — add `submitVoice()`, `revokeVoice()` calling relay API
+- `apps/civicos-extension/src/lib/types.ts` — already has `VoiceCounts` interface
+- `apps/civicos-extension/src/lib/messaging.ts:67` — `SIGN_EVENT` message type already defined
+- `apps/civicos-extension/src/background/service-worker.ts:87` — `SIGN_EVENT` handler already works (calls `identityManager.signEvent()`)
+- `apps/civicos-extension/src/lib/providers/types.ts:13` — `NostrEvent`, `SignedNostrEvent`, `SigningResult` types
 
-## REST API Endpoints to Use
-All endpoints are at `https://san-rafael.civicosproject.org/api/tools/`:
-- `POST /decision-detail` — `{title: string}` → full decision context with testimony
-- `GET /data-provenance` — corpus counts, vector coverage, freshness
-- `POST /get-item-context` — `{item_type, item_id, depth}` → rich context bundle
+### Reference implementation (Open WebUI)
+- `~/projects/civicos-openwebui/src/lib/apis/civic.ts:573` — `submitVoice()` function (Kind 30800 event, relay POST)
+- `~/projects/civicos-openwebui/src/lib/apis/civic.ts:615` — `revokeVoice()` function
+- `~/projects/civicos-openwebui/src/lib/components/civic/CityPulse.svelte:600` — `handleVoice()` with optimistic updates + rollback
 
-For voice counts, check the relay coordination API:
-- Relay URL is in `.env` as `CIVICOS_RELAY_URL` or use `civicos.registry.get_relay_url()`
-- `GET /coordination/voices/{entity_id}` — voice counts for an entity
-- Batch approach: fetch counts for all visible entity IDs on load
+## Relay API Endpoints
+Base URL: `https://api.civicosproject.org` (env: `CIVICOS_RELAY_URL`)
+
+- `POST /coordination/voice` — Submit voice: `{ entity, stance, public_key, signature, created_at, jurisdiction }`
+- `POST /coordination/voice/revoke` — Revoke voice: `{ entity, public_key, signature, created_at }`
+- `GET /coordination/voice/counts/{entityId}` — Read counts (already used by Phase 1b)
+
+## Voice Event Structure (Kind 30800)
+```typescript
+const unsigned: NostrEvent = {
+  created_at: Math.floor(Date.now() / 1000),
+  kind: 30800,
+  tags: [['d', entityId], ['j', jurisdiction], ['stance', stance]],
+  content: `civicos:voice:v1:${entityId}:${stance}:${createdAt}`
+};
+// Sign via: sendMessage({ type: 'SIGN_EVENT', event: unsigned })
+// Returns: { success: true, data: SignedNostrEvent }
+```
 
 ## Suggested Approach
-1. Add new API methods to `src/lib/api.ts`: `getDecisionDetail()`, `getDataProvenance()`, `getVoiceCounts()`
-2. Add corresponding TypeScript interfaces to `src/lib/types.ts`
-3. Enhance `SidePanel.svelte`:
-   - Decision cards: add click-to-expand with slide transition, show detail inside
-   - Meeting cards: add calendar dropdown (Google Cal URL + .ics blob download)
-   - Header: add info button that toggles provenance panel
-   - Meeting cards: compare `meeting_datetime` to `new Date()` for past badge
-   - Agenda/decision cards: show voice count badges if available
-4. Keep the same dark theme and collapsible section patterns
-
-## Reference: Open WebUI Calendar Logic
-```typescript
-// Google Calendar URL
-const gcalUrl = `https://www.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(title)}&dates=${startISO}/${endISO}&location=${encodeURIComponent(location)}`;
-
-// .ics file
-const icsContent = `BEGIN:VCALENDAR\nBEGIN:VEVENT\nDTSTART:${startISO}\nDTEND:${endISO}\nSUMMARY:${title}\nLOCATION:${location}\nEND:VEVENT\nEND:VCALENDAR`;
-const blob = new Blob([icsContent], { type: 'text/calendar' });
-```
+1. Add relay API methods to `api.ts`: `submitVoice(entityId, stance, signedEvent)`, `revokeVoice(entityId, signedEvent)`
+2. Add `handleVoice()` to `SidePanel.svelte` following Open WebUI's optimistic update pattern:
+   - Construct unsigned Kind 30800 event
+   - Send `SIGN_EVENT` message to service worker for signing
+   - Optimistically update local voice counts + user stance
+   - POST to relay, rollback on failure
+   - Re-click same stance = revoke (toggle off)
+3. Add Support/Oppose/Watch button row to agenda items (where `stance_eligible`) and decision cards
+4. Persist `userStances` Map to `chrome.storage.local` (not localStorage — extension context)
+5. Show active stance highlighting (e.g., green border on support, red on oppose)
+6. Handle locked identity gracefully (prompt unlock or show "unlock to vote")
 
 ## Build & Test
 ```bash
 cd apps/civicos-extension && npm run build
-# Reload extension in chrome://extensions (click refresh icon)
-# Open side panel — click a decision to expand, click calendar on a meeting
+# Reload in chrome://extensions
+# Open side panel, unlock identity, click Support on an agenda item
+# Verify count increments, click again to revoke, verify count decrements
 ```
 
 ## Success Criteria
-- [ ] Decision cards expand on click showing detail + testimony
-- [ ] Meeting cards have "Add to Calendar" dropdown (Google Cal + .ics)
-- [ ] Info button in header shows data provenance panel
-- [ ] Past meetings visually distinguished from upcoming
-- [ ] Voice count badges shown if data available
-- [ ] pilot.json item `extension_phase1b_read_enhancements` marked ready
+- [ ] Support/Oppose/Watch buttons on stance-eligible agenda items
+- [ ] Voice counts on decision cards (already showing from Phase 1b)
+- [ ] Clicking a button signs event + submits to relay
+- [ ] Re-clicking same stance revokes
+- [ ] Optimistic count update with rollback on failure
+- [ ] User stance persisted across panel reopens
+- [ ] Locked identity shows appropriate message
+- [ ] pilot.json item `extension_phase2_voice_signing` marked ready
