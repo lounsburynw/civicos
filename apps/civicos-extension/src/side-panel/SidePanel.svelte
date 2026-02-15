@@ -867,6 +867,36 @@
     return lines.join('\n');
   }
 
+  // === External AI Platform Routing ===
+
+  type AIPlatform = 'claude' | 'chatgpt';
+
+  const AI_PLATFORMS: Record<AIPlatform, { name: string; url: string }> = {
+    claude: { name: 'Claude', url: 'https://claude.ai/new' },
+    chatgpt: { name: 'ChatGPT', url: 'https://chatgpt.com/' },
+  };
+
+  function getMCPUrl(): string {
+    return 'https://san-rafael.civicosproject.org/mcp';
+  }
+
+  function formatExternalContext(context: string): string {
+    const jurisdiction = pulseData?.jurisdiction || 'my city';
+    return `${context}\n\n---\nSource: CivicOS — ${jurisdiction} civic data (civicosproject.org)\nTip: For richer integration, add CivicOS as an MCP connector in your AI settings:\n${getMCPUrl()}`;
+  }
+
+  async function openExternalAI(platform: AIPlatform, context: string) {
+    const config = AI_PLATFORMS[platform];
+    const formatted = formatExternalContext(context);
+    try {
+      await navigator.clipboard.writeText(formatted);
+      chrome.tabs.create({ url: config.url });
+      showToast(`Context copied — paste into ${config.name} (Ctrl+V)`);
+    } catch {
+      showToast('Failed to copy context to clipboard');
+    }
+  }
+
   async function askAI(key: string, context: string) {
     // Toggle off if already showing a response for this key
     if (aiResponses.has(key)) {
@@ -876,14 +906,6 @@
     }
 
     if (!aiAvailable) {
-      // Fallback: clipboard + new tab (no provider configured)
-      try {
-        await navigator.clipboard.writeText(context);
-        chrome.tabs.create({ url: 'https://claude.ai/new' });
-        showToast('Context copied — paste into chat (Ctrl+V)');
-      } catch {
-        showToast('No AI provider configured. Open extension options to set one up.');
-      }
       return;
     }
 
@@ -1969,20 +1991,31 @@
                   </button>
                 {/if}
 
-                <button
-                  class="ask-ai-btn"
-                  class:active={aiResponses.has(`ask-agenda:${item.id}`)}
-                  disabled={aiResponseLoading.has(`ask-agenda:${item.id}`)}
-                  onclick={() => askAI(`ask-agenda:${item.id}`, composeAgendaContext(item))}
-                >
-                  {aiResponseLoading.has(`ask-agenda:${item.id}`) ? 'Thinking...' : aiResponses.has(`ask-agenda:${item.id}`) ? 'Hide response' : 'Ask AI about this'}
-                </button>
-                {#if aiResponses.has(`ask-agenda:${item.id}`)}
-                  <div class="ai-response">
-                    <div class="ai-response-text">{aiResponses.get(`ask-agenda:${item.id}`)}</div>
-                    {#if activeProviderName}<span class="ai-response-provider">via {activeProviderName}</span>{/if}
-                  </div>
+                {#if aiAvailable}
+                  <button
+                    class="ask-ai-btn"
+                    class:active={aiResponses.has(`ask-agenda:${item.id}`)}
+                    disabled={aiResponseLoading.has(`ask-agenda:${item.id}`)}
+                    onclick={() => askAI(`ask-agenda:${item.id}`, composeAgendaContext(item))}
+                  >
+                    {aiResponseLoading.has(`ask-agenda:${item.id}`) ? 'Thinking...' : aiResponses.has(`ask-agenda:${item.id}`) ? 'Hide response' : 'Ask AI about this'}
+                  </button>
+                  {#if aiResponses.has(`ask-agenda:${item.id}`)}
+                    <div class="ai-response">
+                      <div class="ai-response-text">{aiResponses.get(`ask-agenda:${item.id}`)}</div>
+                      {#if activeProviderName}<span class="ai-response-provider">via {activeProviderName}</span>{/if}
+                    </div>
+                  {/if}
                 {/if}
+                <div class="discuss-external">
+                  <span class="discuss-label">{aiAvailable ? 'or discuss in' : 'Discuss in'}</span>
+                  <button class="discuss-ext-btn" onclick={() => openExternalAI('claude', composeAgendaContext(item))}>
+                    Claude <span class="ext-icon">↗</span>
+                  </button>
+                  <button class="discuss-ext-btn" onclick={() => openExternalAI('chatgpt', composeAgendaContext(item))}>
+                    ChatGPT <span class="ext-icon">↗</span>
+                  </button>
+                </div>
               </div>
             {/each}
           </div>
@@ -2048,13 +2081,15 @@
                           <div class="detail-section">
                             <div class="detail-label-row">
                               <div class="detail-label">Public Testimony ({detail.testimony.public_comments.length})</div>
-                              <button
-                                class="summarize-btn"
-                                disabled={aiResponseLoading.has(`ask-testimony:${decision.id}`)}
-                                onclick={() => askAI(`ask-testimony:${decision.id}`, composeTestimonySummary(decision, detail.testimony!.public_comments!))}
-                              >
-                                {aiResponseLoading.has(`ask-testimony:${decision.id}`) ? 'Summarizing...' : aiResponses.has(`ask-testimony:${decision.id}`) ? 'Hide summary' : 'Summarize'}
-                              </button>
+                              {#if aiAvailable}
+                                <button
+                                  class="summarize-btn"
+                                  disabled={aiResponseLoading.has(`ask-testimony:${decision.id}`)}
+                                  onclick={() => askAI(`ask-testimony:${decision.id}`, composeTestimonySummary(decision, detail.testimony!.public_comments!))}
+                                >
+                                  {aiResponseLoading.has(`ask-testimony:${decision.id}`) ? 'Summarizing...' : aiResponses.has(`ask-testimony:${decision.id}`) ? 'Hide summary' : 'Summarize'}
+                                </button>
+                              {/if}
                             </div>
                             {#each detail.testimony.public_comments.slice(0, 3) as comment}
                               <div class="testimony-item">
@@ -2071,6 +2106,15 @@
                                 {#if activeProviderName}<span class="ai-response-provider">via {activeProviderName}</span>{/if}
                               </div>
                             {/if}
+                            <div class="discuss-external">
+                              <span class="discuss-label">{aiAvailable ? 'or discuss in' : 'Discuss testimony in'}</span>
+                              <button class="discuss-ext-btn" onclick={() => openExternalAI('claude', composeTestimonySummary(decision, detail.testimony!.public_comments!))}>
+                                Claude <span class="ext-icon">↗</span>
+                              </button>
+                              <button class="discuss-ext-btn" onclick={() => openExternalAI('chatgpt', composeTestimonySummary(decision, detail.testimony!.public_comments!))}>
+                                ChatGPT <span class="ext-icon">↗</span>
+                              </button>
+                            </div>
                           </div>
                         {/if}
                         {#if detail.related_decisions && detail.related_decisions.length > 0}
@@ -2110,20 +2154,31 @@
                             <span class="voice-locked">Unlock to vote</span>
                           {/if}
                         </div>
-                        <button
-                          class="ask-ai-btn"
-                          class:active={aiResponses.has(`ask-decision:${decision.id}`)}
-                          disabled={aiResponseLoading.has(`ask-decision:${decision.id}`)}
-                          onclick={() => askAI(`ask-decision:${decision.id}`, composeDecisionContext(decision))}
-                        >
-                          {aiResponseLoading.has(`ask-decision:${decision.id}`) ? 'Thinking...' : aiResponses.has(`ask-decision:${decision.id}`) ? 'Hide response' : 'Ask AI about this'}
-                        </button>
-                        {#if aiResponses.has(`ask-decision:${decision.id}`)}
-                          <div class="ai-response">
-                            <div class="ai-response-text">{aiResponses.get(`ask-decision:${decision.id}`)}</div>
-                            {#if activeProviderName}<span class="ai-response-provider">via {activeProviderName}</span>{/if}
-                          </div>
+                        {#if aiAvailable}
+                          <button
+                            class="ask-ai-btn"
+                            class:active={aiResponses.has(`ask-decision:${decision.id}`)}
+                            disabled={aiResponseLoading.has(`ask-decision:${decision.id}`)}
+                            onclick={() => askAI(`ask-decision:${decision.id}`, composeDecisionContext(decision))}
+                          >
+                            {aiResponseLoading.has(`ask-decision:${decision.id}`) ? 'Thinking...' : aiResponses.has(`ask-decision:${decision.id}`) ? 'Hide response' : 'Ask AI about this'}
+                          </button>
+                          {#if aiResponses.has(`ask-decision:${decision.id}`)}
+                            <div class="ai-response">
+                              <div class="ai-response-text">{aiResponses.get(`ask-decision:${decision.id}`)}</div>
+                              {#if activeProviderName}<span class="ai-response-provider">via {activeProviderName}</span>{/if}
+                            </div>
+                          {/if}
                         {/if}
+                        <div class="discuss-external">
+                          <span class="discuss-label">{aiAvailable ? 'or discuss in' : 'Discuss in'}</span>
+                          <button class="discuss-ext-btn" onclick={() => openExternalAI('claude', composeDecisionContext(decision))}>
+                            Claude <span class="ext-icon">↗</span>
+                          </button>
+                          <button class="discuss-ext-btn" onclick={() => openExternalAI('chatgpt', composeDecisionContext(decision))}>
+                            ChatGPT <span class="ext-icon">↗</span>
+                          </button>
+                        </div>
                       {:else}
                         <div class="detail-empty">No details available</div>
                       {/if}
@@ -3942,6 +3997,36 @@
     color: #93c5fd;
   }
   .ask-ai-btn:disabled { opacity: 0.6; cursor: default; }
+
+  /* === External AI Discuss Buttons === */
+  .discuss-external {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    margin-top: 6px;
+  }
+  .discuss-label {
+    font-size: 10px;
+    color: #6b7280;
+  }
+  .discuss-ext-btn {
+    font-size: 10px;
+    font-weight: 500;
+    color: #9ca3af;
+    background: transparent;
+    border: 1px solid #374151;
+    border-radius: 4px;
+    padding: 2px 8px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .discuss-ext-btn:hover {
+    color: #d1d5db;
+    border-color: #60a5fa;
+    background: rgba(59,130,246,0.06);
+  }
+  .ext-icon { font-size: 9px; }
   .ask-ai-btn.active {
     background: rgba(59,130,246,0.12);
     border-style: solid;
