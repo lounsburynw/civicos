@@ -98,7 +98,7 @@ export async function getVoiceCountsBatch(entityIds: string[]): Promise<Map<stri
 
 // === Relay API (coordination/voice endpoints) ===
 
-const DEFAULT_RELAY_URL = 'http://localhost:8003';
+const DEFAULT_RELAY_URL = 'https://civicos--civicos-relay-relayserver-relay-endpoint.modal.run';
 const RELAY_STORAGE_KEY = 'civicos_relay_url';
 
 async function getRelayUrl(): Promise<string> {
@@ -361,17 +361,15 @@ export async function createCivicAction(
 // === Relay API (coordination/comment endpoints) ===
 
 export async function getComments(entityId: string): Promise<Comment[]> {
-  try {
-    const relayUrl = await getRelayUrl();
-    const response = await fetch(
-      `${relayUrl}/coordination/comments/${encodeURIComponent(entityId)}`,
-      { headers: { 'Content-Type': 'application/json' } }
-    );
-    if (!response.ok) return [];
-    return response.json();
-  } catch {
-    return [];
+  const relayUrl = await getRelayUrl();
+  const response = await fetch(
+    `${relayUrl}/coordination/comments/${encodeURIComponent(entityId)}`,
+    { headers: { 'Content-Type': 'application/json' } }
+  );
+  if (!response.ok) {
+    throw new Error(`Comments unavailable (${response.status})`);
   }
+  return response.json();
 }
 
 export async function getCommentCounts(entityId: string): Promise<CommentCounts | null> {
@@ -453,7 +451,7 @@ export async function getItemContext(
 
 export async function getCommentSynthesis(entityId: string): Promise<CommentSynthesis | null> {
   try {
-    return apiRequest<CommentSynthesis>('/api/tools/comment-synthesis', {
+    return await apiRequest<CommentSynthesis>('/api/tools/comment-synthesis', {
       method: 'POST',
       body: JSON.stringify({ entity_id: entityId }),
     });
@@ -468,4 +466,8 @@ export async function setApiUrl(url: string): Promise<void> {
 
 export async function getApiUrl(): Promise<string> {
   return getBaseUrl();
+}
+
+export async function setRelayUrl(url: string): Promise<void> {
+  await chrome.storage.local.set({ [RELAY_STORAGE_KEY]: url });
 }

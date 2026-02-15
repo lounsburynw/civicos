@@ -1,7 +1,7 @@
 <script lang="ts">
   import { sendMessage } from '../lib/messaging.js';
-  import { getCityPulse, getDecisionDetail, getDataProvenance, getVoiceCountsBatch, submitVoice, revokeVoice, getInitiatives, getCivicActions, getCivicActionProgress, commitToCivicAction, completeCivicAction, withdrawCivicAction, createInitiative, createCivicAction, getIssueGeography, getBudgetSummary, getComments, getCommentCountsBatch, submitComment, getCommentSynthesis, getItemContext } from '../lib/api.js';
-  import { isAIAvailable, getAIManager, composeDraftPrompt, composeEnrichPrompt, SYSTEM_PROMPT, QA_SYSTEM_PROMPT } from '../lib/ai.js';
+  import { getCityPulse, getDecisionDetail, getDataProvenance, getVoiceCountsBatch, submitVoice, revokeVoice, getInitiatives, getCivicActions, getCivicActionProgress, commitToCivicAction, completeCivicAction, withdrawCivicAction, createInitiative, createCivicAction, getIssueGeography, getBudgetSummary, getComments, getCommentCountsBatch, submitComment, getCommentSynthesis, getItemContext, setRelayUrl } from '../lib/api.js';
+  import { isAIAvailable, getAIManager, onAIConfigChanged, composeDraftPrompt, composeEnrichPrompt, SYSTEM_PROMPT, QA_SYSTEM_PROMPT } from '../lib/ai.js';
   import type { IdentityInfo, NostrEvent, SignedNostrEvent } from '../lib/providers/types.js';
   import { CivicEventKinds, createVoiceContent, createVoiceTags, createCommitmentContent, createCommitmentTags, createCompletionContent, createCompletionTags, generateCommitmentId, generateCompletionId, generateActionRef } from '../lib/providers/types.js';
   import type { CityPulseData, DecisionDetailData, DataProvenance, VoiceCounts, Initiative, CivicAction, CivicActionProgress, IssuePoint, BudgetCategory, Comment, CommentSynthesis } from '../lib/types.js';
@@ -270,6 +270,10 @@
     pulseError = null;
     try {
       pulseData = await getCityPulse();
+      // Auto-configure relay URL from server response
+      if (pulseData.relay_url) {
+        setRelayUrl(pulseData.relay_url);
+      }
       // Load voice counts, comment counts, and initiatives in background
       loadVoiceCounts();
       loadCommentCounts();
@@ -305,6 +309,11 @@
     }
   }
 
+  function getUserComment(entityId: string): Comment | undefined {
+    if (!identity?.publicKey) return undefined;
+    return (threadComments.get(entityId) || []).find(c => c.public_key === identity!.publicKey);
+  }
+
   async function toggleCommentThread(entityId: string) {
     if (openThreads.has(entityId)) {
       openThreads.delete(entityId);
@@ -328,6 +337,14 @@
         if (synth) {
           synthData.set(entityId, synth);
           synthData = new Map(synthData);
+        }
+        // Pre-fill draft with user's existing comment for editing
+        if (identity?.publicKey) {
+          const mine = comments.find(c => c.public_key === identity!.publicKey);
+          if (mine && !threadDrafts.has(entityId)) {
+            threadDrafts.set(entityId, mine.comment_text);
+            threadDrafts = new Map(threadDrafts);
+          }
         }
       } catch {
         threadErrors.set(entityId, 'Failed to load comments');
@@ -384,7 +401,7 @@
       );
 
       if (ok) {
-        // Add comment to thread optimistically
+        // Optimistic update: replace existing or prepend new
         const newComment: Comment = {
           entity: entityId,
           comment_text: draft,
@@ -396,13 +413,19 @@
           deleted: false,
         };
         const existing = threadComments.get(entityId) || [];
-        threadComments.set(entityId, [newComment, ...existing]);
+        const existingIdx = existing.findIndex(c => c.public_key === signResult.data.pubkey);
+        if (existingIdx >= 0) {
+          // Update in place (server upserts — 1 comment per user per entity)
+          existing[existingIdx] = newComment;
+          threadComments.set(entityId, [...existing]);
+        } else {
+          threadComments.set(entityId, [newComment, ...existing]);
+          // Only increment count for genuinely new comments
+          const prevCount = commentCounts.get(entityId) || 0;
+          commentCounts.set(entityId, prevCount + 1);
+          commentCounts = new Map(commentCounts);
+        }
         threadComments = new Map(threadComments);
-
-        // Update count
-        const prevCount = commentCounts.get(entityId) || 0;
-        commentCounts.set(entityId, prevCount + 1);
-        commentCounts = new Map(commentCounts);
 
         // Clear draft
         threadDrafts.delete(entityId);
@@ -1557,6 +1580,23 @@
     const provider = getAIManager().getActiveProvider();
     if (provider) activeProviderName = provider.name;
   });
+
+  // Re-initialize AI state when Options page saves new config
+  onAIConfigChanged(() => {
+    isAIAvailable().then(available => {
+      aiAvailable = available;
+      const provider = getAIManager().getActiveProvider();
+      activeProviderName = provider ? provider.name : '';
+    });
+  });
+
+  // Refresh identity when it changes in chrome.storage (e.g., created in Options page)
+  chrome.storage.onChanged.addListener((changes, areaName) => {
+    if (areaName !== 'local') return;
+    if (changes['civicos-passkey-identity'] || changes['civicos-wallet-identity']) {
+      loadIdentity();
+    }
+  });
 </script>
 
 <div class="panel">
@@ -1858,6 +1898,7 @@
 
                           <!-- Compose area -->
                           {#if identity?.isUnlocked}
+                            {@const userExisting = getUserComment(commentEntityId)}
                             <div class="thread-compose">
                               {#if aiAvailable}
                                 <div class="draft-toolbar">
@@ -1886,7 +1927,7 @@
                               <textarea
                                 class="thread-textarea"
                                 class:ai-loading={draftingInProgress.has(commentEntityId) || enrichingInProgress.has(commentEntityId)}
-                                placeholder="Add a comment..."
+                                placeholder={userExisting ? 'Edit your comment...' : 'Add a comment...'}
                                 rows={2}
                                 maxlength={500}
                                 value={threadDrafts.get(commentEntityId) || ''}
@@ -1901,7 +1942,11 @@
                                   disabled={!(threadDrafts.get(commentEntityId) || '').trim() || threadSubmitting.has(commentEntityId)}
                                   onclick={() => handleSubmitComment(commentEntityId)}
                                 >
-                                  {threadSubmitting.has(commentEntityId) ? 'Posting...' : 'Post'}
+                                  {#if threadSubmitting.has(commentEntityId)}
+                                    {userExisting ? 'Updating...' : 'Posting...'}
+                                  {:else}
+                                    {userExisting ? 'Update' : 'Post'}
+                                  {/if}
                                 </button>
                               </div>
                             </div>
