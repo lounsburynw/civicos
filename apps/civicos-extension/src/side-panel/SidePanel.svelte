@@ -1,6 +1,7 @@
 <script lang="ts">
   import { sendMessage } from '../lib/messaging.js';
-  import { getCityPulse, getDecisionDetail, getDataProvenance, getVoiceCountsBatch, submitVoice, revokeVoice, getInitiatives, getCivicActions, getCivicActionProgress, commitToCivicAction, completeCivicAction, withdrawCivicAction, createInitiative, createCivicAction, getIssueGeography, getBudgetSummary, getComments, getCommentCountsBatch, submitComment, getCommentSynthesis } from '../lib/api.js';
+  import { getCityPulse, getDecisionDetail, getDataProvenance, getVoiceCountsBatch, submitVoice, revokeVoice, getInitiatives, getCivicActions, getCivicActionProgress, commitToCivicAction, completeCivicAction, withdrawCivicAction, createInitiative, createCivicAction, getIssueGeography, getBudgetSummary, getComments, getCommentCountsBatch, submitComment, getCommentSynthesis, getItemContext } from '../lib/api.js';
+  import { isAIAvailable, getAIManager, composeDraftPrompt, composeEnrichPrompt, SYSTEM_PROMPT, QA_SYSTEM_PROMPT } from '../lib/ai.js';
   import type { IdentityInfo, NostrEvent, SignedNostrEvent } from '../lib/providers/types.js';
   import { CivicEventKinds, createVoiceContent, createVoiceTags, createCommitmentContent, createCommitmentTags, createCompletionContent, createCompletionTags, generateCommitmentId, generateCompletionId, generateActionRef } from '../lib/providers/types.js';
   import type { CityPulseData, DecisionDetailData, DataProvenance, VoiceCounts, Initiative, CivicAction, CivicActionProgress, IssuePoint, BudgetCategory, Comment, CommentSynthesis } from '../lib/types.js';
@@ -54,6 +55,16 @@
   let threadLoading = $state(new Set<string>());
   let threadErrors = $state(new Map<string, string>());
   let synthData = $state(new Map<string, CommentSynthesis>());
+
+  // AI drafting state
+  let aiAvailable = $state(false);
+  let activeProviderName = $state('');
+  let draftingInProgress = $state(new Set<string>());
+  let enrichingInProgress = $state(new Set<string>());
+
+  // Ask AI inline response state
+  let aiResponses = $state(new Map<string, string>());
+  let aiResponseLoading = $state(new Set<string>());
 
   // Calendar dropdown
   let calendarOpen: string | null = $state(null);
@@ -833,14 +844,128 @@
     return lines.join('\n');
   }
 
-  async function askAI(context: string) {
-    try {
-      await navigator.clipboard.writeText(context);
-      chrome.tabs.create({ url: 'https://claude.ai/new' });
-      showToast('Context copied — paste into chat (Ctrl+V)');
-    } catch {
-      showToast('Could not copy to clipboard');
+  async function askAI(key: string, context: string) {
+    // Toggle off if already showing a response for this key
+    if (aiResponses.has(key)) {
+      aiResponses.delete(key);
+      aiResponses = new Map(aiResponses);
+      return;
     }
+
+    if (!aiAvailable) {
+      // Fallback: clipboard + new tab (no provider configured)
+      try {
+        await navigator.clipboard.writeText(context);
+        chrome.tabs.create({ url: 'https://claude.ai/new' });
+        showToast('Context copied — paste into chat (Ctrl+V)');
+      } catch {
+        showToast('No AI provider configured. Open extension options to set one up.');
+      }
+      return;
+    }
+
+    aiResponseLoading.add(key);
+    aiResponseLoading = new Set(aiResponseLoading);
+
+    try {
+      const result = await getAIManager().complete(context, QA_SYSTEM_PROMPT);
+      if (result.success && result.text) {
+        aiResponses.set(key, result.text);
+        aiResponses = new Map(aiResponses);
+      } else {
+        showToast(`AI failed: ${result.error}`);
+      }
+    } catch (err) {
+      showToast(`AI request failed: ${err instanceof Error ? err.message : 'unknown error'}`);
+    }
+
+    aiResponseLoading.delete(key);
+    aiResponseLoading = new Set(aiResponseLoading);
+  }
+
+  // === AI Drafting ===
+
+  async function handleDraftWithAI(entityId: string, item: import('../lib/types.js').PulseAgendaItem) {
+    draftingInProgress.add(entityId);
+    draftingInProgress = new Set(draftingInProgress);
+
+    try {
+      const stance = userStances.get(entityId);
+      const counts = voiceCounts.get(entityId);
+      const promptText = composeDraftPrompt(item, stance, counts);
+
+      const aiResult = await getAIManager().complete(promptText, SYSTEM_PROMPT);
+      if (!aiResult.success) {
+        showToast(`AI drafting failed: ${aiResult.error}`);
+        draftingInProgress.delete(entityId);
+        draftingInProgress = new Set(draftingInProgress);
+        return;
+      }
+
+      threadDrafts.set(entityId, aiResult.text!);
+      threadDrafts = new Map(threadDrafts);
+
+      // Open the thread if not already open
+      if (!openThreads.has(entityId)) {
+        openThreads.add(entityId);
+        openThreads = new Set(openThreads);
+        // Load comments if not already loaded
+        if (!threadComments.has(entityId)) {
+          threadLoading.add(entityId);
+          threadLoading = new Set(threadLoading);
+          try {
+            const [comments, synth] = await Promise.all([
+              getComments(entityId),
+              getCommentSynthesis(entityId),
+            ]);
+            threadComments.set(entityId, comments);
+            threadComments = new Map(threadComments);
+            if (synth) {
+              synthData.set(entityId, synth);
+              synthData = new Map(synthData);
+            }
+          } catch {
+            // Non-critical — draft is already in textarea
+          }
+          threadLoading.delete(entityId);
+          threadLoading = new Set(threadLoading);
+        }
+      }
+    } catch {
+      showToast('AI drafting failed — try again');
+    }
+
+    draftingInProgress.delete(entityId);
+    draftingInProgress = new Set(draftingInProgress);
+  }
+
+  async function handleEnrichDraft(entityId: string, item: import('../lib/types.js').PulseAgendaItem) {
+    const draft = (threadDrafts.get(entityId) || '').trim();
+    if (!draft) return;
+
+    enrichingInProgress.add(entityId);
+    enrichingInProgress = new Set(enrichingInProgress);
+
+    try {
+      const context = await getItemContext(item.id, ['history', 'regulatory', 'testimony']);
+      const enrichPrompt = composeEnrichPrompt(draft, context);
+
+      const aiResult = await getAIManager().complete(enrichPrompt, SYSTEM_PROMPT);
+      if (!aiResult.success) {
+        showToast(`Enrichment failed: ${aiResult.error}`);
+        enrichingInProgress.delete(entityId);
+        enrichingInProgress = new Set(enrichingInProgress);
+        return;
+      }
+
+      threadDrafts.set(entityId, aiResult.text!);
+      threadDrafts = new Map(threadDrafts);
+    } catch {
+      showToast('Enrichment failed — server may be unavailable');
+    }
+
+    enrichingInProgress.delete(entityId);
+    enrichingInProgress = new Set(enrichingInProgress);
   }
 
   async function loadStances() {
@@ -1427,6 +1552,11 @@
   loadCityPulse();
   loadStances();
   loadCommitments();
+  isAIAvailable().then(available => {
+    aiAvailable = available;
+    const provider = getAIManager().getActiveProvider();
+    if (provider) activeProviderName = provider.name;
+  });
 </script>
 
 <div class="panel">
@@ -1729,8 +1859,33 @@
                           <!-- Compose area -->
                           {#if identity?.isUnlocked}
                             <div class="thread-compose">
+                              {#if aiAvailable}
+                                <div class="draft-toolbar">
+                                  <button
+                                    class="draft-btn"
+                                    disabled={draftingInProgress.has(commentEntityId)}
+                                    onclick={() => handleDraftWithAI(commentEntityId, item)}
+                                    title={activeProviderName ? `via ${activeProviderName}` : ''}
+                                  >
+                                    {draftingInProgress.has(commentEntityId) ? 'Drafting...' : 'Draft with AI'}
+                                  </button>
+                                  {#if (threadDrafts.get(commentEntityId) || '').trim()}
+                                    <button
+                                      class="enrich-btn"
+                                      disabled={enrichingInProgress.has(commentEntityId)}
+                                      onclick={() => handleEnrichDraft(commentEntityId, item)}
+                                    >
+                                      {enrichingInProgress.has(commentEntityId) ? 'Enriching...' : 'Enrich with context'}
+                                    </button>
+                                  {/if}
+                                  {#if activeProviderName}
+                                    <span class="ai-provider-tag">via {activeProviderName}</span>
+                                  {/if}
+                                </div>
+                              {/if}
                               <textarea
                                 class="thread-textarea"
+                                class:ai-loading={draftingInProgress.has(commentEntityId) || enrichingInProgress.has(commentEntityId)}
                                 placeholder="Add a comment..."
                                 rows={2}
                                 maxlength={500}
@@ -1763,9 +1918,26 @@
                   </div>
                 {/if}
 
-                <button class="ask-ai-btn" onclick={() => askAI(composeAgendaContext(item))}>
-                  Ask AI about this
+                {#if aiAvailable && identity?.isUnlocked && item.comment_eligible && !openThreads.has(`agenda-item:${item.id}`)}
+                  <button class="draft-btn draft-btn-standalone" onclick={() => handleDraftWithAI(`agenda-item:${item.id}`, item)} disabled={draftingInProgress.has(`agenda-item:${item.id}`)} title={activeProviderName ? `via ${activeProviderName}` : ''}>
+                    {draftingInProgress.has(`agenda-item:${item.id}`) ? 'Drafting...' : 'Draft with AI'}
+                  </button>
+                {/if}
+
+                <button
+                  class="ask-ai-btn"
+                  class:active={aiResponses.has(`ask-agenda:${item.id}`)}
+                  disabled={aiResponseLoading.has(`ask-agenda:${item.id}`)}
+                  onclick={() => askAI(`ask-agenda:${item.id}`, composeAgendaContext(item))}
+                >
+                  {aiResponseLoading.has(`ask-agenda:${item.id}`) ? 'Thinking...' : aiResponses.has(`ask-agenda:${item.id}`) ? 'Hide response' : 'Ask AI about this'}
                 </button>
+                {#if aiResponses.has(`ask-agenda:${item.id}`)}
+                  <div class="ai-response">
+                    <div class="ai-response-text">{aiResponses.get(`ask-agenda:${item.id}`)}</div>
+                    {#if activeProviderName}<span class="ai-response-provider">via {activeProviderName}</span>{/if}
+                  </div>
+                {/if}
               </div>
             {/each}
           </div>
@@ -1831,8 +2003,12 @@
                           <div class="detail-section">
                             <div class="detail-label-row">
                               <div class="detail-label">Public Testimony ({detail.testimony.public_comments.length})</div>
-                              <button class="summarize-btn" onclick={() => askAI(composeTestimonySummary(decision, detail.testimony!.public_comments!))}>
-                                Summarize
+                              <button
+                                class="summarize-btn"
+                                disabled={aiResponseLoading.has(`ask-testimony:${decision.id}`)}
+                                onclick={() => askAI(`ask-testimony:${decision.id}`, composeTestimonySummary(decision, detail.testimony!.public_comments!))}
+                              >
+                                {aiResponseLoading.has(`ask-testimony:${decision.id}`) ? 'Summarizing...' : aiResponses.has(`ask-testimony:${decision.id}`) ? 'Hide summary' : 'Summarize'}
                               </button>
                             </div>
                             {#each detail.testimony.public_comments.slice(0, 3) as comment}
@@ -1843,6 +2019,12 @@
                             {/each}
                             {#if detail.testimony.public_comments.length > 3}
                               <div class="detail-more">+{detail.testimony.public_comments.length - 3} more</div>
+                            {/if}
+                            {#if aiResponses.has(`ask-testimony:${decision.id}`)}
+                              <div class="ai-response">
+                                <div class="ai-response-text">{aiResponses.get(`ask-testimony:${decision.id}`)}</div>
+                                {#if activeProviderName}<span class="ai-response-provider">via {activeProviderName}</span>{/if}
+                              </div>
                             {/if}
                           </div>
                         {/if}
@@ -1883,9 +2065,20 @@
                             <span class="voice-locked">Unlock to vote</span>
                           {/if}
                         </div>
-                        <button class="ask-ai-btn" onclick={() => askAI(composeDecisionContext(decision))}>
-                          Ask AI about this
+                        <button
+                          class="ask-ai-btn"
+                          class:active={aiResponses.has(`ask-decision:${decision.id}`)}
+                          disabled={aiResponseLoading.has(`ask-decision:${decision.id}`)}
+                          onclick={() => askAI(`ask-decision:${decision.id}`, composeDecisionContext(decision))}
+                        >
+                          {aiResponseLoading.has(`ask-decision:${decision.id}`) ? 'Thinking...' : aiResponses.has(`ask-decision:${decision.id}`) ? 'Hide response' : 'Ask AI about this'}
                         </button>
+                        {#if aiResponses.has(`ask-decision:${decision.id}`)}
+                          <div class="ai-response">
+                            <div class="ai-response-text">{aiResponses.get(`ask-decision:${decision.id}`)}</div>
+                            {#if activeProviderName}<span class="ai-response-provider">via {activeProviderName}</span>{/if}
+                          </div>
+                        {/if}
                       {:else}
                         <div class="detail-empty">No details available</div>
                       {/if}
@@ -3698,10 +3891,37 @@
     cursor: pointer;
     transition: all 0.15s ease;
   }
-  .ask-ai-btn:hover {
+  .ask-ai-btn:hover:not(:disabled) {
     background: rgba(59,130,246,0.12);
     border-color: #3b82f6;
     color: #93c5fd;
+  }
+  .ask-ai-btn:disabled { opacity: 0.6; cursor: default; }
+  .ask-ai-btn.active {
+    background: rgba(59,130,246,0.12);
+    border-style: solid;
+    color: #93c5fd;
+  }
+
+  /* === AI Inline Response === */
+  .ai-response {
+    margin-top: 8px;
+    padding: 10px 12px;
+    background: rgba(139, 92, 246, 0.06);
+    border: 1px solid rgba(139, 92, 246, 0.15);
+    border-radius: 8px;
+  }
+  .ai-response-text {
+    font-size: 12px;
+    color: #d1d5db;
+    line-height: 1.5;
+    white-space: pre-wrap;
+  }
+  .ai-response-provider {
+    display: block;
+    margin-top: 6px;
+    font-size: 10px;
+    color: #64748b;
   }
 
   /* === Toast === */
@@ -4131,4 +4351,63 @@
   .ini-add-action:hover { color: #3b82f6; border-color: #3b82f6; }
 
   .ini-action-form { margin-top: 4px; padding: 12px; }
+
+  /* === AI Draft Toolbar === */
+  .draft-toolbar {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 6px;
+  }
+  .draft-btn {
+    font-size: 11px;
+    font-weight: 500;
+    padding: 4px 10px;
+    background: rgba(139, 92, 246, 0.1);
+    color: #a78bfa;
+    border: 1px solid rgba(139, 92, 246, 0.25);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .draft-btn:hover:not(:disabled) {
+    background: rgba(139, 92, 246, 0.2);
+    border-color: #a78bfa;
+  }
+  .draft-btn:disabled { opacity: 0.5; cursor: default; }
+  .draft-btn-standalone {
+    display: block;
+    width: 100%;
+    margin-top: 6px;
+    padding: 5px 0;
+    text-align: center;
+  }
+  .enrich-btn {
+    font-size: 11px;
+    font-weight: 500;
+    padding: 4px 10px;
+    background: rgba(34, 197, 94, 0.08);
+    color: #4ade80;
+    border: 1px solid rgba(34, 197, 94, 0.2);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .enrich-btn:hover:not(:disabled) {
+    background: rgba(34, 197, 94, 0.15);
+    border-color: #4ade80;
+  }
+  .enrich-btn:disabled { opacity: 0.5; cursor: default; }
+  .ai-provider-tag {
+    font-size: 10px;
+    color: #64748b;
+    align-self: center;
+    white-space: nowrap;
+  }
+  .thread-textarea.ai-loading {
+    animation: ai-pulse 1.5s ease-in-out infinite;
+  }
+  @keyframes ai-pulse {
+    0%, 100% { border-color: #374151; }
+    50% { border-color: #a78bfa; }
+  }
 </style>
