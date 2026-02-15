@@ -29,7 +29,7 @@
   },
 
   "relay": {
-    "url": "https://api.civicosproject.org",
+    "url": "https://civicos--civicos-relay-relayserver-relay-endpoint.modal.run",
     "modal_app_name": "civicos-relay"
   },
 

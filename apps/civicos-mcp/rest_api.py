@@ -158,6 +158,10 @@ def create_rest_router(registry, civic, jurisdiction, validate_input, logger):
                  description="Get structured city activity data (meetings, decisions, community issues) as JSON. Returns raw data suitable for analysis or display. Use when you need specific counts, dates, or structured information about civic activity.")
     async def city_pulse(request: CityPulseRequest):
         data = call_tool_safe("city_pulse", request.model_dump())
+        # Include relay URL so clients can auto-discover coordination endpoints
+        if isinstance(data, dict) and "relay_url" not in data:
+            from civicos.registry import get_relay_url
+            data["relay_url"] = get_relay_url()
         return ToolResponse(data=data)
 
     @router.post("/search-meeting-history", response_model=ToolResponse,
