@@ -22,7 +22,6 @@
     items: true,
     outcomes: true,
     initiatives: true,
-    community: false,
     issueMap: false,
     budget: false,
   });
@@ -339,12 +338,19 @@
 
     try {
       const createdAt = Math.floor(Date.now() / 1000);
-      const content = `civicos:comment:v1:${entityId}:${createdAt}`;
+      // Determine stance from user's current voice on this entity
+      const userStance = userStances.get(entityId);
+
+      // Build tags to match server's verify_comment(): d (entity), j (jurisdiction), optionally stance
+      const tags: string[][] = [['d', entityId], ['j', 'city-san-rafael']];
+      if (userStance) tags.push(['stance', userStance]);
+
+      // Content is the actual comment text — server verifies signature over this
       const unsigned: NostrEvent = {
         created_at: createdAt,
         kind: 30803,
-        tags: [['d', `comment:${entityId}`], ['entity', entityId]],
-        content,
+        tags,
+        content: draft,
       };
 
       const signResult = await sendMessage<SignedNostrEvent>({ type: 'SIGN_EVENT', event: unsigned });
@@ -355,9 +361,6 @@
         threadSubmitting = new Set(threadSubmitting);
         return;
       }
-
-      // Determine stance from user's current voice on this entity
-      const userStance = userStances.get(entityId);
 
       const ok = await submitComment(
         entityId,
@@ -522,6 +525,120 @@
     return ISSUE_COLORS['Other'];
   }
 
+  function getIssueCategory(type: string): string {
+    for (const key of Object.keys(ISSUE_COLORS)) {
+      if (type.toLowerCase().includes(key.toLowerCase())) return key;
+    }
+    return 'Other';
+  }
+
+  let activeIssueFilters = $state(new Set(Object.keys(ISSUE_COLORS)));
+  let issueLayerGroups = new Map<string, L.LayerGroup>();
+  let mapExpanded = $state(false);
+  let mapDaysFilter: number | null = $state(null); // null = all time
+
+  const MAP_DAYS_OPTIONS: { label: string; value: number | null }[] = [
+    { label: '7d', value: 7 },
+    { label: '30d', value: 30 },
+    { label: '90d', value: 90 },
+    { label: 'All', value: null },
+  ];
+
+  function toggleMapExpanded() {
+    mapExpanded = !mapExpanded;
+    // Wait for CSS transition (200ms) to finish before recalculating tile coverage
+    setTimeout(() => leafletMap?.invalidateSize(), 250);
+  }
+
+  function issuesInWindow(points: IssuePoint[], days: number | null): IssuePoint[] {
+    if (days === null) return points;
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - days);
+    return points.filter(pt => new Date(pt.created_at) >= cutoff);
+  }
+
+  function timeFilteredPoints(): IssuePoint[] {
+    return issuesInWindow(issuePoints, mapDaysFilter);
+  }
+
+  function categoryCounts(): Map<string, number> {
+    const counts = new Map<string, number>();
+    for (const cat of Object.keys(ISSUE_COLORS)) counts.set(cat, 0);
+    for (const pt of timeFilteredPoints()) {
+      const cat = getIssueCategory(pt.type);
+      counts.set(cat, (counts.get(cat) || 0) + 1);
+    }
+    return counts;
+  }
+
+  function issueTrend(): { pct: number; direction: 'up' | 'down' | 'flat' } | null {
+    // Compare current 30d vs previous 30d
+    const now = new Date();
+    const d30ago = new Date(); d30ago.setDate(now.getDate() - 30);
+    const d60ago = new Date(); d60ago.setDate(now.getDate() - 60);
+    const current = issuePoints.filter(pt => new Date(pt.created_at) >= d30ago).length;
+    const previous = issuePoints.filter(pt => {
+      const d = new Date(pt.created_at);
+      return d >= d60ago && d < d30ago;
+    }).length;
+    if (previous === 0 && current === 0) return null;
+    if (previous === 0) return { pct: 100, direction: 'up' };
+    const pct = Math.round(((current - previous) / previous) * 100);
+    if (pct === 0) return { pct: 0, direction: 'flat' };
+    return { pct: Math.abs(pct), direction: pct > 0 ? 'up' : 'down' };
+  }
+
+  function toggleIssueFilter(category: string) {
+    if (activeIssueFilters.has(category)) {
+      activeIssueFilters.delete(category);
+      const lg = issueLayerGroups.get(category);
+      if (lg && leafletMap) leafletMap.removeLayer(lg);
+    } else {
+      activeIssueFilters.add(category);
+      const lg = issueLayerGroups.get(category);
+      if (lg && leafletMap) leafletMap.addLayer(lg);
+    }
+    activeIssueFilters = new Set(activeIssueFilters);
+  }
+
+  function setDaysFilter(days: number | null) {
+    mapDaysFilter = days;
+    rebuildMapMarkers();
+  }
+
+  function rebuildMapMarkers() {
+    if (!leafletMap) return;
+    // Remove existing layer groups
+    for (const lg of issueLayerGroups.values()) {
+      leafletMap.removeLayer(lg);
+    }
+    issueLayerGroups.clear();
+    // Rebuild from time-filtered points
+    const points = timeFilteredPoints();
+    const grouped = new Map<string, L.CircleMarker[]>();
+    for (const pt of points) {
+      const cat = getIssueCategory(pt.type);
+      const marker = L.circleMarker([pt.lat, pt.lng], {
+        radius: 5,
+        color: getIssueColor(pt.type),
+        fillColor: getIssueColor(pt.type),
+        fillOpacity: 0.7,
+        weight: 1,
+      }).bindPopup(`<b>${pt.type}</b><br>${pt.address}<br><small>${pt.status}</small>`);
+      if (!grouped.has(cat)) grouped.set(cat, []);
+      grouped.get(cat)!.push(marker);
+    }
+    for (const [cat, markers] of grouped) {
+      const lg = L.layerGroup(markers);
+      issueLayerGroups.set(cat, lg);
+      if (activeIssueFilters.has(cat)) lg.addTo(leafletMap);
+    }
+  }
+
+  function filteredIssueCount(): number {
+    return timeFilteredPoints().filter(pt => activeIssueFilters.has(getIssueCategory(pt.type))).length;
+  }
+
   async function loadIssueMap() {
     if (issueMapLoaded || issueMapLoading) return;
     issueMapLoading = true;
@@ -559,24 +676,14 @@
     }).setView([37.9735, -122.5311], 13);
 
     L.control.zoom({ position: 'topright' }).addTo(leafletMap);
-    L.control.attribution({ position: 'bottomright', prefix: false }).addTo(leafletMap);
     L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-      attribution: '&copy; CARTO',
       maxZoom: 19,
     }).addTo(leafletMap);
 
-    for (const pt of issuePoints) {
-      L.circleMarker([pt.lat, pt.lng], {
-        radius: 5,
-        color: getIssueColor(pt.type),
-        fillColor: getIssueColor(pt.type),
-        fillOpacity: 0.7,
-        weight: 1,
-      }).bindPopup(`<b>${pt.type}</b><br>${pt.address}<br><small>${pt.status}</small>`)
-        .addTo(leafletMap);
-    }
+    // Build markers from time-filtered points
+    rebuildMapMarkers();
 
-    // Fit bounds to points
+    // Fit bounds to all points (not filtered, so initial view is stable)
     if (issuePoints.length > 1) {
       const bounds = L.latLngBounds(issuePoints.map(p => [p.lat, p.lng] as [number, number]));
       leafletMap.fitBounds(bounds, { padding: [20, 20] });
@@ -764,10 +871,30 @@
     try {
       const jurisdiction = pulseData?.jurisdiction || 'city-san-rafael';
       initiatives = await getInitiatives(jurisdiction);
+      // Load all actions + progress upfront for card-level stats
+      loadAllActionStats();
     } catch {
       initiatives = [];
     }
     initiativesLoading = false;
+  }
+
+  async function loadAllActionStats() {
+    await Promise.all(initiatives.map(async (ini) => {
+      if (initiativeActions.has(ini.id)) return;
+      try {
+        const actions = await getCivicActions(ini.id);
+        initiativeActions.set(ini.id, actions);
+        await Promise.all(actions.map(async (action) => {
+          const progress = await getCivicActionProgress(action.id);
+          if (progress) actionProgress.set(action.id, progress);
+        }));
+        actionProgress = new Map(actionProgress);
+      } catch {
+        initiativeActions.set(ini.id, []);
+      }
+    }));
+    initiativeActions = new Map(initiativeActions);
   }
 
   async function toggleInitiativeDetail(initiativeId: string) {
@@ -805,6 +932,31 @@
         actionsLoading = new Set(actionsLoading);
       }
     }
+  }
+
+  // === Commitment stats ===
+
+  function initiativeStats(initiativeId: string): { committed: number; completed: number } {
+    const actions = initiativeActions.get(initiativeId);
+    if (!actions) return { committed: 0, completed: 0 };
+    let committed = 0, completed = 0;
+    for (const a of actions) {
+      const p = actionProgress.get(a.id);
+      if (p) {
+        committed += p.commitment_count;
+        completed += p.completion_count;
+      }
+    }
+    return { committed, completed };
+  }
+
+  function aggregateStats(): { committed: number; completed: number } {
+    let committed = 0, completed = 0;
+    for (const p of actionProgress.values()) {
+      committed += p.commitment_count;
+      completed += p.completion_count;
+    }
+    return { committed, completed };
   }
 
   // === Commitment persistence ===
@@ -1364,7 +1516,17 @@
           <span class="lock-status">locked</span>
         {/if}
       </div>
-      <div class="npub">{truncateNpub(identity.npub)}</div>
+      {#if !identity.isUnlocked && identity.tier === 'private'}
+        <form class="chip-unlock-form" onsubmit={(e: Event) => { e.preventDefault(); handleUnlock(); }}>
+          <input type="password" class="chip-unlock-input" placeholder="Password" bind:value={unlockPassword} autocomplete="off" />
+          <button type="submit" class="chip-unlock-btn" disabled={unlocking || !unlockPassword}>{unlocking ? '...' : 'Unlock'}</button>
+        </form>
+        {#if unlockError}
+          <div class="chip-unlock-error">{unlockError}</div>
+        {/if}
+      {:else}
+        <div class="npub">{truncateNpub(identity.npub)}</div>
+      {/if}
     </div>
   {:else}
     <div class="identity-chip empty">
@@ -1739,23 +1901,25 @@
 
     <!-- Community Initiatives -->
     <section class="feed-section ini">
-      <div class="section-header-row">
-        <button class="section-header" onclick={() => toggle('initiatives')}>
-          <span class="section-title">
-            Community Initiatives
-            {#if initiatives.length > 0}
-              <span class="ini-count">{initiatives.length}</span>
-            {/if}
-          </span>
-          <span class="chevron" class:open={expanded.initiatives}></span>
-        </button>
-        {#if expanded.initiatives}
-          <button class="ini-add-btn" title="Start initiative" onclick={() => { showCreateInitiative = !showCreateInitiative; }}>
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-          </button>
-        {/if}
-      </div>
+      <button class="section-header" onclick={() => toggle('initiatives')}>
+        <span class="section-title">
+          Community Initiatives
+          {#if initiatives.length > 0}
+            <span class="ini-count">{initiatives.length}</span>
+          {/if}
+        </span>
+        <span class="chevron" class:open={expanded.initiatives}></span>
+      </button>
       {#if expanded.initiatives}
+        <div class="ini-section-bar">
+          {#if aggregateStats().committed > 0 || aggregateStats().completed > 0}
+            <div class="ini-aggregate-stats">
+              {#if aggregateStats().committed > 0}<span class="agg-stat">{aggregateStats().committed} committed</span>{/if}
+              {#if aggregateStats().completed > 0}<span class="agg-stat agg-completed">{aggregateStats().completed} completed</span>{/if}
+            </div>
+          {/if}
+          <button class="ini-start-btn" onclick={() => { showCreateInitiative = !showCreateInitiative; }}>Start Initiative</button>
+        </div>
         <!-- Create initiative form -->
         {#if showCreateInitiative}
           <div class="ini-form">
@@ -1841,6 +2005,13 @@
                   </div>
                   <div class="ini-card-title">{initiative.title}</div>
                   <div class="ini-card-desc">{initiative.description}</div>
+                  {#if initiativeStats(initiative.id).committed > 0 || initiativeStats(initiative.id).completed > 0}
+                    {@const stats = initiativeStats(initiative.id)}
+                    <div class="ini-card-stats">
+                      {#if stats.committed > 0}<span class="ini-stat">{stats.committed} committed</span>{/if}
+                      {#if stats.completed > 0}<span class="ini-stat ini-stat-done">{stats.completed} done</span>{/if}
+                    </div>
+                  {/if}
                   {#if initiative.coordination_url}
                     <div class="ini-card-coord">Has coordination channel</div>
                   {/if}
@@ -2035,33 +2206,6 @@
       </section>
     {/if}
 
-    <!-- Community Pulse -->
-    {#if pulseData.community_pulse && pulseData.community_pulse.total_issues}
-      <section class="feed-section">
-        <button class="section-header" onclick={() => toggle('community')}>
-          <span class="section-title">
-            Community Issues
-            <span class="count-badge">{pulseData.community_pulse.total_issues}</span>
-          </span>
-          <span class="chevron" class:open={expanded.community}></span>
-        </button>
-        {#if expanded.community}
-          <div class="section-body">
-            <div class="issue-stats">
-              {#if pulseData.community_pulse.top_types}
-                {#each Object.entries(pulseData.community_pulse.top_types) as [type, count]}
-                  <div class="issue-type-row">
-                    <span class="issue-type-name">{type}</span>
-                    <span class="issue-type-count">{count}</span>
-                  </div>
-                {/each}
-              {/if}
-            </div>
-          </div>
-        {/if}
-      </section>
-    {/if}
-
     <!-- Issue Map -->
     <section class="feed-section">
       <button class="section-header" onclick={() => { toggle('issueMap'); if (!issueMapLoaded) loadIssueMap(); }}>
@@ -2075,16 +2219,42 @@
           {:else if issuePoints.length === 0}
             <div class="empty-section">No issue location data available</div>
           {:else}
-            <div class="map-wrapper" bind:this={mapContainer}></div>
-            <div class="map-legend">
-              {#each Object.entries(ISSUE_COLORS).slice(0, -1) as [label, color]}
-                <span class="legend-item">
-                  <span class="legend-dot" style="background:{color}"></span>
-                  {label}
+            {@const counts = categoryCounts()}
+            {@const trend = issueTrend()}
+            <div class="map-time-bar">
+              {#each MAP_DAYS_OPTIONS as opt}
+                <button
+                  class="time-chip"
+                  class:active={mapDaysFilter === opt.value}
+                  onclick={() => setDaysFilter(opt.value)}
+                >{opt.label}</button>
+              {/each}
+              {#if trend}
+                <span class="trend-stat" class:trend-up={trend.direction === 'up'} class:trend-down={trend.direction === 'down'}>
+                  {trend.direction === 'up' ? '↑' : trend.direction === 'down' ? '↓' : '—'} {trend.pct}% past 30d
                 </span>
+              {/if}
+            </div>
+            <div class="map-filters">
+              {#each Object.entries(ISSUE_COLORS) as [label, color]}
+                <button
+                  class="filter-chip"
+                  class:inactive={!activeIssueFilters.has(label)}
+                  onclick={() => toggleIssueFilter(label)}
+                >
+                  <span class="legend-dot" style="background:{activeIssueFilters.has(label) ? color : '#4b5563'}"></span>
+                  {label}
+                  <span class="chip-count">{counts.get(label) || 0}</span>
+                </button>
               {/each}
             </div>
-            <div class="viz-stat">{issuePoints.length} issues mapped</div>
+            <div class="map-container" class:map-expanded={mapExpanded}>
+              <div class="map-wrapper" bind:this={mapContainer}></div>
+              <button class="map-expand-btn" onclick={toggleMapExpanded} title={mapExpanded ? 'Collapse map' : 'Expand map'}>
+                {mapExpanded ? '↙' : '↗'}
+              </button>
+            </div>
+            <div class="viz-stat">{filteredIssueCount()} of {timeFilteredPoints().length} issues shown</div>
           {/if}
         </div>
       {/if}
@@ -2265,6 +2435,42 @@
   }
   .lock-btn:hover { background: rgba(239, 68, 68, 0.1); }
   .lock-btn:disabled { opacity: 0.5; cursor: default; }
+
+  .chip-unlock-form {
+    display: flex;
+    gap: 6px;
+    margin-top: 6px;
+  }
+  .chip-unlock-input {
+    flex: 1;
+    min-width: 0;
+    padding: 4px 8px;
+    background: #1a1a1a;
+    border: 1px solid #404040;
+    border-radius: 4px;
+    color: #e5e7eb;
+    font-size: 12px;
+    outline: none;
+  }
+  .chip-unlock-input:focus { border-color: #6366f1; }
+  .chip-unlock-btn {
+    background: #6366f1;
+    color: white;
+    border: none;
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 500;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .chip-unlock-btn:hover { background: #4f46e5; }
+  .chip-unlock-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .chip-unlock-error {
+    font-size: 10px;
+    color: #ef4444;
+    margin-top: 2px;
+  }
 
   .unlock-inline {
     display: flex;
@@ -2519,22 +2725,64 @@
   .outcome-label.failed { color: #f87171; }
   .outcome-label.other { color: #9ca3af; }
 
-  /* === Community Issues === */
-  .issue-stats {
-    padding: 4px 0;
-  }
-
-  .issue-type-row {
+  /* === Issue Map Filters === */
+  .map-time-bar {
     display: flex;
-    justify-content: space-between;
     align-items: center;
-    padding: 6px 12px;
-    font-size: 12px;
+    gap: 4px;
+    margin-bottom: 6px;
   }
-  .issue-type-row:nth-child(odd) { background: #262626; border-radius: 4px; }
-
-  .issue-type-name { color: #d1d5db; }
-  .issue-type-count { color: #6b7280; font-variant-numeric: tabular-nums; }
+  .time-chip {
+    padding: 2px 10px;
+    border-radius: 10px;
+    border: 1px solid #374151;
+    background: transparent;
+    color: #9ca3af;
+    font-size: 10px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .time-chip:hover { border-color: #6b7280; }
+  .time-chip.active {
+    background: #374151;
+    color: #f3f4f6;
+    border-color: #6b7280;
+  }
+  .trend-stat {
+    margin-left: auto;
+    font-size: 10px;
+    color: #9ca3af;
+  }
+  .trend-stat.trend-up { color: #f87171; }
+  .trend-stat.trend-down { color: #4ade80; }
+  .map-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-bottom: 8px;
+  }
+  .filter-chip {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: 12px;
+    border: 1px solid #374151;
+    background: #1f2937;
+    color: #d1d5db;
+    font-size: 10px;
+    cursor: pointer;
+    transition: opacity 0.15s, border-color 0.15s;
+  }
+  .filter-chip:hover { border-color: #6b7280; }
+  .filter-chip.inactive {
+    opacity: 0.4;
+    border-color: #1f2937;
+  }
+  .chip-count {
+    color: #6b7280;
+    font-variant-numeric: tabular-nums;
+  }
 
   /* === Footer === */
   .pulse-footer {
@@ -3067,14 +3315,7 @@
   }
   .commitment-cal-btn:hover { color: #60a5fa; border-color: #60a5fa; }
 
-  /* === Section header with add button === */
-  .section-header-row {
-    display: flex;
-    align-items: center;
-  }
-  .section-header-row .section-header {
-    flex: 1;
-  }
+
 
   .add-btn {
     background: none;
@@ -3178,24 +3419,38 @@
   }
 
   /* === Issue Map === */
+  .map-container {
+    position: relative;
+  }
   .map-wrapper {
     height: 220px;
     border-radius: 6px;
     overflow: hidden;
     border: 1px solid #374151;
+    transition: height 0.2s ease;
   }
-  .map-legend {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px 10px;
-    margin-top: 6px;
-    font-size: 10px;
-    color: #9ca3af;
+  .map-expanded .map-wrapper {
+    height: 70vh;
   }
-  .legend-item {
+  .map-expand-btn {
+    position: absolute;
+    top: 6px;
+    left: 6px;
+    width: 26px;
+    height: 26px;
+    border-radius: 4px;
+    border: none;
+    background: rgba(31, 41, 55, 0.85);
+    color: #d1d5db;
+    font-size: 14px;
+    cursor: pointer;
     display: flex;
     align-items: center;
-    gap: 3px;
+    justify-content: center;
+    z-index: 1000;
+  }
+  .map-expand-btn:hover {
+    background: rgba(55, 65, 81, 0.9);
   }
 
   /* === Budget Chart === */
@@ -3490,22 +3745,41 @@
     letter-spacing: 0;
   }
 
-  .ini-add-btn {
+  .ini-section-bar {
     display: flex;
     align-items: center;
-    justify-content: center;
-    width: 28px;
-    height: 28px;
-    background: transparent;
-    border: 1px solid #374151;
-    border-radius: 8px;
-    color: #9ca3af;
+    justify-content: space-between;
+    padding: 6px 12px;
+  }
+  .ini-aggregate-stats {
+    display: flex;
+    gap: 12px;
+    font-size: 11px;
+  }
+  .agg-stat { color: #9ca3af; }
+  .agg-stat.agg-completed { color: #4ade80; }
+
+  .ini-card-stats {
+    display: flex;
+    gap: 8px;
+    margin-top: 4px;
+    font-size: 10px;
+  }
+  .ini-stat { color: #9ca3af; }
+  .ini-stat.ini-stat-done { color: #4ade80; }
+
+  .ini-start-btn {
+    font-size: 10px;
+    font-weight: 500;
+    color: #3b82f6;
     cursor: pointer;
-    flex-shrink: 0;
-    margin-right: 4px;
+    padding: 2px 10px;
+    border-radius: 10px;
+    border: 1px solid #3b82f6;
+    white-space: nowrap;
     transition: all 0.15s;
   }
-  .ini-add-btn:hover { color: #3b82f6; border-color: #3b82f6; background: rgba(59, 130, 246, 0.08); }
+  .ini-start-btn:hover { background: rgba(59, 130, 246, 0.1); }
 
   /* === Create Initiative Form === */
   .ini-form {
