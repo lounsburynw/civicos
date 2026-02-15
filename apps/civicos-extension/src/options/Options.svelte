@@ -1,12 +1,26 @@
 <script lang="ts">
   import { sendMessage } from '../lib/messaging.js';
   import type { IdentityInfo, IdentityTier } from '../lib/providers/types.js';
+  import { AIManager } from '../lib/ai/manager.js';
+  import type { AITier } from '../lib/ai/types.js';
 
   // State
   let identity: (IdentityInfo & { isUnlocked?: boolean }) | null = $state(null);
   let loading = $state(true);
   let statusMessage = $state('');
   let statusType: 'success' | 'error' | '' = $state('');
+
+  // AI provider state
+  const aiManager = new AIManager();
+  let aiTier: AITier = $state('device');
+  let aiProviderStatuses: Array<{
+    id: string; name: string; tier: string;
+    available: boolean; ready: boolean; active: boolean;
+  }> = $state([]);
+  let aiApiKey = $state('');
+  let aiCloudProProvider: 'claude' | 'openai' = $state('claude');
+  let aiSaving = $state(false);
+  let aiTesting = $state(false);
 
   // Create flow
   let selectedTier: IdentityTier = $state('easy');
@@ -178,11 +192,115 @@
     });
   }
 
+  async function loadAIStatus() {
+    await aiManager.initialize();
+    aiProviderStatuses = await aiManager.checkStatus();
+
+    // Reflect current active provider in tier selection
+    const active = aiProviderStatuses.find(p => p.active);
+    if (active) {
+      aiTier = active.tier as AITier;
+      if (active.tier === 'cloud-pro') {
+        aiCloudProProvider = active.id as 'claude' | 'openai';
+      }
+    } else {
+      // No active provider — default to a tier that's actionable
+      const nanoAvailable = aiProviderStatuses.find(p => p.id === 'chrome-nano')?.available;
+      aiTier = nanoAvailable ? 'device' : 'cloud-free';
+    }
+
+    // Load stored API key for the current view
+    await loadCurrentApiKey();
+  }
+
+  async function loadCurrentApiKey() {
+    const storage = aiManager.getStorage();
+    if (aiTier === 'cloud-free') {
+      const config = await storage.getConfig('gemini');
+      aiApiKey = config.apiKey ?? '';
+    } else if (aiTier === 'cloud-pro') {
+      const config = await storage.getConfig(aiCloudProProvider);
+      aiApiKey = config.apiKey ?? '';
+    } else {
+      aiApiKey = '';
+    }
+  }
+
+  async function saveAIProvider() {
+    aiSaving = true;
+    try {
+      if (aiTier === 'device') {
+        const nano = aiManager.getProvider('chrome-nano');
+        if (nano && await nano.isReady()) {
+          await aiManager.setActiveProvider('chrome-nano');
+          setStatus('AI provider set to Chrome Built-in AI', 'success');
+        } else {
+          setStatus('Chrome Built-in AI is not available in this browser', 'error');
+        }
+      } else if (aiTier === 'cloud-free') {
+        if (!aiApiKey.trim()) {
+          setStatus('API key is required', 'error');
+          aiSaving = false;
+          return;
+        }
+        const gemini = aiManager.getProvider('gemini');
+        if (gemini) {
+          await gemini.configure({ apiKey: aiApiKey.trim() });
+          await aiManager.setActiveProvider('gemini');
+          setStatus('AI provider set to Google Gemini', 'success');
+        }
+      } else if (aiTier === 'cloud-pro') {
+        if (!aiApiKey.trim()) {
+          setStatus('API key is required', 'error');
+          aiSaving = false;
+          return;
+        }
+        const provider = aiManager.getProvider(aiCloudProProvider);
+        if (provider) {
+          await provider.configure({ apiKey: aiApiKey.trim() });
+          await aiManager.setActiveProvider(aiCloudProProvider);
+          setStatus(`AI provider set to ${provider.name}`, 'success');
+        }
+      }
+      aiProviderStatuses = await aiManager.checkStatus();
+    } catch (err) {
+      setStatus(`Failed to save: ${err instanceof Error ? err.message : 'unknown error'}`, 'error');
+    }
+    aiSaving = false;
+  }
+
+  async function testAIProvider() {
+    aiTesting = true;
+    try {
+      const result = await aiManager.complete('Say "hello" in one word.', 'You are a test assistant.');
+      if (result.success) {
+        setStatus(`AI test passed (${result.provider}): "${result.text?.slice(0, 50)}"`, 'success');
+      } else {
+        setStatus(`AI test failed: ${result.error}`, 'error');
+      }
+    } catch (err) {
+      setStatus(`AI test error: ${err instanceof Error ? err.message : 'unknown'}`, 'error');
+    }
+    aiTesting = false;
+  }
+
+  async function clearAIProvider() {
+    const providerId = aiTier === 'cloud-free' ? 'gemini' : aiCloudProProvider;
+    const provider = aiManager.getProvider(providerId);
+    if (provider) {
+      await provider.clearConfig();
+      aiApiKey = '';
+      aiProviderStatuses = await aiManager.checkStatus();
+      setStatus(`Cleared ${provider.name} configuration`, 'success');
+    }
+  }
+
   loadIdentity();
+  loadAIStatus();
 </script>
 
 <div class="options">
-  <h1>CivicOS Identity</h1>
+  <h1>CivicOS Settings</h1>
 
   <div class="toast" class:visible={!!statusMessage} class:success={statusType === 'success'} class:error={statusType === 'error'}>
     {statusMessage}
@@ -345,6 +463,116 @@
       {/if}
     </section>
   {/if}
+
+  <!-- AI Provider Configuration -->
+  <section class="card ai-section">
+    <h2>AI Drafting Provider</h2>
+    <p class="section-desc">Choose how AI-powered comment drafting works. Higher tiers require an API key.</p>
+
+    <div class="tier-selector">
+      <label class="tier-option" class:selected={aiTier === 'device'}>
+        <input type="radio" bind:group={aiTier} value="device" onchange={() => loadCurrentApiKey()} />
+        <div class="tier-content">
+          <div class="tier-name-row">
+            <span class="tier-name">On-Device</span>
+            {#if aiProviderStatuses.find(p => p.id === 'chrome-nano')?.ready}
+              <span class="status-dot ready"></span>
+            {:else}
+              <span class="status-dot unavailable"></span>
+            {/if}
+          </div>
+          <span class="tier-desc">Chrome Built-in AI (Gemini Nano). Free, private, no API key. Requires Chrome 138+.</span>
+        </div>
+      </label>
+      <label class="tier-option" class:selected={aiTier === 'cloud-free'}>
+        <input type="radio" bind:group={aiTier} value="cloud-free" onchange={() => loadCurrentApiKey()} />
+        <div class="tier-content">
+          <div class="tier-name-row">
+            <span class="tier-name">Google Gemini</span>
+            {#if aiProviderStatuses.find(p => p.id === 'gemini')?.ready}
+              <span class="status-dot ready"></span>
+            {/if}
+          </div>
+          <span class="tier-desc">Free API key from AI Studio. Fast cloud inference.</span>
+        </div>
+      </label>
+      <label class="tier-option" class:selected={aiTier === 'cloud-pro'}>
+        <input type="radio" bind:group={aiTier} value="cloud-pro" onchange={() => loadCurrentApiKey()} />
+        <div class="tier-content">
+          <div class="tier-name-row">
+            <span class="tier-name">Claude / OpenAI</span>
+            {#if aiProviderStatuses.find(p => p.id === 'claude')?.ready || aiProviderStatuses.find(p => p.id === 'openai')?.ready}
+              <span class="status-dot ready"></span>
+            {/if}
+          </div>
+          <span class="tier-desc">Premium models. Requires a paid API key.</span>
+        </div>
+      </label>
+    </div>
+
+    {#if aiTier === 'device'}
+      <div class="ai-config-note">
+        {#if aiProviderStatuses.find(p => p.id === 'chrome-nano')?.available}
+          Chrome Built-in AI is available. No configuration needed.
+        {:else}
+          Chrome Built-in AI is not available. You need Chrome 138+ with the Prompt API enabled.
+        {/if}
+      </div>
+    {:else if aiTier === 'cloud-free'}
+      <div class="form-group">
+        <label for="gemini-key">Gemini API Key</label>
+        <input id="gemini-key" type="password" placeholder="AIza..." bind:value={aiApiKey} />
+        <span class="form-hint">Free from <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com</a></span>
+      </div>
+    {:else if aiTier === 'cloud-pro'}
+      <div class="form-group">
+        <label for="pro-provider">Provider</label>
+        <div class="radio-row">
+          <label class="radio-label">
+            <input type="radio" bind:group={aiCloudProProvider} value="claude" onchange={() => loadCurrentApiKey()} />
+            Claude
+          </label>
+          <label class="radio-label">
+            <input type="radio" bind:group={aiCloudProProvider} value="openai" onchange={() => loadCurrentApiKey()} />
+            OpenAI
+          </label>
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="pro-key">{aiCloudProProvider === 'claude' ? 'Anthropic' : 'OpenAI'} API Key</label>
+        <input id="pro-key" type="password" placeholder={aiCloudProProvider === 'claude' ? 'sk-ant-...' : 'sk-...'} bind:value={aiApiKey} />
+        <span class="form-hint">
+          {#if aiCloudProProvider === 'claude'}
+            From <a href="https://console.anthropic.com" target="_blank" rel="noopener">console.anthropic.com</a>
+          {:else}
+            From <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener">platform.openai.com</a>
+          {/if}
+        </span>
+      </div>
+      <div class="key-warning">API keys are stored in your browser's local storage (unencrypted).</div>
+    {/if}
+
+    <div class="ai-action-buttons">
+      <button class="btn-primary" onclick={saveAIProvider} disabled={aiSaving}>
+        {aiSaving ? 'Saving...' : 'Save'}
+      </button>
+      {#if aiTier !== 'device'}
+        <button class="btn-secondary" onclick={testAIProvider} disabled={aiTesting || !aiApiKey.trim()}>
+          {aiTesting ? 'Testing...' : 'Test'}
+        </button>
+        <button class="btn-secondary" onclick={clearAIProvider}>
+          Clear
+        </button>
+      {/if}
+    </div>
+
+    {#if aiProviderStatuses.some(p => p.active)}
+      {@const active = aiProviderStatuses.find(p => p.active)}
+      <div class="active-provider-badge">
+        Active: {active?.name}
+      </div>
+    {/if}
+  </section>
 </div>
 
 <style>
@@ -605,5 +833,95 @@
     margin-top: 16px;
     padding-top: 16px;
     border-top: 1px solid #334155;
+  }
+
+  /* AI Provider Section */
+  .ai-section {
+    margin-top: 24px;
+  }
+
+  .section-desc {
+    font-size: 12px;
+    color: #94a3b8;
+    margin-bottom: 16px;
+  }
+
+  .tier-name-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+  }
+  .status-dot.ready { background: #22c55e; }
+  .status-dot.unavailable { background: #64748b; }
+
+  .ai-config-note {
+    font-size: 12px;
+    color: #94a3b8;
+    padding: 12px;
+    background: #0f172a;
+    border-radius: 6px;
+    margin-bottom: 12px;
+  }
+
+  .form-hint {
+    display: block;
+    font-size: 11px;
+    color: #64748b;
+    margin-top: 4px;
+  }
+  .form-hint a {
+    color: #818cf8;
+    text-decoration: none;
+  }
+  .form-hint a:hover {
+    text-decoration: underline;
+  }
+
+  .radio-row {
+    display: flex;
+    gap: 16px;
+    margin-top: 4px;
+  }
+
+  .radio-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: #e2e8f0;
+    cursor: pointer;
+  }
+
+  .key-warning {
+    font-size: 11px;
+    color: #fbbf24;
+    margin-bottom: 12px;
+  }
+
+  .ai-action-buttons {
+    display: flex;
+    gap: 8px;
+  }
+  .ai-action-buttons .btn-primary,
+  .ai-action-buttons .btn-secondary {
+    width: auto;
+    flex: 1;
+  }
+
+  .active-provider-badge {
+    margin-top: 12px;
+    text-align: center;
+    font-size: 12px;
+    color: #22c55e;
+    padding: 6px;
+    background: rgba(34, 197, 94, 0.08);
+    border-radius: 6px;
   }
 </style>

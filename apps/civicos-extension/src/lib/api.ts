@@ -6,7 +6,7 @@
  * to the San Rafael production endpoint.
  */
 
-import type { CityPulseData, DecisionDetailData, DataProvenance, VoiceCounts, ToolResponse, Initiative, CivicAction, CivicActionProgress, IssueGeography, BudgetSummary, Comment, CommentCounts, CommentSynthesis } from './types.js';
+import type { CityPulseData, DecisionDetailData, DataProvenance, VoiceCounts, ToolResponse, Initiative, CivicAction, CivicActionProgress, IssueGeography, BudgetSummary, Comment, CommentCounts, CommentSynthesis, ContextBundle } from './types.js';
 
 const DEFAULT_API_URL = 'https://san-rafael.civicosproject.org';
 const STORAGE_KEY = 'civicos_api_url';
@@ -433,6 +433,22 @@ export async function submitComment(
   } catch {
     return false;
   }
+}
+
+export async function getItemContext(
+  itemId: string,
+  sections?: string[],
+  depth = 'standard',
+): Promise<ContextBundle> {
+  return apiRequest<ContextBundle>('/api/tools/get-item-context', {
+    method: 'POST',
+    body: JSON.stringify({
+      item_type: 'agenda_item',
+      item_id: itemId,
+      depth,
+      sections: sections ? sections.join(',') : undefined,
+    }),
+  });
 }
 
 export async function getCommentSynthesis(entityId: string): Promise<CommentSynthesis | null> {

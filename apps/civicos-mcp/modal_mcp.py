@@ -80,7 +80,7 @@ mcp_image = (
     .pip_install(
         # MCP server
         "mcp[cli]>=1.13.1",
-        "fastmcp>=0.1.0",
+        "fastmcp>=2.3.0",
         # Database
         "psycopg2-binary>=2.9.0",
         # Embeddings (for vector search)
@@ -112,6 +112,7 @@ mcp_image = (
     .add_local_python_source("civicos_config")
     .add_local_python_source("civicos_relay")
     .add_local_python_source("civicos_extraction")
+    .add_local_python_source("civicos_services")
     # Add MCP server code
     .add_local_dir("apps/civicos-mcp", remote_path="/app/civicos-mcp")
     .add_local_file("apps/civicos_input_validator.py", remote_path="/app/civicos_input_validator.py")
@@ -307,24 +308,30 @@ class MCPServer:
         Full FastAPI app with MCP and REST endpoints.
 
         Endpoints:
-        - POST / : MCP JSON-RPC endpoint (for Claude.ai, ChatGPT)
+        - /mcp : MCP Streamable HTTP endpoint (for Claude.ai, ChatGPT)
         - GET /health : Health check
         - /api/tools/* : REST endpoints (for Open WebUI OpenAPI mode)
         """
         from fastapi import FastAPI
         from fastapi.middleware.cors import CORSMiddleware
+        from fastmcp_bridge import create_fastmcp_server
 
         # Build the server URL for OpenAPI spec (stable Cloudflare domain)
         from civicos.registry import get_jurisdiction_url
         server_url = get_jurisdiction_url(self.jurisdiction)
 
+        # Create FastMCP app first so we can wire its lifespan into FastAPI
+        mcp = create_fastmcp_server(self.registry, self.jurisdiction_config)
+        mcp_app = mcp.http_app(path="/", transport="streamable-http", stateless_http=True)
+
         app = FastAPI(
             title=f"CivicOS MCP Server ({self.jurisdiction_config.display_name})",
-            description="Civic data API for AI assistants. Supports both MCP (JSON-RPC) and REST endpoints.",
+            description="Civic data API for AI assistants. Supports both MCP (Streamable HTTP) and REST endpoints.",
             version="1.0.0",
             servers=[
                 {"url": server_url, "description": "Modal deployment"},
             ],
+            lifespan=mcp_app.lifespan,
         )
 
         # CORS for Open WebUI and other clients
@@ -347,10 +354,8 @@ class MCPServer:
         )
         app.include_router(rest_router)
 
-        # MCP JSON-RPC endpoint
-        @app.post("/", tags=["MCP"])
-        async def mcp_endpoint(request: dict) -> dict:
-            return self._handle_mcp_request(request)
+        # FastMCP Streamable HTTP at /mcp
+        app.mount("/mcp", mcp_app, name="mcp")
 
         # Health endpoint
         @app.get("/health", tags=["Health"])
@@ -372,139 +377,12 @@ class MCPServer:
             "tools_count": len(bound_tools),
             "tools": bound_tools,
             "endpoints": {
-                "mcp": "POST /",
+                "mcp": "/mcp/",
                 "health": "GET /health",
                 "rest_api": "/api/tools/*",
                 "openapi_spec": "/openapi.json",
             }
         }
-
-    def _handle_mcp_request(self, request: dict) -> dict:
-        """Handle MCP JSON-RPC request."""
-        try:
-            method = request.get("method", "")
-            params = request.get("params", {})
-            request_id = request.get("id", 1)
-
-            if method == "initialize":
-                return {
-                    "jsonrpc": "2.0",
-                    "result": {
-                        "protocolVersion": "2024-11-05",
-                        "serverInfo": {
-                            "name": f"CivicOS MCP Server ({self.jurisdiction_config.display_name})",
-                            "version": "1.0.0",
-                        },
-                        "capabilities": {
-                            "tools": {"listChanged": False},
-                            "resources": {"listChanged": False},
-                        },
-                    },
-                    "id": request_id,
-                }
-
-            elif method == "tools/list":
-                return {
-                    "jsonrpc": "2.0",
-                    "result": {"tools": self.registry.list_tools()},
-                    "id": request_id,
-                }
-
-            elif method == "tools/call":
-                tool_name = params.get("name", "")
-                tool_args = params.get("arguments", {})
-
-                try:
-                    result = self.registry.call_tool(tool_name, tool_args)
-                except ValueError as e:
-                    return {
-                        "jsonrpc": "2.0",
-                        "error": {"code": -32601, "message": str(e)},
-                        "id": request_id,
-                    }
-
-                # Format result for MCP
-                if isinstance(result, dict):
-                    import json
-                    result_text = json.dumps(result, indent=2, default=str)
-                elif isinstance(result, list):
-                    result_text = "\n\n".join(str(item) for item in result[:20])
-                else:
-                    result_text = str(result)
-
-                return {
-                    "jsonrpc": "2.0",
-                    "result": {
-                        "content": [{"type": "text", "text": result_text}],
-                        "isError": False,
-                    },
-                    "id": request_id,
-                }
-
-            elif method == "resources/list":
-                return {
-                    "jsonrpc": "2.0",
-                    "result": {
-                        "resources": [
-                            {
-                                "uri": f"civicos://{self.jurisdiction}/meetings",
-                                "name": "Upcoming Meetings",
-                                "description": "City council meetings and agendas",
-                            },
-                            {
-                                "uri": f"civicos://{self.jurisdiction}/decisions",
-                                "name": "Recent Decisions",
-                                "description": "Recent council decisions and outcomes",
-                            },
-                        ]
-                    },
-                    "id": request_id,
-                }
-
-            elif method == "prompts/list":
-                return {
-                    "jsonrpc": "2.0",
-                    "result": {
-                        "prompts": [
-                            {
-                                "name": "research_topic",
-                                "description": "Research a civic topic thoroughly",
-                                "arguments": [
-                                    {"name": "topic", "description": "The topic to research", "required": True}
-                                ],
-                            },
-                            {
-                                "name": "meeting_prep",
-                                "description": "Prepare for an upcoming council meeting",
-                                "arguments": [
-                                    {"name": "meeting_description", "description": "Meeting or agenda item", "required": True}
-                                ],
-                            },
-                        ]
-                    },
-                    "id": request_id,
-                }
-
-            else:
-                return {
-                    "jsonrpc": "2.0",
-                    "error": {"code": -32601, "message": f"Method not found: {method}"},
-                    "id": request_id,
-                }
-
-        except Exception as e:
-            import traceback
-            self.logger.error(f"MCP endpoint error: {e}")
-            return {
-                "jsonrpc": "2.0",
-                "error": {
-                    "code": -32603,
-                    "message": str(e),
-                    "data": traceback.format_exc(),
-                },
-                "id": request.get("id", 1),
-            }
-
 
 
 # ─────────── LOCAL ENTRYPOINT ───────────

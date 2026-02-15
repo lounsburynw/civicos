@@ -221,6 +221,69 @@ export interface CommentSynthesis {
   neutral: number;
 }
 
+// === Context Bundle (from /get-item-context) ===
+
+export interface ContextBundle {
+  item: ContextItem;
+  sections: ContextSections;
+  suggested_questions: string[];
+  metadata: ContextMetadata;
+}
+
+export interface ContextItem {
+  type: string;
+  id: string;
+  title: string;
+  description?: string;
+  why_it_matters?: string;
+  jurisdiction: string;
+}
+
+export interface ContextSections {
+  history?: HistorySection;
+  regulatory?: RegulatorySection;
+  community?: unknown;
+  financial?: unknown;
+  testimony?: TestimonySection;
+  participation?: unknown;
+}
+
+export interface HistorySection {
+  related_decisions: RelatedDecision[];
+  summary?: string;
+}
+
+export interface RelatedDecision {
+  id: string;
+  title: string;
+  outcome?: string;
+  date?: string;
+}
+
+export interface RegulatorySection {
+  applicable_codes: ApplicableCode[];
+}
+
+export interface ApplicableCode {
+  title: string;
+  code_ref?: string;
+  summary?: string;
+}
+
+export interface TestimonySection {
+  public_comments: TestimonyComment[];
+  council_discussion?: TestimonyComment[];
+}
+
+export interface ContextMetadata {
+  assembled_at: string;
+  jurisdiction: string;
+  depth: string;
+  sections_included: string[];
+  degraded: boolean;
+  assembly_time_ms: number;
+}
+
 // === API wrapper response ===
 
 export interface ToolResponse<T = unknown> {
