@@ -293,7 +293,7 @@ def verify_sync(
                 )
             logger.info("")
             logger.info("Suggested actions:")
-            logger.info("  1. Run civic-extract vectors --corpus <type> --reindex")
+            logger.info("  1. Run civicos-extract vectors --corpus <type> --reindex")
             logger.info("  2. Check for data integrity issues in storage layer")
             logger.info("=" * 60)
             return 1
