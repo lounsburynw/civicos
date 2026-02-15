@@ -170,7 +170,7 @@ jobs:
             LIMIT_FLAG="--limit ${{ matrix.limit }}"
           fi
 
-          civic-extract vectors \
+          civicos-extract vectors \
             --jurisdiction $JURISDICTION \
             --corpus ${{ matrix.corpus }} \
             --provider fastembed \
@@ -215,7 +215,7 @@ jobs:
           echo "=========================================="
           echo "Vector Index Statistics"
           echo "=========================================="
-          civic-extract vectors --jurisdiction $JURISDICTION --corpus all --stats 2>&1 | tee stats_output.txt
+          civicos-extract vectors --jurisdiction $JURISDICTION --corpus all --stats 2>&1 | tee stats_output.txt
 
           # Check coverage - parse stats output
           TOTAL_INDEXED=$(grep -oP 'Indexed documents: \K\d+' stats_output.txt | awk '{sum+=$1}END{print sum}')
@@ -224,7 +224,7 @@ jobs:
       - name: Test search
         run: |
           echo "Testing semantic search..."
-          civic-extract vectors \
+          civicos-extract vectors \
             --jurisdiction $JURISDICTION \
             --corpus chunks \
             --stats \
@@ -239,7 +239,7 @@ jobs:
           # Verify that vector counts match SQL row counts (with 15% threshold)
           # This catches drift between pgvector indices and source SQL tables
           # Uses valid_to IS NULL filter to count current versions only
-          civic-extract vectors \
+          civicos-extract vectors \
             --jurisdiction $JURISDICTION \
             --corpus all \
             --verify-sync \
@@ -279,7 +279,7 @@ jobs:
             \`\`\`bash
             source civicos-env/bin/activate
             export DATABASE_URL="your_connection_string"
-            civic-extract vectors --jurisdiction city-san-rafael --corpus all --provider fastembed
+            civicos-extract vectors --jurisdiction city-san-rafael --corpus all --provider fastembed
             \`\`\`
             `;
 

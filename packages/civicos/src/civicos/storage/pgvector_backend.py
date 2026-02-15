@@ -1091,6 +1091,65 @@ class PgVectorBackend:
 
         return indexed_count
 
+    def _prune_orphan_vectors(
+        self,
+        jurisdiction_id: str,
+        corpus_type: str,
+    ) -> int:
+        """
+        Delete vectors whose IDs no longer exist in the source SQL table.
+
+        Handles temporal versioning drift: when source rows get superseded
+        (valid_to set), their vectors become orphans. This method compares
+        vector IDs against current source IDs and removes the difference.
+
+        Only safe for non-chunked corpus types where vector ID = source doc ID.
+        """
+        # Map corpus type to (source_table, id_column).
+        # All tables are temporal (have valid_to).
+        # budget_items uses item_id (text) as vector ID, not id (integer auto-inc).
+        corpus_to_source = {
+            "decisions": ("decisions", "id"),
+            "meetings": ("meetings", "id"),
+            "issues": ("issues", "id"),
+            "chunks": ("chunks", "id"),
+            "elections": ("elections", "id"),
+            "agenda_items": ("agenda_items", "id"),
+            "budget_items": ("budget_items", "item_id"),
+        }
+
+        if corpus_type not in corpus_to_source:
+            return 0
+
+        source_table, source_id_col = corpus_to_source[corpus_type]
+
+        conn = self._get_connection()
+        cursor = conn.cursor()
+
+        try:
+            source_query = f"""
+                SELECT {source_id_col}::text FROM {source_table}
+                WHERE jurisdiction_id = %s
+                  AND valid_to IS NULL
+            """
+
+            cursor.execute(f"""
+                DELETE FROM {self.TABLE_NAME}
+                WHERE jurisdiction_id = %s
+                  AND corpus_type = %s
+                  AND id NOT IN ({source_query})
+            """, (jurisdiction_id, corpus_type, jurisdiction_id))
+
+            pruned = cursor.rowcount
+            conn.commit()
+            return pruned
+        except Exception as e:
+            logger.warning(f"Orphan pruning failed for {corpus_type}/{jurisdiction_id}: {e}")
+            conn.rollback()
+            return 0
+        finally:
+            conn.close()
+
     def index_from_storage(
         self,
         storage_backend: StorageBackend,
@@ -1240,6 +1299,17 @@ class PgVectorBackend:
         logger.info(
             f"Indexed {indexed_count} {corpus_type} for {jurisdiction_id}"
         )
+
+        # Prune orphaned vectors for non-chunked corpus types when doing a full index.
+        # Chunked types (transcripts, legislation, etc.) have 1:N source-to-vector
+        # mapping, so simple ID pruning doesn't apply.
+        chunked_types = {"transcripts", "legislation", "codified_law", "executive_orders", "municipal_code"}
+        is_full_index = offset == 0 and limit is None
+        if is_full_index and corpus_type not in chunked_types and indexed_count > 0:
+            pruned = self._prune_orphan_vectors(jurisdiction_id, corpus_type)
+            if pruned > 0:
+                logger.info(f"Pruned {pruned} orphaned vectors for {corpus_type}/{jurisdiction_id}")
+
         return indexed_count
 
     def search(
