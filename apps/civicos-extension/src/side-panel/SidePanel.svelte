@@ -87,6 +87,10 @@
   const COMPLETIONS_STORAGE_KEY = 'civicos_user_completions';
   const COMMITMENT_META_STORAGE_KEY = 'civicos_commitment_meta';
 
+  // Connector setup state
+  let connectorSetupDismissed = $state(false);
+  const CONNECTOR_SETUP_KEY = 'civicos_connector_setup_dismissed';
+
   // Inline unlock
   let unlockPassword = $state('');
   let unlocking = $state(false);
@@ -228,6 +232,7 @@
     if (toastTimeout) clearTimeout(toastTimeout);
     toastTimeout = setTimeout(() => { toastMessage = null; }, durationMs);
   }
+
 
   function toggle(section: string) {
     expanded[section] = !expanded[section];
@@ -869,11 +874,10 @@
 
   // === External AI Platform Routing ===
 
-  type AIPlatform = 'claude' | 'chatgpt';
+  type AIPlatform = 'claude';
 
   const AI_PLATFORMS: Record<AIPlatform, { name: string; url: string }> = {
     claude: { name: 'Claude', url: 'https://claude.ai/new' },
-    chatgpt: { name: 'ChatGPT', url: 'https://chatgpt.com/' },
   };
 
   function getMCPUrl(): string {
@@ -885,16 +889,57 @@
     return `${context}\n\n---\nSource: CivicOS — ${jurisdiction} civic data (civicosproject.org)\nTip: For richer integration, add CivicOS as an MCP connector in your AI settings:\n${getMCPUrl()}`;
   }
 
-  async function openExternalAI(platform: AIPlatform, context: string) {
+  // Positioned clipboard toast (appears near the clicked button)
+  let clipboardToast: { y: number; platform: string } | null = $state(null);
+  let clipboardToastTimeout: ReturnType<typeof setTimeout> | null = null;
+
+  function showClipboardToast(y: number, platform: string) {
+    clipboardToast = { y, platform };
+    if (clipboardToastTimeout) clearTimeout(clipboardToastTimeout);
+    clipboardToastTimeout = setTimeout(() => { clipboardToast = null; }, 6000);
+  }
+
+  async function openExternalAI(platform: AIPlatform, context: string, event?: MouseEvent) {
     const config = AI_PLATFORMS[platform];
     const formatted = formatExternalContext(context);
     try {
       await navigator.clipboard.writeText(formatted);
+      if (platform === 'claude') {
+        // Store context for the claude-bridge content script to auto-inject
+        try { await chrome.storage.session.set({ civicos_claude_pending_context: formatted }); } catch { /* ignore */ }
+      }
       chrome.tabs.create({ url: config.url });
-      showToast(`Context copied — paste into ${config.name} (Ctrl+V)`);
+      const y = event ? (event.target as HTMLElement).getBoundingClientRect().top : 0;
+      showClipboardToast(y, config.name);
     } catch {
       showToast('Failed to copy context to clipboard');
     }
+  }
+
+  // === Connector Setup Banner ===
+
+  async function loadConnectorSetupState() {
+    try {
+      const result = await chrome.storage.local.get(CONNECTOR_SETUP_KEY);
+      connectorSetupDismissed = result[CONNECTOR_SETUP_KEY] ?? false;
+    } catch { /* ignore */ }
+  }
+
+  async function dismissConnectorSetup() {
+    connectorSetupDismissed = true;
+    try {
+      await chrome.storage.local.set({ [CONNECTOR_SETUP_KEY]: true });
+    } catch { /* ignore */ }
+  }
+
+  let connectorInlineHint: { message: string; url: string; name: string } | null = $state(null);
+
+  async function setupConnector() {
+    const mcpUrl = getMCPUrl();
+    const connectorName = 'CivicOS San Rafael';
+    await navigator.clipboard.writeText(mcpUrl);
+    chrome.tabs.create({ url: 'https://claude.ai/settings/connectors?modal=add-custom-connector' });
+    connectorInlineHint = { message: 'Paste this URL into the connector dialog:', url: mcpUrl, name: connectorName };
   }
 
   async function askAI(key: string, context: string) {
@@ -1597,6 +1642,7 @@
   loadCityPulse();
   loadStances();
   loadCommitments();
+  loadConnectorSetupState();
   isAIAvailable().then(available => {
     aiAvailable = available;
     const provider = getAIManager().getActiveProvider();
@@ -1687,6 +1733,35 @@
         <div class="prov-loading">Unable to load data sources</div>
       {/if}
     </div>
+  {/if}
+
+  <!-- Connector setup banner -->
+  {#if !connectorSetupDismissed}
+    <div class="connector-banner">
+      <div class="connector-banner-content">
+        <div class="connector-banner-title">Get live civic data in your AI</div>
+        <div class="connector-banner-desc">Connect CivicOS for dynamic meeting, budget, and legislation lookups — not just static text.</div>
+        <div class="connector-banner-actions">
+          <button class="connector-setup-btn" onclick={setupConnector}>
+            Set up in Claude
+          </button>
+        </div>
+      </div>
+      <button class="connector-banner-close" onclick={dismissConnectorSetup} title="Dismiss">&times;</button>
+    </div>
+    {#if connectorInlineHint}
+      <div class="connector-hint">
+        <div class="connector-hint-label">{connectorInlineHint.message}</div>
+        <div class="connector-hint-row">
+          <span class="connector-hint-key">URL</span>
+          <span class="connector-hint-value">{connectorInlineHint.url}</span>
+        </div>
+        <div class="connector-hint-row">
+          <span class="connector-hint-key">Name</span>
+          <span class="connector-hint-value">{connectorInlineHint.name}</span>
+        </div>
+      </div>
+    {/if}
   {/if}
 
   <!-- Identity chip -->
@@ -2009,11 +2084,8 @@
                 {/if}
                 <div class="discuss-external">
                   <span class="discuss-label">{aiAvailable ? 'or discuss in' : 'Discuss in'}</span>
-                  <button class="discuss-ext-btn" onclick={() => openExternalAI('claude', composeAgendaContext(item))}>
+                  <button class="discuss-ext-btn" onclick={(e: MouseEvent) => openExternalAI('claude', composeAgendaContext(item), e)}>
                     Claude <span class="ext-icon">↗</span>
-                  </button>
-                  <button class="discuss-ext-btn" onclick={() => openExternalAI('chatgpt', composeAgendaContext(item))}>
-                    ChatGPT <span class="ext-icon">↗</span>
                   </button>
                 </div>
               </div>
@@ -2108,11 +2180,8 @@
                             {/if}
                             <div class="discuss-external">
                               <span class="discuss-label">{aiAvailable ? 'or discuss in' : 'Discuss testimony in'}</span>
-                              <button class="discuss-ext-btn" onclick={() => openExternalAI('claude', composeTestimonySummary(decision, detail.testimony!.public_comments!))}>
+                              <button class="discuss-ext-btn" onclick={(e: MouseEvent) => openExternalAI('claude', composeTestimonySummary(decision, detail.testimony!.public_comments!), e)}>
                                 Claude <span class="ext-icon">↗</span>
-                              </button>
-                              <button class="discuss-ext-btn" onclick={() => openExternalAI('chatgpt', composeTestimonySummary(decision, detail.testimony!.public_comments!))}>
-                                ChatGPT <span class="ext-icon">↗</span>
                               </button>
                             </div>
                           </div>
@@ -2172,11 +2241,8 @@
                         {/if}
                         <div class="discuss-external">
                           <span class="discuss-label">{aiAvailable ? 'or discuss in' : 'Discuss in'}</span>
-                          <button class="discuss-ext-btn" onclick={() => openExternalAI('claude', composeDecisionContext(decision))}>
+                          <button class="discuss-ext-btn" onclick={(e: MouseEvent) => openExternalAI('claude', composeDecisionContext(decision), e)}>
                             Claude <span class="ext-icon">↗</span>
-                          </button>
-                          <button class="discuss-ext-btn" onclick={() => openExternalAI('chatgpt', composeDecisionContext(decision))}>
-                            ChatGPT <span class="ext-icon">↗</span>
                           </button>
                         </div>
                       {:else}
@@ -2599,6 +2665,13 @@
     </footer>
   {/if}
 </div>
+
+{#if clipboardToast}
+  <div class="clipboard-toast" style="top: {clipboardToast.y}px">
+    <div class="clipboard-toast-title">Context copied to clipboard</div>
+    <div class="clipboard-toast-hint">Press <kbd>⌘V</kbd> to paste into {clipboardToast.platform}</div>
+  </div>
+{/if}
 
 {#if toastMessage}
   <div class="toast">{toastMessage}</div>
@@ -4027,6 +4100,62 @@
     background: rgba(59,130,246,0.06);
   }
   .ext-icon { font-size: 9px; }
+
+  /* === Connector Setup Banner === */
+  .connector-banner {
+    display: flex;
+    gap: 8px;
+    background: #1a1a2e;
+    border: 1px solid #374151;
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin-bottom: 12px;
+  }
+  .connector-banner-content { flex: 1; }
+  .connector-banner-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: #e5e7eb;
+    margin-bottom: 2px;
+  }
+  .connector-banner-desc {
+    font-size: 10px;
+    color: #9ca3af;
+    line-height: 1.4;
+    margin-bottom: 8px;
+  }
+  .connector-banner-actions {
+    display: flex;
+    gap: 6px;
+  }
+  .connector-setup-btn {
+    font-size: 10px;
+    font-weight: 500;
+    color: #60a5fa;
+    background: rgba(59,130,246,0.08);
+    border: 1px solid #3b82f640;
+    border-radius: 4px;
+    padding: 3px 10px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .connector-setup-btn:hover {
+    background: rgba(59,130,246,0.16);
+    border-color: #3b82f6;
+    color: #93c5fd;
+  }
+  .connector-banner-close {
+    background: none;
+    border: none;
+    color: #6b7280;
+    cursor: pointer;
+    font-size: 16px;
+    padding: 0 2px;
+    line-height: 1;
+    align-self: flex-start;
+  }
+  .connector-banner-close:hover { color: #d1d5db; }
+
   .ask-ai-btn.active {
     background: rgba(59,130,246,0.12);
     border-style: solid;
@@ -4054,6 +4183,40 @@
     color: #64748b;
   }
 
+  /* === Clipboard Toast (positioned near click) === */
+  .clipboard-toast {
+    position: fixed;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #1e293b;
+    border: 1px solid #3b82f6;
+    border-radius: 8px;
+    padding: 10px 16px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+    z-index: 200;
+    text-align: center;
+    max-width: 90%;
+    animation: toast-in 0.2s ease;
+  }
+  .clipboard-toast-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: #93c5fd;
+    margin-bottom: 3px;
+  }
+  .clipboard-toast-hint {
+    font-size: 11px;
+    color: #cbd5e1;
+  }
+  .clipboard-toast-hint kbd {
+    background: #334155;
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-size: 10px;
+    border: 1px solid #475569;
+    font-family: inherit;
+  }
+
   /* === Toast === */
   .toast {
     position: fixed;
@@ -4069,6 +4232,43 @@
     box-shadow: 0 4px 12px rgba(0,0,0,0.4);
     z-index: 100;
     animation: toast-in 0.2s ease;
+  }
+  /* === Connector Inline Hint === */
+  .connector-hint {
+    background: #0f172a;
+    border: 1px solid #3b82f6;
+    border-radius: 6px;
+    padding: 8px 10px;
+    margin-top: 8px;
+    animation: toast-in 0.2s ease;
+  }
+  .connector-hint-label {
+    font-size: 10px;
+    color: #93c5fd;
+    margin-bottom: 6px;
+  }
+  .connector-hint-row {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    margin-bottom: 3px;
+  }
+  .connector-hint-row:last-child { margin-bottom: 0; }
+  .connector-hint-key {
+    font-size: 9px;
+    font-weight: 600;
+    color: #64748b;
+    text-transform: uppercase;
+    flex-shrink: 0;
+    min-width: 32px;
+  }
+  .connector-hint-value {
+    font-size: 11px;
+    font-weight: 600;
+    color: #fff;
+    font-family: monospace;
+    word-break: break-all;
+    user-select: all;
   }
   @keyframes toast-in {
     from { opacity: 0; transform: translateX(-50%) translateY(8px); }
