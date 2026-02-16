@@ -45,6 +45,11 @@
       "js": ["content-scripts/nip07-provider.js"],
       "run_at": "document_start",
       "world": "MAIN"
+    },
+    {
+      "matches": ["https://claude.ai/*"],
+      "js": ["content-scripts/claude-bridge.js"],
+      "run_at": "document_idle"
     }
   ],
   "icons": {
