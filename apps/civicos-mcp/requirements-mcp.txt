@@ -8,7 +8,7 @@
 
 # MCP protocol implementation
 mcp[cli]>=1.13.1
-fastmcp>=0.1.0
+fastmcp>=2.3.0
 
 # Database (PostgreSQL with pgvector support)
 psycopg2-binary>=2.9.0

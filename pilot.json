@@ -3805,7 +3805,8 @@
     "_doc": "Two-MCP architecture: Jurisdiction MCP (read-only civic data) + Personal MCP (user context, identity, personalization). For San Rafael pilot, RECOMMENDED instantiation is Pattern 4: Jurisdiction-Hosted Open WebUI. See EDGE_INTELLIGENCE_ARCHITECTURE.md for full design.",
     "architecture": {
       "jurisdiction_mcp": "apps/civicos-mcp/ - Read-only public civic data, deployed per-jurisdiction",
-      "personal_mcp": "apps/civicos-personal-mcp/ - User's edge agent, handles context/identity/signing"
+      "personal_mcp": "apps/civicos-extension/ - The browser extension IS the Personal MCP. See ADR-2026-02-16-01.",
+      "_legacy": "apps/civicos-personal-mcp/ was the original plan for a separate Personal MCP package. Identity providers and signing were built there. That code has been ported into the extension (lib/providers/, lib/identity.ts). The separate package is superseded."
     },
     "instantiation_patterns": {
       "_doc": "Four patterns for running Personal MCP. Pattern 4 recommended for San Rafael pilot.",
@@ -3863,6 +3864,35 @@
       "User controls keys: Nostr signing always happens client-side in Personal MCP",
       "Tiered identity: Easy (passkey), Private (mnemonic), Sovereign (NIP-07/hardware)",
       "City attestation is additive (trust signal), not gate-keeping (permissionless relay)"
+    ],
+    "architectural_decisions": [
+      {
+        "id": "ADR-2026-02-16-01",
+        "title": "Extension IS the Personal MCP",
+        "status": "accepted",
+        "date": "2026-02-16",
+        "context": "The edge intelligence architecture originally planned apps/civicos-personal-mcp/ as a separate Python/TypeScript package. Meanwhile, the browser extension grew to contain identity management (passkey, wallet, signing), user context (stances, follows), relay connection (voice, comments, coordination), BYOK AI (inline chat), and Jurisdiction MCP queries. The extension already IS the Personal MCP.",
+        "decision": "Consolidate Personal MCP into the browser extension. Do not build apps/civicos-personal-mcp/ as a separate runtime. Identity providers and signing code already ported to extension (lib/providers/). Future Personal MCP tools (get_suggestions, get_relevant_now) should be built as extension internal APIs.",
+        "consequences": "Simplifies architecture (no separate package to deploy/maintain). Extension becomes the canonical edge agent runtime. WebMCP (Chrome 146+, mid-to-late 2026) can later expose extension tools to AI agents natively via ExtensionServerTransport."
+      },
+      {
+        "id": "ADR-2026-02-16-02",
+        "title": "Structure extension APIs as tool-shaped for WebMCP readiness",
+        "status": "accepted",
+        "date": "2026-02-16",
+        "context": "WebMCP (W3C, Google/Microsoft initiative) ships in Chrome 146 early preview (Feb 2026, behind flag). ExtensionServerTransport allows extensions to expose themselves as MCP servers to AI agents in the browser. Production readiness expected mid-to-late 2026.",
+        "decision": "Structure extension internal functions (castVoice, getMyActivity, getSuggestions, etc.) as clean, tool-shaped APIs with typed inputs/outputs. This is good practice regardless and makes future WebMCP exposure trivial. Do NOT depend on WebMCP for pilot — it is behind a flag and not production-ready.",
+        "consequences": "When WebMCP stabilizes, the extension can expose its tools to Claude.ai/Gemini/etc. natively, completing the edge intelligence vision without a separate server process. Zero additional install for users."
+      },
+      {
+        "id": "ADR-2026-02-16-03",
+        "title": "Keep Jurisdiction MCP unauthenticated; OAuth only for federation",
+        "status": "accepted",
+        "date": "2026-02-16",
+        "context": "MCP OAuth 2.1 spec standardized (March 2025, updated June 2025). The two-MCP architecture intentionally keeps Jurisdiction MCP anonymous — it serves public civic data and does not know who is asking. This is a privacy feature, not a limitation.",
+        "decision": "Do NOT add MCP OAuth to the Jurisdiction MCP for user-level authentication. The Jurisdiction MCP remains unauthenticated for reads (public data). Write operations go through the relay with Nostr signatures (cryptographic, not OAuth). Reserve OAuth for multi-jurisdiction federation: when a Marin County MCP needs to verify 'this request comes from an authorized San Rafael instance' (jurisdiction-level, not user-level auth).",
+        "consequences": "Preserves privacy boundary (no user tracking at the MCP layer). Simplifies connector setup (no OAuth consent flow). Federation auth is a post-pilot concern for multi-jurisdiction expansion."
+      }
     ],
     "web_chat_interface": {
       "status": "ready",
@@ -4253,7 +4283,7 @@
     },
     "browser_extension": {
       "status": "not_ready",
-      "priority": 0,
+      "priority": 1,
       "description": "Chrome browser extension as primary distribution surface. The extension IS the Personal MCP — manages identity, connects to Jurisdiction MCPs, injects civic context into AI surfaces (Claude.ai, ChatGPT), renders City Pulse in side panel. Acts as NIP-07 provider for Nostr ecosystem compatibility.",
       "_doc": "Architecture session 2026-02-12. Full design in docs/critical/BROWSER_EXTENSION_ARCHITECTURE.md. Depends on context_assembly_api (P0) for surface-agnostic context bundles.",
       "architecture_doc": "docs/critical/BROWSER_EXTENSION_ARCHITECTURE.md",
@@ -4332,7 +4362,7 @@
       },
       "extension_phase3_ai_viz": {
         "status": "ready",
-        "priority": 0,
+        "priority": 1,
         "artifact": "Browser extension Phase 3 — AI integration + visualizations",
         "note": "Add 'Chat with this item' context injection into Claude.ai/ChatGPT via content scripts. Issue map (geographic visualization of 311 issues). Budget chart (department breakdown). Requires chart/map library integration.",
         "features": [
@@ -4344,9 +4374,23 @@
         ],
         "depends_on": ["extension_phase2b_commitments"]
       },
-      "extension_phase4_micropayments": {
+      "extension_ux_parity": {
         "status": "not_ready",
         "priority": 0,
+        "artifact": "Browser extension UX parity with Open WebUI fork",
+        "note": "Claude MCP flow DONE (banner race fix, bridge improvements, error handling — tested by user 2026-02-16). NEXT: Audit Open WebUI CityPulse for features missing in extension side panel. Compare UI sections, data displays, and interaction patterns. Key gap areas: form validation/hints, auth gates, loading skeletons, expand/collapse patterns.",
+        "features": [
+          "Audit Open WebUI CityPulse for features missing in extension",
+          "Form field parity (validation, hints, field types)",
+          "Conditional rendering parity (auth gates, tier checks, role-based sections)",
+          "Loading/error state parity (skeletons, retry logic, empty states)",
+          "Interaction pattern parity (expand/collapse, hover effects, transitions)"
+        ],
+        "depends_on": ["extension_phase3_ai_viz"]
+      },
+      "extension_phase4_micropayments": {
+        "status": "not_ready",
+        "priority": 1,
         "artifact": "Browser extension Phase 4 — Lightning/Cashu micropayments",
         "note": "L402 gates compute-intensive MCP tools. NWC (NIP-47) wallet bridge in extension. Cashu (NIP-60) for privacy. Free tier always works without wallet. See micropayments section and docs/critical/BROWSER_EXTENSION_ARCHITECTURE.md.",
         "features": [

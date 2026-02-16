@@ -320,7 +320,8 @@ class MCPServer:
         from civicos.registry import get_jurisdiction_url
         server_url = get_jurisdiction_url(self.jurisdiction)
 
-        # Create FastMCP app first so we can wire its lifespan into FastAPI
+        # No auth — public civic data served without authentication.
+        # Avoids OAuth/Cloudflare bot-protection conflicts (anthropics/claude-ai-mcp#5).
         mcp = create_fastmcp_server(self.registry, self.jurisdiction_config)
         mcp_app = mcp.http_app(path="/", transport="streamable-http", stateless_http=True)
 
@@ -333,6 +334,23 @@ class MCPServer:
             ],
             lifespan=mcp_app.lifespan,
         )
+
+        # Rewrite /mcp → /mcp/ internally to avoid Starlette's 307 redirect.
+        # Without this, Cloudflare proxy gets a 307 pointing at Modal's host
+        # (not the Cloudflare domain), causing error 1101.
+        # Uses raw ASGI middleware (not BaseHTTPMiddleware) to avoid scope issues.
+        from starlette.types import ASGIApp, Receive, Scope, Send
+
+        class TrailingSlashMiddleware:
+            def __init__(self, app: ASGIApp):
+                self.app = app
+            async def __call__(self, scope: Scope, receive: Receive, send: Send):
+                if scope["type"] == "http" and scope.get("path") == "/mcp":
+                    scope = dict(scope)
+                    scope["path"] = "/mcp/"
+                await self.app(scope, receive, send)
+
+        app.add_middleware(TrailingSlashMiddleware)
 
         # CORS for Open WebUI and other clients
         app.add_middleware(
@@ -376,6 +394,7 @@ class MCPServer:
             "platform": "modal",
             "tools_count": len(bound_tools),
             "tools": bound_tools,
+            "auth": "none",
             "endpoints": {
                 "mcp": "/mcp/",
                 "health": "GET /health",
