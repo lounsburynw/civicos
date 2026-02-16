@@ -1,3 +1,30 @@
+## Session — 2026-02-16 (Extension UX Parity Audit + Gap Closure)
+
+**Item:** edge_intelligence/browser_extension/extension_ux_parity
+**Status:** In progress (parity audit complete, 3 gaps closed)
+
+### Parity Audit Findings
+
+**Comprehensive feature comparison between CityPulse (Open WebUI) and SidePanel (Extension).**
+
+**Already at parity or extension ahead:**
+- Voice/Comment/Synthesis, Calendar, Identity gates, Optimistic updates
+- Initiative/Action CRUD, Map, Budget, Decision detail
+- Character counter warnings, Deadline urgency countdown
+- Extension-only: Draft+Enrich, inline AI, Claude bridge, multi-provider, connector setup
+
+**3 Gaps Identified and Closed:**
+
+1. **"Why it matters" display** — CityPulse showed this styled field on agenda items; extension only used it in AI prompts. Added visible `card-why` div with bold label + italic text.
+
+2. **"Email Clerk" per-item button** — CityPulse had a mailto: action button per agenda item with pre-filled subject/body. Extension only had footer link. Added `getMailtoLink()` helper + `email-clerk-btn` next to comment toggle.
+
+3. **"Summarize" button in comment threads** — CityPulse had a sparkle summarize button for comment threads. Extension had this for decision testimony but not agenda comments. Added `composeThreadSummary()` + summarize button using existing `askAI()` infrastructure, shows inline markdown response.
+
+### Build: PASS (vite + tsc)
+
+---
+
 ## Session — 2026-02-16 (Claude MCP Flow Polish + Banner Race Fix)
 
 **Item:** edge_intelligence/browser_extension/extension_ux_parity

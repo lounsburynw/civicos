@@ -4375,10 +4375,10 @@
         "depends_on": ["extension_phase2b_commitments"]
       },
       "extension_ux_parity": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 0,
         "artifact": "Browser extension UX parity with Open WebUI fork",
-        "note": "Claude MCP flow DONE (banner race fix, bridge improvements, error handling — tested by user 2026-02-16). NEXT: Audit Open WebUI CityPulse for features missing in extension side panel. Compare UI sections, data displays, and interaction patterns. Key gap areas: form validation/hints, auth gates, loading skeletons, expand/collapse patterns.",
+        "note": "COMPLETE 2026-02-16. Full audit: Extension at parity or ahead on all features. 3 gaps closed: 'Why it matters' field display, per-item Email Clerk button, comment thread Summarize button. Extension-only features: Draft+Enrich AI, inline Ask AI, Claude bridge, multi-provider stack, MCP connector setup.",
         "features": [
           "Audit Open WebUI CityPulse for features missing in extension",
           "Form field parity (validation, hints, field types)",
@@ -4390,7 +4390,7 @@
       },
       "extension_phase4_micropayments": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "artifact": "Browser extension Phase 4 — Lightning/Cashu micropayments",
         "note": "L402 gates compute-intensive MCP tools. NWC (NIP-47) wallet bridge in extension. Cashu (NIP-60) for privacy. Free tier always works without wallet. See micropayments section and docs/critical/BROWSER_EXTENSION_ARCHITECTURE.md.",
         "features": [
