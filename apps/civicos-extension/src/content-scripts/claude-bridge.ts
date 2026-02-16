@@ -2,11 +2,16 @@
  * Claude.ai Bridge Content Script.
  *
  * Runs on claude.ai pages in the ISOLATED world. Checks for pending civic
- * context stored by the side panel. Shows a visible banner on the page and
- * attempts to auto-inject text into the chat editor.
+ * context stored by the side panel, waits for the chat editor to appear,
+ * and attempts to inject text via synthetic paste event.
+ *
+ * Falls back to showing a banner prompting the user to paste manually.
  */
 
 const PENDING_KEY = 'civicos_claude_pending_context';
+
+const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+const pasteShortcut = isMac ? '⌘V' : 'Ctrl+V';
 
 async function getPendingContext(): Promise<string | null> {
   try {
@@ -23,8 +28,7 @@ async function clearPendingContext(): Promise<void> {
   } catch { /* ignore */ }
 }
 
-function showBanner(status: 'pending' | 'success'): HTMLElement {
-  // Remove existing banner if any
+function showBanner(status: 'pending' | 'success'): void {
   document.getElementById('civicos-bridge-banner')?.remove();
 
   const banner = document.createElement('div');
@@ -48,11 +52,16 @@ function showBanner(status: 'pending' | 'success'): HTMLElement {
 
   if (status === 'pending') {
     banner.innerHTML = `
-      <div style="font-size:13px;font-weight:600;color:#93c5fd;margin-bottom:4px;">
-        CivicOS context is in your clipboard
-      </div>
-      <div style="font-size:12px;color:#cbd5e1;">
-        Press <kbd style="background:#334155;padding:1px 6px;border-radius:3px;font-size:11px;border:1px solid #475569;">⌘V</kbd> to paste into the chat
+      <div style="display:flex;align-items:center;justify-content:center;gap:8px;">
+        <div>
+          <div style="font-size:13px;font-weight:600;color:#93c5fd;margin-bottom:4px;">
+            CivicOS context is in your clipboard
+          </div>
+          <div style="font-size:12px;color:#cbd5e1;">
+            Press <kbd style="background:#334155;padding:1px 6px;border-radius:3px;font-size:11px;border:1px solid #475569;">${pasteShortcut}</kbd> to paste, then send
+          </div>
+        </div>
+        <button id="civicos-bridge-dismiss" style="background:none;border:none;color:#6b7280;cursor:pointer;font-size:18px;padding:0 4px;line-height:1;">&times;</button>
       </div>
     `;
   } else {
@@ -63,17 +72,23 @@ function showBanner(status: 'pending' | 'success'): HTMLElement {
     `;
   }
 
-  // Add slide-in animation
-  const style = document.createElement('style');
-  style.textContent = `
-    @keyframes civicos-slide-in {
-      from { opacity: 0; transform: translateX(-50%) translateY(-12px); }
-      to { opacity: 1; transform: translateX(-50%) translateY(0); }
-    }
-  `;
-  document.head.appendChild(style);
+  if (!document.getElementById('civicos-bridge-style')) {
+    const style = document.createElement('style');
+    style.id = 'civicos-bridge-style';
+    style.textContent = `
+      @keyframes civicos-slide-in {
+        from { opacity: 0; transform: translateX(-50%) translateY(-12px); }
+        to { opacity: 1; transform: translateX(-50%) translateY(0); }
+      }
+    `;
+    document.head.appendChild(style);
+  }
   document.body.appendChild(banner);
-  return banner;
+
+  // Dismiss button handler
+  document.getElementById('civicos-bridge-dismiss')?.addEventListener('click', () => {
+    dismissBanner(0);
+  });
 }
 
 function dismissBanner(delay = 3000): void {
@@ -88,11 +103,9 @@ function dismissBanner(delay = 3000): void {
 }
 
 function findEditor(): HTMLElement | null {
-  // Try multiple selectors — Claude.ai's DOM structure can vary
   const selectors = [
     'div.ProseMirror[contenteditable="true"]',
     'div[contenteditable="true"].ProseMirror',
-    '[contenteditable="true"] p',
     'div[contenteditable="true"]',
   ];
   for (const sel of selectors) {
@@ -102,33 +115,67 @@ function findEditor(): HTMLElement | null {
   return null;
 }
 
+/**
+ * Try multiple strategies to inject text into the editor.
+ * Returns true only if text actually appears in the editor.
+ */
 function injectText(editor: HTMLElement, text: string): boolean {
-  editor.focus();
+  const target = editor.matches('[contenteditable="true"]')
+    ? editor
+    : (editor.closest('[contenteditable="true"]') as HTMLElement);
+  if (!target) return false;
 
-  // For ProseMirror: if we found a <p> inside, use its parent
-  const target = editor.closest('[contenteditable="true"]') as HTMLElement ?? editor;
   target.focus();
 
-  // execCommand('insertText') is the most reliable way to populate
-  // framework-managed contenteditable elements (triggers all internal events)
-  const success = document.execCommand('insertText', false, text);
-  if (success) return true;
+  // Strategy 1: Synthetic paste event (best for ProseMirror)
+  try {
+    const dt = new DataTransfer();
+    dt.setData('text/plain', text);
+    const pasteEvent = new ClipboardEvent('paste', {
+      bubbles: true,
+      cancelable: true,
+      clipboardData: dt,
+    });
+    target.dispatchEvent(pasteEvent);
+    // Verify text actually appeared (wait a tick for ProseMirror to process)
+    if (target.textContent && target.textContent.includes(text.substring(0, 40))) {
+      return true;
+    }
+  } catch { /* continue to next strategy */ }
 
-  // Fallback: set textContent and dispatch input event
-  target.textContent = text;
-  target.dispatchEvent(new Event('input', { bubbles: true }));
-  target.dispatchEvent(new Event('change', { bubbles: true }));
-  return true;
+  // Strategy 2: execCommand insertText (deprecated but widely supported)
+  try {
+    const success = document.execCommand('insertText', false, text);
+    if (success && target.textContent && target.textContent.includes(text.substring(0, 40))) {
+      return true;
+    }
+  } catch { /* continue */ }
+
+  // Strategy 3: Direct DOM manipulation + input event
+  try {
+    const p = target.querySelector('p');
+    if (p) {
+      p.textContent = text;
+    } else {
+      target.textContent = text;
+    }
+    target.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertFromPaste' }));
+    if (target.textContent && target.textContent.includes(text.substring(0, 40))) {
+      return true;
+    }
+  } catch { /* fall through */ }
+
+  return false;
 }
 
 async function run(): Promise<void> {
   const context = await getPendingContext();
   if (!context) return;
 
-  // Show banner immediately so user knows what's happening
+  // Show "paste" banner immediately as fallback UX
   showBanner('pending');
 
-  // Try to auto-inject into the editor
+  // Wait for the editor to appear, then try auto-inject
   let attempts = 0;
   const maxAttempts = 50; // 10 seconds
   const interval = setInterval(() => {
@@ -136,20 +183,26 @@ async function run(): Promise<void> {
     const editor = findEditor();
     if (editor) {
       clearInterval(interval);
+      // Focus editor so user can paste immediately if auto-inject fails
+      editor.focus();
+      // Give the editor time to fully initialize
       setTimeout(() => {
-        const injected = injectText(editor, context);
-        if (injected) {
+        const success = injectText(editor, context);
+        clearPendingContext();
+        if (success) {
           showBanner('success');
           dismissBanner(2500);
-        } else {
-          dismissBanner(8000);
         }
-        clearPendingContext();
-      }, 500);
+        // If auto-inject failed, the pending banner stays visible with paste instructions
+        // User can dismiss it manually or it fades after 12s
+        if (!success) {
+          dismissBanner(12000);
+        }
+      }, 800);
     } else if (attempts >= maxAttempts) {
       clearInterval(interval);
-      // Auto-inject failed — banner stays visible so user knows to paste
-      dismissBanner(8000);
+      // Editor never appeared — keep banner a bit longer
+      dismissBanner(10000);
       clearPendingContext();
     }
   }, 200);

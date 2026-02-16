@@ -463,6 +463,17 @@ def extract_agenda_items_from_meeting(
             }
             items_data.append(item_dict)
 
+        # Classify stance/comment eligibility via LLM
+        try:
+            from civicos.storage.actionability import classify_agenda_items
+            classifications = classify_agenda_items(items_data)
+            for item_dict, classification in zip(items_data, classifications):
+                item_dict['stance_eligible'] = classification['stance_eligible']
+                item_dict['comment_eligible'] = classification['comment_eligible']
+            logger.info(f"  Classified eligibility: {sum(1 for c in classifications if c['stance_eligible'])} stance, {sum(1 for c in classifications if c['comment_eligible'])} comment")
+        except Exception as e:
+            logger.warning(f"  Eligibility classification failed (items will have NULL flags): {e}")
+
         # Store agenda items (cloud or local)
         stored_to_cloud = False
         if cloud_mode:

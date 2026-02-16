@@ -8,8 +8,18 @@
   import 'leaflet/dist/leaflet.css';
   import L from 'leaflet';
   import { Chart, DoughnutController, ArcElement, Tooltip, Legend } from 'chart.js';
+  import { marked } from 'marked';
+  import DOMPurify from 'dompurify';
 
   Chart.register(DoughnutController, ArcElement, Tooltip, Legend);
+
+  // Configure marked for compact output (no extra <p> wrappers for simple text)
+  marked.setOptions({ breaks: true, gfm: true });
+
+  function renderMarkdown(text: string): string {
+    const raw = marked.parse(text, { async: false }) as string;
+    return DOMPurify.sanitize(raw);
+  }
 
   let identity: (IdentityInfo & { isUnlocked?: boolean }) | null = $state(null);
   let loading = $state(true);
@@ -89,6 +99,7 @@
 
   // Connector setup state
   let connectorSetupDismissed = $state(false);
+  let connectorSetupLoaded = $state(false);
   const CONNECTOR_SETUP_KEY = 'civicos_connector_setup_dismissed';
 
   // Inline unlock
@@ -311,6 +322,17 @@
     }
     if (ids.length > 0) {
       commentCounts = await getCommentCountsBatch(ids);
+      // Pre-fetch synthesis for items with comments (enriches AI context)
+      for (const [entityId, count] of commentCounts) {
+        if (count > 0) {
+          getCommentSynthesis(entityId).then(synth => {
+            if (synth) {
+              synthData.set(entityId, synth);
+              synthData = new Map(synthData);
+            }
+          });
+        }
+      }
     }
   }
 
@@ -803,6 +825,33 @@
 
   // === Ask AI (context injection) ===
 
+  function composeSentimentBlock(entityId: string): string[] {
+    const lines: string[] = [];
+    const counts = voiceCounts.get(entityId);
+    const synth = synthData.get(entityId);
+    const comments = threadComments.get(entityId);
+
+    if (counts && counts.total > 0) {
+      lines.push('', '--- Community Sentiment ---');
+      lines.push(`Stances: ${counts.support} support, ${counts.oppose} oppose, ${counts.watching} watching`);
+    }
+    if (synth && synth.total > 0) {
+      lines.push(`Public comments: ${synth.total} total (${synth.support} supportive, ${synth.oppose} opposed, ${synth.neutral} neutral)`);
+    }
+    if (comments && comments.length > 0) {
+      const visible = comments.filter(c => !c.deleted);
+      if (visible.length > 0) {
+        lines.push('', 'Resident comments:');
+        for (const c of visible.slice(0, 8)) {
+          const stanceTag = c.stance ? ` [${c.stance}]` : '';
+          lines.push(`- "${c.comment_text}"${stanceTag}`);
+        }
+        if (visible.length > 8) lines.push(`... and ${visible.length - 8} more comments`);
+      }
+    }
+    return lines;
+  }
+
   function composeAgendaContext(item: import('../lib/types.js').PulseAgendaItem): string {
     const lines = [
       `I'd like to understand this civic agenda item from ${pulseData?.jurisdiction || 'my city'}:`,
@@ -814,12 +863,8 @@
     if (item.project_type) lines.push(`Type: ${item.project_type}`);
     if (item.description) lines.push('', item.description);
     if (item.why_it_matters) lines.push('', `Why it matters: ${item.why_it_matters}`);
-    const eid = `agenda-item:${item.id}`;
-    const counts = voiceCounts.get(eid);
-    if (counts && counts.total > 0) {
-      lines.push('', `Community sentiment: ${counts.support} support, ${counts.oppose} oppose, ${counts.watching} watching`);
-    }
-    lines.push('', 'What are the key implications for residents? What questions should I ask at the public hearing?');
+    lines.push(...composeSentimentBlock(`agenda-item:${item.id}`));
+    lines.push('', 'What are the key implications for residents? If community sentiment data is available, summarize what residents are saying and the key themes. What questions should I ask at the public hearing?');
     return lines.join('\n');
   }
 
@@ -835,19 +880,16 @@
     if (decision.vote_tally) lines.push(`Vote: ${decision.vote_tally}`);
     if (detail?.decision?.body) lines.push('', detail.decision.body);
     if (detail?.testimony?.public_comments && detail.testimony.public_comments.length > 0) {
-      lines.push('', `Public testimony (${detail.testimony.public_comments.length} speakers):`);
-      for (const c of detail.testimony.public_comments.slice(0, 5)) {
-        lines.push(`- ${c.speaker}: ${c.text}`);
+      lines.push('', `--- Public Testimony (${detail.testimony.public_comments.length} speakers) ---`);
+      for (const c of detail.testimony.public_comments.slice(0, 8)) {
+        lines.push(`- **${c.speaker}:** ${c.text}`);
       }
-      if (detail.testimony.public_comments.length > 5) {
-        lines.push(`... and ${detail.testimony.public_comments.length - 5} more speakers`);
+      if (detail.testimony.public_comments.length > 8) {
+        lines.push(`... and ${detail.testimony.public_comments.length - 8} more speakers`);
       }
     }
-    const counts = voiceCounts.get(decision.id);
-    if (counts && counts.total > 0) {
-      lines.push('', `Community sentiment: ${counts.support} support, ${counts.oppose} oppose, ${counts.watching} watching`);
-    }
-    lines.push('', 'What are the implications of this decision for residents? What should I know about this issue going forward?');
+    lines.push(...composeSentimentBlock(decision.id));
+    lines.push('', 'What are the implications of this decision for residents? If testimony or community sentiment data is available, summarize the key themes and concerns raised. What should I know about this issue going forward?');
     return lines.join('\n');
   }
 
@@ -923,6 +965,7 @@
       const result = await chrome.storage.local.get(CONNECTOR_SETUP_KEY);
       connectorSetupDismissed = result[CONNECTOR_SETUP_KEY] ?? false;
     } catch { /* ignore */ }
+    connectorSetupLoaded = true;
   }
 
   async function dismissConnectorSetup() {
@@ -934,12 +977,20 @@
 
   let connectorInlineHint: { message: string; url: string; name: string } | null = $state(null);
 
+  let connectorHintTimeout: ReturnType<typeof setTimeout> | null = null;
+
   async function setupConnector() {
     const mcpUrl = getMCPUrl();
     const connectorName = 'CivicOS San Rafael';
-    await navigator.clipboard.writeText(mcpUrl);
+    try {
+      await navigator.clipboard.writeText(mcpUrl);
+    } catch {
+      showToast('Could not copy URL — you can copy it from the hint below');
+    }
     chrome.tabs.create({ url: 'https://claude.ai/settings/connectors?modal=add-custom-connector' });
     connectorInlineHint = { message: 'Paste this URL into the connector dialog:', url: mcpUrl, name: connectorName };
+    if (connectorHintTimeout) clearTimeout(connectorHintTimeout);
+    connectorHintTimeout = setTimeout(() => { connectorInlineHint = null; }, 15000);
   }
 
   async function askAI(key: string, context: string) {
@@ -1643,26 +1694,25 @@
   loadStances();
   loadCommitments();
   loadConnectorSetupState();
-  isAIAvailable().then(available => {
+  async function refreshAIState() {
+    const available = await isAIAvailable();
     aiAvailable = available;
-    const provider = getAIManager().getActiveProvider();
-    if (provider) activeProviderName = provider.name;
-  });
+    const mgr = getAIManager();
+    const provider = mgr.getActiveProvider();
+    activeProviderName = provider ? provider.name : '';
+  }
 
-  // Re-initialize AI state when Options page saves new config
-  onAIConfigChanged(() => {
-    isAIAvailable().then(available => {
-      aiAvailable = available;
-      const provider = getAIManager().getActiveProvider();
-      activeProviderName = provider ? provider.name : '';
-    });
-  });
+  refreshAIState();
+  onAIConfigChanged(() => refreshAIState());
 
-  // Refresh identity when it changes in chrome.storage (e.g., created in Options page)
+  // Refresh identity and connector state when chrome.storage changes
   chrome.storage.onChanged.addListener((changes, areaName) => {
     if (areaName !== 'local') return;
     if (changes['civicos-passkey-identity'] || changes['civicos-wallet-identity']) {
       loadIdentity();
+    }
+    if (changes[CONNECTOR_SETUP_KEY]) {
+      connectorSetupDismissed = changes[CONNECTOR_SETUP_KEY].newValue ?? false;
     }
   });
 </script>
@@ -1735,8 +1785,8 @@
     </div>
   {/if}
 
-  <!-- Connector setup banner -->
-  {#if !connectorSetupDismissed}
+  <!-- Connector setup banner (guard on loaded to prevent flash) -->
+  {#if connectorSetupLoaded && !connectorSetupDismissed}
     <div class="connector-banner">
       <div class="connector-banner-content">
         <div class="connector-banner-title">Get live civic data in your AI</div>
@@ -2066,28 +2116,26 @@
                   </button>
                 {/if}
 
-                {#if aiAvailable}
-                  <button
-                    class="ask-ai-btn"
-                    class:active={aiResponses.has(`ask-agenda:${item.id}`)}
-                    disabled={aiResponseLoading.has(`ask-agenda:${item.id}`)}
-                    onclick={() => askAI(`ask-agenda:${item.id}`, composeAgendaContext(item))}
-                  >
-                    {aiResponseLoading.has(`ask-agenda:${item.id}`) ? 'Thinking...' : aiResponses.has(`ask-agenda:${item.id}`) ? 'Hide response' : 'Ask AI about this'}
-                  </button>
-                  {#if aiResponses.has(`ask-agenda:${item.id}`)}
-                    <div class="ai-response">
-                      <div class="ai-response-text">{aiResponses.get(`ask-agenda:${item.id}`)}</div>
-                      {#if activeProviderName}<span class="ai-response-provider">via {activeProviderName}</span>{/if}
-                    </div>
+                <div class="ai-action-row">
+                  {#if aiAvailable}
+                    <button
+                      class="ai-action-btn ai-action-ask"
+                      class:active={aiResponses.has(`ask-agenda:${item.id}`)}
+                      disabled={aiResponseLoading.has(`ask-agenda:${item.id}`)}
+                      onclick={() => askAI(`ask-agenda:${item.id}`, composeAgendaContext(item))}
+                    >
+                      <span class="sparkle">✦</span> {aiResponseLoading.has(`ask-agenda:${item.id}`) ? 'Thinking...' : aiResponses.has(`ask-agenda:${item.id}`) ? 'Hide' : activeProviderName}                    </button>
                   {/if}
-                {/if}
-                <div class="discuss-external">
-                  <span class="discuss-label">{aiAvailable ? 'or discuss in' : 'Discuss in'}</span>
-                  <button class="discuss-ext-btn" onclick={(e: MouseEvent) => openExternalAI('claude', composeAgendaContext(item), e)}>
+                  <button class="ai-action-btn ai-action-claude" class:solo={!aiAvailable} onclick={(e: MouseEvent) => openExternalAI('claude', composeAgendaContext(item), e)}>
                     Claude <span class="ext-icon">↗</span>
                   </button>
                 </div>
+                {#if aiResponses.has(`ask-agenda:${item.id}`)}
+                  <div class="ai-response">
+                    <div class="ai-response-text prose">{@html renderMarkdown(aiResponses.get(`ask-agenda:${item.id}`) ?? '')}</div>
+                    {#if activeProviderName}<span class="ai-response-provider">via {activeProviderName}</span>{/if}
+                  </div>
+                {/if}
               </div>
             {/each}
           </div>
@@ -2174,14 +2222,13 @@
                             {/if}
                             {#if aiResponses.has(`ask-testimony:${decision.id}`)}
                               <div class="ai-response">
-                                <div class="ai-response-text">{aiResponses.get(`ask-testimony:${decision.id}`)}</div>
+                                <div class="ai-response-text prose">{@html renderMarkdown(aiResponses.get(`ask-testimony:${decision.id}`) ?? '')}</div>
                                 {#if activeProviderName}<span class="ai-response-provider">via {activeProviderName}</span>{/if}
                               </div>
                             {/if}
-                            <div class="discuss-external">
-                              <span class="discuss-label">{aiAvailable ? 'or discuss in' : 'Discuss testimony in'}</span>
-                              <button class="discuss-ext-btn" onclick={(e: MouseEvent) => openExternalAI('claude', composeTestimonySummary(decision, detail.testimony!.public_comments!), e)}>
-                                Claude <span class="ext-icon">↗</span>
+                            <div class="ai-action-row">
+                              <button class="ai-action-btn ai-action-claude solo" onclick={(e: MouseEvent) => openExternalAI('claude', composeTestimonySummary(decision, detail.testimony!.public_comments!), e)}>
+                                Discuss testimony in Claude <span class="ext-icon">↗</span>
                               </button>
                             </div>
                           </div>
@@ -2223,28 +2270,26 @@
                             <span class="voice-locked">Unlock to vote</span>
                           {/if}
                         </div>
-                        {#if aiAvailable}
-                          <button
-                            class="ask-ai-btn"
-                            class:active={aiResponses.has(`ask-decision:${decision.id}`)}
-                            disabled={aiResponseLoading.has(`ask-decision:${decision.id}`)}
-                            onclick={() => askAI(`ask-decision:${decision.id}`, composeDecisionContext(decision))}
-                          >
-                            {aiResponseLoading.has(`ask-decision:${decision.id}`) ? 'Thinking...' : aiResponses.has(`ask-decision:${decision.id}`) ? 'Hide response' : 'Ask AI about this'}
-                          </button>
-                          {#if aiResponses.has(`ask-decision:${decision.id}`)}
-                            <div class="ai-response">
-                              <div class="ai-response-text">{aiResponses.get(`ask-decision:${decision.id}`)}</div>
-                              {#if activeProviderName}<span class="ai-response-provider">via {activeProviderName}</span>{/if}
-                            </div>
+                        <div class="ai-action-row">
+                          {#if aiAvailable}
+                            <button
+                              class="ai-action-btn ai-action-ask"
+                              class:active={aiResponses.has(`ask-decision:${decision.id}`)}
+                              disabled={aiResponseLoading.has(`ask-decision:${decision.id}`)}
+                              onclick={() => askAI(`ask-decision:${decision.id}`, composeDecisionContext(decision))}
+                            >
+                              <span class="sparkle">✦</span> {aiResponseLoading.has(`ask-decision:${decision.id}`) ? 'Thinking...' : aiResponses.has(`ask-decision:${decision.id}`) ? 'Hide' : activeProviderName}                            </button>
                           {/if}
-                        {/if}
-                        <div class="discuss-external">
-                          <span class="discuss-label">{aiAvailable ? 'or discuss in' : 'Discuss in'}</span>
-                          <button class="discuss-ext-btn" onclick={(e: MouseEvent) => openExternalAI('claude', composeDecisionContext(decision), e)}>
+                          <button class="ai-action-btn ai-action-claude" class:solo={!aiAvailable} onclick={(e: MouseEvent) => openExternalAI('claude', composeDecisionContext(decision), e)}>
                             Claude <span class="ext-icon">↗</span>
                           </button>
                         </div>
+                        {#if aiResponses.has(`ask-decision:${decision.id}`)}
+                          <div class="ai-response">
+                            <div class="ai-response-text prose">{@html renderMarkdown(aiResponses.get(`ask-decision:${decision.id}`) ?? '')}</div>
+                            {#if activeProviderName}<span class="ai-response-provider">via {activeProviderName}</span>{/if}
+                          </div>
+                        {/if}
                       {:else}
                         <div class="detail-empty">No details available</div>
                       {/if}
@@ -4049,56 +4094,51 @@
     margin-top: 4px;
   }
 
-  /* === Ask AI Button === */
-  .ask-ai-btn {
-    display: block;
-    width: 100%;
+  /* === AI Action Row (Ask AI + Claude peer buttons) === */
+  .ai-action-row {
+    display: flex;
+    gap: 6px;
     margin-top: 8px;
+  }
+  .ai-action-btn {
+    flex: 1;
     padding: 5px 0;
     font-size: 11px;
     font-weight: 500;
-    color: #60a5fa;
-    background: rgba(59,130,246,0.06);
-    border: 1px dashed #3b82f640;
     border-radius: 6px;
     cursor: pointer;
     transition: all 0.15s ease;
+    text-align: center;
   }
-  .ask-ai-btn:hover:not(:disabled) {
-    background: rgba(59,130,246,0.12);
+  .ai-action-ask {
+    color: #60a5fa;
+    background: rgba(59,130,246,0.06);
+    border: 1px solid #3b82f630;
+  }
+  .ai-action-ask:hover:not(:disabled) {
+    background: rgba(59,130,246,0.14);
     border-color: #3b82f6;
     color: #93c5fd;
   }
-  .ask-ai-btn:disabled { opacity: 0.6; cursor: default; }
-
-  /* === External AI Discuss Buttons === */
-  .discuss-external {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    margin-top: 6px;
+  .ai-action-ask:disabled { opacity: 0.6; cursor: default; }
+  .ai-action-ask.active {
+    background: rgba(59,130,246,0.12);
+    border-color: #3b82f6;
   }
-  .discuss-label {
-    font-size: 10px;
-    color: #6b7280;
+  .ai-action-claude {
+    color: #d4a574;
+    background: rgba(212,165,116,0.06);
+    border: 1px solid #d4a57430;
   }
-  .discuss-ext-btn {
-    font-size: 10px;
-    font-weight: 500;
-    color: #9ca3af;
-    background: transparent;
-    border: 1px solid #374151;
-    border-radius: 4px;
-    padding: 2px 8px;
-    cursor: pointer;
-    transition: all 0.15s ease;
+  .ai-action-claude:hover {
+    background: rgba(212,165,116,0.14);
+    border-color: #d4a574;
+    color: #e8c9a0;
   }
-  .discuss-ext-btn:hover {
-    color: #d1d5db;
-    border-color: #60a5fa;
-    background: rgba(59,130,246,0.06);
+  .ai-action-claude.solo {
+    flex: 1;
   }
+  .sparkle { font-size: 10px; opacity: 0.7; }
   .ext-icon { font-size: 9px; }
 
   /* === Connector Setup Banner === */
@@ -4156,12 +4196,6 @@
   }
   .connector-banner-close:hover { color: #d1d5db; }
 
-  .ask-ai-btn.active {
-    background: rgba(59,130,246,0.12);
-    border-style: solid;
-    color: #93c5fd;
-  }
-
   /* === AI Inline Response === */
   .ai-response {
     margin-top: 8px;
@@ -4174,8 +4208,45 @@
     font-size: 12px;
     color: #d1d5db;
     line-height: 1.5;
-    white-space: pre-wrap;
   }
+  .ai-response-text.prose :global(p) { margin: 0 0 8px; }
+  .ai-response-text.prose :global(p:last-child) { margin-bottom: 0; }
+  .ai-response-text.prose :global(strong) { color: #e5e7eb; font-weight: 600; }
+  .ai-response-text.prose :global(em) { color: #c4b5fd; }
+  .ai-response-text.prose :global(ul), .ai-response-text.prose :global(ol) {
+    margin: 4px 0 8px;
+    padding-left: 18px;
+  }
+  .ai-response-text.prose :global(li) { margin-bottom: 2px; }
+  .ai-response-text.prose :global(code) {
+    font-size: 11px;
+    background: rgba(255,255,255,0.06);
+    padding: 1px 4px;
+    border-radius: 3px;
+    color: #e2e8f0;
+  }
+  .ai-response-text.prose :global(h1), .ai-response-text.prose :global(h2),
+  .ai-response-text.prose :global(h3), .ai-response-text.prose :global(h4) {
+    font-size: 12px;
+    font-weight: 600;
+    color: #e5e7eb;
+    margin: 8px 0 4px;
+  }
+  .ai-response-text.prose :global(h1:first-child), .ai-response-text.prose :global(h2:first-child),
+  .ai-response-text.prose :global(h3:first-child), .ai-response-text.prose :global(h4:first-child) {
+    margin-top: 0;
+  }
+  .ai-response-text.prose :global(blockquote) {
+    margin: 4px 0;
+    padding: 4px 10px;
+    border-left: 2px solid rgba(139, 92, 246, 0.3);
+    color: #a1a1aa;
+  }
+  .ai-response-text.prose :global(a) {
+    color: #60a5fa;
+    text-decoration: none;
+  }
+  .ai-response-text.prose :global(a:hover) { text-decoration: underline; }
   .ai-response-provider {
     display: block;
     margin-top: 6px;

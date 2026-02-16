@@ -1,3 +1,75 @@
+## Session — 2026-02-16 (Claude MCP Flow Polish + Banner Race Fix)
+
+**Item:** edge_intelligence/browser_extension/extension_ux_parity
+**Status:** In progress (continuation)
+
+### Changes
+
+1. **Fixed connector banner race condition**: Added `connectorSetupLoaded` guard flag so banner doesn't flash on panel open when already dismissed. Banner only renders after async chrome.storage.local load completes.
+
+2. **Improved connector setup flow**:
+   - Error handling on clipboard write (try/catch + toast fallback)
+   - Inline hint auto-dismisses after 15 seconds
+   - Storage change listener keeps dismiss state synced across panel reopens
+
+3. **Improved Claude bridge script**:
+   - Platform-aware keyboard shortcut (⌘V on Mac, Ctrl+V on Windows/Linux)
+   - Added dismiss button (×) on the paste banner
+   - Better success verification: checks if text actually appeared in editor after injection
+   - Editor gets focused immediately so paste fallback works without extra clicking
+   - Prevented duplicate style element injection
+   - Longer dismiss timeouts for failed injection (12s) vs success (2.5s)
+
+4. **Build**: PASS (vite build + tsc --noEmit clean)
+5. **MCP endpoint**: Live at san-rafael.civicosproject.org/mcp (401 = requires auth, expected)
+
+### P0 remains: extension_ux_parity
+
+---
+
+## Session — 2026-02-16 (Extension AI UX Harmonization + Architectural Decisions)
+
+**Item:** edge_intelligence/browser_extension/extension_ux_parity
+**Status:** In progress
+
+### What was done:
+
+1. **Harmonized AI action row** — replaced disjointed "Ask AI about this" + "or discuss in Claude" with unified peer buttons:
+   - `[✦ Gemini] [Claude ↗]` side by side, same height/weight
+   - Provider name from `activeProviderName` instead of generic "Ask AI"
+   - Sparkle ✦ marks inline generation, ↗ marks external navigation
+   - Claude button goes full-width when no BYOK provider configured
+   - Three locations updated: agenda items, testimony, decisions
+
+2. **Markdown rendering for AI responses** — added `marked` + `DOMPurify`:
+   - `{@html renderMarkdown(text)}` replaces raw `{text}` in 3 response bubbles
+   - Prose CSS for dark theme (bold, lists, code, blockquotes, headings, links)
+   - XSS-safe via DOMPurify sanitization
+
+3. **Testimony & sentiment context enrichment**:
+   - New `composeSentimentBlock()` helper injects voice counts, comment synthesis, and user comments into AI context
+   - Updated `composeAgendaContext()` and `composeDecisionContext()` to include sentiment
+   - Pre-fetch comment synthesis on load (alongside voice counts)
+   - Updated QA system prompt to weave sentiment as "community voice"
+   - Increased testimony limit from 5 to 8 speakers in decision context
+
+4. **Three architectural decisions captured in pilot.json**:
+   - ADR-2026-02-16-01: Extension IS the Personal MCP (no separate package)
+   - ADR-2026-02-16-02: Structure extension APIs as tool-shaped for WebMCP readiness
+   - ADR-2026-02-16-03: Keep Jurisdiction MCP unauthenticated; OAuth for federation only
+
+5. **Removed premature UX**: Dropped `hasAltProviders` chevron (▾) — provider switching is a settings concern, not a per-item concern
+
+### Files changed:
+- `apps/civicos-extension/src/side-panel/SidePanel.svelte` — AI action row, markdown rendering, sentiment enrichment, CSS
+- `apps/civicos-extension/src/lib/ai/prompts.ts` — QA system prompt updated
+- `apps/civicos-extension/package.json` — added marked, dompurify
+- `pilot.json` — 3 ADRs, architecture block updated, P0 note updated
+
+### Build: PASS (npm run build succeeds)
+### P0 set: extension_ux_parity (Claude MCP e2e flow + connector banner fix)
+
+---
 ## Session 586 (2026-02-12) - Extension UX Parity: Action Forms, Comments, Calendar
 
 **Item:** edge_intelligence/browser_extension/extension_ux_parity

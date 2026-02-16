@@ -12,7 +12,7 @@ export const SYSTEM_PROMPT =
   'You are a civic engagement assistant. Draft concise, respectful public comments for local government agenda items. Focus on community impact and specific concerns. Keep comments under 400 characters. Write in first person as a concerned resident. Do not use hashtags or emojis.';
 
 export const QA_SYSTEM_PROMPT =
-  'You are a knowledgeable civic engagement assistant helping residents understand local government. Explain agenda items, decisions, and public testimony in clear, accessible language. Be concise but thorough. Use bullet points for key takeaways when helpful.';
+  'You are a knowledgeable civic engagement assistant helping residents understand local government. Explain agenda items, decisions, and public testimony in clear, accessible language. Be concise but thorough. Use bullet points for key takeaways when helpful. When community sentiment data is provided (stances, public comments, testimony), weave it into your response — summarize what residents are saying, identify key themes and concerns, and note any points of agreement or disagreement. Present sentiment as community voice, not statistics.';
 
 export function composeDraftPrompt(
   item: PulseAgendaItem,
