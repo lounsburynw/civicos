@@ -868,6 +868,13 @@
     return lines.join('\n');
   }
 
+  function getMailtoLink(item: import('../lib/types.js').PulseAgendaItem): string {
+    if (!pulseData?.clerk_email) return '';
+    const subject = `Public Comment - Item ${item.item_number}: ${item.title} - ${item.meeting_title} ${item.meeting_date}`;
+    const body = `[Paste your drafted comment here]\n\nRegarding: ${item.title}\nMeeting: ${item.meeting_title}, ${item.meeting_date}\nItem: ${item.item_number}`;
+    return `mailto:${encodeURIComponent(pulseData.clerk_email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  }
+
   function composeDecisionContext(decision: import('../lib/types.js').PulseOutcome): string {
     const detail = decisionDetails.get(decision.title);
     const lines = [
@@ -911,6 +918,26 @@
     lines.push('1. A concise summary of the key themes and concerns raised');
     lines.push('2. Points of agreement and disagreement among speakers');
     lines.push('3. Any action items or follow-ups mentioned');
+    return lines.join('\n');
+  }
+
+  function composeThreadSummary(item: import('../lib/types.js').PulseAgendaItem, entityId: string): string {
+    const comments = threadComments.get(entityId) || [];
+    const lines = [
+      `Summarize the public comment thread for **${item.meeting_title}** (${item.meeting_date}), Agenda Item ${item.item_number}: ${item.title}.`,
+      '',
+    ];
+    const vc = voiceCounts.get(entityId);
+    if (vc) {
+      const total = (vc.support || 0) + (vc.oppose || 0) + (vc.watching || 0);
+      lines.push(`**Community sentiment:** ${total} voices — ${vc.support || 0} support, ${vc.oppose || 0} oppose, ${vc.watching || 0} watching`, '');
+    }
+    lines.push(`**${comments.length} public comment${comments.length !== 1 ? 's' : ''}:**`);
+    for (const c of comments) {
+      const stance = c.stance ? ` [${c.stance}]` : '';
+      lines.push(`- "${c.comment_text}"${stance}`);
+    }
+    lines.push('', 'Analyze these comments:', '1. What are the 2-3 key themes or concerns raised?', '2. Are there notable points of agreement or disagreement?', '3. What are the strongest arguments on each side?', '', 'Be concise. Use bullet points.');
     return lines.join('\n');
   }
 
@@ -1938,6 +1965,9 @@
                 {#if item.description}
                   <div class="card-desc">{item.description}</div>
                 {/if}
+                {#if item.why_it_matters}
+                  <div class="card-why"><strong>Why it matters:</strong> <em>{item.why_it_matters}</em></div>
+                {/if}
                 <div class="card-tags">
                   {#if item.stance_eligible}
                     <span class="tag tag-voice">Voice eligible</span>
@@ -1988,11 +2018,19 @@
                 {#if item.comment_eligible}
                   {@const commentEntityId = `agenda-item:${item.id}`}
                   <div class="comment-section">
-                    <button class="comment-toggle" onclick={() => toggleCommentThread(commentEntityId)}>
-                      <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M2 3h12v7H5l-3 3V3z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>
-                      {commentCounts.get(commentEntityId) || 0} comments
-                      <span class="chevron-sm" class:open={openThreads.has(commentEntityId)}></span>
-                    </button>
+                    <div class="comment-actions-row">
+                      <button class="comment-toggle" onclick={() => toggleCommentThread(commentEntityId)}>
+                        <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M2 3h12v7H5l-3 3V3z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>
+                        {commentCounts.get(commentEntityId) || 0} comments
+                        <span class="chevron-sm" class:open={openThreads.has(commentEntityId)}></span>
+                      </button>
+                      {#if pulseData?.clerk_email && item.comment_eligible}
+                        <a class="email-clerk-btn" href={getMailtoLink(item)} title="Email your comment to the City Clerk">
+                          <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M2 4l6 4 6-4M2 4v8h12V4H2z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>
+                          Email Clerk
+                        </a>
+                      {/if}
+                    </div>
                     {#if openThreads.has(commentEntityId)}
                       <div class="comment-thread">
                         {#if threadLoading.has(commentEntityId)}
@@ -2019,6 +2057,25 @@
                                   {#if synth.oppose > 0}<span class="synth-label synth-oppose">{synth.oppose} oppose</span>{/if}
                                   {#if synth.neutral > 0}<span class="synth-label synth-neutral">{synth.neutral} neutral</span>{/if}
                                 </div>
+                              </div>
+                            {/if}
+                          {/if}
+
+                          <!-- Summarize thread button -->
+                          {#if aiAvailable && (threadComments.get(commentEntityId) || []).length >= 2}
+                            <div class="thread-summarize-row">
+                              <button
+                                class="summarize-btn"
+                                disabled={aiResponseLoading.has(`summarize-thread:${commentEntityId}`)}
+                                onclick={() => askAI(`summarize-thread:${commentEntityId}`, composeThreadSummary(item, commentEntityId))}
+                              >
+                                <span class="sparkle">✦</span>
+                                {aiResponseLoading.has(`summarize-thread:${commentEntityId}`) ? 'Summarizing...' : aiResponses.has(`summarize-thread:${commentEntityId}`) ? 'Hide summary' : 'Summarize'}
+                              </button>
+                            </div>
+                            {#if aiResponses.has(`summarize-thread:${commentEntityId}`)}
+                              <div class="ai-response thread-summary-response">
+                                <div class="ai-response-text prose">{@html renderMarkdown(aiResponses.get(`summarize-thread:${commentEntityId}`) ?? '')}</div>
                               </div>
                             {/if}
                           {/if}
@@ -3072,6 +3129,14 @@
     overflow: hidden;
   }
 
+  .card-why {
+    color: #9ca3af;
+    font-size: 12px;
+    margin-top: 4px;
+    line-height: 1.45;
+  }
+  .card-why strong { color: #d1d5db; }
+
   .card-top-row {
     display: flex;
     align-items: center;
@@ -3939,9 +4004,42 @@
     border-color: #3b82f6;
     color: #93c5fd;
   }
+  .thread-summarize-row {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 6px;
+  }
+  .thread-summary-response {
+    margin-bottom: 8px;
+    border-left: 2px solid #3b82f640;
+    padding-left: 8px;
+  }
 
   /* === Comment Thread === */
   .comment-section { margin-top: 8px; }
+  .comment-actions-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .email-clerk-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    color: #9ca3af;
+    text-decoration: none;
+    padding: 4px 8px;
+    border-radius: 6px;
+    border: 1px solid transparent;
+    transition: all 0.15s ease;
+  }
+  .email-clerk-btn:hover {
+    color: #d1d5db;
+    background: rgba(59,130,246,0.08);
+    border-color: rgba(59,130,246,0.2);
+  }
+  .email-clerk-btn svg { opacity: 0.6; }
   .comment-toggle {
     display: flex;
     align-items: center;
