@@ -2661,12 +2661,12 @@
         }
       },
       "expandable_decisions": {
-        "status": "ready",
-        "priority": 1,
+        "status": "not_ready",
+        "priority": 0,
         "artifact": "Expandable decision detail cards in CityPulse",
         "description": "Expand Recent Decisions rows to show full detail: vote breakdown, related public testimony (via vector search), linked agenda packet chunks, and timeline context. Click a decision row to expand inline. Fetch additional detail on demand to keep initial load fast.",
         "depends_on": "civic_dashboard_mvp",
-        "note": "2026-02-12: Already implemented. Frontend: DecisionDetail.svelte with outcome, vote breakdown, public testimony, council discussion. Backend: /decision-detail REST endpoint + decision_detail MCP tool. On-demand fetch with slide transition.",
+        "note": "2026-02-16: UI implemented but citizen panel QC scored content 2.1/5. Speaker attribution fixed (3-tier resolution via roster). Remaining: synthesized summary, key fact extraction, excerpt quality, video links, outcome labels. See docs/next_session_prompt.md.",
         "implementation": {
           "backend": "/decision-detail REST endpoint in rest_api.py, decision_detail handler in handlers.py",
           "frontend": "DecisionDetail.svelte component, expandable inline in CityPulse decisions section",
@@ -4375,8 +4375,7 @@
         "depends_on": ["extension_phase2b_commitments"]
       },
       "extension_ux_parity": {
-        "status": "ready",
-        "priority": 0,
+        "status": "complete",
         "artifact": "Browser extension UX parity with Open WebUI fork",
         "note": "COMPLETE 2026-02-16. Full audit: Extension at parity or ahead on all features. 3 gaps closed: 'Why it matters' field display, per-item Email Clerk button, comment thread Summarize button. Extension-only features: Draft+Enrich AI, inline Ask AI, Claude bridge, multi-provider stack, MCP connector setup.",
         "features": [
@@ -4390,7 +4389,7 @@
       },
       "extension_phase4_micropayments": {
         "status": "not_ready",
-        "priority": 0,
+        "priority": 3,
         "artifact": "Browser extension Phase 4 — Lightning/Cashu micropayments",
         "note": "L402 gates compute-intensive MCP tools. NWC (NIP-47) wallet bridge in extension. Cashu (NIP-60) for privacy. Free tier always works without wallet. See micropayments section and docs/critical/BROWSER_EXTENSION_ARCHITECTURE.md.",
         "features": [

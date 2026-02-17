@@ -1359,6 +1359,20 @@ def get_decision_context(
         return f"Error getting decision context: {str(e)}"
 
 
+def _load_roster(jurisdiction: str):
+    """Load jurisdiction roster, checking both local dev and Modal container paths."""
+    from pathlib import Path
+    from civicos.roster import Roster
+
+    # Modal mounts rosters to /app/config/rosters/
+    modal_path = Path("/app/config/rosters")
+    if modal_path.exists():
+        return Roster.load(jurisdiction, config_dir=modal_path)
+
+    # Local dev: default path resolution (walks up from module)
+    return Roster.load(jurisdiction)
+
+
 def _extract_excerpt(text: str, title: str = "", max_chars: int = 300) -> str:
     """Extract the most relevant sentences from a transcript chunk.
 
@@ -1500,8 +1514,49 @@ def decision_detail(
                 storage_backend=storage,
             )
 
-            public_comments = [l for l in transcript_links if l.is_public_comment]
-            council_discussion = [l for l in transcript_links if not l.is_public_comment]
+            # Look up meeting video URL as fallback when transcript chunks lack video_id
+            meeting_video_url = None
+            meeting_id = exact_match.get("meeting_id")
+            if meeting_id and storage:
+                try:
+                    meetings = storage.get_meetings(jurisdiction, limit=200)
+                    for m in meetings:
+                        if m.get("id") == meeting_id and m.get("video_url"):
+                            meeting_video_url = m["video_url"]
+                            break
+                except Exception:
+                    pass
+
+            # Speaker resolution via core module
+            from civicos.speakers import (
+                extract_speaker_from_text, get_video_id_from_chunk,
+                build_meeting_speaker_map, resolve_speaker,
+            )
+            roster = _load_roster(jurisdiction)
+            video_id = ""
+            for l in transcript_links:
+                video_id = get_video_id_from_chunk(l.chunk_id)
+                if video_id:
+                    break
+            meeting_speaker_map = build_meeting_speaker_map(video_id, civic._vectors, roster)
+
+            enriched_public = []
+            enriched_council = []
+            for l in transcript_links:
+                text_speaker, text_is_public = extract_speaker_from_text(l.text)
+                raw_label = l.speaker_name or l.speaker or text_speaker
+                display_name, is_public = resolve_speaker(raw_label, meeting_speaker_map, roster)
+                is_public = is_public or l.is_public_comment or text_is_public
+                entry = {
+                    "speaker": display_name or ("Public commenter" if is_public else "Council/Staff"),
+                    "text": _extract_excerpt(l.text, decision_title),
+                    "video_url": l.video_url or meeting_video_url,
+                    "start_timestamp": l.start_timestamp,
+                }
+                if is_public:
+                    enriched_public.append(entry)
+                else:
+                    enriched_council.append(entry)
 
             # Related decisions via vector search (exclude self)
             related = civic.what_happened(decision_title)[:4]
@@ -1525,24 +1580,8 @@ def decision_detail(
                     "votes": votes,
                 },
                 "testimony": {
-                    "public_comments": [
-                        {
-                            "speaker": l.speaker_name or l.speaker or "Resident",
-                            "text": _extract_excerpt(l.text, decision_title),
-                            "video_url": l.video_url,
-                            "start_timestamp": l.start_timestamp,
-                        }
-                        for l in public_comments[:3]
-                    ],
-                    "council_discussion": [
-                        {
-                            "speaker": l.speaker_name or l.speaker or "Council Member",
-                            "text": _extract_excerpt(l.text, decision_title),
-                            "video_url": l.video_url,
-                            "start_timestamp": l.start_timestamp,
-                        }
-                        for l in council_discussion[:2]
-                    ],
+                    "public_comments": enriched_public[:3],
+                    "council_discussion": enriched_council[:2],
                 },
                 "related_decisions": related_decisions,
             }
@@ -1556,9 +1595,50 @@ def decision_detail(
         r = results[0]
         d = r.decision
 
-        # Split transcript links by type
-        public_comments = [link for link in r.transcript_links if link.is_public_comment]
-        council_discussion = [link for link in r.transcript_links if not link.is_public_comment]
+        # Look up meeting video URL as fallback
+        fallback_video_url = None
+        if d.date and storage:
+            try:
+                date_str = d.date.strftime("%Y-%m-%d") if hasattr(d.date, "strftime") else str(d.date)
+                meetings = storage.get_meetings(jurisdiction, limit=200)
+                for m in meetings:
+                    m_date = str(m.get("meeting_datetime", ""))[:10]
+                    if m_date == date_str and m.get("video_url"):
+                        fallback_video_url = m["video_url"]
+                        break
+            except Exception:
+                pass
+
+        # Speaker resolution via core module
+        from civicos.speakers import (
+            extract_speaker_from_text, get_video_id_from_chunk,
+            build_meeting_speaker_map, resolve_speaker,
+        )
+        roster = _load_roster(jurisdiction)
+        video_id = ""
+        for link in r.transcript_links:
+            video_id = get_video_id_from_chunk(link.chunk_id)
+            if video_id:
+                break
+        meeting_speaker_map = build_meeting_speaker_map(video_id, civic._vectors, roster)
+
+        enriched_public = []
+        enriched_council = []
+        for link in r.transcript_links:
+            text_speaker, text_is_public = extract_speaker_from_text(link.text)
+            raw_label = link.speaker_name or link.speaker or text_speaker
+            display_name, is_public = resolve_speaker(raw_label, meeting_speaker_map, roster)
+            is_public = is_public or link.is_public_comment or text_is_public
+            entry = {
+                "speaker": display_name or ("Public commenter" if is_public else "Council/Staff"),
+                "text": _extract_excerpt(link.text, d.title),
+                "video_url": link.video_url or fallback_video_url,
+                "start_timestamp": link.start_timestamp,
+            }
+            if is_public:
+                enriched_public.append(entry)
+            else:
+                enriched_council.append(entry)
 
         # Get related decisions via vector search
         related = civic.what_happened(title)[:4]
@@ -1578,24 +1658,8 @@ def decision_detail(
                 "votes": d.votes,
             },
             "testimony": {
-                "public_comments": [
-                    {
-                        "speaker": l.speaker_name or l.speaker or "Resident",
-                        "text": _extract_excerpt(l.text, d.title),
-                        "video_url": l.video_url,
-                        "start_timestamp": l.start_timestamp,
-                    }
-                    for l in public_comments[:3]
-                ],
-                "council_discussion": [
-                    {
-                        "speaker": l.speaker_name or l.speaker or "Council Member",
-                        "text": _extract_excerpt(l.text, d.title),
-                        "video_url": l.video_url,
-                        "start_timestamp": l.start_timestamp,
-                    }
-                    for l in council_discussion[:2]
-                ],
+                "public_comments": enriched_public[:3],
+                "council_discussion": enriched_council[:2],
             },
             "related_decisions": related_decisions,
         }

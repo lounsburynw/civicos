@@ -118,6 +118,8 @@ mcp_image = (
     .add_local_file("apps/civicos_input_validator.py", remote_path="/app/civicos_input_validator.py")
     # Service registry (URL config)
     .add_local_file("config/registry.json", remote_path="/app/registry.json")
+    # Jurisdiction rosters (speaker resolution)
+    .add_local_dir("config/rosters", remote_path="/app/config/rosters")
 )
 
 

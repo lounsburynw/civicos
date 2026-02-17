@@ -1551,6 +1551,38 @@ class PgVectorBackend:
             },
         )
 
+    def get_chunks_by_prefix(
+        self,
+        id_prefix: str,
+        corpus_type: str = "transcripts",
+        limit: int = 800,
+    ) -> List[SearchResult]:
+        """Fetch stored chunks by ID prefix (no embedding required)."""
+        conn = self._get_connection()
+        try:
+            cur = conn.cursor()
+            cur.execute(
+                f"SELECT id, content, jurisdiction_id, corpus_type, metadata "
+                f"FROM {self.TABLE_NAME} "
+                f"WHERE id LIKE %s AND corpus_type = %s "
+                f"LIMIT %s",
+                (f"{id_prefix}%", corpus_type, limit),
+            )
+            results = []
+            for row in cur.fetchall():
+                meta = row[4] if isinstance(row[4], dict) else {}
+                results.append(SearchResult(
+                    id=row[0],
+                    content=row[1],
+                    score=0.0,
+                    jurisdiction_id=row[2],
+                    corpus_type=row[3],
+                    metadata=meta,
+                ))
+            return results
+        finally:
+            conn.close()
+
     def delete_index(
         self,
         jurisdiction_id: str,

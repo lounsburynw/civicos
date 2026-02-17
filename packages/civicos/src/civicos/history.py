@@ -769,7 +769,7 @@ def _search_transcripts_pgvector(
         transcript_results.append(TranscriptSearchResult(
             id=r.id,
             text=r.content,
-            speaker=metadata.get("speaker", "?"),
+            speaker=metadata.get("speaker") or None,
             speaker_role=metadata.get("speaker_role"),
             speaker_name=metadata.get("speaker_name"),
             video_id=video_id,
@@ -901,7 +901,7 @@ def _search_hybrid_pgvector(
                 text=r.content,
                 source_type="transcript",
                 score=r.score,
-                speaker=metadata.get("speaker", "?"),
+                speaker=metadata.get("speaker") or None,
                 speaker_role=metadata.get("speaker_role"),
                 speaker_name=metadata.get("speaker_name"),
                 video_id=video_id,
@@ -1613,7 +1613,7 @@ def _search_decision_transcripts_pgvector(
         links.append(TranscriptLink(
             chunk_id=r.id,
             text=r.content,
-            speaker=metadata.get("speaker", "?"),
+            speaker=metadata.get("speaker") or None,
             speaker_role=metadata.get("speaker_role"),
             speaker_name=metadata.get("speaker_name"),
             video_id=metadata.get("video_id"),
