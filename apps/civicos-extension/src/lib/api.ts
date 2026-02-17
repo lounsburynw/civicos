@@ -66,24 +66,28 @@ export async function getBudgetSummary(groupBy = 'department'): Promise<BudgetSu
   return apiRequest<BudgetSummary>(`/api/tools/budget-summary?group_by=${groupBy}`);
 }
 
-export async function getVoiceCountsBatch(entityIds: string[]): Promise<Map<string, VoiceCounts>> {
+export async function getVoiceCountsBatch(entityIds: string[], jurisdiction = 'city-san-rafael'): Promise<Map<string, VoiceCounts>> {
   const result = new Map<string, VoiceCounts>();
   if (entityIds.length === 0) return result;
 
   try {
-    const baseUrl = await getBaseUrl();
-    // Fetch counts for each entity individually (relay has per-entity endpoint)
+    const relayUrl = await getRelayUrl();
     const promises = entityIds.map(async (id) => {
       try {
-        const url = `${baseUrl}/api/tools/voice-counts?entity_id=${encodeURIComponent(id)}`;
+        const url = `${relayUrl}/coordination/voice/counts/${encodeURIComponent(id)}?jurisdiction=${encodeURIComponent(jurisdiction)}`;
         const response = await fetch(url, {
           headers: { 'Content-Type': 'application/json' },
         });
         if (response.ok) {
-          const data: ToolResponse<VoiceCounts> = await response.json();
-          if (data.success && data.data) {
-            result.set(id, data.data);
-          }
+          const data: VoiceCounts & { entity: string } = await response.json();
+          result.set(id, {
+            support: data.support,
+            oppose: data.oppose,
+            watching: data.watching,
+            total: data.total,
+            attested: data.attested ?? undefined,
+            unattested: data.unattested ?? undefined,
+          });
         }
       } catch {
         // Silently skip unavailable voice counts
