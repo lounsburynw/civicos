@@ -8,6 +8,7 @@
 
 import type { CityPulseData, DecisionDetailData, DataProvenance, VoiceCounts, ToolResponse, Initiative, CivicAction, CivicActionProgress, IssueGeography, BudgetSummary, Comment, CommentCounts, CommentSynthesis, ContextBundle } from './types.js';
 import { getBaseUrl, getRelayUrl, redeemAttestationCode } from './relay-client.js';
+import { getActiveJurisdiction } from './registry.js';
 
 const STORAGE_KEY = 'civicos_api_url';
 
@@ -57,15 +58,16 @@ export async function getBudgetSummary(groupBy = 'department'): Promise<BudgetSu
   return apiRequest<BudgetSummary>(`/api/tools/budget-summary?group_by=${groupBy}`);
 }
 
-export async function getVoiceCountsBatch(entityIds: string[], jurisdiction = 'city-san-rafael'): Promise<Map<string, VoiceCounts>> {
+export async function getVoiceCountsBatch(entityIds: string[], jurisdiction?: string): Promise<Map<string, VoiceCounts>> {
   const result = new Map<string, VoiceCounts>();
   if (entityIds.length === 0) return result;
+  const j = jurisdiction || await getActiveJurisdiction();
 
   try {
     const relayUrl = await getRelayUrl();
     const promises = entityIds.map(async (id) => {
       try {
-        const url = `${relayUrl}/coordination/voice/counts/${encodeURIComponent(id)}?jurisdiction=${encodeURIComponent(jurisdiction)}`;
+        const url = `${relayUrl}/coordination/voice/counts/${encodeURIComponent(id)}?jurisdiction=${encodeURIComponent(j)}`;
         const response = await fetch(url, {
           headers: { 'Content-Type': 'application/json' },
         });
@@ -400,10 +402,11 @@ export async function generateActionDraft(
 
 // === Relay API (coordination/comment endpoints) ===
 
-export async function getComments(entityId: string, jurisdiction = 'city-san-rafael'): Promise<Comment[]> {
+export async function getComments(entityId: string, jurisdiction?: string): Promise<Comment[]> {
+  const j = jurisdiction || await getActiveJurisdiction();
   const relayUrl = await getRelayUrl();
   const response = await fetch(
-    `${relayUrl}/coordination/comments/${encodeURIComponent(entityId)}?jurisdiction=${encodeURIComponent(jurisdiction)}`,
+    `${relayUrl}/coordination/comments/${encodeURIComponent(entityId)}?jurisdiction=${encodeURIComponent(j)}`,
     { headers: { 'Content-Type': 'application/json' } }
   );
   if (!response.ok) {
@@ -412,11 +415,12 @@ export async function getComments(entityId: string, jurisdiction = 'city-san-raf
   return response.json();
 }
 
-export async function getCommentCounts(entityId: string, jurisdiction = 'city-san-rafael'): Promise<CommentCounts | null> {
+export async function getCommentCounts(entityId: string, jurisdiction?: string): Promise<CommentCounts | null> {
+  const j = jurisdiction || await getActiveJurisdiction();
   try {
     const relayUrl = await getRelayUrl();
     const response = await fetch(
-      `${relayUrl}/coordination/comment/counts/${encodeURIComponent(entityId)}?jurisdiction=${encodeURIComponent(jurisdiction)}`,
+      `${relayUrl}/coordination/comment/counts/${encodeURIComponent(entityId)}?jurisdiction=${encodeURIComponent(j)}`,
       { headers: { 'Content-Type': 'application/json' } }
     );
     if (!response.ok) return null;
@@ -426,7 +430,7 @@ export async function getCommentCounts(entityId: string, jurisdiction = 'city-sa
   }
 }
 
-export async function getCommentCountsBatch(entityIds: string[], jurisdiction = 'city-san-rafael'): Promise<Map<string, CommentCounts>> {
+export async function getCommentCountsBatch(entityIds: string[], jurisdiction?: string): Promise<Map<string, CommentCounts>> {
   const result = new Map<string, CommentCounts>();
   if (entityIds.length === 0) return result;
   try {
@@ -514,12 +518,13 @@ export { redeemAttestationCode } from './relay-client.js';
 
 export async function getAttestationStatus(
   publicKey: string,
-  jurisdiction = 'city-san-rafael'
+  jurisdiction?: string
 ): Promise<{ attested: boolean; attestation_event?: Record<string, unknown>; attested_at?: string }> {
+  const j = jurisdiction || await getActiveJurisdiction();
   try {
     const relayUrl = await getRelayUrl();
     const response = await fetch(
-      `${relayUrl}/coordination/attestation/${encodeURIComponent(publicKey)}?jurisdiction=${encodeURIComponent(jurisdiction)}`,
+      `${relayUrl}/coordination/attestation/${encodeURIComponent(publicKey)}?jurisdiction=${encodeURIComponent(j)}`,
       { headers: { 'Content-Type': 'application/json' } }
     );
     if (!response.ok) return { attested: false };

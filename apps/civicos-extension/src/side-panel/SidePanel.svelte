@@ -2,6 +2,7 @@
   import { sendMessage } from '../lib/messaging.js';
   import { getCityPulse, getDecisionDetail, getDataProvenance, getVoiceCountsBatch, submitVoice, revokeVoice, getInitiatives, getCivicActions, getCivicActionProgress, commitToCivicAction, completeCivicAction, withdrawCivicAction, createInitiative, createCivicAction, generateActionDraft, getIssueGeography, getBudgetSummary, getComments, getCommentCountsBatch, submitComment, getCommentSynthesis, getItemContext, setRelayUrl } from '../lib/api.js';
   import { isAIAvailable, getAIManager, onAIConfigChanged, composeDraftPrompt, composeEnrichPrompt, SYSTEM_PROMPT, QA_SYSTEM_PROMPT } from '../lib/ai.js';
+  import { getActiveJurisdiction, getRegistryServers, type RegistryServer } from '../lib/registry.js';
   import type { IdentityInfo, NostrEvent, SignedNostrEvent } from '../lib/providers/types.js';
   import { CivicEventKinds, createVoiceContent, createVoiceTags, createCommitmentContent, createCommitmentTags, createCompletionContent, createCompletionTags, generateCommitmentId, generateCompletionId, generateActionRef } from '../lib/providers/types.js';
   import type { CityPulseData, DecisionDetailData, DataProvenance, VoiceCounts, Initiative, CivicAction, CivicActionProgress, IssuePoint, BudgetCategory, Comment, CommentCounts, CommentSynthesis } from '../lib/types.js';
@@ -81,6 +82,10 @@
   // Ask AI inline response state
   let aiResponses = $state(new Map<string, string>());
   let aiResponseLoading = $state(new Set<string>());
+
+  // Jurisdiction state
+  let activeJurisdiction = $state('city-san-rafael');
+  let availableServers: RegistryServer[] = $state([]);
 
   // Calendar dropdown
   let calendarOpen: string | null = $state(null);
@@ -295,6 +300,16 @@
     unlocking = false;
   }
 
+  async function initJurisdiction() {
+    activeJurisdiction = await getActiveJurisdiction();
+    // Pre-fetch registry for getMCPUrl() lookups
+    try {
+      availableServers = await getRegistryServers();
+    } catch {
+      availableServers = [];
+    }
+  }
+
   async function loadCityPulse() {
     pulseLoading = true;
     pulseError = null;
@@ -324,7 +339,7 @@
       ids.push(...pulseData.upcoming_items.filter(i => i.stance_eligible).map(i => `agenda-item:${i.id}`));
     }
     if (ids.length > 0) {
-      voiceCounts = await getVoiceCountsBatch(ids, pulseData.jurisdiction || 'city-san-rafael');
+      voiceCounts = await getVoiceCountsBatch(ids, pulseData.jurisdiction || activeJurisdiction);
     }
   }
 
@@ -335,7 +350,7 @@
       ids.push(...pulseData.upcoming_items.filter(i => i.comment_eligible).map(i => `agenda-item:${i.id}`));
     }
     if (ids.length > 0) {
-      commentCounts = await getCommentCountsBatch(ids, pulseData.jurisdiction || 'city-san-rafael');
+      commentCounts = await getCommentCountsBatch(ids, pulseData.jurisdiction || activeJurisdiction);
       // Pre-fetch synthesis for items with comments (enriches AI context)
       for (const [entityId, cc] of commentCounts) {
         if (cc.count > 0) {
@@ -411,7 +426,7 @@
       const userStance = userStances.get(entityId);
 
       // Build tags to match server's verify_comment(): d (entity), j (jurisdiction), optionally stance
-      const tags: string[][] = [['d', entityId], ['j', 'city-san-rafael']];
+      const tags: string[][] = [['d', entityId], ['j', activeJurisdiction]];
       if (userStance) tags.push(['stance', userStance]);
 
       // Content is the actual comment text — server verifies signature over this
@@ -437,7 +452,7 @@
         signResult.data.pubkey,
         signResult.data.sig,
         createdAt,
-        'city-san-rafael',
+        activeJurisdiction,
         userStance
       );
 
@@ -449,7 +464,7 @@
           public_key: signResult.data.pubkey,
           signature: signResult.data.sig,
           timestamp: new Date().toISOString(),
-          jurisdiction: 'city-san-rafael',
+          jurisdiction: activeJurisdiction,
           stance: userStance,
           deleted: false,
         };
@@ -980,7 +995,8 @@
   };
 
   function getMCPUrl(): string {
-    return 'https://san-rafael.civicosproject.org/mcp';
+    const server = availableServers.find(s => s.jurisdiction_id === activeJurisdiction);
+    return server?.mcp_endpoint || `https://san-rafael.civicosproject.org/mcp`;
   }
 
   function formatExternalContext(context: string): string {
@@ -1192,7 +1208,7 @@
   async function loadInitiatives() {
     initiativesLoading = true;
     try {
-      const jurisdiction = pulseData?.jurisdiction || 'city-san-rafael';
+      const jurisdiction = pulseData?.jurisdiction || activeJurisdiction;
       initiatives = await getInitiatives(jurisdiction);
       // Load all actions + progress upfront for card-level stats
       loadAllActionStats();
@@ -1325,7 +1341,7 @@
     actionInProgress = new Set(actionInProgress);
 
     try {
-      const jurisdiction = pulseData?.jurisdiction || 'city-san-rafael';
+      const jurisdiction = pulseData?.jurisdiction || activeJurisdiction;
       const createdAt = Math.floor(Date.now() / 1000);
       const unsigned: NostrEvent = {
         created_at: createdAt,
@@ -1380,7 +1396,7 @@
     actionInProgress = new Set(actionInProgress);
 
     try {
-      const jurisdiction = pulseData?.jurisdiction || 'city-san-rafael';
+      const jurisdiction = pulseData?.jurisdiction || activeJurisdiction;
       const createdAt = Math.floor(Date.now() / 1000);
       const unsigned: NostrEvent = {
         created_at: createdAt,
@@ -1549,7 +1565,7 @@
 
     creatingInitiative = true;
     try {
-      const jurisdiction = pulseData?.jurisdiction || 'city-san-rafael';
+      const jurisdiction = pulseData?.jurisdiction || activeJurisdiction;
       const createdAt = Math.floor(Date.now() / 1000);
       const content = `civicos:initiative:v1:${jurisdiction}:${topic}:${createdAt}`;
       const unsigned: NostrEvent = {
@@ -1703,7 +1719,7 @@
 
     // Sign and submit
     try {
-      const jurisdiction = pulseData?.jurisdiction || 'city-san-rafael';
+      const jurisdiction = pulseData?.jurisdiction || activeJurisdiction;
       const createdAt = Math.floor(Date.now() / 1000);
       const unsigned: NostrEvent = {
         created_at: createdAt,
@@ -1781,6 +1797,7 @@
   }
 
   // Load on mount
+  initJurisdiction();
   loadIdentity();
   loadCityPulse();
   loadStances();
@@ -1818,6 +1835,8 @@
       <h1>City Pulse</h1>
       {#if pulseData}
         <span class="jurisdiction">{pulseData.jurisdiction}</span>
+      {:else}
+        <span class="jurisdiction">{activeJurisdiction}</span>
       {/if}
     </div>
     <div class="header-actions">

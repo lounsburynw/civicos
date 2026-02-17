@@ -7,18 +7,9 @@
  */
 
 import type { AIProvider, AITier, AIProviderConfig, AICompletionResult } from '../types.js';
+import { getBaseUrl } from '../../relay-client.js';
 
 const TIMEOUT_MS = 20_000;
-const AI_DRAFT_KIND = 24242;
-
-async function getBaseUrl(): Promise<string> {
-  try {
-    const result = await chrome.storage.local.get('civicos_api_url');
-    return result['civicos_api_url'] || 'https://san-rafael.civicosproject.org';
-  } catch {
-    return 'https://san-rafael.civicosproject.org';
-  }
-}
 
 export class CivicosProxyProvider implements AIProvider {
   readonly tier: AITier = 'cloud-pro';

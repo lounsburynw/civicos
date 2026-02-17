@@ -2,12 +2,18 @@
   import { sendMessage } from '../lib/messaging.js';
   import type { IdentityInfo } from '../lib/providers/types.js';
   import { AIManager } from '../lib/ai/manager.js';
+  import { getActiveJurisdiction, setActiveJurisdiction, getRegistryServers, type RegistryServer } from '../lib/registry.js';
 
   // State
   let identity: (IdentityInfo & { isUnlocked?: boolean }) | null = $state(null);
   let loading = $state(true);
   let statusMessage = $state('');
   let statusType: 'success' | 'error' | '' = $state('');
+
+  // Jurisdiction state
+  let selectedJurisdiction = $state('');
+  let availableServers: RegistryServer[] = $state([]);
+  let jurisdictionSaving = $state(false);
 
   // AI provider state
   const aiManager = new AIManager();
@@ -311,8 +317,30 @@
     attestationVerifying = false;
   }
 
+  async function loadJurisdiction() {
+    selectedJurisdiction = await getActiveJurisdiction();
+    try {
+      availableServers = await getRegistryServers();
+    } catch {
+      availableServers = [];
+    }
+  }
+
+  async function saveJurisdiction() {
+    if (!selectedJurisdiction) return;
+    jurisdictionSaving = true;
+    try {
+      await setActiveJurisdiction(selectedJurisdiction);
+      setStatus(`Jurisdiction set to ${availableServers.find(s => s.jurisdiction_id === selectedJurisdiction)?.display_name || selectedJurisdiction}`, 'success');
+    } catch (err) {
+      setStatus('Failed to save jurisdiction', 'error');
+    }
+    jurisdictionSaving = false;
+  }
+
   loadIdentity();
   loadAIStatus();
+  loadJurisdiction();
 
   // Load attestation after identity loads
   $effect(() => {
@@ -440,7 +468,7 @@
       {#if attestationEvent}
         <div class="attested-badge">
           <span class="attested-check">&#10003;</span>
-          Attested for San Rafael
+          Attested for {availableServers.find(s => s.jurisdiction_id === selectedJurisdiction)?.display_name || selectedJurisdiction}
           {#if attestationDate}
             <span class="attested-date">{attestationDate}</span>
           {/if}
@@ -537,6 +565,31 @@
       <div class="active-provider-badge">
         Active: {active?.name}
       </div>
+    {/if}
+  </section>
+
+  <!-- Jurisdiction Selection -->
+  <section class="card jurisdiction-section">
+    <h2>Jurisdiction</h2>
+    <p class="section-desc">Select your city or region for civic data.</p>
+
+    {#if availableServers.length > 0}
+      <div class="form-group">
+        <label for="jurisdiction-select">Active Jurisdiction</label>
+        <select id="jurisdiction-select" class="jurisdiction-select" bind:value={selectedJurisdiction}>
+          {#each availableServers as server (server.jurisdiction_id)}
+            <option value={server.jurisdiction_id}>
+              {server.display_name} ({server.level})
+            </option>
+          {/each}
+        </select>
+      </div>
+
+      <button class="btn-primary" onclick={saveJurisdiction} disabled={jurisdictionSaving}>
+        {jurisdictionSaving ? 'Saving...' : 'Save Jurisdiction'}
+      </button>
+    {:else}
+      <div class="jurisdiction-loading">Loading available jurisdictions...</div>
     {/if}
   </section>
 </div>
@@ -903,5 +956,30 @@
     padding: 6px;
     background: rgba(34, 197, 94, 0.08);
     border-radius: 6px;
+  }
+
+  /* Jurisdiction Section */
+  .jurisdiction-section {
+    margin-top: 24px;
+  }
+
+  .jurisdiction-select {
+    width: 100%;
+    padding: 10px 12px;
+    background: #0f172a;
+    border: 1px solid #334155;
+    border-radius: 6px;
+    color: #e2e8f0;
+    font-size: 13px;
+    outline: none;
+    appearance: auto;
+  }
+  .jurisdiction-select:focus { border-color: #6366f1; }
+
+  .jurisdiction-loading {
+    font-size: 12px;
+    color: #64748b;
+    text-align: center;
+    padding: 12px;
   }
 </style>
