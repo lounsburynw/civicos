@@ -184,6 +184,86 @@ def verify_comment(comment: Comment) -> bool:
         return False
 
 
+def _check_key_sig(public_key: str, signature: str) -> bool:
+    """Basic length check for hex-encoded key and signature."""
+    return bool(public_key and signature and len(public_key) == 64 and len(signature) == 128)
+
+
+def verify_initiative(
+    public_key: str, signature: str, jurisdiction: str, topic: str, created_at: int
+) -> bool:
+    """
+    Verify an initiative creation signature (Kind 30800).
+
+    Extension signs content = "civicos:initiative:v1:{jurisdiction}:{topic}:{created_at}"
+    with tags [["d", "initiative:{jurisdiction}:{topic}"], ["j", jurisdiction]].
+    """
+    try:
+        if not _check_key_sig(public_key, signature):
+            return False
+        tags = [
+            ["d", f"initiative:{jurisdiction}:{topic}"],
+            ["j", jurisdiction],
+        ]
+        content = f"civicos:initiative:v1:{jurisdiction}:{topic}:{created_at}"
+        event_id = _compute_nostr_event_id(public_key, created_at, 30800, tags, content)
+        return _schnorr_verify(public_key, signature, event_id)
+    except Exception:
+        return False
+
+
+def verify_commitment(
+    public_key: str, signature: str, action_id: str, jurisdiction: str, created_at: int
+) -> bool:
+    """
+    Verify an action commitment signature (Kind 30811).
+
+    Extension signs content = "civicos:action:v1:{action_id}:commitment:{created_at}"
+    with tags [["d", action_id], ["j", jurisdiction], ["action", "commitment"]].
+    """
+    try:
+        if not _check_key_sig(public_key, signature):
+            return False
+        tags = [
+            ["d", action_id],
+            ["j", jurisdiction],
+            ["action", "commitment"],
+        ]
+        content = f"civicos:action:v1:{action_id}:commitment:{created_at}"
+        event_id = _compute_nostr_event_id(public_key, created_at, 30811, tags, content)
+        return _schnorr_verify(public_key, signature, event_id)
+    except Exception:
+        return False
+
+
+def verify_completion(
+    public_key: str, signature: str, action_id: str, jurisdiction: str, created_at: int,
+    evidence_url: Optional[str] = None
+) -> bool:
+    """
+    Verify an action completion signature (Kind 30812).
+
+    Extension signs content = "civicos:action:v1:{action_id}:completion:{created_at}"
+    with tags [["d", action_id], ["j", jurisdiction], ["action", "completion"]].
+    """
+    try:
+        if not _check_key_sig(public_key, signature):
+            return False
+        tags = [
+            ["d", action_id],
+            ["j", jurisdiction],
+            ["action", "completion"],
+        ]
+        if evidence_url:
+            tags.append(["evidence", evidence_url])
+        base = f"civicos:action:v1:{action_id}:completion:{created_at}"
+        content = f"{base}:{evidence_url}" if evidence_url else base
+        event_id = _compute_nostr_event_id(public_key, created_at, 30812, tags, content)
+        return _schnorr_verify(public_key, signature, event_id)
+    except Exception:
+        return False
+
+
 def verify_signature(public_key_hex: str, signature_hex: str, message: str) -> bool:
     """Verify an arbitrary Schnorr signature over a message."""
     try:

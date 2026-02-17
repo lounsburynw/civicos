@@ -128,6 +128,8 @@ class CommitActionRequest(BaseModel):
     action_id: str = Field(description="Action identifier")
     public_key: str = Field(description="Public key (hex-encoded)")
     signature: str = Field(description="Signature of action commitment (hex-encoded)")
+    created_at: Optional[int] = Field(default=None, description="Unix timestamp from signed event")
+    jurisdiction: Optional[str] = Field(default=None, description="Jurisdiction for signature verification")
 
 
 class CompleteActionRequest(BaseModel):
@@ -136,6 +138,8 @@ class CompleteActionRequest(BaseModel):
     public_key: str = Field(description="Public key (hex-encoded)")
     signature: str = Field(description="Signature of action completion (hex-encoded)")
     evidence_url: Optional[str] = Field(default=None, description="URL to evidence")
+    created_at: Optional[int] = Field(default=None, description="Unix timestamp from signed event")
+    jurisdiction: Optional[str] = Field(default=None, description="Jurisdiction for signature verification")
 
 
 class ActionResponse(BaseModel):
@@ -194,9 +198,11 @@ class CivicActionEventResponse(BaseModel):
 
 class CivicCommitmentRequest(BaseModel):
     """Request to commit to a civic action (Kind 30811)."""
-    action_id: str = Field(description="ID of the action event")
+    action_id: str = Field(default="", description="ID of the action event (may also come from URL path)")
     public_key: str = Field(description="Committer's public key (hex-encoded)")
     signature: str = Field(description="Signature of commitment (hex-encoded)")
+    created_at: Optional[int] = Field(default=None, description="Unix timestamp from signed event")
+    jurisdiction: Optional[str] = Field(default=None, description="Jurisdiction for signature verification")
 
 
 class CivicCommitmentResponse(BaseModel):
@@ -217,11 +223,13 @@ class CivicWithdrawRequest(BaseModel):
 
 class CivicCompletionRequest(BaseModel):
     """Request to complete a civic action (Kind 30812)."""
-    action_id: str = Field(description="ID of the action event")
+    action_id: str = Field(default="", description="ID of the action event (may also come from URL path)")
     public_key: str = Field(description="Completer's public key (hex-encoded)")
     signature: str = Field(description="Signature of completion (hex-encoded)")
     evidence_type: str = Field(description="Type of evidence: self_report, email_confirmation, etc.")
     evidence_content: Optional[str] = Field(default=None, description="Evidence URL or content")
+    created_at: Optional[int] = Field(default=None, description="Unix timestamp from signed event")
+    jurisdiction: Optional[str] = Field(default=None, description="Jurisdiction for signature verification")
 
 
 class CivicCompletionResponse(BaseModel):
@@ -930,17 +938,14 @@ async def create_initiative(request: CreateInitiativeRequest):
             else datetime.utcnow()
         )
 
-        # Create the message that should have been signed
-        message = _create_initiative_message(
-            initiative_id,
-            request.topic,
-            request.title,
-            timestamp.isoformat(),
-        )
+        # Verify Nostr event signature
+        if request.created_at is None:
+            raise HTTPException(status_code=400, detail="created_at is required for signature verification")
 
-        # Verify signature
-        if not _verify_initiative_signature(
-            request.public_key, request.signature, message
+        from civicos_relay.voice.crypto import verify_initiative
+        if not verify_initiative(
+            request.public_key, request.signature,
+            request.jurisdiction, request.topic, request.created_at,
         ):
             raise HTTPException(
                 status_code=400,
@@ -1484,11 +1489,15 @@ async def commit_action(request: CommitActionRequest):
 
     try:
         from civicos_relay.voice.action_service import ActionService
-        from civicos_relay.voice.crypto import verify_signature
+        from civicos_relay.voice.crypto import verify_commitment
 
-        # Verify signature
-        message = f"civicos:action:v1:{request.action_id}:commitment"
-        if not verify_signature(request.public_key, request.signature, message):
+        # Verify Nostr event signature
+        if request.created_at is None:
+            raise HTTPException(status_code=400, detail="created_at is required for signature verification")
+        if not verify_commitment(
+            request.public_key, request.signature,
+            request.action_id, request.jurisdiction or "city-san-rafael", request.created_at,
+        ):
             raise HTTPException(
                 status_code=400,
                 detail="Invalid commitment signature"
@@ -1534,11 +1543,16 @@ async def complete_action(request: CompleteActionRequest):
 
     try:
         from civicos_relay.voice.action_service import ActionService
-        from civicos_relay.voice.crypto import verify_signature
+        from civicos_relay.voice.crypto import verify_completion
 
-        # Verify signature
-        message = f"civicos:action:v1:{request.action_id}:completion"
-        if not verify_signature(request.public_key, request.signature, message):
+        # Verify Nostr event signature
+        if request.created_at is None:
+            raise HTTPException(status_code=400, detail="created_at is required for signature verification")
+        if not verify_completion(
+            request.public_key, request.signature,
+            request.action_id, request.jurisdiction or "city-san-rafael", request.created_at,
+            request.evidence_url,
+        ):
             raise HTTPException(
                 status_code=400,
                 detail="Invalid completion signature"
@@ -1901,11 +1915,15 @@ async def commit_to_civic_action(action_id: str, request: CivicCommitmentRequest
         )
 
     try:
-        from civicos_relay.voice.crypto import verify_signature
+        from civicos_relay.voice.crypto import verify_commitment
 
-        # Verify signature
-        message = f"civicos:commitment:v1:{action_id}"
-        if not verify_signature(request.public_key, request.signature, message):
+        # Verify Nostr event signature
+        if request.created_at is None:
+            raise HTTPException(status_code=400, detail="created_at is required for signature verification")
+        if not verify_commitment(
+            request.public_key, request.signature,
+            action_id, request.jurisdiction or "city-san-rafael", request.created_at,
+        ):
             raise HTTPException(
                 status_code=400,
                 detail="Invalid commitment signature"
@@ -2016,7 +2034,7 @@ async def complete_civic_action(action_id: str, request: CivicCompletionRequest)
         )
 
     try:
-        from civicos_relay.voice.crypto import verify_signature
+        from civicos_relay.voice.crypto import verify_completion
         from civicos_relay.voice.models import EvidenceType
 
         # Validate evidence type
@@ -2029,9 +2047,14 @@ async def complete_civic_action(action_id: str, request: CivicCompletionRequest)
                        "self_report, email_confirmation, attendance_check, verified"
             )
 
-        # Verify signature
-        message = f"civicos:completion:v1:{action_id}:{evidence_type.value}"
-        if not verify_signature(request.public_key, request.signature, message):
+        # Verify Nostr event signature
+        if request.created_at is None:
+            raise HTTPException(status_code=400, detail="created_at is required for signature verification")
+        if not verify_completion(
+            request.public_key, request.signature,
+            action_id, request.jurisdiction or "city-san-rafael", request.created_at,
+            request.evidence_content,
+        ):
             raise HTTPException(
                 status_code=400,
                 detail="Invalid completion signature"
