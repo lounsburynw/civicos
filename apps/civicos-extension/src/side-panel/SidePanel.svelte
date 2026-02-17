@@ -1570,6 +1570,7 @@
         newAction.description.trim(),
         signResult.data.pubkey,
         signResult.data.sig,
+        createdAt,
         newAction.target.trim() || undefined,
         newAction.deadline || undefined,
         newAction.targetCount ?? undefined,

@@ -14,7 +14,7 @@ from civicos_relay.voice.models import Voice, Stance, VoiceCount, Action, Action
 from civicos_relay.voice.service import VoiceService
 from civicos_relay.voice.action_service import ActionService
 from civicos_relay.voice.civic_action_service import CivicActionService
-from civicos_relay.voice.crypto import KeyPair, sign_voice, verify_comment
+from civicos_relay.voice.crypto import KeyPair, sign_voice, verify_comment, verify_commitment, verify_completion, verify_withdrawal, verify_action_event
 from civicos_relay.relay.models import Initiative, InitiativeStatus
 from civicos_relay.relay.models import Subscription, MatchCriteria, DeliveryConfig, DeliveryMethod
 from civicos_relay.relay.service import RelayService
@@ -76,14 +76,18 @@ class CreateCivicActionRequest(BaseModel):
     template: Optional[str] = None
     target_count: Optional[int] = None
     coordination_url: Optional[str] = None
+    deadline_context: Optional[str] = None
     public_key: str
     signature: str
+    created_at: Optional[int] = None
 
 
 class CivicCommitRequest(BaseModel):
     """Request to commit to a civic action (Kind 30811)."""
     public_key: str
     signature: str
+    created_at: Optional[int] = None
+    jurisdiction: Optional[str] = None
 
 
 class CivicCompleteRequest(BaseModel):
@@ -91,6 +95,15 @@ class CivicCompleteRequest(BaseModel):
     public_key: str
     signature: str
     evidence_type: str = "self_report"
+    created_at: Optional[int] = None
+    jurisdiction: Optional[str] = None
+
+
+class CivicWithdrawRequest(BaseModel):
+    """Request to withdraw a civic action commitment."""
+    public_key: str
+    signature: str
+    created_at: Optional[int] = None
 
 
 class SubmitCommentRequest(BaseModel):
@@ -542,6 +555,13 @@ def create_app() -> FastAPI:
         """Create a civic action (Kind 30810)."""
         from datetime import datetime
 
+        if request.created_at:
+            if not verify_action_event(
+                request.public_key, request.signature,
+                request.initiative_id, request.action_type, request.created_at,
+            ):
+                raise HTTPException(status_code=403, detail="Invalid action event signature")
+
         deadline = None
         if request.deadline:
             try:
@@ -559,6 +579,7 @@ def create_app() -> FastAPI:
             deadline=deadline,
             template=request.template,
             target_count=request.target_count,
+            deadline_context=request.deadline_context,
             coordination_url=request.coordination_url,
         )
         return action
@@ -587,6 +608,13 @@ def create_app() -> FastAPI:
         civic_service: CivicActionService = Depends(get_civic_action_service),
     ):
         """Commit to a civic action (Kind 30811)."""
+        if request.created_at and request.jurisdiction:
+            if not verify_commitment(
+                request.public_key, request.signature,
+                action_id, request.jurisdiction, request.created_at,
+            ):
+                raise HTTPException(status_code=403, detail="Invalid commitment signature")
+
         try:
             commitment = civic_service.commit_to_action(
                 action_id=action_id,
@@ -604,6 +632,13 @@ def create_app() -> FastAPI:
         civic_service: CivicActionService = Depends(get_civic_action_service),
     ):
         """Complete a civic action (Kind 30812)."""
+        if request.created_at and request.jurisdiction:
+            if not verify_completion(
+                request.public_key, request.signature,
+                action_id, request.jurisdiction, request.created_at,
+            ):
+                raise HTTPException(status_code=403, detail="Invalid completion signature")
+
         try:
             completion = civic_service.complete_action(
                 action_id=action_id,
@@ -618,10 +653,17 @@ def create_app() -> FastAPI:
     @router.post("/civic-action/{action_id:path}/withdraw")
     async def withdraw_civic_action(
         action_id: str,
-        request: CivicCommitRequest,
+        request: CivicWithdrawRequest,
         civic_service: CivicActionService = Depends(get_civic_action_service),
     ):
         """Withdraw commitment to a civic action."""
+        if request.created_at:
+            if not verify_withdrawal(
+                request.public_key, request.signature,
+                action_id, request.created_at,
+            ):
+                raise HTTPException(status_code=403, detail="Invalid withdrawal signature")
+
         success = civic_service.withdraw_commitment(action_id, request.public_key)
         if not success:
             raise HTTPException(status_code=404, detail="Commitment not found")
