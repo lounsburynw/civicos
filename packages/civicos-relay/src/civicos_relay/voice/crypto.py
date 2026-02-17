@@ -264,6 +264,52 @@ def verify_completion(
         return False
 
 
+def verify_withdrawal(
+    public_key: str, signature: str, action_id: str, created_at: int
+) -> bool:
+    """
+    Verify a withdrawal signature (Kind 30811 with withdraw action tag).
+
+    Extension signs content = "civicos:withdraw:v1:{action_id}:{created_at}"
+    with tags [["d", action_id], ["action", "withdraw"]].
+    """
+    try:
+        if not _check_key_sig(public_key, signature):
+            return False
+        tags = [
+            ["d", action_id],
+            ["action", "withdraw"],
+        ]
+        content = f"civicos:withdraw:v1:{action_id}:{created_at}"
+        event_id = _compute_nostr_event_id(public_key, created_at, 30811, tags, content)
+        return _schnorr_verify(public_key, signature, event_id)
+    except Exception:
+        return False
+
+
+def verify_action_event(
+    public_key: str, signature: str, initiative_id: str, action_type: str, created_at: int
+) -> bool:
+    """
+    Verify an action event creation signature (Kind 30810).
+
+    Extension signs content = "civicos:action:v1:{initiative_id}:{action_type}:{created_at}"
+    with tags [["d", "action:{initiative_id}:{action_type}"], ["initiative", initiative_id]].
+    """
+    try:
+        if not _check_key_sig(public_key, signature):
+            return False
+        tags = [
+            ["d", f"action:{initiative_id}:{action_type}"],
+            ["initiative", initiative_id],
+        ]
+        content = f"civicos:action:v1:{initiative_id}:{action_type}:{created_at}"
+        event_id = _compute_nostr_event_id(public_key, created_at, 30810, tags, content)
+        return _schnorr_verify(public_key, signature, event_id)
+    except Exception:
+        return False
+
+
 def verify_signature(public_key_hex: str, signature_hex: str, message: str) -> bool:
     """Verify an arbitrary Schnorr signature over a message."""
     try:

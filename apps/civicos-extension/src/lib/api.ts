@@ -290,8 +290,12 @@ export async function withdrawCivicAction(
         }),
       }
     );
+    if (!response.ok) {
+      console.error('[CivicOS] withdrawCivicAction failed:', response.status, await response.text());
+    }
     return response.ok;
-  } catch {
+  } catch (err) {
+    console.error('[CivicOS] withdrawCivicAction error:', err);
     return false;
   }
 }
@@ -345,6 +349,7 @@ export async function createCivicAction(
   description: string,
   publicKey: string,
   signature: string,
+  createdAt: number,
   target?: string,
   deadline?: string,
   targetCount?: number,
@@ -362,6 +367,7 @@ export async function createCivicAction(
         description,
         public_key: publicKey,
         signature,
+        created_at: createdAt,
         target: target || null,
         deadline: deadline || null,
         target_count: targetCount ?? null,
@@ -369,9 +375,13 @@ export async function createCivicAction(
         deadline_context: deadlineContext || null,
       }),
     });
-    if (!response.ok) return null;
+    if (!response.ok) {
+      console.error('[CivicOS] createCivicAction failed:', response.status, await response.text());
+      return null;
+    }
     return response.json();
-  } catch {
+  } catch (err) {
+    console.error('[CivicOS] createCivicAction error:', err);
     return null;
   }
 }
