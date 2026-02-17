@@ -2,12 +2,13 @@
  * Generate shared test vectors for cross-language signing verification.
  *
  * Uses private key 0x01 (secp256k1 generator point) which both
- * @noble/secp256k1 and coincurve agree on.
+ * @noble/curves and coincurve agree on.
  *
  * Run: npm run generate-vectors
  */
 
-import { schnorr, etc } from '@noble/secp256k1';
+import { schnorr } from '@noble/curves/secp256k1';
+import { hexToBytes, bytesToHex } from '@noble/hashes/utils';
 import { sha256Hex } from '../src/hash.js';
 import { serializeEvent, computeEventId, signEvent } from '../src/nostr/event.js';
 import { signMessage } from '../src/nostr/message.js';
@@ -19,7 +20,7 @@ import { fileURLToPath } from 'node:url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 const PRIVATE_KEY_HEX = '0000000000000000000000000000000000000000000000000000000000000001';
-const privateKey = etc.hexToBytes(PRIVATE_KEY_HEX);
+const privateKey = hexToBytes(PRIVATE_KEY_HEX);
 const publicKey = getPublicKeyHex(privateKey);
 
 console.log(`Private key: ${PRIVATE_KEY_HEX}`);

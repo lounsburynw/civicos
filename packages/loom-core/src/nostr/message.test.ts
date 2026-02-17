@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { etc } from '@noble/secp256k1';
+import { hexToBytes } from '@noble/hashes/utils';
 import { signMessage, verifyMessage } from './message.js';
 import vectors from '../../test-vectors.json';
 
-const privateKey = etc.hexToBytes(vectors.privateKey);
+const privateKey = hexToBytes(vectors.privateKey);
 
 describe('signMessage', () => {
   it('hash matches expectedHash from test vectors', async () => {

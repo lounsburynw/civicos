@@ -1,10 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { etc } from '@noble/secp256k1';
+import { hexToBytes } from '@noble/hashes/utils';
 import { serializeEvent, computeEventId, signEvent, verifyEvent } from './event.js';
 import type { UnsignedEvent } from './types.js';
 import vectors from '../../test-vectors.json';
 
-const privateKey = etc.hexToBytes(vectors.privateKey);
+const privateKey = hexToBytes(vectors.privateKey);
 
 describe('serializeEvent', () => {
   it('produces compact JSON with no whitespace', () => {
@@ -29,17 +29,17 @@ describe('serializeEvent', () => {
 });
 
 describe('computeEventId', () => {
-  it('matches expectedEventId from test vectors', async () => {
+  it('matches expectedEventId from test vectors', () => {
     for (const v of vectors.events) {
-      const id = await computeEventId(v.unsigned);
+      const id = computeEventId(v.unsigned);
       expect(id, `event ID mismatch for ${v.name}`).toBe(v.expectedEventId);
     }
   });
 
-  it('is deterministic', async () => {
+  it('is deterministic', () => {
     const event: UnsignedEvent = vectors.events[0].unsigned;
-    const id1 = await computeEventId(event);
-    const id2 = await computeEventId(event);
+    const id1 = computeEventId(event);
+    const id2 = computeEventId(event);
     expect(id1).toBe(id2);
   });
 });
