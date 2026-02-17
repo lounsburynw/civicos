@@ -121,6 +121,12 @@ Your comments become part of the public record.
 
 ---
 
+## Verify Your Identity (Optional)
+
+If you receive an attestation code at a local event, you can enter it in the CivicOS extension settings. This marks your participation as "attested" — proving you're a real community member who showed up in person. No ID required, and unattested users can still fully participate. See the [Attestation Guide](ATTESTATION_GUIDE.md) for details.
+
+---
+
 ## Common Questions
 
 **How do you know what's being decided?**

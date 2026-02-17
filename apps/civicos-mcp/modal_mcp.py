@@ -60,6 +60,9 @@ def get_secrets(jurisdiction: str) -> list[str]:
     # AI proxy needs Anthropic API key for zero-config AI drafting
     secrets.append("civic-anthropic")  # ANTHROPIC_API_KEY
 
+    # Attestation issuer keypair for signing kind-30850 events
+    secrets.append("civicos-attestation")  # CIVICOS_ATTESTATION_PRIVATE_KEY
+
     return secrets
 
 def get_min_containers(jurisdiction: str) -> int:

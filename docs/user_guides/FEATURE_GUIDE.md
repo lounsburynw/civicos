@@ -345,6 +345,37 @@ Each transcript excerpt shows:
 
 ---
 
+## Attestation
+
+### Verify Your Identity
+
+**Purpose:** Prove you're a real community member to add weight to your participation.
+
+**When to use:**
+- You received an attestation code at a local event
+- You want your voices and comments to carry more credibility
+
+**How it works:**
+
+1. **Get a code** from a CivicOS volunteer at a community event
+2. **Open the extension** and go to **Options**
+3. **Enter your code** in the Attestation section
+4. **Click "Verify Code"** — you'll see a green badge confirming attestation
+
+**What changes:**
+- Your voices, comments, and initiatives are marked as "attested"
+- Participation displays show attested vs. unattested counts (e.g., "18 attested, 5 unattested")
+- Unattested users can still fully participate — attestation adds credibility, not permission
+
+**Tips:**
+- Each code works once — don't share it
+- Attestation binds to your identity key — if you reset your key, you'll need a new code
+- No government ID is required. Physical presence at an event is sufficient.
+
+For detailed information, see the [Attestation Guide](ATTESTATION_GUIDE.md).
+
+---
+
 ## Privacy and Public Records
 
 ### Understanding What's Public
