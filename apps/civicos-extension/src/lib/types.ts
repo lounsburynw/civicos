@@ -213,6 +213,7 @@ export interface Comment {
   jurisdiction?: string;
   stance?: string;
   deleted: boolean;
+  attested?: boolean;
 }
 
 export interface CommentCounts {
