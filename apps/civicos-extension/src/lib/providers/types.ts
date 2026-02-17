@@ -1,11 +1,9 @@
 /**
  * Identity tier levels for signing providers.
  *
- * - easy: WebAuthn passkey with PRF (cloud-synced, lowest friction)
  * - private: BIP-39 mnemonic with password encryption (local only)
- * - sovereign: NIP-07 extension, hardware wallet, or manual signing
  */
-export type IdentityTier = 'easy' | 'private' | 'sovereign';
+export type IdentityTier = 'private';
 
 /**
  * Nostr event structure per NIP-01.

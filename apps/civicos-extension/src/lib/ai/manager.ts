@@ -4,18 +4,14 @@
  * Mirrors the IdentityManager pattern: register providers by tier,
  * auto-detect the best available one, let users override via preferences.
  *
- * Priority: stored preference -> device -> cloud-free -> cloud-pro
+ * Priority: stored preference -> claude -> openai
  */
 
 import type { AIProvider, AICompletionResult, AIPreferences } from './types.js';
 import type { AICredentialStorage } from './storage.js';
 import { ChromeAICredentialStorage, MemoryAICredentialStorage } from './storage.js';
-import { ChromeNanoProvider } from './providers/chrome-nano.js';
-import { GeminiProvider } from './providers/gemini.js';
 import { ClaudeProvider } from './providers/claude.js';
 import { OpenAIProvider } from './providers/openai.js';
-
-const TIER_PRIORITY: readonly string[] = ['device', 'cloud-free', 'cloud-pro'];
 
 export class AIManager {
   private providers = new Map<string, AIProvider>();
@@ -36,8 +32,6 @@ export class AIManager {
   }
 
   private registerDefaults(): void {
-    this.register(new ChromeNanoProvider());
-    this.register(new GeminiProvider(this.storage));
     this.register(new ClaudeProvider(this.storage));
     this.register(new OpenAIProvider(this.storage));
   }
@@ -80,14 +74,13 @@ export class AIManager {
       }
     }
 
-    // 2. Fall through tier priority
-    for (const tier of TIER_PRIORITY) {
-      for (const provider of this.providers.values()) {
-        if (provider.tier === tier && await provider.isReady()) {
-          this.activeProvider = provider;
-          this.initialized = true;
-          return true;
-        }
+    // 2. Fall through: try claude, then openai
+    for (const id of ['claude', 'openai']) {
+      const provider = this.providers.get(id);
+      if (provider && await provider.isReady()) {
+        this.activeProvider = provider;
+        this.initialized = true;
+        return true;
       }
     }
 

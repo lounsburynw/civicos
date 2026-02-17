@@ -4283,7 +4283,7 @@
     },
     "browser_extension": {
       "status": "not_ready",
-      "priority": 1,
+      "priority": 0,
       "description": "Chrome browser extension as primary distribution surface. The extension IS the Personal MCP — manages identity, connects to Jurisdiction MCPs, injects civic context into AI surfaces (Claude.ai, ChatGPT), renders City Pulse in side panel. Acts as NIP-07 provider for Nostr ecosystem compatibility.",
       "_doc": "Architecture session 2026-02-12. Full design in docs/critical/BROWSER_EXTENSION_ARCHITECTURE.md. Depends on context_assembly_api (P0) for surface-agnostic context bundles.",
       "architecture_doc": "docs/critical/BROWSER_EXTENSION_ARCHITECTURE.md",
@@ -4361,10 +4361,9 @@
         "depends_on": ["extension_phase2_voice_signing"]
       },
       "extension_phase3_ai_viz": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
         "artifact": "Browser extension Phase 3 — AI integration + visualizations",
-        "note": "Add 'Chat with this item' context injection into Claude.ai/ChatGPT via content scripts. Issue map (geographic visualization of 311 issues). Budget chart (department breakdown). Requires chart/map library integration.",
+        "note": "COMPLETE 2026-02-16. All features implemented: Claude.ai context injection (claude-bridge.ts content script + session storage + synthetic paste), comment thread summarization (AI-powered), Leaflet.js issue map (8 categories, time/category filters, expand/collapse, trend indicator), Chart.js budget doughnut (department breakdown), Create Initiative modal with AI draft generation. npm run build passes clean.",
         "features": [
           "Chat with decision/agenda item (context injection into AI surfaces)",
           "Summarize comment thread (AI-powered synthesis)",

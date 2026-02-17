@@ -266,7 +266,7 @@
   }
 
   async function handleUnlock() {
-    if (identity?.tier === 'private' && !unlockPassword) return;
+    if (!unlockPassword) return;
     unlocking = true;
     unlockError = null;
 
@@ -278,9 +278,7 @@
     if (response.success && response.data) {
       identity = identity ? { ...identity, isUnlocked: true } : identity;
     } else {
-      unlockError = identity?.tier === 'easy'
-        ? 'Passkey auth failed. Try from Options page.'
-        : 'Wrong password';
+      unlockError = 'Wrong password';
     }
     unlockPassword = '';
     unlocking = false;
@@ -1837,10 +1835,6 @@
           <span>{provenanceData.corpora.length} data types</span>
           <span class="meta-sep">&middot;</span>
           <span>{provenanceData.total_vector_docs.toLocaleString()} indexed docs</span>
-          {#if provenanceData.overall_coverage_percent != null}
-            <span class="meta-sep">&middot;</span>
-            <span>{provenanceData.overall_coverage_percent}% coverage</span>
-          {/if}
         </div>
         <div class="prov-corpora">
           {#each provenanceData.corpora as corpus}
@@ -1896,20 +1890,14 @@
   {:else if identity}
     <div class="identity-chip">
       <div class="chip-row">
-        <span class="tier-badge" class:easy={identity.tier === 'easy'} class:private={identity.tier === 'private'}>
-          {identity.tier}
-        </span>
+        <span class="tier-badge private">private</span>
         {#if identity.isUnlocked}
           <span class="lock-status unlocked">unlocked</span>
-        {:else if identity.tier === 'easy'}
-          <button class="lock-status lock-btn" onclick={handleUnlock} disabled={unlocking}>
-            {unlocking ? 'unlocking...' : 'locked — tap to unlock'}
-          </button>
         {:else}
           <span class="lock-status">locked</span>
         {/if}
       </div>
-      {#if !identity.isUnlocked && identity.tier === 'private'}
+      {#if !identity.isUnlocked}
         <form class="chip-unlock-form" onsubmit={(e: Event) => { e.preventDefault(); handleUnlock(); }}>
           <input type="password" class="chip-unlock-input" placeholder="Password" bind:value={unlockPassword} autocomplete="off" />
           <button type="submit" class="chip-unlock-btn" disabled={unlocking || !unlockPassword}>{unlocking ? '...' : 'Unlock'}</button>
@@ -2512,14 +2500,10 @@
               <div class="ini-hint">Set up identity in <button class="link-btn" onclick={openOptions}>Options</button> to sign initiatives.</div>
             {:else if !identity.isUnlocked}
               <div class="unlock-inline">
-                {#if identity.tier === 'private'}
-                  <form class="unlock-row" onsubmit={(e: Event) => { e.preventDefault(); handleUnlock(); }}>
-                    <input type="password" class="ini-input" placeholder="Password to unlock" bind:value={unlockPassword} autocomplete="off" />
-                    <button type="submit" class="ini-btn-primary" disabled={unlocking || !unlockPassword}>{unlocking ? 'Unlocking...' : 'Unlock'}</button>
-                  </form>
-                {:else}
-                  <button class="ini-btn-primary" onclick={handleUnlock} disabled={unlocking}>{unlocking ? 'Authenticating...' : 'Unlock with Passkey'}</button>
-                {/if}
+                <form class="unlock-row" onsubmit={(e: Event) => { e.preventDefault(); handleUnlock(); }}>
+                  <input type="password" class="ini-input" placeholder="Password to unlock" bind:value={unlockPassword} autocomplete="off" />
+                  <button type="submit" class="ini-btn-primary" disabled={unlocking || !unlockPassword}>{unlocking ? 'Unlocking...' : 'Unlock'}</button>
+                </form>
                 {#if unlockError}
                   <div class="ini-error">{unlockError}</div>
                 {/if}
@@ -2689,14 +2673,10 @@
                         <div class="ini-form ini-action-form" class:ini-drafting={formDraftLoading}>
                           {#if identity && !identity.isUnlocked}
                             <div class="unlock-inline">
-                              {#if identity.tier === 'private'}
-                                <form class="unlock-row" onsubmit={(e: Event) => { e.preventDefault(); handleUnlock(); }}>
-                                  <input type="password" class="ini-input" placeholder="Password to unlock" bind:value={unlockPassword} autocomplete="off" />
-                                  <button type="submit" class="ini-btn-primary ini-btn-sm" disabled={unlocking || !unlockPassword}>{unlocking ? 'Unlocking...' : 'Unlock'}</button>
-                                </form>
-                              {:else}
-                                <button class="ini-btn-primary ini-btn-sm" onclick={handleUnlock} disabled={unlocking}>{unlocking ? 'Authenticating...' : 'Unlock with Passkey'}</button>
-                              {/if}
+                              <form class="unlock-row" onsubmit={(e: Event) => { e.preventDefault(); handleUnlock(); }}>
+                                <input type="password" class="ini-input" placeholder="Password to unlock" bind:value={unlockPassword} autocomplete="off" />
+                                <button type="submit" class="ini-btn-primary ini-btn-sm" disabled={unlocking || !unlockPassword}>{unlocking ? 'Unlocking...' : 'Unlock'}</button>
+                              </form>
                               {#if unlockError}
                                 <div class="ini-error">{unlockError}</div>
                               {/if}
@@ -2907,9 +2887,6 @@
 
     <!-- Footer -->
     <footer class="pulse-footer">
-      {#if pulseData.clerk_email}
-        <a href="mailto:{pulseData.clerk_email}" class="footer-link">Contact City Clerk</a>
-      {/if}
       <span class="footer-ts">Updated {new Date(pulseData.generated_at).toLocaleTimeString()}</span>
     </footer>
   {/if}
@@ -3031,7 +3008,6 @@
     background: #374151;
     color: #9ca3af;
   }
-  .tier-badge.easy { background: #1e3a5f; color: #60a5fa; }
   .tier-badge.private { background: #3b1f4b; color: #c084fc; }
 
   .lock-status {
@@ -3419,12 +3395,6 @@
     font-size: 10px;
     color: #4b5563;
   }
-
-  .footer-link {
-    color: #3b82f6;
-    text-decoration: none;
-  }
-  .footer-link:hover { text-decoration: underline; }
 
   /* === Provenance Panel === */
   .provenance-panel {
