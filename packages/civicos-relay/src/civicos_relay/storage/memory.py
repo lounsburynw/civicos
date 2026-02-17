@@ -541,6 +541,65 @@ class InMemoryAttributionStorage:
         ]
 
 
+class InMemoryAttestationStorage:
+    """In-memory attestation storage for testing."""
+
+    def __init__(self):
+        self._codes: dict[str, dict] = {}  # code -> code record
+        self._attestations: dict[tuple[str, str], dict] = {}  # (pubkey, jurisdiction) -> record
+
+    def get_code(self, code: str) -> dict | None:
+        return self._codes.get(code)
+
+    def redeem_code(self, code: str, public_key: str) -> bool:
+        record = self._codes.get(code)
+        if not record or record.get("redeemed_by") is not None:
+            return False
+        record["redeemed_by"] = public_key
+        record["redeemed_at"] = datetime.utcnow()
+        return True
+
+    def save_attestation(self, attestation: dict) -> None:
+        key = (attestation["public_key"], attestation["jurisdiction"])
+        self._attestations[key] = attestation
+
+    def get_attestation(self, public_key: str, jurisdiction: str) -> dict | None:
+        att = self._attestations.get((public_key, jurisdiction))
+        if att and not att.get("revoked", False):
+            return att
+        return None
+
+    def is_attested(self, public_key: str, jurisdiction: str) -> bool:
+        return self.get_attestation(public_key, jurisdiction) is not None
+
+    def get_attested_count(self, jurisdiction: str) -> int:
+        return sum(
+            1 for (_, j), a in self._attestations.items()
+            if j == jurisdiction and not a.get("revoked", False)
+        )
+
+    def count_attested_voices(self, entity: str, jurisdiction: str) -> dict:
+        # Would need voice storage reference for full impl; simplified for testing
+        return {"attested": 0, "unattested": 0}
+
+    def get_code_stats(self, jurisdiction: str) -> dict:
+        codes = [c for c in self._codes.values() if c["jurisdiction"] == jurisdiction]
+        redeemed = sum(1 for c in codes if c.get("redeemed_by") is not None)
+        return {"total_issued": len(codes), "total_redeemed": redeemed}
+
+    def add_code(self, code: str, jurisdiction: str, batch_id: str, expires_at=None) -> None:
+        """Add a code (for testing convenience)."""
+        self._codes[code] = {
+            "code": code,
+            "jurisdiction": jurisdiction,
+            "batch_id": batch_id,
+            "redeemed_by": None,
+            "redeemed_at": None,
+            "created_at": datetime.utcnow(),
+            "expires_at": expires_at,
+        }
+
+
 class InMemoryStorage:
     """Combined in-memory storage for all relay data."""
 
@@ -559,3 +618,4 @@ class InMemoryStorage:
         self.civic_completions = InMemoryCivicCompletionStorage()
         self.outcomes = InMemoryOutcomeStorage()
         self.attributions = InMemoryAttributionStorage()
+        self.attestations = InMemoryAttestationStorage()

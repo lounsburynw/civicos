@@ -310,6 +310,70 @@ def verify_action_event(
         return False
 
 
+def verify_attestation_request(
+    public_key: str, signature: str, code: str, created_at: int
+) -> bool:
+    """
+    Verify an attestation code redemption request (Kind 24242 ephemeral auth).
+
+    Extension signs a kind-24242 event proving pubkey ownership:
+    - Tags: [["action", "attest"], ["code", code]]
+    - Content: "civicos:attest:v1:{public_key}:{code}:{created_at}"
+    """
+    try:
+        if not _check_key_sig(public_key, signature):
+            return False
+        tags = [
+            ["action", "attest"],
+            ["code", code],
+        ]
+        content = f"civicos:attest:v1:{public_key}:{code}:{created_at}"
+        event_id = _compute_nostr_event_id(public_key, created_at, 24242, tags, content)
+        return _schnorr_verify(public_key, signature, event_id)
+    except Exception:
+        return False
+
+
+def sign_attestation_event(
+    issuer_keypair: KeyPair,
+    subject_pubkey: str,
+    jurisdiction: str,
+    attestation_type: str = "physical",
+) -> dict:
+    """
+    Sign a kind-30850 attestation event as the CivicOS issuer.
+
+    Returns a full signed Nostr event dict that the subject stores as proof.
+    """
+    from coincurve import PrivateKey
+
+    created_at = int(datetime.utcnow().timestamp())
+    tags = [
+        ["d", f"attest:{jurisdiction}:{subject_pubkey}"],
+        ["p", subject_pubkey],
+        ["j", jurisdiction],
+        ["type", attestation_type],
+    ]
+    content = f"civicos:attestation:v1:{jurisdiction}:{attestation_type}:{created_at}"
+
+    event_id = _compute_nostr_event_id(
+        issuer_keypair.public_key_hex, created_at, 30850, tags, content
+    )
+
+    pk = PrivateKey(bytes.fromhex(issuer_keypair.private_key_hex))
+    sig = pk.sign_schnorr(bytes.fromhex(event_id))
+
+    return {
+        "id": event_id,
+        "pubkey": issuer_keypair.public_key_hex,
+        "created_at": created_at,
+        "kind": 30850,
+        "tags": tags,
+        "content": content,
+        "sig": sig.hex(),
+    }
+
+
 def verify_signature(public_key_hex: str, signature_hex: str, message: str) -> bool:
     """Verify an arbitrary Schnorr signature over a message."""
     try:

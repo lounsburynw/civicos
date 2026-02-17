@@ -87,6 +87,23 @@ Addressable by kind:pubkey:d-tag (one comment per key per entity).
 Revocation: Publish with content "deleted"
 """
 
+CIVIC_ATTESTATION = 30850
+"""
+Civic Attestation - Proof of physical presence at a civic event.
+
+Tags:
+- d: "attest:{jurisdiction}:{subject_pubkey}" (required)
+- p: Subject pubkey (required)
+- j: Jurisdiction (required)
+- type: Attestation type, e.g. "physical" (required)
+
+Content: "civicos:attestation:v1:{jurisdiction}:{type}:{created_at}"
+
+Signed by the CivicOS attestation issuer keypair (NOT the subject).
+Issued when a user redeems a single-use attestation code distributed
+at an in-person event. One attestation per pubkey per jurisdiction.
+"""
+
 # =============================================================================
 # Replaceable Civic Kinds (10800-10899)
 # These are replaced by kind:pubkey (one per pubkey)
@@ -244,6 +261,7 @@ def is_civic_kind(kind: int) -> bool:
         CIVIC_ENTITY,
         CIVIC_SUBSCRIPTION,
         CIVIC_COMMENT,
+        CIVIC_ATTESTATION,
         CIVIC_PROVENANCE,
         CIVIC_VOUCH,
         CIVIC_EVENT_NOTIFICATION,

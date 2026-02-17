@@ -58,6 +58,9 @@
   let votingInProgress = $state(new Set<string>());
   const STANCES_STORAGE_KEY = 'civicos_user_stances';
 
+  // Attestation state
+  let hasAttestation = $state(false);
+
   // Comment thread state
   let commentCounts = $state(new Map<string, number>());
   let openThreads = $state(new Set<string>());
@@ -263,6 +266,13 @@
       identity = response.data;
     }
     loading = false;
+    // Check attestation status from local storage
+    try {
+      const stored = await chrome.storage.local.get('civicos_attestation');
+      hasAttestation = !!stored.civicos_attestation;
+    } catch {
+      hasAttestation = false;
+    }
   }
 
   async function handleUnlock() {
@@ -1896,6 +1906,9 @@
         {:else}
           <span class="lock-status">locked</span>
         {/if}
+        {#if hasAttestation}
+          <span class="attested-chip">Attested</span>
+        {/if}
       </div>
       {#if !identity.isUnlocked}
         <form class="chip-unlock-form" onsubmit={(e: Event) => { e.preventDefault(); handleUnlock(); }}>
@@ -3015,6 +3028,17 @@
     color: #ef4444;
   }
   .lock-status.unlocked { color: #22c55e; }
+  .attested-chip {
+    font-size: 9px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #22c55e;
+    background: rgba(34, 197, 94, 0.12);
+    padding: 1px 6px;
+    border-radius: 3px;
+    margin-left: auto;
+  }
   .lock-btn {
     background: none;
     border: 1px solid #ef4444;

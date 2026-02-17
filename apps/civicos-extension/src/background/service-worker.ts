@@ -159,6 +159,52 @@ async function handleMessage(message: ExtensionRequest): Promise<ExtensionRespon
         };
       }
 
+      case 'REDEEM_ATTESTATION': {
+        // Sign a kind-24242 auth event for attestation code redemption,
+        // then call the relay to redeem.
+        const attestPubkey = await identityManager.getPublicKey();
+        if (!attestPubkey) {
+          return { success: false, error: 'No identity configured' };
+        }
+        if (!identityManager.isUnlocked()) {
+          return { success: false, error: 'Identity is locked' };
+        }
+
+        const attestCode = message.code;
+        const attestCreatedAt = Math.floor(Date.now() / 1000);
+        const attestEvent: NostrEvent = {
+          kind: 24242,
+          created_at: attestCreatedAt,
+          tags: [['action', 'attest'], ['code', attestCode]],
+          content: `civicos:attest:v1:${attestPubkey}:${attestCode}:${attestCreatedAt}`,
+        };
+
+        const attestSignResult = await identityManager.signEvent(attestEvent);
+        if (!attestSignResult.success || !attestSignResult.event) {
+          return { success: false, error: attestSignResult.error ?? 'Signing failed' };
+        }
+
+        // Call relay to redeem
+        const { redeemAttestationCode } = await import('../lib/api.js');
+        const redeemResult = await redeemAttestationCode(
+          attestCode,
+          attestSignResult.event.pubkey,
+          attestSignResult.event.sig,
+          attestCreatedAt,
+        );
+
+        if (redeemResult.success && redeemResult.attestation_event) {
+          // Store attestation event locally
+          await chrome.storage.local.set({
+            civicos_attestation: redeemResult.attestation_event,
+          });
+          resetAutoLock();
+          return { success: true, data: redeemResult.attestation_event };
+        }
+
+        return { success: false, error: redeemResult.error || 'Attestation failed' };
+      }
+
       default:
         return { success: false, error: `Unknown message type: ${(message as { type: string }).type}` };
     }

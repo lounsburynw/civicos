@@ -1859,6 +1859,209 @@ class PostgresAttributionStorage:
             self._return_connection(conn)
 
 
+class PostgresAttestationStorage:
+    """PostgreSQL storage for attestation codes and records."""
+
+    def __init__(self, connection_url: str):
+        self._connection_url = connection_url
+        self._pool = None
+
+    def _get_connection(self):
+        if self._pool is None:
+            import psycopg2.pool
+            self._pool = psycopg2.pool.SimpleConnectionPool(
+                1, 10, self._connection_url
+            )
+        return self._pool.getconn()
+
+    def _return_connection(self, conn):
+        self._pool.putconn(conn)
+
+    def get_code(self, code: str) -> Optional[dict]:
+        """Fetch an attestation code record."""
+        conn = self._get_connection()
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT code, jurisdiction, batch_id, redeemed_by, redeemed_at,
+                           created_at, expires_at
+                    FROM coordination_attestation_codes
+                    WHERE code = %s
+                    """,
+                    (code,),
+                )
+                row = cur.fetchone()
+                if row:
+                    return {
+                        "code": row[0],
+                        "jurisdiction": row[1],
+                        "batch_id": row[2],
+                        "redeemed_by": row[3],
+                        "redeemed_at": row[4],
+                        "created_at": row[5],
+                        "expires_at": row[6],
+                    }
+                return None
+        finally:
+            self._return_connection(conn)
+
+    def redeem_code(self, code: str, public_key: str) -> bool:
+        """Atomically redeem a code. Returns True if successful."""
+        conn = self._get_connection()
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    UPDATE coordination_attestation_codes
+                    SET redeemed_by = %s, redeemed_at = NOW()
+                    WHERE code = %s AND redeemed_by IS NULL
+                    RETURNING code
+                    """,
+                    (public_key, code),
+                )
+                result = cur.fetchone()
+                conn.commit()
+                return result is not None
+        finally:
+            self._return_connection(conn)
+
+    def save_attestation(self, attestation: dict) -> None:
+        """Store an attestation record."""
+        conn = self._get_connection()
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    INSERT INTO coordination_attestations
+                    (id, public_key, jurisdiction, attestation_type, code_used,
+                     nostr_event, created_at, revoked)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                    ON CONFLICT (id) DO NOTHING
+                    """,
+                    (
+                        attestation["id"],
+                        attestation["public_key"],
+                        attestation["jurisdiction"],
+                        attestation.get("attestation_type", "physical"),
+                        attestation.get("code_used"),
+                        json.dumps(attestation["nostr_event"]),
+                        attestation.get("created_at", datetime.utcnow()),
+                        attestation.get("revoked", False),
+                    ),
+                )
+                conn.commit()
+        finally:
+            self._return_connection(conn)
+
+    def get_attestation(self, public_key: str, jurisdiction: str) -> Optional[dict]:
+        """Get attestation for a pubkey+jurisdiction."""
+        conn = self._get_connection()
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT id, public_key, jurisdiction, attestation_type, code_used,
+                           nostr_event, created_at, revoked
+                    FROM coordination_attestations
+                    WHERE public_key = %s AND jurisdiction = %s AND revoked = FALSE
+                    """,
+                    (public_key, jurisdiction),
+                )
+                row = cur.fetchone()
+                if row:
+                    return {
+                        "id": row[0],
+                        "public_key": row[1],
+                        "jurisdiction": row[2],
+                        "attestation_type": row[3],
+                        "code_used": row[4],
+                        "nostr_event": _parse_jsonb(row[5]),
+                        "created_at": row[6],
+                        "revoked": row[7],
+                    }
+                return None
+        finally:
+            self._return_connection(conn)
+
+    def is_attested(self, public_key: str, jurisdiction: str) -> bool:
+        """Fast boolean check: is this pubkey attested for this jurisdiction?"""
+        conn = self._get_connection()
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT 1 FROM coordination_attestations
+                    WHERE public_key = %s AND jurisdiction = %s AND revoked = FALSE
+                    LIMIT 1
+                    """,
+                    (public_key, jurisdiction),
+                )
+                return cur.fetchone() is not None
+        finally:
+            self._return_connection(conn)
+
+    def get_attested_count(self, jurisdiction: str) -> int:
+        """Total attested users for a jurisdiction."""
+        conn = self._get_connection()
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT COUNT(*) FROM coordination_attestations
+                    WHERE jurisdiction = %s AND revoked = FALSE
+                    """,
+                    (jurisdiction,),
+                )
+                return cur.fetchone()[0]
+        finally:
+            self._return_connection(conn)
+
+    def count_attested_voices(self, entity: str, jurisdiction: str) -> dict:
+        """Count attested vs unattested voices for an entity."""
+        conn = self._get_connection()
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT
+                        COUNT(*) FILTER (WHERE a.id IS NOT NULL) AS attested,
+                        COUNT(*) FILTER (WHERE a.id IS NULL) AS unattested
+                    FROM coordination_voices v
+                    LEFT JOIN coordination_attestations a
+                        ON v.public_key = a.public_key
+                        AND a.jurisdiction = %s
+                        AND a.revoked = FALSE
+                    WHERE v.entity = %s AND v.revoked = FALSE
+                    """,
+                    (jurisdiction, entity),
+                )
+                row = cur.fetchone()
+                return {"attested": row[0], "unattested": row[1]}
+        finally:
+            self._return_connection(conn)
+
+    def get_code_stats(self, jurisdiction: str) -> dict:
+        """Get code generation and redemption stats."""
+        conn = self._get_connection()
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT
+                        COUNT(*) AS total_issued,
+                        COUNT(*) FILTER (WHERE redeemed_by IS NOT NULL) AS total_redeemed
+                    FROM coordination_attestation_codes
+                    WHERE jurisdiction = %s
+                    """,
+                    (jurisdiction,),
+                )
+                row = cur.fetchone()
+                return {"total_issued": row[0], "total_redeemed": row[1]}
+        finally:
+            self._return_connection(conn)
+
+
 class PostgresSyncStorageAdapter:
     """Adapter that combines PostgresSyncStorage + PostgresEventStorage to satisfy SyncStorage protocol."""
 
@@ -1902,3 +2105,4 @@ class PostgresStorage:
         self.civic_completions = PostgresCivicCompletionStorage(connection_url)
         self.outcomes = PostgresOutcomeStorage(connection_url)
         self.attributions = PostgresAttributionStorage(connection_url)
+        self.attestations = PostgresAttestationStorage(connection_url)

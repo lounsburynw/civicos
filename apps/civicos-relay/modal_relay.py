@@ -39,7 +39,10 @@ relay_image = (
 
 @app.cls(
     image=relay_image,
-    secrets=[modal.Secret.from_name("civicos-env")],
+    secrets=[
+        modal.Secret.from_name("civicos-env"),
+        modal.Secret.from_name("civicos-attestation"),
+    ],
     timeout=300,
     min_containers=0,
 )
