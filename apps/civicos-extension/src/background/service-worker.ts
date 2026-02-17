@@ -184,14 +184,37 @@ async function handleMessage(message: ExtensionRequest): Promise<ExtensionRespon
           return { success: false, error: attestSignResult.error ?? 'Signing failed' };
         }
 
-        // Call relay to redeem
-        const { redeemAttestationCode } = await import('../lib/api.js');
-        const redeemResult = await redeemAttestationCode(
-          attestCode,
-          attestSignResult.event.pubkey,
-          attestSignResult.event.sig,
-          attestCreatedAt,
-        );
+        // Call relay to redeem (inline fetch — can't import api.ts here
+        // because Vite bundles Svelte runtime into shared chunks that reference `window`)
+        const RELAY_KEY = 'civicos_relay_url';
+        const DEFAULT_RELAY = 'https://civicos--civicos-relay-relayserver-relay-endpoint.modal.run';
+        let relayUrl = DEFAULT_RELAY;
+        try {
+          const stored = await chrome.storage.local.get(RELAY_KEY);
+          if (stored[RELAY_KEY]) relayUrl = stored[RELAY_KEY];
+        } catch { /* use default */ }
+
+        let redeemResult: { success: boolean; attestation_event?: Record<string, unknown>; error?: string };
+        try {
+          const resp = await fetch(`${relayUrl}/coordination/attest`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              code: attestCode,
+              public_key: attestSignResult.event.pubkey,
+              signature: attestSignResult.event.sig,
+              created_at: attestCreatedAt,
+            }),
+          });
+          if (!resp.ok) {
+            const data = await resp.json().catch(() => ({ detail: resp.statusText }));
+            redeemResult = { success: false, error: data.detail || `Error ${resp.status}` };
+          } else {
+            redeemResult = await resp.json();
+          }
+        } catch (fetchErr) {
+          redeemResult = { success: false, error: fetchErr instanceof Error ? fetchErr.message : 'Network error' };
+        }
 
         if (redeemResult.success && redeemResult.attestation_event) {
           // Store attestation event locally
