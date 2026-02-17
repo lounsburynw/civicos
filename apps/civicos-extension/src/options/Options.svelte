@@ -237,8 +237,89 @@
     }
   }
 
+  // Attestation state
+  let attestationCode = $state('');
+  let attestationVerifying = $state(false);
+  let attestationEvent: Record<string, unknown> | null = $state(null);
+  let attestationDate: string | null = $state(null);
+
+  async function loadAttestationStatus() {
+    // Check local storage first
+    const stored = await chrome.storage.local.get('civicos_attestation');
+    if (stored.civicos_attestation) {
+      attestationEvent = stored.civicos_attestation;
+      const createdAt = (attestationEvent as Record<string, unknown>)?.created_at;
+      if (typeof createdAt === 'number') {
+        attestationDate = new Date(createdAt * 1000).toLocaleDateString('en-US', {
+          year: 'numeric', month: 'short', day: 'numeric',
+        });
+      }
+      return;
+    }
+
+    // Check relay if identity is available
+    if (identity?.isUnlocked) {
+      try {
+        const { getAttestationStatus } = await import('../lib/api.js');
+        // Need the hex pubkey — derive from npub
+        const pubkeyResponse = await sendMessage<string | null>({ type: 'GET_PUBLIC_KEY' });
+        if (pubkeyResponse.success && pubkeyResponse.data) {
+          const status = await getAttestationStatus(pubkeyResponse.data);
+          if (status.attested && status.attestation_event) {
+            attestationEvent = status.attestation_event;
+            attestationDate = status.attested_at
+              ? new Date(status.attested_at).toLocaleDateString('en-US', {
+                  year: 'numeric', month: 'short', day: 'numeric',
+                })
+              : null;
+            await chrome.storage.local.set({ civicos_attestation: status.attestation_event });
+          }
+        }
+      } catch {
+        // Attestation check is optional
+      }
+    }
+  }
+
+  async function redeemAttestation() {
+    if (!attestationCode.trim()) {
+      setStatus('Enter an attestation code', 'error');
+      return;
+    }
+    attestationVerifying = true;
+    try {
+      const response = await sendMessage<Record<string, unknown>>({
+        type: 'REDEEM_ATTESTATION',
+        code: attestationCode.trim(),
+      });
+      if (response.success && response.data) {
+        attestationEvent = response.data;
+        const createdAt = (response.data as Record<string, unknown>)?.created_at;
+        if (typeof createdAt === 'number') {
+          attestationDate = new Date(createdAt * 1000).toLocaleDateString('en-US', {
+            year: 'numeric', month: 'short', day: 'numeric',
+          });
+        }
+        attestationCode = '';
+        setStatus('Attestation verified', 'success');
+      } else {
+        setStatus((response as { error?: string }).error || 'Attestation failed', 'error');
+      }
+    } catch (err) {
+      setStatus(err instanceof Error ? err.message : 'Attestation error', 'error');
+    }
+    attestationVerifying = false;
+  }
+
   loadIdentity();
   loadAIStatus();
+
+  // Load attestation after identity loads
+  $effect(() => {
+    if (identity) {
+      loadAttestationStatus();
+    }
+  });
 </script>
 
 <div class="options">
@@ -348,6 +429,37 @@
             {importing ? 'Importing...' : 'Import'}
           </button>
         </div>
+      {/if}
+    </section>
+  {/if}
+
+  <!-- Attestation Section -->
+  {#if identity}
+    <section class="card attestation-section">
+      <h2>Attestation</h2>
+      {#if attestationEvent}
+        <div class="attested-badge">
+          <span class="attested-check">&#10003;</span>
+          Attested for San Rafael
+          {#if attestationDate}
+            <span class="attested-date">{attestationDate}</span>
+          {/if}
+        </div>
+      {:else if identity.isUnlocked}
+        <p class="section-desc">Enter a code received at a civic event to verify your physical presence.</p>
+        <form class="attestation-form" onsubmit={(e: Event) => { e.preventDefault(); redeemAttestation(); }}>
+          <input
+            type="text"
+            placeholder="SR-2026-02-XXXX"
+            bind:value={attestationCode}
+            autocomplete="off"
+          />
+          <button type="submit" class="btn-primary" disabled={attestationVerifying || !attestationCode.trim()}>
+            {attestationVerifying ? 'Verifying...' : 'Verify Code'}
+          </button>
+        </form>
+      {:else}
+        <p class="section-desc">Unlock your identity to enter an attestation code.</p>
       {/if}
     </section>
   {/if}
@@ -657,6 +769,49 @@
     margin-top: 16px;
     padding-top: 16px;
     border-top: 1px solid #334155;
+  }
+
+  /* Attestation Section */
+  .attestation-section {
+    margin-top: 24px;
+  }
+
+  .attested-badge {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    color: #22c55e;
+    background: rgba(34, 197, 94, 0.08);
+    padding: 12px 16px;
+    border-radius: 8px;
+  }
+
+  .attested-check {
+    font-size: 18px;
+    font-weight: bold;
+  }
+
+  .attested-date {
+    margin-left: auto;
+    font-size: 11px;
+    color: #94a3b8;
+  }
+
+  .attestation-form {
+    display: flex;
+    gap: 8px;
+  }
+  .attestation-form input {
+    flex: 1;
+    min-width: 0;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  .attestation-form .btn-primary {
+    width: auto;
+    flex-shrink: 0;
   }
 
   /* AI Provider Section */

@@ -61,6 +61,8 @@ class VoiceCountResponse(BaseModel):
     oppose: int = 0
     watching: int = 0
     total: int = 0
+    attested: Optional[int] = None
+    unattested: Optional[int] = None
 
 
 class SubscribeRequest(BaseModel):
@@ -316,6 +318,31 @@ class CommentCountResponse(BaseModel):
     count: int = 0
 
 
+# === Attestation Request/Response Models ===
+
+
+class RedeemAttestationRequest(BaseModel):
+    """Request to redeem an attestation code."""
+    code: str = Field(description="Single-use attestation code")
+    public_key: str = Field(description="Public key (hex-encoded)")
+    signature: str = Field(description="Nostr kind-24242 signature proving pubkey ownership")
+    created_at: int = Field(description="Unix timestamp from the signed event")
+
+
+class AttestationResponse(BaseModel):
+    """Attestation status response."""
+    attested: bool
+    attestation_event: Optional[dict] = None
+    attested_at: Optional[str] = None
+
+
+class AttestationStatsResponse(BaseModel):
+    """Attestation stats for a jurisdiction."""
+    total_attested: int = 0
+    total_codes_issued: int = 0
+    total_codes_redeemed: int = 0
+
+
 class CivicActionProgressResponse(BaseModel):
     """Progress for a civic action event."""
     action_id: str
@@ -484,6 +511,49 @@ def _get_comment_storage():
                 logger.warning("civicos-relay not available for comments")
                 return None
     return _storage_instances["comment"]
+
+
+def _get_attestation_storage():
+    """Get or create attestation storage instance."""
+    if "attestation" not in _storage_instances:
+        url = _get_relay_url()
+        if url:
+            try:
+                from civicos_relay.storage.postgres import PostgresAttestationStorage
+                _storage_instances["attestation"] = PostgresAttestationStorage(url)
+                logger.info("Using PostgresAttestationStorage for attestations")
+            except ImportError:
+                logger.warning("civicos-relay postgres not available for attestations")
+                return None
+        else:
+            try:
+                from civicos_relay.storage.memory import InMemoryAttestationStorage
+                _storage_instances["attestation"] = InMemoryAttestationStorage()
+            except ImportError:
+                logger.warning("civicos-relay not available for attestations")
+                return None
+    return _storage_instances["attestation"]
+
+
+def _get_attestation_issuer_keypair():
+    """Get the attestation issuer keypair from environment."""
+    if "attestation_keypair" not in _storage_instances:
+        private_key_hex = os.environ.get("CIVICOS_ATTESTATION_PRIVATE_KEY")
+        if not private_key_hex:
+            logger.warning("CIVICOS_ATTESTATION_PRIVATE_KEY not set")
+            return None
+        try:
+            from civicos_relay.voice.crypto import KeyPair
+            from coincurve import PublicKeyXOnly
+            xonly_pk = PublicKeyXOnly.from_valid_secret(bytes.fromhex(private_key_hex))
+            _storage_instances["attestation_keypair"] = KeyPair(
+                public_key_hex=xonly_pk.format().hex(),
+                private_key_hex=private_key_hex,
+            )
+        except Exception as e:
+            logger.error(f"Failed to load attestation keypair: {e}")
+            return None
+    return _storage_instances["attestation_keypair"]
 
 
 def _get_civic_action_service():
@@ -676,11 +746,13 @@ async def revoke_voice(request: RevokeVoiceRequest):
 
 
 @router.get("/coordination/voice/counts/{entity:path}", response_model=VoiceCountResponse)
-async def get_voice_counts(entity: str):
+async def get_voice_counts(entity: str, jurisdiction: Optional[str] = None):
     """
     Get voice counts for an entity.
 
     Returns support, oppose, watching, and total counts.
+    Includes attested/unattested breakdown when jurisdiction is provided
+    and attestation storage is available.
     """
     storage = _get_voice_storage()
     if not storage:
@@ -695,12 +767,26 @@ async def get_voice_counts(entity: str):
         service = VoiceService(storage)
         counts = service.get_counts(entity)
 
+        attested = None
+        unattested = None
+        if jurisdiction:
+            att_storage = _get_attestation_storage()
+            if att_storage:
+                try:
+                    att_counts = att_storage.count_attested_voices(entity, jurisdiction)
+                    attested = att_counts["attested"]
+                    unattested = att_counts["unattested"]
+                except Exception as e:
+                    logger.debug(f"Attestation counts unavailable: {e}")
+
         return VoiceCountResponse(
             entity=counts.entity,
             support=counts.support,
             oppose=counts.oppose,
             watching=counts.watching,
             total=counts.total,
+            attested=attested,
+            unattested=unattested,
         )
 
     except Exception as e:
@@ -2445,3 +2531,139 @@ async def get_comment_counts(entity: str):
     except Exception as e:
         logger.error(f"Error getting comment counts: {e}")
         raise HTTPException(status_code=500, detail=f"Server error: {str(e)}")
+
+
+# === Attestation Endpoints ===
+
+
+@router.post("/coordination/attest")
+async def redeem_attestation(request: RedeemAttestationRequest):
+    """
+    Redeem an attestation code to prove physical presence.
+
+    1. Verify Nostr signature (kind 24242 auth event)
+    2. Replay protection (5-min window)
+    3. Check code exists and is unredeemed
+    4. Check pubkey not already attested for this jurisdiction
+    5. Redeem code (atomic)
+    6. Sign kind-30850 attestation event with CivicOS issuer keypair
+    7. Store attestation record
+    """
+    import time
+
+    storage = _get_attestation_storage()
+    if not storage:
+        raise HTTPException(status_code=503, detail="Attestation service not configured")
+
+    issuer_keypair = _get_attestation_issuer_keypair()
+    if not issuer_keypair:
+        raise HTTPException(status_code=503, detail="Attestation issuer not configured")
+
+    # 1. Verify signature
+    try:
+        from civicos_relay.voice.crypto import verify_attestation_request
+        if not verify_attestation_request(
+            request.public_key, request.signature, request.code, request.created_at
+        ):
+            raise HTTPException(status_code=401, detail="Invalid signature")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Signature verification error: {e}")
+        raise HTTPException(status_code=401, detail="Signature verification failed")
+
+    # 2. Replay protection (5-min window)
+    now = int(time.time())
+    if abs(now - request.created_at) > 300:
+        raise HTTPException(status_code=400, detail="Request expired (>5 min)")
+
+    # 3. Check code exists and is unredeemed
+    code_record = storage.get_code(request.code)
+    if not code_record:
+        raise HTTPException(status_code=404, detail="Invalid attestation code")
+    if code_record.get("redeemed_by"):
+        raise HTTPException(status_code=409, detail="Code already redeemed")
+
+    jurisdiction = code_record["jurisdiction"]
+
+    # 4. Check pubkey not already attested
+    if storage.is_attested(request.public_key, jurisdiction):
+        raise HTTPException(status_code=409, detail="Already attested for this jurisdiction")
+
+    # 5. Redeem code (atomic)
+    if not storage.redeem_code(request.code, request.public_key):
+        raise HTTPException(status_code=409, detail="Code already redeemed")
+
+    # 6. Sign attestation event
+    try:
+        from civicos_relay.voice.crypto import sign_attestation_event
+        attestation_event = sign_attestation_event(
+            issuer_keypair, request.public_key, jurisdiction
+        )
+    except Exception as e:
+        logger.error(f"Failed to sign attestation event: {e}")
+        raise HTTPException(status_code=500, detail="Failed to sign attestation")
+
+    # 7. Store attestation record
+    attestation_id = f"attest:{jurisdiction}:{request.public_key}"
+    storage.save_attestation({
+        "id": attestation_id,
+        "public_key": request.public_key,
+        "jurisdiction": jurisdiction,
+        "attestation_type": "physical",
+        "code_used": request.code,
+        "nostr_event": attestation_event,
+    })
+
+    logger.info(f"Attestation issued: {request.public_key[:16]}... for {jurisdiction}")
+
+    return {"success": True, "attestation_event": attestation_event}
+
+
+@router.get("/coordination/attestation/{public_key}", response_model=AttestationResponse)
+async def get_attestation_status(public_key: str, jurisdiction: str = "city-san-rafael"):
+    """
+    Check attestation status for a pubkey.
+    """
+    storage = _get_attestation_storage()
+    if not storage:
+        return AttestationResponse(attested=False)
+
+    try:
+        attestation = storage.get_attestation(public_key, jurisdiction)
+        if attestation:
+            return AttestationResponse(
+                attested=True,
+                attestation_event=attestation.get("nostr_event"),
+                attested_at=attestation["created_at"].isoformat()
+                if hasattr(attestation.get("created_at"), "isoformat")
+                else str(attestation.get("created_at")),
+            )
+        return AttestationResponse(attested=False)
+
+    except Exception as e:
+        logger.error(f"Error getting attestation status: {e}")
+        return AttestationResponse(attested=False)
+
+
+@router.get("/coordination/attestation/stats/{jurisdiction}", response_model=AttestationStatsResponse)
+async def get_attestation_stats(jurisdiction: str):
+    """
+    Get attestation stats for a jurisdiction.
+    """
+    storage = _get_attestation_storage()
+    if not storage:
+        return AttestationStatsResponse()
+
+    try:
+        attested_count = storage.get_attested_count(jurisdiction)
+        code_stats = storage.get_code_stats(jurisdiction)
+        return AttestationStatsResponse(
+            total_attested=attested_count,
+            total_codes_issued=code_stats["total_issued"],
+            total_codes_redeemed=code_stats["total_redeemed"],
+        )
+
+    except Exception as e:
+        logger.error(f"Error getting attestation stats: {e}")
+        return AttestationStatsResponse()

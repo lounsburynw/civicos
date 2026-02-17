@@ -22,6 +22,7 @@ export type MessageType =
   | 'DELETE_IDENTITY'
   | 'SIGN_EVENT'
   | 'SIGN_MESSAGE'
+  | 'REDEEM_ATTESTATION'
   | 'NIP07_GET_PUBLIC_KEY'
   | 'NIP07_SIGN_EVENT'
   | 'NIP07_GET_RELAYS';
@@ -87,6 +88,11 @@ export interface Nip07GetRelaysRequest {
   type: 'NIP07_GET_RELAYS';
 }
 
+export interface RedeemAttestationRequest {
+  type: 'REDEEM_ATTESTATION';
+  code: string;
+}
+
 export type ExtensionRequest =
   | GetIdentityRequest
   | GetPublicKeyRequest
@@ -97,6 +103,7 @@ export type ExtensionRequest =
   | DeleteIdentityRequest
   | SignEventRequest
   | SignMessageRequest
+  | RedeemAttestationRequest
   | Nip07GetPublicKeyRequest
   | Nip07SignEventRequest
   | Nip07GetRelaysRequest;

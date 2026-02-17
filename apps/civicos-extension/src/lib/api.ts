@@ -525,6 +525,53 @@ export async function getApiUrl(): Promise<string> {
   return getBaseUrl();
 }
 
+// === Relay API (coordination/attestation endpoints) ===
+
+export async function redeemAttestationCode(
+  code: string,
+  publicKey: string,
+  signature: string,
+  createdAt: number
+): Promise<{ success: boolean; attestation_event?: Record<string, unknown>; error?: string }> {
+  try {
+    const relayUrl = await getRelayUrl();
+    const response = await fetch(`${relayUrl}/coordination/attest`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        code,
+        public_key: publicKey,
+        signature,
+        created_at: createdAt,
+      }),
+    });
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({ detail: response.statusText }));
+      return { success: false, error: data.detail || `Error ${response.status}` };
+    }
+    return response.json();
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : 'Network error' };
+  }
+}
+
+export async function getAttestationStatus(
+  publicKey: string,
+  jurisdiction = 'city-san-rafael'
+): Promise<{ attested: boolean; attestation_event?: Record<string, unknown>; attested_at?: string }> {
+  try {
+    const relayUrl = await getRelayUrl();
+    const response = await fetch(
+      `${relayUrl}/coordination/attestation/${encodeURIComponent(publicKey)}?jurisdiction=${encodeURIComponent(jurisdiction)}`,
+      { headers: { 'Content-Type': 'application/json' } }
+    );
+    if (!response.ok) return { attested: false };
+    return response.json();
+  } catch {
+    return { attested: false };
+  }
+}
+
 export async function setRelayUrl(url: string): Promise<void> {
   await chrome.storage.local.set({ [RELAY_STORAGE_KEY]: url });
 }

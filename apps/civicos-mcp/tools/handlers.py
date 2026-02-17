@@ -496,6 +496,25 @@ def city_pulse(
 
     result["clerk_email"] = "cityclerk@cityofsanrafael.org"
 
+    # Attestation stats (optional — fails gracefully)
+    try:
+        import httpx
+        relay_url = _resolve_relay_url(None)
+        with httpx.Client(timeout=5.0) as client:
+            att_response = client.get(
+                f"{relay_url}/coordination/attestation/stats/{jurisdiction}"
+            )
+            if att_response.status_code == 200:
+                att_data = att_response.json()
+                if att_data.get("total_attested", 0) > 0:
+                    result["attestation"] = {
+                        "total_attested": att_data.get("total_attested", 0),
+                        "total_codes_issued": att_data.get("total_codes_issued", 0),
+                        "total_codes_redeemed": att_data.get("total_codes_redeemed", 0),
+                    }
+    except Exception:
+        pass  # Attestation stats are optional
+
     return result
 
 
@@ -2166,9 +2185,18 @@ def get_voice_counts(
             f"**Oppose:** {data.get('oppose', 0)}",
             f"**Watching:** {data.get('watching', 0)}",
             f"**Total voices:** {data.get('total', 0)}",
+        ]
+
+        # Include attestation breakdown if available
+        if data.get('attested') is not None:
+            result_parts.append("")
+            result_parts.append(f"**Attested:** {data.get('attested', 0)}")
+            result_parts.append(f"**Unattested:** {data.get('unattested', 0)}")
+
+        result_parts.extend([
             "",
             "_Voices are cryptographically signed. Counts can be verified by any relay with the same data._",
-        ]
+        ])
 
         return "\n".join(result_parts)
 
