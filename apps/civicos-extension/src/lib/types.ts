@@ -127,6 +127,8 @@ export interface VoiceCounts {
   oppose: number;
   watching: number;
   total: number;
+  attested?: number;
+  unattested?: number;
 }
 
 // === Initiatives & Civic Actions ===

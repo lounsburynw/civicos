@@ -323,7 +323,7 @@
       ids.push(...pulseData.upcoming_items.filter(i => i.stance_eligible).map(i => `agenda-item:${i.id}`));
     }
     if (ids.length > 0) {
-      voiceCounts = await getVoiceCountsBatch(ids);
+      voiceCounts = await getVoiceCountsBatch(ids, pulseData.jurisdiction || 'city-san-rafael');
     }
   }
 
@@ -847,6 +847,9 @@
     if (counts && counts.total > 0) {
       lines.push('', '--- Community Sentiment ---');
       lines.push(`Stances: ${counts.support} support, ${counts.oppose} oppose, ${counts.watching} watching`);
+      if (counts.attested != null && counts.attested > 0) {
+        lines.push(`Verified: ${counts.attested} attested (in-person verified), ${counts.unattested ?? 0} unattested`);
+      }
     }
     if (synth && synth.total > 0) {
       lines.push(`Public comments: ${synth.total} total (${synth.support} supportive, ${synth.oppose} opposed, ${synth.neutral} neutral)`);
@@ -952,7 +955,11 @@
     const vc = voiceCounts.get(entityId);
     if (vc) {
       const total = (vc.support || 0) + (vc.oppose || 0) + (vc.watching || 0);
-      lines.push(`**Community sentiment:** ${total} voices — ${vc.support || 0} support, ${vc.oppose || 0} oppose, ${vc.watching || 0} watching`, '');
+      let sentimentLine = `**Community sentiment:** ${total} voices — ${vc.support || 0} support, ${vc.oppose || 0} oppose, ${vc.watching || 0} watching`;
+      if (vc.attested != null && vc.attested > 0) {
+        sentimentLine += ` (${vc.attested} attested)`;
+      }
+      lines.push(sentimentLine, '');
     }
     lines.push(`**${comments.length} public comment${comments.length !== 1 ? 's' : ''}:**`);
     for (const c of comments) {
@@ -1795,6 +1802,9 @@
     if (changes['civicos-passkey-identity'] || changes['civicos-wallet-identity']) {
       loadIdentity();
     }
+    if (changes['civicos_attestation']) {
+      hasAttestation = !!changes['civicos_attestation'].newValue;
+    }
     if (changes[CONNECTOR_SETUP_KEY]) {
       connectorSetupDismissed = changes[CONNECTOR_SETUP_KEY].newValue ?? false;
     }
@@ -2035,6 +2045,7 @@
                     {#if counts.support > 0}<span class="vc vc-support">{counts.support} support</span>{/if}
                     {#if counts.oppose > 0}<span class="vc vc-oppose">{counts.oppose} oppose</span>{/if}
                     {#if counts.watching > 0}<span class="vc vc-watch">{counts.watching} watching</span>{/if}
+                    {#if counts.attested != null && counts.attested > 0}<span class="vc vc-attested" title="{counts.attested} attested, {counts.unattested ?? 0} unattested">{counts.attested} attested</span>{/if}
                   </div>
                 {/if}
                 {#if item.stance_eligible}
@@ -2286,7 +2297,7 @@
                         {@const counts = voiceCounts.get(decision.id)!}
                         {#if counts.total > 0}
                           <span class="meta-sep">&middot;</span>
-                          <span class="voice-inline">{counts.total} voices</span>
+                          <span class="voice-inline">{counts.total} voices{#if counts.attested != null && counts.attested > 0} ({counts.attested} attested){/if}</span>
                         {/if}
                       {/if}
                     </div>
@@ -3537,6 +3548,7 @@
   .vc-support { background: #14532d; color: #4ade80; }
   .vc-oppose { background: #7f1d1d; color: #f87171; }
   .vc-watch { background: #374151; color: #9ca3af; }
+  .vc-attested { background: rgba(34, 197, 94, 0.12); color: #22c55e; }
 
   .voice-inline {
     color: #60a5fa;
