@@ -2661,12 +2661,12 @@
         }
       },
       "expandable_decisions": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 1,
         "artifact": "Expandable decision detail cards in CityPulse",
         "description": "Expand Recent Decisions rows to show full detail: vote breakdown, related public testimony (via vector search), linked agenda packet chunks, and timeline context. Click a decision row to expand inline. Fetch additional detail on demand to keep initial load fast.",
         "depends_on": "civic_dashboard_mvp",
-        "note": "2026-02-16: UI implemented but citizen panel QC scored content 2.1/5. Speaker attribution fixed (3-tier resolution via roster). Remaining: synthesized summary, key fact extraction, excerpt quality, video links, outcome labels. See docs/next_session_prompt.md.",
+        "note": "2026-02-16: QC addressed — AI summaries, outcome descriptions, video URLs, excerpt quality, upcoming/past distinction. Remaining: vote tally extraction (0/83 decisions have vote_json), related decision quality.",
         "implementation": {
           "backend": "/decision-detail REST endpoint in rest_api.py, decision_detail handler in handlers.py",
           "frontend": "DecisionDetail.svelte component, expandable inline in CityPulse decisions section",
@@ -4346,8 +4346,8 @@
         "depends_on": ["extension_phase1b_read_enhancements"]
       },
       "extension_phase2b_commitments": {
-        "status": "ready",
-        "priority": 1,
+        "status": "not_ready",
+        "priority": 0,
         "artifact": "Browser extension Phase 2b — My Commitments + initiative tracking",
         "note": "Add My Commitments personal tracker (localStorage-backed). Show community initiatives with nested civic actions and progress bars. Commit/complete/withdraw actions via relay. Deadline countdown with urgency indicators. Calendar integration for commitment deadlines. ALSO: quick fix meetings section label ('Upcoming Meetings' -> context-aware label) and disable calendar buttons for past meetings.",
         "features": [
