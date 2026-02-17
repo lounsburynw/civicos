@@ -41,6 +41,8 @@
   let expandedDecisions = $state(new Set<string>());
   let decisionDetails = $state(new Map<string, DecisionDetailData>());
   let decisionLoading = $state(new Set<string>());
+  let expandedTestimony = $state(new Set<string>());
+  let expandedCouncil = $state(new Set<string>());
 
   // Data provenance
   let showProvenance = $state(false);
@@ -893,6 +895,15 @@
       }
       if (detail.testimony.public_comments.length > 8) {
         lines.push(`... and ${detail.testimony.public_comments.length - 8} more speakers`);
+      }
+    }
+    if (detail?.testimony?.council_discussion && detail.testimony.council_discussion.length > 0) {
+      lines.push('', `--- Council Discussion (${detail.testimony.council_discussion.length} excerpts) ---`);
+      for (const c of detail.testimony.council_discussion.slice(0, 6)) {
+        lines.push(`- **${c.speaker}:** ${c.text}`);
+      }
+      if (detail.testimony.council_discussion.length > 6) {
+        lines.push(`... and ${detail.testimony.council_discussion.length - 6} more excerpts`);
       }
     }
     lines.push(...composeSentimentBlock(decision.id));
@@ -2251,31 +2262,58 @@
                     {:else if decisionDetails.has(decision.title)}
                       {@const detail = decisionDetails.get(decision.title)!}
                       {#if detail.found && detail.decision}
+                        <!-- Outcome badge row -->
+                        <div class="outcome-row">
+                          <span class="outcome-badge" class:approved={detail.decision.outcome?.toLowerCase().includes('approved')} class:denied={detail.decision.outcome?.toLowerCase().includes('denied')}>
+                            {detail.decision.outcome}
+                          </span>
+                          {#if detail.decision.votes}
+                            <span class="vote-detail">
+                              {Object.entries(detail.decision.votes).map(([k, v]) => `${k}: ${v}`).join(', ')}
+                            </span>
+                          {/if}
+                        </div>
+
                         {#if detail.decision.body}
                           <div class="detail-body">{detail.decision.body}</div>
                         {/if}
+
+                        <!-- Public Testimony -->
                         {#if detail.testimony?.public_comments && detail.testimony.public_comments.length > 0}
+                          {@const testimonies = detail.testimony.public_comments}
+                          {@const showAll = expandedTestimony.has(decision.title)}
+                          {@const displayTestimonies = showAll ? testimonies : testimonies.slice(0, 3)}
                           <div class="detail-section">
                             <div class="detail-label-row">
-                              <div class="detail-label">Public Testimony ({detail.testimony.public_comments.length})</div>
+                              <div class="detail-label">Public Testimony ({testimonies.length})</div>
                               {#if aiAvailable}
                                 <button
                                   class="summarize-btn"
                                   disabled={aiResponseLoading.has(`ask-testimony:${decision.id}`)}
-                                  onclick={() => askAI(`ask-testimony:${decision.id}`, composeTestimonySummary(decision, detail.testimony!.public_comments!))}
+                                  onclick={() => askAI(`ask-testimony:${decision.id}`, composeTestimonySummary(decision, testimonies))}
                                 >
                                   {aiResponseLoading.has(`ask-testimony:${decision.id}`) ? 'Summarizing...' : aiResponses.has(`ask-testimony:${decision.id}`) ? 'Hide summary' : 'Summarize'}
                                 </button>
                               {/if}
                             </div>
-                            {#each detail.testimony.public_comments.slice(0, 3) as comment}
-                              <div class="testimony-item">
-                                <span class="testimony-speaker">{comment.speaker}</span>
-                                <span class="testimony-text">{comment.text}</span>
+                            {#each displayTestimonies as comment}
+                              <div class="testimony-card">
+                                <div class="testimony-meta">
+                                  <span class="testimony-speaker">{comment.speaker}</span>
+                                  {#if comment.start_timestamp}
+                                    <span class="testimony-timestamp">{comment.start_timestamp}</span>
+                                  {/if}
+                                </div>
+                                <div class="testimony-text">{comment.text}</div>
+                                {#if comment.video_url}
+                                  <a class="testimony-video-link" href={comment.video_url} target="_blank" rel="noopener">Watch clip</a>
+                                {/if}
                               </div>
                             {/each}
-                            {#if detail.testimony.public_comments.length > 3}
-                              <div class="detail-more">+{detail.testimony.public_comments.length - 3} more</div>
+                            {#if testimonies.length > 3}
+                              <button class="detail-expand-btn" onclick={() => { if (showAll) { expandedTestimony.delete(decision.title); } else { expandedTestimony.add(decision.title); } expandedTestimony = new Set(expandedTestimony); }}>
+                                {showAll ? 'Show less' : `+${testimonies.length - 3} more`}
+                              </button>
                             {/if}
                             {#if aiResponses.has(`ask-testimony:${decision.id}`)}
                               <div class="ai-response">
@@ -2284,16 +2322,47 @@
                               </div>
                             {/if}
                             <div class="ai-action-row">
-                              <button class="ai-action-btn ai-action-claude solo" onclick={(e: MouseEvent) => openExternalAI('claude', composeTestimonySummary(decision, detail.testimony!.public_comments!), e)}>
+                              <button class="ai-action-btn ai-action-claude solo" onclick={(e: MouseEvent) => openExternalAI('claude', composeTestimonySummary(decision, testimonies), e)}>
                                 Discuss testimony in Claude <span class="ext-icon">↗</span>
                               </button>
                             </div>
                           </div>
                         {/if}
+
+                        <!-- Council Discussion -->
+                        {#if detail.testimony?.council_discussion && detail.testimony.council_discussion.length > 0}
+                          {@const excerpts = detail.testimony.council_discussion}
+                          {@const showAllCouncil = expandedCouncil.has(decision.title)}
+                          {@const displayExcerpts = showAllCouncil ? excerpts : excerpts.slice(0, 3)}
+                          <div class="detail-section">
+                            <div class="detail-label">Council Discussion ({excerpts.length})</div>
+                            {#each displayExcerpts as excerpt}
+                              <div class="testimony-card">
+                                <div class="testimony-meta">
+                                  <span class="testimony-speaker">{excerpt.speaker}</span>
+                                  {#if excerpt.start_timestamp}
+                                    <span class="testimony-timestamp">{excerpt.start_timestamp}</span>
+                                  {/if}
+                                </div>
+                                <div class="testimony-text">{excerpt.text}</div>
+                                {#if excerpt.video_url}
+                                  <a class="testimony-video-link" href={excerpt.video_url} target="_blank" rel="noopener">Watch clip</a>
+                                {/if}
+                              </div>
+                            {/each}
+                            {#if excerpts.length > 3}
+                              <button class="detail-expand-btn" onclick={() => { if (showAllCouncil) { expandedCouncil.delete(decision.title); } else { expandedCouncil.add(decision.title); } expandedCouncil = new Set(expandedCouncil); }}>
+                                {showAllCouncil ? 'Show less' : `+${excerpts.length - 3} more`}
+                              </button>
+                            {/if}
+                          </div>
+                        {/if}
+
+                        <!-- Related Decisions -->
                         {#if detail.related_decisions && detail.related_decisions.length > 0}
                           <div class="detail-section">
                             <div class="detail-label">Related Decisions</div>
-                            {#each detail.related_decisions.slice(0, 3) as related}
+                            {#each detail.related_decisions as related}
                               <div class="related-item">
                                 <span class="outcome-dot {outcomeClass(related.outcome)}"></span>
                                 <span class="related-title">{related.title}</span>
@@ -3441,14 +3510,46 @@
     color: #6b7280;
     padding: 4px 0;
   }
+  .outcome-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  .outcome-badge {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 4px;
+    background: rgba(107, 114, 128, 0.15);
+    color: #9ca3af;
+  }
+  .outcome-badge.approved {
+    background: rgba(34, 197, 94, 0.15);
+    color: #4ade80;
+  }
+  .outcome-badge.denied {
+    background: rgba(239, 68, 68, 0.15);
+    color: #f87171;
+  }
+  .vote-detail {
+    font-size: 11px;
+    color: #6b7280;
+  }
   .detail-body {
     font-size: 12px;
     color: #9ca3af;
-    line-height: 1.4;
+    line-height: 1.45;
     margin-bottom: 8px;
+    display: -webkit-box;
+    -webkit-line-clamp: 4;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
   }
   .detail-section {
-    margin-bottom: 8px;
+    margin-bottom: 10px;
+    padding-top: 8px;
+    border-top: 1px solid #262626;
   }
   .detail-label {
     font-size: 10px;
@@ -3456,31 +3557,61 @@
     color: #6b7280;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    margin-bottom: 4px;
+    margin-bottom: 6px;
   }
-  .testimony-item {
+  .testimony-card {
     font-size: 11px;
-    padding: 4px 0;
-    border-bottom: 1px solid #374151;
+    padding: 6px 8px;
+    margin-top: 4px;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 4px;
+    border-left: 2px solid rgba(96, 165, 250, 0.3);
+  }
+  .testimony-meta {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 2px;
   }
   .testimony-speaker {
     color: #d1d5db;
-    font-weight: 500;
-    margin-right: 4px;
+    font-weight: 600;
+    font-size: 11px;
   }
-  .testimony-speaker::after { content: ':'; }
+  .testimony-timestamp {
+    font-size: 10px;
+    color: #6b7280;
+    font-family: 'SF Mono', 'Menlo', monospace;
+    background: rgba(255, 255, 255, 0.05);
+    padding: 0 4px;
+    border-radius: 3px;
+  }
   .testimony-text {
     color: #9ca3af;
+    line-height: 1.4;
     display: -webkit-box;
-    -webkit-line-clamp: 2;
+    -webkit-line-clamp: 3;
     -webkit-box-orient: vertical;
     overflow: hidden;
   }
-  .detail-more {
+  .testimony-video-link {
+    display: inline-block;
+    font-size: 10px;
+    color: #60a5fa;
+    text-decoration: none;
+    margin-top: 2px;
+  }
+  .testimony-video-link:hover { text-decoration: underline; }
+  .detail-expand-btn {
     font-size: 10px;
     color: #3b82f6;
-    margin-top: 4px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px 0;
+    margin-top: 2px;
   }
+  .detail-expand-btn:hover { color: #60a5fa; }
   .related-item {
     display: flex;
     align-items: center;
