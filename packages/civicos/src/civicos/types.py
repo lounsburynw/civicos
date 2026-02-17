@@ -205,6 +205,14 @@ class Preparation:
 
 
 @dataclass
+class ActionDraft:
+    """AI-generated draft for a civic action from draft_action()."""
+    draft: str
+    description: Optional[str] = None
+    citations: List[str] = field(default_factory=list)
+
+
+@dataclass
 class Suggestion:
     """Proactive suggestion from suggestions()."""
     type: str  # upcoming_meeting, trending_initiative, coordination_ready
