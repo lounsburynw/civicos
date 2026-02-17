@@ -2588,11 +2588,12 @@
                 <button class="ini-card-toggle" onclick={() => toggleInitiativeDetail(initiative.id)}>
                   <div class="ini-card-top">
                     <span class="ini-topic-pill">{initiative.topic}</span>
+                    {#if initiative.creator_attested}<span class="ini-attested-badge" title="Initiative creator is attested (in-person verified)">Attested</span>{/if}
                     <div class="ini-card-badges">
                       {#if initiative.voice_count > 0}
-                        <span class="ini-voice-inline">
+                        <span class="ini-voice-inline" title="{initiative.attested_voice_count != null && initiative.attested_voice_count > 0 ? `${initiative.attested_voice_count} attested` : ''}">
                           <svg class="ini-voice-icon" viewBox="0 0 16 16" fill="currentColor"><path d="M6.956 1.745C7.021.81 7.908.087 8.864.325l.261.066c.463.116.874.456 1.012.965.22.816.533 2.511.062 4.51a10 10 0 0 1 .443-.051c.713-.065 1.669-.072 2.516.21.518.173.994.681 1.2 1.273.184.532.16 1.162-.234 1.733q.086.18.138.363c.077.27.113.567.113.856s-.036.586-.113.856c-.039.135-.09.273-.16.404.169.387.107.82-.003 1.149a3.2 3.2 0 0 1-.488.901c.054.152.076.312.076.465 0 .305-.089.625-.253.912C13.1 15.522 12.437 16 11.5 16H8c-.605 0-1.07-.081-1.466-.218a4.8 4.8 0 0 1-.97-.484l-.048-.03c-.504-.307-.999-.609-2.068-.722C2.682 14.464 2 13.846 2 13V9c0-.85.685-1.432 1.357-1.615.849-.232 1.574-.787 2.132-1.41.56-.627.914-1.28 1.039-1.639.199-.575.356-1.539.428-2.59z"/></svg>
-                          <span class="ini-voice-num">{initiative.voice_count}</span>
+                          <span class="ini-voice-num">{initiative.voice_count}{#if initiative.attested_voice_count != null && initiative.attested_voice_count > 0} <span class="ini-voice-attested">({initiative.attested_voice_count} attested)</span>{/if}</span>
                         </span>
                       {/if}
                       {#if initiative.coordination_url}
@@ -4975,6 +4976,21 @@
     font-weight: 600;
     font-variant-numeric: tabular-nums;
     color: #9ca3af;
+  }
+  .ini-voice-attested {
+    font-size: 9px;
+    font-weight: 500;
+    color: #22c55e;
+  }
+  .ini-attested-badge {
+    font-size: 8px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    padding: 1px 5px;
+    border-radius: 8px;
+    background: rgba(34, 197, 94, 0.12);
+    color: #22c55e;
   }
   .ini-coord-icon {
     width: 13px;
