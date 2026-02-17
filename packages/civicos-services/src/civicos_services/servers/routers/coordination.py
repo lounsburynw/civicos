@@ -121,6 +121,8 @@ class InitiativeResponse(BaseModel):
     timestamp: str
     status: str
     voice_count: int = 0
+    creator_attested: Optional[bool] = None
+    attested_voice_count: Optional[int] = None
 
 
 # === Action Request/Response Models ===
@@ -1146,6 +1148,28 @@ async def list_initiatives(
             limit=min(limit, 1000),  # Cap at 1000
         )
 
+        # Batch-check attestation for creators and voice counts
+        att_storage = _get_attestation_storage()
+        attested_creators: set[str] | None = None
+        attested_voice_counts: dict[str, int] | None = None
+        if att_storage:
+            try:
+                unique_keys = {i.public_key for i in initiatives}
+                attested_creators = {
+                    pk for pk in unique_keys
+                    if att_storage.is_attested(pk, jurisdiction)
+                }
+                attested_voice_counts = {}
+                for i in initiatives:
+                    if i.voice_count > 0:
+                        try:
+                            att = att_storage.count_attested_voices(i.id, jurisdiction)
+                            attested_voice_counts[i.id] = att["attested"]
+                        except Exception:
+                            pass
+            except Exception as e:
+                logger.debug(f"Initiative attestation lookup unavailable: {e}")
+
         return [
             InitiativeResponse(
                 id=i.id,
@@ -1159,6 +1183,8 @@ async def list_initiatives(
                 timestamp=i.timestamp.isoformat(),
                 status=i.status.value,
                 voice_count=i.voice_count,
+                creator_attested=i.public_key in attested_creators if attested_creators is not None else None,
+                attested_voice_count=attested_voice_counts.get(i.id) if attested_voice_counts is not None else None,
             )
             for i in initiatives
         ]
@@ -1193,6 +1219,18 @@ async def get_initiative(initiative_id: str):
                 detail="Initiative not found"
             )
 
+        creator_attested = None
+        attested_voice_count = None
+        att_storage = _get_attestation_storage()
+        if att_storage:
+            try:
+                creator_attested = att_storage.is_attested(initiative.public_key, initiative.jurisdiction)
+                if initiative.voice_count > 0:
+                    att = att_storage.count_attested_voices(initiative.id, initiative.jurisdiction)
+                    attested_voice_count = att["attested"]
+            except Exception as e:
+                logger.debug(f"Initiative attestation lookup unavailable: {e}")
+
         return InitiativeResponse(
             id=initiative.id,
             jurisdiction=initiative.jurisdiction,
@@ -1205,6 +1243,8 @@ async def get_initiative(initiative_id: str):
             timestamp=initiative.timestamp.isoformat(),
             status=initiative.status.value,
             voice_count=initiative.voice_count,
+            creator_attested=creator_attested,
+            attested_voice_count=attested_voice_count,
         )
 
     except HTTPException:

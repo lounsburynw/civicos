@@ -144,6 +144,8 @@ export interface Initiative {
   timestamp: string;
   status: string;
   voice_count: number;
+  creator_attested?: boolean;
+  attested_voice_count?: number;
 }
 
 export interface CivicAction {
