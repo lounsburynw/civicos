@@ -2588,7 +2588,6 @@
                 <button class="ini-card-toggle" onclick={() => toggleInitiativeDetail(initiative.id)}>
                   <div class="ini-card-top">
                     <span class="ini-topic-pill">{initiative.topic}</span>
-                    {#if initiative.creator_attested}<span class="ini-attested-badge" title="Initiative creator is attested (in-person verified)">Attested</span>{/if}
                     <div class="ini-card-badges">
                       {#if initiative.voice_count > 0}
                         <span class="ini-voice-inline" title="{initiative.attested_voice_count != null && initiative.attested_voice_count > 0 ? `${initiative.attested_voice_count} attested` : ''}">
@@ -2604,9 +2603,10 @@
                   </div>
                   <div class="ini-card-title">{initiative.title}</div>
                   <div class="ini-card-desc">{initiative.description}</div>
-                  {#if initiativeStats(initiative.id).committed > 0 || initiativeStats(initiative.id).completed > 0}
+                  {#if initiative.creator_attested || initiativeStats(initiative.id).committed > 0 || initiativeStats(initiative.id).completed > 0}
                     {@const stats = initiativeStats(initiative.id)}
                     <div class="ini-card-stats">
+                      {#if initiative.creator_attested}<span class="ini-stat ini-stat-attested" title="Initiative creator is in-person verified">Attested</span>{/if}
                       {#if stats.committed > 0}<span class="ini-stat">{stats.committed} committed</span>{/if}
                       {#if stats.completed > 0}<span class="ini-stat ini-stat-done">{stats.completed} done</span>{/if}
                     </div>
@@ -4753,6 +4753,16 @@
   }
   .ini-stat { color: #9ca3af; }
   .ini-stat.ini-stat-done { color: #4ade80; }
+  .ini-stat.ini-stat-attested {
+    color: #22c55e;
+    background: rgba(34, 197, 94, 0.12);
+    padding: 0 5px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+  }
 
   /* === Create Initiative Form === */
   .ini-form {
@@ -4980,16 +4990,6 @@
   .ini-voice-attested {
     font-size: 9px;
     font-weight: 500;
-    color: #22c55e;
-  }
-  .ini-attested-badge {
-    font-size: 8px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.3px;
-    padding: 1px 5px;
-    border-radius: 8px;
-    background: rgba(34, 197, 94, 0.12);
     color: #22c55e;
   }
   .ini-coord-icon {
