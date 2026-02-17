@@ -1,0 +1,7 @@
+name = "civicos-registry"
+main = "src/index.ts"
+compatibility_date = "2025-02-14"
+
+routes = [
+  { pattern = "registry.civicosproject.org/*", zone_name = "civicosproject.org" }
+]

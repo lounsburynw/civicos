@@ -674,7 +674,7 @@
         "priority": 2,
         "artifact": "get_voting_record() finds semantically related votes",
         "description": "Update get_voting_record() to use semantic topic matching instead of exact array match. 'housing affordability' would also find votes on 'zoning', 'development', 'density'.",
-        "note": "Session 530: ALREADY IMPLEMENTED. Semantic search on decisions corpus exists at civicos.py:971-986, tested working (10 results for 'housing affordability'). The '0 votes' issue is a DATA gap not code — vote_json is NULL for all 44 decisions. Decisions extracted from agendas (pre-meeting) don't have votes. Need to extract votes from minutes or transcripts in a separate data_readiness item.",
+        "note": "Session 530: ALREADY IMPLEMENTED. Semantic search on decisions corpus exists at civicos.py:971-986, tested working (10 results for 'housing affordability'). The '0 votes' issue is a DATA gap not code \u2014 vote_json is NULL for all 44 decisions. Decisions extracted from agendas (pre-meeting) don't have votes. Need to extract votes from minutes or transcripts in a separate data_readiness item.",
         "depends_on": [
           "hybrid_what_applies"
         ]
@@ -1399,7 +1399,7 @@
         "status": "ready",
         "priority": 1,
         "description": "Align video-meeting schema: populate meetings.video_url, videos.meeting_url, add video_id to transcript vectors",
-        "artifact": "PgVectorBackend.index_from_storage video→meeting lookup for transcripts",
+        "artifact": "PgVectorBackend.index_from_storage video\u2192meeting lookup for transcripts",
         "note": "Session 526: Metadata backfill resolved all YouTube URL issues. Transcript embeddings now have real YouTube video_ids in metadata (e.g., k5ZUhxHn5pE). URLs correctly generate as youtube.com/watch?v=k5ZUhxHn5pE&t=70s. Read-time fallback also extracts video_id from embedding ID pattern.",
         "key_files": [
           "packages/civic/src/civic/storage/pgvector_backend.py:772-785"
@@ -1409,8 +1409,8 @@
         "status": "complete",
         "priority": 1,
         "description": "Fix transcript vectors storing video_id in meeting_id field",
-        "artifact": "PgVectorBackend.index_from_storage video→meeting lookup (same fix as video_meeting_schema_alignment)",
-        "note": "Session 525: ADDRESSED by video_meeting_schema_alignment code change. The lookup logic resolves transcript.video_id → videos.meeting_id → actual meeting ID. Re-indexing transcripts will apply the fix. Run: modal run scripts/modal_ingest.py --vectors --reindex transcripts"
+        "artifact": "PgVectorBackend.index_from_storage video\u2192meeting lookup (same fix as video_meeting_schema_alignment)",
+        "note": "Session 525: ADDRESSED by video_meeting_schema_alignment code change. The lookup logic resolves transcript.video_id \u2192 videos.meeting_id \u2192 actual meeting ID. Re-indexing transcripts will apply the fix. Run: modal run scripts/modal_ingest.py --vectors --reindex transcripts"
       }
     },
     "architectural_debt": {
@@ -1555,7 +1555,7 @@
     "scaling": {
       "turnkey_city_deployment": {
         "status": "not_ready",
-        "priority": 3,
+        "priority": 0,
         "description": "Make unified config system actually reduce new city deployment effort. Currently config is ~20% of work; extractors, HUD mapping, and elections are ~80%.",
         "rationale": "Session 545 audit found: core infrastructure 70-75% generalizable, but election data (1/5), HUD grantee mapping (manual), and platform-specific extractors still require significant per-city work.",
         "audit_reference": "docs/critical/CITY_DEPLOYMENT_AUDIT.md",
@@ -1577,7 +1577,7 @@
         },
         "improvements_needed": [
           "Auto-discover HUD grantee from FAC/HUD API",
-          "Onboarding wizard (detect platform → generate config → validate)",
+          "Onboarding wizard (detect platform \u2192 generate config \u2192 validate)",
           "Config validation schema with helpful errors",
           "Generic election scraper framework (template-based)"
         ],
@@ -2479,7 +2479,7 @@
         "priority": 99,
         "artifact": "prepare() method includes legal citations and precedents from vector search",
         "description": "When user prepares for a meeting, automatically search relevant: municipal code sections, state legislation, past decisions, similar issues. Include in preparation materials with proper citations.",
-        "note": "Session implemented. prepare() now returns legal_citations list with formatted citations (Cal. Gov. Code, Municipal Code §, etc.) and talking points reference them.",
+        "note": "Session implemented. prepare() now returns legal_citations list with formatted citations (Cal. Gov. Code, Municipal Code \u00a7, etc.) and talking points reference them.",
         "depends_on": "pgvector_cross_corpus_search"
       },
       "action_leverage_points": {
@@ -2501,7 +2501,7 @@
         "priority": 3,
         "artifact": "search_regulatory_stack() deduplicates local code results",
         "description": "MCP audit shows same municipal code section (e.g. 14.03.030) appearing 5x in local regulatory results. Need dedup logic in search_regulatory_stack() local section formatting.",
-        "note": "Session 530: Fixed in context.py — deduplicate local/county results by section_number using seen_sections set. Verified 0 duplicates across housing, traffic safety, parking queries."
+        "note": "Session 530: Fixed in context.py \u2014 deduplicate local/county results by section_number using seen_sections set. Verified 0 duplicates across housing, traffic safety, parking queries."
       }
     },
     "city_status_dashboard": {
@@ -2581,15 +2581,15 @@
         "status": "not_ready",
         "priority": 3,
         "artifact": "Progressive engagement UX from awareness to coordination",
-        "description": "UX flow that guides users through engagement ladder: Awareness (what's happening) → Relevance (what affects me) → Participation (where I can act) → Coordination (who's with me). Each dashboard view surfaces the 'next step' without forcing it.",
+        "description": "UX flow that guides users through engagement ladder: Awareness (what's happening) \u2192 Relevance (what affects me) \u2192 Participation (where I can act) \u2192 Coordination (who's with me). Each dashboard view surfaces the 'next step' without forcing it.",
         "note": "Session 542: The engagement ladder is the conceptual spine of the dashboard. This item is about making the progression feel natural in the UX."
       },
       "civic_dashboard_mvp": {
         "status": "ready",
         "priority": 1,
         "artifact": "MVP civic dashboard with 3+ visualization primitives",
-        "description": "Implement minimum viable dashboard UX before MCP registry listing. Must include: (1) issue geography map as hero visualization with type filtering, (2) visible engagement ladder progression (awareness → participation path), (3) data-forward presentation (patterns emerge, no editorializing), (4) multi-surface capability (same query works in chat + visual rendering).",
-        "note": "2026-02-12: Dashboard MVP complete. Fixed CSS layout overlap (removed z-40 from left pane inner container, added overflow-hidden). Verified data-forward presentation — all sections show factual data (meetings, decisions, votes, issues, budget) with no editorializing. AI features (Summarize, Draft Comment) are user-triggered via chat. LLM provider config is an operational concern for pilot deployment, not a dashboard code blocker.",
+        "description": "Implement minimum viable dashboard UX before MCP registry listing. Must include: (1) issue geography map as hero visualization with type filtering, (2) visible engagement ladder progression (awareness \u2192 participation path), (3) data-forward presentation (patterns emerge, no editorializing), (4) multi-surface capability (same query works in chat + visual rendering).",
+        "note": "2026-02-12: Dashboard MVP complete. Fixed CSS layout overlap (removed z-40 from left pane inner container, added overflow-hidden). Verified data-forward presentation \u2014 all sections show factual data (meetings, decisions, votes, issues, budget) with no editorializing. AI features (Summarize, Draft Comment) are user-triggered via chat. LLM provider config is an operational concern for pilot deployment, not a dashboard code blocker.",
         "depends_on": "city_pulse_mcp_tool",
         "blocks": "mcp_registry_listing",
         "progress": {
@@ -2641,16 +2641,16 @@
         "depends_on": "civic_dashboard_mvp",
         "note": "2026-02-07: Implemented as pure data aggregation (no server-side LLM) per edge intelligence architecture. Backend: /comment-synthesis endpoint fetches from relay, aggregates stances. Frontend: synthesis-panel with colored bar segments + labels above comment thread.",
         "implementation": {
-          "backend": "POST /api/tools/comment-synthesis endpoint in rest_api.py — fetches comments from relay, returns structured aggregation",
+          "backend": "POST /api/tools/comment-synthesis endpoint in rest_api.py \u2014 fetches comments from relay, returns structured aggregation",
           "frontend": "Synthesis bar + labels in CityPulse.svelte comment thread (support=green, oppose=red, neutral=gray)",
-          "architecture": "No LLM on server — provider-agnostic per edge intelligence layer. User's AI does theme extraction via MCP tools."
+          "architecture": "No LLM on server \u2014 provider-agnostic per edge intelligence layer. User's AI does theme extraction via MCP tools."
         }
       },
       "agenda_actionability": {
         "status": "complete",
         "priority": 99,
         "artifact": "LLM-based agenda item actionability classification",
-        "description": "Classify each agenda item as 'actionable' (has a decision point, public input meaningful — e.g. zoning variance, ordinance adoption) vs 'informational' (update, presentation, procedural — e.g. 'Open Time for Public Expression', rail transit update). Classification runs at ingestion time via LLM and is stored permanently. Frontend hides or de-emphasizes voice/comment UI on informational items. No heuristics — use LLM with structured output for reliable classification.",
+        "description": "Classify each agenda item as 'actionable' (has a decision point, public input meaningful \u2014 e.g. zoning variance, ordinance adoption) vs 'informational' (update, presentation, procedural \u2014 e.g. 'Open Time for Public Expression', rail transit update). Classification runs at ingestion time via LLM and is stored permanently. Frontend hides or de-emphasizes voice/comment UI on informational items. No heuristics \u2014 use LLM with structured output for reliable classification.",
         "depends_on": "civic_dashboard_mvp",
         "implementation": {
           "backend_schema": "Add 'actionability' field to agenda items (enum: actionable, informational, mixed)",
@@ -2666,7 +2666,7 @@
         "artifact": "Expandable decision detail cards in CityPulse",
         "description": "Expand Recent Decisions rows to show full detail: vote breakdown, related public testimony (via vector search), linked agenda packet chunks, and timeline context. Click a decision row to expand inline. Fetch additional detail on demand to keep initial load fast.",
         "depends_on": "civic_dashboard_mvp",
-        "note": "2026-02-16: QC addressed — AI summaries, outcome descriptions, video URLs, excerpt quality, upcoming/past distinction. Remaining: vote tally extraction (0/83 decisions have vote_json), related decision quality.",
+        "note": "2026-02-16: QC addressed \u2014 AI summaries, outcome descriptions, video URLs, excerpt quality, upcoming/past distinction. Remaining: vote tally extraction (0/83 decisions have vote_json), related decision quality.",
         "implementation": {
           "backend": "/decision-detail REST endpoint in rest_api.py, decision_detail handler in handlers.py",
           "frontend": "DecisionDetail.svelte component, expandable inline in CityPulse decisions section",
@@ -2814,7 +2814,7 @@
         "artifact": "Three scoped MCP servers deployed as federated architecture reference",
         "description": "Deploy and validate three jurisdiction-scoped MCP servers (federal, california, san-rafael) demonstrating the federated architecture. Federal/state servers are reference implementations; city server is primary user-facing.",
         "note": "Session 548: Deployed all 3 servers. Tool filtering working. Remaining: validate tool calls return PostgreSQL data (containers may need restart), then document architecture.",
-        "rationale": "Federal/state MCPs demonstrate hierarchy (federal → state → city) and cross-jurisdictional alignment. Prepares for future scaling where multiple cities share state/federal data.",
+        "rationale": "Federal/state MCPs demonstrate hierarchy (federal \u2192 state \u2192 city) and cross-jurisdictional alignment. Prepares for future scaling where multiple cities share state/federal data.",
         "architecture": {
           "federal": {
             "role": "Reference implementation - shared by all US jurisdictions",
@@ -3497,7 +3497,7 @@
         },
         "subtasks": [
           "CivicCommitmentEvent model",
-          "Status transitions: committed → completed | withdrawn",
+          "Status transitions: committed \u2192 completed | withdrawn",
           "One commitment per pubkey per action (addressable)",
           "Commitment counts exposed via API"
         ],
@@ -3691,16 +3691,16 @@
         "description": "Phase 2: Make follow-through likely. Phase 1 (adaptive forms, deadline_context, withdraw, expandable UI) is committed. Phase 2 adds commitment tracking and calendar integration.",
         "test_file": "apps/civicos-workspace/tests/e2e/action-templates.spec.ts",
         "subtasks": [
-          "[DONE] Fix deadline date format bug ('Due 3/10/6' → 'Due 3/10/2026')",
-          "[DONE] Always show progress text even at zero ('0 committed — be the first!')",
+          "[DONE] Fix deadline date format bug ('Due 3/10/6' \u2192 'Due 3/10/2026')",
+          "[DONE] Always show progress text even at zero ('0 committed \u2014 be the first!')",
           "[DONE] Surface target field as clickable link (email, form URL, meeting info)",
           "[DONE] Surface template as expandable/copyable text after user commits",
           "[DONE] Add target URL and template textarea to CreateActionModal.svelte",
           "[DONE] Make deadline required on action creation (not optional)",
           "[DONE] Add deadline_context field ('Why this date?') to CivicActionEvent model and UI",
-          "[DONE] Expandable action items — two-level collapse (section + individual)",
+          "[DONE] Expandable action items \u2014 two-level collapse (section + individual)",
           "[DONE] Withdraw commitment endpoint + toggle UI",
-          "'My Commitments' panel — localStorage view of committed actions sorted by deadline",
+          "'My Commitments' panel \u2014 localStorage view of committed actions sorted by deadline",
           "Calendar integration (.ics download) for attend_meeting/public_comment types",
           "Optional coordination_url field on Initiative for external chat links (Signal/SimpleX/Matrix)"
         ],
@@ -3749,7 +3749,7 @@
           "sync_endpoints",
           "event_emission"
         ],
-        "note": "Session 532: Event sync endpoints implemented. Events flow: ingestion → event_emission → coordination_events_log → sync to peers."
+        "note": "Session 532: Event sync endpoints implemented. Events flow: ingestion \u2192 event_emission \u2192 coordination_events_log \u2192 sync to peers."
       },
       "hierarchical_jurisdiction_routing": {
         "status": "ready",
@@ -3757,7 +3757,7 @@
         "description": "Route queries to parent jurisdictions when local data insufficient. city-san-rafael can query county-marin for county-level decisions. Borrows from BGP/IP hierarchical addressing.",
         "test_file": "packages/civicos-relay/tests/test_hierarchy.py",
         "subtasks": [
-          "Define jurisdiction hierarchy schema (city → county → state → federal)",
+          "Define jurisdiction hierarchy schema (city \u2192 county \u2192 state \u2192 federal)",
           "Add parent_jurisdiction field to jurisdiction config",
           "Implement fallback query to parent when local returns empty",
           "Aggregate results from child jurisdictions for parent queries"
@@ -3789,7 +3789,7 @@
       "relay_integration_tests": {
         "status": "pending",
         "priority": 2,
-        "description": "Integration tests for relay → API → MCP flow. Verify voice casting through full stack, subscription delivery, provenance updates.",
+        "description": "Integration tests for relay \u2192 API \u2192 MCP flow. Verify voice casting through full stack, subscription delivery, provenance updates.",
         "test_file": "packages/civicos-services/tests/test_relay_integration.py",
         "subtasks": [
           "Test voice cast via API updates database and provenance",
@@ -3881,7 +3881,7 @@
         "status": "accepted",
         "date": "2026-02-16",
         "context": "WebMCP (W3C, Google/Microsoft initiative) ships in Chrome 146 early preview (Feb 2026, behind flag). ExtensionServerTransport allows extensions to expose themselves as MCP servers to AI agents in the browser. Production readiness expected mid-to-late 2026.",
-        "decision": "Structure extension internal functions (castVoice, getMyActivity, getSuggestions, etc.) as clean, tool-shaped APIs with typed inputs/outputs. This is good practice regardless and makes future WebMCP exposure trivial. Do NOT depend on WebMCP for pilot — it is behind a flag and not production-ready.",
+        "decision": "Structure extension internal functions (castVoice, getMyActivity, getSuggestions, etc.) as clean, tool-shaped APIs with typed inputs/outputs. This is good practice regardless and makes future WebMCP exposure trivial. Do NOT depend on WebMCP for pilot \u2014 it is behind a flag and not production-ready.",
         "consequences": "When WebMCP stabilizes, the extension can expose its tools to Claude.ai/Gemini/etc. natively, completing the edge intelligence vision without a separate server process. Zero additional install for users."
       },
       {
@@ -3889,7 +3889,7 @@
         "title": "Keep Jurisdiction MCP unauthenticated; OAuth only for federation",
         "status": "accepted",
         "date": "2026-02-16",
-        "context": "MCP OAuth 2.1 spec standardized (March 2025, updated June 2025). The two-MCP architecture intentionally keeps Jurisdiction MCP anonymous — it serves public civic data and does not know who is asking. This is a privacy feature, not a limitation.",
+        "context": "MCP OAuth 2.1 spec standardized (March 2025, updated June 2025). The two-MCP architecture intentionally keeps Jurisdiction MCP anonymous \u2014 it serves public civic data and does not know who is asking. This is a privacy feature, not a limitation.",
         "decision": "Do NOT add MCP OAuth to the Jurisdiction MCP for user-level authentication. The Jurisdiction MCP remains unauthenticated for reads (public data). Write operations go through the relay with Nostr signatures (cryptographic, not OAuth). Reserve OAuth for multi-jurisdiction federation: when a Marin County MCP needs to verify 'this request comes from an authorized San Rafael instance' (jurisdiction-level, not user-level auth).",
         "consequences": "Preserves privacy boundary (no user tracking at the MCP layer). Simplifies connector setup (no OAuth consent flow). Federation auth is a post-pilot concern for multi-jurisdiction expansion."
       }
@@ -4063,13 +4063,13 @@
       "subtasks": [
         "Personal MCP scaffold (apps/civicos-personal-mcp/)",
         "SigningProvider interface (sign, getPublicKey, hasKey)",
-        "PasskeyProvider: WebAuthn + PRF → HKDF → secp256k1 (Easy)",
+        "PasskeyProvider: WebAuthn + PRF \u2192 HKDF \u2192 secp256k1 (Easy)",
         "LocalWalletProvider: BIP-39 + PBKDF2 + AES-GCM (Private)",
         "NIP07Provider: detect window.nostr, delegate signing (Sovereign)",
         "HardwareWalletProvider: WebUSB/WebHID (Sovereign)",
         "ManualSigningProvider: display message, paste signature (Sovereign/Airgap)",
         "Provider selection based on instantiation pattern",
-        "Identity tier upgrade flow (Easy → Private → Sovereign)"
+        "Identity tier upgrade flow (Easy \u2192 Private \u2192 Sovereign)"
       ],
       "nip07_integration": [
         "Detect window.nostr object (only in Claude Desktop, NOT in MCP App iframe)",
@@ -4178,7 +4178,7 @@
       "status": "ready",
       "priority": 1,
       "note": "P0: Build MCP Apps action widget using new prepare tools (30810/30811/30812). Follow voice.html pattern.",
-      "description": "End-to-end action flow: Agent discovers actions → prepares unsigned commitment/completion events → client signs → broadcast to relay. This is the core Edge Intelligence capability that transforms intent into civic action.",
+      "description": "End-to-end action flow: Agent discovers actions \u2192 prepares unsigned commitment/completion events \u2192 client signs \u2192 broadcast to relay. This is the core Edge Intelligence capability that transforms intent into civic action.",
       "test_file": "apps/civicos-workspace/tests/e2e/action-flow.spec.ts",
       "flow": [
         "1. User asks about civic issue in chat",
@@ -4194,10 +4194,10 @@
         "11. Agent shows attribution: 'You're 1 of 27'"
       ],
       "subtasks": [
-        "Chat → Action discovery flow",
-        "Commitment flow (prepare → sign → broadcast)",
+        "Chat \u2192 Action discovery flow",
+        "Commitment flow (prepare \u2192 sign \u2192 broadcast)",
         "Template delivery after commitment",
-        "Completion flow (evidence → sign → broadcast)",
+        "Completion flow (evidence \u2192 sign \u2192 broadcast)",
         "Attribution display after outcome"
       ],
       "verification": "2026-02-02: Full backend infrastructure complete - CivicActionEvent/CivicCommitment/CivicCompletion models, CivicActionService with storage protocols, 8 API endpoints, SQL migration, TypeScript types. Needs: frontend API client methods, ActionFlow.vue updates to use new endpoints, E2E tests.",
@@ -4244,8 +4244,8 @@
     "context_assembly_api": {
       "status": "ready",
       "priority": 1,
-      "description": "Surface-agnostic context assembly layer. Given a civic item (agenda item, decision, issue, etc.), assembles a rich context bundle from the CivicOS API — description, history, related municipal code, testimony, cross-references, suggested questions. Any consumer (Open WebUI, browser extension, MCP, Claude.ai) calls the same endpoint and gets the same context, which it then passes to an LLM conversation however that surface does chat.",
-      "_doc": "Strategy session 2026-02-08: The intelligence is in the context assembly, not the UI. This enables portable 'chat with this item' across all surfaces without coupling to any one frontend. Also enables a browser extension distribution strategy — inject CivicOS context into any page showing civic content.",
+      "description": "Surface-agnostic context assembly layer. Given a civic item (agenda item, decision, issue, etc.), assembles a rich context bundle from the CivicOS API \u2014 description, history, related municipal code, testimony, cross-references, suggested questions. Any consumer (Open WebUI, browser extension, MCP, Claude.ai) calls the same endpoint and gets the same context, which it then passes to an LLM conversation however that surface does chat.",
+      "_doc": "Strategy session 2026-02-08: The intelligence is in the context assembly, not the UI. This enables portable 'chat with this item' across all surfaces without coupling to any one frontend. Also enables a browser extension distribution strategy \u2014 inject CivicOS context into any page showing civic content.",
       "artifact": "packages/civicos-services/src/civicos_services/context/assembler.py",
       "test_file": "packages/civicos-services/tests/test_context_agent.py",
       "design_principles": [
@@ -4270,10 +4270,10 @@
         "Wire context router into API server - COMPLETE",
         "Implement section: participation (low complexity, item flags only) - COMPLETE",
         "Implement section: history (what_happened, what_happened_full_context) - COMPLETE",
-        "Implement section: regulatory (what_applies → RegulatoryStack) - COMPLETE",
+        "Implement section: regulatory (what_applies \u2192 RegulatoryStack) - COMPLETE",
         "Implement section: community (whos_with_me, relay voice counts) - COMPLETE (V1 stub, relay pending)",
         "Implement section: testimony (what_was_said, get_public_testimony) - COMPLETE",
-        "Implement section: financial (budget, funding_flow — only for relevant items) - COMPLETE",
+        "Implement section: financial (budget, funding_flow \u2014 only for relevant items) - COMPLETE",
         "Implement suggested question templates per item type - COMPLETE",
         "Add get_item_context MCP tool - COMPLETE",
         "Open WebUI: 'Chat with this item' integration - COMPLETE",
@@ -4283,39 +4283,39 @@
     },
     "browser_extension": {
       "status": "not_ready",
-      "priority": 0,
-      "description": "Chrome browser extension as primary distribution surface. The extension IS the Personal MCP — manages identity, connects to Jurisdiction MCPs, injects civic context into AI surfaces (Claude.ai, ChatGPT), renders City Pulse in side panel. Acts as NIP-07 provider for Nostr ecosystem compatibility.",
+      "priority": 1,
+      "description": "Chrome browser extension as primary distribution surface. The extension IS the Personal MCP \u2014 manages identity, connects to Jurisdiction MCPs, injects civic context into AI surfaces (Claude.ai, ChatGPT), renders City Pulse in side panel. Acts as NIP-07 provider for Nostr ecosystem compatibility.",
       "_doc": "Architecture session 2026-02-12. Full design in docs/critical/BROWSER_EXTENSION_ARCHITECTURE.md. Depends on context_assembly_api (P0) for surface-agnostic context bundles.",
       "architecture_doc": "docs/critical/BROWSER_EXTENSION_ARCHITECTURE.md",
       "phases": [
         "Phase 0: Extension scaffold + tiered identity (Easy/Private/Sovereign) + NIP-07 provider",
         "Phase 1: MCP connections + City Pulse side panel + IndexedDB caching",
         "Phase 2: Voice/signing + relay WebSocket + commitment tracking",
-        "Phase 3: AI surface integration — context injection into Claude.ai/ChatGPT (opt-in per site)",
-        "Phase 4: Payments — NWC wallet connection, L402 pay-per-query, Cashu for relay",
-        "Phase 5: Site content interaction — civic lens on news/social media (post-launch)"
+        "Phase 3: AI surface integration \u2014 context injection into Claude.ai/ChatGPT (opt-in per site)",
+        "Phase 4: Payments \u2014 NWC wallet connection, L402 pay-per-query, Cashu for relay",
+        "Phase 5: Site content interaction \u2014 civic lens on news/social media (post-launch)"
       ],
       "depends_on": [
         "context_assembly_api",
         "client_side_signing"
       ],
       "ports_from": [
-        "civicos-personal-mcp/lib/providers/ → extension lib/providers/ (signing providers)",
-        "civicos-openwebui CityPulse.svelte → extension side-panel/ (dashboard UI)",
-        "civicos-personal-mcp/lib/jurisdiction-mcp-client.ts → extension lib/mcp-client.ts"
+        "civicos-personal-mcp/lib/providers/ \u2192 extension lib/providers/ (signing providers)",
+        "civicos-openwebui CityPulse.svelte \u2192 extension side-panel/ (dashboard UI)",
+        "civicos-personal-mcp/lib/jurisdiction-mcp-client.ts \u2192 extension lib/mcp-client.ts"
       ],
       "extension_phase1_city_pulse": {
         "status": "ready",
         "priority": 1,
-        "artifact": "Browser extension Phase 1 — City Pulse feed with live civic data",
+        "artifact": "Browser extension Phase 1 \u2014 City Pulse feed with live civic data",
         "note": "Side panel fetches from CivicOS REST API /api/tools/city-pulse. Shows upcoming meetings, agenda items, recent decisions, community issues. Collapsible sections, dark theme.",
         "pattern": "Use existing REST API endpoints, same data patterns as Open WebUI CityPulse dashboard"
       },
       "extension_phase1b_read_enhancements": {
         "status": "ready",
         "priority": 1,
-        "artifact": "Browser extension Phase 1b — Read-only enhancements toward Open WebUI parity",
-        "note": "Enrich the existing City Pulse sections without relay integration. Voice counts display (read-only via getVoiceCountsBatch), decision detail expansion (click to expand with testimony excerpts via decision-detail API), calendar buttons (Google Calendar URL + .ics download per meeting), data provenance info panel, past meeting visual indicator. All use existing REST API endpoints — no relay or signing needed.",
+        "artifact": "Browser extension Phase 1b \u2014 Read-only enhancements toward Open WebUI parity",
+        "note": "Enrich the existing City Pulse sections without relay integration. Voice counts display (read-only via getVoiceCountsBatch), decision detail expansion (click to expand with testimony excerpts via decision-detail API), calendar buttons (Google Calendar URL + .ics download per meeting), data provenance info panel, past meeting visual indicator. All use existing REST API endpoints \u2014 no relay or signing needed.",
         "features": [
           "Voice counts display (read-only) on agenda items and decisions",
           "Expandable decision detail with testimony excerpts",
@@ -4332,7 +4332,7 @@
       "extension_phase2_voice_signing": {
         "status": "ready",
         "priority": 1,
-        "artifact": "Browser extension Phase 2 — Voice submission with Nostr signing",
+        "artifact": "Browser extension Phase 2 \u2014 Voice submission with Nostr signing",
         "note": "Support/Oppose/Watch buttons on agenda items and decisions. Kind 30800 events signed via service worker SIGN_EVENT handler. Relay submission with optimistic updates and rollback. User stances persisted to chrome.storage.local. WebSocket live updates and comment threads deferred to Phase 2b/3.",
         "features": [
           "Support/oppose/watching buttons on agenda items and decisions",
@@ -4343,12 +4343,14 @@
           "Locked identity handling (shows 'Unlock to vote')"
         ],
         "pattern": "Port voice UI from Open WebUI CityPulse. Use existing SIGN_EVENT service worker message. Submit to relay coordination API.",
-        "depends_on": ["extension_phase1b_read_enhancements"]
+        "depends_on": [
+          "extension_phase1b_read_enhancements"
+        ]
       },
       "extension_phase2b_commitments": {
         "status": "ready",
         "priority": 99,
-        "artifact": "Browser extension Phase 2b — My Commitments + initiative tracking",
+        "artifact": "Browser extension Phase 2b \u2014 My Commitments + initiative tracking",
         "note": "Add My Commitments personal tracker (localStorage-backed). Show community initiatives with nested civic actions and progress bars. Commit/complete/withdraw actions via relay. Deadline countdown with urgency indicators. Calendar integration for commitment deadlines. ALSO: quick fix meetings section label ('Upcoming Meetings' -> context-aware label) and disable calendar buttons for past meetings.",
         "features": [
           "My Commitments section with deadline tracking",
@@ -4358,11 +4360,13 @@
           "Deadline countdown (urgent if <=3d, overdue coloring)",
           "Coordination channel links (Signal/Matrix/Telegram)"
         ],
-        "depends_on": ["extension_phase2_voice_signing"]
+        "depends_on": [
+          "extension_phase2_voice_signing"
+        ]
       },
       "extension_phase3_ai_viz": {
         "status": "ready",
-        "artifact": "Browser extension Phase 3 — AI integration + visualizations",
+        "artifact": "Browser extension Phase 3 \u2014 AI integration + visualizations",
         "note": "COMPLETE 2026-02-16. All features implemented: Claude.ai context injection (claude-bridge.ts content script + session storage + synthetic paste), comment thread summarization (AI-powered), Leaflet.js issue map (8 categories, time/category filters, expand/collapse, trend indicator), Chart.js budget doughnut (department breakdown), Create Initiative modal with AI draft generation. npm run build passes clean.",
         "features": [
           "Chat with decision/agenda item (context injection into AI surfaces)",
@@ -4371,7 +4375,9 @@
           "Budget chart (categorical breakdown, needs Chart.js or similar)",
           "Create Initiative modal"
         ],
-        "depends_on": ["extension_phase2b_commitments"]
+        "depends_on": [
+          "extension_phase2b_commitments"
+        ]
       },
       "extension_ux_parity": {
         "status": "complete",
@@ -4384,12 +4390,14 @@
           "Loading/error state parity (skeletons, retry logic, empty states)",
           "Interaction pattern parity (expand/collapse, hover effects, transitions)"
         ],
-        "depends_on": ["extension_phase3_ai_viz"]
+        "depends_on": [
+          "extension_phase3_ai_viz"
+        ]
       },
       "extension_phase4_micropayments": {
         "status": "not_ready",
         "priority": 3,
-        "artifact": "Browser extension Phase 4 — Lightning/Cashu micropayments",
+        "artifact": "Browser extension Phase 4 \u2014 Lightning/Cashu micropayments",
         "note": "L402 gates compute-intensive MCP tools. NWC (NIP-47) wallet bridge in extension. Cashu (NIP-60) for privacy. Free tier always works without wallet. See micropayments section and docs/critical/BROWSER_EXTENSION_ARCHITECTURE.md.",
         "features": [
           "L402 middleware on Jurisdiction MCP HTTP server",
@@ -4398,7 +4406,9 @@
           "Spending controls: per-request threshold, daily limit",
           "Graceful degradation: free tier without wallet"
         ],
-        "depends_on": ["extension_phase3_ai_viz"]
+        "depends_on": [
+          "extension_phase3_ai_viz"
+        ]
       }
     },
     "micropayments": {
@@ -4424,6 +4434,20 @@
         "https://nips.nostr.com/60",
         "https://nips.nostr.com/61",
         "https://github.com/getAlby/mcp"
+      ]
+    },
+    "ai_proxy": {
+      "status": "not_ready",
+      "priority": 1,
+      "description": "CivicOS-hosted AI proxy that eliminates API key friction. Users get AI drafting out of the box \u2014 no Anthropic/OpenAI account needed. Thin Modal function proxies to Anthropic with system prompt, rate limiting per-npub, and usage caps. Extension ships with built-in 'civicos' provider as default, with Claude/OpenAI BYOK as fallback.",
+      "components": [
+        "Modal endpoint: POST /v1/draft with npub auth + rate limiting",
+        "Extension: CivicosProxyProvider (default AI provider, no config needed)",
+        "Extension: Options UI update \u2014 proxy as default, BYOK as advanced option",
+        "Server: Per-npub rate limits (e.g. 20 drafts/day), global cost cap"
+      ],
+      "depends_on": [
+        "browser_extension"
       ]
     }
   },
