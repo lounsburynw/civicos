@@ -21,6 +21,17 @@
 
 3. **"Summarize" button in comment threads** — CityPulse had a sparkle summarize button for comment threads. Extension had this for decision testimony but not agenda comments. Added `composeThreadSummary()` + summarize button using existing `askAI()` infrastructure, shows inline markdown response.
 
+### Enriched Decision Detail Dashboard
+
+User requested richer decision detail (beyond related decisions). Implemented:
+
+1. **Outcome badge** — styled pill (green=approved, red=denied, gray=other) + structured vote tally
+2. **Testimony cards** — redesigned with left blue accent border, speaker name, monospace timestamp badge, 3-line text clamp, "Watch clip" video links
+3. **Council Discussion section** — renders `council_discussion` array (already in API type, was never displayed). Same card format as testimony.
+4. **Expand/collapse for long lists** — testimony and council sections show first 3, clickable "+N more" / "Show less" toggle
+5. **Related Decisions uncapped** — now shows all (was capped at 3)
+6. **AI context enriched** — `composeDecisionContext()` now includes council discussion excerpts
+
 ### Build: PASS (vite + tsc)
 
 ---
