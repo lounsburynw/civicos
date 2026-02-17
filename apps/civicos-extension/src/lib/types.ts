@@ -61,10 +61,12 @@ export interface CommunityPulse {
 
 export interface DecisionDetailData {
   found: boolean;
+  summary?: string;
   decision?: {
     id: string;
     title: string;
     outcome: string;
+    outcome_description?: string;
     date: string;
     body?: string;
     votes?: Record<string, number>;
