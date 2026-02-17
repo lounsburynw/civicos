@@ -308,6 +308,28 @@ class VectorBackend(Protocol):
         """
         ...
 
+    def get_chunks_by_prefix(
+        self,
+        id_prefix: str,
+        corpus_type: str = "transcripts",
+        limit: int = 800,
+    ) -> List[SearchResult]:
+        """
+        Fetch stored chunks by ID prefix (no embedding required).
+
+        Used for bulk retrieval of related chunks — e.g., all transcript
+        chunks from a specific meeting video.
+
+        Args:
+            id_prefix: ID prefix to match (e.g., "transcript-NYkGE9nVLUc-")
+            corpus_type: Corpus type filter
+            limit: Maximum chunks to return
+
+        Returns:
+            List of SearchResult (score will be 0.0 since this is not a similarity search)
+        """
+        ...
+
     def delete_index(
         self,
         jurisdiction_id: str,
