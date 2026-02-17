@@ -228,6 +228,7 @@ For end users and city admins:
 - `ADMIN_SETUP_GUIDE.md`, `ADMIN_DATA_MANAGEMENT.md`, `ADMIN_TROUBLESHOOTING.md`
 - `CITY_ONBOARDING_GUIDE.md`, `MCP_SETUP_GUIDE.md`
 - `PLATFORM_SPECIFIC_NOTES.md`, `PILOT_USER_IDENTIFICATION.md`, `VERIFICATION_TUTORIAL.md`
+- `ATTESTATION_GUIDE.md` — Single-use code attestation (admin + user workflows)
 
 ### Archive (docs/archive/)
 Historical docs from completed phases. Recoverable if needed.
