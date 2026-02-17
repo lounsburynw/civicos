@@ -104,6 +104,16 @@ class GetItemContextRequest(BaseModel):
     sections: Optional[str] = Field(default=None, description="Comma-separated sections (omit for all). Valid: history, regulatory, community, financial, testimony, participation")
 
 
+class ActionDraftRequest(BaseModel):
+    """Request for action-draft endpoint."""
+    action_type: str = Field(..., description="Action type: written_comment, public_comment, or contact_official")
+    topic: str = Field(..., description="Initiative topic (e.g., 'affordable housing')")
+    description: str = Field(..., description="Action description")
+    target: Optional[str] = Field(default=None, description="Who to address (email, name, body)")
+    template: Optional[str] = Field(default=None, description="Existing template or talking points")
+    jurisdiction: str = Field(default="city-san-rafael", description="Jurisdiction ID")
+
+
 class CommentSynthesisRequest(BaseModel):
     """Request for comment-synthesis endpoint."""
     entity_id: str = Field(..., description="Entity ID to get comment synthesis for (e.g., 'agenda-item:123')")
@@ -475,5 +485,30 @@ def create_rest_router(registry, civic, jurisdiction, validate_input, logger):
             "neutral": neutral,
             "comments": comment_entries,
         })
+
+    @router.post("/action-draft", response_model=ToolResponse,
+                  summary="Generate AI draft for a civic action",
+                  description="Generate a contextual draft (comment, speaking points, or email) for a civic action using RAG context from meetings, decisions, and legislation.")
+    async def action_draft(request: ActionDraftRequest):
+        try:
+            result = civic.draft_action(
+                action_type=request.action_type,
+                topic=request.topic,
+                description=request.description,
+                target=request.target,
+                template=request.template,
+            )
+            return ToolResponse(data={
+                "draft": result.draft,
+                "description": result.description,
+                "citations": result.citations,
+            })
+        except ValueError as e:
+            raise HTTPException(status_code=422, detail=str(e))
+        except RuntimeError as e:
+            raise HTTPException(status_code=503, detail=str(e))
+        except Exception as e:
+            logger.error(f"action-draft failed: {e}")
+            raise HTTPException(status_code=500, detail="Draft generation failed")
 
     return router

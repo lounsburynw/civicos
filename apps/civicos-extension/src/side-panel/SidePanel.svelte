@@ -1,6 +1,6 @@
 <script lang="ts">
   import { sendMessage } from '../lib/messaging.js';
-  import { getCityPulse, getDecisionDetail, getDataProvenance, getVoiceCountsBatch, submitVoice, revokeVoice, getInitiatives, getCivicActions, getCivicActionProgress, commitToCivicAction, completeCivicAction, withdrawCivicAction, createInitiative, createCivicAction, getIssueGeography, getBudgetSummary, getComments, getCommentCountsBatch, submitComment, getCommentSynthesis, getItemContext, setRelayUrl } from '../lib/api.js';
+  import { getCityPulse, getDecisionDetail, getDataProvenance, getVoiceCountsBatch, submitVoice, revokeVoice, getInitiatives, getCivicActions, getCivicActionProgress, commitToCivicAction, completeCivicAction, withdrawCivicAction, createInitiative, createCivicAction, generateActionDraft, getIssueGeography, getBudgetSummary, getComments, getCommentCountsBatch, submitComment, getCommentSynthesis, getItemContext, setRelayUrl } from '../lib/api.js';
   import { isAIAvailable, getAIManager, onAIConfigChanged, composeDraftPrompt, composeEnrichPrompt, SYSTEM_PROMPT, QA_SYSTEM_PROMPT } from '../lib/ai.js';
   import type { IdentityInfo, NostrEvent, SignedNostrEvent } from '../lib/providers/types.js';
   import { CivicEventKinds, createVoiceContent, createVoiceTags, createCommitmentContent, createCommitmentTags, createCompletionContent, createCompletionTags, generateCommitmentId, generateCompletionId, generateActionRef } from '../lib/providers/types.js';
@@ -88,6 +88,9 @@
   let initiativeActions = $state(new Map<string, CivicAction[]>());
   let actionProgress = $state(new Map<string, CivicActionProgress>());
   let actionsLoading = $state(new Set<string>());
+
+  // AI action drafts (create form)
+  let formDraftLoading = $state(false);
 
   // Commitment tracking (persisted)
   let committedActions = $state(new Set<string>());
@@ -1456,6 +1459,37 @@
     actionInProgress = new Set(actionInProgress);
   }
 
+  // === AI Draft Generation ===
+
+  const DRAFTABLE_TYPES = new Set(['written_comment', 'public_comment', 'contact_official']);
+
+  async function handleFormDraft(initiative: Initiative) {
+    if (formDraftLoading) return;
+    formDraftLoading = true;
+    try {
+      const description = newAction.description.trim()
+        || `${initiative.title}: ${initiative.description}`;
+      const result = await generateActionDraft(
+        newAction.action_type,
+        initiative.topic,
+        description,
+        newAction.target || undefined,
+        newAction.template || undefined,
+      );
+      if (result) {
+        newAction.template = result.draft;
+        if (result.description && !newAction.description.trim()) {
+          newAction.description = result.description;
+        }
+      } else {
+        showToast('Failed to generate draft');
+      }
+    } catch {
+      showToast('Draft generation error');
+    }
+    formDraftLoading = false;
+  }
+
   // === Deadline helpers ===
 
   function deadlineDaysLeft(deadline: string): number {
@@ -2634,13 +2668,25 @@
                                 <span class="ini-locked-hint">Unlock to participate</span>
                               {/if}
                             </div>
+
+                            {#if action.template}
+                              <div class="ini-draft">
+                                <textarea class="ini-draft-text" readonly>{action.template}</textarea>
+                                <div class="ini-draft-actions">
+                                  <button class="ini-btn-sm ini-btn-copy" onclick={async () => {
+                                    await navigator.clipboard.writeText(action.template!);
+                                    showToast('Copied to clipboard');
+                                  }}>Copy</button>
+                                </div>
+                              </div>
+                            {/if}
                           </div>
                         {/each}
                       {/if}
                       <!-- Add Action -->
                       {#if showCreateAction === initiative.id}
                         {@const actionConfig = ACTION_TYPE_CONFIG[newAction.action_type] || DEFAULT_ACTION_CONFIG}
-                        <div class="ini-form ini-action-form">
+                        <div class="ini-form ini-action-form" class:ini-drafting={formDraftLoading}>
                           {#if identity && !identity.isUnlocked}
                             <div class="unlock-inline">
                               {#if identity.tier === 'private'}
@@ -2683,6 +2729,13 @@
                                 <span class="ini-char-count" class:near-limit={newAction.template.length > 1600}>{newAction.template.length}/2000</span>
                               </div>
                             </label>
+                            {#if DRAFTABLE_TYPES.has(newAction.action_type)}
+                              <button class="ini-btn-sm ini-btn-draft"
+                                      disabled={formDraftLoading}
+                                      onclick={() => handleFormDraft(initiative)}>
+                                {formDraftLoading ? 'Drafting...' : 'Draft with AI'}
+                              </button>
+                            {/if}
                           {/if}
                           <label class="ini-field-label">{actionConfig.deadlineLabel}
                             <div class="ini-field">
@@ -4976,6 +5029,42 @@
     border: 1px solid #333;
     border-radius: 8px;
     padding: 10px 12px;
+    position: relative;
+  }
+
+  /* AI drafting border animation */
+  .ini-drafting {
+    position: relative;
+    border-color: transparent;
+  }
+  .ini-drafting::before {
+    content: '';
+    position: absolute;
+    inset: -1px;
+    border-radius: inherit;
+    padding: 1px;
+    background: conic-gradient(
+      from var(--draft-angle, 0deg),
+      transparent 40%,
+      #a78bfa 50%,
+      #7c3aed 55%,
+      #a78bfa 60%,
+      transparent 70%
+    );
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    animation: draft-rotate 2s linear infinite;
+    pointer-events: none;
+  }
+  @keyframes draft-rotate {
+    to { --draft-angle: 360deg; }
+  }
+  @property --draft-angle {
+    syntax: '<angle>';
+    initial-value: 0deg;
+    inherits: false;
   }
   .ini-action-top {
     display: flex;
@@ -5046,6 +5135,57 @@
     color: #6b7280;
     font-style: italic;
   }
+
+  /* AI Draft */
+  .ini-btn-draft {
+    margin-top: 6px;
+    padding: 4px 10px;
+    font-size: 11px;
+    font-weight: 500;
+    color: #a78bfa;
+    background: rgba(139, 92, 246, 0.1);
+    border: 1px solid rgba(139, 92, 246, 0.25);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+  }
+  .ini-btn-draft:hover:not(:disabled) { background: rgba(139, 92, 246, 0.2); border-color: rgba(139, 92, 246, 0.4); }
+  .ini-btn-draft:disabled { opacity: 0.5; cursor: default; }
+  .ini-draft {
+    margin-top: 8px;
+    border: 1px solid rgba(139, 92, 246, 0.2);
+    border-radius: 8px;
+    padding: 8px;
+    background: rgba(139, 92, 246, 0.05);
+  }
+  .ini-draft-text {
+    width: 100%;
+    min-height: 120px;
+    background: transparent;
+    border: none;
+    color: #d1d5db;
+    font-size: 12px;
+    line-height: 1.5;
+    resize: vertical;
+    font-family: inherit;
+    outline: none;
+  }
+  .ini-draft-actions {
+    display: flex;
+    gap: 6px;
+    margin-top: 6px;
+  }
+  .ini-btn-copy {
+    padding: 3px 10px;
+    font-size: 11px;
+    font-weight: 500;
+    color: #a78bfa;
+    background: rgba(139, 92, 246, 0.15);
+    border: 1px solid rgba(139, 92, 246, 0.3);
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  .ini-btn-copy:hover { background: rgba(139, 92, 246, 0.25); }
 
   /* Add Action button */
   .ini-add-action {

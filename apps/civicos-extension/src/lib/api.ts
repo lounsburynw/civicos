@@ -180,7 +180,7 @@ export async function getInitiatives(
   );
   if (!response.ok) return [];
   const data = await response.json();
-  return data.initiatives || [];
+  return Array.isArray(data) ? data : data.initiatives || [];
 }
 
 export async function getCivicActions(initiativeId: string): Promise<CivicAction[]> {
@@ -382,6 +382,35 @@ export async function createCivicAction(
     return response.json();
   } catch (err) {
     console.error('[CivicOS] createCivicAction error:', err);
+    return null;
+  }
+}
+
+// === AI Draft Generation ===
+
+export async function generateActionDraft(
+  actionType: string,
+  topic: string,
+  description: string,
+  target?: string,
+  template?: string,
+): Promise<{ draft: string; description?: string; citations: string[] } | null> {
+  try {
+    return await apiRequest<{ draft: string; description?: string; citations: string[] }>(
+      '/api/tools/action-draft',
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          action_type: actionType,
+          topic,
+          description,
+          target: target || null,
+          template: template || null,
+        }),
+      }
+    );
+  } catch (err) {
+    console.error('[CivicOS] generateActionDraft error:', err);
     return null;
   }
 }

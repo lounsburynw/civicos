@@ -76,6 +76,7 @@ from civicos.types import (
     Voice,
     Subscription,
     Preparation,
+    ActionDraft,
     Suggestion,
     CoordinationPlan,
     Outcome,
@@ -1900,6 +1901,132 @@ class CivicOS:
             allies=result.allies,
             logistics=result.logistics,
         )
+
+    # ─────────── AI DRAFT GENERATION ───────────
+
+    def draft_action(
+        self,
+        action_type: str,
+        topic: str,
+        description: str,
+        target: Optional[str] = None,
+        template: Optional[str] = None,
+    ) -> ActionDraft:
+        """
+        Generate an AI draft for a civic action.
+
+        Uses recent decisions as context and Claude Haiku for generation.
+        Supports written_comment, public_comment, and contact_official types.
+
+        Args:
+            action_type: One of written_comment, public_comment, contact_official
+            topic: Initiative topic (e.g., "affordable housing")
+            description: Action description or initiative context
+            target: Who to address (email, name, body)
+            template: Existing talking points to build on
+
+        Returns:
+            ActionDraft with generated text, optional description, and citations
+        """
+        import os
+
+        valid_types = {"written_comment", "public_comment", "contact_official"}
+        if action_type not in valid_types:
+            raise ValueError(f"Invalid action_type '{action_type}'. Valid: {', '.join(sorted(valid_types))}")
+
+        api_key = os.environ.get("ANTHROPIC_API_KEY")
+        if not api_key:
+            raise RuntimeError("ANTHROPIC_API_KEY not configured")
+
+        # Gather context from recent decisions (lightweight DB query)
+        citations = []
+        context_parts = []
+
+        try:
+            all_decisions = self._storage.get_decisions(
+                jurisdiction_id=self.jurisdiction, limit=50
+            )
+            topic_lower = topic.lower()
+            keywords = topic_lower.split()
+            matched = [
+                d for d in all_decisions
+                if any(
+                    kw in (d.get("title") or "").lower() or kw in (d.get("body") or "").lower()
+                    for kw in keywords
+                )
+            ]
+            relevant = matched[:5] if matched else all_decisions[:3]
+            for d in relevant:
+                title = d.get("title", "")
+                outcome = d.get("outcome", "")
+                body = d.get("body", "")
+                if title:
+                    entry = f"- {title}"
+                    if outcome:
+                        entry += f" (Outcome: {outcome})"
+                    if body:
+                        entry += f"\n  {body[:200]}"
+                    context_parts.append(entry)
+                    citations.append(title)
+        except Exception as e:
+            logger.warning(f"draft_action: decisions query error: {e}")
+
+        rag_context = "\n\n".join(context_parts) if context_parts else "No specific context available."
+
+        # Build prompt
+        type_instructions = {
+            "written_comment": "Write a formal written comment (2-3 paragraphs) suitable for submission to a city body." + (f" Address it to: {target}." if target else ""),
+            "public_comment": "Write 2-minute speaking points in bullet format (~300 words) for delivering public comment at a city meeting.",
+            "contact_official": "Write a concise email draft (1-2 paragraphs) to a city official." + (f" Address it to: {target}." if target else ""),
+        }
+        action_type_labels = {
+            "written_comment": "Submit a written comment",
+            "public_comment": "Deliver public comment",
+            "contact_official": "Email city official",
+        }
+
+        template_section = ""
+        if template:
+            template_section = f"\nThe user provided these talking points or draft text to build on:\n{template}\n"
+
+        prompt = f"""You are helping a resident write a civic communication about: {topic}
+
+Action: {description}
+{template_section}
+{type_instructions[action_type]}
+
+Use this context from actual city records to make the draft specific and well-informed:
+
+{rag_context}
+
+Guidelines:
+- Write in first person as a concerned resident
+- Be specific — reference actual decisions, code sections, or facts from the context
+- Maintain a respectful, constructive tone
+- Do not make up facts not supported by the provided context
+- Do not include placeholders like [YOUR NAME] — the user will personalize it
+
+IMPORTANT: Start your response with a one-line action description (max 80 chars) on its own line, then a blank line, then the full draft. The action description should be a short imperative like "{action_type_labels.get(action_type, 'Take action')} about [specific topic]". Do NOT include any label or prefix on the description line."""
+
+        import anthropic
+        client = anthropic.Anthropic(api_key=api_key)
+        response = client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=800,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        text = response.content[0].text.strip()
+
+        # Parse description from first line
+        parts = text.split("\n", 1)
+        if len(parts) == 2 and len(parts[0]) <= 120:
+            action_desc = parts[0].strip()
+            draft = parts[1].strip()
+        else:
+            action_desc = None
+            draft = text
+
+        return ActionDraft(draft=draft, description=action_desc, citations=citations)
 
     # ─────────── ORCHESTRATION METHODS (AI) ───────────
 
