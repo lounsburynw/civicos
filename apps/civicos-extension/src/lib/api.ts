@@ -226,8 +226,12 @@ export async function commitToCivicAction(
         }),
       }
     );
+    if (!response.ok) {
+      console.error('[CivicOS] commitToCivicAction failed:', response.status, await response.text());
+    }
     return response.ok;
-  } catch {
+  } catch (err) {
+    console.error('[CivicOS] commitToCivicAction error:', err);
     return false;
   }
 }
@@ -256,8 +260,12 @@ export async function completeCivicAction(
         }),
       }
     );
+    if (!response.ok) {
+      console.error('[CivicOS] completeCivicAction failed:', response.status, await response.text());
+    }
     return response.ok;
-  } catch {
+  } catch (err) {
+    console.error('[CivicOS] completeCivicAction error:', err);
     return false;
   }
 }
@@ -295,29 +303,39 @@ export async function createInitiative(
   description: string,
   publicKey: string,
   signature: string,
+  createdAt: number,
   location?: string,
   coordinationUrl?: string
 ): Promise<Initiative | null> {
   try {
     const relayUrl = await getRelayUrl();
-    const response = await fetch(`${relayUrl}/coordination/initiative`, {
+    const url = `${relayUrl}/coordination/initiative`;
+    const body = {
+      jurisdiction,
+      topic,
+      title,
+      description,
+      location: location || null,
+      coordination_url: coordinationUrl || null,
+      public_key: publicKey,
+      signature,
+      created_at: createdAt,
+    };
+    console.log('[CivicOS] createInitiative POST', url, body);
+    const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        jurisdiction,
-        topic,
-        title,
-        description,
-        location: location || null,
-        coordination_url: coordinationUrl || null,
-        public_key: publicKey,
-        signature,
-      }),
+      body: JSON.stringify(body),
     });
-    if (!response.ok) return null;
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('[CivicOS] createInitiative failed:', response.status, errorText);
+      throw new Error(`Relay error ${response.status}: ${errorText}`);
+    }
     return response.json();
-  } catch {
-    return null;
+  } catch (err) {
+    console.error('[CivicOS] createInitiative error:', err);
+    throw err;
   }
 }
 

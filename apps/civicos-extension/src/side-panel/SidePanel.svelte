@@ -1523,6 +1523,7 @@
         newInitiative.description.trim(),
         signResult.data.pubkey,
         signResult.data.sig,
+        createdAt,
         undefined,
         newInitiative.coordination_url.trim() || undefined
       );
@@ -2450,19 +2451,27 @@
         <span class="chevron" class:open={expanded.initiatives}></span>
       </button>
       {#if expanded.initiatives}
-        <div class="ini-section-bar">
+        <div class="ini-toolbar">
+          <button class="ini-new-btn" onclick={() => { showCreateInitiative = !showCreateInitiative; }}>
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+            Start Initiative
+          </button>
           {#if aggregateStats().committed > 0 || aggregateStats().completed > 0}
             <div class="ini-aggregate-stats">
               {#if aggregateStats().committed > 0}<span class="agg-stat">{aggregateStats().committed} committed</span>{/if}
               {#if aggregateStats().completed > 0}<span class="agg-stat agg-completed">{aggregateStats().completed} completed</span>{/if}
             </div>
           {/if}
-          <button class="ini-start-btn" onclick={() => { showCreateInitiative = !showCreateInitiative; }}>Start Initiative</button>
         </div>
         <!-- Create initiative form -->
         {#if showCreateInitiative}
           <div class="ini-form">
-            <div class="ini-form-title">Start a Community Initiative</div>
+            <div class="ini-form-header">
+              <div class="ini-form-title">Start a Community Initiative</div>
+              <button class="ini-form-close" aria-label="Close form" onclick={() => { showCreateInitiative = false; }}>
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+              </button>
+            </div>
 
             {#if !identity}
               <div class="ini-hint">Set up identity in <button class="link-btn" onclick={openOptions}>Options</button> to sign initiatives.</div>
@@ -2537,9 +2546,15 @@
                     <span class="ini-topic-pill">{initiative.topic}</span>
                     <div class="ini-card-badges">
                       {#if initiative.voice_count > 0}
-                        <span class="ini-voice-badge">{initiative.voice_count} voices</span>
+                        <span class="ini-voice-inline">
+                          <svg class="ini-voice-icon" viewBox="0 0 16 16" fill="currentColor"><path d="M6.956 1.745C7.021.81 7.908.087 8.864.325l.261.066c.463.116.874.456 1.012.965.22.816.533 2.511.062 4.51a10 10 0 0 1 .443-.051c.713-.065 1.669-.072 2.516.21.518.173.994.681 1.2 1.273.184.532.16 1.162-.234 1.733q.086.18.138.363c.077.27.113.567.113.856s-.036.586-.113.856c-.039.135-.09.273-.16.404.169.387.107.82-.003 1.149a3.2 3.2 0 0 1-.488.901c.054.152.076.312.076.465 0 .305-.089.625-.253.912C13.1 15.522 12.437 16 11.5 16H8c-.605 0-1.07-.081-1.466-.218a4.8 4.8 0 0 1-.97-.484l-.048-.03c-.504-.307-.999-.609-2.068-.722C2.682 14.464 2 13.846 2 13V9c0-.85.685-1.432 1.357-1.615.849-.232 1.574-.787 2.132-1.41.56-.627.914-1.28 1.039-1.639.199-.575.356-1.539.428-2.59z"/></svg>
+                          <span class="ini-voice-num">{initiative.voice_count}</span>
+                        </span>
                       {/if}
-                      <span class="ini-status-badge" class:active={initiative.status === 'active'}>{initiative.status}</span>
+                      {#if initiative.coordination_url}
+                        <svg class="ini-coord-icon" viewBox="0 0 16 16" fill="none"><path d="M6 3H3v10h10v-3M9 2h5v5M14 2L7 9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                      {/if}
+                      <svg class="ini-expand-chevron" class:expanded={expandedInitiatives.has(initiative.id)} viewBox="0 0 16 16" fill="currentColor"><path fill-rule="evenodd" d="M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z"/></svg>
                     </div>
                   </div>
                   <div class="ini-card-title">{initiative.title}</div>
@@ -2550,9 +2565,6 @@
                       {#if stats.committed > 0}<span class="ini-stat">{stats.committed} committed</span>{/if}
                       {#if stats.completed > 0}<span class="ini-stat ini-stat-done">{stats.completed} done</span>{/if}
                     </div>
-                  {/if}
-                  {#if initiative.coordination_url}
-                    <div class="ini-card-coord">Has coordination channel</div>
                   {/if}
                 </button>
 
@@ -2607,7 +2619,10 @@
                             <div class="ini-action-btns">
                               {#if identity?.isUnlocked}
                                 {#if completedActions.has(action.id)}
-                                  <span class="ini-completed-label">Completed</span>
+                                  <span class="ini-completed-label">
+                                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 8.5l3.5 3.5L13 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                                    Done
+                                  </span>
                                 {:else if committedActions.has(action.id)}
                                   <button class="ini-btn-primary ini-btn-sm" disabled={actionInProgress.has(action.id)} onclick={() => handleComplete(action)}>Mark Done</button>
                                   <button class="ini-btn-cancel ini-btn-sm" disabled={actionInProgress.has(action.id)} onclick={() => handleWithdraw(action)}>Withdraw</button>
@@ -3029,7 +3044,6 @@
     gap: 6px;
     align-items: center;
   }
-  .unlock-row .form-input { flex: 1; min-width: 0; }
 
   .npub {
     font-family: 'SF Mono', 'Fira Code', monospace;
@@ -3727,7 +3741,6 @@
     text-align: left;
     color: inherit;
   }
-  .initiative-toggle:hover .card-title { color: #60a5fa; }
 
   .initiative-header {
     display: flex;
@@ -4625,19 +4638,40 @@
     letter-spacing: 0;
   }
 
-  .ini-section-bar {
+  /* Toolbar inside expanded section: stats + New button */
+  .ini-toolbar {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 6px 12px;
+    padding: 6px 0 2px;
+  }
+  .ini-new-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+    font-size: 13px;
+    font-weight: 500;
+    padding: 6px 14px;
+    border: 1px solid #374151;
+    border-radius: 8px;
+    background: rgba(59, 130, 246, 0.08);
+    color: #60a5fa;
+    cursor: pointer;
+    transition: all 0.15s;
   }
   .ini-aggregate-stats {
     display: flex;
     gap: 12px;
     font-size: 11px;
+    margin-left: auto;
   }
   .agg-stat { color: #9ca3af; }
   .agg-stat.agg-completed { color: #4ade80; }
+  .ini-new-btn:hover {
+    background: rgba(59, 130, 246, 0.12);
+    border-color: #60a5fa;
+  }
 
   .ini-card-stats {
     display: flex;
@@ -4647,19 +4681,6 @@
   }
   .ini-stat { color: #9ca3af; }
   .ini-stat.ini-stat-done { color: #4ade80; }
-
-  .ini-start-btn {
-    font-size: 10px;
-    font-weight: 500;
-    color: #3b82f6;
-    cursor: pointer;
-    padding: 2px 10px;
-    border-radius: 10px;
-    border: 1px solid #3b82f6;
-    white-space: nowrap;
-    transition: all 0.15s;
-  }
-  .ini-start-btn:hover { background: rgba(59, 130, 246, 0.1); }
 
   /* === Create Initiative Form === */
   .ini-form {
@@ -4672,11 +4693,31 @@
     flex-direction: column;
     gap: 12px;
   }
+  .ini-form-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
   .ini-form-title {
     font-size: 14px;
     font-weight: 600;
     color: #eee;
   }
+  .ini-form-close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: #6b7280;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .ini-form-close:hover { color: #d1d5db; background: rgba(255, 255, 255, 0.06); }
   .ini-field-label {
     display: flex;
     flex-direction: column;
@@ -4732,12 +4773,6 @@
     margin-top: 2px;
   }
   .ini-char-count.near-limit { color: #dc2626; }
-  .ini-field-label {
-    display: block;
-    font-size: 11px;
-    color: #9ca3af;
-    margin-bottom: 3px;
-  }
 
   /* Topic chips */
   .ini-topic-chips {
@@ -4850,25 +4885,41 @@
   .ini-card-badges {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 8px;
+    flex-shrink: 0;
   }
-  .ini-voice-badge {
-    font-size: 11px;
-    color: #a78bfa;
-    font-weight: 500;
-  }
-  .ini-status-badge {
-    font-size: 10px;
-    font-weight: 600;
-    padding: 1px 6px;
-    border-radius: 4px;
-    text-transform: uppercase;
-    background: rgba(107, 114, 128, 0.15);
+  .ini-voice-inline {
+    display: flex;
+    align-items: center;
+    gap: 3px;
     color: #9ca3af;
   }
-  .ini-status-badge.active {
-    background: rgba(34, 197, 94, 0.12);
-    color: #4ade80;
+  .ini-voice-icon {
+    width: 13px;
+    height: 13px;
+    color: #60a5fa;
+  }
+  .ini-voice-num {
+    font-size: 11px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    color: #9ca3af;
+  }
+  .ini-coord-icon {
+    width: 13px;
+    height: 13px;
+    color: #6b7280;
+    flex-shrink: 0;
+  }
+  .ini-expand-chevron {
+    width: 12px;
+    height: 12px;
+    color: #6b7280;
+    flex-shrink: 0;
+    transition: transform 150ms ease;
+  }
+  .ini-expand-chevron.expanded {
+    transform: rotate(180deg);
   }
   .ini-card-title {
     color: #eee;
@@ -4887,11 +4938,8 @@
     overflow: hidden;
     line-height: 1.4;
   }
-  .ini-card-coord {
-    font-size: 11px;
-    color: #6b7280;
-    margin-top: 4px;
-  }
+  .ini-card-toggle:hover .ini-expand-chevron { color: #60a5fa; }
+  .ini-card-toggle:hover .ini-coord-icon { color: #60a5fa; }
 
   /* === Initiative Detail (expanded) === */
   .ini-detail {
@@ -4962,9 +5010,9 @@
   }
   .ini-progress-bar {
     flex: 1;
-    height: 4px;
+    height: 6px;
     background: #333;
-    border-radius: 2px;
+    border-radius: 3px;
     overflow: hidden;
   }
   .ini-progress-fill {
@@ -4982,9 +5030,15 @@
     align-items: center;
   }
   .ini-completed-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
     font-size: 12px;
-    font-weight: 500;
+    font-weight: 600;
     color: #4ade80;
+    padding: 3px 10px;
+    background: rgba(34, 197, 94, 0.1);
+    border-radius: 6px;
   }
   .ini-locked-hint {
     font-size: 11px;
