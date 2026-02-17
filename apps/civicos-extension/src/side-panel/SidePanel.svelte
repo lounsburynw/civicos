@@ -2267,12 +2267,19 @@
                           <span class="outcome-badge" class:approved={detail.decision.outcome?.toLowerCase().includes('approved')} class:denied={detail.decision.outcome?.toLowerCase().includes('denied')}>
                             {detail.decision.outcome}
                           </span>
+                          {#if detail.decision.outcome_description}
+                            <span class="outcome-desc">{detail.decision.outcome_description}</span>
+                          {/if}
                           {#if detail.decision.votes}
                             <span class="vote-detail">
                               {Object.entries(detail.decision.votes).map(([k, v]) => `${k}: ${v}`).join(', ')}
                             </span>
                           {/if}
                         </div>
+
+                        {#if detail.summary}
+                          <div class="decision-summary">{detail.summary}</div>
+                        {/if}
 
                         {#if detail.decision.body}
                           <div class="detail-body">{detail.decision.body}</div>
@@ -3532,9 +3539,24 @@
     background: rgba(239, 68, 68, 0.15);
     color: #f87171;
   }
+  .outcome-desc {
+    font-size: 11px;
+    color: #9ca3af;
+    font-style: italic;
+  }
   .vote-detail {
     font-size: 11px;
     color: #6b7280;
+  }
+  .decision-summary {
+    font-size: 13px;
+    color: #d1d5db;
+    line-height: 1.5;
+    margin-bottom: 10px;
+    padding: 8px 10px;
+    background: rgba(59, 130, 246, 0.08);
+    border-left: 3px solid rgba(59, 130, 246, 0.4);
+    border-radius: 0 4px 4px 0;
   }
   .detail-body {
     font-size: 12px;

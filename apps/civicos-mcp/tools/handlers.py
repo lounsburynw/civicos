@@ -1373,18 +1373,94 @@ def _load_roster(jurisdiction: str):
     return Roster.load(jurisdiction)
 
 
-def _extract_excerpt(text: str, title: str = "", max_chars: int = 300) -> str:
+def _generate_decision_summary(
+    title: str,
+    outcome: str,
+    outcome_desc: str,
+    body: str,
+    testimony_texts: list[str],
+    logger: Logger,
+) -> Optional[str]:
+    """Generate a 2-3 sentence plain-English summary of a council decision.
+
+    Uses Claude Haiku for cost efficiency (~$0.001/call). Returns None on failure
+    so the response degrades gracefully without a summary.
+    """
+    api_key = os.environ.get("ANTHROPIC_API_KEY")
+    if not api_key:
+        return None
+
+    # Build context from available data
+    context_parts = [f"Decision: {title}"]
+    if body:
+        context_parts.append(f"Body: {body}")
+    if outcome:
+        context_parts.append(f"Outcome: {outcome} ({outcome_desc})")
+    if testimony_texts:
+        context_parts.append("Discussion excerpts:")
+        for i, t in enumerate(testimony_texts[:5], 1):
+            context_parts.append(f"  {i}. {t[:300]}")
+
+    context = "\n".join(context_parts)
+
+    try:
+        import anthropic
+        client = anthropic.Anthropic(api_key=api_key)
+        response = client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=150,
+            messages=[{
+                "role": "user",
+                "content": f"Write a 2-3 sentence plain-text summary (no headers, no markdown, no bullets) of this city council decision for a resident who knows nothing about it. Cover: what it's about, what was decided, and why it matters.\n\n{context}",
+            }],
+        )
+        return response.content[0].text.strip()
+    except Exception as e:
+        if logger:
+            logger.warning(f"Summary generation failed: {e}")
+        return None
+
+
+OUTCOME_DESCRIPTIONS = {
+    "adopted": "Passed by council vote",
+    "approved": "Approved by council vote",
+    "received": "Heard but no vote taken",
+    "denied": "Rejected by council vote",
+    "continued": "Postponed to a future meeting",
+    "tabled": "Postponed to a future meeting",
+    "withdrawn": "Withdrawn by the sponsor",
+    "filed": "Accepted into the record",
+}
+
+
+def _describe_outcome(outcome: str) -> str:
+    """Map civic jargon outcome to plain English."""
+    if not outcome:
+        return "Status unknown"
+    return OUTCOME_DESCRIPTIONS.get(outcome.lower(), outcome.capitalize())
+
+
+def _extract_excerpt(text: str, title: str = "", max_chars: int = 400) -> str:
     """Extract the most relevant sentences from a transcript chunk.
 
-    Instead of naive text[:300] truncation, finds complete sentences
+    Instead of naive text[:400] truncation, finds complete sentences
     most relevant to the decision title via keyword overlap. When space
     remains, adds adjacent sentences for reading context rather than
     padding from the beginning.
+
+    Handles mid-sentence chunk starts by trimming leading fragments.
     """
     # Clean speaker labels like [Kate Colin (Mayor)] [B] [C]
     cleaned = re.sub(r"\[(?:[A-Z]|[^]]{2,60})\]\s*", "", text)
     # Collapse whitespace
     cleaned = re.sub(r"\s+", " ", cleaned).strip()
+
+    # Trim leading mid-sentence fragment: if text starts lowercase or with
+    # a conjunction/preposition, skip to the first sentence boundary
+    if cleaned and not cleaned[0].isupper():
+        m = re.search(r"[.!?]\s+([A-Z])", cleaned)
+        if m:
+            cleaned = cleaned[m.start() + 2:]
 
     # Split into sentences (handle abbreviations like Mr./Mrs./Dr./St.)
     parts = re.split(r"(?<=[.!?])\s+(?=[A-Z])", cleaned)
@@ -1509,7 +1585,7 @@ def decision_detail(
             transcript_links, _conf, _link_type = _search_decision_transcripts(
                 jurisdiction=jurisdiction,
                 decision=known_decision,
-                top_k=5,
+                top_k=10,
                 vector_backend=civic._vectors,
                 storage_backend=storage,
             )
@@ -1547,16 +1623,30 @@ def decision_detail(
                 raw_label = l.speaker_name or l.speaker or text_speaker
                 display_name, is_public = resolve_speaker(raw_label, meeting_speaker_map, roster)
                 is_public = is_public or l.is_public_comment or text_is_public
+                # Video URL: TranscriptLink property → chunk_id extraction → meeting fallback
+                chunk_video_url = l.video_url
+                if not chunk_video_url:
+                    vid = get_video_id_from_chunk(l.chunk_id)
+                    if vid:
+                        ts = f"&t={l.start_ms // 1000}s" if l.start_ms else ""
+                        chunk_video_url = f"https://www.youtube.com/watch?v={vid}{ts}"
                 entry = {
                     "speaker": display_name or ("Public commenter" if is_public else "Council/Staff"),
                     "text": _extract_excerpt(l.text, decision_title),
-                    "video_url": l.video_url or meeting_video_url,
+                    "video_url": chunk_video_url or meeting_video_url,
                     "start_timestamp": l.start_timestamp,
                 }
                 if is_public:
                     enriched_public.append(entry)
                 else:
                     enriched_council.append(entry)
+
+            # AI summary from testimony context
+            all_texts = [e["text"] for e in enriched_council + enriched_public]
+            summary = _generate_decision_summary(
+                decision_title, outcome, _describe_outcome(outcome),
+                body, all_texts, logger,
+            )
 
             # Related decisions via vector search (exclude self)
             related = civic.what_happened(decision_title)[:4]
@@ -1569,25 +1659,29 @@ def decision_detail(
                 for rd in related if rd.title != decision_title
             ][:3]
 
-            return {
+            result = {
                 "found": True,
                 "decision": {
                     "id": decision_id,
                     "title": decision_title,
                     "outcome": outcome,
+                    "outcome_description": _describe_outcome(outcome),
                     "date": str(decision_date) if decision_date else meeting_date_str,
                     "body": body,
                     "votes": votes,
                 },
                 "testimony": {
-                    "public_comments": enriched_public[:3],
-                    "council_discussion": enriched_council[:2],
+                    "public_comments": enriched_public[:5],
+                    "council_discussion": enriched_council[:4],
                 },
                 "related_decisions": related_decisions,
             }
+            if summary:
+                result["summary"] = summary
+            return result
 
         # Fallback: vector search (for queries that aren't exact titles)
-        results = civic.what_happened_full_context(title, top_k=1, transcript_excerpts_per_decision=5)
+        results = civic.what_happened_full_context(title, top_k=1, transcript_excerpts_per_decision=10)
 
         if not results:
             return {"found": False}
@@ -1629,16 +1723,29 @@ def decision_detail(
             raw_label = link.speaker_name or link.speaker or text_speaker
             display_name, is_public = resolve_speaker(raw_label, meeting_speaker_map, roster)
             is_public = is_public or link.is_public_comment or text_is_public
+            chunk_video_url = link.video_url
+            if not chunk_video_url:
+                vid = get_video_id_from_chunk(link.chunk_id)
+                if vid:
+                    ts = f"&t={link.start_ms // 1000}s" if link.start_ms else ""
+                    chunk_video_url = f"https://www.youtube.com/watch?v={vid}{ts}"
             entry = {
                 "speaker": display_name or ("Public commenter" if is_public else "Council/Staff"),
                 "text": _extract_excerpt(link.text, d.title),
-                "video_url": link.video_url or fallback_video_url,
+                "video_url": chunk_video_url or fallback_video_url,
                 "start_timestamp": link.start_timestamp,
             }
             if is_public:
                 enriched_public.append(entry)
             else:
                 enriched_council.append(entry)
+
+        # AI summary from testimony context
+        all_texts = [e["text"] for e in enriched_council + enriched_public]
+        summary = _generate_decision_summary(
+            d.title, d.outcome, _describe_outcome(d.outcome),
+            d.body, all_texts, logger,
+        )
 
         # Get related decisions via vector search
         related = civic.what_happened(title)[:4]
@@ -1647,22 +1754,26 @@ def decision_detail(
             for rd in related if rd.title != d.title
         ][:3]
 
-        return {
+        result = {
             "found": True,
             "decision": {
                 "id": d.id,
                 "title": d.title,
                 "outcome": d.outcome,
+                "outcome_description": _describe_outcome(d.outcome),
                 "date": str(d.date) if d.date else None,
                 "body": d.body,
                 "votes": d.votes,
             },
             "testimony": {
-                "public_comments": enriched_public[:3],
-                "council_discussion": enriched_council[:2],
+                "public_comments": enriched_public[:5],
+                "council_discussion": enriched_council[:4],
             },
             "related_decisions": related_decisions,
         }
+        if summary:
+            result["summary"] = summary
+        return result
 
     except Exception as e:
         logger.error(f"Error in decision_detail: {e}")
