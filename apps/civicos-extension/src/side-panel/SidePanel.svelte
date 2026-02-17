@@ -33,6 +33,7 @@
     items: true,
     outcomes: true,
     initiatives: true,
+    commitments: true,
     issueMap: false,
     budget: false,
   });
@@ -2789,34 +2790,38 @@
     <!-- My Commitments (personal tracker) -->
     {#if committedActionMeta.size > 0}
       <section class="feed-section my-commitments-section">
-        <div class="section-header static-header">
+        <button class="section-header" onclick={() => toggle('commitments')}>
           <span class="section-title">My Commitments</span>
-        </div>
-        <div class="section-body">
-          {#each [...committedActionMeta.entries()] as [actionId, meta]}
-            <div class="card commitment-card" class:completed-commitment={completedActions.has(actionId)}>
-              <div class="action-header">
-                <span class="action-type-badge">{actionTypeLabel(meta.action_type)}</span>
-                {#if completedActions.has(actionId)}
-                  <span class="commitment-status done">Done</span>
-                {:else if meta.deadline}
-                  <span class="deadline-badge {deadlineClass(meta.deadline)}">
-                    {deadlineLabel(meta.deadline)}
-                  </span>
-                {:else}
-                  <span class="commitment-status active">Active</span>
+          <span class="section-count">{committedActionMeta.size}</span>
+          <span class="chevron" class:open={expanded.commitments}></span>
+        </button>
+        {#if expanded.commitments}
+          <div class="section-body">
+            {#each [...committedActionMeta.entries()] as [actionId, meta]}
+              <div class="card commitment-card" class:completed-commitment={completedActions.has(actionId)}>
+                <div class="action-header">
+                  <span class="action-type-badge">{actionTypeLabel(meta.action_type)}</span>
+                  {#if completedActions.has(actionId)}
+                    <span class="commitment-status done">Done</span>
+                  {:else if meta.deadline}
+                    <span class="deadline-badge {deadlineClass(meta.deadline)}">
+                      {deadlineLabel(meta.deadline)}
+                    </span>
+                  {:else}
+                    <span class="commitment-status active">Active</span>
+                  {/if}
+                </div>
+                <div class="action-desc">{meta.description}</div>
+                {#if meta.deadline && !completedActions.has(actionId)}
+                  <div class="commitment-cal-row">
+                    <a href={actionGoogleCalendarUrl(meta)} target="_blank" rel="noopener" class="commitment-cal-btn">Google Calendar</a>
+                    <button class="commitment-cal-btn" onclick={() => downloadActionIcs(meta)}>Download .ics</button>
+                  </div>
                 {/if}
               </div>
-              <div class="action-desc">{meta.description}</div>
-              {#if meta.deadline && !completedActions.has(actionId)}
-                <div class="commitment-cal-row">
-                  <a href={actionGoogleCalendarUrl(meta)} target="_blank" rel="noopener" class="commitment-cal-btn">Google Calendar</a>
-                  <button class="commitment-cal-btn" onclick={() => downloadActionIcs(meta)}>Download .ics</button>
-                </div>
-              {/if}
-            </div>
-          {/each}
-        </div>
+            {/each}
+          </div>
+        {/if}
       </section>
     {/if}
 
