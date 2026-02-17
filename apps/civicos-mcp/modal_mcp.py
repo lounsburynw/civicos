@@ -57,6 +57,9 @@ def get_secrets(jurisdiction: str) -> list[str]:
     if jurisdiction.startswith("city-"):
         secrets.append("civic-google")  # GOOGLE_MAPS_API_KEY for geocoding
 
+    # AI proxy needs Anthropic API key for zero-config AI drafting
+    secrets.append("civic-anthropic")  # ANTHROPIC_API_KEY
+
     return secrets
 
 def get_min_containers(jurisdiction: str) -> int:
@@ -373,6 +376,10 @@ class MCPServer:
             self.logger
         )
         app.include_router(rest_router)
+
+        # AI proxy endpoint (zero-config AI drafting for extension)
+        from civicos_services.servers.routers.ai_proxy import router as ai_proxy_router
+        app.include_router(ai_proxy_router, prefix="/api", tags=["AI Proxy"])
 
         # FastMCP Streamable HTTP at /mcp
         app.mount("/mcp", mcp_app, name="mcp")

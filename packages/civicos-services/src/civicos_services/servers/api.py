@@ -55,6 +55,7 @@ from .routers import (
     nostr_router,
     registry_router,
     context_router,
+    ai_proxy_router,
 )
 
 
@@ -125,6 +126,7 @@ def create_app() -> FastAPI:
     app.include_router(coordination_router, prefix="/api", tags=["Coordination"])
     app.include_router(registry_router, prefix="/api", tags=["Registry"])
     app.include_router(context_router, prefix="/api", tags=["Context"])
+    app.include_router(ai_proxy_router, prefix="/api", tags=["AI Proxy"])
 
     return app
 
