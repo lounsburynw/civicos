@@ -1414,7 +1414,10 @@ def _generate_decision_summary(
                 "content": f"Write a 2-3 sentence plain-text summary (no headers, no markdown, no bullets) of this city council decision for a resident who knows nothing about it. Cover: what it's about, what was decided, and why it matters.\n\n{context}",
             }],
         )
-        return response.content[0].text.strip()
+        text = response.content[0].text.strip()
+        # Strip any markdown headers the model might add despite instructions
+        text = re.sub(r"^#+\s+.*?\n+", "", text).strip()
+        return text
     except Exception as e:
         if logger:
             logger.warning(f"Summary generation failed: {e}")
@@ -1618,11 +1621,16 @@ def decision_detail(
 
             enriched_public = []
             enriched_council = []
+            seen_texts: set[str] = set()
             for l in transcript_links:
                 text_speaker, text_is_public = extract_speaker_from_text(l.text)
                 raw_label = l.speaker_name or l.speaker or text_speaker
                 display_name, is_public = resolve_speaker(raw_label, meeting_speaker_map, roster)
                 is_public = is_public or l.is_public_comment or text_is_public
+                excerpt = _extract_excerpt(l.text, decision_title)
+                if excerpt in seen_texts:
+                    continue
+                seen_texts.add(excerpt)
                 # Video URL: TranscriptLink property → chunk_id extraction → meeting fallback
                 chunk_video_url = l.video_url
                 if not chunk_video_url:
@@ -1632,7 +1640,7 @@ def decision_detail(
                         chunk_video_url = f"https://www.youtube.com/watch?v={vid}{ts}"
                 entry = {
                     "speaker": display_name or ("Public commenter" if is_public else "Council/Staff"),
-                    "text": _extract_excerpt(l.text, decision_title),
+                    "text": excerpt,
                     "video_url": chunk_video_url or meeting_video_url,
                     "start_timestamp": l.start_timestamp,
                 }
@@ -1718,11 +1726,16 @@ def decision_detail(
 
         enriched_public = []
         enriched_council = []
+        seen_texts: set[str] = set()
         for link in r.transcript_links:
             text_speaker, text_is_public = extract_speaker_from_text(link.text)
             raw_label = link.speaker_name or link.speaker or text_speaker
             display_name, is_public = resolve_speaker(raw_label, meeting_speaker_map, roster)
             is_public = is_public or link.is_public_comment or text_is_public
+            excerpt = _extract_excerpt(link.text, d.title)
+            if excerpt in seen_texts:
+                continue
+            seen_texts.add(excerpt)
             chunk_video_url = link.video_url
             if not chunk_video_url:
                 vid = get_video_id_from_chunk(link.chunk_id)
@@ -1731,7 +1744,7 @@ def decision_detail(
                     chunk_video_url = f"https://www.youtube.com/watch?v={vid}{ts}"
             entry = {
                 "speaker": display_name or ("Public commenter" if is_public else "Council/Staff"),
-                "text": _extract_excerpt(link.text, d.title),
+                "text": excerpt,
                 "video_url": chunk_video_url or fallback_video_url,
                 "start_timestamp": link.start_timestamp,
             }
