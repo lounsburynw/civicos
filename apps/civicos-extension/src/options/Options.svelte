@@ -1,8 +1,7 @@
 <script lang="ts">
   import { sendMessage } from '../lib/messaging.js';
-  import type { IdentityInfo, IdentityTier } from '../lib/providers/types.js';
+  import type { IdentityInfo } from '../lib/providers/types.js';
   import { AIManager } from '../lib/ai/manager.js';
-  import type { AITier } from '../lib/ai/types.js';
 
   // State
   let identity: (IdentityInfo & { isUnlocked?: boolean }) | null = $state(null);
@@ -12,7 +11,6 @@
 
   // AI provider state
   const aiManager = new AIManager();
-  let aiTier: AITier = $state('device');
   let aiProviderStatuses: Array<{
     id: string; name: string; tier: string;
     available: boolean; ready: boolean; active: boolean;
@@ -23,20 +21,15 @@
   let aiTesting = $state(false);
 
   // Create flow
-  let selectedTier: IdentityTier = $state('easy');
-  let email = $state('');
   let password = $state('');
   let confirmPassword = $state('');
-  let mnemonic = $state('');
   let showMnemonic = $state('');
   let creating = $state(false);
 
   // Import flow
   let showImport = $state(false);
-  let importTier: IdentityTier = $state('private');
   let importPassword = $state('');
   let importMnemonic = $state('');
-  let importEmail = $state('');
   let importing = $state(false);
 
   // Unlock
@@ -65,28 +58,20 @@
   }
 
   async function createIdentity() {
-    if (selectedTier === 'easy' && !email) {
-      setStatus('Email is required for Easy mode', 'error');
+    if (!password) {
+      setStatus('Password is required', 'error');
       return;
     }
-    if (selectedTier === 'private') {
-      if (!password) {
-        setStatus('Password is required for Private mode', 'error');
-        return;
-      }
-      if (password !== confirmPassword) {
-        setStatus('Passwords do not match', 'error');
-        return;
-      }
+    if (password !== confirmPassword) {
+      setStatus('Passwords do not match', 'error');
+      return;
     }
 
     creating = true;
-    const passwordOrEmail = selectedTier === 'easy' ? email : password;
-
     const response = await sendMessage<{ identity: IdentityInfo; mnemonic?: string }>({
       type: 'CREATE_IDENTITY',
-      tier: selectedTier,
-      passwordOrEmail,
+      tier: 'private',
+      passwordOrEmail: password,
     });
 
     if (response.success) {
@@ -95,11 +80,8 @@
         showMnemonic = response.data.mnemonic;
       }
       setStatus('Identity created', 'success');
-      // Clear form
-      email = '';
       password = '';
       confirmPassword = '';
-
     } else {
       setStatus(response.error, 'error');
     }
@@ -107,23 +89,17 @@
   }
 
   async function handleImport() {
-    if (importTier === 'easy' && !importEmail) {
-      setStatus('Email is required to recover Easy mode identity', 'error');
+    if (!importPassword || !importMnemonic) {
+      setStatus('Password and recovery phrase are required to import', 'error');
       return;
-    }
-    if (importTier === 'private') {
-      if (!importPassword || !importMnemonic) {
-        setStatus('Password and mnemonic are required to import Private mode identity', 'error');
-        return;
-      }
     }
 
     importing = true;
     const response = await sendMessage<IdentityInfo>({
       type: 'IMPORT_IDENTITY',
-      tier: importTier,
-      passwordOrEmail: importTier === 'easy' ? importEmail : importPassword,
-      mnemonic: importTier === 'private' ? importMnemonic : undefined,
+      tier: 'private',
+      passwordOrEmail: importPassword,
+      mnemonic: importMnemonic,
     });
 
     if (response.success) {
@@ -132,7 +108,6 @@
       showImport = false;
       importPassword = '';
       importMnemonic = '';
-      importEmail = '';
     } else {
       setStatus(response.error, 'error');
     }
@@ -140,8 +115,7 @@
   }
 
   async function unlock() {
-    // Easy mode uses biometric (no password needed), Private mode requires password
-    if (identity?.tier === 'private' && !unlockPassword) {
+    if (!unlockPassword) {
       setStatus('Enter your password to unlock', 'error');
       return;
     }
@@ -156,10 +130,7 @@
       if (identity) identity = { ...identity, isUnlocked: true };
       setStatus('Identity unlocked', 'success');
     } else {
-      const msg = identity?.tier === 'easy'
-        ? 'Failed to unlock. Passkey authentication failed.'
-        : 'Failed to unlock. Wrong password?';
-      setStatus(msg, 'error');
+      setStatus('Failed to unlock. Wrong password?', 'error');
     }
     unlockPassword = '';
     unlocking = false;
@@ -196,71 +167,33 @@
     await aiManager.initialize();
     aiProviderStatuses = await aiManager.checkStatus();
 
-    // Reflect current active provider in tier selection
     const active = aiProviderStatuses.find(p => p.active);
     if (active) {
-      aiTier = active.tier as AITier;
-      if (active.tier === 'cloud-pro') {
-        aiCloudProProvider = active.id as 'claude' | 'openai';
-      }
-    } else {
-      // No active provider — default to a tier that's actionable
-      const nanoAvailable = aiProviderStatuses.find(p => p.id === 'chrome-nano')?.available;
-      aiTier = nanoAvailable ? 'device' : 'cloud-free';
+      aiCloudProProvider = active.id as 'claude' | 'openai';
     }
 
-    // Load stored API key for the current view
     await loadCurrentApiKey();
   }
 
   async function loadCurrentApiKey() {
     const storage = aiManager.getStorage();
-    if (aiTier === 'cloud-free') {
-      const config = await storage.getConfig('gemini');
-      aiApiKey = config.apiKey ?? '';
-    } else if (aiTier === 'cloud-pro') {
-      const config = await storage.getConfig(aiCloudProProvider);
-      aiApiKey = config.apiKey ?? '';
-    } else {
-      aiApiKey = '';
-    }
+    const config = await storage.getConfig(aiCloudProProvider);
+    aiApiKey = config.apiKey ?? '';
   }
 
   async function saveAIProvider() {
     aiSaving = true;
     try {
-      if (aiTier === 'device') {
-        const nano = aiManager.getProvider('chrome-nano');
-        if (nano && await nano.isReady()) {
-          await aiManager.setActiveProvider('chrome-nano');
-          setStatus('AI provider set to Chrome Built-in AI', 'success');
-        } else {
-          setStatus('Chrome Built-in AI is not available in this browser', 'error');
-        }
-      } else if (aiTier === 'cloud-free') {
-        if (!aiApiKey.trim()) {
-          setStatus('API key is required', 'error');
-          aiSaving = false;
-          return;
-        }
-        const gemini = aiManager.getProvider('gemini');
-        if (gemini) {
-          await gemini.configure({ apiKey: aiApiKey.trim() });
-          await aiManager.setActiveProvider('gemini');
-          setStatus('AI provider set to Google Gemini', 'success');
-        }
-      } else if (aiTier === 'cloud-pro') {
-        if (!aiApiKey.trim()) {
-          setStatus('API key is required', 'error');
-          aiSaving = false;
-          return;
-        }
-        const provider = aiManager.getProvider(aiCloudProProvider);
-        if (provider) {
-          await provider.configure({ apiKey: aiApiKey.trim() });
-          await aiManager.setActiveProvider(aiCloudProProvider);
-          setStatus(`AI provider set to ${provider.name}`, 'success');
-        }
+      if (!aiApiKey.trim()) {
+        setStatus('API key is required', 'error');
+        aiSaving = false;
+        return;
+      }
+      const provider = aiManager.getProvider(aiCloudProProvider);
+      if (provider) {
+        await provider.configure({ apiKey: aiApiKey.trim() });
+        await aiManager.setActiveProvider(aiCloudProProvider);
+        setStatus(`AI provider set to ${provider.name}`, 'success');
       }
       aiProviderStatuses = await aiManager.checkStatus();
     } catch (err) {
@@ -285,8 +218,7 @@
   }
 
   async function clearAIProvider() {
-    const providerId = aiTier === 'cloud-free' ? 'gemini' : aiCloudProProvider;
-    const provider = aiManager.getProvider(providerId);
+    const provider = aiManager.getProvider(aiCloudProProvider);
     if (provider) {
       await provider.clearConfig();
       aiApiKey = '';
@@ -315,9 +247,7 @@
       <div class="info-grid">
         <div class="info-row">
           <span class="info-label">Tier</span>
-          <span class="tier-badge" class:easy={identity.tier === 'easy'} class:private={identity.tier === 'private'}>
-            {identity.tier}
-          </span>
+          <span class="tier-badge private">private</span>
         </div>
         <div class="info-row">
           <span class="info-label">Status</span>
@@ -347,16 +277,9 @@
       {/if}
 
       <div class="action-buttons">
-        <!-- Always render both, toggle with CSS to avoid DOM flicker -->
         <button class="btn-secondary" style:display={identity.isUnlocked ? '' : 'none'} onclick={lock}>Lock</button>
 
-        {#if !identity.isUnlocked && identity.tier === 'easy'}
-          <button class="btn-primary" onclick={unlock} disabled={unlocking}>
-            {unlocking ? 'Authenticating...' : 'Unlock with Passkey'}
-          </button>
-        {/if}
-
-        <form class="unlock-form" style:display={!identity.isUnlocked && identity.tier === 'private' ? 'flex' : 'none'} autocomplete="off" onsubmit={(e: Event) => { e.preventDefault(); unlock(); }}>
+        <form class="unlock-form" style:display={!identity.isUnlocked ? 'flex' : 'none'} autocomplete="off" onsubmit={(e: Event) => { e.preventDefault(); unlock(); }}>
           <input
             id="unlock-password"
             name="unlock-password"
@@ -377,39 +300,16 @@
     <!-- Create new identity -->
     <section class="card">
       <h2>Create Identity</h2>
+      <p class="section-desc">Password + 12-word recovery phrase. Local only, you control the keys.</p>
 
-      <div class="tier-selector">
-        <label class="tier-option" class:selected={selectedTier === 'easy'}>
-          <input type="radio" bind:group={selectedTier} value="easy" />
-          <div class="tier-content">
-            <span class="tier-name">Easy Mode</span>
-            <span class="tier-desc">Passkey (TouchID/FaceID) — lowest friction, cloud-synced recovery</span>
-          </div>
-        </label>
-        <label class="tier-option" class:selected={selectedTier === 'private'}>
-          <input type="radio" bind:group={selectedTier} value="private" />
-          <div class="tier-content">
-            <span class="tier-name">Private Mode</span>
-            <span class="tier-desc">Password + 12-word recovery phrase — local only, you control the keys</span>
-          </div>
-        </label>
+      <div class="form-group">
+        <label for="password">Password</label>
+        <input id="password" type="password" placeholder="Choose a strong password" bind:value={password} />
       </div>
-
-      {#if selectedTier === 'easy'}
-        <div class="form-group">
-          <label for="email">Email (used as recovery salt)</label>
-          <input id="email" type="email" placeholder="you@example.com" bind:value={email} />
-        </div>
-      {:else}
-        <div class="form-group">
-          <label for="password">Password</label>
-          <input id="password" type="password" placeholder="Choose a strong password" bind:value={password} />
-        </div>
-        <div class="form-group">
-          <label for="confirmPassword">Confirm Password</label>
-          <input id="confirmPassword" type="password" placeholder="Confirm password" bind:value={confirmPassword} />
-        </div>
-      {/if}
+      <div class="form-group">
+        <label for="confirmPassword">Confirm Password</label>
+        <input id="confirmPassword" type="password" placeholder="Confirm password" bind:value={confirmPassword} />
+      </div>
 
       <button class="btn-primary" onclick={createIdentity} disabled={creating}>
         {creating ? 'Creating...' : 'Create Identity'}
@@ -425,36 +325,14 @@
 
       {#if showImport}
         <div class="import-form">
-          <div class="tier-selector">
-            <label class="tier-option" class:selected={importTier === 'easy'}>
-              <input type="radio" bind:group={importTier} value="easy" />
-              <div class="tier-content">
-                <span class="tier-name">Easy</span>
-              </div>
-            </label>
-            <label class="tier-option" class:selected={importTier === 'private'}>
-              <input type="radio" bind:group={importTier} value="private" />
-              <div class="tier-content">
-                <span class="tier-name">Private</span>
-              </div>
-            </label>
+          <div class="form-group">
+            <label for="importPassword">Password</label>
+            <input id="importPassword" type="password" placeholder="New password to encrypt" bind:value={importPassword} />
           </div>
-
-          {#if importTier === 'easy'}
-            <div class="form-group">
-              <label for="importEmail">Email</label>
-              <input id="importEmail" type="email" placeholder="Same email used during creation" bind:value={importEmail} />
-            </div>
-          {:else}
-            <div class="form-group">
-              <label for="importPassword">Password</label>
-              <input id="importPassword" type="password" placeholder="New password to encrypt" bind:value={importPassword} />
-            </div>
-            <div class="form-group">
-              <label for="importMnemonic">Recovery Phrase (12 words)</label>
-              <textarea id="importMnemonic" rows="3" placeholder="word1 word2 word3 ..." bind:value={importMnemonic}></textarea>
-            </div>
-          {/if}
+          <div class="form-group">
+            <label for="importMnemonic">Recovery Phrase (12 words)</label>
+            <textarea id="importMnemonic" rows="3" placeholder="word1 word2 word3 ..." bind:value={importMnemonic}></textarea>
+          </div>
 
           <button class="btn-primary" onclick={handleImport} disabled={importing}>
             {importing ? 'Importing...' : 'Import'}
@@ -467,103 +345,50 @@
   <!-- AI Provider Configuration -->
   <section class="card ai-section">
     <h2>AI Drafting Provider</h2>
-    <p class="section-desc">Choose how AI-powered comment drafting works. Higher tiers require an API key.</p>
+    <p class="section-desc">Choose an AI provider for comment drafting. Requires an API key.</p>
 
-    <div class="tier-selector">
-      <label class="tier-option" class:selected={aiTier === 'device'}>
-        <input type="radio" bind:group={aiTier} value="device" onchange={() => loadCurrentApiKey()} />
-        <div class="tier-content">
-          <div class="tier-name-row">
-            <span class="tier-name">On-Device</span>
-            {#if aiProviderStatuses.find(p => p.id === 'chrome-nano')?.ready}
-              <span class="status-dot ready"></span>
-            {:else}
-              <span class="status-dot unavailable"></span>
-            {/if}
-          </div>
-          <span class="tier-desc">Chrome Built-in AI (Gemini Nano). Free, private, no API key. Requires Chrome 138+.</span>
-        </div>
-      </label>
-      <label class="tier-option" class:selected={aiTier === 'cloud-free'}>
-        <input type="radio" bind:group={aiTier} value="cloud-free" onchange={() => loadCurrentApiKey()} />
-        <div class="tier-content">
-          <div class="tier-name-row">
-            <span class="tier-name">Google Gemini</span>
-            {#if aiProviderStatuses.find(p => p.id === 'gemini')?.ready}
-              <span class="status-dot ready"></span>
-            {/if}
-          </div>
-          <span class="tier-desc">Free API key from AI Studio. Fast cloud inference.</span>
-        </div>
-      </label>
-      <label class="tier-option" class:selected={aiTier === 'cloud-pro'}>
-        <input type="radio" bind:group={aiTier} value="cloud-pro" onchange={() => loadCurrentApiKey()} />
-        <div class="tier-content">
-          <div class="tier-name-row">
-            <span class="tier-name">Claude / OpenAI</span>
-            {#if aiProviderStatuses.find(p => p.id === 'claude')?.ready || aiProviderStatuses.find(p => p.id === 'openai')?.ready}
-              <span class="status-dot ready"></span>
-            {/if}
-          </div>
-          <span class="tier-desc">Premium models. Requires a paid API key.</span>
-        </div>
-      </label>
-    </div>
-
-    {#if aiTier === 'device'}
-      <div class="ai-config-note">
-        {#if aiProviderStatuses.find(p => p.id === 'chrome-nano')?.available}
-          Chrome Built-in AI is available. No configuration needed.
-        {:else}
-          Chrome Built-in AI is not available. You need Chrome 138+ with the Prompt API enabled.
-        {/if}
-      </div>
-    {:else if aiTier === 'cloud-free'}
-      <div class="form-group">
-        <label for="gemini-key">Gemini API Key</label>
-        <input id="gemini-key" type="password" placeholder="AIza..." bind:value={aiApiKey} />
-        <span class="form-hint">Free from <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com</a></span>
-      </div>
-    {:else if aiTier === 'cloud-pro'}
-      <div class="form-group">
-        <label for="pro-provider">Provider</label>
-        <div class="radio-row">
-          <label class="radio-label">
-            <input type="radio" bind:group={aiCloudProProvider} value="claude" onchange={() => loadCurrentApiKey()} />
-            Claude
-          </label>
-          <label class="radio-label">
-            <input type="radio" bind:group={aiCloudProProvider} value="openai" onchange={() => loadCurrentApiKey()} />
-            OpenAI
-          </label>
-        </div>
-      </div>
-      <div class="form-group">
-        <label for="pro-key">{aiCloudProProvider === 'claude' ? 'Anthropic' : 'OpenAI'} API Key</label>
-        <input id="pro-key" type="password" placeholder={aiCloudProProvider === 'claude' ? 'sk-ant-...' : 'sk-...'} bind:value={aiApiKey} />
-        <span class="form-hint">
-          {#if aiCloudProProvider === 'claude'}
-            From <a href="https://console.anthropic.com" target="_blank" rel="noopener">console.anthropic.com</a>
-          {:else}
-            From <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener">platform.openai.com</a>
+    <div class="form-group">
+      <label for="pro-provider">Provider</label>
+      <div class="radio-row">
+        <label class="radio-label">
+          <input type="radio" bind:group={aiCloudProProvider} value="claude" onchange={() => loadCurrentApiKey()} />
+          Claude
+          {#if aiProviderStatuses.find(p => p.id === 'claude')?.ready}
+            <span class="status-dot ready"></span>
           {/if}
-        </span>
+        </label>
+        <label class="radio-label">
+          <input type="radio" bind:group={aiCloudProProvider} value="openai" onchange={() => loadCurrentApiKey()} />
+          OpenAI
+          {#if aiProviderStatuses.find(p => p.id === 'openai')?.ready}
+            <span class="status-dot ready"></span>
+          {/if}
+        </label>
       </div>
-      <div class="key-warning">API keys are stored in your browser's local storage (unencrypted).</div>
-    {/if}
+    </div>
+    <div class="form-group">
+      <label for="pro-key">{aiCloudProProvider === 'claude' ? 'Anthropic' : 'OpenAI'} API Key</label>
+      <input id="pro-key" type="password" placeholder={aiCloudProProvider === 'claude' ? 'sk-ant-...' : 'sk-...'} bind:value={aiApiKey} />
+      <span class="form-hint">
+        {#if aiCloudProProvider === 'claude'}
+          From <a href="https://console.anthropic.com" target="_blank" rel="noopener">console.anthropic.com</a>
+        {:else}
+          From <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener">platform.openai.com</a>
+        {/if}
+      </span>
+    </div>
+    <div class="key-warning">API keys are stored in your browser's local storage (unencrypted).</div>
 
     <div class="ai-action-buttons">
       <button class="btn-primary" onclick={saveAIProvider} disabled={aiSaving}>
         {aiSaving ? 'Saving...' : 'Save'}
       </button>
-      {#if aiTier !== 'device'}
-        <button class="btn-secondary" onclick={testAIProvider} disabled={aiTesting || !aiApiKey.trim()}>
-          {aiTesting ? 'Testing...' : 'Test'}
-        </button>
-        <button class="btn-secondary" onclick={clearAIProvider}>
-          Clear
-        </button>
-      {/if}
+      <button class="btn-secondary" onclick={testAIProvider} disabled={aiTesting || !aiApiKey.trim()}>
+        {aiTesting ? 'Testing...' : 'Test'}
+      </button>
+      <button class="btn-secondary" onclick={clearAIProvider}>
+        Clear
+      </button>
     </div>
 
     {#if aiProviderStatuses.some(p => p.active)}
@@ -654,7 +479,6 @@
     background: #374151;
     color: #9ca3af;
   }
-  .tier-badge.easy { background: #1e3a5f; color: #60a5fa; }
   .tier-badge.private { background: #3b1f4b; color: #c084fc; }
 
   .lock-status {
@@ -717,35 +541,6 @@
     width: auto;
     flex-shrink: 0;
   }
-
-  .tier-selector {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    margin-bottom: 16px;
-  }
-
-  .tier-option {
-    display: flex;
-    align-items: flex-start;
-    gap: 10px;
-    padding: 12px;
-    border: 1px solid #334155;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: border-color 0.15s;
-  }
-  .tier-option:hover { border-color: #475569; }
-  .tier-option.selected { border-color: #6366f1; background: #1e1b4b; }
-  .tier-option input { margin-top: 3px; }
-
-  .tier-content {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-  }
-  .tier-name { font-size: 14px; font-weight: 500; color: #f8fafc; }
-  .tier-desc { font-size: 12px; color: #94a3b8; }
 
   .form-group {
     margin-bottom: 12px;
@@ -846,12 +641,6 @@
     margin-bottom: 16px;
   }
 
-  .tier-name-row {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-
   .status-dot {
     width: 8px;
     height: 8px;
@@ -859,16 +648,6 @@
     display: inline-block;
   }
   .status-dot.ready { background: #22c55e; }
-  .status-dot.unavailable { background: #64748b; }
-
-  .ai-config-note {
-    font-size: 12px;
-    color: #94a3b8;
-    padding: 12px;
-    background: #0f172a;
-    border-radius: 6px;
-    margin-bottom: 12px;
-  }
 
   .form-hint {
     display: block;

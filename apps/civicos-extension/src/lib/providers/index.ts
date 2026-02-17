@@ -1,10 +1,8 @@
 /**
  * Signing providers for client-side Nostr identity management.
  *
- * Three identity tiers:
- * - Easy (PasskeyProvider): WebAuthn + PRF, lowest friction
- * - Private (LocalWalletProvider): BIP-39 + password, medium friction
- * - Sovereign (NIP07Provider, etc.): Full self-custody, highest security
+ * Identity tier:
+ * - Private (LocalWalletProvider): BIP-39 + password encryption
  */
 
 // Types
@@ -70,9 +68,3 @@ export {
   type WalletStorage,
 } from './local-wallet.js';
 
-export {
-  PasskeyProvider,
-  LocalStoragePasskeyStorage,
-  MemoryPasskeyStorage,
-  type PasskeyStorage,
-} from './passkey.js';

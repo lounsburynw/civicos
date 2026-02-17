@@ -3,7 +3,6 @@
  *
  * Manages signing providers with Chrome storage backends.
  * Supports:
- * - easy: PasskeyProvider (WebAuthn + PRF, lowest friction)
  * - private: LocalWalletProvider (BIP-39 + password encryption)
  *
  * Uses chrome.storage.session to persist unlock state across
@@ -17,21 +16,17 @@ import type {
   NostrEvent,
   SigningResult,
   WalletStorage,
-  PasskeyStorage,
 } from './providers/index.js';
 import {
   LocalWalletProvider,
-  PasskeyProvider,
-  MemoryPasskeyStorage,
   MemoryStorage,
 } from './providers/index.js';
-import { ChromeStoragePasskeyStorage, ChromeStorageWalletStorage } from './storage.js';
+import { ChromeStorageWalletStorage } from './storage.js';
 
 const SESSION_KEY = 'civicos_session_key';
 
 export interface IdentityManagerConfig {
   storage?: WalletStorage;
-  passkeyStorage?: PasskeyStorage;
 }
 
 export class IdentityManager {
@@ -41,9 +36,6 @@ export class IdentityManager {
   constructor(config: IdentityManagerConfig = {}) {
     const storage = config.storage ?? this.createDefaultStorage();
     this.providers.set('private', new LocalWalletProvider(storage));
-
-    const passkeyStorage = config.passkeyStorage ?? this.createDefaultPasskeyStorage();
-    this.providers.set('easy', new PasskeyProvider(passkeyStorage));
   }
 
   private createDefaultStorage(): WalletStorage {
@@ -53,15 +45,6 @@ export class IdentityManager {
     }
     // Fallback for testing
     return new MemoryStorage();
-  }
-
-  private createDefaultPasskeyStorage(): PasskeyStorage {
-    // In Chrome extension context, use chrome.storage.local
-    if (typeof chrome !== 'undefined' && chrome.storage?.local) {
-      return new ChromeStoragePasskeyStorage();
-    }
-    // Fallback for testing
-    return new MemoryPasskeyStorage();
   }
 
   // === Session persistence (survives service worker restarts) ===
@@ -158,12 +141,7 @@ export class IdentityManager {
       throw new Error(`Unsupported identity tier: ${tier}`);
     }
 
-    const options =
-      tier === 'easy'
-        ? { tier, email: passwordOrEmail }
-        : { tier, password: passwordOrEmail };
-
-    const result = await provider.createIdentity(options);
+    const result = await provider.createIdentity({ tier, password: passwordOrEmail });
     this.activeProvider = provider;
 
     // Save session for service worker restart resilience
@@ -186,12 +164,7 @@ export class IdentityManager {
       throw new Error(`Unsupported identity tier: ${tier}`);
     }
 
-    const options =
-      tier === 'easy'
-        ? { tier, email: passwordOrEmail }
-        : { tier, password: passwordOrEmail, mnemonic };
-
-    const identity = await provider.importIdentity(options);
+    const identity = await provider.importIdentity({ tier, password: passwordOrEmail, mnemonic });
     this.activeProvider = provider;
 
     return identity;

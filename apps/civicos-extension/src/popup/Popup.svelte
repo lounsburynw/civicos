@@ -47,9 +47,7 @@
     <div class="identity-info">
       <div class="row">
         <span class="label">Tier</span>
-        <span class="tier-badge" class:easy={identity.tier === 'easy'} class:private={identity.tier === 'private'}>
-          {identity.tier}
-        </span>
+        <span class="tier-badge private">private</span>
       </div>
       <div class="row">
         <span class="label">Status</span>
@@ -127,7 +125,6 @@
     background: #374151;
     color: #9ca3af;
   }
-  .tier-badge.easy { background: #1e3a5f; color: #60a5fa; }
   .tier-badge.private { background: #3b1f4b; color: #c084fc; }
 
   .lock-status {
