@@ -16,7 +16,7 @@
     available: boolean; ready: boolean; active: boolean;
   }> = $state([]);
   let aiApiKey = $state('');
-  let aiCloudProProvider: 'claude' | 'openai' = $state('claude');
+  let aiCloudProProvider: 'civicos' | 'claude' | 'openai' = $state('civicos');
   let aiSaving = $state(false);
   let aiTesting = $state(false);
 
@@ -169,13 +169,17 @@
 
     const active = aiProviderStatuses.find(p => p.active);
     if (active) {
-      aiCloudProProvider = active.id as 'claude' | 'openai';
+      aiCloudProProvider = active.id as 'civicos' | 'claude' | 'openai';
     }
 
     await loadCurrentApiKey();
   }
 
   async function loadCurrentApiKey() {
+    if (aiCloudProProvider === 'civicos') {
+      aiApiKey = '';
+      return;
+    }
     const storage = aiManager.getStorage();
     const config = await storage.getConfig(aiCloudProProvider);
     aiApiKey = config.apiKey ?? '';
@@ -184,16 +188,22 @@
   async function saveAIProvider() {
     aiSaving = true;
     try {
-      if (!aiApiKey.trim()) {
-        setStatus('API key is required', 'error');
-        aiSaving = false;
-        return;
-      }
-      const provider = aiManager.getProvider(aiCloudProProvider);
-      if (provider) {
-        await provider.configure({ apiKey: aiApiKey.trim() });
-        await aiManager.setActiveProvider(aiCloudProProvider);
-        setStatus(`AI provider set to ${provider.name}`, 'success');
+      if (aiCloudProProvider === 'civicos') {
+        // CivicOS proxy — no API key needed, just activate
+        await aiManager.setActiveProvider('civicos');
+        setStatus('AI provider set to CivicOS (Built-in)', 'success');
+      } else {
+        if (!aiApiKey.trim()) {
+          setStatus('API key is required', 'error');
+          aiSaving = false;
+          return;
+        }
+        const provider = aiManager.getProvider(aiCloudProProvider);
+        if (provider) {
+          await provider.configure({ apiKey: aiApiKey.trim() });
+          await aiManager.setActiveProvider(aiCloudProProvider);
+          setStatus(`AI provider set to ${provider.name}`, 'success');
+        }
       }
       aiProviderStatuses = await aiManager.checkStatus();
     } catch (err) {
@@ -345,11 +355,18 @@
   <!-- AI Provider Configuration -->
   <section class="card ai-section">
     <h2>AI Drafting Provider</h2>
-    <p class="section-desc">Choose an AI provider for comment drafting. Requires an API key.</p>
+    <p class="section-desc">Choose an AI provider for comment drafting.</p>
 
     <div class="form-group">
       <label for="pro-provider">Provider</label>
       <div class="radio-row">
+        <label class="radio-label">
+          <input type="radio" bind:group={aiCloudProProvider} value="civicos" onchange={() => loadCurrentApiKey()} />
+          CivicOS
+          {#if aiProviderStatuses.find(p => p.id === 'civicos')?.ready}
+            <span class="status-dot ready"></span>
+          {/if}
+        </label>
         <label class="radio-label">
           <input type="radio" bind:group={aiCloudProProvider} value="claude" onchange={() => loadCurrentApiKey()} />
           Claude
@@ -366,29 +383,41 @@
         </label>
       </div>
     </div>
-    <div class="form-group">
-      <label for="pro-key">{aiCloudProProvider === 'claude' ? 'Anthropic' : 'OpenAI'} API Key</label>
-      <input id="pro-key" type="password" placeholder={aiCloudProProvider === 'claude' ? 'sk-ant-...' : 'sk-...'} bind:value={aiApiKey} />
-      <span class="form-hint">
-        {#if aiCloudProProvider === 'claude'}
-          From <a href="https://console.anthropic.com" target="_blank" rel="noopener">console.anthropic.com</a>
-        {:else}
-          From <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener">platform.openai.com</a>
+
+    {#if aiCloudProProvider === 'civicos'}
+      <div class="civicos-provider-note">
+        No API key needed — uses your CivicOS identity for authentication.
+        {#if !identity?.isUnlocked}
+          <span class="civicos-unlock-hint">Unlock your identity above to enable AI drafting.</span>
         {/if}
-      </span>
-    </div>
-    <div class="key-warning">API keys are stored in your browser's local storage (unencrypted).</div>
+      </div>
+    {:else}
+      <div class="form-group">
+        <label for="pro-key">{aiCloudProProvider === 'claude' ? 'Anthropic' : 'OpenAI'} API Key</label>
+        <input id="pro-key" type="password" placeholder={aiCloudProProvider === 'claude' ? 'sk-ant-...' : 'sk-...'} bind:value={aiApiKey} />
+        <span class="form-hint">
+          {#if aiCloudProProvider === 'claude'}
+            From <a href="https://console.anthropic.com" target="_blank" rel="noopener">console.anthropic.com</a>
+          {:else}
+            From <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener">platform.openai.com</a>
+          {/if}
+        </span>
+      </div>
+      <div class="key-warning">API keys are stored in your browser's local storage (unencrypted).</div>
+    {/if}
 
     <div class="ai-action-buttons">
       <button class="btn-primary" onclick={saveAIProvider} disabled={aiSaving}>
         {aiSaving ? 'Saving...' : 'Save'}
       </button>
-      <button class="btn-secondary" onclick={testAIProvider} disabled={aiTesting || !aiApiKey.trim()}>
+      <button class="btn-secondary" onclick={testAIProvider} disabled={aiTesting || (aiCloudProProvider !== 'civicos' && !aiApiKey.trim())}>
         {aiTesting ? 'Testing...' : 'Test'}
       </button>
-      <button class="btn-secondary" onclick={clearAIProvider}>
-        Clear
-      </button>
+      {#if aiCloudProProvider !== 'civicos'}
+        <button class="btn-secondary" onclick={clearAIProvider}>
+          Clear
+        </button>
+      {/if}
     </div>
 
     {#if aiProviderStatuses.some(p => p.active)}
@@ -692,6 +721,23 @@
   .ai-action-buttons .btn-secondary {
     width: auto;
     flex: 1;
+  }
+
+  .civicos-provider-note {
+    font-size: 12px;
+    color: #94a3b8;
+    background: rgba(99, 102, 241, 0.08);
+    padding: 10px 12px;
+    border-radius: 6px;
+    margin-bottom: 12px;
+    line-height: 1.5;
+  }
+
+  .civicos-unlock-hint {
+    display: block;
+    margin-top: 4px;
+    color: #fbbf24;
+    font-size: 11px;
   }
 
   .active-provider-badge {

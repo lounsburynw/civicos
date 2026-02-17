@@ -10,6 +10,7 @@
 import type { AIProvider, AICompletionResult, AIPreferences } from './types.js';
 import type { AICredentialStorage } from './storage.js';
 import { ChromeAICredentialStorage, MemoryAICredentialStorage } from './storage.js';
+import { CivicosProxyProvider } from './providers/civicos-proxy.js';
 import { ClaudeProvider } from './providers/claude.js';
 import { OpenAIProvider } from './providers/openai.js';
 
@@ -32,6 +33,7 @@ export class AIManager {
   }
 
   private registerDefaults(): void {
+    this.register(new CivicosProxyProvider());
     this.register(new ClaudeProvider(this.storage));
     this.register(new OpenAIProvider(this.storage));
   }
@@ -74,8 +76,8 @@ export class AIManager {
       }
     }
 
-    // 2. Fall through: try claude, then openai
-    for (const id of ['claude', 'openai']) {
+    // 2. Fall through: try civicos, then claude, then openai
+    for (const id of ['civicos', 'claude', 'openai']) {
       const provider = this.providers.get(id);
       if (provider && await provider.isReady()) {
         this.activeProvider = provider;

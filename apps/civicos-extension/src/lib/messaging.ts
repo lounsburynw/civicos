@@ -21,6 +21,7 @@ export type MessageType =
   | 'LOCK'
   | 'DELETE_IDENTITY'
   | 'SIGN_EVENT'
+  | 'SIGN_MESSAGE'
   | 'NIP07_GET_PUBLIC_KEY'
   | 'NIP07_SIGN_EVENT'
   | 'NIP07_GET_RELAYS';
@@ -68,6 +69,11 @@ export interface SignEventRequest {
   event: NostrEvent;
 }
 
+export interface SignMessageRequest {
+  type: 'SIGN_MESSAGE';
+  message: string;
+}
+
 export interface Nip07GetPublicKeyRequest {
   type: 'NIP07_GET_PUBLIC_KEY';
 }
@@ -90,6 +96,7 @@ export type ExtensionRequest =
   | LockRequest
   | DeleteIdentityRequest
   | SignEventRequest
+  | SignMessageRequest
   | Nip07GetPublicKeyRequest
   | Nip07SignEventRequest
   | Nip07GetRelaysRequest;

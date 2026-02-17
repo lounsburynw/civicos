@@ -19,6 +19,7 @@ from .coordination import router as coordination_router
 from .nostr import router as nostr_router
 from .registry import router as registry_router
 from .context import router as context_router
+from .ai_proxy import router as ai_proxy_router
 
 __all__ = [
     "core_router",
@@ -35,4 +36,5 @@ __all__ = [
     "nostr_router",
     "registry_router",
     "context_router",
+    "ai_proxy_router",
 ]

@@ -8,6 +8,7 @@
 import { IdentityManager } from '../lib/identity.js';
 import { ChromeStorageWalletStorage, ChromeStoragePasskeyStorage } from '../lib/storage.js';
 import type { ExtensionRequest, ExtensionResponse } from '../lib/messaging.js';
+import type { NostrEvent } from '../lib/providers/types.js';
 
 // Auto-lock alarm name
 const AUTO_LOCK_ALARM = 'civicos-auto-lock';
@@ -119,6 +120,41 @@ async function handleMessage(message: ExtensionRequest): Promise<ExtensionRespon
           success: true,
           data: {
             'wss://relay.civicos.dev': { read: true, write: true },
+          },
+        };
+      }
+
+      case 'SIGN_MESSAGE': {
+        // Sign a canonical message for AI proxy authentication.
+        // Creates a Nostr event (kind 24242) and signs it.
+        const pubkey = await identityManager.getPublicKey();
+        if (!pubkey) {
+          return { success: false, error: 'No identity configured' };
+        }
+        if (!identityManager.isUnlocked()) {
+          return { success: false, error: 'Identity is locked' };
+        }
+
+        const createdAt = Math.floor(Date.now() / 1000);
+        const event: NostrEvent = {
+          kind: 24242,
+          created_at: createdAt,
+          tags: [['action', 'ai_draft']],
+          content: `civicos:ai:v1:${pubkey}:${createdAt}`,
+        };
+
+        const signResult = await identityManager.signEvent(event);
+        if (!signResult.success || !signResult.event) {
+          return { success: false, error: signResult.error ?? 'Signing failed' };
+        }
+
+        resetAutoLock();
+        return {
+          success: true,
+          data: {
+            public_key: signResult.event.pubkey,
+            signature: signResult.event.sig,
+            created_at: createdAt,
           },
         };
       }
