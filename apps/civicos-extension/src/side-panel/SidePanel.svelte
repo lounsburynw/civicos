@@ -2791,8 +2791,10 @@
     {#if committedActionMeta.size > 0}
       <section class="feed-section my-commitments-section">
         <button class="section-header" onclick={() => toggle('commitments')}>
-          <span class="section-title">My Commitments</span>
-          <span class="section-count">{committedActionMeta.size}</span>
+          <span class="section-title">
+            My Commitments
+            <span class="count-badge">{committedActionMeta.size}</span>
+          </span>
           <span class="chevron" class:open={expanded.commitments}></span>
         </button>
         {#if expanded.commitments}
