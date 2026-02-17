@@ -48,6 +48,8 @@ export interface PulseOutcome {
   id: string;
   title: string;
   outcome: string;
+  outcome_description?: string;
+  is_upcoming?: boolean;
   vote_tally?: string;
   date: string;
 }
@@ -62,6 +64,7 @@ export interface CommunityPulse {
 export interface DecisionDetailData {
   found: boolean;
   summary?: string;
+  is_upcoming?: boolean;
   decision?: {
     id: string;
     title: string;

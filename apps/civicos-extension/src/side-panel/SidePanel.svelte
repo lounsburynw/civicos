@@ -1701,6 +1701,7 @@
 
   function outcomeIcon(outcome: string): string {
     const lower = outcome.toLowerCase();
+    if (lower === 'on_agenda') return '\u25B6';
     if (lower.includes('approved') || lower.includes('passed') || lower.includes('adopted')) return '\u2713';
     if (lower.includes('denied') || lower.includes('failed') || lower.includes('rejected')) return '\u2717';
     if (lower.includes('continued') || lower.includes('tabled')) return '\u21BB';
@@ -1709,6 +1710,7 @@
 
   function outcomeClass(outcome: string): string {
     const lower = outcome.toLowerCase();
+    if (lower === 'on_agenda') return 'upcoming';
     if (lower.includes('approved') || lower.includes('passed') || lower.includes('adopted')) return 'passed';
     if (lower.includes('denied') || lower.includes('failed') || lower.includes('rejected')) return 'failed';
     return 'other';
@@ -2236,7 +2238,7 @@
                   <div class="decision-info">
                     <div class="card-title">{decision.title}</div>
                     <div class="card-meta">
-                      <span class="outcome-label {outcomeClass(decision.outcome)}">{decision.outcome}</span>
+                      <span class="outcome-label {outcomeClass(decision.outcome)}">{decision.is_upcoming ? 'upcoming' : decision.outcome}</span>
                       {#if decision.vote_tally}
                         <span class="meta-sep">&middot;</span>
                         <span>{decision.vote_tally}</span>
@@ -2264,8 +2266,8 @@
                       {#if detail.found && detail.decision}
                         <!-- Outcome badge row -->
                         <div class="outcome-row">
-                          <span class="outcome-badge" class:approved={detail.decision.outcome?.toLowerCase().includes('approved')} class:denied={detail.decision.outcome?.toLowerCase().includes('denied')}>
-                            {detail.decision.outcome}
+                          <span class="outcome-badge" class:approved={detail.decision.outcome?.toLowerCase().includes('approved')} class:denied={detail.decision.outcome?.toLowerCase().includes('denied')} class:upcoming={detail.is_upcoming}>
+                            {detail.is_upcoming ? 'upcoming' : detail.decision.outcome}
                           </span>
                           {#if detail.decision.outcome_description}
                             <span class="outcome-desc">{detail.decision.outcome_description}</span>
@@ -3265,6 +3267,7 @@
   }
   .outcome-icon.passed { background: #14532d; color: #4ade80; }
   .outcome-icon.failed { background: #7f1d1d; color: #f87171; }
+  .outcome-icon.upcoming { background: #1e3a5f; color: #60a5fa; }
   .outcome-icon.other { background: #374151; color: #9ca3af; }
 
   .decision-info { flex: 1; min-width: 0; }
@@ -3275,6 +3278,7 @@
   }
   .outcome-label.passed { color: #4ade80; }
   .outcome-label.failed { color: #f87171; }
+  .outcome-label.upcoming { color: #60a5fa; }
   .outcome-label.other { color: #9ca3af; }
 
   /* === Issue Map Filters === */
@@ -3538,6 +3542,10 @@
   .outcome-badge.denied {
     background: rgba(239, 68, 68, 0.15);
     color: #f87171;
+  }
+  .outcome-badge.upcoming {
+    background: rgba(96, 165, 250, 0.15);
+    color: #60a5fa;
   }
   .outcome-desc {
     font-size: 11px;

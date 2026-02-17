@@ -459,10 +459,24 @@ def city_pulse(
             else:
                 date_str = "Recent"
 
+            # Determine if this is an upcoming (future) agenda item
+            today = datetime.now().date()
+            item_upcoming = False
+            if decision_date and hasattr(decision_date, 'date'):
+                item_upcoming = decision_date.date() >= today
+            elif d.get('meeting_date'):
+                try:
+                    item_upcoming = datetime.strptime(d['meeting_date'], "%Y-%m-%d").date() >= today
+                except (ValueError, TypeError):
+                    pass
+
+            raw_outcome = d.get('outcome') or d.get('status') or 'decided'
             result["recent_outcomes"].append({
                 "id": d.get('id'),
                 "title": d.get('title') or 'Decision',
-                "outcome": d.get('outcome') or d.get('status') or 'decided',
+                "outcome": "on_agenda" if item_upcoming else raw_outcome,
+                "outcome_description": _describe_outcome(raw_outcome, item_upcoming),
+                "is_upcoming": item_upcoming,
                 "vote_tally": d.get('vote_tally') or d.get('votes'),
                 "date": date_str,
             })
@@ -1380,6 +1394,7 @@ def _generate_decision_summary(
     body: str,
     testimony_texts: list[str],
     logger: Logger,
+    is_upcoming: bool = False,
 ) -> Optional[str]:
     """Generate a 2-3 sentence plain-English summary of a council decision.
 
@@ -1391,17 +1406,24 @@ def _generate_decision_summary(
         return None
 
     # Build context from available data
-    context_parts = [f"Decision: {title}"]
+    context_parts = [f"Agenda item: {title}" if is_upcoming else f"Decision: {title}"]
     if body:
         context_parts.append(f"Body: {body}")
-    if outcome:
+    if is_upcoming:
+        context_parts.append("Status: This item is on an upcoming meeting agenda and has NOT yet been discussed or voted on.")
+    elif outcome:
         context_parts.append(f"Outcome: {outcome} ({outcome_desc})")
     if testimony_texts:
-        context_parts.append("Discussion excerpts:")
+        context_parts.append("Discussion excerpts:" if not is_upcoming else "Related context:")
         for i, t in enumerate(testimony_texts[:5], 1):
             context_parts.append(f"  {i}. {t[:300]}")
 
     context = "\n".join(context_parts)
+
+    if is_upcoming:
+        prompt = f"Write a 2-3 sentence plain-text summary (no headers, no markdown, no bullets) of this upcoming city council agenda item for a resident. Use future tense — this has NOT happened yet. Cover: what will be discussed, and why a resident might care.\n\n{context}"
+    else:
+        prompt = f"Write a 2-3 sentence plain-text summary (no headers, no markdown, no bullets) of this city council decision for a resident who knows nothing about it. Cover: what it's about, what was decided, and why it matters.\n\n{context}"
 
     try:
         import anthropic
@@ -1409,10 +1431,7 @@ def _generate_decision_summary(
         response = client.messages.create(
             model="claude-haiku-4-5-20251001",
             max_tokens=150,
-            messages=[{
-                "role": "user",
-                "content": f"Write a 2-3 sentence plain-text summary (no headers, no markdown, no bullets) of this city council decision for a resident who knows nothing about it. Cover: what it's about, what was decided, and why it matters.\n\n{context}",
-            }],
+            messages=[{"role": "user", "content": prompt}],
         )
         text = response.content[0].text.strip()
         # Strip any markdown headers the model might add despite instructions
@@ -1436,8 +1455,10 @@ OUTCOME_DESCRIPTIONS = {
 }
 
 
-def _describe_outcome(outcome: str) -> str:
+def _describe_outcome(outcome: str, is_upcoming: bool = False) -> str:
     """Map civic jargon outcome to plain English."""
+    if is_upcoming:
+        return "Scheduled for discussion — has not yet been decided"
     if not outcome:
         return "Status unknown"
     return OUTCOME_DESCRIPTIONS.get(outcome.lower(), outcome.capitalize())
@@ -1649,11 +1670,16 @@ def decision_detail(
                 else:
                     enriched_council.append(entry)
 
+            # Determine if this is an upcoming (future) item
+            today = datetime.now().date()
+            is_upcoming = decision_date.date() >= today if decision_date else False
+            display_outcome = "on_agenda" if is_upcoming else outcome
+
             # AI summary from testimony context
             all_texts = [e["text"] for e in enriched_council + enriched_public]
             summary = _generate_decision_summary(
-                decision_title, outcome, _describe_outcome(outcome),
-                body, all_texts, logger,
+                decision_title, outcome, _describe_outcome(outcome, is_upcoming),
+                body, all_texts, logger, is_upcoming=is_upcoming,
             )
 
             # Related decisions via vector search (exclude self)
@@ -1669,11 +1695,12 @@ def decision_detail(
 
             result = {
                 "found": True,
+                "is_upcoming": is_upcoming,
                 "decision": {
                     "id": decision_id,
                     "title": decision_title,
-                    "outcome": outcome,
-                    "outcome_description": _describe_outcome(outcome),
+                    "outcome": display_outcome,
+                    "outcome_description": _describe_outcome(outcome, is_upcoming),
                     "date": str(decision_date) if decision_date else meeting_date_str,
                     "body": body,
                     "votes": votes,
@@ -1753,11 +1780,16 @@ def decision_detail(
             else:
                 enriched_council.append(entry)
 
+        # Determine if this is an upcoming (future) item
+        today = datetime.now().date()
+        is_upcoming = d.date.date() >= today if d.date and hasattr(d.date, "date") else False
+        display_outcome = "on_agenda" if is_upcoming else d.outcome
+
         # AI summary from testimony context
         all_texts = [e["text"] for e in enriched_council + enriched_public]
         summary = _generate_decision_summary(
-            d.title, d.outcome, _describe_outcome(d.outcome),
-            d.body, all_texts, logger,
+            d.title, d.outcome, _describe_outcome(d.outcome, is_upcoming),
+            d.body, all_texts, logger, is_upcoming=is_upcoming,
         )
 
         # Get related decisions via vector search
@@ -1769,11 +1801,12 @@ def decision_detail(
 
         result = {
             "found": True,
+            "is_upcoming": is_upcoming,
             "decision": {
                 "id": d.id,
                 "title": d.title,
-                "outcome": d.outcome,
-                "outcome_description": _describe_outcome(d.outcome),
+                "outcome": display_outcome,
+                "outcome_description": _describe_outcome(d.outcome, is_upcoming),
                 "date": str(d.date) if d.date else None,
                 "body": d.body,
                 "votes": d.votes,
