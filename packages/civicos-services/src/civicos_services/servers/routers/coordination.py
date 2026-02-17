@@ -316,6 +316,8 @@ class CommentCountResponse(BaseModel):
     """Comment count for an entity."""
     entity: str
     count: int = 0
+    attested: Optional[int] = None
+    unattested: Optional[int] = None
 
 
 # === Attestation Request/Response Models ===
@@ -2516,9 +2518,11 @@ async def list_comments(entity: str):
 
 
 @router.get("/coordination/comment/counts/{entity:path}", response_model=CommentCountResponse)
-async def get_comment_counts(entity: str):
+async def get_comment_counts(entity: str, jurisdiction: Optional[str] = None):
     """
     Get comment count for an entity.
+
+    Includes attested/unattested breakdown when jurisdiction is provided.
     """
     storage = _get_comment_storage()
     if not storage:
@@ -2526,7 +2530,22 @@ async def get_comment_counts(entity: str):
 
     try:
         count = storage.get_comment_count(entity)
-        return CommentCountResponse(entity=entity, count=count)
+
+        attested = None
+        unattested = None
+        if jurisdiction:
+            att_storage = _get_attestation_storage()
+            if att_storage:
+                try:
+                    att_counts = att_storage.count_attested_comments(entity, jurisdiction)
+                    attested = att_counts["attested"]
+                    unattested = att_counts["unattested"]
+                except Exception as e:
+                    logger.debug(f"Comment attestation counts unavailable: {e}")
+
+        return CommentCountResponse(
+            entity=entity, count=count, attested=attested, unattested=unattested
+        )
 
     except Exception as e:
         logger.error(f"Error getting comment counts: {e}")

@@ -218,6 +218,8 @@ export interface Comment {
 export interface CommentCounts {
   entity: string;
   count: number;
+  attested?: number;
+  unattested?: number;
 }
 
 export interface CommentSynthesis {
