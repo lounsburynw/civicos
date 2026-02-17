@@ -1,12 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { etc } from '@noble/secp256k1';
+import { hexToBytes } from '@noble/hashes/utils';
 import { createKeyPair, getPublicKeyHex, loadKeyPair } from './identity.js';
 import type { KeyStore } from '../types.js';
 import vectors from '../../test-vectors.json';
 
 describe('getPublicKeyHex', () => {
   it('produces known public key for private key 0x01', () => {
-    const privateKey = etc.hexToBytes(vectors.privateKey);
+    const privateKey = hexToBytes(vectors.privateKey);
     const pubkey = getPublicKeyHex(privateKey);
     expect(pubkey).toBe(vectors.publicKey);
   });

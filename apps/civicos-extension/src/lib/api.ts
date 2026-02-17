@@ -7,18 +7,9 @@
  */
 
 import type { CityPulseData, DecisionDetailData, DataProvenance, VoiceCounts, ToolResponse, Initiative, CivicAction, CivicActionProgress, IssueGeography, BudgetSummary, Comment, CommentCounts, CommentSynthesis, ContextBundle } from './types.js';
+import { getBaseUrl, getRelayUrl, redeemAttestationCode } from './relay-client.js';
 
-const DEFAULT_API_URL = 'https://san-rafael.civicosproject.org';
 const STORAGE_KEY = 'civicos_api_url';
-
-async function getBaseUrl(): Promise<string> {
-  try {
-    const result = await chrome.storage.local.get(STORAGE_KEY);
-    return result[STORAGE_KEY] || DEFAULT_API_URL;
-  } catch {
-    return DEFAULT_API_URL;
-  }
-}
 
 async function apiRequest<T>(path: string, options?: RequestInit): Promise<T> {
   const baseUrl = await getBaseUrl();
@@ -101,18 +92,6 @@ export async function getVoiceCountsBatch(entityIds: string[], jurisdiction = 'c
 }
 
 // === Relay API (coordination/voice endpoints) ===
-
-const DEFAULT_RELAY_URL = 'https://civicos--civicos-relay-relayserver-relay-endpoint.modal.run';
-const RELAY_STORAGE_KEY = 'civicos_relay_url';
-
-async function getRelayUrl(): Promise<string> {
-  try {
-    const result = await chrome.storage.local.get(RELAY_STORAGE_KEY);
-    return result[RELAY_STORAGE_KEY] || DEFAULT_RELAY_URL;
-  } catch {
-    return DEFAULT_RELAY_URL;
-  }
-}
 
 export async function submitVoice(
   entityId: string,
@@ -531,33 +510,7 @@ export async function getApiUrl(): Promise<string> {
 
 // === Relay API (coordination/attestation endpoints) ===
 
-export async function redeemAttestationCode(
-  code: string,
-  publicKey: string,
-  signature: string,
-  createdAt: number
-): Promise<{ success: boolean; attestation_event?: Record<string, unknown>; error?: string }> {
-  try {
-    const relayUrl = await getRelayUrl();
-    const response = await fetch(`${relayUrl}/coordination/attest`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        code,
-        public_key: publicKey,
-        signature,
-        created_at: createdAt,
-      }),
-    });
-    if (!response.ok) {
-      const data = await response.json().catch(() => ({ detail: response.statusText }));
-      return { success: false, error: data.detail || `Error ${response.status}` };
-    }
-    return response.json();
-  } catch (err) {
-    return { success: false, error: err instanceof Error ? err.message : 'Network error' };
-  }
-}
+export { redeemAttestationCode } from './relay-client.js';
 
 export async function getAttestationStatus(
   publicKey: string,
@@ -577,5 +530,5 @@ export async function getAttestationStatus(
 }
 
 export async function setRelayUrl(url: string): Promise<void> {
-  await chrome.storage.local.set({ [RELAY_STORAGE_KEY]: url });
+  await chrome.storage.local.set({ civicos_relay_url: url });
 }
