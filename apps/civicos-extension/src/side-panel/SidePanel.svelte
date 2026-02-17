@@ -4,7 +4,7 @@
   import { isAIAvailable, getAIManager, onAIConfigChanged, composeDraftPrompt, composeEnrichPrompt, SYSTEM_PROMPT, QA_SYSTEM_PROMPT } from '../lib/ai.js';
   import type { IdentityInfo, NostrEvent, SignedNostrEvent } from '../lib/providers/types.js';
   import { CivicEventKinds, createVoiceContent, createVoiceTags, createCommitmentContent, createCommitmentTags, createCompletionContent, createCompletionTags, generateCommitmentId, generateCompletionId, generateActionRef } from '../lib/providers/types.js';
-  import type { CityPulseData, DecisionDetailData, DataProvenance, VoiceCounts, Initiative, CivicAction, CivicActionProgress, IssuePoint, BudgetCategory, Comment, CommentSynthesis } from '../lib/types.js';
+  import type { CityPulseData, DecisionDetailData, DataProvenance, VoiceCounts, Initiative, CivicAction, CivicActionProgress, IssuePoint, BudgetCategory, Comment, CommentCounts, CommentSynthesis } from '../lib/types.js';
   import 'leaflet/dist/leaflet.css';
   import L from 'leaflet';
   import { Chart, DoughnutController, ArcElement, Tooltip, Legend } from 'chart.js';
@@ -62,7 +62,7 @@
   let hasAttestation = $state(false);
 
   // Comment thread state
-  let commentCounts = $state(new Map<string, number>());
+  let commentCounts = $state(new Map<string, CommentCounts>());
   let openThreads = $state(new Set<string>());
   let threadComments = $state(new Map<string, Comment[]>());
   let threadDrafts = $state(new Map<string, string>());
@@ -334,10 +334,10 @@
       ids.push(...pulseData.upcoming_items.filter(i => i.comment_eligible).map(i => `agenda-item:${i.id}`));
     }
     if (ids.length > 0) {
-      commentCounts = await getCommentCountsBatch(ids);
+      commentCounts = await getCommentCountsBatch(ids, pulseData.jurisdiction || 'city-san-rafael');
       // Pre-fetch synthesis for items with comments (enriches AI context)
-      for (const [entityId, count] of commentCounts) {
-        if (count > 0) {
+      for (const [entityId, cc] of commentCounts) {
+        if (cc.count > 0) {
           getCommentSynthesis(entityId).then(synth => {
             if (synth) {
               synthData.set(entityId, synth);
@@ -461,8 +461,8 @@
         } else {
           threadComments.set(entityId, [newComment, ...existing]);
           // Only increment count for genuinely new comments
-          const prevCount = commentCounts.get(entityId) || 0;
-          commentCounts.set(entityId, prevCount + 1);
+          const prev = commentCounts.get(entityId) || { entity: entityId, count: 0 };
+          commentCounts.set(entityId, { ...prev, count: prev.count + 1 });
           commentCounts = new Map(commentCounts);
         }
         threadComments = new Map(threadComments);
@@ -2082,7 +2082,7 @@
                     <div class="comment-actions-row">
                       <button class="comment-toggle" onclick={() => toggleCommentThread(commentEntityId)}>
                         <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M2 3h12v7H5l-3 3V3z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>
-                        {commentCounts.get(commentEntityId) || 0} comments
+                        {commentCounts.get(commentEntityId)?.count || 0} comments{#if (commentCounts.get(commentEntityId)?.attested ?? 0) > 0} ({commentCounts.get(commentEntityId)?.attested} attested){/if}
                         <span class="chevron-sm" class:open={openThreads.has(commentEntityId)}></span>
                       </button>
                       {#if pulseData?.clerk_email && item.comment_eligible}

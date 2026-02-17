@@ -433,11 +433,11 @@ export async function getComments(entityId: string): Promise<Comment[]> {
   return response.json();
 }
 
-export async function getCommentCounts(entityId: string): Promise<CommentCounts | null> {
+export async function getCommentCounts(entityId: string, jurisdiction = 'city-san-rafael'): Promise<CommentCounts | null> {
   try {
     const relayUrl = await getRelayUrl();
     const response = await fetch(
-      `${relayUrl}/coordination/comment/counts/${encodeURIComponent(entityId)}`,
+      `${relayUrl}/coordination/comment/counts/${encodeURIComponent(entityId)}?jurisdiction=${encodeURIComponent(jurisdiction)}`,
       { headers: { 'Content-Type': 'application/json' } }
     );
     if (!response.ok) return null;
@@ -447,14 +447,14 @@ export async function getCommentCounts(entityId: string): Promise<CommentCounts 
   }
 }
 
-export async function getCommentCountsBatch(entityIds: string[]): Promise<Map<string, number>> {
-  const result = new Map<string, number>();
+export async function getCommentCountsBatch(entityIds: string[], jurisdiction = 'city-san-rafael'): Promise<Map<string, CommentCounts>> {
+  const result = new Map<string, CommentCounts>();
   if (entityIds.length === 0) return result;
   try {
     const promises = entityIds.map(async (id) => {
-      const counts = await getCommentCounts(id);
+      const counts = await getCommentCounts(id, jurisdiction);
       if (counts && counts.count > 0) {
-        result.set(id, counts.count);
+        result.set(id, counts);
       }
     });
     await Promise.all(promises);

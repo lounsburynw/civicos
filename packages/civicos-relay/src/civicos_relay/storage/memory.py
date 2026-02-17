@@ -578,8 +578,10 @@ class InMemoryAttestationStorage:
             if j == jurisdiction and not a.get("revoked", False)
         )
 
+    def count_attested_comments(self, entity: str, jurisdiction: str) -> dict:
+        return {"attested": 0, "unattested": 0}
+
     def count_attested_voices(self, entity: str, jurisdiction: str) -> dict:
-        # Would need voice storage reference for full impl; simplified for testing
         return {"attested": 0, "unattested": 0}
 
     def get_code_stats(self, jurisdiction: str) -> dict:

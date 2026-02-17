@@ -2017,6 +2017,30 @@ class PostgresAttestationStorage:
         finally:
             self._return_connection(conn)
 
+    def count_attested_comments(self, entity: str, jurisdiction: str) -> dict:
+        """Count attested vs unattested comments for an entity."""
+        conn = self._get_connection()
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT
+                        COUNT(*) FILTER (WHERE a.id IS NOT NULL) AS attested,
+                        COUNT(*) FILTER (WHERE a.id IS NULL) AS unattested
+                    FROM coordination_comments c
+                    LEFT JOIN coordination_attestations a
+                        ON c.public_key = a.public_key
+                        AND a.jurisdiction = %s
+                        AND a.revoked = FALSE
+                    WHERE c.entity = %s AND c.deleted = FALSE
+                    """,
+                    (jurisdiction, entity),
+                )
+                row = cur.fetchone()
+                return {"attested": row[0], "unattested": row[1]}
+        finally:
+            self._return_connection(conn)
+
     def count_attested_voices(self, entity: str, jurisdiction: str) -> dict:
         """Count attested vs unattested voices for an entity."""
         conn = self._get_connection()
