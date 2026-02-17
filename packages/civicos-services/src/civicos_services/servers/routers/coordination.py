@@ -310,6 +310,7 @@ class CommentResponse(BaseModel):
     jurisdiction: Optional[str] = None
     stance: Optional[str] = None
     deleted: bool = False
+    attested: Optional[bool] = None
 
 
 class CommentCountResponse(BaseModel):
@@ -2488,9 +2489,12 @@ async def submit_comment(request: SubmitCommentRequest):
 
 
 @router.get("/coordination/comments/{entity:path}", response_model=list[CommentResponse])
-async def list_comments(entity: str):
+async def list_comments(entity: str, jurisdiction: Optional[str] = None):
     """
     List non-deleted comments for an entity, newest first.
+
+    When jurisdiction is provided, each comment is annotated with
+    whether its author has a valid attestation.
     """
     storage = _get_comment_storage()
     if not storage:
@@ -2498,6 +2502,21 @@ async def list_comments(entity: str):
 
     try:
         comments = storage.get_comments_for_entity(entity)
+
+        # Batch-check attestation status for all unique commenters
+        attested_keys: set[str] | None = None
+        if jurisdiction:
+            att_storage = _get_attestation_storage()
+            if att_storage:
+                try:
+                    unique_keys = {c.public_key for c in comments}
+                    attested_keys = {
+                        pk for pk in unique_keys
+                        if att_storage.is_attested(pk, jurisdiction)
+                    }
+                except Exception as e:
+                    logger.debug(f"Comment attestation lookup unavailable: {e}")
+
         return [
             CommentResponse(
                 entity=c.entity,
@@ -2508,6 +2527,7 @@ async def list_comments(entity: str):
                 jurisdiction=c.jurisdiction,
                 stance=c.stance,
                 deleted=c.deleted,
+                attested=c.public_key in attested_keys if attested_keys is not None else None,
             )
             for c in comments
         ]

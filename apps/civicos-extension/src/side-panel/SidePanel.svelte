@@ -2082,7 +2082,7 @@
                     <div class="comment-actions-row">
                       <button class="comment-toggle" onclick={() => toggleCommentThread(commentEntityId)}>
                         <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M2 3h12v7H5l-3 3V3z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>
-                        {commentCounts.get(commentEntityId)?.count || 0} comments{#if (commentCounts.get(commentEntityId)?.attested ?? 0) > 0} ({commentCounts.get(commentEntityId)?.attested} attested){/if}
+                        {commentCounts.get(commentEntityId)?.count || 0} {(commentCounts.get(commentEntityId)?.count || 0) === 1 ? 'comment' : 'comments'}{#if (commentCounts.get(commentEntityId)?.attested ?? 0) > 0}&nbsp;({commentCounts.get(commentEntityId)?.attested} attested){/if}
                         <span class="chevron-sm" class:open={openThreads.has(commentEntityId)}></span>
                       </button>
                       {#if pulseData?.clerk_email && item.comment_eligible}
@@ -2148,6 +2148,7 @@
                                 <div class="thread-comment" class:stance-support={comment.stance === 'support'} class:stance-oppose={comment.stance === 'oppose'}>
                                   <div class="thread-comment-meta">
                                     <span class="thread-author">{identity?.publicKey && comment.public_key === identity.publicKey ? 'You' : comment.public_key.slice(0, 8) + '...'}</span>
+                                    {#if comment.attested}<span class="thread-attested">Attested</span>{/if}
                                     {#if comment.stance}
                                       <span class="thread-stance" class:support={comment.stance === 'support'} class:oppose={comment.stance === 'oppose'}>{comment.stance}</span>
                                     {/if}
@@ -4362,6 +4363,16 @@
     font-size: 10px;
     font-weight: 600;
     color: #d1d5db;
+  }
+  .thread-attested {
+    font-size: 8px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    padding: 1px 5px;
+    border-radius: 8px;
+    background: rgba(34, 197, 94, 0.12);
+    color: #22c55e;
   }
   .thread-stance {
     font-size: 9px;

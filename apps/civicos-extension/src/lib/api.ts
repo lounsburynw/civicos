@@ -421,10 +421,10 @@ export async function generateActionDraft(
 
 // === Relay API (coordination/comment endpoints) ===
 
-export async function getComments(entityId: string): Promise<Comment[]> {
+export async function getComments(entityId: string, jurisdiction = 'city-san-rafael'): Promise<Comment[]> {
   const relayUrl = await getRelayUrl();
   const response = await fetch(
-    `${relayUrl}/coordination/comments/${encodeURIComponent(entityId)}`,
+    `${relayUrl}/coordination/comments/${encodeURIComponent(entityId)}?jurisdiction=${encodeURIComponent(jurisdiction)}`,
     { headers: { 'Content-Type': 'application/json' } }
   );
   if (!response.ok) {
