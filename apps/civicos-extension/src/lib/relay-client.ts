@@ -20,10 +20,24 @@ export async function getRelayUrl(): Promise<string> {
   }
 }
 
+/**
+ * Get the base URL for the active jurisdiction's MCP server.
+ * Priority: explicit override (civicos_api_url) > registry lookup > default.
+ */
 export async function getBaseUrl(): Promise<string> {
   try {
+    // 1. Explicit override (set by Options page or legacy)
     const result = await chrome.storage.local.get(API_STORAGE_KEY);
-    return result[API_STORAGE_KEY] || DEFAULT_API_URL;
+    if (result[API_STORAGE_KEY]) return result[API_STORAGE_KEY];
+
+    // 2. Registry-based lookup from stored jurisdiction
+    const { getServerUrl, getActiveJurisdiction } = await import('./registry.js');
+    const jurisdiction = await getActiveJurisdiction();
+    const url = await getServerUrl(jurisdiction);
+    if (url) return url;
+
+    // 3. Fallback
+    return DEFAULT_API_URL;
   } catch {
     return DEFAULT_API_URL;
   }
