@@ -4428,8 +4428,8 @@
         ]
       },
       "client_sdk_extraction": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 1,
         "description": "Extract platform-agnostic TypeScript client SDK (packages/civicos-client/) from browser extension src/lib/. Enables multiple UX surfaces (web app, MCP App iframe, other extensions) to share civic coordination logic.",
         "rationale": "Extension src/lib/ is 80% platform-agnostic. Chrome coupling concentrated in ~15 call sites across 4 files. All six business flows (voice, comment, commit, complete, withdraw, initiative) follow identical structure extractable behind Signer and StorageAdapter interfaces.",
         "interfaces": [
@@ -4462,9 +4462,77 @@
         "depends_on": [
           "extension_connected_services_redesign"
         ],
-        "note": "Phases 1-4 complete. Phase 1: StorageAdapter, types, RegistryClient, ApiClient. Phase 2: Signer, events, cast* methods. Phase 3: AI layer. Phase 4: CivicSession orchestration (loadPulseBundle, loadCommentThread, draftComment, enrichDraft, askQuestion, etc.). SidePanel rewired. Remaining: Phase 5 (second surface proof) + scoping Web Components layer.",
+        "note": "Phases 1-5 complete. Phase 1: StorageAdapter, types, RegistryClient, ApiClient. Phase 2: Signer, events, cast* methods. Phase 3: AI layer. Phase 4: CivicSession orchestration. Phase 5: MemoryStorageAdapter + second surface proof (Node.js script loads live pulse data via SDK without Chrome APIs). Web Components scoped as civic_web_components item.",
         "artifact": "packages/civicos-client/",
         "test_file": "cd packages/civicos-client && npm run build && cd ../../apps/civicos-extension && npm run build"
+      },
+      "civic_web_components": {
+        "status": "not_ready",
+        "priority": 0,
+        "description": "Reusable Web Components layer (@civicos/components) built on @civicos/client SDK. Svelte compiles to Custom Elements natively. Enables any surface (extension, Open WebUI, standalone page, MCP App) to embed <civic-*> elements without framework dependencies.",
+        "architecture": {
+          "layer_1": "@civicos/client — data, API, AI, orchestration (DONE)",
+          "layer_2": "@civicos/components — reusable UI widgets (Web Components)",
+          "layer_3": "Surface apps — compose widgets + layout"
+        },
+        "candidate_components": [
+          {
+            "name": "<civic-voice-buttons>",
+            "priority": 1,
+            "description": "Support/Oppose/Watch button group with active state. Appears 7+ times in SidePanel.",
+            "props": ["userStance", "disabled", "locked"],
+            "events": ["voice"],
+            "complexity": "low"
+          },
+          {
+            "name": "<civic-synthesis-bar>",
+            "priority": 1,
+            "description": "Stacked bar chart showing comment support/oppose/neutral distribution. Pure presentational.",
+            "props": ["synthesis"],
+            "events": [],
+            "complexity": "low"
+          },
+          {
+            "name": "<civic-agenda-item-card>",
+            "priority": 2,
+            "description": "Agenda item card with title, description, eligibility tags, voice counts, comment thread toggle, AI drafting.",
+            "props": ["item", "voiceCounts", "userStance", "commentCount", "isUnlocked", "aiAvailable"],
+            "events": ["voice", "draft", "comment-toggle", "ask-ai"],
+            "complexity": "medium"
+          },
+          {
+            "name": "<civic-decision-card>",
+            "priority": 2,
+            "description": "Expandable decision with outcome, vote tally, testimony, council discussion, voice buttons.",
+            "props": ["decision", "expanded", "voiceCount", "userStance", "detail"],
+            "events": ["toggle-expand", "voice", "ask-ai", "load-details"],
+            "complexity": "medium"
+          },
+          {
+            "name": "<civic-initiative-card>",
+            "priority": 3,
+            "description": "Initiative with nested civic actions, progress bars, commit/complete/withdraw. Most complex state.",
+            "props": ["initiative", "actions", "actionProgress", "committedActions"],
+            "events": ["commit", "complete", "withdraw", "create-action"],
+            "complexity": "high"
+          }
+        ],
+        "implementation_phases": [
+          "Phase 1: Package scaffold + <civic-voice-buttons> + <civic-synthesis-bar> (low complexity, high reuse)",
+          "Phase 2: <civic-agenda-item-card> + <civic-decision-card> (compose Phase 1 components)",
+          "Phase 3: <civic-initiative-card> + integration tests across surfaces",
+          "Phase 4: Migrate extension SidePanel to compose Web Components"
+        ],
+        "technical_considerations": [
+          "Svelte customElement option compiles to Web Components (Shadow DOM)",
+          "Shadow DOM scopes CSS — must bundle styles with component, not rely on global styles",
+          "Props passed as attributes (strings) — complex objects need JSON serialization or property access",
+          "Cross-component state via CustomEvents (bubbling) — no shared store in Shadow DOM",
+          "Extension can import components directly (same bundler) — external surfaces use <script> tag"
+        ],
+        "depends_on": ["client_sdk_extraction"],
+        "artifact": "packages/civicos-components/",
+        "test_file": "cd packages/civicos-components && npm run build"
       }
     },
     "micropayments": {

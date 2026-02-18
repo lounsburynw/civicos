@@ -1,6 +1,9 @@
 // Interfaces
 export type { StorageAdapter, Signer, UnsignedCivicEvent, SignedCivicEvent } from './interfaces.js';
 
+// Adapters — portable implementations
+export { MemoryStorageAdapter } from './adapters/memory-storage.js';
+
 // Registry
 export { RegistryClient } from './registry.js';
 export type { RegistryServer, JurisdictionLevel } from './registry.js';
