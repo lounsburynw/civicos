@@ -5,10 +5,10 @@
  * by the service worker without pulling in shared chunks that reference `window`.
  */
 
-const DEFAULT_RELAY_URL = 'https://civicos--civicos-relay-relayserver-relay-endpoint.modal.run';
+const DEFAULT_RELAY_URL = 'https://san-rafael.civicosproject.org/relay';
 const RELAY_STORAGE_KEY = 'civicos_relay_url';
 
-const DEFAULT_API_URL = 'https://san-rafael.civicosproject.org';
+const DEFAULT_API_URL = 'https://san-rafael.civicosproject.org/mcp';
 const API_STORAGE_KEY = 'civicos_api_url';
 
 /**

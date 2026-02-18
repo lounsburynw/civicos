@@ -83,9 +83,10 @@ civicosproject.org                      ← Registry, protocol, optional hosting
 ├── registry.civicosproject.org         ← Operator directory API (future)
 
 san-rafael.civicosproject.org           ← Default/hosted instance (LIVE)
-├── /mcp                                ← MCP endpoint
-├── /health                             ← Health check
-└── /relay                              ← Relay peering endpoint (future)
+├── /mcp                                ← MCP protocol endpoint
+├── /mcp/health                         ← MCP health check
+├── /mcp/api/tools/*                    ← MCP REST API
+└── /relay                              ← Relay peering endpoint
 
 Operators using civicosproject.org hosting:
 ├── city.san-rafael.civicosproject.org  ← City's hosted instance
@@ -213,9 +214,9 @@ Single operator, civicosproject.org hosting with Cloudflare proxy to Modal:
 
 ```
 san-rafael.civicosproject.org           ← LIVE
-├── /mcp     → Cloudflare Worker → Modal MCP endpoint
-├── /health  → Cloudflare Worker → Modal health endpoint
-└── /relay   → Supabase relay database (future)
+├── /mcp/*   → Cloudflare Worker → Modal MCP (strip /mcp prefix)
+├── /relay/* → Cloudflare Worker → Modal Relay (strip /relay prefix)
+└── /*       → 404 (no root-level routes)
 ```
 
 Infrastructure:

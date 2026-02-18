@@ -52,7 +52,7 @@
   let provenanceLoading = $state(false);
 
   // Connected Services dropdown
-  let showServices = $state(false);
+  let activeBreadcrumbSegment: string | null = $state(null);
 
   // Voice counts
   let voiceCounts = $state(new Map<string, VoiceCounts>());
@@ -333,6 +333,10 @@
     pulseLoading = true;
     pulseError = null;
     try {
+      // Force-refresh registry to pick up new servers/relay fields
+      try {
+        availableServers = await getRegistryServers(true);
+      } catch { /* keep existing servers */ }
       pulseData = await getCityPulse();
       // Auto-configure relay URL from server response
       if (pulseData.relay_url) {
@@ -580,7 +584,7 @@
 
   async function toggleProvenance() {
     showProvenance = !showProvenance;
-    if (showServices) showServices = false;
+    if (activeBreadcrumbSegment) activeBreadcrumbSegment = null;
     if (showProvenance && !provenanceData && !provenanceLoading) {
       provenanceLoading = true;
       try {
@@ -593,21 +597,14 @@
     }
   }
 
-  function toggleServices() {
-    showServices = !showServices;
-    if (showProvenance) showProvenance = false;
-    if (showServices && serverHealth.size === 0) {
-      checkAllHealth();
+  function toggleBreadcrumbDetail(jurisdictionId: string) {
+    if (activeBreadcrumbSegment === jurisdictionId) {
+      activeBreadcrumbSegment = null;
+    } else {
+      activeBreadcrumbSegment = jurisdictionId;
+      if (showProvenance) showProvenance = false;
+      if (serverHealth.size === 0) checkAllHealth();
     }
-  }
-
-  function overallHealthStatus(): 'healthy' | 'degraded' | 'offline' | 'unknown' {
-    if (serverHealth.size === 0) return 'unknown';
-    const statuses = [...serverHealth.values()].map(h => h.status);
-    if (statuses.includes('offline')) return 'offline';
-    if (statuses.includes('degraded')) return 'degraded';
-    if (statuses.every(s => s === 'healthy')) return 'healthy';
-    return 'unknown';
   }
 
   async function checkServerHealth(server: RegistryServer): Promise<ServerHealthStatus> {
@@ -1945,30 +1942,28 @@
 
 <div class="panel">
   <header>
-    <div class="header-left">
-      <h1>City Pulse</h1>
-      <span class="jurisdiction">
-        {#if pulseData}
-          {pulseData.jurisdiction}
-        {:else}
-          {activeJurisdiction}
-        {/if}
-        {#if parentServers.length > 0}
-          <span class="jurisdiction-parents"> + {parentServers.map(s => s.display_name).join(', ')}</span>
-        {/if}
-      </span>
-    </div>
+    <nav class="breadcrumb">
+      <!-- Primary jurisdiction -->
+      <button class="breadcrumb-segment" class:active={activeBreadcrumbSegment === activeJurisdiction}
+              onclick={() => toggleBreadcrumbDetail(activeJurisdiction)}>
+        <span class="health-dot {serverHealth.get(activeJurisdiction)?.status || 'unknown'}"></span>
+        <span class="segment-name">{availableServers.find(s => s.jurisdiction_id === activeJurisdiction)?.display_name || activeJurisdiction}</span>
+      </button>
+      <!-- Parent jurisdictions -->
+      {#each parentServers as server}
+        <span class="breadcrumb-sep">/</span>
+        <button class="breadcrumb-segment" class:active={activeBreadcrumbSegment === server.jurisdiction_id}
+                onclick={() => toggleBreadcrumbDetail(server.jurisdiction_id)}>
+          <span class="health-dot {serverHealth.get(server.jurisdiction_id)?.status || 'unknown'}"></span>
+          <span class="segment-name">{server.display_name}</span>
+        </button>
+      {/each}
+    </nav>
     <div class="header-actions">
       <button class="icon-btn" onclick={toggleProvenance} title="Data Sources" class:active={showProvenance}>
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <circle cx="12" cy="12" r="10" />
           <path d="M12 16v-4M12 8h.01" />
-        </svg>
-      </button>
-      <button class="icon-btn services-btn" onclick={toggleServices} title="Connected Services" class:active={showServices}>
-        <span class="services-health-dot {overallHealthStatus()}"></span>
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
         </svg>
       </button>
       <button class="icon-btn" onclick={loadCityPulse} title="Refresh" disabled={pulseLoading}>
@@ -2039,84 +2034,70 @@
     </div>
   {/if}
 
-  <!-- Connected Services Panel -->
-  {#if showServices}
-    <div class="services-panel">
-      <div class="prov-header">
-        <span class="prov-title">Connected Services</span>
-      </div>
-      <!-- Active jurisdiction -->
-      {#each availableServers.filter(s => s.jurisdiction_id === activeJurisdiction) as server (server.jurisdiction_id)}
-        {@const health = serverHealth.get(server.jurisdiction_id)}
-        <div class="service-row">
-          <span class="health-dot {health?.status || 'unknown'}"></span>
-          <div class="service-info">
-            <div class="service-name">
-              {server.display_name}
-              <span class="service-badge primary">primary</span>
-            </div>
-            <div class="service-meta">
-              MCP
-              {#if health?.latency_ms !== undefined}
-                <span class="meta-sep">&middot;</span>
-                {health.latency_ms}ms
-              {/if}
-              {#if health?.version}
-                <span class="meta-sep">&middot;</span>
-                v{health.version}
-              {/if}
-            </div>
-          </div>
+  <!-- Breadcrumb Detail Popover -->
+  {#if activeBreadcrumbSegment}
+    {@const isActive = activeBreadcrumbSegment === activeJurisdiction}
+    {@const server = isActive
+      ? availableServers.find(s => s.jurisdiction_id === activeJurisdiction)
+      : parentServers.find(s => s.jurisdiction_id === activeBreadcrumbSegment)}
+    {@const health = serverHealth.get(activeBreadcrumbSegment)}
+    <div class="breadcrumb-detail">
+      {#if server}
+        <div class="detail-header">
+          <span class="detail-name">{server.display_name}</span>
+          {#if isActive}
+            <span class="service-badge primary">primary</span>
+          {:else}
+            <span class="level-badge">{server.level}</span>
+          {/if}
         </div>
-        <!-- Relay -->
-        {#if server.relay_endpoint}
-          <div class="service-row relay-row">
-            <span class="health-dot {relayHealth?.status || 'unknown'}"></span>
-            <div class="service-info">
-              <div class="service-meta">
-                Relay
-                {#if relayHealth?.status === 'healthy'}
-                  <span class="meta-sep">&middot;</span>
-                  connected
-                {:else if relayHealth?.status === 'offline'}
-                  <span class="meta-sep">&middot;</span>
-                  <span class="relay-offline">offline</span>
-                {/if}
-                {#if relayHealth?.latency_ms !== undefined}
-                  <span class="meta-sep">&middot;</span>
-                  {relayHealth.latency_ms}ms
-                {/if}
-              </div>
-            </div>
+        <div class="detail-row">
+          <span class="detail-label">MCP</span>
+          <span class="detail-value">
+            <span class="health-dot {health?.status || 'unknown'}"></span>
+            {#if health?.status === 'healthy'}
+              connected
+            {:else if health?.status === 'degraded'}
+              degraded
+            {:else if health?.status === 'offline'}
+              <span class="relay-offline">offline</span>
+            {:else}
+              checking...
+            {/if}
+            {#if health?.latency_ms !== undefined}
+              <span class="meta-sep">&middot;</span>
+              {health.latency_ms}ms
+            {/if}
+            {#if health?.version}
+              <span class="meta-sep">&middot;</span>
+              v{health.version}
+            {/if}
+          </span>
+        </div>
+        <div class="detail-endpoint">{new URL(server.mcp_endpoint).host + new URL(server.mcp_endpoint).pathname}</div>
+        {#if isActive && server.relay_endpoint}
+          <div class="detail-row">
+            <span class="detail-label">Relay</span>
+            <span class="detail-value">
+              <span class="health-dot {relayHealth?.status || 'unknown'}"></span>
+              {#if relayHealth?.status === 'healthy'}
+                connected
+              {:else if relayHealth?.status === 'offline'}
+                <span class="relay-offline">offline</span>
+              {:else}
+                checking...
+              {/if}
+              {#if relayHealth?.latency_ms !== undefined}
+                <span class="meta-sep">&middot;</span>
+                {relayHealth.latency_ms}ms
+              {/if}
+            </span>
           </div>
+          <div class="detail-endpoint">{new URL(server.relay_endpoint).host + new URL(server.relay_endpoint).pathname}</div>
         {/if}
-      {/each}
-      <!-- Parent jurisdiction servers -->
-      {#each parentServers as server (server.jurisdiction_id)}
-        {@const health = serverHealth.get(server.jurisdiction_id)}
-        <div class="service-row">
-          <span class="health-dot {health?.status || 'unknown'}"></span>
-          <div class="service-info">
-            <div class="service-name">
-              {server.display_name}
-              <span class="level-badge">{server.level}</span>
-            </div>
-            <div class="service-meta">
-              MCP
-              {#if health?.latency_ms !== undefined}
-                <span class="meta-sep">&middot;</span>
-                {health.latency_ms}ms
-              {/if}
-            </div>
-          </div>
-        </div>
-      {/each}
-      {#if availableServers.length === 0 && parentServers.length === 0}
-        <div class="prov-loading">No services connected</div>
+      {:else}
+        <div class="prov-loading">Service not found</div>
       {/if}
-      <button class="services-manage-link" onclick={openOptions}>
-        Manage in Settings
-      </button>
     </div>
   {/if}
 
@@ -3303,26 +3284,51 @@
     border-bottom: 1px solid #374151;
   }
 
-  .header-left {
+  .breadcrumb {
     display: flex;
-    align-items: baseline;
-    gap: 8px;
+    align-items: center;
+    gap: 0;
+    min-width: 0;
+    overflow: hidden;
   }
 
-  h1 {
-    font-size: 16px;
-    font-weight: 700;
+  .breadcrumb-segment {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    background: none;
+    border: none;
+    color: #9ca3af;
+    font-size: 12px;
+    padding: 3px 6px;
+    border-radius: 4px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: color 0.15s, background 0.15s;
+  }
+  .breadcrumb-segment:first-child {
+    font-weight: 600;
+    color: #d1d5db;
+  }
+  .breadcrumb-segment:hover {
     color: #eee;
-    margin: 0;
+    background: #333;
+  }
+  .breadcrumb-segment.active {
+    color: #60a5fa;
+    background: rgba(59, 130, 246, 0.1);
   }
 
-  .jurisdiction {
-    font-size: 11px;
-    color: #6b7280;
-  }
-  .jurisdiction-parents {
+  .breadcrumb-sep {
     color: #4b5563;
-    font-size: 10px;
+    font-size: 12px;
+    margin: 0 2px;
+    flex-shrink: 0;
+  }
+
+  .segment-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .header-actions {
@@ -3948,48 +3954,59 @@
 
   .icon-btn.active { color: #60a5fa; background: #333; }
 
-  /* === Connected Services (header dropdown) === */
-  .services-btn {
-    position: relative;
-  }
-  .services-health-dot {
-    position: absolute;
-    top: 2px;
-    right: 2px;
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-  }
-  .services-health-dot.healthy { background: #4ade80; }
-  .services-health-dot.degraded { background: #f59e0b; }
-  .services-health-dot.offline { background: #ef4444; }
-  .services-health-dot.unknown { background: transparent; }
-  .services-panel {
+  /* === Breadcrumb Detail Popover === */
+  .breadcrumb-detail {
     background: #262626;
     border-radius: 8px;
     padding: 10px 12px;
     margin-bottom: 12px;
     border: 1px solid #374151;
   }
-  .service-row {
+  .detail-header {
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 6px 4px;
-    border-radius: 4px;
+    gap: 6px;
+    margin-bottom: 8px;
   }
-  .service-row:hover {
-    background: #1f2937;
+  .detail-name {
+    font-size: 12px;
+    font-weight: 600;
+    color: #d1d5db;
   }
-  .relay-row {
-    padding-left: 20px;
+  .detail-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 4px 0;
+  }
+  .detail-label {
+    font-size: 10px;
+    font-weight: 500;
+    color: #6b7280;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .detail-value {
+    font-size: 11px;
+    color: #d1d5db;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .detail-endpoint {
+    font-size: 9px;
+    color: #4b5563;
+    padding-left: 1px;
+    margin-top: -2px;
+    margin-bottom: 2px;
+    font-family: monospace;
   }
   .relay-offline {
     color: #ef4444;
   }
   .health-dot {
-    width: 8px;
-    height: 8px;
+    width: 7px;
+    height: 7px;
     border-radius: 50%;
     flex-shrink: 0;
   }
@@ -3997,17 +4014,6 @@
   .health-dot.degraded { background: #f59e0b; }
   .health-dot.offline { background: #ef4444; }
   .health-dot.unknown { background: #4b5563; }
-  .service-info {
-    flex: 1;
-    min-width: 0;
-  }
-  .service-name {
-    font-size: 12px;
-    color: #d1d5db;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
   .service-badge {
     font-size: 9px;
     font-weight: 600;
@@ -4019,29 +4025,6 @@
   .service-badge.primary {
     color: #60a5fa;
     background: rgba(59, 130, 246, 0.15);
-  }
-  .service-meta {
-    font-size: 10px;
-    color: #6b7280;
-    display: flex;
-    gap: 4px;
-    align-items: center;
-  }
-  .services-manage-link {
-    display: block;
-    width: 100%;
-    text-align: center;
-    font-size: 10px;
-    color: #6b7280;
-    background: none;
-    border: none;
-    border-top: 1px solid #374151;
-    padding: 6px 0 2px;
-    margin-top: 4px;
-    cursor: pointer;
-  }
-  .services-manage-link:hover {
-    color: #9ca3af;
   }
 
   /* === Past Meeting === */

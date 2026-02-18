@@ -80,13 +80,12 @@ export async function getRegistryServers(forceRefresh = false): Promise<Registry
   }
 }
 
-/** Get the server URL for a jurisdiction from the registry. */
+/** Get the MCP server URL for a jurisdiction from the registry. */
 export async function getServerUrl(jurisdictionId: string): Promise<string | null> {
   const servers = await getRegistryServers();
   const server = servers.find(s => s.jurisdiction_id === jurisdictionId);
   if (!server) return null;
-  // Derive base URL from mcp_endpoint (strip /mcp suffix)
-  return server.mcp_endpoint.replace(/\/mcp$/, '');
+  return server.mcp_endpoint;
 }
 
 /** Get parent servers for the active jurisdiction, ordered state → federal. */
@@ -109,9 +108,9 @@ export async function getRelayEndpoint(jurisdictionId?: string): Promise<string 
   return server?.relay_endpoint || null;
 }
 
-/** Get the base URL (without /mcp) for a specific server. */
+/** Get the MCP URL for a specific server. */
 export function getServerBaseUrl(server: RegistryServer): string {
-  return server.mcp_endpoint.replace(/\/mcp$/, '');
+  return server.mcp_endpoint;
 }
 
 async function getCachedServers(ignoreExpiry = false): Promise<RegistryServer[] | null> {

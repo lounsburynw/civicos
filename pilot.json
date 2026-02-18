@@ -4313,7 +4313,7 @@
       },
       "extension_phase1b_read_enhancements": {
         "status": "ready",
-        "priority": 0,
+        "priority": 1,
         "artifact": "Browser extension Phase 1b \u2014 Read-only enhancements toward Open WebUI parity",
         "note": "Enrich the existing City Pulse sections without relay integration. Voice counts display (read-only via getVoiceCountsBatch), decision detail expansion (click to expand with testimony excerpts via decision-detail API), calendar buttons (Google Calendar URL + .ics download per meeting), data provenance info panel, past meeting visual indicator. All use existing REST API endpoints \u2014 no relay or signing needed.",
         "features": [

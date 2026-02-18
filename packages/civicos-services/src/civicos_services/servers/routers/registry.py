@@ -229,7 +229,7 @@ async def check_operator_health(endpoint: str, timeout: float = 5.0) -> Operator
     start = datetime.now(timezone.utc)
     try:
         async with httpx.AsyncClient(timeout=timeout) as client:
-            response = await client.get(f"{endpoint.rstrip('/mcp')}/health")
+            response = await client.get(f"{endpoint}/health")
             response_time = int((datetime.now(timezone.utc) - start).total_seconds() * 1000)
 
             if response.status_code == 200:
@@ -293,7 +293,7 @@ def _get_internal_servers() -> List[InternalMCPServer]:
     servers = []
     for jid, config in get_active_jurisdictions().items():
         mcp_endpoint = _build_mcp_endpoint(jid)
-        health_endpoint = mcp_endpoint.replace("/mcp", "/health")
+        health_endpoint = mcp_endpoint + "/health"
 
         servers.append(InternalMCPServer(
             jurisdiction_id=jid,
