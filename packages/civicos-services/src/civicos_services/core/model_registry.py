@@ -7,7 +7,7 @@ implementation detail and model is primary abstraction.
 Key Design Principles:
 - Provider is implementation detail - users think in terms of models
 - Capabilities drive selection - explicit requirements, not implicit assumptions
-- Cost-aware by default - optimize for foundation budget (<$7/month)
+- Cost-aware by default - optimize for foundation budget
 - Future-proof - easy to add new models/providers
 """
 

@@ -124,9 +124,7 @@ Closing even 25% of this gap:
 **Operational Metrics**:
 - ~150 events extracted
 - ~65 actionable items identified
-- $5/month event extraction cost
-- $2/month legislative context enrichment
-- **Total operational cost: <$7/month**
+- Low operational cost designed for foundation sustainability
 
 ---
 

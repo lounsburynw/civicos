@@ -557,6 +557,6 @@ This project uses **Nostr protocol with secp256k1 Schnorr signatures** (not P-25
 
 ## Constraints
 
-- Foundation-funded (<$7/month operational)
-- Pilot: San Rafael, Jan 2026
+- Foundation-funded
+- Pilot: San Rafael
 - Moat is coordination, not intelligence

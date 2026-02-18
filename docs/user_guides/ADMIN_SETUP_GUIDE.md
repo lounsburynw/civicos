@@ -557,7 +557,7 @@ print("RAG working correctly")
 
 ## Cost Estimation
 
-Target operational cost: **< $7/month**
+Target operational cost: **Low (foundation-sustainable)**
 
 | Service | Expected Usage | Monthly Cost |
 |---------|---------------|--------------|

@@ -429,7 +429,7 @@ Examples:
 |-------|------------|------|---------|---------|------|
 | `nomic-embed-text-v1.5` | 768 | 274MB | 8192 tokens | ~40ms | $0 |
 
-**Rationale**: Foundation funding constraint (<$7/month operational). Local model meets latency requirements (<500ms) while incurring zero API costs. The 8192 token context supports longer documents without truncation.
+**Rationale**: Foundation funding constraint favors low operational cost. Local model meets latency requirements (<500ms) while incurring zero API costs. The 8192 token context supports longer documents without truncation.
 
 ### Alternative: OpenAI (Future)
 

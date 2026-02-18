@@ -8,7 +8,7 @@
 
 Civic requires a vector database for semantic search over meeting transcripts, decisions, and municipal code. The production deployment must:
 
-1. Stay under $7/month operational budget (foundation constraint)
+1. Stay within foundation budget constraint
 2. Support ~13MB vector index (current San Rafael corpus)
 3. Handle low-traffic queries (pilot phase)
 4. Be deployable on Fly.io alongside the API server
@@ -84,7 +84,7 @@ Civic requires a vector database for semantic search over meeting transcripts, d
 
 1. **Already implemented**: ChromaDB integration is complete and tested. Zero development work.
 
-2. **Budget compliant**: $0.45/month for 3GB volume is well under the $7/month budget.
+2. **Budget compliant**: $0.45/month for 3GB volume is well within budget.
 
 3. **Simplest deployment**: Add volume mount to existing Fly.io app. No external dependencies.
 

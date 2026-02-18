@@ -196,9 +196,7 @@ This is not apathy - it's a coordination failure:
 ### Economics
 
 **Target**: $50-100K annual foundation grant per region
-**Operational Cost**: <$7/month
-- Event extraction: $5/month
-- Legislative context: $2/month
+**Operational Cost**: Low (designed for foundation sustainability)
 - Testimony extraction: $1,872/year ($156/month for 26 cities)
 
 **Success Metrics** (not revenue):
@@ -232,7 +230,7 @@ This is not apathy - it's a coordination failure:
 - 5 platforms supported (Legistar, CivicClerk, Granicus, CivicPlus, HTML)
 - 26 cities operational
 - ~150 events, ~65 actionable items extracted
-- <$7/month operational cost
+- Low operational cost
 
 ### 12-Month Retrospective Analysis (COMPLETED)
 

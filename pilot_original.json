@@ -285,9 +285,9 @@
       "cost_estimate": {
         "status": "ready",
         "priority": 1,
-        "artifact": "Monthly cost estimate < $7",
+        "artifact": "Monthly cost estimate documented",
         "completed": "2025-12-11",
-        "note": "Documented in HOSTING_DECISION.md: ~$4.73/month total (civic-api $1.94, civic-websocket $1.94, 3GB volume $0.45, egress $0.40). ~$2.27 buffer under $7 limit"
+        "note": "Documented in HOSTING_DECISION.md: ~$4.73/month base compute (civic-api $1.94, civic-websocket $1.94, 3GB volume $0.45, egress $0.40)"
       },
       "domain_setup": {
         "status": "ready",

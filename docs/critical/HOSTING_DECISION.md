@@ -474,7 +474,7 @@ modal secret create civicos-env \
 
 | Date | Decision | Rationale |
 |------|----------|-----------|
-| 2025-12-11 | Selected Fly.io for web tier | Best cost/feature balance for <$7/month |
+| 2025-12-11 | Selected Fly.io for web tier | Best cost/feature balance for budget |
 | 2025-12-11 | SJC region | Closest to San Rafael pilot location |
 | 2025-12-11 | Shared CPU | Sufficient for pilot scale traffic |
 | 2025-12-11 | 3GB volume | Enough for SQLite + ChromaDB + growth |
