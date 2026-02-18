@@ -550,9 +550,8 @@ Browse all results:
 3. [Integration Architecture](#3-integration-architecture)
 4. [Implementation Plan](#4-implementation-plan)
 5. [MCP Server Specifications](#5-mcp-server-specifications)
-6. [LangGraph Integration](#6-langgraph-integration)
-7. [Frontend Considerations](#7-frontend-considerations)
-8. [Decision Points](#8-decision-points)
+6. [Frontend Considerations](#6-frontend-considerations)
+7. [Decision Points](#7-decision-points)
 
 ---
 
@@ -622,7 +621,6 @@ With MCP: M AI models + N tools = M+N MCP implementations
 3. **Ecosystem Access**
    - Pre-built MCP servers for GitHub, Slack, Calendar
    - Can compose workflows using external tools
-   - LangGraph can orchestrate MCP tools
 
 4. **Developer Experience**
    - Claude Desktop can query San Rafael issues directly
@@ -648,7 +646,7 @@ EXISTING (keep as-is):
 ├── civic_api_integrated.py    # REST API for Vue frontend
 ├── civic_chat_router.py       # Custom chat routing
 ├── civic_socketio_server.py   # WebSocket for real-time
-└── coordination_graph.py      # LangGraph workflows
+└── orchestrator/              # Suggestions, outcomes
 
 NEW WORK (MCP-native):
 ├── apps/civicos-mcp/
@@ -725,10 +723,10 @@ NEW WORK (MCP-native):
                   ┌───────────────┼───────────────┐
                   │               │               │
                   ▼               ▼               ▼
-           ┌────────────┐ ┌────────────┐ ┌────────────┐
-           │ Claude     │ │ LangGraph  │ │ Custom     │
-           │ Desktop    │ │ Workflows  │ │ AI Apps    │
-           └────────────┘ └────────────┘ └────────────┘
+           ┌────────────┐ ┌────────────┐
+           │ Claude     │ │ Custom     │
+           │ Desktop    │ │ AI Apps    │
+           └────────────┘ └────────────┘
 ```
 
 ### 3.2 Data Flow
@@ -748,9 +746,8 @@ Any MCP Client → MCP Server → StateManager → SQLite
 Vue Frontend ──────────────────────────┐
                                        ▼
                               ┌──────────────────┐
-Claude Desktop ───┐           │                  │
-                  ├──► MCP ──►│  StateManager    │──► SQLite
-LangGraph ────────┘           │                  │
+Claude Desktop ──► MCP ──────►│  StateManager    │──► SQLite
+                              │                  │
                               └──────────────────┘
 ```
 
@@ -798,25 +795,6 @@ LangGraph ────────┘           │                  │
 | `get_bills` | Get bills by topic | topic |
 | `get_programs` | Get federal programs | topic |
 | `match_topic` | Match text to legislative context | text |
-
-### 4.4 Phase 4: LangGraph Integration (Future)
-
-**Goal**: LangGraph workflows use MCP tools instead of direct imports
-
-**Before**:
-```python
-from state_manager import StateManager
-sm = StateManager()
-issues = sm.query_issues(jurisdiction, street=street)
-```
-
-**After**:
-```python
-from langchain_mcp_adapters import MCPToolkit
-toolkit = MCPToolkit(server_url="http://localhost:8080")
-tools = toolkit.get_tools()
-# LangGraph nodes use tools via MCP
-```
 
 ---
 
@@ -947,54 +925,13 @@ uvicorn mcp_servers.civic_issues:app --host 0.0.0.0 --port 8080
 
 ---
 
-## 6. LangGraph Integration
+## 6. Frontend Considerations
 
-### 6.1 Using MCP Tools in LangGraph
-
-```python
-# src/coordination_graph.py (future update)
-from langchain_mcp_adapters import MCPToolkit
-from langgraph.graph import StateGraph
-
-# Connect to MCP server
-toolkit = MCPToolkit(server_url="http://localhost:8080")
-mcp_tools = toolkit.get_tools()
-
-def discover_residents_via_mcp(state: CoordinationState) -> CoordinationState:
-    """
-    Discovery node using MCP tools instead of direct imports.
-    """
-    query_issues = mcp_tools["query_issues"]
-
-    # Query via MCP
-    issues = query_issues.invoke({
-        "jurisdiction": state["jurisdiction_id"],
-        "street": state.get("corridor"),
-        "limit": 50
-    })
-
-    return {
-        **state,
-        "actors": {"residents": issues}
-    }
-```
-
-### 6.2 Benefits of MCP in LangGraph
-
-1. **Decoupling**: Workflow doesn't depend on StateManager import
-2. **Portability**: Same workflow can use any MCP-compatible data source
-3. **Observability**: MCP calls visible in LangSmith traces
-4. **Scalability**: MCP servers can be deployed independently
-
----
-
-## 7. Frontend Considerations
-
-### 7.1 Current State
+### 6.1 Current State
 
 Vue frontend uses REST API (`civic_api_integrated.py`). No changes needed for MCP adoption.
 
-### 7.2 Future: MCP-UI Components
+### 6.2 Future: MCP-UI Components
 
 MCP-UI (https://mcpui.dev/) provides:
 - React and Web Components for rendering MCP resources
@@ -1006,7 +943,7 @@ MCP-UI (https://mcpui.dev/) provides:
 - Dynamic legislative context panels
 - Agent-rendered coordination dashboards
 
-### 7.3 Migration Path
+### 6.3 Migration Path
 
 ```
 Phase 1: Backend MCP (current focus)
@@ -1021,14 +958,13 @@ Phase 3: Evaluate MCP-UI (future)
 
 ---
 
-## 8. Decision Points
+## 7. Decision Points
 
-### 8.1 After Phase 1 (Session 119)
+### 7.1 After Phase 1 (Session 119)
 
 ```
 IF MCP server works smoothly:
   → Continue with civic_events.py, legislative.py
-  → Update LangGraph to use MCP tools
   → Consider MCP-UI for frontend components
 
 IF MCP adds too much complexity:
@@ -1036,7 +972,7 @@ IF MCP adds too much complexity:
   → Use MCP only for Claude Desktop experimentation
 ```
 
-### 8.2 MCP vs Direct Integration
+### 7.2 MCP vs Direct Integration
 
 **Use MCP when**:
 - External AI clients need access
@@ -1217,7 +1153,6 @@ When a city officially adopts, they can push data directly:
 │  INTELLIGENCE LAYER (Our Moat - applies to ALL modes)          │
 │  ┌───────────────────────────────────────────────┐             │
 │  │  • Legislative enrichment (bills, programs)    │             │
-│  │  • Coordination scoring (LangGraph)            │             │
 │  │  • Complaint-to-agenda matching                │             │
 │  │  • 99.99% reference validation                 │             │
 │  └─────────────────────┬─────────────────────────┘             │
@@ -1412,7 +1347,7 @@ def query_issues(jurisdiction: str):
 
 ## Related Documentation
 
-- `docs/critical/FINAL_PACKAGE_ARCHITECTURE.md` - Master architecture, LangGraph workflows
+- `docs/critical/FINAL_PACKAGE_ARCHITECTURE.md` - Master architecture, orchestrator modules
 - `docs/critical/PILOT_ROADMAP.md` - Pilot timeline and readiness
 - `docs/critical/CIVIC_DASHBOARD_VISION.md` - Post-pilot UX vision (visualization primitives, multi-surface rendering)
 - **External**: [MCP Documentation](https://modelcontextprotocol.io/)
@@ -1428,9 +1363,6 @@ def query_issues(jurisdiction: str):
 ```bash
 # MCP Python SDK
 pip install mcp
-
-# LangChain MCP Adapters (for LangGraph)
-pip install langchain-mcp-adapters
 
 # MCP Inspector (for testing)
 npx @anthropic-ai/mcp-inspector
