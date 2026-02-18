@@ -10,6 +10,9 @@
   import { Chart, DoughnutController, ArcElement, Tooltip, Legend } from 'chart.js';
   import { marked } from 'marked';
   import DOMPurify from 'dompurify';
+  // Reusable components from @civicos/components
+  import CivicVoiceButtons from '@civicos/components/src/components/CivicVoiceButtons.svelte';
+  import CivicSynthesisBar from '@civicos/components/src/components/CivicSynthesisBar.svelte';
 
   Chart.register(DoughnutController, ArcElement, Tooltip, Legend);
 
@@ -2065,32 +2068,15 @@
                     {#if counts.attested != null && counts.attested > 0}<span class="vc vc-attested" title="{counts.attested} attested, {counts.unattested ?? 0} unattested">{counts.attested} attested</span>{/if}
                   </div>
                 {/if}
-                {#if item.stance_eligible}
-                  <div class="voice-actions">
-                    {#if identity?.isUnlocked}
-                      {@const eid = `agenda-item:${item.id}`}
-                      <button
-                        class="voice-btn vb-support"
-                        class:active={userStances.get(eid) === 'support'}
-                        disabled={votingInProgress.has(eid)}
-                        onclick={() => handleVoice(eid, 'support')}
-                      >Support</button>
-                      <button
-                        class="voice-btn vb-oppose"
-                        class:active={userStances.get(eid) === 'oppose'}
-                        disabled={votingInProgress.has(eid)}
-                        onclick={() => handleVoice(eid, 'oppose')}
-                      >Oppose</button>
-                      <button
-                        class="voice-btn vb-watch"
-                        class:active={userStances.get(eid) === 'watching'}
-                        disabled={votingInProgress.has(eid)}
-                        onclick={() => handleVoice(eid, 'watching')}
-                      >Watch</button>
-                    {:else if identity}
-                      <span class="voice-locked">Unlock to vote</span>
-                    {/if}
-                  </div>
+                {#if item.stance_eligible && identity}
+                  {@const eid = `agenda-item:${item.id}`}
+                  <CivicVoiceButtons
+                    entityId={eid}
+                    userStance={userStances.get(eid) ?? null}
+                    disabled={votingInProgress.has(eid)}
+                    locked={!identity.isUnlocked}
+                    onvoice={({ entityId, stance }) => handleVoice(entityId, stance)}
+                  />
                 {/if}
                 <!-- Comment Thread -->
                 {#if item.comment_eligible}
@@ -2114,29 +2100,14 @@
                         {#if threadLoading.has(commentEntityId)}
                           <div class="thread-loading">Loading comments...</div>
                         {:else}
-                          <!-- Synthesis bar -->
+                          <!-- Synthesis bar (reusable component) -->
                           {#if synthData.has(commentEntityId)}
                             {@const synth = synthData.get(commentEntityId)!}
-                            {#if synth.total > 0}
-                              <div class="synthesis-bar-wrapper">
-                                <div class="synthesis-bar">
-                                  {#if synth.support > 0}
-                                    <div class="bar-seg bar-support" style="width: {(synth.support / synth.total) * 100}%" title="{synth.support} support"></div>
-                                  {/if}
-                                  {#if synth.oppose > 0}
-                                    <div class="bar-seg bar-oppose" style="width: {(synth.oppose / synth.total) * 100}%" title="{synth.oppose} oppose"></div>
-                                  {/if}
-                                  {#if synth.neutral > 0}
-                                    <div class="bar-seg bar-neutral" style="width: {(synth.neutral / synth.total) * 100}%" title="{synth.neutral} neutral"></div>
-                                  {/if}
-                                </div>
-                                <div class="synthesis-labels">
-                                  {#if synth.support > 0}<span class="synth-label synth-support">{synth.support} support</span>{/if}
-                                  {#if synth.oppose > 0}<span class="synth-label synth-oppose">{synth.oppose} oppose</span>{/if}
-                                  {#if synth.neutral > 0}<span class="synth-label synth-neutral">{synth.neutral} neutral</span>{/if}
-                                </div>
-                              </div>
-                            {/if}
+                            <CivicSynthesisBar
+                              support={synth.support}
+                              oppose={synth.oppose}
+                              neutral={synth.neutral}
+                            />
                           {/if}
 
                           <!-- Summarize thread button -->

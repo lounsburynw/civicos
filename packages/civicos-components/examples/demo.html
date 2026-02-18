@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CivicOS Web Components Demo</title>
+  <style>
+    body {
+      background: #111;
+      color: #e5e7eb;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      padding: 40px;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+    h1 { font-size: 20px; color: #fff; margin-bottom: 8px; }
+    h2 { font-size: 14px; color: #9ca3af; margin-top: 32px; margin-bottom: 12px; }
+    .card {
+      background: #1a1a1a;
+      border: 1px solid #333;
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+    .card-title { font-size: 13px; color: #d1d5db; margin-bottom: 8px; }
+    .event-log {
+      background: #0a0a0a;
+      border: 1px solid #333;
+      border-radius: 4px;
+      padding: 12px;
+      font-family: monospace;
+      font-size: 11px;
+      color: #6b7280;
+      min-height: 60px;
+      max-height: 150px;
+      overflow-y: auto;
+    }
+    .log-entry { margin-bottom: 4px; }
+    .log-entry .stance { color: #4ade80; }
+  </style>
+</head>
+<body>
+  <h1>CivicOS Web Components</h1>
+  <p style="font-size: 12px; color: #6b7280;">Standalone demo — no framework, just &lt;script&gt; import</p>
+
+  <h2>civic-voice-buttons</h2>
+
+  <div class="card">
+    <div class="card-title">Agenda Item: Zoning Amendment for Mixed-Use Development</div>
+    <civic-voice-buttons id="btn1"></civic-voice-buttons>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Decision: Approve Downtown Parking Structure (active: support)</div>
+    <civic-voice-buttons id="btn2"></civic-voice-buttons>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Locked (identity not verified)</div>
+    <civic-voice-buttons id="btn3"></civic-voice-buttons>
+  </div>
+
+  <h2>civic-synthesis-bar</h2>
+
+  <div class="card">
+    <div class="card-title">Public Comment Distribution (12 support, 5 oppose, 3 neutral)</div>
+    <civic-synthesis-bar id="synth1"></civic-synthesis-bar>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Contentious Item (8 support, 7 oppose, 1 neutral)</div>
+    <civic-synthesis-bar id="synth2"></civic-synthesis-bar>
+  </div>
+
+  <h2>Event Log</h2>
+  <div class="event-log" id="log">Waiting for interactions...</div>
+
+  <script type="module">
+    import '../dist/civicos-components.js';
+
+    // Configure voice buttons via JS properties
+    const btn1 = document.getElementById('btn1');
+    btn1.entityId = 'agenda-item:zoning-001';
+    btn1.userStance = null;
+    btn1.onvoice = (detail) => {
+      btn1.userStance = detail.stance;
+      logEvent(`Vote: ${detail.stance} on ${detail.entityId}`);
+    };
+
+    const btn2 = document.getElementById('btn2');
+    btn2.entityId = 'decision:parking-002';
+    btn2.userStance = 'support';
+    btn2.onvoice = (detail) => {
+      btn2.userStance = detail.stance;
+      logEvent(`Vote: ${detail.stance} on ${detail.entityId}`);
+    };
+
+    const btn3 = document.getElementById('btn3');
+    btn3.locked = true;
+
+    // Configure synthesis bars via JS properties
+    const synth1 = document.getElementById('synth1');
+    synth1.support = 12;
+    synth1.oppose = 5;
+    synth1.neutral = 3;
+
+    const synth2 = document.getElementById('synth2');
+    synth2.support = 8;
+    synth2.oppose = 7;
+    synth2.neutral = 1;
+
+    // Event logging
+    const logEl = document.getElementById('log');
+    function logEvent(msg) {
+      const entry = document.createElement('div');
+      entry.className = 'log-entry';
+      entry.innerHTML = `<span class="stance">${new Date().toLocaleTimeString()}</span> ${msg}`;
+      logEl.prepend(entry);
+    }
+  </script>
+</body>
+</html>

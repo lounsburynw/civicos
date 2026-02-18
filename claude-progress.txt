@@ -1,3 +1,28 @@
+## Session — 2026-02-18 (Web Components Phase 1: Package Scaffold + First Components)
+
+**Item:** civic_web_components (P0) — Phase 1
+**Status:** Phase 1 complete, item remains not_ready (4 phases total)
+
+**What was done:**
+- Created `packages/civicos-components/` — Svelte 5 + Vite lib mode + TypeScript
+- Built `<civic-voice-buttons>` — Support/Oppose/Watch with active state, callback events
+- Built `<civic-synthesis-bar>` — stacked bar chart for comment distribution
+- Dual consumption: Svelte components (extension) + Custom Elements (standalone bundle)
+- Wired into extension SidePanel — replaced 1 voice buttons instance + 1 synthesis bar instance
+- Created standalone demo HTML (examples/demo.html)
+- All 3 packages build clean: components (76KB bundle), extension, client SDK
+
+**Key design decisions:**
+- Callback props (`onvoice`) instead of `$host()` dispatch — works in both Svelte and CE modes
+- Extension imports components as Svelte components (source imports via `./src/*` export)
+- Standalone bundle compiles with `customElement: true` for HTML consumption
+- `<svelte:options customElement="...">` warns in extension build (expected — compiled as regular Svelte)
+
+**What remains for civic_web_components:**
+- Phase 2: `<civic-agenda-item-card>` + `<civic-decision-card>` (compose Phase 1 components)
+- Phase 3: `<civic-initiative-card>` + integration tests across surfaces
+- Phase 4: Migrate remaining SidePanel to compose Web Components
+
 ## Session — 2026-02-18 (Client SDK Phase 5: Second Surface Proof)
 
 **Item:** client_sdk_extraction (P0) — Phase 5
