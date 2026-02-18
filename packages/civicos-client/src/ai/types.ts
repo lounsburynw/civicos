@@ -2,10 +2,9 @@
  * AI Provider types for the tiered AI stack.
  *
  * Mirrors the SigningProvider pattern from identity providers.
- * Tier: cloud-pro (Claude/OpenAI)
  */
 
-export type AITier = 'cloud-pro';
+export type AITier = 'cloud-pro' | 'cloud-free' | 'device';
 
 export interface AIProviderConfig {
   apiKey?: string;

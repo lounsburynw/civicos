@@ -3,7 +3,7 @@
  *
  * Two auth paths:
  * - API key: free from aistudio.google.com
- * - OAuth: chrome.identity.getAuthToken() (requires Google Cloud Console client_id)
+ * - OAuth: token injected via AICredentialStorage
  */
 
 import type { AIProvider, AITier, AIProviderConfig, AICompletionResult } from '../types.js';
@@ -26,7 +26,6 @@ export class GeminiProvider implements AIProvider {
   constructor(private storage: AICredentialStorage) {}
 
   async isAvailable(): Promise<boolean> {
-    // Always available — user just needs to configure
     return true;
   }
 

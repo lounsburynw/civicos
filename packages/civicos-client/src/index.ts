@@ -62,3 +62,13 @@ export {
   createAttestationContent,
   createAttestationTags,
 } from './events.js';
+
+// AI — manager, providers, storage, prompts
+export { AIManager } from './ai/manager.js';
+export type { AIProvider, AITier, AICompletionResult, AIProviderConfig, AIPreferences } from './ai/types.js';
+export type { AICredentialStorage } from './ai/storage.js';
+export { MemoryAICredentialStorage } from './ai/storage.js';
+export { ClaudeProvider } from './ai/providers/claude.js';
+export { OpenAIProvider } from './ai/providers/openai.js';
+export { GeminiProvider } from './ai/providers/gemini.js';
+export { composeDraftPrompt, composeEnrichPrompt, SYSTEM_PROMPT, QA_SYSTEM_PROMPT } from './ai/prompts.js';

@@ -1,24 +1,16 @@
 /**
- * AI credential storage using chrome.storage APIs.
+ * ChromeAICredentialStorage — implements AICredentialStorage using chrome.storage APIs.
  *
  * - API keys: chrome.storage.local (persistent)
  * - OAuth tokens: chrome.storage.session (ephemeral, cleared on browser close)
  * - Preferences: chrome.storage.local (persistent)
  */
 
-import type { AIProviderConfig, AIPreferences } from './types.js';
+import type { AICredentialStorage, AIProviderConfig, AIPreferences } from '@civicos/client';
 
 const CRED_PREFIX = 'civicos-ai-cred-';
 const OAUTH_PREFIX = 'civicos-ai-oauth-';
 const PREFS_KEY = 'civicos-ai-preferences';
-
-export interface AICredentialStorage {
-  getConfig(providerId: string): Promise<AIProviderConfig>;
-  saveConfig(providerId: string, config: AIProviderConfig): Promise<void>;
-  clearConfig(providerId: string): Promise<void>;
-  getPreferences(): Promise<AIPreferences>;
-  savePreferences(prefs: AIPreferences): Promise<void>;
-}
 
 export class ChromeAICredentialStorage implements AICredentialStorage {
   async getConfig(providerId: string): Promise<AIProviderConfig> {
@@ -93,31 +85,5 @@ export class ChromeAICredentialStorage implements AICredentialStorage {
 
   async savePreferences(prefs: AIPreferences): Promise<void> {
     await chrome.storage.local.set({ [PREFS_KEY]: prefs });
-  }
-}
-
-export class MemoryAICredentialStorage implements AICredentialStorage {
-  private configs = new Map<string, AIProviderConfig>();
-  private prefs: AIPreferences = {};
-
-  async getConfig(providerId: string): Promise<AIProviderConfig> {
-    return this.configs.get(providerId) ?? {};
-  }
-
-  async saveConfig(providerId: string, config: AIProviderConfig): Promise<void> {
-    const existing = this.configs.get(providerId) ?? {};
-    this.configs.set(providerId, { ...existing, ...config });
-  }
-
-  async clearConfig(providerId: string): Promise<void> {
-    this.configs.delete(providerId);
-  }
-
-  async getPreferences(): Promise<AIPreferences> {
-    return this.prefs;
-  }
-
-  async savePreferences(prefs: AIPreferences): Promise<void> {
-    this.prefs = prefs;
   }
 }

@@ -5,7 +5,7 @@
  * Zero config, on-device, free. Default when available.
  */
 
-import type { AIProvider, AITier, AIProviderConfig, AICompletionResult } from '../types.js';
+import type { AIProvider, AITier, AIProviderConfig, AICompletionResult } from '@civicos/client';
 
 // Chrome's Prompt API types (not yet in standard type packages)
 interface AILanguageModelCapabilities {
