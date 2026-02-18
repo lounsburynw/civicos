@@ -1,4 +1,4 @@
-# Recommended: Client SDK Extraction
+# Recommended: Client SDK Extraction — Phases 3-5 (AI Layer, Operations, Second Surface)
 
 **Priority:** P0 (`client_sdk_extraction`)
 **Area:** edge_intelligence > browser_extension
@@ -8,90 +8,65 @@
 
 ## Context
 
-Last session completed `extension_connected_services_redesign` — breadcrumb segments now function as jurisdiction tabs (click to switch content, endpoint bar shows MCP/Relay URLs, health info via title tooltips). The extension's UX layer is now solid.
+Two sessions completed Phases 1-2 of the client SDK extraction:
+- **Phase 1** (commit `40cd791`): Created `packages/civicos-client/` with StorageAdapter, types, RegistryClient, ApiClient. Rewired extension (40+ call sites).
+- **Phase 2** (commit `0b95db7`): Added Signer interface, event helpers (`events.ts`), 9 `cast*` methods on ApiClient, ExtensionSigner adapter. Simplified all 8 SidePanel signing sites (-167 lines).
 
-The next step is **extracting the platform-agnostic business logic** from the extension into a reusable TypeScript SDK (`packages/civicos-client/`). This enables multiple UX surfaces (web app, MCP App iframe, other extensions) to share civic coordination logic.
+**Three phases remain to complete `client_sdk_extraction`:**
+1. AI layer extraction (~1005 lines across 10 files)
+2. Business operations extraction from SidePanel (5628-line file)
+3. Second surface proof
 
-## What We're Doing
+The user wants all three completed across upcoming sessions.
 
-The extension's `src/lib/` is 80% platform-agnostic already. Chrome coupling is concentrated in ~15 call sites across 4 files. All six business flows (voice, comment, commit, complete, withdraw, initiative) follow identical structure: **build unsigned Nostr event → sign → submit to relay → optimistic update**. This pattern is extractable behind two interfaces.
+## Recommended Task: Phase 3 — AI Layer Extraction
 
-## Two Key Interfaces
+Move the AI subsystem from the extension into `@civicos/client`. This follows the same pattern as Phases 1-2: define interface → move code → create Chrome adapter → rewire extension.
 
-### Signer
-Replaces `chrome.runtime.sendMessage({ type: 'SIGN_EVENT' })`:
-```typescript
-interface Signer {
-  sign(event: UnsignedNostrEvent): Promise<SignedNostrEvent>;
-  signMessage(msg: string): Promise<{ public_key: string; signature: string; created_at: number }>;
-  isUnlocked(): Promise<boolean>;
-}
-```
-Implementations: `ExtensionSigner` (chrome messaging), `InProcessSigner` (calls loom-core directly), `NIP07Signer` (window.nostr)
+### File Assessment
 
-### StorageAdapter
-Replaces direct `chrome.storage.local` calls:
-```typescript
-interface StorageAdapter {
-  get(key: string): Promise<any>;
-  set(key: string, value: any): Promise<void>;
-  remove(key: string): Promise<void>;
-}
-```
-Implementations: `ChromeStorageAdapter`, `LocalStorageAdapter`, `IndexedDBAdapter`
+**Platform-agnostic (move verbatim to `@civicos/client`):**
+- `ai/types.ts` (50 lines) — `AIProvider`, `AIMessage`, `AIConfig` interfaces
+- `ai/prompts.ts` (95 lines) — Prompt templates, no browser deps
+- `ai/providers/claude.ts` (110 lines) — Claude API client (pure fetch)
+- `ai/providers/openai.ts` (105 lines) — OpenAI API client (pure fetch)
+- `ai/providers/index.ts` (3 lines) — Re-exports
 
-loom-core's `KeyStore` should be implementable in terms of `StorageAdapter` (one wraps the other).
+**Needs Chrome adapter extraction:**
+- `ai/storage.ts` (123 lines) — Uses `chrome.storage.local/session` for API keys, OAuth, prefs. Extract `AIStorageAdapter` interface, create `ChromeAIStorage` adapter.
+- `ai/manager.ts` (165 lines) — Line 29 checks `typeof chrome !== 'undefined'`. Inject storage adapter instead.
+- `ai/providers/civicos-proxy.ts` (133 lines) — Lines 27, 46 use `chrome.runtime.sendMessage` for identity. Inject Signer instead.
 
-## What Moves to `packages/civicos-client/`
+**Chrome-only (stays in extension):**
+- `ai/providers/chrome-nano.ts` (102 lines) — Chrome built-in AI API (`self.ai.languageModel`)
+- `ai/providers/gemini.ts` (119 lines) — Uses `chrome.identity.getAuthToken()`
 
-| Extension File | Disposition | Chrome Calls to Remove |
-|---|---|---|
-| `lib/types.ts` | Move verbatim | 0 |
-| `lib/api.ts` | Move; inject URL resolution | 2 direct + 2 indirect |
-| `lib/registry.ts` | Move; inject StorageAdapter for cache + jurisdiction pref | 5 |
-| `lib/relay-client.ts` | Move; inject StorageAdapter for URL overrides | 2 |
-| `lib/providers/types.ts` | Move CivicEventKinds, event tag/content helpers | 0 |
-| `lib/ai/prompts.ts` | Move verbatim (pure functions) | 0 |
-| `lib/ai/types.ts` | Move verbatim | 0 |
-| `lib/ai/manager.ts` | Move; inject storage instead of Chrome feature detection | 1 |
-| `lib/ai/providers/claude.ts` | Move verbatim | 0 |
-| `lib/ai/providers/openai.ts` | Move verbatim | 0 |
-| `lib/ai/providers/civicos-proxy.ts` | Move; inject Signer for auth | 2 |
-| New: `operations.ts` | Extract from SidePanel: castVoice(), submitComment(), commitAction(), createInitiative(), etc. | N/A |
+### Suggested Approach
 
-## What Stays in the Extension
+1. Create `packages/civicos-client/src/ai/` directory
+2. Move `types.ts`, `prompts.ts` verbatim
+3. Define `AIStorageAdapter` interface (get/set/remove for credentials + prefs)
+4. Move `manager.ts` with injected `AIStorageAdapter` (replace chrome check)
+5. Move `claude.ts`, `openai.ts` verbatim
+6. Move `civicos-proxy.ts` with injected `Signer` (replace chrome.runtime.sendMessage)
+7. Create `ChromeAIStorage` adapter in extension
+8. Rewire extension imports
+9. Verify both packages build
 
-- `lib/storage.ts` — ChromeStorageAdapter implementation
-- `lib/messaging.ts` — Chrome message types + sendMessage()
-- `lib/identity.ts` — IdentityManager (Chrome session persistence)
-- `lib/providers/local-wallet.ts` — BIP-39 wallet (uses Chrome storage)
-- `lib/providers/crypto.ts` — bridge between extension's NostrEvent (optional pubkey) and loom-core's UnsignedEvent (required pubkey)
-- `lib/ai/providers/chrome-nano.ts` — Chrome-only by design
-- `lib/ai/storage.ts` — ChromeAICredentialStorage
-- `src/background/service-worker.ts` — trusted key holder
-- `src/content-scripts/*` — NIP-07 injector, Claude bridge
-- `src/side-panel/SidePanel.svelte` — rendering only, imports operations from @civicos/client
+### After AI Layer: Phases 4-5
 
-## Type Mismatch to Resolve
+**Phase 4 — Business operations extraction:** Extract orchestration logic from SidePanel.svelte into `packages/civicos-client/src/operations.ts`. The cast* methods already handle signing; operations.ts would handle the full flow (optimistic updates, error handling, state management patterns). This is the largest phase — SidePanel is 5628 lines.
 
-Extension's `NostrEvent` has `pubkey?: string` (optional). loom-core's `UnsignedEvent` has `pubkey: string` (required). The Signer interface should accept pubkey-optional events and derive pubkey internally — matching the extension's current `signNostrEvent()` bridge in `crypto.ts`.
+**Phase 5 — Second surface proof:** Build a minimal web page or test harness that imports `@civicos/client` and performs a read operation (getCityPulse) and optionally a write (castVoice with a mock/direct signer). This validates the whole extraction.
 
-## Implementation Order
+## Key Files
 
-1. Create `packages/civicos-client/` with interfaces (Signer, StorageAdapter) and move `types.ts`
-2. Move API layer (`api.ts`, `registry.ts`, `relay-client.ts`) with dependency injection
-3. Move AI layer (`manager.ts`, `prompts.ts`, portable providers)
-4. Extract business operations from SidePanel into `operations.ts`
-5. Rewire extension: create Chrome adapters, import from `@civicos/client`
-6. Verify: extension works identically, then build a second surface as proof
-
-## Context to Load
-
-- `docs/critical/FINAL_PACKAGE_ARCHITECTURE.md` — five-layer architecture, two-MCP split
-- `docs/critical/EDGE_INTELLIGENCE_ARCHITECTURE.md` — tiered identity, MCP Apps, signing flow
-- `packages/loom-core/src/types.ts` — KeyPair, KeyStore, ProtocolAdapter interfaces
-- `apps/civicos-extension/src/lib/` — the code being extracted
-- `apps/civicos-extension/src/side-panel/SidePanel.svelte` — business logic to extract
+- `packages/civicos-client/src/` — SDK source (interfaces.ts, api.ts, events.ts, registry.ts, types.ts, index.ts)
+- `packages/civicos-client/package.json` — Package config (no deps currently)
+- `apps/civicos-extension/src/lib/ai/` — AI subsystem to extract (10 files, ~1005 lines)
+- `apps/civicos-extension/src/lib/client.ts` — Singleton exports (registry, signer, api)
+- `apps/civicos-extension/src/lib/adapters/` — Chrome adapters (chrome-storage.ts, extension-signer.ts)
+- `apps/civicos-extension/src/side-panel/SidePanel.svelte:1-7` — Current imports (already simplified)
 
 ## Tests
 ```bash
@@ -100,7 +75,8 @@ cd apps/civicos-extension && npm run build    # Extension still works
 ```
 
 ## Success Criteria
-- [ ] `packages/civicos-client/` exists with Signer + StorageAdapter interfaces
-- [ ] Types, API, registry, relay-client moved with dependency injection
-- [ ] Extension imports from `@civicos/client` and builds clean
-- [ ] All six business flows still work via Chrome adapters
+- [ ] AI types, prompts, and portable providers moved to `@civicos/client`
+- [ ] `AIStorageAdapter` interface defined, `ChromeAIStorage` adapter created
+- [ ] `civicos-proxy.ts` uses injected Signer instead of chrome.runtime.sendMessage
+- [ ] Both packages build clean
+- [ ] Extension AI features still work (manual test: try AI draft in side panel)
