@@ -1198,6 +1198,14 @@ class TestVectorBackendProtocol:
                     document_count=0,
                 )
 
+            def get_chunks_by_prefix(
+                self,
+                id_prefix: str,
+                corpus_type: str = "transcripts",
+                limit: int = 800,
+            ) -> List[SearchResult]:
+                return []
+
             def delete_index(
                 self,
                 jurisdiction_id: str,
@@ -1270,6 +1278,14 @@ class TestVectorBackendProtocol:
                     embedding_model=self.embedding_model,
                     embedding_dimension=self.embedding_dimension,
                 )
+
+            def get_chunks_by_prefix(
+                self,
+                id_prefix: str,
+                corpus_type: str = "transcripts",
+                limit: int = 800,
+            ) -> List[SearchResult]:
+                return []
 
             def delete_index(
                 self,
