@@ -1,6 +1,6 @@
-# Recommended: Client SDK Extraction — Phase 5 (Second Surface Proof) + Web Components Scoping
+# Recommended: Civic Web Components — Phase 1 (Package Scaffold + First Components)
 
-**Priority:** P0 (`client_sdk_extraction`)
+**Priority:** P0 (`civic_web_components`)
 **Area:** edge_intelligence > browser_extension
 **Date:** 2026-02-18
 
@@ -8,67 +8,72 @@
 
 ## Context
 
-Four sessions completed Phases 1-4 of the client SDK extraction:
-- **Phase 1** (commit `40cd791`): Created `packages/civicos-client/` with StorageAdapter, types, RegistryClient, ApiClient. Rewired extension (40+ call sites).
-- **Phase 2** (commit `0b95db7`): Added Signer interface, event helpers, 9 `cast*` methods on ApiClient, ExtensionSigner adapter.
-- **Phase 3** (commit `358cbcd`): Extracted AI layer — types, manager, prompts, 3 providers, AICredentialStorage.
-- **Phase 4** (commit `431df29`): Created `CivicSession` orchestration class (220 lines). Provides `loadPulseBundle`, `loadVoiceCounts`, `loadCommentThread`, `loadDecisionDetail`, `loadInitiativeDetail`, `draftComment`, `enrichDraft`, `askQuestion`, plus static entity ID helpers. SidePanel rewired — 12 functions now delegate to session methods.
+The `@civicos/client` SDK is complete (5 phases, commit `784b60d`). It provides `RegistryClient`, `ApiClient`, `CivicSession`, `MemoryStorageAdapter` — all platform-agnostic. A Node.js proof script loads live data without Chrome APIs.
 
-The SDK is feature-complete. What remains is **validation** (Phase 5) and **scoping the next layer** (Web Components).
+The primary motivation for Web Components is **decomposing SidePanel.svelte** (5,587 lines — 57% of the entire extension). Voice buttons alone appear 7+ times with identical markup. Extracting reusable `<civic-*>` components also enables multi-surface distribution (Open WebUI, standalone pages, MCP Apps).
 
-## Recommended Task: Two Parts
+## Recommended Task
 
-### Part 1: Phase 5 — Second Surface Proof
+Create `packages/civicos-components/` with Svelte 5 Custom Elements. Build two low-complexity, high-reuse components:
 
-Build a minimal page that imports `@civicos/client` and performs a read operation, proving the SDK works outside the Chrome extension.
+### `<civic-voice-buttons>`
+- Support/Oppose/Watch button group with active state highlighting
+- Props: `entity-id`, `user-stance`, `disabled`, `locked`
+- Events: `civic-voice` (detail: `{ entityId, stance }`)
+- Currently duplicated at SidePanel.svelte:2068-2093 and :2453-2473
 
-**Suggested approach:**
-1. Create `packages/civicos-client/examples/pulse-reader.html` (or `.ts` script)
-2. Import `RegistryClient`, `ApiClient`, `CivicSession` from the SDK
-3. Use `MemoryStorageAdapter` (implement a trivial in-memory `StorageAdapter`)
-4. Call `session.loadPulse()` or `session.loadPulseBundle()` and render/log the result
-5. Optionally test a write with a mock Signer (`castVoice`)
-
-**Key consideration:** The SDK uses `StorageAdapter` interface for caching. The extension uses `ChromeStorageAdapter`. A second surface needs its own adapter — the simplest is an in-memory Map. `MemoryAICredentialStorage` already exists in the SDK (`ai/storage.ts`), but there's no `MemoryStorageAdapter` for the base `StorageAdapter` interface yet. You'll need to add one (5-10 lines).
-
-### Part 2: Scope Web Components Layer
-
-The user wants to explore **Web Components** (`@civicos/components`) as a UI abstraction layer on top of the SDK. The architecture would be:
-
-```
-Layer 1: @civicos/client (SDK)         — data, API, AI, orchestration  [DONE]
-Layer 2: @civicos/components           — reusable UI widgets (Web Components)
-Layer 3: Surface apps                  — compose widgets + layout
-```
-
-Svelte compiles to Custom Elements natively (`<svelte:options customElement="civic-pulse-card" />`). This would let any surface (extension, Open WebUI, standalone page, MCP App) embed `<civic-pulse-card jurisdiction="city-san-rafael">` without framework dependencies.
-
-**Scoping tasks:**
-1. Identify 3-5 candidate components from SidePanel (e.g., pulse card, voice buttons, comment thread, initiative card)
-2. Evaluate Svelte Custom Element compilation constraints (Shadow DOM styling, prop reactivity, cross-component state)
-3. Create a `civic_web_components` item in pilot.json with clear phases
-4. Optionally prototype one component (e.g., `<civic-voice-buttons>`) to validate the approach
+### `<civic-synthesis-bar>`
+- Stacked horizontal bar showing comment support/oppose/neutral distribution
+- Props: `support`, `oppose`, `neutral`
+- No events (pure presentational)
+- Currently at SidePanel.svelte:2121-2140, CSS at :4605-4620
 
 ## Key Files
 
-- `packages/civicos-client/src/session.ts` — CivicSession class (the new orchestration layer)
-- `packages/civicos-client/src/index.ts:66-78` — All SDK exports including CivicSession
-- `packages/civicos-client/src/interfaces.ts` — StorageAdapter, Signer interfaces
-- `packages/civicos-client/src/ai/storage.ts:20-35` — MemoryAICredentialStorage (pattern for MemoryStorageAdapter)
-- `packages/civicos-client/src/api.ts` — ApiClient with all REST + relay methods
-- `apps/civicos-extension/src/side-panel/SidePanel.svelte` — 5587 lines, now uses CivicSession
-- `apps/civicos-extension/src/lib/adapters/chrome-storage.ts` — ChromeStorageAdapter reference impl
+- `apps/civicos-extension/src/side-panel/SidePanel.svelte` — 5,587-line monolith to decompose
+- `apps/civicos-extension/src/side-panel/SidePanel.svelte:2068-2093` — Voice buttons (agenda items)
+- `apps/civicos-extension/src/side-panel/SidePanel.svelte:2453-2473` — Voice buttons (decisions)
+- `apps/civicos-extension/src/side-panel/SidePanel.svelte:2121-2140` — Synthesis bar
+- `apps/civicos-extension/src/side-panel/SidePanel.svelte:4043-4065` — Voice button CSS
+- `apps/civicos-extension/src/side-panel/SidePanel.svelte:4605-4620` — Synthesis bar CSS
+- `apps/civicos-extension/package.json` — Svelte 5.50.2, Vite 6, `@sveltejs/vite-plugin-svelte` 5
+- `packages/civicos-client/src/index.ts` — SDK exports (data types for component props)
+- `pilot.json:4469-4536` — Full `civic_web_components` item with all 5 candidates + phases
+
+## Suggested Approach
+
+1. **Scaffold package**: Create `packages/civicos-components/` with Svelte 5, Vite, TypeScript. Configure `compilerOptions.customElement: true` in `svelte.config.js`. Add `@civicos/client` as peer dependency for types.
+
+2. **Build `<civic-voice-buttons>`**: Extract markup + CSS from SidePanel:2068-2093. Use `<svelte:options customElement="civic-voice-buttons" />`. Props via Svelte 5 `$props()`. Dispatch `civic-voice` CustomEvent on click.
+
+3. **Build `<civic-synthesis-bar>`**: Extract from SidePanel:2121-2140. Pure presentational — computed segment widths from props.
+
+4. **Wire into extension**: Import components into SidePanel, replace duplicated markup with `<civic-voice-buttons>` and `<civic-synthesis-bar>` tags. Verify extension still builds and functions.
+
+5. **Create standalone demo**: An HTML page that loads the components bundle and renders them with static data — proves components work outside extension.
+
+### Technical Notes (Svelte 5 Custom Elements)
+
+- Use `<svelte:options customElement="civic-voice-buttons" />` at top of `.svelte` file
+- Svelte 5 uses `$props()` rune — maps to Custom Element attributes automatically
+- Shadow DOM encapsulates CSS (styles must be in component, not external)
+- Complex objects: use JS properties (`.data = obj`) not HTML attributes for non-string props
+- Events: use `CustomEvent` dispatch, not Svelte's `createEventDispatcher` (deprecated in v5)
+- The extension can import Svelte components directly (same bundler), bypassing Custom Element overhead
 
 ## Tests
+
 ```bash
-cd packages/civicos-client && npm run build   # SDK compiles
-cd apps/civicos-extension && npm run build    # Extension still works
-# Phase 5: run the second surface proof (TBD based on implementation)
+cd packages/civicos-components && npm run build   # Components compile
+cd apps/civicos-extension && npm run build         # Extension still works with components
+npx tsx examples/pulse-reader.ts                    # SDK still works (in packages/civicos-client/)
 ```
 
 ## Success Criteria
-- [ ] A non-extension surface successfully imports `@civicos/client` and calls `loadPulse()`
-- [ ] `MemoryStorageAdapter` added to SDK for non-browser contexts
-- [ ] Both packages still build clean
-- [ ] Web Components scoped as a pilot.json item with clear phases
-- [ ] (Stretch) One prototype Web Component validates the approach
+
+- [ ] `packages/civicos-components/` created with Svelte 5 + Vite + TypeScript
+- [ ] `<civic-voice-buttons>` renders Support/Oppose/Watch with active state and dispatches events
+- [ ] `<civic-synthesis-bar>` renders stacked bar from numeric props
+- [ ] Extension SidePanel uses the new components (at least voice buttons in one location)
+- [ ] Both packages build clean
+- [ ] Standalone HTML demo renders components without extension
