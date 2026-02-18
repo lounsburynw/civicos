@@ -39,6 +39,24 @@ export async function getCityPulse(daysAhead = 14, daysBack = 30): Promise<CityP
   });
 }
 
+/** Fetch city pulse from a specific server base URL (for parent jurisdictions). */
+export async function getCityPulseFromServer(serverBaseUrl: string, daysAhead = 14, daysBack = 30): Promise<CityPulseData> {
+  const url = `${serverBaseUrl}/api/tools/city-pulse`;
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ days_ahead: daysAhead, days_back: daysBack }),
+  });
+  if (!response.ok) {
+    throw new Error(`API error ${response.status}: ${response.statusText}`);
+  }
+  const result = await response.json();
+  if (!result.success) {
+    throw new Error(result.error || 'API returned an error');
+  }
+  return result.data;
+}
+
 export async function getDecisionDetail(title: string): Promise<DecisionDetailData> {
   return apiRequest<DecisionDetailData>('/api/tools/decision-detail', {
     method: 'POST',

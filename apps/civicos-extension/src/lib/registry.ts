@@ -15,6 +15,7 @@ export interface RegistryServer {
   display_name: string;
   mcp_endpoint: string;
   health_endpoint: string;
+  parent_jurisdictions?: string[];
 }
 
 interface RegistryCache {
@@ -81,6 +82,23 @@ export async function getServerUrl(jurisdictionId: string): Promise<string | nul
   const server = servers.find(s => s.jurisdiction_id === jurisdictionId);
   if (!server) return null;
   // Derive base URL from mcp_endpoint (strip /mcp suffix)
+  return server.mcp_endpoint.replace(/\/mcp$/, '');
+}
+
+/** Get parent servers for the active jurisdiction, ordered state → federal. */
+export async function getParentServers(jurisdictionId?: string): Promise<RegistryServer[]> {
+  const id = jurisdictionId || await getActiveJurisdiction();
+  const servers = await getRegistryServers();
+  const server = servers.find(s => s.jurisdiction_id === id);
+  if (!server?.parent_jurisdictions?.length) return [];
+  const parentIds = server.parent_jurisdictions;
+  return parentIds
+    .map(pid => servers.find(s => s.jurisdiction_id === pid))
+    .filter((s): s is RegistryServer => !!s);
+}
+
+/** Get the base URL (without /mcp) for a specific server. */
+export function getServerBaseUrl(server: RegistryServer): string {
   return server.mcp_endpoint.replace(/\/mcp$/, '');
 }
 

@@ -1,3 +1,111 @@
+## Session — 2026-02-17 (Multi-Level Jurisdiction Support)
+
+**Item:** city_onboarding/scaling/turnkey_city_deployment
+**Status:** In progress — extension now shows parent jurisdiction data (state + federal)
+
+### What was done:
+1. **Added `parent_jurisdictions` to registry config** (`config/registry.json`)
+   - city-san-rafael: ["state-california", "country-united-states"]
+   - state-california: ["country-united-states"]
+   - city-berkeley: ["state-california", "country-united-states"]
+
+2. **Updated registry Worker** (`apps/civicos-registry/`)
+   - `ServerInfo` type now includes `parent_jurisdictions: string[]`
+   - Both `/api/v1/servers` and `/api/v1/servers/:id` include parent_jurisdictions in response
+
+3. **Extended extension registry client** (`src/lib/registry.ts`)
+   - `RegistryServer` type now includes optional `parent_jurisdictions`
+   - Added `getParentServers()` — resolves parent RegistryServer objects for active jurisdiction
+   - Added `getServerBaseUrl()` — derives base URL from a RegistryServer
+
+4. **Added `getCityPulseFromServer()`** (`src/lib/api.ts`)
+   - Fetches city pulse from a specific server URL (for parent jurisdictions)
+   - Separate from `getCityPulse()` which uses active jurisdiction's base URL
+
+5. **Multi-level SidePanel UI** (`SidePanel.svelte`)
+   - New state: parentServers, parentPulseData, parentPulseLoading, parentPulseErrors
+   - `loadParentPulse()` fires after main city pulse loads, fetches state+federal concurrently
+   - Collapsible parent sections after city data (Meetings, Agenda Items, Recent Outcomes)
+   - Level badges (STATE, FEDERAL) in section headers
+   - Graceful "Server warming up" message for cold/down parent servers
+   - Header shows "city-san-rafael + California, Federal" breadcrumb
+
+6. **Options page enhancement** (`Options.svelte`)
+   - Shows "Also showing: California, Federal" when a city is selected
+
+### Architecture decisions:
+- Option B (separate sections per level, not merged data) — simpler, no complex merge logic
+- Parent data fetched in parallel from their own MCP servers (no aggregation endpoint needed)
+- Parent sections show top 5 items with "+N more" for overflow
+- Failures are graceful — city data always shows even if parent servers are cold
+
+---
+
+## Session — 2026-02-17 (Extension Registry Integration)
+
+**Item:** city_onboarding/scaling/turnkey_city_deployment
+**Status:** In progress — extension now uses registry for dynamic jurisdiction discovery
+
+### What was done:
+1. **Created `registry.ts` client module** — fetches server list from `registry.civicosproject.org/api/v1/servers`, caches in chrome.storage.local (24hr TTL), provides `getActiveJurisdiction()` / `setActiveJurisdiction()` / `getServerUrl()`
+2. **Updated `relay-client.ts`** — `getBaseUrl()` now resolves URL via registry lookup from stored jurisdiction, with explicit override and fallback chain
+3. **Updated `api.ts`** — 5 functions with hardcoded `'city-san-rafael'` defaults now use `getActiveJurisdiction()`
+4. **Consolidated `civicos-proxy.ts`** — removed duplicate `getBaseUrl()`, imports shared one
+5. **Updated `SidePanel.svelte`** — replaced ~12 hardcoded `'city-san-rafael'` references with reactive `activeJurisdiction` state
+6. **Added jurisdiction Settings section** — `Options.svelte` has dropdown populated from registry servers
+
+### Remaining for turnkey_city_deployment:
+- Multi-level jurisdiction (city + state + federal simultaneously)
+- Graceful handling of unhealthy/down servers
+- Address-based auto-discovery (geocoding)
+
+### Commit: `6c37d42` — feat: Wire extension to registry for dynamic jurisdiction discovery
+### P0 set: turnkey_city_deployment (multi-level jurisdiction support)
+
+---
+## Session — 2026-02-17 (Fix Initiative Creation + Error Logging)
+
+**Item:** edge_intelligence/browser_extension/extension_phase2b_commitments
+**Status:** In progress — initiative creation confirmed working, error logging added, server-side Pydantic fixes deployed
+
+### What was done:
+1. **Confirmed relay works** — Python E2E test creates initiative via Nostr-signed request, gets 200 OK
+2. **Added error logging to extension API** — `createInitiative()`, `commitToCivicAction()`, `completeCivicAction()` now log URL, body, status, and error text to console instead of silently swallowing errors
+3. **Fixed broken Pydantic models** — `CommitActionRequest` and `CompleteActionRequest` were missing `created_at` and `jurisdiction` fields that endpoint handlers referenced (would cause AttributeError)
+4. **Deployed to Modal** — relay has the fixed coordination router
+5. **Initiative creation confirmed working from extension** after rebuild + reload
+6. **Identified known issues for next session:** withdraw signature mismatch, action creation unsigned, "My Commitments" UI section not yet built
+
+### Commit: dbf088a fix: Nostr event verification for initiatives, commitments, completions
+### Build: PASS (npm run build + npx tsc --noEmit)
+### P0 set: extension_phase2b_commitments (continuing — civic actions flow next)
+
+---
+
+## Session — 2026-02-16 (Community Initiatives UX Overhaul + Signature Fix)
+
+**Item:** edge_intelligence/browser_extension/extension_phase2b_commitments
+**Status:** In progress — UX overhaul complete, signature verification fix deployed but extension still failing
+
+### UX Changes (SidePanel.svelte)
+- Redesigned "Start Initiative" button: now in-section toolbar with + icon, 13px, blue tint
+- Initiative cards: inline thumbs-up icon + voice count, coordination link icon, expand/collapse chevron
+- Create form: added close (X) button header
+- Action cards: "Done" green pill with checkmark, thicker progress bars
+- CSS cleanup: removed unused selectors, fixed duplicate .ini-field-label
+
+### Signature Verification Fix (crypto.py + coordination.py)
+- Root cause: extension signs Nostr events (event ID), server verified plain SHA256(string) — completely different
+- Added verify_initiative, verify_commitment, verify_completion to crypto.py (same pattern as verify_voice)
+- Updated coordination.py router to use Nostr event verification
+- Added created_at/jurisdiction to CivicCommitmentRequest and CivicCompletionRequest models
+- Updated extension api.ts to send created_at in createInitiative POST body
+- Deployed to Modal — Python e2e test passes (200), but extension still fails
+- Next: debug extension-side (add error logging, check devtools network tab)
+
+### Build: PASS (npm run build, npx tsc --noEmit — zero warnings)
+### P0 remains: extension_phase2b_commitments
+
 ## Session — 2026-02-16 (Extension UX Parity Audit + Gap Closure)
 
 **Item:** edge_intelligence/browser_extension/extension_ux_parity
@@ -19554,3 +19662,27 @@ End-to-end test of Personal MCP → Relay voice signing and verification:
 
 ### Build: PASS (npm run build succeeds)
 ### P0 set: extension_ux_parity
+
+---
+## Session — 2026-02-17 (MCP Registry Cloudflare Worker)
+
+### What was done:
+1. **Built `apps/civicos-registry/` Cloudflare Worker** (538 lines TypeScript)
+   - HTML landing page at `registry.civicosproject.org` — dark theme, stats, server table, API docs
+   - JSON API: `GET /api/v1/servers`, `/api/v1/servers/:id`, `/api/v1/health`
+   - CORS-enabled for browser extensions and AI clients
+   - Health checks via Modal origins (bypasses Cloudflare same-zone loopback)
+   - 60s Cache API TTL on health data
+   - Reads `config/registry.json` as source of truth — new jurisdictions auto-appear on redeploy
+
+2. **Deployed to production** — `registry.civicosproject.org` live on Cloudflare Workers free tier
+   - San Rafael: healthy (40 tools), Federal/California: cold start timeout, Berkeley: not deployed
+   - Verified all endpoints working, CORS headers present
+
+3. **Fixed P0 conflict** — demoted `browser_extension` from P0 to P1, kept `turnkey_city_deployment` as sole P0
+
+### Architecture decision:
+- Registry is for **discovery**, jurisdiction subdomains (`san-rafael.civicosproject.org/mcp`) are for **connection** — no consolidation needed
+
+### Commit: `07e8ee9` — feat: Add MCP registry Cloudflare Worker
+### P0 set: turnkey_city_deployment (extension location-agnostic server discovery via registry)
