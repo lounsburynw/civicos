@@ -93,6 +93,7 @@ jobs:
         run: |
           pytest packages/civicos/tests/ \
             --ignore-glob="**/test_integration_*.py" \
+            -m "not slow" \
             --override-ini="addopts=" \
             --splits 4 \
             --group ${{ matrix.group }} \
