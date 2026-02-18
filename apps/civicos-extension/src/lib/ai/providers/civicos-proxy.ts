@@ -6,7 +6,7 @@
  * No API key needed — works out of the box.
  */
 
-import type { AIProvider, AITier, AIProviderConfig, AICompletionResult } from '../types.js';
+import type { AIProvider, AITier, AIProviderConfig, AICompletionResult } from '@civicos/client';
 import { registry } from '../../client.js';
 
 const TIMEOUT_MS = 20_000;

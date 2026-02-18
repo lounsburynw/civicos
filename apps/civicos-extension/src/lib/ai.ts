@@ -1,15 +1,36 @@
 /**
- * AI integration facade — backward-compatible re-exports.
+ * AI integration facade — extension singleton with Chrome storage listener.
  *
- * The real implementation lives in ai/manager.ts and ai/prompts.ts.
- * This file exists so existing imports from '../lib/ai.js' keep working.
+ * Portable AI types, manager, prompts, and providers live in @civicos/client.
+ * This file provides the Chrome-specific singleton and config-change listener.
  */
 
-export { composeDraftPrompt, composeEnrichPrompt, SYSTEM_PROMPT, QA_SYSTEM_PROMPT } from './ai/prompts.js';
-export { AIManager } from './ai/manager.js';
-export type { AIProvider, AITier, AICompletionResult, AIProviderConfig } from './ai/types.js';
+// Re-export portable API from SDK
+export { composeDraftPrompt, composeEnrichPrompt, SYSTEM_PROMPT, QA_SYSTEM_PROMPT } from '@civicos/client';
+export { AIManager } from '@civicos/client';
+export type { AIProvider, AITier, AICompletionResult, AIProviderConfig } from '@civicos/client';
 
-import { AIManager } from './ai/manager.js';
+import { AIManager, ClaudeProvider, OpenAIProvider, GeminiProvider } from '@civicos/client';
+import { ChromeAICredentialStorage } from './adapters/chrome-ai-storage.js';
+import { CivicosProxyProvider } from './ai/providers/civicos-proxy.js';
+import { ChromeNanoProvider } from './ai/providers/chrome-nano.js';
+
+/**
+ * Create an AIManager with Chrome storage and all extension-available providers.
+ */
+export function createExtensionAIManager(): AIManager {
+  const storage = new ChromeAICredentialStorage();
+  const manager = new AIManager(storage);
+
+  // Register providers in priority order
+  manager.register(new CivicosProxyProvider());
+  manager.register(new ClaudeProvider(storage));
+  manager.register(new OpenAIProvider(storage));
+  manager.register(new GeminiProvider(storage));
+  manager.register(new ChromeNanoProvider());
+
+  return manager;
+}
 
 // Singleton for use in SidePanel and other contexts
 let _manager: AIManager | null = null;
@@ -40,7 +61,7 @@ function attachStorageListener(): void {
 export function getAIManager(): AIManager {
   attachStorageListener();
   if (!_manager) {
-    _manager = new AIManager();
+    _manager = createExtensionAIManager();
   }
   return _manager;
 }
@@ -59,7 +80,6 @@ export function onAIConfigChanged(callback: () => void): () => void {
 
 /**
  * Check if any AI provider is available and ready.
- * Drop-in replacement for the old isAIAvailable().
  */
 export async function isAIAvailable(): Promise<boolean> {
   return getAIManager().isAvailable();

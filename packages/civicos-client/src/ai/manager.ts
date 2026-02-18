@@ -1,18 +1,13 @@
 /**
  * AI Manager — provider registration, routing, and auto-detection.
  *
- * Mirrors the IdentityManager pattern: register providers by tier,
- * auto-detect the best available one, let users override via preferences.
+ * Platform-agnostic: the host app provides storage and registers providers.
  *
- * Priority: stored preference -> claude -> openai
+ * Priority: stored preference -> first ready provider in registration order
  */
 
-import type { AIProvider, AICompletionResult, AIPreferences } from './types.js';
+import type { AIProvider, AICompletionResult } from './types.js';
 import type { AICredentialStorage } from './storage.js';
-import { ChromeAICredentialStorage, MemoryAICredentialStorage } from './storage.js';
-import { CivicosProxyProvider } from './providers/civicos-proxy.js';
-import { ClaudeProvider } from './providers/claude.js';
-import { OpenAIProvider } from './providers/openai.js';
 
 export class AIManager {
   private providers = new Map<string, AIProvider>();
@@ -20,22 +15,8 @@ export class AIManager {
   private storage: AICredentialStorage;
   private initialized = false;
 
-  constructor(storage?: AICredentialStorage) {
-    this.storage = storage ?? this.createDefaultStorage();
-    this.registerDefaults();
-  }
-
-  private createDefaultStorage(): AICredentialStorage {
-    if (typeof chrome !== 'undefined' && chrome.storage?.local) {
-      return new ChromeAICredentialStorage();
-    }
-    return new MemoryAICredentialStorage();
-  }
-
-  private registerDefaults(): void {
-    this.register(new CivicosProxyProvider());
-    this.register(new ClaudeProvider(this.storage));
-    this.register(new OpenAIProvider(this.storage));
+  constructor(storage: AICredentialStorage) {
+    this.storage = storage;
   }
 
   register(provider: AIProvider): void {
@@ -59,7 +40,7 @@ export class AIManager {
   }
 
   /**
-   * Initialize: check stored preference, then fall through the priority list.
+   * Initialize: check stored preference, then fall through providers in registration order.
    * Returns true if any provider is ready.
    */
   async initialize(): Promise<boolean> {
@@ -76,10 +57,9 @@ export class AIManager {
       }
     }
 
-    // 2. Fall through: try civicos, then claude, then openai
-    for (const id of ['civicos', 'claude', 'openai']) {
-      const provider = this.providers.get(id);
-      if (provider && await provider.isReady()) {
+    // 2. Fall through: try each provider in registration order
+    for (const provider of this.providers.values()) {
+      if (await provider.isReady()) {
         this.activeProvider = provider;
         this.initialized = true;
         return true;

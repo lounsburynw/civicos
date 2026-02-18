@@ -1,7 +1,7 @@
 <script lang="ts">
   import { sendMessage } from '../lib/messaging.js';
   import type { IdentityInfo } from '../lib/providers/types.js';
-  import { AIManager } from '../lib/ai/manager.js';
+  import { createExtensionAIManager } from '../lib/ai.js';
   import { registry } from '../lib/client.js';
   import type { RegistryServer } from '@civicos/client';
 
@@ -17,7 +17,7 @@
   let jurisdictionSaving = $state(false);
 
   // AI provider state
-  const aiManager = new AIManager();
+  const aiManager = createExtensionAIManager();
   let aiProviderStatuses: Array<{
     id: string; name: string; tier: string;
     available: boolean; ready: boolean; active: boolean;
