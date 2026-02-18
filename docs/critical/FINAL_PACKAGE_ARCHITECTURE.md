@@ -487,15 +487,6 @@ def get_suggestions(jurisdiction: str, user_id: str = None) -> list:
     return CivicOS(jurisdiction).suggestions(user_id)
 
 @server.tool()
-def coordinate(jurisdiction: str, initiative_id: str, action: str) -> dict:
-    """Request coordination support.
-
-    Use when initiative is ready for collective action.
-    Actions: "schedule_meeting", "draft_letter", "plan_testimony", "notify_supporters"
-    """
-    return CivicOS(jurisdiction).coordinate(initiative_id, action)
-
-@server.tool()
 def report_outcome(
     jurisdiction: str,
     item_id: str,
@@ -653,224 +644,20 @@ For pilot: integrated mode. Post-pilot: standalone with federation enabled.
 
 ---
 
-## LangGraph Workflows
+## Orchestrator Modules
 
-The orchestrator uses **LangGraph** for stateful, multi-step workflows with checkpointing.
+The orchestration layer consists of standalone Python modules that query the data layer to generate suggestions and track outcomes. These are **not** part of the relay architecture — the relay handles coordination (voices, actions, subscriptions), while these modules handle AI-driven intelligence.
 
-### Why LangGraph
+### Modules
 
-| Capability | Benefit |
-|------------|---------|
-| **State machines** | Complex workflows with conditional branching |
-| **Checkpointing** | Resume interrupted workflows, audit trail |
-| **Human-in-the-loop** | Pause for user confirmation before actions |
-| **Tool calling** | Nodes can call MCP tools |
-| **Streaming** | Real-time progress updates |
-
-### Workflow 1: Coordination Workflow
-
-```python
-# orchestrator/graphs/coordination.py
-from langgraph.graph import StateGraph, END
-from langgraph.checkpoint.postgres import PostgresSaver
-
-class CoordinationState(TypedDict):
-    """State passed between coordination nodes."""
-    initiative_id: str
-    jurisdiction: str
-    supporters: List[str]
-    coordination_action: str  # "plan_testimony", "draft_letter", etc.
-    plan: Optional[CoordinationPlan]
-    status: str  # "analyzing", "planning", "awaiting_approval", "executing", "complete"
-    human_approved: bool
-
-def create_coordination_graph():
-    """
-    Coordination workflow:
-
-    START → analyze_initiative → plan_action → [human_approval] → execute → END
-                                      ↓
-                                 (if rejected)
-                                      ↓
-                                  revise_plan → [human_approval]
-    """
-    workflow = StateGraph(CoordinationState)
-
-    # Nodes
-    workflow.add_node("analyze_initiative", analyze_initiative)
-    workflow.add_node("plan_action", plan_action)
-    workflow.add_node("await_approval", await_human_approval)  # Human-in-the-loop
-    workflow.add_node("execute", execute_coordination)
-    workflow.add_node("revise_plan", revise_plan)
-
-    # Edges
-    workflow.set_entry_point("analyze_initiative")
-    workflow.add_edge("analyze_initiative", "plan_action")
-    workflow.add_edge("plan_action", "await_approval")
-
-    # Conditional: approved or needs revision
-    workflow.add_conditional_edges(
-        "await_approval",
-        lambda s: "execute" if s["human_approved"] else "revise_plan",
-        {"execute": "execute", "revise_plan": "revise_plan"}
-    )
-
-    workflow.add_edge("revise_plan", "await_approval")
-    workflow.add_edge("execute", END)
-
-    return workflow.compile(checkpointer=PostgresSaver(...))
-```
-
-### Workflow 2: Suggestion Workflow
-
-```python
-# orchestrator/graphs/suggestion.py
-
-class SuggestionState(TypedDict):
-    """State for suggestion generation."""
-    user_id: str
-    jurisdiction: str
-    user_interests: List[str]
-    user_history: List[dict]
-    candidates: List[dict]
-    ranked_suggestions: List[Suggestion]
-
-def create_suggestion_graph():
-    """
-    Suggestion workflow:
-
-    START → gather_context → generate_candidates → rank_by_relevance
-              → filter_already_seen → format_output → END
-    """
-    workflow = StateGraph(SuggestionState)
-
-    workflow.add_node("gather_context", gather_user_context)
-    workflow.add_node("generate_candidates", generate_suggestion_candidates)
-    workflow.add_node("rank", rank_by_relevance)
-    workflow.add_node("filter", filter_seen)
-    workflow.add_node("format", format_suggestions)
-
-    workflow.set_entry_point("gather_context")
-    workflow.add_edge("gather_context", "generate_candidates")
-    workflow.add_edge("generate_candidates", "rank")
-    workflow.add_edge("rank", "filter")
-    workflow.add_edge("filter", "format")
-    workflow.add_edge("format", END)
-
-    return workflow.compile()
-```
-
-### Workflow 3: Preparation Workflow
-
-```python
-# orchestrator/graphs/preparation.py
-
-class PreparationState(TypedDict):
-    """State for meeting preparation."""
-    agenda_item_id: str
-    jurisdiction: str
-    user_id: str
-    regulatory_context: dict
-    historical_decisions: List[dict]
-    allies: List[dict]
-    talking_points: List[str]
-    logistics: dict
-
-def create_preparation_graph():
-    """
-    Preparation workflow:
-
-    START → fetch_item → [parallel] → compile_prep → END
-                            ├── get_regulatory_context
-                            ├── get_historical_decisions
-                            ├── find_allies
-                            └── generate_talking_points
-    """
-    workflow = StateGraph(PreparationState)
-
-    workflow.add_node("fetch_item", fetch_agenda_item)
-    workflow.add_node("get_context", get_regulatory_context)
-    workflow.add_node("get_history", get_historical_decisions)
-    workflow.add_node("find_allies", find_allies_attending)
-    workflow.add_node("talking_points", generate_talking_points)
-    workflow.add_node("compile", compile_preparation)
-
-    workflow.set_entry_point("fetch_item")
-
-    # Parallel execution after fetch
-    workflow.add_edge("fetch_item", "get_context")
-    workflow.add_edge("fetch_item", "get_history")
-    workflow.add_edge("fetch_item", "find_allies")
-    workflow.add_edge("fetch_item", "talking_points")
-
-    # All parallel nodes feed into compile
-    workflow.add_edge("get_context", "compile")
-    workflow.add_edge("get_history", "compile")
-    workflow.add_edge("find_allies", "compile")
-    workflow.add_edge("talking_points", "compile")
-
-    workflow.add_edge("compile", END)
-
-    return workflow.compile()
-```
-
-### LangGraph Nodes (Reusable)
-
-```python
-# orchestrator/nodes/detect.py
-def detect_decision_importance(state: CoordinationState) -> CoordinationState:
-    """
-    Score a decision for coordination potential.
-
-    Migrated from src/coordination_graph.py
-    """
-    score = 0
-
-    # Score by topic
-    high_stakes = {"housing": 90, "wildfire": 80, "budget": 70, "parking": 60}
-    for topic, points in high_stakes.items():
-        if topic in state["decision_type"].lower():
-            score += points
-            break
-
-    # Score by complaint volume
-    complaints = query_complaints(state["jurisdiction"], state["decision_type"])
-    if len(complaints) > 100:
-        score += 50
-    elif len(complaints) > 50:
-        score += 30
-
-    return {**state, "decision_score": score}
-
-
-# orchestrator/nodes/discover.py
-def discover_affected_residents(state: CoordinationState) -> CoordinationState:
-    """
-    Find residents affected by a decision.
-
-    Uses:
-    - SeeClickFix complaints (by street/type)
-    - Previous commenters on similar items
-    - Users following related topics
-    """
-    residents = []
-
-    # From complaints
-    complaints = query_complaints(state["jurisdiction"], state["decision_type"])
-    for c in complaints:
-        residents.append({"source": "complaint", "address": c["address"]})
-
-    # From previous comments
-    commenters = query_previous_commenters(state["jurisdiction"], state["decision_type"])
-    for c in commenters:
-        residents.append({"source": "commenter", "user_id": c["user_id"]})
-
-    return {**state, "actors": {"residents": residents}}
-```
+| Module | Purpose |
+|--------|---------|
+| `orchestrator/suggestions.py` | Proactive suggestions based on user interests and system state |
+| `orchestrator/outcomes.py` | Outcome tracking and feedback loop closure |
 
 ### Actor Taxonomy (6 Types)
 
-The `discover_affected_residents` node queries these actor types:
+Suggestion generation considers these actor types when discovering affected residents:
 
 | Type | Discovery Methods | Routing Criteria | Examples |
 |------|------------------|------------------|----------|
@@ -880,56 +667,6 @@ The `discover_affected_residents` node queries these actor types:
 | **Political Champions** | Vote alignment, constituent overlap, public statements | Issue alignment, receptiveness | Councilmembers, Planning Commissioners |
 | **Municipal Staff** | Department mapping, staff reports, implementation role | Technical Q&A capacity, accountability | Public Works Director, City Manager |
 | **Media** | Beat reporters, past coverage, outlet reach | Topic relevance, visibility goals | Local papers, TV news, community radio |
-
-```python
-# orchestrator/nodes/discover.py
-
-class ResidentDiscoveryAgent:
-    """Discover affected residents using PostGIS + LLM relevance scoring."""
-
-    def __call__(self, state: CoordinationState):
-        residents = []
-
-        # PostGIS spatial query
-        residents.extend(self._query_by_radius(state["impact_area"], 2000))
-
-        # SeeClickFix complaints
-        residents.extend(self._query_by_complaints(state["decision_type"]))
-
-        # Issue followers
-        residents.extend(self._query_by_follows(state["decision_type"]))
-
-        # LLM relevance scoring + dedup
-        scored = self._score_relevance(residents, state)
-        return {**state, "actors": {"residents": scored[:50]}}
-```
-
-### Checkpointing (Production)
-
-```python
-# orchestrator/checkpointer.py
-from langgraph.checkpoint.postgres import PostgresSaver
-
-def get_checkpointer():
-    """Get production checkpointer with PostgreSQL."""
-    return PostgresSaver.from_conn_string(
-        os.environ.get("DATABASE_URL", "postgresql://localhost/civic")
-    )
-
-# Usage in workflow
-workflow = create_coordination_graph()
-app = workflow.compile(checkpointer=get_checkpointer())
-
-# Resume interrupted workflow
-state = app.get_state(config={"configurable": {"thread_id": "campaign-123"}})
-if state.values["status"] == "awaiting_approval":
-    # User approved, continue
-    app.update_state(
-        config={"configurable": {"thread_id": "campaign-123"}},
-        values={"human_approved": True}
-    )
-    result = app.invoke(None, config={"configurable": {"thread_id": "campaign-123"}})
-```
 
 ---
 
@@ -997,48 +734,6 @@ class SuggestionEngine:
         return suggestions
 ```
 
-### Coordination Planning
-
-```python
-# orchestrator/coordinator.py
-
-class CoordinationPlanner:
-    """Help groups take collective action."""
-
-    def plan(self, initiative_id: str, action: str) -> CoordinationPlan:
-        initiative = self.get_initiative(initiative_id)
-        supporters = self.get_supporters(initiative_id)
-
-        if action == "plan_testimony":
-            # Find upcoming relevant meeting
-            meeting = self.find_relevant_meeting(initiative)
-
-            return CoordinationPlan(
-                action="plan_testimony",
-                meeting=meeting,
-                steps=[
-                    Step("Notify supporters", self.draft_notification(supporters, meeting)),
-                    Step("Assign speaking slots", self.suggest_speakers(supporters)),
-                    Step("Share talking points", self.generate_talking_points(initiative)),
-                    Step("Day-of coordination", self.logistics(meeting))
-                ],
-                supporters=supporters,
-                deadline=meeting.public_comment_deadline
-            )
-
-        elif action == "draft_letter":
-            return CoordinationPlan(
-                action="draft_letter",
-                steps=[
-                    Step("Draft letter", self.generate_letter_draft(initiative)),
-                    Step("Collect signatures", self.signature_collection_plan(supporters)),
-                    Step("Identify recipients", self.suggest_recipients(initiative)),
-                    Step("Send", self.delivery_plan())
-                ],
-                supporters=supporters
-            )
-```
-
 ### Pattern Learning
 
 ```python
@@ -1061,7 +756,7 @@ class PatternLearner:
             actions=actions,
             outcome=outcome.outcome,
             participant_count=len(outcome.participants),
-            coordination_used=any(a.action == "coordinate" for a in actions)
+            coordination_used=any(a.action in ("plan_testimony", "draft_letter") for a in actions)
         )
 
         self.store_pattern(pattern)
@@ -1188,7 +883,6 @@ CREATE TABLE decisions (
 CREATE TABLE coordination_campaigns (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     decision_id UUID REFERENCES decisions(id),
-    langgraph_thread_id TEXT NOT NULL,
     name TEXT NOT NULL,
     status TEXT CHECK (status IN ('planning', 'outreach', 'orchestrating', 'completed')),
     strategy_session_time TIMESTAMP,
@@ -1264,63 +958,11 @@ class EcosystemMetrics:
 
 ## Error Handling & Resilience
 
-### Workflow Error Handling
+Orchestrator modules (`suggestions.py`, `outcomes.py`) use standard Python error handling:
 
-```python
-def handle_error(state: CoordinationState, error: Exception) -> CoordinationState:
-    """Global error handler for workflow failures."""
-    logger.error(f"Campaign {state['campaign_id']} failed: {error}")
-
-    db.execute("""
-        UPDATE coordination_campaigns
-        SET status = 'failed', error_message = %(error)s
-        WHERE id = %(id)s
-    """, {'id': state['campaign_id'], 'error': str(error)})
-
-    return {**state, "status": "failed", "error": str(error)}
-
-app = workflow.compile(
-    checkpointer=checkpointer,
-    on_error=handle_error
-)
-```
-
-### Retry Logic
-
-```python
-class SendInvitationsNode:
-    """Custom node with built-in retry logic."""
-
-    async def __call__(self, state: CoordinationState):
-        max_retries = 3
-        for attempt in range(max_retries):
-            try:
-                result = await outreach.send_campaign(...)
-                return {**state, "invitations_sent": result['sent_count']}
-            except SendGridAPIError:
-                if attempt < max_retries - 1:
-                    await asyncio.sleep(2 ** attempt)  # Exponential backoff
-                else:
-                    raise
-```
-
-### Stalled Campaign Detection
-
-```python
-async def check_stalled_campaigns():
-    """Alert on campaigns stuck beyond timeout."""
-    stalled = db.execute("""
-        SELECT c.* FROM coordination_campaigns c
-        JOIN checkpoints s ON c.langgraph_thread_id = s.thread_id
-        WHERE c.status = 'outreach'
-          AND s.next = '["wait_rsvps"]'
-          AND s.updated_at < NOW() - INTERVAL '7 days'
-    """)
-
-    for campaign in stalled:
-        if get_rsvp_count(campaign['id']) < 3:
-            await cancel_campaign(campaign['id'], reason='Insufficient RSVPs')
-```
+- **Graceful degradation**: If a data source is unavailable, return partial results rather than failing
+- **Logging**: All errors logged with context for debugging
+- **Idempotency**: Outcome recording is idempotent — re-reporting the same outcome is a no-op
 
 ---
 
@@ -1434,7 +1076,7 @@ The coordination functionality is now split between two packages:
 | **Voice casting, signatures** | `civicos-relay` | Federation-ready, standalone deployable |
 | **Action primitives** | `civicos-relay` | Coordination state (commits, completions) |
 | **Subscriptions, events** | `civicos-relay` | Can run as separate service |
-| **LangGraph orchestration** | `civicos` | Tightly coupled to query/action cycle |
+| **AI orchestration** (suggestions, outcomes) | `civicos` | Standalone modules querying the data layer |
 
 ### Relay Package Architecture
 
