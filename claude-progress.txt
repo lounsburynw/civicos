@@ -19987,3 +19987,30 @@ Created `CivicSession` class in `packages/civicos-client/src/session.ts` (220 li
 
 ### What remains for client_sdk_extraction:
 - Phase 5: Second surface proof (minimal page/test that imports @civicos/client and performs read + optional write)
+
+## Session: 2026-02-18 — Web Components Phase 2 (Card Components)
+
+**Item:** civic_web_components (P0)
+**Commit:** e909f8b
+
+### What was done:
+- Created `CivicAgendaItemCard` (159 lines) — item info, tags, voice counts, composes CivicVoiceButtons
+- Created `CivicDecisionCard` (629 lines) — collapsible header, detail section (outcome, testimony, council discussion, related decisions), voice buttons, AI action callbacks
+- Integrated both into SidePanel, replacing ~250 lines of inline rendering
+- Updated standalone demo with card examples
+- Both packages build clean
+
+### Design decisions:
+- Components render card *content* (no `.card` wrapper) — parent provides the card container so comment thread/AI actions can be siblings
+- All state management via callback props — components are stateless presentational
+- AI response HTML passed pre-rendered (`decisionAiHtml`, `testimonyAiHtml`) to avoid markdown dependency in components
+- `outcomeIcon()` / `outcomeClass()` duplicated in CivicDecisionCard (pure functions, no shared dependency needed)
+
+### SidePanel: 5349 lines (was ~5540 after Phase 1)
+### Components package: 4 components (VoiceButtons, SynthesisBar, AgendaItemCard, DecisionCard)
+### Standalone bundle: 120KB (was 76KB after Phase 1)
+
+### What remains for civic_web_components:
+- Phase 3: Initiative cards + meeting cards (medium complexity)
+- Phase 4: Comment thread component (high complexity — AI drafting, enrichment, thread state)
+- Phase 5+: Map, budget, remaining sections

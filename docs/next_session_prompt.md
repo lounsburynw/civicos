@@ -1,4 +1,4 @@
-# Recommended: Civic Web Components — Phase 2 (Card Components)
+# Recommended: Civic Web Components — Phase 3 (Initiative Card)
 
 **Priority:** P0 (`civic_web_components`)
 **Area:** edge_intelligence > browser_extension
@@ -8,48 +8,69 @@
 
 ## Context
 
-Phase 1 is complete (commit `9b888f4`). The `@civicos/components` package exists with:
-- `<civic-voice-buttons>` — Support/Oppose/Watch with active state, callback props
-- `<civic-synthesis-bar>` — stacked bar chart for comment distribution
-- Dual consumption: Svelte components (extension) + Custom Elements (standalone bundle, 76KB)
-- Extension SidePanel has 1 voice buttons + 1 synthesis bar replaced
+Phase 2 is complete (commit `e909f8b`). The `@civicos/components` package now has 4 components:
+- `<civic-voice-buttons>` — Support/Oppose/Watch (Phase 1)
+- `<civic-synthesis-bar>` — stacked bar chart (Phase 1)
+- `<civic-agenda-item-card>` — agenda item with tags, voice counts, voice buttons (Phase 2)
+- `<civic-decision-card>` — expandable decision with testimony, council, related, voice, AI callbacks (Phase 2)
 
-Key design decision: **Callback props** (`onvoice`) instead of `$host()` dispatch. This works in both Svelte-to-Svelte and custom element modes. The `<svelte:options customElement="...">` directive is present but only activates in the standalone bundle build (which uses `customElement: true` in vite config). In the extension build, components compile as regular Svelte components (with expected warnings).
+SidePanel is at **5349 lines** (down from ~5540). Both card components are integrated and both packages build clean. Standalone bundle is 120KB.
 
-## Recommended Task — Phase 2
+Key pattern: Components render card *content* (no `.card` wrapper) so the parent can embed them alongside siblings. All state management via callback props. AI response HTML passed pre-rendered.
 
-Build the medium-complexity card components that compose Phase 1 components:
+## Recommended Task — Phase 3
 
-### `<civic-agenda-item-card>`
-- Agenda item card with title, description, eligibility tags, voice counts
-- Composes `<CivicVoiceButtons>` and `<CivicSynthesisBar>` internally
-- Props: `item` (PulseAgendaItem), `voiceCounts`, `userStance`, `commentCount`, `isUnlocked`, `aiAvailable`
-- Events: `onvoice`, `ondraft`, `oncommenttoggle`, `onaskai`
-- Source: SidePanel.svelte ~lines 2030-2200 (agenda item rendering block)
+Extract the initiative card from SidePanel into `<CivicInitiativeCard>`. The initiative section (lines 2273-2570, ~300 lines) includes:
 
-### `<civic-decision-card>`
-- Expandable decision with outcome, vote tally, voice buttons
-- Composes `<CivicVoiceButtons>` internally
-- Props: `decision`, `expanded`, `voiceCount`, `userStance`, `detail`
-- Events: `ontoggleexpand`, `onvoice`, `onaskai`, `onloaddetails`
-- Source: SidePanel.svelte ~lines 2380-2520 (decision rendering block)
+### `<civic-initiative-card>` (recommended scope)
+- Collapsed: topic pill, title, description, voice count, coordination icon, expand chevron, stats
+- Expanded: coordination link, action list with commit/complete/withdraw buttons, progress bars
+- Composes `<CivicVoiceButtons>` if voice support is added
+- Source: SidePanel.svelte lines 2370-2564 (the `{#each initiatives as initiative}` block)
+
+### What to EXCLUDE (keep in parent):
+- Create initiative form (lines 2298-2358) — complex form with topic chips, validation, identity unlock
+- Create action form (lines 2480-2555) — complex form with AI drafting, multiple field types
+- Forms stay in parent due to heavy two-way binding and identity management
+
+### Props
+```typescript
+{
+  initiative: Initiative;
+  expanded?: boolean;
+  actions?: CivicAction[];
+  actionsLoading?: boolean;
+  actionProgress?: Map<string, CivicActionProgress>;
+  committedActions?: Set<string>;
+  completedActions?: Set<string>;
+  actionInProgress?: Set<string>;
+  isUnlocked?: boolean;
+  showCreateAction?: boolean;
+  onexpand?: () => void;
+  oncommit?: (action: CivicAction) => void;
+  oncomplete?: (action: CivicAction) => void;
+  onwithdraw?: (action: CivicAction) => void;
+  onshowcreateaction?: () => void;
+  oncopytemplate?: (text: string) => void;
+}
+```
 
 ## Key Files
 
-- `packages/civicos-components/` — the components package (Phase 1 done)
-- `packages/civicos-components/src/components/CivicVoiceButtons.svelte` — voice buttons component
-- `packages/civicos-components/src/components/CivicSynthesisBar.svelte` — synthesis bar component
-- `apps/civicos-extension/src/side-panel/SidePanel.svelte` — monolith to decompose (~5,540 lines after Phase 1)
-- `packages/civicos-client/src/types.ts` — `PulseAgendaItem`, `PulseOutcome`, `VoiceCounts`, etc.
+- `packages/civicos-components/src/components/CivicAgendaItemCard.svelte` — Phase 2 pattern to follow
+- `packages/civicos-components/src/components/CivicDecisionCard.svelte` — Phase 2 pattern (complex)
+- `apps/civicos-extension/src/side-panel/SidePanel.svelte:2370-2564` — initiative card to extract
+- `packages/civicos-client/src/types.ts` — `Initiative`, `CivicAction`, `CivicActionProgress` types
+- `packages/civicos-components/src/index.ts` — register new component
+- `packages/civicos-components/vite.config.ts` — build config (customElement: true)
 
 ## Technical Notes
 
-- Import types from `@civicos/client` for prop typing
-- Components should accept callback props for all events (same pattern as Phase 1)
-- Card components compose Phase 1 components internally (not via custom element tags)
-- Keep styles self-contained within each component's `<style>` block
-- The extension imports components via `@civicos/components/src/components/...`
-- No need for `$host()` — callback props handle all event communication
+- Components render content without `.card` wrapper — parent provides `<div class="ini-card">`
+- Use callback props for all events (same pattern as Phase 1/2)
+- `actionTypeLabel()`, `deadlineClass()`, `deadlineLabel()` helper functions in SidePanel (~lines 1330-1370) — duplicate as pure functions in component
+- Action template display has a "Copy" button — use `oncopytemplate` callback
+- Initiative stats (`committed`, `completed` counts) can be computed internally from props
 
 ## Tests
 
@@ -60,9 +81,10 @@ cd apps/civicos-extension && npm run build         # Extension still works
 
 ## Success Criteria
 
-- [ ] `<civic-agenda-item-card>` renders agenda items with voice buttons + synthesis bar
-- [ ] `<civic-decision-card>` renders expandable decisions with voice buttons
-- [ ] Both card components compose Phase 1 components internally
-- [ ] Extension SidePanel uses at least one card component
+- [ ] `<civic-initiative-card>` renders initiative with topic, title, description, voice count
+- [ ] Expanded state shows actions with commit/complete/withdraw buttons and progress bars
+- [ ] Component composes action list internally
+- [ ] Extension SidePanel uses the initiative card component
+- [ ] Create initiative/action forms remain in parent (NOT extracted)
 - [ ] Both packages build clean
-- [ ] Standalone demo updated with card examples
+- [ ] Standalone demo updated with initiative card example
