@@ -51,8 +51,8 @@
   let provenanceData: DataProvenance | null = $state(null);
   let provenanceLoading = $state(false);
 
-  // Connected Services dropdown
-  let activeBreadcrumbSegment: string | null = $state(null);
+  // Jurisdiction tab state (which jurisdiction's content is shown)
+  let activeTab: string = $state('city-san-rafael');
 
   // Voice counts
   let voiceCounts = $state(new Map<string, VoiceCounts>());
@@ -584,7 +584,6 @@
 
   async function toggleProvenance() {
     showProvenance = !showProvenance;
-    if (activeBreadcrumbSegment) activeBreadcrumbSegment = null;
     if (showProvenance && !provenanceData && !provenanceLoading) {
       provenanceLoading = true;
       try {
@@ -597,14 +596,22 @@
     }
   }
 
-  function toggleBreadcrumbDetail(jurisdictionId: string) {
-    if (activeBreadcrumbSegment === jurisdictionId) {
-      activeBreadcrumbSegment = null;
-    } else {
-      activeBreadcrumbSegment = jurisdictionId;
-      if (showProvenance) showProvenance = false;
-      if (serverHealth.size === 0) checkAllHealth();
-    }
+  function switchTab(jurisdictionId: string) {
+    activeTab = jurisdictionId;
+    if (showProvenance) showProvenance = false;
+  }
+
+  function healthTitle(jurisdictionId: string): string {
+    const health = serverHealth.get(jurisdictionId);
+    if (!health) return '';
+    const parts = [health.status];
+    if (health.latency_ms !== undefined) parts.push(`${health.latency_ms}ms`);
+    if (health.version) parts.push(`v${health.version}`);
+    const server = jurisdictionId === activeJurisdiction
+      ? availableServers.find(s => s.jurisdiction_id === activeJurisdiction)
+      : parentServers.find(s => s.jurisdiction_id === jurisdictionId);
+    if (server) parts.push(new URL(server.mcp_endpoint).host);
+    return parts.join(' · ');
   }
 
   async function checkServerHealth(server: RegistryServer): Promise<ServerHealthStatus> {
@@ -1944,16 +1951,18 @@
   <header>
     <nav class="breadcrumb">
       <!-- Primary jurisdiction -->
-      <button class="breadcrumb-segment" class:active={activeBreadcrumbSegment === activeJurisdiction}
-              onclick={() => toggleBreadcrumbDetail(activeJurisdiction)}>
+      <button class="breadcrumb-segment" class:active={activeTab === activeJurisdiction}
+              onclick={() => switchTab(activeJurisdiction)}
+              title={healthTitle(activeJurisdiction)}>
         <span class="health-dot {serverHealth.get(activeJurisdiction)?.status || 'unknown'}"></span>
         <span class="segment-name">{availableServers.find(s => s.jurisdiction_id === activeJurisdiction)?.display_name || activeJurisdiction}</span>
       </button>
       <!-- Parent jurisdictions -->
       {#each parentServers as server}
         <span class="breadcrumb-sep">/</span>
-        <button class="breadcrumb-segment" class:active={activeBreadcrumbSegment === server.jurisdiction_id}
-                onclick={() => toggleBreadcrumbDetail(server.jurisdiction_id)}>
+        <button class="breadcrumb-segment" class:active={activeTab === server.jurisdiction_id}
+                onclick={() => switchTab(server.jurisdiction_id)}
+                title={healthTitle(server.jurisdiction_id)}>
           <span class="health-dot {serverHealth.get(server.jurisdiction_id)?.status || 'unknown'}"></span>
           <span class="segment-name">{server.display_name}</span>
         </button>
@@ -1980,6 +1989,35 @@
       </button>
     </div>
   </header>
+
+  <!-- Active tab endpoint bar -->
+  {#if activeTab === activeJurisdiction}
+    {@const server = availableServers.find(s => s.jurisdiction_id === activeJurisdiction)}
+    {#if server}
+      <div class="endpoint-bar">
+        <span class="endpoint-label">MCP</span>
+        <span class="endpoint-url">{new URL(server.mcp_endpoint).host}{new URL(server.mcp_endpoint).pathname}</span>
+        {#if server.relay_endpoint}
+          <span class="endpoint-sep">&middot;</span>
+          <span class="endpoint-label">Relay</span>
+          <span class="endpoint-url">{new URL(server.relay_endpoint).host}{new URL(server.relay_endpoint).pathname}</span>
+        {/if}
+      </div>
+    {/if}
+  {:else}
+    {@const server = parentServers.find(s => s.jurisdiction_id === activeTab)}
+    {#if server}
+      <div class="endpoint-bar">
+        <span class="endpoint-label">MCP</span>
+        <span class="endpoint-url">{new URL(server.mcp_endpoint).host}{new URL(server.mcp_endpoint).pathname}</span>
+        {#if server.relay_endpoint}
+          <span class="endpoint-sep">&middot;</span>
+          <span class="endpoint-label">Relay</span>
+          <span class="endpoint-url">{new URL(server.relay_endpoint).host}{new URL(server.relay_endpoint).pathname}</span>
+        {/if}
+      </div>
+    {/if}
+  {/if}
 
   <!-- Data Provenance Panel -->
   {#if showProvenance}
@@ -2034,72 +2072,6 @@
     </div>
   {/if}
 
-  <!-- Breadcrumb Detail Popover -->
-  {#if activeBreadcrumbSegment}
-    {@const isActive = activeBreadcrumbSegment === activeJurisdiction}
-    {@const server = isActive
-      ? availableServers.find(s => s.jurisdiction_id === activeJurisdiction)
-      : parentServers.find(s => s.jurisdiction_id === activeBreadcrumbSegment)}
-    {@const health = serverHealth.get(activeBreadcrumbSegment)}
-    <div class="breadcrumb-detail">
-      {#if server}
-        <div class="detail-header">
-          <span class="detail-name">{server.display_name}</span>
-          {#if isActive}
-            <span class="service-badge primary">primary</span>
-          {:else}
-            <span class="level-badge">{server.level}</span>
-          {/if}
-        </div>
-        <div class="detail-row">
-          <span class="detail-label">MCP</span>
-          <span class="detail-value">
-            <span class="health-dot {health?.status || 'unknown'}"></span>
-            {#if health?.status === 'healthy'}
-              connected
-            {:else if health?.status === 'degraded'}
-              degraded
-            {:else if health?.status === 'offline'}
-              <span class="relay-offline">offline</span>
-            {:else}
-              checking...
-            {/if}
-            {#if health?.latency_ms !== undefined}
-              <span class="meta-sep">&middot;</span>
-              {health.latency_ms}ms
-            {/if}
-            {#if health?.version}
-              <span class="meta-sep">&middot;</span>
-              v{health.version}
-            {/if}
-          </span>
-        </div>
-        <div class="detail-endpoint">{new URL(server.mcp_endpoint).host + new URL(server.mcp_endpoint).pathname}</div>
-        {#if isActive && server.relay_endpoint}
-          <div class="detail-row">
-            <span class="detail-label">Relay</span>
-            <span class="detail-value">
-              <span class="health-dot {relayHealth?.status || 'unknown'}"></span>
-              {#if relayHealth?.status === 'healthy'}
-                connected
-              {:else if relayHealth?.status === 'offline'}
-                <span class="relay-offline">offline</span>
-              {:else}
-                checking...
-              {/if}
-              {#if relayHealth?.latency_ms !== undefined}
-                <span class="meta-sep">&middot;</span>
-                {relayHealth.latency_ms}ms
-              {/if}
-            </span>
-          </div>
-          <div class="detail-endpoint">{new URL(server.relay_endpoint).host + new URL(server.relay_endpoint).pathname}</div>
-        {/if}
-      {:else}
-        <div class="prov-loading">Service not found</div>
-      {/if}
-    </div>
-  {/if}
 
   <!-- Connector setup banner (guard on loaded to prevent flash) -->
   {#if connectorSetupLoaded && !connectorSetupDismissed}
@@ -2166,6 +2138,7 @@
   {/if}
 
   <!-- City Pulse content -->
+  {#if activeTab === activeJurisdiction}
   {#if pulseLoading && !pulseData}
     <div class="loading-state">
       <div class="pulse-anim"></div>
@@ -3143,112 +3116,145 @@
       {/if}
     </section>
 
-    <!-- Parent Jurisdiction Sections (state, federal) -->
-    {#if parentServers.length > 0}
-      {#each parentServers as parentServer (parentServer.jurisdiction_id)}
-        {@const pid = parentServer.jurisdiction_id}
-        {@const pData = parentPulseData.get(pid)}
-        {@const pLoading = parentPulseLoading.has(pid)}
-        {@const pError = parentPulseErrors.get(pid)}
-        <section class="feed-section parent-section">
-          <button class="section-header parent-header" onclick={() => { expanded[pid] = !expanded[pid]; }}>
-            <span class="section-title">
-              <span class="level-badge">{parentServer.level}</span>
-              {parentServer.display_name}
-              {#if pData}
-                {@const itemCount = (pData.decisions_this_week?.length || 0) + (pData.recent_outcomes?.length || 0)}
-                {#if itemCount > 0}
-                  <span class="count-badge">{itemCount}</span>
-                {/if}
-              {/if}
-            </span>
-            <span class="chevron" class:open={expanded[pid]}></span>
-          </button>
-          {#if expanded[pid]}
-            <div class="section-body">
-              {#if pLoading}
-                <div class="parent-loading">
-                  <div class="pulse-anim-small"></div>
-                  <span>Loading {parentServer.display_name} data...</span>
-                </div>
-              {:else if pError}
-                <div class="parent-unavailable">
-                  <span class="unavailable-icon">&#9679;</span>
-                  Server warming up — try again shortly
-                </div>
-              {:else if pData}
-                <!-- Meetings -->
-                {#if pData.decisions_this_week.length > 0}
-                  <div class="parent-subsection">
-                    <div class="parent-subsection-title">Meetings</div>
-                    {#each pData.decisions_this_week as meeting}
-                      <div class="card meeting-card compact-card">
-                        <div class="card-title">{meeting.title}</div>
-                        <div class="card-meta">
-                          <span class="meta-date">{formatMeetingTime(meeting)}</span>
-                        </div>
-                      </div>
-                    {/each}
-                  </div>
-                {/if}
-                <!-- Agenda Items -->
-                {#if pData.upcoming_items && pData.upcoming_items.length > 0}
-                  <div class="parent-subsection">
-                    <div class="parent-subsection-title">Agenda Items <span class="count-badge">{pData.upcoming_items.length}</span></div>
-                    {#each pData.upcoming_items.slice(0, 5) as item}
-                      <div class="card item-card compact-card">
-                        <div class="card-title">{item.title}</div>
-                        {#if item.project_type}
-                          <span class="item-type">{item.project_type}</span>
-                        {/if}
-                      </div>
-                    {/each}
-                    {#if pData.upcoming_items.length > 5}
-                      <div class="parent-more">+{pData.upcoming_items.length - 5} more items</div>
-                    {/if}
-                  </div>
-                {/if}
-                <!-- Recent Outcomes -->
-                {#if pData.recent_outcomes.length > 0}
-                  <div class="parent-subsection">
-                    <div class="parent-subsection-title">Recent Outcomes</div>
-                    {#each pData.recent_outcomes.slice(0, 5) as outcome}
-                      <div class="card compact-card">
-                        <div class="card-title">
-                          <span class="outcome-icon {outcomeClass(outcome.outcome)}">{outcomeIcon(outcome.outcome)}</span>
-                          {outcome.title}
-                        </div>
-                        <div class="card-meta">
-                          <span class="meta-date">{formatRelativeDate(outcome.date)}</span>
-                          {#if outcome.outcome}
-                            <span class="meta-sep">&middot;</span>
-                            <span class="outcome-label">{outcome.outcome.replace(/_/g, ' ')}</span>
-                          {/if}
-                        </div>
-                      </div>
-                    {/each}
-                    {#if pData.recent_outcomes.length > 5}
-                      <div class="parent-more">+{pData.recent_outcomes.length - 5} more outcomes</div>
-                    {/if}
-                  </div>
-                {/if}
-                <!-- Empty state -->
-                {#if pData.decisions_this_week.length === 0 && (!pData.upcoming_items || pData.upcoming_items.length === 0) && pData.recent_outcomes.length === 0}
-                  <div class="empty-section">No recent activity</div>
-                {/if}
-              {:else}
-                <div class="empty-section">No data available</div>
-              {/if}
-            </div>
-          {/if}
-        </section>
-      {/each}
-    {/if}
-
     <!-- Footer -->
     <footer class="pulse-footer">
       <span class="footer-ts">Updated {new Date(pulseData.generated_at).toLocaleTimeString()}</span>
     </footer>
+  {/if}
+  {:else}
+    <!-- Parent jurisdiction tab content -->
+    {@const tabData = parentPulseData.get(activeTab)}
+    {@const tabLoading = parentPulseLoading.has(activeTab)}
+    {@const tabError = parentPulseErrors.get(activeTab)}
+    {@const tabServer = parentServers.find(s => s.jurisdiction_id === activeTab)}
+    {#if tabLoading}
+      <div class="loading-state">
+        <div class="pulse-anim"></div>
+        <span>Loading {tabServer?.display_name || activeTab} data...</span>
+      </div>
+    {:else if tabError}
+      <div class="error-state">
+        <span class="error-icon">!</span>
+        <p>Server warming up — try again shortly</p>
+      </div>
+    {:else if tabData}
+      <!-- Meetings -->
+      <section class="feed-section">
+        <button class="section-header" onclick={() => toggle('meetings')}>
+          <span class="section-title">
+            Meetings
+            {#if tabData.decisions_this_week.length > 0}
+              <span class="count-badge">{tabData.decisions_this_week.length}</span>
+            {/if}
+          </span>
+          <span class="chevron" class:open={expanded.meetings}></span>
+        </button>
+        {#if expanded.meetings}
+          <div class="section-body">
+            {#if tabData.decisions_this_week.length === 0}
+              <div class="empty-section">No upcoming meetings</div>
+            {:else}
+              {#each tabData.decisions_this_week as meeting}
+                <div class="card meeting-card" class:past-meeting={isPastMeeting(meeting)}>
+                  <div class="meeting-top-row">
+                    <div class="card-title">
+                      {#if isPastMeeting(meeting)}<span class="past-icon" title="Past meeting">&#128337;</span>{/if}
+                      {meeting.title}
+                    </div>
+                  </div>
+                  <div class="card-meta">
+                    <span class="meta-date">{formatMeetingTime(meeting)}</span>
+                    {#if meeting.location}
+                      <span class="meta-sep">&middot;</span>
+                      <span class="meta-location">{meeting.location}</span>
+                    {/if}
+                  </div>
+                </div>
+              {/each}
+            {/if}
+          </div>
+        {/if}
+      </section>
+
+      <!-- Agenda Items -->
+      <section class="feed-section">
+        <button class="section-header" onclick={() => toggle('items')}>
+          <span class="section-title">
+            Agenda Items
+            {#if tabData.upcoming_items && tabData.upcoming_items.length > 0}
+              <span class="count-badge">{tabData.upcoming_items.length}</span>
+            {/if}
+          </span>
+          <span class="chevron" class:open={expanded.items}></span>
+        </button>
+        {#if expanded.items}
+          <div class="section-body">
+            {#if !tabData.upcoming_items || tabData.upcoming_items.length === 0}
+              <div class="empty-section">No upcoming agenda items</div>
+            {:else}
+              {#each tabData.upcoming_items as item}
+                <div class="card item-card">
+                  <div class="card-title">{item.title}</div>
+                  <div class="card-meta">
+                    {#if item.meeting_title}
+                      <span class="meta-body">{item.meeting_title}</span>
+                    {/if}
+                    {#if item.project_type}
+                      <span class="item-type">{item.project_type}</span>
+                    {/if}
+                  </div>
+                </div>
+              {/each}
+            {/if}
+          </div>
+        {/if}
+      </section>
+
+      <!-- Recent Outcomes -->
+      <section class="feed-section">
+        <button class="section-header" onclick={() => toggle('outcomes')}>
+          <span class="section-title">
+            Recent Outcomes
+            {#if tabData.recent_outcomes.length > 0}
+              <span class="count-badge">{tabData.recent_outcomes.length}</span>
+            {/if}
+          </span>
+          <span class="chevron" class:open={expanded.outcomes}></span>
+        </button>
+        {#if expanded.outcomes}
+          <div class="section-body">
+            {#if tabData.recent_outcomes.length === 0}
+              <div class="empty-section">No recent outcomes</div>
+            {:else}
+              {#each tabData.recent_outcomes as outcome}
+                <div class="card">
+                  <div class="card-title">
+                    <span class="outcome-icon {outcomeClass(outcome.outcome)}">{outcomeIcon(outcome.outcome)}</span>
+                    {outcome.title}
+                  </div>
+                  <div class="card-meta">
+                    <span class="meta-date">{formatRelativeDate(outcome.date)}</span>
+                    {#if outcome.outcome}
+                      <span class="meta-sep">&middot;</span>
+                      <span class="outcome-label">{outcome.outcome.replace(/_/g, ' ')}</span>
+                    {/if}
+                  </div>
+                </div>
+              {/each}
+            {/if}
+          </div>
+        {/if}
+      </section>
+
+      <!-- Footer -->
+      <footer class="pulse-footer">
+        <span class="footer-ts">Updated {new Date(tabData.generated_at).toLocaleTimeString()}</span>
+      </footer>
+    {:else}
+      <div class="empty-section" style="padding: 24px 12px; text-align: center;">
+        No data available for {tabServer?.display_name || activeTab}
+      </div>
+    {/if}
   {/if}
 </div>
 
@@ -3317,6 +3323,8 @@
   .breadcrumb-segment.active {
     color: #60a5fa;
     background: rgba(59, 130, 246, 0.1);
+    border-bottom: 2px solid #60a5fa;
+    padding-bottom: 2px;
   }
 
   .breadcrumb-sep {
@@ -3329,6 +3337,35 @@
   .segment-name {
     overflow: hidden;
     text-overflow: ellipsis;
+  }
+
+  .endpoint-bar {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 0 6px;
+    margin-top: -8px;
+    margin-bottom: 8px;
+    font-family: monospace;
+    font-size: 9px;
+    color: #4b5563;
+    overflow: hidden;
+    white-space: nowrap;
+  }
+  .endpoint-label {
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    color: #6b7280;
+    flex-shrink: 0;
+  }
+  .endpoint-url {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .endpoint-sep {
+    color: #374151;
+    flex-shrink: 0;
   }
 
   .header-actions {
@@ -3797,13 +3834,6 @@
   }
 
   /* === Parent Jurisdiction Sections === */
-  .parent-section {
-    border-left: 2px solid #374151;
-    margin-left: 4px;
-  }
-  .parent-header {
-    padding-left: 8px;
-  }
   .level-badge {
     display: inline-block;
     font-size: 9px;
@@ -3817,56 +3847,6 @@
     padding: 1px 5px;
     margin-right: 4px;
     vertical-align: middle;
-  }
-  .parent-loading {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 12px 8px;
-    color: #6b7280;
-    font-size: 12px;
-  }
-  .pulse-anim-small {
-    width: 12px;
-    height: 12px;
-    border-radius: 50%;
-    background: #3b82f6;
-    animation: pulse-glow 1.5s ease-in-out infinite;
-  }
-  .parent-unavailable {
-    padding: 12px 8px;
-    color: #6b7280;
-    font-size: 12px;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-  .unavailable-icon {
-    color: #f59e0b;
-    font-size: 8px;
-  }
-  .parent-subsection {
-    margin-bottom: 8px;
-  }
-  .parent-subsection-title {
-    font-size: 11px;
-    font-weight: 600;
-    color: #9ca3af;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    padding: 4px 0 4px 4px;
-  }
-  .compact-card {
-    padding: 6px 8px;
-    margin-bottom: 4px;
-  }
-  .compact-card .card-title {
-    font-size: 12px;
-  }
-  .parent-more {
-    font-size: 11px;
-    color: #6b7280;
-    padding: 4px 8px;
   }
 
   /* === Provenance Panel === */
@@ -3955,55 +3935,6 @@
   .icon-btn.active { color: #60a5fa; background: #333; }
 
   /* === Breadcrumb Detail Popover === */
-  .breadcrumb-detail {
-    background: #262626;
-    border-radius: 8px;
-    padding: 10px 12px;
-    margin-bottom: 12px;
-    border: 1px solid #374151;
-  }
-  .detail-header {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    margin-bottom: 8px;
-  }
-  .detail-name {
-    font-size: 12px;
-    font-weight: 600;
-    color: #d1d5db;
-  }
-  .detail-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 4px 0;
-  }
-  .detail-label {
-    font-size: 10px;
-    font-weight: 500;
-    color: #6b7280;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-  }
-  .detail-value {
-    font-size: 11px;
-    color: #d1d5db;
-    display: flex;
-    align-items: center;
-    gap: 4px;
-  }
-  .detail-endpoint {
-    font-size: 9px;
-    color: #4b5563;
-    padding-left: 1px;
-    margin-top: -2px;
-    margin-bottom: 2px;
-    font-family: monospace;
-  }
-  .relay-offline {
-    color: #ef4444;
-  }
   .health-dot {
     width: 7px;
     height: 7px;
