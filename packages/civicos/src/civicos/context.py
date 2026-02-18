@@ -106,6 +106,7 @@ STATUS_LABELS = {
     "4": "Passed",
     "5": "Vetoed",
     "6": "Failed",
+    "Active": "Active",       # Text status from non-LegiScan sources
 }
 
 # Status codes that indicate inactive/dead legislation
@@ -115,10 +116,10 @@ INACTIVE_STATUS_CODES = {"5", "6"}
 # Status filter presets for what_applies()
 # Maps filter name to allowed status codes
 STATUS_FILTER_PRESETS = {
-    "active": {"1", "2", "3", "4"},      # Exclude vetoed/failed (default)
-    "passed": {"4"},                      # Only enacted legislation
-    "pending": {"1", "2", "3"},           # In progress, not yet passed
-    "all": {"1", "2", "3", "4", "5", "6"},  # Include everything
+    "active": {"1", "2", "3", "4", "Active"},  # Exclude vetoed/failed (default)
+    "passed": {"4"},                             # Only enacted legislation
+    "pending": {"1", "2", "3", "Active"},        # In progress, not yet passed
+    "all": {"1", "2", "3", "4", "5", "6", "Active"},  # Include everything
 }
 
 # Type alias for legislation status filter
@@ -319,15 +320,19 @@ def get_regulatory_context(
                     pass  # Batch fetch not available, continue without metadata
 
             # Build hierarchical results with tier assignment
-            for rank, bill_id in enumerate(ordered_bill_ids):
+            rank = 0
+            for bill_id in ordered_bill_ids:
                 chunks = bill_chunks[bill_id]
                 meta = bill_metadata.get(bill_id, {})
                 max_score = bill_max_scores.get(bill_id, 0)
 
+                # Re-filter by current SQL status (vector metadata may be stale)
+                bill_status = str(meta.get("status", ""))
+                if bill_status and bill_status not in allowed_statuses:
+                    continue
+
                 # Assign tier: top 10 are primary, rest are secondary
                 tier = "primary" if rank < 10 else "secondary"
-
-                bill_status = str(meta.get("status", ""))
                 requires_local = bill_id in local_impl_bills or meta.get("local_implementation_required", False)
                 state.append({
                     "type": "bill",
@@ -349,6 +354,7 @@ def get_regulatory_context(
                     # Hierarchical: include relevant sections for LLM context
                     "relevant_sections": chunks,
                 })
+                rank += 1
         except Exception:
             pass  # Semantic search not available
 
@@ -481,15 +487,20 @@ def get_regulatory_context(
                     pass  # Batch fetch not available
 
             # Build hierarchical results with tier assignment
-            for rank, bill_id in enumerate(ordered_federal_bill_ids):
+            rank = 0
+            for bill_id in ordered_federal_bill_ids:
                 chunks = federal_bill_chunks[bill_id]
                 meta = federal_bill_metadata.get(bill_id, {})
                 max_score = federal_bill_max_scores.get(bill_id, 0)
 
+                # Re-filter by current SQL status (vector metadata may be stale)
+                bill_status = str(meta.get("status", ""))
+                if bill_status and bill_status not in allowed_statuses:
+                    continue
+
                 # Assign tier: top 10 are primary, rest are secondary
                 tier = "primary" if rank < 10 else "secondary"
 
-                bill_status = str(meta.get("status", ""))
                 requires_local = bill_id in federal_local_impl_bills or meta.get("local_implementation_required", False)
                 federal.append({
                     "type": "federal_bill",
@@ -511,6 +522,7 @@ def get_regulatory_context(
                     # Hierarchical: include relevant sections for LLM context
                     "relevant_sections": chunks,
                 })
+                rank += 1
         except Exception:
             pass  # Federal legislation search not available
 

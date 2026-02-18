@@ -514,7 +514,7 @@ class TestLegislationStatusFiltering:
         federal_bills = [r for r in zoning_stack.federal if r.get("type") == "federal_bill"]
 
         all_bills = state_bills + federal_bills
-        expected_labels = {"Introduced", "Engrossed", "Enrolled", "Passed", "Unknown"}
+        expected_labels = {"Introduced", "Engrossed", "Enrolled", "Passed", "Active", "Unknown"}
 
         for bill in all_bills:
             assert "status_label" in bill, (
@@ -553,11 +553,11 @@ class TestLegislationStatusParameter:
         result = civic_client.what_applies("housing", legislation_status="pending")
         bills = [r for r in result.state if r.get("type") == "bill"]
 
-        pending_statuses = {"1", "2", "3"}
+        pending_statuses = {"1", "2", "3", "Active"}
         for bill in bills:
             status = str(bill.get("status", ""))
             assert status in pending_statuses, (
-                f"Pending filter should return status 1-3, got {status} "
+                f"Pending filter should return status 1-3 or Active, got {status} "
                 f"for {bill.get('bill_number')}"
             )
 
