@@ -9,6 +9,8 @@ export interface ServerInfo {
   health_endpoint: string;
   /** Modal origin for health checks (bypasses Cloudflare same-zone loopback) */
   origin_health_endpoint: string;
+  /** Parent jurisdiction IDs (e.g., city -> state -> federal) */
+  parent_jurisdictions: string[];
 }
 
 const LEVEL_ORDER: Record<string, number> = {
@@ -28,7 +30,7 @@ function inferLevel(jurisdictionId: string): string {
 export function getServers(): ServerInfo[] {
   const jurisdictions = registryData.jurisdictions as Record<
     string,
-    { domain: string; display_name: string; modal_app_name: string }
+    { domain: string; display_name: string; modal_app_name: string; parent_jurisdictions?: string[] }
   >;
 
   const workspace = registryData.modal_workspace;
@@ -42,6 +44,7 @@ export function getServers(): ServerInfo[] {
       mcp_endpoint: `https://${config.domain}/mcp`,
       health_endpoint: `https://${config.domain}/health`,
       origin_health_endpoint: `https://${workspace}--${config.modal_app_name}-mcpserver-mcp-endpoint.modal.run/health`,
+      parent_jurisdictions: config.parent_jurisdictions || [],
     })
   );
 

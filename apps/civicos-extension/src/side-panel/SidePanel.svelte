@@ -1,8 +1,8 @@
 <script lang="ts">
   import { sendMessage } from '../lib/messaging.js';
-  import { getCityPulse, getDecisionDetail, getDataProvenance, getVoiceCountsBatch, submitVoice, revokeVoice, getInitiatives, getCivicActions, getCivicActionProgress, commitToCivicAction, completeCivicAction, withdrawCivicAction, createInitiative, createCivicAction, generateActionDraft, getIssueGeography, getBudgetSummary, getComments, getCommentCountsBatch, submitComment, getCommentSynthesis, getItemContext, setRelayUrl } from '../lib/api.js';
+  import { getCityPulse, getCityPulseFromServer, getDecisionDetail, getDataProvenance, getVoiceCountsBatch, submitVoice, revokeVoice, getInitiatives, getCivicActions, getCivicActionProgress, commitToCivicAction, completeCivicAction, withdrawCivicAction, createInitiative, createCivicAction, generateActionDraft, getIssueGeography, getBudgetSummary, getComments, getCommentCountsBatch, submitComment, getCommentSynthesis, getItemContext, setRelayUrl } from '../lib/api.js';
   import { isAIAvailable, getAIManager, onAIConfigChanged, composeDraftPrompt, composeEnrichPrompt, SYSTEM_PROMPT, QA_SYSTEM_PROMPT } from '../lib/ai.js';
-  import { getActiveJurisdiction, getRegistryServers, type RegistryServer } from '../lib/registry.js';
+  import { getActiveJurisdiction, getRegistryServers, getParentServers, getServerBaseUrl, type RegistryServer } from '../lib/registry.js';
   import type { IdentityInfo, NostrEvent, SignedNostrEvent } from '../lib/providers/types.js';
   import { CivicEventKinds, createVoiceContent, createVoiceTags, createCommitmentContent, createCommitmentTags, createCompletionContent, createCompletionTags, generateCommitmentId, generateCompletionId, generateActionRef } from '../lib/providers/types.js';
   import type { CityPulseData, DecisionDetailData, DataProvenance, VoiceCounts, Initiative, CivicAction, CivicActionProgress, IssuePoint, BudgetCategory, Comment, CommentCounts, CommentSynthesis } from '../lib/types.js';
@@ -86,6 +86,12 @@
   // Jurisdiction state
   let activeJurisdiction = $state('city-san-rafael');
   let availableServers: RegistryServer[] = $state([]);
+
+  // Parent jurisdiction state (multi-level)
+  let parentServers: RegistryServer[] = $state([]);
+  let parentPulseData = $state(new Map<string, CityPulseData>());
+  let parentPulseLoading = $state(new Set<string>());
+  let parentPulseErrors = $state(new Map<string, string>());
 
   // Calendar dropdown
   let calendarOpen: string | null = $state(null);
@@ -323,10 +329,43 @@
       loadVoiceCounts();
       loadCommentCounts();
       loadInitiatives();
+      // Load parent jurisdiction data in background
+      loadParentPulse();
     } catch (err) {
       pulseError = err instanceof Error ? err.message : 'Failed to load civic data';
     }
     pulseLoading = false;
+  }
+
+  async function loadParentPulse() {
+    try {
+      parentServers = await getParentServers(activeJurisdiction);
+    } catch {
+      parentServers = [];
+      return;
+    }
+    if (parentServers.length === 0) return;
+
+    // Fetch pulse data from each parent server concurrently
+    for (const server of parentServers) {
+      const id = server.jurisdiction_id;
+      parentPulseLoading.add(id);
+      parentPulseLoading = new Set(parentPulseLoading);
+
+      getCityPulseFromServer(getServerBaseUrl(server))
+        .then(data => {
+          parentPulseData.set(id, data);
+          parentPulseData = new Map(parentPulseData);
+        })
+        .catch(() => {
+          parentPulseErrors.set(id, 'Server unavailable');
+          parentPulseErrors = new Map(parentPulseErrors);
+        })
+        .finally(() => {
+          parentPulseLoading.delete(id);
+          parentPulseLoading = new Set(parentPulseLoading);
+        });
+    }
   }
 
   async function loadVoiceCounts() {
@@ -1833,11 +1872,16 @@
   <header>
     <div class="header-left">
       <h1>City Pulse</h1>
-      {#if pulseData}
-        <span class="jurisdiction">{pulseData.jurisdiction}</span>
-      {:else}
-        <span class="jurisdiction">{activeJurisdiction}</span>
-      {/if}
+      <span class="jurisdiction">
+        {#if pulseData}
+          {pulseData.jurisdiction}
+        {:else}
+          {activeJurisdiction}
+        {/if}
+        {#if parentServers.length > 0}
+          <span class="jurisdiction-parents"> + {parentServers.map(s => s.display_name).join(', ')}</span>
+        {/if}
+      </span>
     </div>
     <div class="header-actions">
       <button class="icon-btn" onclick={toggleProvenance} title="Data Sources" class:active={showProvenance}>
@@ -2937,6 +2981,108 @@
       {/if}
     </section>
 
+    <!-- Parent Jurisdiction Sections (state, federal) -->
+    {#if parentServers.length > 0}
+      {#each parentServers as parentServer (parentServer.jurisdiction_id)}
+        {@const pid = parentServer.jurisdiction_id}
+        {@const pData = parentPulseData.get(pid)}
+        {@const pLoading = parentPulseLoading.has(pid)}
+        {@const pError = parentPulseErrors.get(pid)}
+        <section class="feed-section parent-section">
+          <button class="section-header parent-header" onclick={() => { expanded[pid] = !expanded[pid]; }}>
+            <span class="section-title">
+              <span class="level-badge">{parentServer.level}</span>
+              {parentServer.display_name}
+              {#if pData}
+                {@const itemCount = (pData.decisions_this_week?.length || 0) + (pData.recent_outcomes?.length || 0)}
+                {#if itemCount > 0}
+                  <span class="count-badge">{itemCount}</span>
+                {/if}
+              {/if}
+            </span>
+            <span class="chevron" class:open={expanded[pid]}></span>
+          </button>
+          {#if expanded[pid]}
+            <div class="section-body">
+              {#if pLoading}
+                <div class="parent-loading">
+                  <div class="pulse-anim-small"></div>
+                  <span>Loading {parentServer.display_name} data...</span>
+                </div>
+              {:else if pError}
+                <div class="parent-unavailable">
+                  <span class="unavailable-icon">&#9679;</span>
+                  Server warming up — try again shortly
+                </div>
+              {:else if pData}
+                <!-- Meetings -->
+                {#if pData.decisions_this_week.length > 0}
+                  <div class="parent-subsection">
+                    <div class="parent-subsection-title">Meetings</div>
+                    {#each pData.decisions_this_week as meeting}
+                      <div class="card meeting-card compact-card">
+                        <div class="card-title">{meeting.title}</div>
+                        <div class="card-meta">
+                          <span class="meta-date">{formatMeetingTime(meeting)}</span>
+                        </div>
+                      </div>
+                    {/each}
+                  </div>
+                {/if}
+                <!-- Agenda Items -->
+                {#if pData.upcoming_items && pData.upcoming_items.length > 0}
+                  <div class="parent-subsection">
+                    <div class="parent-subsection-title">Agenda Items <span class="count-badge">{pData.upcoming_items.length}</span></div>
+                    {#each pData.upcoming_items.slice(0, 5) as item}
+                      <div class="card item-card compact-card">
+                        <div class="card-title">{item.title}</div>
+                        {#if item.project_type}
+                          <span class="item-type">{item.project_type}</span>
+                        {/if}
+                      </div>
+                    {/each}
+                    {#if pData.upcoming_items.length > 5}
+                      <div class="parent-more">+{pData.upcoming_items.length - 5} more items</div>
+                    {/if}
+                  </div>
+                {/if}
+                <!-- Recent Outcomes -->
+                {#if pData.recent_outcomes.length > 0}
+                  <div class="parent-subsection">
+                    <div class="parent-subsection-title">Recent Outcomes</div>
+                    {#each pData.recent_outcomes.slice(0, 5) as outcome}
+                      <div class="card compact-card">
+                        <div class="card-title">
+                          <span class="outcome-icon {outcomeClass(outcome.outcome)}">{outcomeIcon(outcome.outcome)}</span>
+                          {outcome.title}
+                        </div>
+                        <div class="card-meta">
+                          <span class="meta-date">{formatRelativeDate(outcome.date)}</span>
+                          {#if outcome.outcome}
+                            <span class="meta-sep">&middot;</span>
+                            <span class="outcome-label">{outcome.outcome.replace(/_/g, ' ')}</span>
+                          {/if}
+                        </div>
+                      </div>
+                    {/each}
+                    {#if pData.recent_outcomes.length > 5}
+                      <div class="parent-more">+{pData.recent_outcomes.length - 5} more outcomes</div>
+                    {/if}
+                  </div>
+                {/if}
+                <!-- Empty state -->
+                {#if pData.decisions_this_week.length === 0 && (!pData.upcoming_items || pData.upcoming_items.length === 0) && pData.recent_outcomes.length === 0}
+                  <div class="empty-section">No recent activity</div>
+                {/if}
+              {:else}
+                <div class="empty-section">No data available</div>
+              {/if}
+            </div>
+          {/if}
+        </section>
+      {/each}
+    {/if}
+
     <!-- Footer -->
     <footer class="pulse-footer">
       <span class="footer-ts">Updated {new Date(pulseData.generated_at).toLocaleTimeString()}</span>
@@ -2992,6 +3138,10 @@
   .jurisdiction {
     font-size: 11px;
     color: #6b7280;
+  }
+  .jurisdiction-parents {
+    color: #4b5563;
+    font-size: 10px;
   }
 
   .header-actions {
@@ -3457,6 +3607,79 @@
     border-top: 1px solid #374151;
     font-size: 10px;
     color: #4b5563;
+  }
+
+  /* === Parent Jurisdiction Sections === */
+  .parent-section {
+    border-left: 2px solid #374151;
+    margin-left: 4px;
+  }
+  .parent-header {
+    padding-left: 8px;
+  }
+  .level-badge {
+    display: inline-block;
+    font-size: 9px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #9ca3af;
+    background: #1f2937;
+    border: 1px solid #374151;
+    border-radius: 3px;
+    padding: 1px 5px;
+    margin-right: 4px;
+    vertical-align: middle;
+  }
+  .parent-loading {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 8px;
+    color: #6b7280;
+    font-size: 12px;
+  }
+  .pulse-anim-small {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #3b82f6;
+    animation: pulse-glow 1.5s ease-in-out infinite;
+  }
+  .parent-unavailable {
+    padding: 12px 8px;
+    color: #6b7280;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .unavailable-icon {
+    color: #f59e0b;
+    font-size: 8px;
+  }
+  .parent-subsection {
+    margin-bottom: 8px;
+  }
+  .parent-subsection-title {
+    font-size: 11px;
+    font-weight: 600;
+    color: #9ca3af;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 4px 0 4px 4px;
+  }
+  .compact-card {
+    padding: 6px 8px;
+    margin-bottom: 4px;
+  }
+  .compact-card .card-title {
+    font-size: 12px;
+  }
+  .parent-more {
+    font-size: 11px;
+    color: #6b7280;
+    padding: 4px 8px;
   }
 
   /* === Provenance Panel === */

@@ -9,22 +9,26 @@
     "city-san-rafael": {
       "domain": "san-rafael.civicosproject.org",
       "display_name": "San Rafael",
-      "modal_app_name": "civicos-san-rafael"
+      "modal_app_name": "civicos-san-rafael",
+      "parent_jurisdictions": ["state-california", "country-united-states"]
     },
     "state-california": {
       "domain": "california.civicosproject.org",
       "display_name": "California",
-      "modal_app_name": "civicos-california"
+      "modal_app_name": "civicos-california",
+      "parent_jurisdictions": ["country-united-states"]
     },
     "country-united-states": {
       "domain": "federal.civicosproject.org",
       "display_name": "Federal",
-      "modal_app_name": "civicos-federal"
+      "modal_app_name": "civicos-federal",
+      "parent_jurisdictions": []
     },
     "city-berkeley": {
       "domain": "berkeley.civicosproject.org",
       "display_name": "Berkeley",
-      "modal_app_name": "civicos-berkeley"
+      "modal_app_name": "civicos-berkeley",
+      "parent_jurisdictions": ["state-california", "country-united-states"]
     }
   },
 

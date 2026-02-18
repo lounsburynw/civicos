@@ -20,6 +20,7 @@ export async function handleServers(): Promise<Response> {
       display_name: s.display_name,
       mcp_endpoint: s.mcp_endpoint,
       health_endpoint: s.health_endpoint,
+      parent_jurisdictions: s.parent_jurisdictions,
     })),
   });
 }
@@ -35,6 +36,7 @@ export async function handleServerById(id: string): Promise<Response> {
     display_name: server.display_name,
     mcp_endpoint: server.mcp_endpoint,
     health_endpoint: server.health_endpoint,
+    parent_jurisdictions: server.parent_jurisdictions,
   });
 }
 

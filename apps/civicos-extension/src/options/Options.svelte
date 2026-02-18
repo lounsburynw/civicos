@@ -585,6 +585,15 @@
         </select>
       </div>
 
+      {@const selectedServer = availableServers.find(s => s.jurisdiction_id === selectedJurisdiction)}
+      {#if selectedServer?.parent_jurisdictions?.length}
+        <div class="parent-info">
+          Also showing: {selectedServer.parent_jurisdictions
+            .map(pid => availableServers.find(s => s.jurisdiction_id === pid)?.display_name || pid)
+            .join(', ')}
+        </div>
+      {/if}
+
       <button class="btn-primary" onclick={saveJurisdiction} disabled={jurisdictionSaving}>
         {jurisdictionSaving ? 'Saving...' : 'Save Jurisdiction'}
       </button>
@@ -981,5 +990,14 @@
     color: #64748b;
     text-align: center;
     padding: 12px;
+  }
+  .parent-info {
+    font-size: 12px;
+    color: #94a3b8;
+    margin: 8px 0;
+    padding: 6px 10px;
+    background: #1e293b;
+    border-radius: 4px;
+    border-left: 2px solid #6366f1;
   }
 </style>
