@@ -9,9 +9,11 @@ const REGISTRY_API = 'https://registry.civicosproject.org/api/v1';
 const CACHE_KEY = 'civicos_registry_cache';
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
+export type JurisdictionLevel = 'federal' | 'state' | 'county' | 'city' | 'district' | 'neighborhood' | string;
+
 export interface RegistryServer {
   jurisdiction_id: string;
-  level: 'federal' | 'state' | 'county' | 'city';
+  level: JurisdictionLevel;
   display_name: string;
   mcp_endpoint: string;
   health_endpoint: string;

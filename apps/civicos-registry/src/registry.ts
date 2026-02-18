@@ -18,19 +18,23 @@ const LEVEL_ORDER: Record<string, number> = {
   state: 1,
   county: 2,
   city: 3,
+  district: 4,
+  neighborhood: 5,
 };
 
 function inferLevel(jurisdictionId: string): string {
   if (jurisdictionId.startsWith("country-")) return "federal";
   if (jurisdictionId.startsWith("state-")) return "state";
   if (jurisdictionId.startsWith("county-")) return "county";
+  if (jurisdictionId.startsWith("district-")) return "district";
+  if (jurisdictionId.startsWith("neighborhood-")) return "neighborhood";
   return "city";
 }
 
 export function getServers(): ServerInfo[] {
   const jurisdictions = registryData.jurisdictions as Record<
     string,
-    { domain: string; display_name: string; modal_app_name: string; parent_jurisdictions?: string[] }
+    { domain: string; display_name: string; modal_app_name: string; parent_jurisdictions?: string[]; level?: string }
   >;
 
   const workspace = registryData.modal_workspace;
@@ -38,7 +42,7 @@ export function getServers(): ServerInfo[] {
   const servers: ServerInfo[] = Object.entries(jurisdictions).map(
     ([id, config]) => ({
       id,
-      level: inferLevel(id),
+      level: config.level || inferLevel(id),
       display_name: config.display_name,
       domain: config.domain,
       mcp_endpoint: `https://${config.domain}/mcp`,
