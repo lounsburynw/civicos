@@ -81,8 +81,8 @@
 ┌─────────────┐   ┌────────────────┐   ┌──────────────┐   ┌──────────────┐
 │ INTELLIGENCE│   │ ORCHESTRATION  │   │ COORDINATION │   │   IMPACT     │
 │ LAYER       │──▶│ LAYER          │──▶│ LAYER        │──▶│   LAYER      │
-│ (table      │   │ (LangGraph)    │   │ (civicos-    │   │              │
-│  stakes)    │   │                │   │  relay)      │   │              │
+│ (table      │   │ (suggestions,  │   │ (civicos-    │   │              │
+│  stakes)    │   │  outcomes)     │   │  relay)      │   │              │
 └─────────────┘   └────────────────┘   └──────────────┘   └──────────────┘
 
 0. EDGE INTELLIGENCE (Personal MCP):
@@ -98,12 +98,10 @@
    - SeeClickFix operational complaints (1,340 San Rafael issues)
    - Read-only public civic data via MCP tools
 
-2. ORCHESTRATION (LangGraph):
-   - State machine workflows (flagged → planning → active)
-   - Checkpointing (resume after days/weeks)
-   - Parallel execution (discover actors concurrently)
-   - Human-in-loop (RSVP waiting, approvals)
-   - LangSmith observability
+2. ORCHESTRATION (suggestions + outcomes):
+   - Proactive suggestions based on user interests and system state
+   - Outcome tracking for feedback loop (what coordination worked?)
+   - Pattern learning from successful campaigns
 
 3. COORDINATION (civicos-relay):
    - Voice casting, action primitives
@@ -184,12 +182,6 @@ c.suggestions() -> List[Suggestion]
 # - "3 others commented on traffic safety this month - coordinate?"
 # - "Housing item next Tuesday matches your interests"
 # - "Your initiative reached 10 supporters - suggest next steps?"
-
-# Request coordination
-c.coordinate(
-    initiative_id="init_123",
-    action="schedule_meeting"  # or "draft_letter", "plan_testimony"
-) -> CoordinationPlan
 
 # Report outcome (closes feedback loop)
 c.report_outcome(

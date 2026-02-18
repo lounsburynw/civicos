@@ -101,10 +101,6 @@ mcp_image = (
         "python-dotenv>=1.0.0",
         "pydantic>=2.0.0",
         "pyyaml>=6.0.0",
-        # LangGraph (for coordination workflows)
-        "langgraph>=0.2.0",
-        "langchain-core>=0.3.0",
-        "langchain-anthropic>=0.3.0",
         # Extraction dependencies (for civicos_extraction)
         "beautifulsoup4>=4.12.0",
         "google-api-python-client>=2.0.0",

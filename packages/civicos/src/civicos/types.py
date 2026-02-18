@@ -223,15 +223,6 @@ class Suggestion:
 
 
 @dataclass
-class CoordinationPlan:
-    """Coordination plan from coordinate()."""
-    action: str
-    steps: List[dict]
-    participants: List[str]
-    deadline: Optional[datetime] = None
-
-
-@dataclass
 class Outcome:
     """Recorded outcome from report_outcome()."""
     item_id: str

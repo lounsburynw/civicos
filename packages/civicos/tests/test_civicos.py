@@ -24,7 +24,6 @@ from civicos.civicos import (
     Subscription,
     Preparation,
     Suggestion,
-    CoordinationPlan,
     Outcome,
     BudgetItem,
     BudgetSummary,

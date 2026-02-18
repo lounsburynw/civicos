@@ -27,7 +27,6 @@ Tools exposed:
 
     Orchestration (AI):
     - get_suggestions: Proactive recommendations
-    - coordinate: Plan collective action
     - report_outcome: Close the feedback loop
 """
 
@@ -370,36 +369,6 @@ class CivicServer:
                 }
                 for s in suggestions
             ]
-
-        @mcp.tool()
-        def coordinate(
-            jurisdiction: str,
-            initiative_id: str,
-            action: str
-        ) -> dict:
-            """
-            Request coordination support.
-
-            Use when initiative is ready for collective action.
-            Actions: "plan_testimony", "draft_letter", "schedule_meeting", "notify_supporters"
-
-            Args:
-                jurisdiction: City/jurisdiction ID
-                initiative_id: ID of the initiative
-                action: Type of coordination action
-
-            Returns:
-                Coordination plan with steps and participants
-            """
-            from civicos.civicos import CivicOS
-            c = CivicOS(jurisdiction, db_path=self.db_path)
-            plan = c.coordinate(initiative_id, action)
-            return {
-                "action": plan.action,
-                "steps": plan.steps,
-                "participants": plan.participants,
-                "deadline": str(plan.deadline) if plan.deadline else None,
-            }
 
         @mcp.tool()
         def report_outcome(

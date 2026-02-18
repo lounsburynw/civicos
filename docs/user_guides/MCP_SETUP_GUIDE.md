@@ -265,7 +265,7 @@ If it runs without errors, the issue is in Claude's configuration.
 
 ## Advanced: HTTP Mode
 
-For integration with LangGraph or other systems, run the servers in HTTP mode:
+For integration with other systems, run the servers in HTTP mode:
 
 ```bash
 # civic-issues on port 8080
