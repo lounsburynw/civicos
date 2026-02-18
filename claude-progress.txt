@@ -1,3 +1,25 @@
+## Session — 2026-02-18 (Jurisdiction Tab Navigation)
+
+**Item:** extension_connected_services_redesign (P0)
+**Status:** Complete — breadcrumb segments now function as jurisdiction tabs
+
+### Changes:
+1. **Tab switching**: Clicking breadcrumb segments (San Rafael / California / Federal) now switches main content
+   - Primary jurisdiction shows full interactive City Pulse (meetings, agenda, outcomes, etc.)
+   - Parent jurisdiction tabs show same data layout (meetings, agenda items, outcomes) in read-only format
+   - `activeTab` state tracks which jurisdiction's content is displayed
+2. **Health info**: Moved from click popover to native title tooltip (hover shows status, latency, version, host)
+3. **Removed**: Breadcrumb detail popover (66 lines), parent collapsible sections at bottom (100 lines), unused CSS
+4. **Net result**: -127 lines, cleaner UX — breadcrumbs are now navigational, not just status displays
+
+### Verification:
+- Extension builds clean (`npm run build`)
+- All success criteria from handoff met
+
+### P0 set: client_sdk_extraction (extract platform-agnostic SDK from extension src/lib/)
+
+---
+
 ## Session — 2026-02-17 (Config Validation System)
 
 **Item:** city_onboarding/scaling/turnkey_city_deployment
@@ -19769,3 +19791,38 @@ End-to-end test of Personal MCP → Relay voice signing and verification:
 - Coverage formula `vector_count / storage_count * 100` is wrong for chunked corpora
 
 ### P0 set: extension_connected_services_redesign (Supabase-style breadcrumb header + registry redeploy)
+
+---
+## Session: 2026-02-18 — Namespace MCP Paths + Breadcrumb Header
+
+### What was done:
+1. **Namespaced MCP paths under `/mcp/` on jurisdiction domains** (commit `132ba3d`)
+   - Proxy workers updated for all 3 jurisdictions (san-rafael, california, federal)
+   - New routing: `/mcp/*` → MCP origin (strip prefix), `/relay/*` → relay origin, root → 404
+   - Added CORS preflight handling to proxy workers
+   - Created `scripts/deploy_proxy_workers.py` for Cloudflare API deployment
+
+2. **Updated all consumers of MCP/health URLs**
+   - Registry worker: `health_endpoint` now `https://domain/mcp/health`
+   - Extension `registry.ts`: `getServerUrl()` / `getServerBaseUrl()` return `mcp_endpoint` directly (no more stripping `/mcp`)
+   - Extension `relay-client.ts`: defaults use domain paths (`/relay`, `/mcp`) instead of raw Modal URLs
+   - Backend `registry.py`: health derivation uses `endpoint + "/health"` instead of stripping/replacing
+   - Redeployed registry worker via wrangler (relay fields now live)
+
+3. **Breadcrumb header redesign** (replacing Connected Services dropdown)
+   - Jurisdiction chain as clickable breadcrumb segments: San Rafael / California / Federal
+   - Each segment shows health dot, clicking opens detail popover with MCP + relay status
+   - Endpoint URLs shown with paths (e.g. `san-rafael.civicosproject.org/mcp`)
+   - Removed old services dropdown, aggregate health dot button, and "Manage in Settings" link
+
+4. **Docs updated**: HOSTING_DECISION.md, MCP_INTEGRATION_STRATEGY.md, federation_domain_architecture.md
+
+### Verification:
+- `/mcp/health` → healthy (40 tools)
+- `/relay/health` → healthy
+- `/health` → 404 (correct)
+- `/` → 404 (correct)
+- Registry returns `/mcp/health` endpoints
+- Extension builds clean
+
+### P0 set: extension_connected_services_redesign (jurisdiction tabs as next piece)

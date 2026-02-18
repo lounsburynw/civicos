@@ -1,92 +1,106 @@
-# Recommended: Redesign Connected Services Header + Redeploy Registry
+# Recommended: Client SDK Extraction
 
-**Priority:** P0 (`extension_connected_services_redesign`)
+**Priority:** P0 (`client_sdk_extraction`)
 **Area:** edge_intelligence > browser_extension
 **Date:** 2026-02-18
 
+> This is recommended context from the previous session. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
+
 ## Context
 
-Last session added a Connected Services header dropdown to the extension side panel (commit `eeeabdc`). It shows jurisdiction chain with health dots, relay status, and latency. However:
+Last session completed `extension_connected_services_redesign` — breadcrumb segments now function as jurisdiction tabs (click to switch content, endpoint bar shows MCP/Relay URLs, health info via title tooltips). The extension's UX layer is now solid.
 
-1. **The UX should look like Supabase's breadcrumb header** — see screenshot reference. Supabase uses a horizontal breadcrumb with entity icons, badges (PRO, PRODUCTION), and chevron separators:
-   ```
-   👤 lounsburynw [PRO] > ⚡ civicos-mcp_san-rafael > 🌿 main [PRODUCTION]
-   ```
-   Our equivalent should be something like:
-   ```
-   🏠 San Rafael [primary] > 🏛 California [state] > 🇺🇸 Federal
-   ```
-   With health status indicators integrated into the breadcrumb, not a separate dropdown panel. Each segment should be clickable (to switch context/view that jurisdiction's data).
+The next step is **extracting the platform-agnostic business logic** from the extension into a reusable TypeScript SDK (`packages/civicos-client/`). This enables multiple UX surfaces (web app, MCP App iframe, other extensions) to share civic coordination logic.
 
-2. **Registry worker needs redeployment** — the code includes `relay_endpoint` and `relay_ws_endpoint` per server (falling back to global relay config), but the deployed Cloudflare Worker is stale. Until redeployed, no relay info shows in the extension.
+## What We're Doing
 
-## Task 1: Redesign Header as Supabase-style Breadcrumb
+The extension's `src/lib/` is 80% platform-agnostic already. Chrome coupling is concentrated in ~15 call sites across 4 files. All six business flows (voice, comment, commit, complete, withdraw, initiative) follow identical structure: **build unsigned Nostr event → sign → submit to relay → optimistic update**. This pattern is extractable behind two interfaces.
 
-Replace the current header layout:
+## Two Key Interfaces
+
+### Signer
+Replaces `chrome.runtime.sendMessage({ type: 'SIGN_EVENT' })`:
+```typescript
+interface Signer {
+  sign(event: UnsignedNostrEvent): Promise<SignedNostrEvent>;
+  signMessage(msg: string): Promise<{ public_key: string; signature: string; created_at: number }>;
+  isUnlocked(): Promise<boolean>;
+}
 ```
-City Pulse  San Rafael + California, Federal    [ℹ] [●] [↻] [⚙]
+Implementations: `ExtensionSigner` (chrome messaging), `InProcessSigner` (calls loom-core directly), `NIP07Signer` (window.nostr)
+
+### StorageAdapter
+Replaces direct `chrome.storage.local` calls:
+```typescript
+interface StorageAdapter {
+  get(key: string): Promise<any>;
+  set(key: string, value: any): Promise<void>;
+  remove(key: string): Promise<void>;
+}
 ```
+Implementations: `ChromeStorageAdapter`, `LocalStorageAdapter`, `IndexedDBAdapter`
 
-With a Supabase-inspired breadcrumb:
-```
-San Rafael ● > California ○ > Federal ○        [ℹ] [↻] [⚙]
-```
+loom-core's `KeyStore` should be implementable in terms of `StorageAdapter` (one wraps the other).
 
-Where:
-- Each jurisdiction segment is clickable (scrolls to/focuses that jurisdiction's data)
-- Health dots are inline with each segment (green/gray/red)
-- Primary jurisdiction shows `[primary]` badge or similar
-- Relay status could be a small icon after the primary segment
-- Clicking a segment could expand to show details (latency, version, tools)
+## What Moves to `packages/civicos-client/`
 
-### Key Files
-- `apps/civicos-extension/src/side-panel/SidePanel.svelte` — main file (~5550 lines)
-  - Lines 1946-1980: Current header with button row
-  - Lines 2042-2108: Current services panel (dropdown below header)
-  - Lines 97-105: `ServerHealthStatus` interface + state
-  - Lines 593-647: `checkServerHealth()`, `checkRelayHealth()`, `checkAllHealth()`, `toggleServices()`, `overallHealthStatus()`
-  - Lines 3870-3960: Connected Services CSS (`.services-panel`, `.service-row`, `.health-dot`, etc.)
-- `apps/civicos-extension/src/lib/registry.ts` — `getRegistryServers()`, `getParentServers()`, `RegistryServer` type
+| Extension File | Disposition | Chrome Calls to Remove |
+|---|---|---|
+| `lib/types.ts` | Move verbatim | 0 |
+| `lib/api.ts` | Move; inject URL resolution | 2 direct + 2 indirect |
+| `lib/registry.ts` | Move; inject StorageAdapter for cache + jurisdiction pref | 5 |
+| `lib/relay-client.ts` | Move; inject StorageAdapter for URL overrides | 2 |
+| `lib/providers/types.ts` | Move CivicEventKinds, event tag/content helpers | 0 |
+| `lib/ai/prompts.ts` | Move verbatim (pure functions) | 0 |
+| `lib/ai/types.ts` | Move verbatim | 0 |
+| `lib/ai/manager.ts` | Move; inject storage instead of Chrome feature detection | 1 |
+| `lib/ai/providers/claude.ts` | Move verbatim | 0 |
+| `lib/ai/providers/openai.ts` | Move verbatim | 0 |
+| `lib/ai/providers/civicos-proxy.ts` | Move; inject Signer for auth | 2 |
+| New: `operations.ts` | Extract from SidePanel: castVoice(), submitComment(), commitAction(), createInitiative(), etc. | N/A |
 
-### Design Notes
-- The breadcrumb replaces both the current jurisdiction text AND the services dropdown
-- Health information is surfaced inline, not hidden behind a click
-- Keep the provenance (ℹ), refresh, and settings buttons
-- Consider mobile/narrow width — breadcrumb could truncate or scroll
+## What Stays in the Extension
 
-## Task 2: Redeploy Registry Worker
+- `lib/storage.ts` — ChromeStorageAdapter implementation
+- `lib/messaging.ts` — Chrome message types + sendMessage()
+- `lib/identity.ts` — IdentityManager (Chrome session persistence)
+- `lib/providers/local-wallet.ts` — BIP-39 wallet (uses Chrome storage)
+- `lib/providers/crypto.ts` — bridge between extension's NostrEvent (optional pubkey) and loom-core's UnsignedEvent (required pubkey)
+- `lib/ai/providers/chrome-nano.ts` — Chrome-only by design
+- `lib/ai/storage.ts` — ChromeAICredentialStorage
+- `src/background/service-worker.ts` — trusted key holder
+- `src/content-scripts/*` — NIP-07 injector, Claude bridge
+- `src/side-panel/SidePanel.svelte` — rendering only, imports operations from @civicos/client
 
-The registry worker code already includes relay fields but the deployed version is stale.
+## Type Mismatch to Resolve
 
-```bash
-cd apps/civicos-registry
-npx wrangler deploy
-```
+Extension's `NostrEvent` has `pubkey?: string` (optional). loom-core's `UnsignedEvent` has `pubkey: string` (required). The Signer interface should accept pubkey-optional events and derive pubkey internally — matching the extension's current `signNostrEvent()` bridge in `crypto.ts`.
 
-Verify after deploy:
-```bash
-curl -s https://registry.civicosproject.org/api/v1/servers | python3 -m json.tool | grep relay
-```
+## Implementation Order
 
-Should show `relay_endpoint` and `relay_ws_endpoint` for each server.
+1. Create `packages/civicos-client/` with interfaces (Signer, StorageAdapter) and move `types.ts`
+2. Move API layer (`api.ts`, `registry.ts`, `relay-client.ts`) with dependency injection
+3. Move AI layer (`manager.ts`, `prompts.ts`, portable providers)
+4. Extract business operations from SidePanel into `operations.ts`
+5. Rewire extension: create Chrome adapters, import from `@civicos/client`
+6. Verify: extension works identically, then build a second surface as proof
 
-### Registry Files
-- `apps/civicos-registry/src/registry.ts:59-60` — relay_endpoint fallback logic
-- `apps/civicos-registry/src/api.ts:23-24` — relay fields in API response
-- `config/registry.json:35-40` — global relay config
+## Context to Load
+
+- `docs/critical/FINAL_PACKAGE_ARCHITECTURE.md` — five-layer architecture, two-MCP split
+- `docs/critical/EDGE_INTELLIGENCE_ARCHITECTURE.md` — tiered identity, MCP Apps, signing flow
+- `packages/loom-core/src/types.ts` — KeyPair, KeyStore, ProtocolAdapter interfaces
+- `apps/civicos-extension/src/lib/` — the code being extracted
+- `apps/civicos-extension/src/side-panel/SidePanel.svelte` — business logic to extract
 
 ## Tests
 ```bash
-# Extension builds clean
-cd apps/civicos-extension && npm run build
-
-# Registry type-checks
-cd apps/civicos-registry && npx tsc --noEmit
+cd packages/civicos-client && npm run build   # SDK compiles
+cd apps/civicos-extension && npm run build    # Extension still works
 ```
 
 ## Success Criteria
-- [ ] Header shows Supabase-style breadcrumb with jurisdiction chain
-- [ ] Health dots visible inline per jurisdiction segment
-- [ ] Relay status visible (after registry redeploy)
-- [ ] Registry worker redeployed with relay fields
-- [ ] Extension builds without errors
+- [ ] `packages/civicos-client/` exists with Signer + StorageAdapter interfaces
+- [ ] Types, API, registry, relay-client moved with dependency injection
+- [ ] Extension imports from `@civicos/client` and builds clean
+- [ ] All six business flows still work via Chrome adapters

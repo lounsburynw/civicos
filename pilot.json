@@ -4411,8 +4411,8 @@
         ]
       },
       "extension_connected_services_redesign": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 1,
         "description": "Redesign Connected Services UX: jurisdiction tabs, address-based onboarding, relay as status indicator",
         "rationale": "Current flat list doesn't represent hierarchy well. Relay shown as peer of MCPs when it's shared infrastructure. Provenance coverage metrics broken for chunked corpora (n:1 embedding ratios).",
         "improvements": [
@@ -4425,6 +4425,42 @@
         "current_state": "Basic Connected Services section shows jurisdiction chain with health dots. Provenance panel shows records/embeddings. Coverage stats handled for chunked corpora.",
         "depends_on": [
           "extension_phase1b_read_enhancements"
+        ]
+      },
+      "client_sdk_extraction": {
+        "status": "not_ready",
+        "priority": 0,
+        "description": "Extract platform-agnostic TypeScript client SDK (packages/civicos-client/) from browser extension src/lib/. Enables multiple UX surfaces (web app, MCP App iframe, other extensions) to share civic coordination logic.",
+        "rationale": "Extension src/lib/ is 80% platform-agnostic. Chrome coupling concentrated in ~15 call sites across 4 files. All six business flows (voice, comment, commit, complete, withdraw, initiative) follow identical structure extractable behind Signer and StorageAdapter interfaces.",
+        "interfaces": [
+          "Signer: sign(event) → SignedNostrEvent, signMessage(msg) → {public_key, signature, created_at}, isUnlocked() → boolean",
+          "StorageAdapter: get(key) → any, set(key, value) → void, remove(key) → void"
+        ],
+        "files_to_move": [
+          "lib/types.ts (verbatim)",
+          "lib/api.ts (inject URL resolution)",
+          "lib/registry.ts (inject StorageAdapter)",
+          "lib/relay-client.ts (inject StorageAdapter)",
+          "lib/providers/types.ts (CivicEventKinds, helpers)",
+          "lib/ai/prompts.ts (verbatim)",
+          "lib/ai/types.ts (verbatim)",
+          "lib/ai/manager.ts (inject storage)",
+          "lib/ai/providers/claude.ts (verbatim)",
+          "lib/ai/providers/openai.ts (verbatim)",
+          "lib/ai/providers/civicos-proxy.ts (inject Signer)",
+          "New: operations.ts (extract from SidePanel)"
+        ],
+        "implementation_order": [
+          "1. Create packages/civicos-client/ with interfaces + types.ts",
+          "2. Move API layer (api.ts, registry.ts, relay-client.ts) with DI",
+          "3. Move AI layer (manager.ts, prompts.ts, portable providers)",
+          "4. Extract business operations from SidePanel into operations.ts",
+          "5. Rewire extension: Chrome adapters, import from @civicos/client",
+          "6. Verify: extension works identically"
+        ],
+        "type_mismatch": "Extension NostrEvent has pubkey?: string (optional). loom-core UnsignedEvent has pubkey: string (required). Signer should accept pubkey-optional and derive internally.",
+        "depends_on": [
+          "extension_connected_services_redesign"
         ]
       }
     },
