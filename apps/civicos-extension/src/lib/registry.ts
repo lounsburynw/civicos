@@ -17,6 +17,8 @@ export interface RegistryServer {
   display_name: string;
   mcp_endpoint: string;
   health_endpoint: string;
+  relay_endpoint?: string;
+  relay_ws_endpoint?: string;
   parent_jurisdictions?: string[];
 }
 
@@ -97,6 +99,14 @@ export async function getParentServers(jurisdictionId?: string): Promise<Registr
   return parentIds
     .map(pid => servers.find(s => s.jurisdiction_id === pid))
     .filter((s): s is RegistryServer => !!s);
+}
+
+/** Get the relay HTTP endpoint for a jurisdiction from the registry. */
+export async function getRelayEndpoint(jurisdictionId?: string): Promise<string | null> {
+  const id = jurisdictionId || await getActiveJurisdiction();
+  const servers = await getRegistryServers();
+  const server = servers.find(s => s.jurisdiction_id === id);
+  return server?.relay_endpoint || null;
 }
 
 /** Get the base URL (without /mcp) for a specific server. */
