@@ -807,18 +807,9 @@ class TestCoordinateWorkflow:
                 )
                 civic.follow("initiative", initiative.id, user_id=f"speaker_{i}")
 
-            # Step 2: Try to coordinate (may raise ImportError if coordination not available)
-            # Test that the method is callable
-            try:
-                plan = civic.coordinate(initiative.id, "plan_testimony")
-                # If coordination is available, verify plan structure
-                assert plan.action == "plan_testimony"
-                assert isinstance(plan.steps, list)
-                assert isinstance(plan.participants, list)
-            except ImportError:
-                # Coordination package not installed - this is acceptable
-                # The test documents the expected sequence
-                pass
+            # Step 2: Coordination was removed in the LangGraph cleanup refactor.
+            # The coordinate() method no longer exists on CivicOS.
+            # This test now validates the initiative → report_outcome flow.
 
             # Step 3: Report outcome
             outcome = civic.report_outcome(

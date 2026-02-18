@@ -556,34 +556,6 @@ class TestMCPOrchestrationTools:
                     outcome="invalid_outcome"
                 )
 
-    def test_coordinate_tool_via_civic(self):
-        """coordinate tool can be called via Civic."""
-        from civicos.mcp import CivicServer
-        with tempfile.TemporaryDirectory() as tmpdir:
-            db_path = os.path.join(tmpdir, "test.db")
-            server = CivicServer(db_path=db_path)
-            civic = server._get_civic()
-            result = civic.coordinate(
-                initiative_id="init_12345678",
-                action="plan_testimony"
-            )
-            assert result.action == "plan_testimony"
-            assert isinstance(result.steps, list)
-            assert isinstance(result.participants, list)
-
-    def test_coordinate_draft_letter_action(self):
-        """coordinate tool accepts draft_letter action."""
-        from civicos.mcp import CivicServer
-        with tempfile.TemporaryDirectory() as tmpdir:
-            db_path = os.path.join(tmpdir, "test.db")
-            server = CivicServer(db_path=db_path)
-            civic = server._get_civic()
-            result = civic.coordinate(
-                initiative_id="init_87654321",
-                action="draft_letter"
-            )
-            assert result.action == "draft_letter"
-
     def test_suggestions_returns_list(self):
         """suggestions tool returns a list of suggestions."""
         from civicos.mcp import CivicServer
@@ -636,8 +608,8 @@ class TestMCPOrchestrationTools:
 class TestMCPOrchestrationToolIntegration:
     """Test MCP orchestration tools work together in realistic scenarios."""
 
-    def test_initiative_coordinate_and_report(self):
-        """Can create initiative, coordinate action, then report outcome."""
+    def test_initiative_and_report(self):
+        """Can create initiative then report outcome."""
         from civicos.mcp import CivicServer
         with tempfile.TemporaryDirectory() as tmpdir:
             db_path = os.path.join(tmpdir, "test.db")
@@ -650,13 +622,6 @@ class TestMCPOrchestrationToolIntegration:
                 title="New dog park",
                 description="Create a dog park at Lincoln"
             )
-
-            # Coordinate testimony planning
-            plan = civic.coordinate(
-                initiative_id=initiative.id,
-                action="plan_testimony"
-            )
-            assert plan.action == "plan_testimony"
 
             # Report outcome
             outcome = civic.report_outcome(

@@ -106,31 +106,6 @@ class TestCivicIntegration:
         assert result.jurisdiction == "city-san-rafael"
         assert result.follower_count >= 0
 
-    def test_coordinate_wildfire(self, civic):
-        """Test coordinate() with wildfire decision type."""
-        plan = civic.coordinate("wildfire_prevention", "plan_testimony")
-
-        assert plan.action == "plan_testimony"
-        # With 1340 issues, should find participants
-        assert len(plan.participants) > 0, "Should find affected residents"
-
-    def test_coordinate_parking(self, civic):
-        """Test coordinate() with parking decision type."""
-        plan = civic.coordinate("parking_policy", "organize_coalition")
-
-        assert plan.action == "organize_coalition"
-        # Parking should also find participants
-        assert len(plan.participants) > 0
-
-    def test_coordinate_low_score_decision(self, civic):
-        """Test coordinate() with low-scoring decision type."""
-        plan = civic.coordinate("minor_signage", "plan_testimony")
-
-        # Low-scoring decisions may not trigger discovery
-        # but should not raise an error
-        assert plan.action == "plan_testimony"
-        # May have 0 participants if score is too low
-
 
 class TestCivicQueryChaining:
     """Test combining multiple Civic queries."""
@@ -140,17 +115,17 @@ class TestCivicQueryChaining:
         return CivicOS("city-san-rafael", db_path=DB_PATH)
 
     def test_research_workflow(self, civic):
-        """Test a research workflow: what_applies -> coordinate."""
+        """Test a research workflow: what_applies -> what_happened."""
         # 1. Research the regulatory context
         context = civic.what_applies("housing")
         assert len(context.state) > 0
 
-        # 2. Get coordination support
-        plan = civic.coordinate("housing", "plan_testimony")
+        # 2. Check past decisions
+        decisions = civic.what_happened("housing")
 
         # Both should work together
         assert context.topic == "housing"
-        assert plan.action == "plan_testimony"
+        assert isinstance(decisions, list)
 
     def test_multi_topic_research(self, civic):
         """Test researching multiple topics."""
