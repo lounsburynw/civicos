@@ -4462,7 +4462,7 @@
         "depends_on": [
           "extension_connected_services_redesign"
         ],
-        "note": "Phase 1 (StorageAdapter, types, RegistryClient, ApiClient) and Phase 2 (Signer interface, event helpers, ExtensionSigner, cast* methods, SidePanel simplified) complete. Remaining: AI layer extraction, business operations extraction, second surface proof.",
+        "note": "Phases 1-4 complete. Phase 1: StorageAdapter, types, RegistryClient, ApiClient. Phase 2: Signer, events, cast* methods. Phase 3: AI layer. Phase 4: CivicSession orchestration (loadPulseBundle, loadCommentThread, draftComment, enrichDraft, askQuestion, etc.). SidePanel rewired. Remaining: Phase 5 (second surface proof) + scoping Web Components layer.",
         "artifact": "packages/civicos-client/",
         "test_file": "cd packages/civicos-client && npm run build && cd ../../apps/civicos-extension && npm run build"
       }
