@@ -51,6 +51,9 @@
   let provenanceData: DataProvenance | null = $state(null);
   let provenanceLoading = $state(false);
 
+  // Connected Services dropdown
+  let showServices = $state(false);
+
   // Voice counts
   let voiceCounts = $state(new Map<string, VoiceCounts>());
 
@@ -92,6 +95,16 @@
   let parentPulseData = $state(new Map<string, CityPulseData>());
   let parentPulseLoading = $state(new Set<string>());
   let parentPulseErrors = $state(new Map<string, string>());
+
+  // Server health state (Connected Services)
+  interface ServerHealthStatus {
+    status: 'healthy' | 'degraded' | 'offline';
+    latency_ms?: number;
+    version?: string;
+    checked_at: number;
+  }
+  let serverHealth = $state(new Map<string, ServerHealthStatus>());
+  let relayHealth: ServerHealthStatus | null = $state(null);
 
   // Calendar dropdown
   let calendarOpen: string | null = $state(null);
@@ -329,8 +342,9 @@
       loadVoiceCounts();
       loadCommentCounts();
       loadInitiatives();
-      // Load parent jurisdiction data in background
+      // Load parent jurisdiction data and health checks in background
       loadParentPulse();
+      checkAllHealth();
     } catch (err) {
       pulseError = err instanceof Error ? err.message : 'Failed to load civic data';
     }
@@ -566,6 +580,7 @@
 
   async function toggleProvenance() {
     showProvenance = !showProvenance;
+    if (showServices) showServices = false;
     if (showProvenance && !provenanceData && !provenanceLoading) {
       provenanceLoading = true;
       try {
@@ -576,6 +591,66 @@
         provenanceLoading = false;
       }
     }
+  }
+
+  function toggleServices() {
+    showServices = !showServices;
+    if (showProvenance) showProvenance = false;
+    if (showServices && serverHealth.size === 0) {
+      checkAllHealth();
+    }
+  }
+
+  function overallHealthStatus(): 'healthy' | 'degraded' | 'offline' | 'unknown' {
+    if (serverHealth.size === 0) return 'unknown';
+    const statuses = [...serverHealth.values()].map(h => h.status);
+    if (statuses.includes('offline')) return 'offline';
+    if (statuses.includes('degraded')) return 'degraded';
+    if (statuses.every(s => s === 'healthy')) return 'healthy';
+    return 'unknown';
+  }
+
+  async function checkServerHealth(server: RegistryServer): Promise<ServerHealthStatus> {
+    const start = performance.now();
+    try {
+      const response = await fetch(server.health_endpoint, { signal: AbortSignal.timeout(5000) });
+      const latency_ms = Math.round(performance.now() - start);
+      if (!response.ok) return { status: 'degraded', latency_ms, checked_at: Date.now() };
+      const data = await response.json();
+      return { status: 'healthy', latency_ms, version: data.version, checked_at: Date.now() };
+    } catch {
+      return { status: 'offline', latency_ms: Math.round(performance.now() - start), checked_at: Date.now() };
+    }
+  }
+
+  async function checkRelayHealth(relayEndpoint: string): Promise<ServerHealthStatus> {
+    const start = performance.now();
+    try {
+      const response = await fetch(`${relayEndpoint}/health`, { signal: AbortSignal.timeout(5000) });
+      const latency_ms = Math.round(performance.now() - start);
+      if (!response.ok) return { status: 'degraded', latency_ms, checked_at: Date.now() };
+      return { status: 'healthy', latency_ms, checked_at: Date.now() };
+    } catch {
+      return { status: 'offline', latency_ms: Math.round(performance.now() - start), checked_at: Date.now() };
+    }
+  }
+
+  async function checkAllHealth() {
+    const servers = availableServers;
+    // Check MCP servers in parallel
+    const checks = servers.map(async (server) => {
+      const health = await checkServerHealth(server);
+      serverHealth.set(server.jurisdiction_id, health);
+      serverHealth = new Map(serverHealth);
+    });
+    // Check relay health
+    const activeServer = servers.find(s => s.jurisdiction_id === activeJurisdiction);
+    if (activeServer?.relay_endpoint) {
+      checkRelayHealth(activeServer.relay_endpoint).then(health => {
+        relayHealth = health;
+      });
+    }
+    await Promise.all(checks);
   }
 
   function isPastMeeting(meeting: { meeting_datetime: string }): boolean {
@@ -1890,6 +1965,12 @@
           <path d="M12 16v-4M12 8h.01" />
         </svg>
       </button>
+      <button class="icon-btn services-btn" onclick={toggleServices} title="Connected Services" class:active={showServices}>
+        <span class="services-health-dot {overallHealthStatus()}"></span>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+        </svg>
+      </button>
       <button class="icon-btn" onclick={loadCityPulse} title="Refresh" disabled={pulseLoading}>
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
              class:spinning={pulseLoading}>
@@ -1916,26 +1997,126 @@
           <span class="prov-jurisdiction">{provenanceData.jurisdiction}</span>
         </div>
         <div class="prov-stats">
-          <span>{provenanceData.corpora.length} data types</span>
+          <span>{provenanceData.total_storage_docs.toLocaleString()} records</span>
           <span class="meta-sep">&middot;</span>
-          <span>{provenanceData.total_vector_docs.toLocaleString()} indexed docs</span>
+          <span>{provenanceData.total_vector_docs.toLocaleString()} embeddings</span>
         </div>
         <div class="prov-corpora">
           {#each provenanceData.corpora as corpus}
             <div class="corpus-row">
               <span class="corpus-name">{corpus.display_name}</span>
-              <span class="corpus-count">{corpus.storage_count.toLocaleString()}</span>
+              <span class="corpus-stats">
+                <span class="corpus-count">{corpus.storage_count.toLocaleString()}</span>
+                {#if corpus.vector_count > 0}
+                  {#if corpus.vector_count > corpus.storage_count}
+                    <!-- Chunked corpus (e.g. transcripts → many embeddings) -->
+                    <span class="corpus-indexed">indexed</span>
+                  {:else if corpus.coverage_percent !== null && corpus.coverage_percent >= 99}
+                    <span class="corpus-indexed">indexed</span>
+                  {:else if corpus.coverage_percent !== null}
+                    <span class="corpus-coverage" class:low={corpus.coverage_percent < 50}>
+                      {Math.round(corpus.coverage_percent)}%
+                    </span>
+                  {/if}
+                {:else if corpus.coverage_percent !== null}
+                  <span class="corpus-coverage low">0%</span>
+                {/if}
+              </span>
             </div>
           {/each}
         </div>
-        {#if provenanceData.freshness.last_updated}
-          <div class="prov-freshness">
-            Updated {formatRelativeDate(provenanceData.freshness.last_updated)}
-          </div>
-        {/if}
+        <div class="prov-footer-row">
+          {#if provenanceData.freshness.last_updated}
+            <span class="prov-freshness">
+              Updated {formatRelativeDate(provenanceData.freshness.last_updated)}
+            </span>
+          {/if}
+          <span class="prov-backend">{provenanceData.storage_backend}</span>
+        </div>
       {:else}
         <div class="prov-loading">Unable to load data sources</div>
       {/if}
+    </div>
+  {/if}
+
+  <!-- Connected Services Panel -->
+  {#if showServices}
+    <div class="services-panel">
+      <div class="prov-header">
+        <span class="prov-title">Connected Services</span>
+      </div>
+      <!-- Active jurisdiction -->
+      {#each availableServers.filter(s => s.jurisdiction_id === activeJurisdiction) as server (server.jurisdiction_id)}
+        {@const health = serverHealth.get(server.jurisdiction_id)}
+        <div class="service-row">
+          <span class="health-dot {health?.status || 'unknown'}"></span>
+          <div class="service-info">
+            <div class="service-name">
+              {server.display_name}
+              <span class="service-badge primary">primary</span>
+            </div>
+            <div class="service-meta">
+              MCP
+              {#if health?.latency_ms !== undefined}
+                <span class="meta-sep">&middot;</span>
+                {health.latency_ms}ms
+              {/if}
+              {#if health?.version}
+                <span class="meta-sep">&middot;</span>
+                v{health.version}
+              {/if}
+            </div>
+          </div>
+        </div>
+        <!-- Relay -->
+        {#if server.relay_endpoint}
+          <div class="service-row relay-row">
+            <span class="health-dot {relayHealth?.status || 'unknown'}"></span>
+            <div class="service-info">
+              <div class="service-meta">
+                Relay
+                {#if relayHealth?.status === 'healthy'}
+                  <span class="meta-sep">&middot;</span>
+                  connected
+                {:else if relayHealth?.status === 'offline'}
+                  <span class="meta-sep">&middot;</span>
+                  <span class="relay-offline">offline</span>
+                {/if}
+                {#if relayHealth?.latency_ms !== undefined}
+                  <span class="meta-sep">&middot;</span>
+                  {relayHealth.latency_ms}ms
+                {/if}
+              </div>
+            </div>
+          </div>
+        {/if}
+      {/each}
+      <!-- Parent jurisdiction servers -->
+      {#each parentServers as server (server.jurisdiction_id)}
+        {@const health = serverHealth.get(server.jurisdiction_id)}
+        <div class="service-row">
+          <span class="health-dot {health?.status || 'unknown'}"></span>
+          <div class="service-info">
+            <div class="service-name">
+              {server.display_name}
+              <span class="level-badge">{server.level}</span>
+            </div>
+            <div class="service-meta">
+              MCP
+              {#if health?.latency_ms !== undefined}
+                <span class="meta-sep">&middot;</span>
+                {health.latency_ms}ms
+              {/if}
+            </div>
+          </div>
+        </div>
+      {/each}
+      {#if availableServers.length === 0 && parentServers.length === 0}
+        <div class="prov-loading">No services connected</div>
+      {/if}
+      <button class="services-manage-link" onclick={openOptions}>
+        Manage in Settings
+      </button>
     </div>
   {/if}
 
@@ -3723,13 +3904,41 @@
     font-size: 11px;
   }
   .corpus-name { color: #d1d5db; }
+  .corpus-stats {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+  }
   .corpus-count { color: #6b7280; font-variant-numeric: tabular-nums; }
-  .prov-freshness {
+  .corpus-indexed {
+    font-size: 9px;
+    color: #4ade80;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+  }
+  .corpus-coverage {
+    font-size: 10px;
+    color: #6b7280;
+    font-variant-numeric: tabular-nums;
+  }
+  .corpus-coverage.low { color: #f59e0b; }
+  .prov-footer-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
     border-top: 1px solid #374151;
     padding-top: 6px;
     margin-top: 6px;
+  }
+  .prov-freshness {
     font-size: 10px;
     color: #4b5563;
+  }
+  .prov-backend {
+    font-size: 9px;
+    color: #4b5563;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
   }
   .prov-loading {
     font-size: 11px;
@@ -3738,6 +3947,102 @@
   }
 
   .icon-btn.active { color: #60a5fa; background: #333; }
+
+  /* === Connected Services (header dropdown) === */
+  .services-btn {
+    position: relative;
+  }
+  .services-health-dot {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+  }
+  .services-health-dot.healthy { background: #4ade80; }
+  .services-health-dot.degraded { background: #f59e0b; }
+  .services-health-dot.offline { background: #ef4444; }
+  .services-health-dot.unknown { background: transparent; }
+  .services-panel {
+    background: #262626;
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin-bottom: 12px;
+    border: 1px solid #374151;
+  }
+  .service-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 4px;
+    border-radius: 4px;
+  }
+  .service-row:hover {
+    background: #1f2937;
+  }
+  .relay-row {
+    padding-left: 20px;
+  }
+  .relay-offline {
+    color: #ef4444;
+  }
+  .health-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .health-dot.healthy { background: #4ade80; }
+  .health-dot.degraded { background: #f59e0b; }
+  .health-dot.offline { background: #ef4444; }
+  .health-dot.unknown { background: #4b5563; }
+  .service-info {
+    flex: 1;
+    min-width: 0;
+  }
+  .service-name {
+    font-size: 12px;
+    color: #d1d5db;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .service-badge {
+    font-size: 9px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 1px 5px;
+    border-radius: 3px;
+  }
+  .service-badge.primary {
+    color: #60a5fa;
+    background: rgba(59, 130, 246, 0.15);
+  }
+  .service-meta {
+    font-size: 10px;
+    color: #6b7280;
+    display: flex;
+    gap: 4px;
+    align-items: center;
+  }
+  .services-manage-link {
+    display: block;
+    width: 100%;
+    text-align: center;
+    font-size: 10px;
+    color: #6b7280;
+    background: none;
+    border: none;
+    border-top: 1px solid #374151;
+    padding: 6px 0 2px;
+    margin-top: 4px;
+    cursor: pointer;
+  }
+  .services-manage-link:hover {
+    color: #9ca3af;
+  }
 
   /* === Past Meeting === */
   .past-meeting {

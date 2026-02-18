@@ -1555,7 +1555,7 @@
     "scaling": {
       "turnkey_city_deployment": {
         "status": "not_ready",
-        "priority": 0,
+        "priority": 1,
         "description": "Make unified config system actually reduce new city deployment effort. Currently config is ~20% of work; extractors, HUD mapping, and elections are ~80%.",
         "rationale": "Session 545 audit found: core infrastructure 70-75% generalizable, but election data (1/5), HUD grantee mapping (manual), and platform-specific extractors still require significant per-city work.",
         "audit_reference": "docs/critical/CITY_DEPLOYMENT_AUDIT.md",
@@ -4313,7 +4313,7 @@
       },
       "extension_phase1b_read_enhancements": {
         "status": "ready",
-        "priority": 1,
+        "priority": 0,
         "artifact": "Browser extension Phase 1b \u2014 Read-only enhancements toward Open WebUI parity",
         "note": "Enrich the existing City Pulse sections without relay integration. Voice counts display (read-only via getVoiceCountsBatch), decision detail expansion (click to expand with testimony excerpts via decision-detail API), calendar buttons (Google Calendar URL + .ics download per meeting), data provenance info panel, past meeting visual indicator. All use existing REST API endpoints \u2014 no relay or signing needed.",
         "features": [
@@ -4408,6 +4408,23 @@
         ],
         "depends_on": [
           "extension_phase3_ai_viz"
+        ]
+      },
+      "extension_connected_services_redesign": {
+        "status": "not_ready",
+        "priority": 3,
+        "description": "Redesign Connected Services UX: jurisdiction tabs, address-based onboarding, relay as status indicator",
+        "rationale": "Current flat list doesn't represent hierarchy well. Relay shown as peer of MCPs when it's shared infrastructure. Provenance coverage metrics broken for chunked corpora (n:1 embedding ratios).",
+        "improvements": [
+          "Parent jurisdiction tabs above City Pulse (San Rafael | California | Federal) instead of collapsed bottom sections",
+          "Address-based onboarding: enter address, auto-geocode, match jurisdiction chain, configure MCPs + relay + attestation",
+          "Relay as header status indicator (icon with tooltip) rather than service row",
+          "Provenance metrics: per-corpus-type appropriate stats (e.g. '41 transcripts, 19 indexed' instead of meaningless coverage %)",
+          "Unified first-run experience connecting identity, jurisdiction, and service discovery"
+        ],
+        "current_state": "Basic Connected Services section shows jurisdiction chain with health dots. Provenance panel shows records/embeddings. Coverage stats handled for chunked corpora.",
+        "depends_on": [
+          "extension_phase1b_read_enhancements"
         ]
       }
     },
