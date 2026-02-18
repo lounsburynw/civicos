@@ -4,7 +4,7 @@
  * These produce plain text strings — any AIProvider can call complete(text).
  */
 
-import type { PulseAgendaItem, VoiceCounts, ContextBundle } from '../types.js';
+import type { PulseAgendaItem, VoiceCounts, ContextBundle } from '@civicos/client';
 
 type Stance = 'support' | 'oppose' | 'watching';
 

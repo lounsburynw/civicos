@@ -1,8 +1,8 @@
 /**
- * Data types for City Pulse feed.
+ * Data types for CivicOS API responses.
  *
  * These match the response format from the CivicOS REST API
- * /api/tools/city-pulse endpoint.
+ * and relay coordination endpoints.
  */
 
 // === City Pulse API response ===

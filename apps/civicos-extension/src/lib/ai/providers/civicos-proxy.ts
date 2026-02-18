@@ -7,7 +7,7 @@
  */
 
 import type { AIProvider, AITier, AIProviderConfig, AICompletionResult } from '../types.js';
-import { getBaseUrl } from '../../relay-client.js';
+import { registry } from '../../client.js';
 
 const TIMEOUT_MS = 20_000;
 
@@ -65,7 +65,7 @@ export class CivicosProxyProvider implements AIProvider {
 
     // 2. POST to CivicOS AI proxy
     try {
-      const baseUrl = await getBaseUrl();
+      const baseUrl = await registry.getMcpUrl();
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
