@@ -19744,3 +19744,28 @@ End-to-end test of Personal MCP → Relay voice signing and verification:
 
 ### Commit: `7e982cf` — feat: Add relay endpoint discovery to registry and extension
 ### P0 set: extension_phase1b_read_enhancements (surface registry/relay in extension UX)
+
+## Session: 2026-02-18 — Connected Services Header + Provenance Fixes
+
+### What was done:
+1. **Connected Services header dropdown** (commit `eeeabdc`)
+   - Header button with aggregate health dot (green/yellow/red)
+   - Dropdown panel showing jurisdiction chain: primary MCP, relay, parent servers
+   - Health checks (checkServerHealth/checkRelayHealth/checkAllHealth) run in parallel on load
+   - Mutual exclusion with provenance panel
+
+2. **Provenance panel fixes**
+   - Fixed misleading coverage stats (transcripts showed "18034%")
+   - Shows "indexed" for chunked corpora instead of meaningless percentages
+   - Shows records/embeddings counts, storage backend in footer
+
+3. **Removed peer cities** from services list — only shows jurisdiction chain
+
+4. **Added pilot.json item**: `extension_connected_services_redesign` for deeper UX work
+
+### Key findings:
+- Registry worker is stale — code includes relay_endpoint but deployed version doesn't (needs `npx wrangler deploy`)
+- California/Federal MCPs not deployed (health checks timeout)
+- Coverage formula `vector_count / storage_count * 100` is wrong for chunked corpora
+
+### P0 set: extension_connected_services_redesign (Supabase-style breadcrumb header + registry redeploy)

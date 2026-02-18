@@ -4412,7 +4412,7 @@
       },
       "extension_connected_services_redesign": {
         "status": "not_ready",
-        "priority": 3,
+        "priority": 0,
         "description": "Redesign Connected Services UX: jurisdiction tabs, address-based onboarding, relay as status indicator",
         "rationale": "Current flat list doesn't represent hierarchy well. Relay shown as peer of MCPs when it's shared infrastructure. Provenance coverage metrics broken for chunked corpora (n:1 embedding ratios).",
         "improvements": [
