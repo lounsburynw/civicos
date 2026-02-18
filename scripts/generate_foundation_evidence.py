@@ -209,7 +209,7 @@ def generate_evidence_summary(
         f"### The Impact",
         f"",
         f"- **Measurable**: Track coordination gap reduction (complaints → testimony conversion)",
-        f"- **Scalable**: Already operational in 26 Bay Area cities (<$7/month)",
+        f"- **Scalable**: Already operational in 26 Bay Area cities (minimal cost)",
         f"- **Sustainable**: Foundation-funded public good model ($50-100K/year/region)",
         f"",
         f"### The Ask",

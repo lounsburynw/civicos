@@ -6576,7 +6576,7 @@ class TestCodeAuditDependencies:
 
         dependencies = config['project'].get('dependencies', [])
 
-        # Should have very few core dependencies (architecture says <$7/month operational)
+        # Should have very few core dependencies (lean architecture)
         # Expect: httpx (for HTTP), langgraph (for workflows)
         assert len(dependencies) <= 5, f"Too many core dependencies: {dependencies}"
 

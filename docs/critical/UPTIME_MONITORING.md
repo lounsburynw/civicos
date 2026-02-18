@@ -200,7 +200,7 @@ If getting alerts but service is actually fine:
 
 - UptimeRobot free tier: $0/month
 - Total monitoring cost: $0/month
-- Within <$7/month budget constraint
+- Within budget constraint
 
 ## Verification Checklist
 

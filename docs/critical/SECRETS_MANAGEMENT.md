@@ -456,7 +456,7 @@ for key in optional:
 
 ## Cost Estimation
 
-### Target: <$7/month operational
+### Cost Targets
 
 | Service | Expected Usage | Monthly Cost |
 |---------|---------------|--------------|

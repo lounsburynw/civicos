@@ -1516,7 +1516,7 @@ Analogy: Gmail charges enterprises while SMTP remains an open protocol. Charging
 ```
 Phase 1 (pilot):
   Foundation funding → builds protocol, funds initial relays
-  Cost: < $7/month per city
+  Cost: Low per city
 
 Phase 2 (multi-city):
   Foundation funding → expansion to new jurisdictions

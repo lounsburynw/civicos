@@ -4156,7 +4156,7 @@ env_template (deployment_artifacts > configuration) - Priority 1
      - Key rotation schedule
      - Container deployment patterns
    - Troubleshooting section for common errors
-   - Cost estimation (<$7/month target)
+   - Cost estimation
    - Pre-deployment checklist
 
 ### Status Updates
@@ -4166,14 +4166,14 @@ env_template (deployment_artifacts > configuration) - Priority 1
 - migration_scripts: Schema migration scripts
 - backup_script: Database backup procedure
 - hosting_decision: Documented hosting choice
-- cost_estimate: Monthly cost estimate < $7
+- cost_estimate: Monthly cost estimate documented
 ## Session 244: hosting_decision + cost_estimate - Fly.io deployment configuration
 Date: 2025-12-11
 
 ### Work Done
 1. **Created HOSTING_DECISION.md** (`docs/critical/HOSTING_DECISION.md`):
    - Selected Fly.io for Jan 2026 pilot deployment
-   - Cost analysis: ~$4.73/month (well under $7 budget)
+   - Cost analysis: ~$4.73/month (base compute costs)
    - Architecture diagram showing services and volumes
    - Deployment steps with fly CLI commands
    - Scaling strategy for growth (5-10 cities, regional expansion)
@@ -4879,7 +4879,7 @@ Created `docs/user_guides/ADMIN_SETUP_GUIDE.md` - comprehensive guide for deploy
 - Written for technical admins (city IT, civic tech orgs)
 - Step-by-step with code examples throughout
 - Links to critical docs for deeper information
-- Includes cost estimation (~$7/month target)
+- Includes cost estimation
 - Platform discovery guidance (Legistar vs CivicClerk)
 
 **Updated:** pilot.json `user_documentation.admin_docs.setup_guide` → ready
@@ -19718,3 +19718,29 @@ End-to-end test of Personal MCP → Relay voice signing and verification:
 
 ### Commit: `07e8ee9` — feat: Add MCP registry Cloudflare Worker
 ### P0 set: turnkey_city_deployment (extension location-agnostic server discovery via registry)
+
+---
+## Session — 2026-02-18 (Relay Organization Architecture + Registry Integration)
+
+### What was done:
+1. **Architectural discussion: relay organization**
+   - Analyzed how relays should be organized relative to MCPs and jurisdictions
+   - Compared 3 models: mirror MCP (1:1), shared relay with namespace partitioning, hybrid
+   - Identified that ~80% of relay federation architecture was already documented in COORDINATION_PROTOCOL.md
+   - New insights: operator taxonomy, concrete registry schema for relay operators, relay identity key type question
+
+2. **Added relay endpoints to registry** (commit `7e982cf`)
+   - `config/registry.json`: Added `ws_url` and `description` to global relay config
+   - `apps/civicos-registry/src/registry.ts`: `ServerInfo` now includes `relay_endpoint` and `relay_ws_endpoint`, resolved per-jurisdiction with global fallback
+   - `apps/civicos-registry/src/api.ts`: Both API endpoints now return relay fields
+   - `apps/civicos-registry/src/html.ts`: Landing page shows Relay column
+   - `apps/civicos-extension/src/lib/registry.ts`: Added `relay_endpoint` to `RegistryServer`, added `getRelayEndpoint()` function
+   - `apps/civicos-extension/src/lib/relay-client.ts`: `getRelayUrl()` now uses 3-tier resolution (override > registry > default)
+
+### Key architectural decisions:
+- Relay endpoints live in the registry alongside MCP endpoints — same discovery mechanism
+- Per-jurisdiction relay overrides with global fallback — shared relay today, split later without migration
+- Relay organization follows from relay discovery (registry), not imposed protocol structure
+
+### Commit: `7e982cf` — feat: Add relay endpoint discovery to registry and extension
+### P0 set: extension_phase1b_read_enhancements (surface registry/relay in extension UX)
