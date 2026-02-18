@@ -1,3 +1,30 @@
+## Session — 2026-02-18 (Client SDK Phase 5: Second Surface Proof)
+
+**Item:** client_sdk_extraction (P0) — Phase 5
+**Status:** Complete — all 5 phases done, item marked ready
+
+**What was done:**
+- Added `MemoryStorageAdapter` to SDK (`packages/civicos-client/src/adapters/memory-storage.ts`)
+- Exported from `index.ts` — any surface can now `import { MemoryStorageAdapter } from '@civicos/client'`
+- Created second surface proof (`packages/civicos-client/examples/pulse-reader.ts`)
+  - Node.js script (no Chrome APIs) imports SDK, creates CivicSession, loads live data
+  - Successfully loaded: 6 meetings, 5 agenda items, 10 outcomes, 12 data sources from production API
+  - Proves SDK is truly platform-agnostic
+- Scoped Web Components layer (`civic_web_components`) in pilot.json:
+  - 5 candidate components identified: voice-buttons, synthesis-bar, agenda-item-card, decision-card, initiative-card
+  - 4 implementation phases planned
+  - Technical considerations documented (Shadow DOM, Svelte customElement, prop serialization)
+- Marked `client_sdk_extraction` as ready (P1)
+- Set `civic_web_components` as P0 for next session
+
+**Files changed:**
+- `packages/civicos-client/src/adapters/memory-storage.ts` (new)
+- `packages/civicos-client/src/index.ts` (added MemoryStorageAdapter export)
+- `packages/civicos-client/examples/pulse-reader.ts` (new)
+- `pilot.json` (client_sdk_extraction → ready, civic_web_components added + set P0)
+
+---
+
 ## Session — 2026-02-18 (Jurisdiction Tab Navigation)
 
 **Item:** extension_connected_services_redesign (P0)
