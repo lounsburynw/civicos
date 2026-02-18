@@ -7,7 +7,7 @@
 
 import { IdentityManager } from '../lib/identity.js';
 import { ChromeStorageWalletStorage, ChromeStoragePasskeyStorage } from '../lib/storage.js';
-import { redeemAttestationCode } from '../lib/relay-client.js';
+import { api } from '../lib/client.js';
 import type { ExtensionRequest, ExtensionResponse } from '../lib/messaging.js';
 import type { NostrEvent } from '../lib/providers/types.js';
 
@@ -185,7 +185,7 @@ async function handleMessage(message: ExtensionRequest): Promise<ExtensionRespon
           return { success: false, error: attestSignResult.error ?? 'Signing failed' };
         }
 
-        const redeemResult = await redeemAttestationCode(
+        const redeemResult = await api.redeemAttestationCode(
           attestCode,
           attestSignResult.event.pubkey,
           attestSignResult.event.sig,

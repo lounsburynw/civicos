@@ -2,7 +2,8 @@
   import { sendMessage } from '../lib/messaging.js';
   import type { IdentityInfo } from '../lib/providers/types.js';
   import { AIManager } from '../lib/ai/manager.js';
-  import { getActiveJurisdiction, setActiveJurisdiction, getRegistryServers, type RegistryServer } from '../lib/registry.js';
+  import { registry } from '../lib/client.js';
+  import type { RegistryServer } from '@civicos/client';
 
   // State
   let identity: (IdentityInfo & { isUnlocked?: boolean }) | null = $state(null);
@@ -266,11 +267,11 @@
     // Check relay if identity is available
     if (identity?.isUnlocked) {
       try {
-        const { getAttestationStatus } = await import('../lib/api.js');
+        const { api } = await import('../lib/client.js');
         // Need the hex pubkey — derive from npub
         const pubkeyResponse = await sendMessage<string | null>({ type: 'GET_PUBLIC_KEY' });
         if (pubkeyResponse.success && pubkeyResponse.data) {
-          const status = await getAttestationStatus(pubkeyResponse.data);
+          const status = await api.getAttestationStatus(pubkeyResponse.data);
           if (status.attested && status.attestation_event) {
             attestationEvent = status.attestation_event;
             attestationDate = status.attested_at
@@ -318,9 +319,9 @@
   }
 
   async function loadJurisdiction() {
-    selectedJurisdiction = await getActiveJurisdiction();
+    selectedJurisdiction = await registry.getActiveJurisdiction();
     try {
-      availableServers = await getRegistryServers();
+      availableServers = await registry.getRegistryServers();
     } catch {
       availableServers = [];
     }
@@ -330,7 +331,7 @@
     if (!selectedJurisdiction) return;
     jurisdictionSaving = true;
     try {
-      await setActiveJurisdiction(selectedJurisdiction);
+      await registry.setActiveJurisdiction(selectedJurisdiction);
       setStatus(`Jurisdiction set to ${availableServers.find(s => s.jurisdiction_id === selectedJurisdiction)?.display_name || selectedJurisdiction}`, 'success');
     } catch (err) {
       setStatus('Failed to save jurisdiction', 'error');

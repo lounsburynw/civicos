@@ -1,11 +1,10 @@
 <script lang="ts">
   import { sendMessage } from '../lib/messaging.js';
-  import { getCityPulse, getCityPulseFromServer, getDecisionDetail, getDataProvenance, getVoiceCountsBatch, submitVoice, revokeVoice, getInitiatives, getCivicActions, getCivicActionProgress, commitToCivicAction, completeCivicAction, withdrawCivicAction, createInitiative, createCivicAction, generateActionDraft, getIssueGeography, getBudgetSummary, getComments, getCommentCountsBatch, submitComment, getCommentSynthesis, getItemContext, setRelayUrl } from '../lib/api.js';
+  import { api, registry } from '../lib/client.js';
+  import type { CityPulseData, DecisionDetailData, DataProvenance, VoiceCounts, Initiative, CivicAction, CivicActionProgress, IssuePoint, BudgetCategory, Comment, CommentCounts, CommentSynthesis, RegistryServer } from '@civicos/client';
   import { isAIAvailable, getAIManager, onAIConfigChanged, composeDraftPrompt, composeEnrichPrompt, SYSTEM_PROMPT, QA_SYSTEM_PROMPT } from '../lib/ai.js';
-  import { getActiveJurisdiction, getRegistryServers, getParentServers, getServerBaseUrl, type RegistryServer } from '../lib/registry.js';
   import type { IdentityInfo, NostrEvent, SignedNostrEvent } from '../lib/providers/types.js';
   import { CivicEventKinds, createVoiceContent, createVoiceTags, createCommitmentContent, createCommitmentTags, createCompletionContent, createCompletionTags, generateCommitmentId, generateCompletionId, generateActionRef } from '../lib/providers/types.js';
-  import type { CityPulseData, DecisionDetailData, DataProvenance, VoiceCounts, Initiative, CivicAction, CivicActionProgress, IssuePoint, BudgetCategory, Comment, CommentCounts, CommentSynthesis } from '../lib/types.js';
   import 'leaflet/dist/leaflet.css';
   import L from 'leaflet';
   import { Chart, DoughnutController, ArcElement, Tooltip, Legend } from 'chart.js';
@@ -320,10 +319,10 @@
   }
 
   async function initJurisdiction() {
-    activeJurisdiction = await getActiveJurisdiction();
+    activeJurisdiction = await registry.getActiveJurisdiction();
     // Pre-fetch registry for getMCPUrl() lookups
     try {
-      availableServers = await getRegistryServers();
+      availableServers = await registry.getRegistryServers();
     } catch {
       availableServers = [];
     }
@@ -335,12 +334,12 @@
     try {
       // Force-refresh registry to pick up new servers/relay fields
       try {
-        availableServers = await getRegistryServers(true);
+        availableServers = await registry.getRegistryServers(true);
       } catch { /* keep existing servers */ }
-      pulseData = await getCityPulse();
+      pulseData = await api.getCityPulse();
       // Auto-configure relay URL from server response
       if (pulseData.relay_url) {
-        setRelayUrl(pulseData.relay_url);
+        registry.setRelayUrl(pulseData.relay_url);
       }
       // Load voice counts, comment counts, and initiatives in background
       loadVoiceCounts();
@@ -357,7 +356,7 @@
 
   async function loadParentPulse() {
     try {
-      parentServers = await getParentServers(activeJurisdiction);
+      parentServers = await registry.getParentServers(activeJurisdiction);
     } catch {
       parentServers = [];
       return;
@@ -370,7 +369,7 @@
       parentPulseLoading.add(id);
       parentPulseLoading = new Set(parentPulseLoading);
 
-      getCityPulseFromServer(getServerBaseUrl(server))
+      api.getCityPulseFromServer(registry.getServerBaseUrl(server))
         .then(data => {
           parentPulseData.set(id, data);
           parentPulseData = new Map(parentPulseData);
@@ -396,7 +395,7 @@
       ids.push(...pulseData.upcoming_items.filter(i => i.stance_eligible).map(i => `agenda-item:${i.id}`));
     }
     if (ids.length > 0) {
-      voiceCounts = await getVoiceCountsBatch(ids, pulseData.jurisdiction || activeJurisdiction);
+      voiceCounts = await api.getVoiceCountsBatch(ids, pulseData.jurisdiction || activeJurisdiction);
     }
   }
 
@@ -407,11 +406,11 @@
       ids.push(...pulseData.upcoming_items.filter(i => i.comment_eligible).map(i => `agenda-item:${i.id}`));
     }
     if (ids.length > 0) {
-      commentCounts = await getCommentCountsBatch(ids, pulseData.jurisdiction || activeJurisdiction);
+      commentCounts = await api.getCommentCountsBatch(ids, pulseData.jurisdiction || activeJurisdiction);
       // Pre-fetch synthesis for items with comments (enriches AI context)
       for (const [entityId, cc] of commentCounts) {
         if (cc.count > 0) {
-          getCommentSynthesis(entityId).then(synth => {
+          api.getCommentSynthesis(entityId).then(synth => {
             if (synth) {
               synthData.set(entityId, synth);
               synthData = new Map(synthData);
@@ -442,8 +441,8 @@
       threadLoading = new Set(threadLoading);
       try {
         const [comments, synth] = await Promise.all([
-          getComments(entityId),
-          getCommentSynthesis(entityId),
+          api.getComments(entityId),
+          api.getCommentSynthesis(entityId),
         ]);
         threadComments.set(entityId, comments);
         threadComments = new Map(threadComments);
@@ -503,7 +502,7 @@
         return;
       }
 
-      const ok = await submitComment(
+      const ok = await api.submitComment(
         entityId,
         draft,
         signResult.data.pubkey,
@@ -570,7 +569,7 @@
       decisionLoading.add(title);
       decisionLoading = new Set(decisionLoading);
       try {
-        const detail = await getDecisionDetail(title);
+        const detail = await api.getDecisionDetail(title);
         decisionDetails.set(title, detail);
         decisionDetails = new Map(decisionDetails);
       } catch (e) {
@@ -587,7 +586,7 @@
     if (showProvenance && !provenanceData && !provenanceLoading) {
       provenanceLoading = true;
       try {
-        provenanceData = await getDataProvenance();
+        provenanceData = await api.getDataProvenance();
       } catch (e) {
         console.error('Failed to load provenance:', e);
       } finally {
@@ -851,7 +850,7 @@
     if (issueMapLoaded || issueMapLoading) return;
     issueMapLoading = true;
     try {
-      const data = await getIssueGeography(500);
+      const data = await api.getIssueGeography(500);
       issuePoints = data.points;
       issueMapLoaded = true;
     } catch (e) {
@@ -913,7 +912,7 @@
     if (budgetLoaded || budgetLoading) return;
     budgetLoading = true;
     try {
-      const data = await getBudgetSummary('department');
+      const data = await api.getBudgetSummary('department');
       budgetCategories = data.categories;
       budgetTotal = data.total_budgeted_dollars;
       budgetYear = data.fiscal_year;
@@ -1247,8 +1246,8 @@
           threadLoading = new Set(threadLoading);
           try {
             const [comments, synth] = await Promise.all([
-              getComments(entityId),
-              getCommentSynthesis(entityId),
+              api.getComments(entityId),
+              api.getCommentSynthesis(entityId),
             ]);
             threadComments.set(entityId, comments);
             threadComments = new Map(threadComments);
@@ -1279,7 +1278,7 @@
     enrichingInProgress = new Set(enrichingInProgress);
 
     try {
-      const context = await getItemContext(item.id, ['history', 'regulatory', 'testimony']);
+      const context = await api.getItemContext(item.id, ['history', 'regulatory', 'testimony']);
       const enrichPrompt = composeEnrichPrompt(draft, context);
 
       const aiResult = await getAIManager().complete(enrichPrompt, SYSTEM_PROMPT);
@@ -1327,7 +1326,7 @@
     initiativesLoading = true;
     try {
       const jurisdiction = pulseData?.jurisdiction || activeJurisdiction;
-      initiatives = await getInitiatives(jurisdiction);
+      initiatives = await api.getInitiatives(jurisdiction);
       // Load all actions + progress upfront for card-level stats
       loadAllActionStats();
     } catch {
@@ -1340,10 +1339,10 @@
     await Promise.all(initiatives.map(async (ini) => {
       if (initiativeActions.has(ini.id)) return;
       try {
-        const actions = await getCivicActions(ini.id);
+        const actions = await api.getCivicActions(ini.id);
         initiativeActions.set(ini.id, actions);
         await Promise.all(actions.map(async (action) => {
-          const progress = await getCivicActionProgress(action.id);
+          const progress = await api.getCivicActionProgress(action.id);
           if (progress) actionProgress.set(action.id, progress);
         }));
         actionProgress = new Map(actionProgress);
@@ -1368,13 +1367,13 @@
       actionsLoading.add(initiativeId);
       actionsLoading = new Set(actionsLoading);
       try {
-        const actions = await getCivicActions(initiativeId);
+        const actions = await api.getCivicActions(initiativeId);
         initiativeActions.set(initiativeId, actions);
         initiativeActions = new Map(initiativeActions);
 
         // Load progress for each action
         const progressPromises = actions.map(async (action) => {
-          const progress = await getCivicActionProgress(action.id);
+          const progress = await api.getCivicActionProgress(action.id);
           if (progress) {
             actionProgress.set(action.id, progress);
           }
@@ -1476,7 +1475,7 @@
         return;
       }
 
-      const ok = await commitToCivicAction(action.id, signResult.data.pubkey, signResult.data.sig, createdAt, jurisdiction);
+      const ok = await api.commitToCivicAction(action.id, signResult.data.pubkey, signResult.data.sig, createdAt, jurisdiction);
       if (!ok) {
         showToast('Failed to commit. Relay may be unreachable.');
         actionInProgress.delete(action.id);
@@ -1531,7 +1530,7 @@
         return;
       }
 
-      const ok = await completeCivicAction(action.id, signResult.data.pubkey, signResult.data.sig, createdAt, jurisdiction);
+      const ok = await api.completeCivicAction(action.id, signResult.data.pubkey, signResult.data.sig, createdAt, jurisdiction);
       if (!ok) {
         showToast('Failed to mark action complete. Relay may be unreachable.');
         actionInProgress.delete(action.id);
@@ -1581,7 +1580,7 @@
         return;
       }
 
-      const ok = await withdrawCivicAction(action.id, signResult.data.pubkey, signResult.data.sig, createdAt);
+      const ok = await api.withdrawCivicAction(action.id, signResult.data.pubkey, signResult.data.sig, createdAt);
       if (!ok) {
         showToast('Failed to withdraw. Relay may be unreachable.');
         actionInProgress.delete(action.id);
@@ -1619,7 +1618,7 @@
     try {
       const description = newAction.description.trim()
         || `${initiative.title}: ${initiative.description}`;
-      const result = await generateActionDraft(
+      const result = await api.generateActionDraft(
         newAction.action_type,
         initiative.topic,
         description,
@@ -1700,7 +1699,7 @@
         return;
       }
 
-      const created = await createInitiative(
+      const created = await api.createInitiative(
         jurisdiction,
         topic,
         newInitiative.title.trim(),
@@ -1748,7 +1747,7 @@
         return;
       }
 
-      const created = await createCivicAction(
+      const created = await api.createCivicAction(
         initiativeId,
         newAction.action_type,
         newAction.description.trim(),
@@ -1810,7 +1809,7 @@
         };
         const signResult = await sendMessage<SignedNostrEvent>({ type: 'SIGN_EVENT', event: unsigned });
         if (signResult.success) {
-          revokeVoice(entityId, signResult.data.pubkey, signResult.data.sig, createdAt);
+          api.revokeVoice(entityId, signResult.data.pubkey, signResult.data.sig, createdAt);
         }
       } catch {
         // Fire-and-forget
@@ -1851,7 +1850,7 @@
         throw new Error('Signing failed');
       }
 
-      const ok = await submitVoice(entityId, stance, jurisdiction, signResult.data.pubkey, signResult.data.sig, createdAt);
+      const ok = await api.submitVoice(entityId, stance, jurisdiction, signResult.data.pubkey, signResult.data.sig, createdAt);
       if (!ok) {
         throw new Error('Relay submission failed');
       }
