@@ -19826,3 +19826,46 @@ End-to-end test of Personal MCP → Relay voice signing and verification:
 - Extension builds clean
 
 ### P0 set: extension_connected_services_redesign (jurisdiction tabs as next piece)
+
+## Session — 2026-02-18 (Client SDK Phase 2: Signer Interface)
+
+**Item:** client_sdk_extraction (P0)
+**Status:** Phase 2 complete — Signer interface + ExtensionSigner + SidePanel simplified
+
+### What was done:
+1. **Signer interface** (`packages/civicos-client/src/interfaces.ts`):
+   - `UnsignedCivicEvent`, `SignedCivicEvent`, `Signer` interfaces
+   - Platform-agnostic — no Chrome or browser dependencies
+
+2. **Civic event helpers** (`packages/civicos-client/src/events.ts`):
+   - `CivicEventKinds` constants (VOICE, COMMENT, COMMITMENT, COMPLETION, ACTION_EVENT, ATTESTATION)
+   - Event construction helpers: `createVoiceContent/Tags`, `createCommitmentContent/Tags`, etc.
+   - Includes comment, withdrawal, initiative, civic action, and attestation helpers
+
+3. **ApiClient high-level methods** (`packages/civicos-client/src/api.ts`):
+   - Constructor now accepts optional `Signer`, plus `setSigner()` for deferred injection
+   - 9 new `cast*` methods: castVoice, castRevokeVoice, castComment, castCommitment, castCompletion, castWithdrawal, castInitiative, castCivicAction, castRedeemAttestation
+   - Each method builds unsigned event → signs via Signer → calls existing low-level method
+
+4. **ExtensionSigner adapter** (`apps/civicos-extension/src/lib/adapters/extension-signer.ts`):
+   - Implements `Signer` via chrome.runtime.sendMessage({ type: 'SIGN_EVENT' })
+   - Thin bridge between @civicos/client Signer interface and Chrome background worker
+
+5. **SidePanel simplified** — all 8 signing call sites converted from 3-step pattern to single method call:
+   - Comment: `api.castComment(entityId, text, jurisdiction, stance)`
+   - Voice: `api.castVoice(entityId, stance, jurisdiction)`
+   - Revoke: `api.castRevokeVoice(entityId)`
+   - Commit: `api.castCommitment(actionId, jurisdiction)`
+   - Complete: `api.castCompletion(actionId, jurisdiction)`
+   - Withdraw: `api.castWithdrawal(actionId)`
+   - Initiative: `api.castInitiative(jurisdiction, topic, title, description)`
+   - Civic Action: `api.castCivicAction(initiativeId, type, description, options)`
+   - Removed unused imports: NostrEvent, SignedNostrEvent, CivicEventKinds, all create* helpers from SidePanel
+
+### Bundle impact:
+- Side-panel bundle: 475.06 KB → 472.24 KB (-2.8 KB)
+
+### What remains for client_sdk_extraction:
+- AI layer extraction (prompts, manager, portable providers)
+- Business operations extraction from SidePanel
+- Second surface proof (web app or MCP App using @civicos/client)

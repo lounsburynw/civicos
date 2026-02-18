@@ -3,8 +3,7 @@
   import { api, registry } from '../lib/client.js';
   import type { CityPulseData, DecisionDetailData, DataProvenance, VoiceCounts, Initiative, CivicAction, CivicActionProgress, IssuePoint, BudgetCategory, Comment, CommentCounts, CommentSynthesis, RegistryServer } from '@civicos/client';
   import { isAIAvailable, getAIManager, onAIConfigChanged, composeDraftPrompt, composeEnrichPrompt, SYSTEM_PROMPT, QA_SYSTEM_PROMPT } from '../lib/ai.js';
-  import type { IdentityInfo, NostrEvent, SignedNostrEvent } from '../lib/providers/types.js';
-  import { CivicEventKinds, createVoiceContent, createVoiceTags, createCommitmentContent, createCommitmentTags, createCompletionContent, createCompletionTags, generateCommitmentId, generateCompletionId, generateActionRef } from '../lib/providers/types.js';
+  import type { IdentityInfo } from '../lib/providers/types.js';
   import 'leaflet/dist/leaflet.css';
   import L from 'leaflet';
   import { Chart, DoughnutController, ArcElement, Tooltip, Legend } from 'chart.js';
@@ -477,55 +476,24 @@
     threadErrors = new Map(threadErrors);
 
     try {
-      const createdAt = Math.floor(Date.now() / 1000);
-      // Determine stance from user's current voice on this entity
       const userStance = userStances.get(entityId);
-
-      // Build tags to match server's verify_comment(): d (entity), j (jurisdiction), optionally stance
-      const tags: string[][] = [['d', entityId], ['j', activeJurisdiction]];
-      if (userStance) tags.push(['stance', userStance]);
-
-      // Content is the actual comment text — server verifies signature over this
-      const unsigned: NostrEvent = {
-        created_at: createdAt,
-        kind: 30803,
-        tags,
-        content: draft,
-      };
-
-      const signResult = await sendMessage<SignedNostrEvent>({ type: 'SIGN_EVENT', event: unsigned });
-      if (!signResult.success) {
-        threadErrors.set(entityId, 'Signing failed');
-        threadErrors = new Map(threadErrors);
-        threadSubmitting.delete(entityId);
-        threadSubmitting = new Set(threadSubmitting);
-        return;
-      }
-
-      const ok = await api.submitComment(
-        entityId,
-        draft,
-        signResult.data.pubkey,
-        signResult.data.sig,
-        createdAt,
-        activeJurisdiction,
-        userStance
-      );
+      const ok = await api.castComment(entityId, draft, activeJurisdiction, userStance);
 
       if (ok) {
         // Optimistic update: replace existing or prepend new
+        const pubkey = identity?.publicKey || '';
         const newComment: Comment = {
           entity: entityId,
           comment_text: draft,
-          public_key: signResult.data.pubkey,
-          signature: signResult.data.sig,
+          public_key: pubkey,
+          signature: '',
           timestamp: new Date().toISOString(),
           jurisdiction: activeJurisdiction,
           stance: userStance,
           deleted: false,
         };
         const existing = threadComments.get(entityId) || [];
-        const existingIdx = existing.findIndex(c => c.public_key === signResult.data.pubkey);
+        const existingIdx = existing.findIndex(c => c.public_key === pubkey);
         if (existingIdx >= 0) {
           // Update in place (server upserts — 1 comment per user per entity)
           existing[existingIdx] = newComment;
@@ -1459,23 +1427,7 @@
 
     try {
       const jurisdiction = pulseData?.jurisdiction || activeJurisdiction;
-      const createdAt = Math.floor(Date.now() / 1000);
-      const unsigned: NostrEvent = {
-        created_at: createdAt,
-        kind: CivicEventKinds.ACTION_COMMITMENT,
-        tags: createCommitmentTags(action.id, jurisdiction),
-        content: createCommitmentContent(action.id, createdAt),
-      };
-
-      const signResult = await sendMessage<SignedNostrEvent>({ type: 'SIGN_EVENT', event: unsigned });
-      if (!signResult.success) {
-        showToast(`Signing failed: ${(signResult as { error?: string }).error || 'unknown error'}`);
-        actionInProgress.delete(action.id);
-        actionInProgress = new Set(actionInProgress);
-        return;
-      }
-
-      const ok = await api.commitToCivicAction(action.id, signResult.data.pubkey, signResult.data.sig, createdAt, jurisdiction);
+      const ok = await api.castCommitment(action.id, jurisdiction);
       if (!ok) {
         showToast('Failed to commit. Relay may be unreachable.');
         actionInProgress.delete(action.id);
@@ -1514,23 +1466,7 @@
 
     try {
       const jurisdiction = pulseData?.jurisdiction || activeJurisdiction;
-      const createdAt = Math.floor(Date.now() / 1000);
-      const unsigned: NostrEvent = {
-        created_at: createdAt,
-        kind: CivicEventKinds.ACTION_COMPLETION,
-        tags: createCompletionTags(action.id, jurisdiction),
-        content: createCompletionContent(action.id, createdAt),
-      };
-
-      const signResult = await sendMessage<SignedNostrEvent>({ type: 'SIGN_EVENT', event: unsigned });
-      if (!signResult.success) {
-        showToast(`Signing failed: ${(signResult as { error?: string }).error || 'unknown error'}`);
-        actionInProgress.delete(action.id);
-        actionInProgress = new Set(actionInProgress);
-        return;
-      }
-
-      const ok = await api.completeCivicAction(action.id, signResult.data.pubkey, signResult.data.sig, createdAt, jurisdiction);
+      const ok = await api.castCompletion(action.id, jurisdiction);
       if (!ok) {
         showToast('Failed to mark action complete. Relay may be unreachable.');
         actionInProgress.delete(action.id);
@@ -1564,23 +1500,7 @@
     actionInProgress = new Set(actionInProgress);
 
     try {
-      const createdAt = Math.floor(Date.now() / 1000);
-      const unsigned: NostrEvent = {
-        created_at: createdAt,
-        kind: CivicEventKinds.ACTION_COMMITMENT,
-        tags: [['d', action.id], ['action', 'withdraw']],
-        content: `civicos:withdraw:v1:${action.id}:${createdAt}`,
-      };
-
-      const signResult = await sendMessage<SignedNostrEvent>({ type: 'SIGN_EVENT', event: unsigned });
-      if (!signResult.success) {
-        showToast(`Signing failed: ${(signResult as { error?: string }).error || 'unknown error'}`);
-        actionInProgress.delete(action.id);
-        actionInProgress = new Set(actionInProgress);
-        return;
-      }
-
-      const ok = await api.withdrawCivicAction(action.id, signResult.data.pubkey, signResult.data.sig, createdAt);
+      const ok = await api.castWithdrawal(action.id);
       if (!ok) {
         showToast('Failed to withdraw. Relay may be unreachable.');
         actionInProgress.delete(action.id);
@@ -1683,32 +1603,12 @@
     creatingInitiative = true;
     try {
       const jurisdiction = pulseData?.jurisdiction || activeJurisdiction;
-      const createdAt = Math.floor(Date.now() / 1000);
-      const content = `civicos:initiative:v1:${jurisdiction}:${topic}:${createdAt}`;
-      const unsigned: NostrEvent = {
-        created_at: createdAt,
-        kind: 30800,
-        tags: [['d', `initiative:${jurisdiction}:${topic}`], ['j', jurisdiction]],
-        content,
-      };
-
-      const signResult = await sendMessage<SignedNostrEvent>({ type: 'SIGN_EVENT', event: unsigned });
-      if (!signResult.success) {
-        showToast(`Signing failed: ${(signResult as { error?: string }).error || 'unknown error'}`);
-        creatingInitiative = false;
-        return;
-      }
-
-      const created = await api.createInitiative(
+      const created = await api.castInitiative(
         jurisdiction,
         topic,
         newInitiative.title.trim(),
         newInitiative.description.trim(),
-        signResult.data.pubkey,
-        signResult.data.sig,
-        createdAt,
-        undefined,
-        newInitiative.coordination_url.trim() || undefined
+        newInitiative.coordination_url.trim() || undefined,
       );
       if (created) {
         initiatives = [created, ...initiatives];
@@ -1731,34 +1631,17 @@
 
     creatingAction = true;
     try {
-      const createdAt = Math.floor(Date.now() / 1000);
-      const content = `civicos:action:v1:${initiativeId}:${newAction.action_type}:${createdAt}`;
-      const unsigned: NostrEvent = {
-        created_at: createdAt,
-        kind: CivicEventKinds.ACTION_EVENT,
-        tags: [['d', `action:${initiativeId}:${newAction.action_type}`], ['initiative', initiativeId]],
-        content,
-      };
-
-      const signResult = await sendMessage<SignedNostrEvent>({ type: 'SIGN_EVENT', event: unsigned });
-      if (!signResult.success) {
-        showToast(`Signing failed: ${(signResult as { error?: string }).error || 'unknown error'}`);
-        creatingAction = false;
-        return;
-      }
-
-      const created = await api.createCivicAction(
+      const created = await api.castCivicAction(
         initiativeId,
         newAction.action_type,
         newAction.description.trim(),
-        signResult.data.pubkey,
-        signResult.data.sig,
-        createdAt,
-        newAction.target.trim() || undefined,
-        newAction.deadline || undefined,
-        newAction.targetCount ?? undefined,
-        newAction.template.trim() || undefined,
-        newAction.deadlineContext.trim() || undefined
+        {
+          target: newAction.target.trim() || undefined,
+          deadline: newAction.deadline || undefined,
+          targetCount: newAction.targetCount ?? undefined,
+          template: newAction.template.trim() || undefined,
+          deadlineContext: newAction.deadlineContext.trim() || undefined,
+        },
       );
       if (created) {
         const existing = initiativeActions.get(initiativeId) || [];
@@ -1800,17 +1683,7 @@
 
       // Sign and submit revoke (fire-and-forget)
       try {
-        const createdAt = Math.floor(Date.now() / 1000);
-        const unsigned: NostrEvent = {
-          created_at: createdAt,
-          kind: CivicEventKinds.VOICE,
-          tags: [['d', entityId]],
-          content: `civicos:voice:v1:${entityId}:revoke:${createdAt}`,
-        };
-        const signResult = await sendMessage<SignedNostrEvent>({ type: 'SIGN_EVENT', event: unsigned });
-        if (signResult.success) {
-          api.revokeVoice(entityId, signResult.data.pubkey, signResult.data.sig, createdAt);
-        }
+        await api.castRevokeVoice(entityId);
       } catch {
         // Fire-and-forget
       }
@@ -1837,20 +1710,7 @@
     // Sign and submit
     try {
       const jurisdiction = pulseData?.jurisdiction || activeJurisdiction;
-      const createdAt = Math.floor(Date.now() / 1000);
-      const unsigned: NostrEvent = {
-        created_at: createdAt,
-        kind: CivicEventKinds.VOICE,
-        tags: createVoiceTags(entityId, jurisdiction, stance),
-        content: createVoiceContent(entityId, stance, createdAt),
-      };
-
-      const signResult = await sendMessage<SignedNostrEvent>({ type: 'SIGN_EVENT', event: unsigned });
-      if (!signResult.success) {
-        throw new Error('Signing failed');
-      }
-
-      const ok = await api.submitVoice(entityId, stance, jurisdiction, signResult.data.pubkey, signResult.data.sig, createdAt);
+      const ok = await api.castVoice(entityId, stance, jurisdiction);
       if (!ok) {
         throw new Error('Relay submission failed');
       }

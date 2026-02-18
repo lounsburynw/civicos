@@ -6,6 +6,7 @@
  */
 
 import type { RegistryClient } from './registry.js';
+import type { Signer } from './interfaces.js';
 import type {
   CityPulseData,
   DecisionDetailData,
@@ -22,9 +23,42 @@ import type {
   CommentSynthesis,
   ContextBundle,
 } from './types.js';
+import {
+  CivicEventKinds,
+  createVoiceContent,
+  createVoiceTags,
+  createRevokeContent,
+  createCommentTags,
+  createCommitmentContent,
+  createCommitmentTags,
+  createCompletionContent,
+  createCompletionTags,
+  createWithdrawalContent,
+  createWithdrawalTags,
+  createInitiativeContent,
+  createInitiativeTags,
+  createCivicActionContent,
+  createCivicActionTags,
+  createAttestationContent,
+  createAttestationTags,
+} from './events.js';
 
 export class ApiClient {
-  constructor(private registry: RegistryClient) {}
+  private signer?: Signer;
+
+  constructor(registry: RegistryClient, signer?: Signer);
+  constructor(private registry: RegistryClient, signerOrUndefined?: Signer) {
+    this.signer = signerOrUndefined;
+  }
+
+  setSigner(signer: Signer): void {
+    this.signer = signer;
+  }
+
+  private requireSigner(): Signer {
+    if (!this.signer) throw new Error('Signer required for authenticated operations');
+    return this.signer;
+  }
 
   // === MCP REST API ===
 
@@ -561,6 +595,159 @@ export class ApiClient {
     } catch (err) {
       return { success: false, error: err instanceof Error ? err.message : 'Network error' };
     }
+  }
+
+  // === Signer-aware high-level methods ===
+  // These combine event construction + signing + submission.
+  // Require a Signer to be set via constructor or setSigner().
+
+  async castVoice(
+    entityId: string,
+    stance: 'support' | 'oppose' | 'watching',
+    jurisdiction: string,
+  ): Promise<boolean> {
+    const signer = this.requireSigner();
+    const createdAt = Math.floor(Date.now() / 1000);
+    const signed = await signer.signEvent({
+      kind: CivicEventKinds.VOICE,
+      tags: createVoiceTags(entityId, jurisdiction, stance),
+      content: createVoiceContent(entityId, stance, createdAt),
+      created_at: createdAt,
+    });
+    return this.submitVoice(entityId, stance, jurisdiction, signed.pubkey, signed.sig, createdAt);
+  }
+
+  async castRevokeVoice(entityId: string): Promise<boolean> {
+    const signer = this.requireSigner();
+    const createdAt = Math.floor(Date.now() / 1000);
+    const signed = await signer.signEvent({
+      kind: CivicEventKinds.VOICE,
+      tags: [['d', entityId]],
+      content: createRevokeContent(entityId, createdAt),
+      created_at: createdAt,
+    });
+    return this.revokeVoice(entityId, signed.pubkey, signed.sig, createdAt);
+  }
+
+  async castComment(
+    entityId: string,
+    commentText: string,
+    jurisdiction: string,
+    stance?: string,
+  ): Promise<boolean> {
+    const signer = this.requireSigner();
+    const createdAt = Math.floor(Date.now() / 1000);
+    const signed = await signer.signEvent({
+      kind: CivicEventKinds.COMMENT,
+      tags: createCommentTags(entityId, jurisdiction, stance),
+      content: commentText,
+      created_at: createdAt,
+    });
+    return this.submitComment(entityId, commentText, signed.pubkey, signed.sig, createdAt, jurisdiction, stance);
+  }
+
+  async castCommitment(actionId: string, jurisdiction: string): Promise<boolean> {
+    const signer = this.requireSigner();
+    const createdAt = Math.floor(Date.now() / 1000);
+    const signed = await signer.signEvent({
+      kind: CivicEventKinds.ACTION_COMMITMENT,
+      tags: createCommitmentTags(actionId, jurisdiction),
+      content: createCommitmentContent(actionId, createdAt),
+      created_at: createdAt,
+    });
+    return this.commitToCivicAction(actionId, signed.pubkey, signed.sig, createdAt, jurisdiction);
+  }
+
+  async castCompletion(
+    actionId: string,
+    jurisdiction: string,
+    evidenceType = 'self_report',
+  ): Promise<boolean> {
+    const signer = this.requireSigner();
+    const createdAt = Math.floor(Date.now() / 1000);
+    const signed = await signer.signEvent({
+      kind: CivicEventKinds.ACTION_COMPLETION,
+      tags: createCompletionTags(actionId, jurisdiction),
+      content: createCompletionContent(actionId, createdAt),
+      created_at: createdAt,
+    });
+    return this.completeCivicAction(actionId, signed.pubkey, signed.sig, createdAt, jurisdiction, evidenceType);
+  }
+
+  async castWithdrawal(actionId: string): Promise<boolean> {
+    const signer = this.requireSigner();
+    const createdAt = Math.floor(Date.now() / 1000);
+    const signed = await signer.signEvent({
+      kind: CivicEventKinds.ACTION_COMMITMENT,
+      tags: createWithdrawalTags(actionId),
+      content: createWithdrawalContent(actionId, createdAt),
+      created_at: createdAt,
+    });
+    return this.withdrawCivicAction(actionId, signed.pubkey, signed.sig, createdAt);
+  }
+
+  async castInitiative(
+    jurisdiction: string,
+    topic: string,
+    title: string,
+    description: string,
+    coordinationUrl?: string,
+  ): Promise<Initiative | null> {
+    const signer = this.requireSigner();
+    const createdAt = Math.floor(Date.now() / 1000);
+    const signed = await signer.signEvent({
+      kind: CivicEventKinds.VOICE,
+      tags: createInitiativeTags(jurisdiction, topic),
+      content: createInitiativeContent(jurisdiction, topic, createdAt),
+      created_at: createdAt,
+    });
+    return this.createInitiative(
+      jurisdiction, topic, title, description,
+      signed.pubkey, signed.sig, createdAt,
+      undefined, coordinationUrl,
+    );
+  }
+
+  async castCivicAction(
+    initiativeId: string,
+    actionType: string,
+    description: string,
+    options?: {
+      target?: string;
+      deadline?: string;
+      targetCount?: number;
+      template?: string;
+      deadlineContext?: string;
+    },
+  ): Promise<CivicAction | null> {
+    const signer = this.requireSigner();
+    const createdAt = Math.floor(Date.now() / 1000);
+    const signed = await signer.signEvent({
+      kind: CivicEventKinds.ACTION_EVENT,
+      tags: createCivicActionTags(initiativeId, actionType),
+      content: createCivicActionContent(initiativeId, actionType, createdAt),
+      created_at: createdAt,
+    });
+    return this.createCivicAction(
+      initiativeId, actionType, description,
+      signed.pubkey, signed.sig, createdAt,
+      options?.target, options?.deadline, options?.targetCount,
+      options?.template, options?.deadlineContext,
+    );
+  }
+
+  async castRedeemAttestation(
+    code: string,
+  ): Promise<{ success: boolean; attestation_event?: Record<string, unknown>; error?: string }> {
+    const signer = this.requireSigner();
+    const createdAt = Math.floor(Date.now() / 1000);
+    const signed = await signer.signEvent({
+      kind: CivicEventKinds.ATTESTATION,
+      tags: createAttestationTags(code),
+      content: createAttestationContent(code, createdAt),
+      created_at: createdAt,
+    });
+    return this.redeemAttestationCode(code, signed.pubkey, signed.sig, createdAt);
   }
 
   // === Internal ===
