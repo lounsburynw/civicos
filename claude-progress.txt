@@ -19869,3 +19869,69 @@ End-to-end test of Personal MCP → Relay voice signing and verification:
 - AI layer extraction (prompts, manager, portable providers)
 - Business operations extraction from SidePanel
 - Second surface proof (web app or MCP App using @civicos/client)
+
+## Session — 2026-02-18 — Phase 3: AI Layer Extraction
+
+**Item:** client_sdk_extraction (P0)
+**Commit:** 358cbcd feat: Extract AI layer into @civicos/client package
+
+### What was done:
+Extracted the AI subsystem from the Chrome extension into @civicos/client (SDK Phase 3).
+
+**Moved to SDK (8 files):**
+- `ai/types.ts` — AIProvider, AITier (expanded to 'cloud-pro' | 'cloud-free' | 'device'), AICompletionResult
+- `ai/storage.ts` — AICredentialStorage interface + MemoryAICredentialStorage
+- `ai/prompts.ts` — composeDraftPrompt, composeEnrichPrompt, SYSTEM_PROMPT, QA_SYSTEM_PROMPT
+- `ai/manager.ts` — AIManager (requires explicit storage injection, no Chrome detection)
+- `ai/providers/claude.ts`, `openai.ts`, `gemini.ts` — portable providers (pure fetch)
+- `ai/providers/index.ts` — re-exports
+
+**Extension changes:**
+- New `adapters/chrome-ai-storage.ts` — ChromeAICredentialStorage adapter
+- New `createExtensionAIManager()` factory in `ai.ts` facade
+- `Options.svelte` updated to use createExtensionAIManager()
+- `civicos-proxy.ts` and `chrome-nano.ts` stay extension-only, imports updated to @civicos/client
+- 8 extension AI files deleted (replaced by SDK imports)
+
+**Net: 14 files changed, 100 insertions, 84 deletions. Both packages build clean.**
+
+### What remains for client_sdk_extraction:
+- Phase 4: Business operations extraction from SidePanel (5628 lines)
+- Phase 5: Second surface proof (web app using @civicos/client)
+
+## Session: 2026-02-18 — Client SDK Phase 4: Business Operations Extraction
+
+**Item:** client_sdk_extraction (P0)
+**Phase:** 4 of 5 — Business Operations Extraction
+
+### What was done:
+Created `CivicSession` class in `packages/civicos-client/src/session.ts` (220 lines) — high-level orchestration that composes ApiClient + RegistryClient + AIManager to provide ready-to-use data loading patterns any surface can consume.
+
+**CivicSession methods:**
+- `loadPulseBundle()` — full "load everything for a jurisdiction" pattern (pulse + voice counts + comment counts + syntheses + initiatives)
+- `loadPulse()` — pulse data with registry refresh and relay URL config
+- `loadVoiceCounts(pulse)` — extract entity IDs and batch-load voice counts
+- `loadCommentCounts(pulse)` — extract entity IDs and batch-load comment counts
+- `loadCommentSyntheses(counts)` — load synthesis for entities with comments
+- `loadDecisionDetail(title)` — decision detail
+- `loadCommentThread(entityId)` — comments + synthesis for an entity
+- `loadInitiativeDetail(id)` — actions + progress for an initiative
+- `loadAllInitiativeDetails(initiatives)` — batch load all initiative details
+- `loadProvenance()` — data provenance
+- `draftComment(item, stance, counts)` — AI draft via session's AIManager
+- `enrichDraft(draft, itemId)` — fetch context + AI enrichment
+- `askQuestion(question)` — AI Q&A completion
+- Static helpers: `extractVoiceEntityIds()`, `extractCommentEntityIds()`
+
+**SidePanel rewiring:**
+- Replaced 12 inline orchestration patterns with CivicSession method calls
+- Removed imports: composeDraftPrompt, composeEnrichPrompt, SYSTEM_PROMPT, QA_SYSTEM_PROMPT
+- Added session recreation in refreshAIState() when AI config changes
+- Net: SidePanel -41 lines, SDK +220 lines reusable orchestration
+- Both packages build clean
+
+**Also:**
+- Added `relay_url?: string` to CityPulseData type
+
+### What remains for client_sdk_extraction:
+- Phase 5: Second surface proof (minimal page/test that imports @civicos/client and performs read + optional write)

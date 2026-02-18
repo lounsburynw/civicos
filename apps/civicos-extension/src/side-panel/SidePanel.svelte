@@ -1,8 +1,9 @@
 <script lang="ts">
   import { sendMessage } from '../lib/messaging.js';
   import { api, registry } from '../lib/client.js';
+  import { CivicSession } from '@civicos/client';
   import type { CityPulseData, DecisionDetailData, DataProvenance, VoiceCounts, Initiative, CivicAction, CivicActionProgress, IssuePoint, BudgetCategory, Comment, CommentCounts, CommentSynthesis, RegistryServer } from '@civicos/client';
-  import { isAIAvailable, getAIManager, onAIConfigChanged, composeDraftPrompt, composeEnrichPrompt, SYSTEM_PROMPT, QA_SYSTEM_PROMPT } from '../lib/ai.js';
+  import { isAIAvailable, getAIManager, onAIConfigChanged } from '../lib/ai.js';
   import type { IdentityInfo } from '../lib/providers/types.js';
   import 'leaflet/dist/leaflet.css';
   import L from 'leaflet';
@@ -11,6 +12,9 @@
   import DOMPurify from 'dompurify';
 
   Chart.register(DoughnutController, ArcElement, Tooltip, Legend);
+
+  // High-level orchestration session (stateless — recreated when AI config changes)
+  let session = new CivicSession(api, registry, getAIManager());
 
   // Configure marked for compact output (no extra <p> wrappers for simple text)
   marked.setOptions({ breaks: true, gfm: true });
@@ -331,15 +335,9 @@
     pulseLoading = true;
     pulseError = null;
     try {
-      // Force-refresh registry to pick up new servers/relay fields
-      try {
-        availableServers = await registry.getRegistryServers(true);
-      } catch { /* keep existing servers */ }
-      pulseData = await api.getCityPulse();
-      // Auto-configure relay URL from server response
-      if (pulseData.relay_url) {
-        registry.setRelayUrl(pulseData.relay_url);
-      }
+      pulseData = await session.loadPulse();
+      // Update available servers for UI (registry was already refreshed by session)
+      try { availableServers = await registry.getRegistryServers(); } catch {}
       // Load voice counts, comment counts, and initiatives in background
       loadVoiceCounts();
       loadCommentCounts();
@@ -386,38 +384,17 @@
 
   async function loadVoiceCounts() {
     if (!pulseData) return;
-    const ids: string[] = [];
-    if (pulseData.recent_outcomes) {
-      ids.push(...pulseData.recent_outcomes.map(d => d.id).filter(Boolean));
-    }
-    if (pulseData.upcoming_items) {
-      ids.push(...pulseData.upcoming_items.filter(i => i.stance_eligible).map(i => `agenda-item:${i.id}`));
-    }
-    if (ids.length > 0) {
-      voiceCounts = await api.getVoiceCountsBatch(ids, pulseData.jurisdiction || activeJurisdiction);
-    }
+    voiceCounts = await session.loadVoiceCounts(pulseData);
   }
 
   async function loadCommentCounts() {
     if (!pulseData) return;
-    const ids: string[] = [];
-    if (pulseData.upcoming_items) {
-      ids.push(...pulseData.upcoming_items.filter(i => i.comment_eligible).map(i => `agenda-item:${i.id}`));
-    }
-    if (ids.length > 0) {
-      commentCounts = await api.getCommentCountsBatch(ids, pulseData.jurisdiction || activeJurisdiction);
-      // Pre-fetch synthesis for items with comments (enriches AI context)
-      for (const [entityId, cc] of commentCounts) {
-        if (cc.count > 0) {
-          api.getCommentSynthesis(entityId).then(synth => {
-            if (synth) {
-              synthData.set(entityId, synth);
-              synthData = new Map(synthData);
-            }
-          });
-        }
-      }
-    }
+    commentCounts = await session.loadCommentCounts(pulseData);
+    // Pre-fetch syntheses in background (enriches AI context)
+    session.loadCommentSyntheses(commentCounts).then(newSynths => {
+      for (const [id, s] of newSynths) synthData.set(id, s);
+      synthData = new Map(synthData);
+    });
   }
 
   function getUserComment(entityId: string): Comment | undefined {
@@ -439,19 +416,16 @@
       threadLoading.add(entityId);
       threadLoading = new Set(threadLoading);
       try {
-        const [comments, synth] = await Promise.all([
-          api.getComments(entityId),
-          api.getCommentSynthesis(entityId),
-        ]);
-        threadComments.set(entityId, comments);
+        const thread = await session.loadCommentThread(entityId);
+        threadComments.set(entityId, thread.comments);
         threadComments = new Map(threadComments);
-        if (synth) {
-          synthData.set(entityId, synth);
+        if (thread.synthesis) {
+          synthData.set(entityId, thread.synthesis);
           synthData = new Map(synthData);
         }
         // Pre-fill draft with user's existing comment for editing
         if (identity?.publicKey) {
-          const mine = comments.find(c => c.public_key === identity!.publicKey);
+          const mine = thread.comments.find(c => c.public_key === identity!.publicKey);
           if (mine && !threadDrafts.has(entityId)) {
             threadDrafts.set(entityId, mine.comment_text);
             threadDrafts = new Map(threadDrafts);
@@ -537,7 +511,7 @@
       decisionLoading.add(title);
       decisionLoading = new Set(decisionLoading);
       try {
-        const detail = await api.getDecisionDetail(title);
+        const detail = await session.loadDecisionDetail(title);
         decisionDetails.set(title, detail);
         decisionDetails = new Map(decisionDetails);
       } catch (e) {
@@ -554,7 +528,7 @@
     if (showProvenance && !provenanceData && !provenanceLoading) {
       provenanceLoading = true;
       try {
-        provenanceData = await api.getDataProvenance();
+        provenanceData = await session.loadProvenance();
       } catch (e) {
         console.error('Failed to load provenance:', e);
       } finally {
@@ -1167,12 +1141,12 @@
     aiResponseLoading = new Set(aiResponseLoading);
 
     try {
-      const result = await getAIManager().complete(context, QA_SYSTEM_PROMPT);
-      if (result.success && result.text) {
-        aiResponses.set(key, result.text);
+      const answer = await session.askQuestion(context);
+      if (answer) {
+        aiResponses.set(key, answer);
         aiResponses = new Map(aiResponses);
       } else {
-        showToast(`AI failed: ${result.error}`);
+        showToast('AI request failed');
       }
     } catch (err) {
       showToast(`AI request failed: ${err instanceof Error ? err.message : 'unknown error'}`);
@@ -1191,17 +1165,16 @@
     try {
       const stance = userStances.get(entityId);
       const counts = voiceCounts.get(entityId);
-      const promptText = composeDraftPrompt(item, stance, counts);
+      const draft = await session.draftComment(item, stance, counts);
 
-      const aiResult = await getAIManager().complete(promptText, SYSTEM_PROMPT);
-      if (!aiResult.success) {
-        showToast(`AI drafting failed: ${aiResult.error}`);
+      if (!draft) {
+        showToast('AI drafting failed');
         draftingInProgress.delete(entityId);
         draftingInProgress = new Set(draftingInProgress);
         return;
       }
 
-      threadDrafts.set(entityId, aiResult.text!);
+      threadDrafts.set(entityId, draft);
       threadDrafts = new Map(threadDrafts);
 
       // Open the thread if not already open
@@ -1213,14 +1186,11 @@
           threadLoading.add(entityId);
           threadLoading = new Set(threadLoading);
           try {
-            const [comments, synth] = await Promise.all([
-              api.getComments(entityId),
-              api.getCommentSynthesis(entityId),
-            ]);
-            threadComments.set(entityId, comments);
+            const thread = await session.loadCommentThread(entityId);
+            threadComments.set(entityId, thread.comments);
             threadComments = new Map(threadComments);
-            if (synth) {
-              synthData.set(entityId, synth);
+            if (thread.synthesis) {
+              synthData.set(entityId, thread.synthesis);
               synthData = new Map(synthData);
             }
           } catch {
@@ -1246,18 +1216,15 @@
     enrichingInProgress = new Set(enrichingInProgress);
 
     try {
-      const context = await api.getItemContext(item.id, ['history', 'regulatory', 'testimony']);
-      const enrichPrompt = composeEnrichPrompt(draft, context);
-
-      const aiResult = await getAIManager().complete(enrichPrompt, SYSTEM_PROMPT);
-      if (!aiResult.success) {
-        showToast(`Enrichment failed: ${aiResult.error}`);
+      const enriched = await session.enrichDraft(draft, item.id);
+      if (!enriched) {
+        showToast('Enrichment failed');
         enrichingInProgress.delete(entityId);
         enrichingInProgress = new Set(enrichingInProgress);
         return;
       }
 
-      threadDrafts.set(entityId, aiResult.text!);
+      threadDrafts.set(entityId, enriched);
       threadDrafts = new Map(threadDrafts);
     } catch {
       showToast('Enrichment failed — server may be unavailable');
@@ -1304,21 +1271,17 @@
   }
 
   async function loadAllActionStats() {
-    await Promise.all(initiatives.map(async (ini) => {
-      if (initiativeActions.has(ini.id)) return;
-      try {
-        const actions = await api.getCivicActions(ini.id);
-        initiativeActions.set(ini.id, actions);
-        await Promise.all(actions.map(async (action) => {
-          const progress = await api.getCivicActionProgress(action.id);
-          if (progress) actionProgress.set(action.id, progress);
-        }));
-        actionProgress = new Map(actionProgress);
-      } catch {
-        initiativeActions.set(ini.id, []);
+    const toLoad = initiatives.filter(ini => !initiativeActions.has(ini.id));
+    if (toLoad.length === 0) return;
+    const details = await session.loadAllInitiativeDetails(toLoad);
+    for (const [iniId, detail] of details) {
+      initiativeActions.set(iniId, detail.actions);
+      for (const [actionId, progress] of detail.progress) {
+        actionProgress.set(actionId, progress);
       }
-    }));
+    }
     initiativeActions = new Map(initiativeActions);
+    actionProgress = new Map(actionProgress);
   }
 
   async function toggleInitiativeDetail(initiativeId: string) {
@@ -1335,18 +1298,12 @@
       actionsLoading.add(initiativeId);
       actionsLoading = new Set(actionsLoading);
       try {
-        const actions = await api.getCivicActions(initiativeId);
-        initiativeActions.set(initiativeId, actions);
+        const detail = await session.loadInitiativeDetail(initiativeId);
+        initiativeActions.set(initiativeId, detail.actions);
         initiativeActions = new Map(initiativeActions);
-
-        // Load progress for each action
-        const progressPromises = actions.map(async (action) => {
-          const progress = await api.getCivicActionProgress(action.id);
-          if (progress) {
-            actionProgress.set(action.id, progress);
-          }
-        });
-        await Promise.all(progressPromises);
+        for (const [actionId, progress] of detail.progress) {
+          actionProgress.set(actionId, progress);
+        }
         actionProgress = new Map(actionProgress);
       } catch {
         initiativeActions.set(initiativeId, []);
@@ -1786,6 +1743,8 @@
     const mgr = getAIManager();
     const provider = mgr.getActiveProvider();
     activeProviderName = provider ? provider.name : '';
+    // Recreate session with current AI manager
+    session = new CivicSession(api, registry, mgr);
   }
 
   refreshAIState();
