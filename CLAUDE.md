@@ -172,7 +172,7 @@ Read only when needed. Organized by purpose:
 ### Architecture & Design (docs/critical/)
 | Doc | Purpose |
 |-----|---------|
-| `FINAL_PACKAGE_ARCHITECTURE.md` | **Master architecture** - API, LangGraph, coordination, error handling |
+| `FINAL_PACKAGE_ARCHITECTURE.md` | **Master architecture** - API, coordination, orchestration, error handling |
 | `FOCAL_POINT_DECISION_AWARENESS.md` | Core hypothesis - why civic coordination works |
 | `COORDINATION_PROTOCOL.md` | Coordination protocol - relay, voice, provenance (MVP in pilot) |
 | `MCP_INTEGRATION_STRATEGY.md` | MCP server + multi-platform distribution (Claude.ai, ChatGPT, web) |

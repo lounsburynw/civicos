@@ -50,7 +50,7 @@ civicos-server
 
 Four-layer design:
 1. **Intelligence** - Multi-platform data extraction
-2. **Orchestration** - LangGraph workflows
+2. **Orchestration** - Rule-based suggestions and outcome tracking
 3. **Coordination** - Custom coordination tools
 4. **Impact** - Outcome tracking and learning
 

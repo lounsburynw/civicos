@@ -9,7 +9,7 @@ Civic follows a strict four-layer architecture:
 ```
 ┌─────────────┐   ┌────────────────┐   ┌──────────────┐   ┌──────────────┐
 │ INTELLIGENCE│──▶│ ORCHESTRATION  │──▶│ COORDINATION │──▶│   IMPACT     │
-│ (extraction)│   │ (LangGraph)    │   │ (comms)      │   │ (metrics)    │
+│ (extraction)│   │ (suggestions)  │   │ (relay)      │   │ (metrics)    │
 └─────────────┘   └────────────────┘   └──────────────┘   └──────────────┘
 ```
 
@@ -20,17 +20,16 @@ Civic follows a strict four-layer architecture:
 - Data normalization and storage
 - Vector indexing for RAG
 
-### 2. Orchestration Layer (`packages/civicos/src/civicos/orchestration/`)
-- LangGraph state machines
-- Workflow management (flagged → planning → active)
-- Checkpointing for long-running workflows
-- Human-in-loop patterns
+### 2. Orchestration Layer (`packages/civicos/src/civicos/orchestrator/`)
+- Rule-based suggestion generation (`suggestions.py`)
+- Outcome tracking and feedback loop closure (`outcomes.py`)
+- Standalone modules querying data layer (no framework dependency)
 
-### 3. Coordination Layer (`packages/civicos-services/`)
-- External communications (SendGrid, Twilio)
-- Meeting scheduling
-- WebSocket real-time updates
-- REST/GraphQL APIs
+### 3. Coordination Layer (`packages/civicos-relay/`, `packages/civicos-services/`)
+- Voice casting, action primitives (`civicos-relay`)
+- Subscriptions and event delivery (`civicos-relay`)
+- Federation sync between relays (`civicos-relay`)
+- WebSocket real-time updates, REST API (`civicos-services`)
 
 ### 4. Impact Layer (`packages/civicos/src/civicos/metrics/`)
 - Empowerment metrics
@@ -137,10 +136,9 @@ import flask  # Wrong! Core shouldn't have framework dependencies
 ### PASS - Proper Layer Usage
 ```python
 # In packages/civicos/src/civicos/civicos.py
-from civic.storage.backend import StorageBackend  # Same package
-from civic.orchestration.workflows import CoordinationWorkflow  # Orchestration layer
+from civicos.storage.backend import StorageBackend  # Same package
+from civicos.orchestrator.suggestions import get_suggestions  # Orchestration layer
 
-# Coordination happens via workflow, not direct call
-workflow = CoordinationWorkflow()
-workflow.start(topic="traffic", participants=community)
+# Suggestions query data layer, don't call coordination directly
+suggestions = get_suggestions("san-rafael", user_id="user_123")
 ```
