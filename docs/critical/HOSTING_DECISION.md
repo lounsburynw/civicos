@@ -32,7 +32,7 @@ This consolidation simplifies operations:
 │  └─────────────────┘  └─────────────────┘  └─────────────────┘            │
 │                                                                             │
 │  Prod: https://san-rafael.civicosproject.org/mcp                            │
-│  Health: https://san-rafael.civicosproject.org/health                       │
+│  Health: https://san-rafael.civicosproject.org/mcp/health                   │
 └─────────────────────────────────────────────────────────────────────────────┘
                                     │
                                     │ Queries
@@ -51,7 +51,7 @@ This consolidation simplifies operations:
 **Current deployment (Jan 2026):**
 - MCP server: Modal + Cloudflare proxy - **production**
   - Production: `https://san-rafael.civicosproject.org/mcp`
-  - Health: `https://san-rafael.civicosproject.org/health`
+  - Health: `https://san-rafael.civicosproject.org/mcp/health`
   - Modal direct: `https://civicos--civicos-san-rafael-mcpserver-mcp-endpoint.modal.run`
 - Relay worker: Modal (to be deployed)
 - Vector indexing: Modal (existing)

@@ -42,9 +42,6 @@ export function getServers(): ServerInfo[] {
   >;
 
   const workspace = registryData.modal_workspace;
-  const defaultRelay = (registryData as Record<string, unknown>).relay as { url: string; ws_url?: string } | undefined;
-  const defaultRelayUrl = defaultRelay?.url ?? "";
-  const defaultRelayWsUrl = defaultRelay?.ws_url ?? "";
 
   const servers: ServerInfo[] = Object.entries(jurisdictions).map(
     ([id, config]) => ({
@@ -53,11 +50,11 @@ export function getServers(): ServerInfo[] {
       display_name: config.display_name,
       domain: config.domain,
       mcp_endpoint: `https://${config.domain}/mcp`,
-      health_endpoint: `https://${config.domain}/health`,
+      health_endpoint: `https://${config.domain}/mcp/health`,
       origin_health_endpoint: `https://${workspace}--${config.modal_app_name}-mcpserver-mcp-endpoint.modal.run/health`,
       parent_jurisdictions: config.parent_jurisdictions || [],
-      relay_endpoint: config.relay_endpoint || defaultRelayUrl,
-      relay_ws_endpoint: config.relay_ws_endpoint || defaultRelayWsUrl,
+      relay_endpoint: config.relay_endpoint || `https://${config.domain}/relay`,
+      relay_ws_endpoint: config.relay_ws_endpoint || `wss://${config.domain}/relay`,
     })
   );
 
