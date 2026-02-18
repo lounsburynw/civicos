@@ -1130,38 +1130,24 @@ def validate_deploy_config(jurisdiction_id: str) -> tuple[bool, List[str], Optio
     """
     Validate that deployment can proceed using unified config.
 
+    Uses the comprehensive validate_jurisdiction_config() and extracts
+    errors as strings for backwards compatibility with run_deploy().
+
     Returns:
         Tuple of (is_valid, list of error messages, config object)
     """
-    errors = []
     config = None
 
     try:
-        from civicos.jurisdiction_config import load_jurisdiction_config
+        from civicos.jurisdiction_config import load_jurisdiction_config, validate_jurisdiction_config
         config = load_jurisdiction_config(jurisdiction_id)
     except Exception as e:
-        errors.append(f"Failed to load config: {e}")
-        return False, errors, None
+        return False, [f"Failed to load config: {e}"], None
 
-    # Check required fields for deployment
-    if not config.jurisdiction_id:
-        errors.append("Missing jurisdiction_id in config")
+    result = validate_jurisdiction_config(config)
+    errors = [f"[{issue.field}] {issue.message}" for issue in result.errors]
 
-    if not config.level:
-        errors.append("Missing level in config")
-
-    # For city-level, check required extraction config
-    if config.level == "city":
-        if not config.data_sources.meetings.source_type:
-            errors.append("Missing data_sources.meetings.source_type for city deployment")
-        if not config.data_sources.meetings.base_url:
-            errors.append("Missing data_sources.meetings.base_url for city deployment")
-
-    # Check Modal config
-    if not config.modal.secrets:
-        errors.append("Missing modal.secrets in config")
-
-    return len(errors) == 0, errors, config
+    return result.is_valid, errors, config
 
 
 def run_deploy(
@@ -1395,6 +1381,119 @@ Config Location:
 
     except KeyboardInterrupt:
         print("\nDeployment interrupted.")
+        sys.exit(1)
+    except Exception as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
+def validate_main():
+    """Main CLI entry point for config validation."""
+    parser = argparse.ArgumentParser(
+        description="Validate jurisdiction configuration files",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  civicos-validate city-berkeley      # Validate single config
+  civicos-validate --all              # Validate all configs
+  civicos-validate city-berkeley --json  # JSON output
+
+Config Location:
+  Unified config files are in data/jurisdictions/{jurisdiction_id}.yaml
+        """
+    )
+
+    parser.add_argument(
+        "jurisdiction",
+        nargs="?",
+        help="Jurisdiction to validate (e.g., 'city-berkeley')"
+    )
+
+    parser.add_argument(
+        "--all",
+        action="store_true",
+        help="Validate all jurisdiction configs"
+    )
+
+    parser.add_argument(
+        "--errors-only",
+        action="store_true",
+        help="Only show errors (suppress warnings and info)"
+    )
+
+    parser.add_argument(
+        "--json",
+        action="store_true",
+        dest="json_output",
+        help="Output as JSON"
+    )
+
+    args = parser.parse_args()
+
+    if not args.jurisdiction and not args.all:
+        parser.error("Provide a jurisdiction_id or use --all")
+
+    from civicos.jurisdiction_config import (
+        load_jurisdiction_config, validate_jurisdiction_config,
+        format_validation_result, validate_all_configs,
+    )
+
+    try:
+        if args.all:
+            results = validate_all_configs()
+            if args.json_output:
+                json_results = {}
+                for jid, result in results.items():
+                    json_results[jid] = {
+                        "is_valid": result.is_valid,
+                        "summary": result.summary,
+                        "issues": [
+                            {"field": i.field, "severity": i.severity, "message": i.message, "suggestion": i.suggestion}
+                            for i in result.issues
+                            if not args.errors_only or i.severity == "error"
+                        ],
+                    }
+                print(json.dumps(json_results, indent=2))
+            else:
+                all_valid = True
+                for jid, result in sorted(results.items()):
+                    config = load_jurisdiction_config(jid)
+                    if args.errors_only:
+                        filtered = type(result)(is_valid=result.is_valid, issues=[i for i in result.issues if i.severity == "error"])
+                        print(format_validation_result(filtered, config))
+                    else:
+                        print(format_validation_result(result, config))
+                    if not result.is_valid:
+                        all_valid = False
+
+                print(f"\n{len(results)} configs validated: {'all valid' if all_valid else 'some have errors'}")
+                sys.exit(0 if all_valid else 1)
+        else:
+            config = load_jurisdiction_config(args.jurisdiction)
+            result = validate_jurisdiction_config(config)
+
+            if args.json_output:
+                print(json.dumps({
+                    "jurisdiction_id": config.jurisdiction_id,
+                    "is_valid": result.is_valid,
+                    "summary": result.summary,
+                    "issues": [
+                        {"field": i.field, "severity": i.severity, "message": i.message, "suggestion": i.suggestion}
+                        for i in result.issues
+                        if not args.errors_only or i.severity == "error"
+                    ],
+                }, indent=2))
+            else:
+                if args.errors_only:
+                    filtered = type(result)(is_valid=result.is_valid, issues=[i for i in result.issues if i.severity == "error"])
+                    print(format_validation_result(filtered, config))
+                else:
+                    print(format_validation_result(result, config))
+
+            sys.exit(0 if result.is_valid else 1)
+
+    except KeyboardInterrupt:
+        print("\nValidation interrupted.")
         sys.exit(1)
     except Exception as e:
         print(f"Error: {e}", file=sys.stderr)

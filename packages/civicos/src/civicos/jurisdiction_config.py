@@ -1,5 +1,5 @@
 """
-Unified jurisdiction configuration loader.
+Unified jurisdiction configuration loader and validator.
 
 Single source of truth for jurisdiction configuration, used by:
 - MCP tools (contact info, governance, tool settings)
@@ -19,10 +19,18 @@ Usage:
     # Get all active jurisdictions
     for jid, config in get_active_jurisdictions().items():
         print(f"{jid}: {config.level}")
+
+    # Validate a config
+    from civicos.jurisdiction_config import validate_jurisdiction_config
+    result = validate_jurisdiction_config(config)
+    if not result.is_valid:
+        for issue in result.errors:
+            print(f"  {issue.field}: {issue.message}")
 """
 
 import logging
 import os
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -547,3 +555,462 @@ def get_extraction_config(jurisdiction_id: str) -> Dict[str, Any]:
     """
     config = load_jurisdiction_config(jurisdiction_id)
     return config.to_extraction_dict()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Config Validation
+# ─────────────────────────────────────────────────────────────────────────────
+
+VALID_LEVELS = {"federal", "state", "county", "city"}
+VALID_MEETING_PLATFORMS = {"proudcity", "granicus", "legistar", "civicclerk"}
+VALID_ISSUE_PLATFORMS = {"seeclickfix", "311"}
+VALID_BUDGET_PLATFORMS = {"opengov", "municipal_portal"}
+VALID_CODE_PLATFORMS = {"municode", "codified"}
+VALID_TRANSCRIPT_SOURCES = {"youtube", "granicus"}
+VALID_HUD_RELATIONSHIPS = {"direct", "consortium", "subrecipient"}
+US_STATE_ABBREVIATIONS = {
+    "AL", "AK", "AZ", "AR", "CA", "CO", "CT", "DE", "FL", "GA",
+    "HI", "ID", "IL", "IN", "IA", "KS", "KY", "LA", "ME", "MD",
+    "MA", "MI", "MN", "MS", "MO", "MT", "NE", "NV", "NH", "NJ",
+    "NM", "NY", "NC", "ND", "OH", "OK", "OR", "PA", "RI", "SC",
+    "SD", "TN", "TX", "UT", "VT", "VA", "WA", "WV", "WI", "WY",
+    "DC", "PR", "GU", "VI", "AS", "MP",
+}
+
+
+@dataclass
+class ValidationIssue:
+    """A single validation finding."""
+    field: str          # e.g. "data_sources.meetings.base_url"
+    severity: str       # "error", "warning", "info"
+    message: str        # What's wrong
+    suggestion: str = ""  # How to fix it
+
+
+@dataclass
+class ValidationResult:
+    """Result of config validation."""
+    is_valid: bool
+    issues: List[ValidationIssue] = field(default_factory=list)
+
+    @property
+    def errors(self) -> List[ValidationIssue]:
+        return [i for i in self.issues if i.severity == "error"]
+
+    @property
+    def warnings(self) -> List[ValidationIssue]:
+        return [i for i in self.issues if i.severity == "warning"]
+
+    @property
+    def infos(self) -> List[ValidationIssue]:
+        return [i for i in self.issues if i.severity == "info"]
+
+    @property
+    def summary(self) -> str:
+        parts = []
+        if self.errors:
+            parts.append(f"{len(self.errors)} error{'s' if len(self.errors) != 1 else ''}")
+        if self.warnings:
+            parts.append(f"{len(self.warnings)} warning{'s' if len(self.warnings) != 1 else ''}")
+        if self.infos:
+            parts.append(f"{len(self.infos)} info")
+        return ", ".join(parts) if parts else "valid"
+
+
+def validate_jurisdiction_config(config: JurisdictionConfig) -> ValidationResult:
+    """
+    Comprehensive validation of a jurisdiction config.
+
+    Checks:
+    - Required identity fields
+    - Level-specific requirements (city needs meetings, state needs state_info)
+    - Platform-specific rules (proudcity needs base_url, granicus needs publisher_id)
+    - Hierarchy consistency
+    - Format validation (URLs, emails, zip codes)
+    - Data completeness warnings
+
+    Returns:
+        ValidationResult with categorized issues and actionable suggestions
+    """
+    issues: List[ValidationIssue] = []
+
+    # ── 1. Required identity fields ──
+    if not config.jurisdiction_id:
+        issues.append(ValidationIssue(
+            field="jurisdiction_id",
+            severity="error",
+            message="Missing jurisdiction_id",
+            suggestion="Add jurisdiction_id (e.g., 'city-san-rafael', 'state-california')",
+        ))
+
+    if not config.level:
+        issues.append(ValidationIssue(
+            field="level",
+            severity="error",
+            message="Missing level",
+            suggestion=f"Add level: one of {sorted(VALID_LEVELS)}",
+        ))
+    elif config.level not in VALID_LEVELS:
+        issues.append(ValidationIssue(
+            field="level",
+            severity="error",
+            message=f"Invalid level '{config.level}'",
+            suggestion=f"Use one of: {sorted(VALID_LEVELS)}",
+        ))
+
+    if not config.display_name:
+        issues.append(ValidationIssue(
+            field="display_name",
+            severity="error",
+            message="Missing display_name",
+            suggestion="Add display_name (e.g., 'San Rafael', 'California')",
+        ))
+
+    # Check jurisdiction_id matches level prefix
+    if config.jurisdiction_id and config.level:
+        expected_prefix = f"{config.level}-" if config.level != "federal" else "country-"
+        if not config.jurisdiction_id.startswith(expected_prefix):
+            issues.append(ValidationIssue(
+                field="jurisdiction_id",
+                severity="warning",
+                message=f"jurisdiction_id '{config.jurisdiction_id}' doesn't start with expected prefix '{expected_prefix}'",
+                suggestion=f"Convention: {config.level}-level IDs start with '{expected_prefix}' (e.g., '{expected_prefix}{config.display_name.lower().replace(' ', '-')}')",
+            ))
+
+    # ── 2. Hierarchy validation ──
+    if config.level in ("city", "county") and not config.parent_jurisdictions:
+        issues.append(ValidationIssue(
+            field="parent_jurisdictions",
+            severity="warning",
+            message=f"{config.level}-level config has no parent_jurisdictions",
+            suggestion="Add parent_jurisdictions list (e.g., ['county-marin', 'state-california', 'country-united-states'])",
+        ))
+    elif config.parent_jurisdictions:
+        for parent in config.parent_jurisdictions:
+            has_prefix = any(parent.startswith(f"{p}-") for p in ["city", "county", "state", "country"])
+            if not has_prefix:
+                issues.append(ValidationIssue(
+                    field="parent_jurisdictions",
+                    severity="warning",
+                    message=f"Parent '{parent}' doesn't follow naming convention",
+                    suggestion="Parent IDs should be prefixed: city-, county-, state-, or country-",
+                ))
+
+    # ── 3. Level-specific: city/county requirements ──
+    if config.level in ("city", "county"):
+        _validate_city_county(config, issues)
+
+    # ── 4. Level-specific: state requirements ──
+    if config.level == "state":
+        _validate_state(config, issues)
+
+    # ── 5. Platform-specific meeting rules ──
+    if config.data_sources.meetings.source_type:
+        _validate_meeting_platform(config, issues)
+
+    # ── 6. Format validation ──
+    _validate_formats(config, issues)
+
+    # ── 7. Deployment readiness ──
+    _validate_deployment(config, issues)
+
+    is_valid = not any(i.severity == "error" for i in issues)
+    return ValidationResult(is_valid=is_valid, issues=issues)
+
+
+def _validate_city_county(config: JurisdictionConfig, issues: List[ValidationIssue]) -> None:
+    """Validate city/county-specific requirements."""
+    # Meetings source is required for city/county
+    if not config.data_sources.meetings.source_type:
+        issues.append(ValidationIssue(
+            field="data_sources.meetings.source_type",
+            severity="error",
+            message=f"Missing meeting platform for {config.level} deployment",
+            suggestion=f"Add data_sources.meetings.source_type: one of {sorted(VALID_MEETING_PLATFORMS)}",
+        ))
+
+    if not config.data_sources.meetings.base_url:
+        issues.append(ValidationIssue(
+            field="data_sources.meetings.base_url",
+            severity="error",
+            message="Missing meeting source base_url",
+            suggestion="Add data_sources.meetings.base_url (e.g., 'https://www.cityofsanrafael.org')",
+        ))
+
+    # Contact info
+    if not config.contact_info.clerk_email:
+        issues.append(ValidationIssue(
+            field="contact_info.clerk_email",
+            severity="warning",
+            message="Missing clerk_email — needed for public comment tools",
+            suggestion="Add contact_info.clerk_email (e.g., 'clerk@city.gov')",
+        ))
+
+    if not config.contact_info.website:
+        issues.append(ValidationIssue(
+            field="contact_info.website",
+            severity="warning",
+            message="Missing website — used for platform detection and links",
+            suggestion="Add contact_info.website (e.g., 'https://www.cityofsanrafael.org')",
+        ))
+
+    # Governing body
+    if not config.governing_body.meeting_schedule:
+        issues.append(ValidationIssue(
+            field="governing_body.meeting_schedule",
+            severity="info",
+            message="Missing meeting_schedule — shown to users asking about upcoming meetings",
+            suggestion="Add governing_body.meeting_schedule (e.g., 'First and third Monday, 7:00 PM')",
+        ))
+
+    # Financial context
+    if not config.financial.state:
+        issues.append(ValidationIssue(
+            field="financial.state",
+            severity="warning",
+            message="Missing financial.state — needed for state data lookups (SCO, legislation)",
+            suggestion="Add financial.state as 2-letter abbreviation (e.g., 'CA')",
+        ))
+
+    if not config.financial.county:
+        issues.append(ValidationIssue(
+            field="financial.county",
+            severity="warning",
+            message="Missing financial.county — needed for HUD/county data correlation",
+            suggestion="Add financial.county (e.g., 'Marin')",
+        ))
+
+    # HUD grantee info
+    if not config.federal_programs.hud_grantee:
+        issues.append(ValidationIssue(
+            field="federal_programs.hud_grantee",
+            severity="info",
+            message="Missing HUD grantee — needed for federal funding analysis",
+            suggestion="Add federal_programs.hud_grantee. Many cities receive HUD funds via county consortiums.",
+        ))
+
+    # Geography
+    if not config.zip_codes:
+        issues.append(ValidationIssue(
+            field="zip_codes",
+            severity="info",
+            message="No zip codes — used for geographic filtering and SeeClickFix queries",
+            suggestion="Add zip_codes list (e.g., ['94901', '94903'])",
+        ))
+
+
+def _validate_state(config: JurisdictionConfig, issues: List[ValidationIssue]) -> None:
+    """Validate state-specific requirements."""
+    if not config.state_info.abbreviation:
+        issues.append(ValidationIssue(
+            field="state_info.abbreviation",
+            severity="error",
+            message="Missing state abbreviation",
+            suggestion="Add state_info.abbreviation (e.g., 'CA')",
+        ))
+    elif config.state_info.abbreviation not in US_STATE_ABBREVIATIONS:
+        issues.append(ValidationIssue(
+            field="state_info.abbreviation",
+            severity="warning",
+            message=f"Unrecognized state abbreviation '{config.state_info.abbreviation}'",
+            suggestion="Use standard 2-letter US state/territory abbreviation",
+        ))
+
+    if not config.state_info.timezone:
+        issues.append(ValidationIssue(
+            field="state_info.timezone",
+            severity="warning",
+            message="Missing timezone",
+            suggestion="Add state_info.timezone (e.g., 'America/Los_Angeles')",
+        ))
+
+
+def _validate_meeting_platform(config: JurisdictionConfig, issues: List[ValidationIssue]) -> None:
+    """Validate platform-specific meeting configuration."""
+    platform = config.data_sources.meetings.source_type
+
+    if platform not in VALID_MEETING_PLATFORMS:
+        issues.append(ValidationIssue(
+            field="data_sources.meetings.source_type",
+            severity="warning",
+            message=f"Unknown meeting platform '{platform}'",
+            suggestion=f"Known platforms: {sorted(VALID_MEETING_PLATFORMS)}. Custom platforms may work but aren't validated.",
+        ))
+        return
+
+    # ProudCity: needs base_url and ideally archives
+    if platform == "proudcity":
+        if not config.data_sources.meetings.archives:
+            issues.append(ValidationIssue(
+                field="data_sources.meetings.archives",
+                severity="warning",
+                message="ProudCity config has no archives — only auto-discovered meetings will be scraped",
+                suggestion="Add archives map or set auto_discover: true. Run platform detection to discover meeting types.",
+            ))
+
+    # Granicus: archives entries need publisher_id/view_id
+    elif platform == "granicus":
+        for name, archive_data in config.data_sources.meetings.archives.items():
+            if isinstance(archive_data, dict):
+                if not archive_data.get("publisher_id"):
+                    issues.append(ValidationIssue(
+                        field=f"data_sources.meetings.archives.{name}.publisher_id",
+                        severity="error",
+                        message=f"Granicus archive '{name}' missing publisher_id",
+                        suggestion=f"Add publisher_id for '{name}'. Find it in the Granicus embed URL parameters.",
+                    ))
+                if not archive_data.get("view_id"):
+                    issues.append(ValidationIssue(
+                        field=f"data_sources.meetings.archives.{name}.view_id",
+                        severity="error",
+                        message=f"Granicus archive '{name}' missing view_id",
+                        suggestion=f"Add view_id for '{name}'. Find it in the Granicus embed URL parameters.",
+                    ))
+            elif not isinstance(archive_data, str):
+                issues.append(ValidationIssue(
+                    field=f"data_sources.meetings.archives.{name}",
+                    severity="error",
+                    message=f"Granicus archive '{name}' has invalid format",
+                    suggestion="Granicus archives need publisher_id and view_id: {publisher_id: 5, view_id: 5}",
+                ))
+
+    # Legistar: base_url should be a Legistar domain
+    elif platform == "legistar":
+        base_url = config.data_sources.meetings.base_url
+        if base_url and "legistar.com" not in base_url and "webapi.legistar.com" not in base_url:
+            issues.append(ValidationIssue(
+                field="data_sources.meetings.base_url",
+                severity="info",
+                message="Legistar base_url doesn't contain 'legistar.com'",
+                suggestion="Legistar APIs use webapi.legistar.com. The base_url should be the client identifier or full API URL.",
+            ))
+
+    # CivicClerk: base_url should reference civicclerk.com
+    elif platform == "civicclerk":
+        base_url = config.data_sources.meetings.base_url
+        if base_url and "civicclerk.com" not in base_url:
+            issues.append(ValidationIssue(
+                field="data_sources.meetings.base_url",
+                severity="info",
+                message="CivicClerk base_url doesn't contain 'civicclerk.com'",
+                suggestion="CivicClerk APIs use {subdomain}.api.civicclerk.com. Provide the subdomain or full API URL.",
+            ))
+
+
+def _validate_formats(config: JurisdictionConfig, issues: List[ValidationIssue]) -> None:
+    """Validate field formats (URLs, emails, zip codes)."""
+    # URL format checks
+    url_fields = [
+        ("contact_info.website", config.contact_info.website),
+        ("data_sources.meetings.base_url", config.data_sources.meetings.base_url),
+    ]
+    for field_name, url in url_fields:
+        if url and not url.startswith(("http://", "https://")):
+            issues.append(ValidationIssue(
+                field=field_name,
+                severity="error",
+                message=f"URL must start with http:// or https://: '{url}'",
+                suggestion=f"Change to 'https://{url}'",
+            ))
+
+    # Email format check
+    if config.contact_info.clerk_email:
+        if not re.match(r'^[^@]+@[^@]+\.[^@]+$', config.contact_info.clerk_email):
+            issues.append(ValidationIssue(
+                field="contact_info.clerk_email",
+                severity="error",
+                message=f"Invalid email format: '{config.contact_info.clerk_email}'",
+                suggestion="Use a valid email address (e.g., 'clerk@city.gov')",
+            ))
+
+    # State abbreviation format
+    if config.financial.state:
+        if config.financial.state != config.financial.state.upper() or len(config.financial.state) != 2:
+            issues.append(ValidationIssue(
+                field="financial.state",
+                severity="error",
+                message=f"State should be 2-letter uppercase abbreviation, got '{config.financial.state}'",
+                suggestion=f"Use '{config.financial.state.upper()[:2]}'",
+            ))
+
+    # Zip code format
+    for zc in config.zip_codes:
+        if not re.match(r'^\d{5}(-\d{4})?$', zc):
+            issues.append(ValidationIssue(
+                field="zip_codes",
+                severity="warning",
+                message=f"Invalid zip code format: '{zc}'",
+                suggestion="Zip codes should be 5 digits (e.g., '94901') or 5+4 format ('94901-1234')",
+            ))
+
+    # HUD relationship value
+    if config.federal_programs.hud_relationship:
+        if config.federal_programs.hud_relationship not in VALID_HUD_RELATIONSHIPS:
+            issues.append(ValidationIssue(
+                field="federal_programs.hud_relationship",
+                severity="warning",
+                message=f"Unknown HUD relationship '{config.federal_programs.hud_relationship}'",
+                suggestion=f"Known types: {sorted(VALID_HUD_RELATIONSHIPS)}",
+            ))
+
+
+def _validate_deployment(config: JurisdictionConfig, issues: List[ValidationIssue]) -> None:
+    """Validate deployment readiness."""
+    if not config.modal.secrets:
+        issues.append(ValidationIssue(
+            field="modal.secrets",
+            severity="error",
+            message="No Modal secrets configured",
+            suggestion="Add modal.secrets: ['civicos-env'] at minimum",
+        ))
+    elif "civicos-env" not in config.modal.secrets:
+        issues.append(ValidationIssue(
+            field="modal.secrets",
+            severity="warning",
+            message="'civicos-env' secret not in modal.secrets list",
+            suggestion="The 'civicos-env' secret contains API keys required for most operations",
+        ))
+
+
+def format_validation_result(result: ValidationResult, config: Optional[JurisdictionConfig] = None, no_color: bool = False) -> str:
+    """Format validation result for CLI output."""
+    lines = []
+
+    if config:
+        lines.append(f"Validating: {config.jurisdiction_id} ({config.level})")
+        lines.append("")
+
+    if result.is_valid and not result.warnings and not result.infos:
+        lines.append("  PASS  All checks passed")
+        return "\n".join(lines)
+
+    if result.is_valid:
+        lines.append(f"  PASS  Config is valid ({result.summary})")
+    else:
+        lines.append(f"  FAIL  Config has errors ({result.summary})")
+
+    lines.append("")
+
+    # Group by severity
+    for severity, label in [("error", "ERRORS"), ("warning", "WARNINGS"), ("info", "INFO")]:
+        severity_issues = [i for i in result.issues if i.severity == severity]
+        if not severity_issues:
+            continue
+
+        lines.append(f"  {label}:")
+        for issue in severity_issues:
+            lines.append(f"    [{issue.field}]")
+            lines.append(f"      {issue.message}")
+            if issue.suggestion:
+                lines.append(f"      -> {issue.suggestion}")
+            lines.append("")
+
+    return "\n".join(lines)
+
+
+def validate_all_configs() -> Dict[str, ValidationResult]:
+    """Validate all jurisdiction configs in the config directory."""
+    results = {}
+    for jid, config in get_active_jurisdictions().items():
+        results[jid] = validate_jurisdiction_config(config)
+    return results
