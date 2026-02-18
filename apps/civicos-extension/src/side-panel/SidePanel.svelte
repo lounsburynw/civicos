@@ -13,6 +13,8 @@
   // Reusable components from @civicos/components
   import CivicVoiceButtons from '@civicos/components/src/components/CivicVoiceButtons.svelte';
   import CivicSynthesisBar from '@civicos/components/src/components/CivicSynthesisBar.svelte';
+  import CivicAgendaItemCard from '@civicos/components/src/components/CivicAgendaItemCard.svelte';
+  import CivicDecisionCard from '@civicos/components/src/components/CivicDecisionCard.svelte';
 
   Chart.register(DoughnutController, ArcElement, Tooltip, Legend);
 
@@ -2035,49 +2037,15 @@
           <div class="section-body">
             {#each pulseData.upcoming_items as item}
               <div class="card item-card">
-                <div class="card-top-row">
-                  {#if item.item_number}
-                    <span class="item-number">#{item.item_number}</span>
-                  {/if}
-                  <span class="item-meeting">{item.meeting_title} &middot; {item.meeting_date}</span>
-                </div>
-                <div class="card-title">{item.title}</div>
-                {#if item.description}
-                  <div class="card-desc">{item.description}</div>
-                {/if}
-                {#if item.why_it_matters}
-                  <div class="card-why"><strong>Why it matters:</strong> <em>{item.why_it_matters}</em></div>
-                {/if}
-                <div class="card-tags">
-                  {#if item.stance_eligible}
-                    <span class="tag tag-voice">Voice eligible</span>
-                  {/if}
-                  {#if item.comment_eligible}
-                    <span class="tag tag-comment">Comment eligible</span>
-                  {/if}
-                  {#if item.project_type}
-                    <span class="tag">{item.project_type}</span>
-                  {/if}
-                </div>
-                {#if voiceCounts.has(`agenda-item:${item.id}`)}
-                  {@const counts = voiceCounts.get(`agenda-item:${item.id}`)!}
-                  <div class="voice-counts">
-                    {#if counts.support > 0}<span class="vc vc-support">{counts.support} support</span>{/if}
-                    {#if counts.oppose > 0}<span class="vc vc-oppose">{counts.oppose} oppose</span>{/if}
-                    {#if counts.watching > 0}<span class="vc vc-watch">{counts.watching} watching</span>{/if}
-                    {#if counts.attested != null && counts.attested > 0}<span class="vc vc-attested" title="{counts.attested} attested, {counts.unattested ?? 0} unattested">{counts.attested} attested</span>{/if}
-                  </div>
-                {/if}
-                {#if item.stance_eligible && identity}
-                  {@const eid = `agenda-item:${item.id}`}
-                  <CivicVoiceButtons
-                    entityId={eid}
-                    userStance={userStances.get(eid) ?? null}
-                    disabled={votingInProgress.has(eid)}
-                    locked={!identity.isUnlocked}
-                    onvoice={({ entityId, stance }) => handleVoice(entityId, stance)}
-                  />
-                {/if}
+                <CivicAgendaItemCard
+                  {item}
+                  voiceCounts={voiceCounts.get(`agenda-item:${item.id}`) ?? null}
+                  userStance={userStances.get(`agenda-item:${item.id}`) ?? null}
+                  votingDisabled={votingInProgress.has(`agenda-item:${item.id}`)}
+                  locked={identity ? !identity.isUnlocked : true}
+                  showVoice={item.stance_eligible && !!identity}
+                  onvoice={({ entityId, stance }) => handleVoice(entityId, stance)}
+                />
                 <!-- Comment Thread -->
                 {#if item.comment_eligible}
                   {@const commentEntityId = `agenda-item:${item.id}`}
@@ -2268,206 +2236,33 @@
           {:else}
             {#each pulseData.recent_outcomes as decision}
               <div class="card decision-card" class:expanded-card={expandedDecisions.has(decision.title)}>
-                <button class="decision-row decision-toggle" onclick={() => toggleDecisionDetail(decision.title)}>
-                  <span class="outcome-icon {outcomeClass(decision.outcome)}">
-                    {outcomeIcon(decision.outcome)}
-                  </span>
-                  <div class="decision-info">
-                    <div class="card-title">{decision.title}</div>
-                    <div class="card-meta">
-                      <span class="outcome-label {outcomeClass(decision.outcome)}">{decision.is_upcoming ? 'upcoming' : decision.outcome}</span>
-                      {#if decision.vote_tally}
-                        <span class="meta-sep">&middot;</span>
-                        <span>{decision.vote_tally}</span>
-                      {/if}
-                      <span class="meta-sep">&middot;</span>
-                      <span>{decision.date}</span>
-                      {#if voiceCounts.has(decision.id)}
-                        {@const counts = voiceCounts.get(decision.id)!}
-                        {#if counts.total > 0}
-                          <span class="meta-sep">&middot;</span>
-                          <span class="voice-inline">{counts.total} voices{#if counts.attested != null && counts.attested > 0} ({counts.attested} attested){/if}</span>
-                        {/if}
-                      {/if}
-                    </div>
-                  </div>
-                  <span class="expand-chevron" class:open={expandedDecisions.has(decision.title)}></span>
-                </button>
-
-                {#if expandedDecisions.has(decision.title)}
-                  <div class="decision-detail">
-                    {#if decisionLoading.has(decision.title)}
-                      <div class="detail-loading">Loading details...</div>
-                    {:else if decisionDetails.has(decision.title)}
-                      {@const detail = decisionDetails.get(decision.title)!}
-                      {#if detail.found && detail.decision}
-                        <!-- Outcome badge row -->
-                        <div class="outcome-row">
-                          <span class="outcome-badge" class:approved={detail.decision.outcome?.toLowerCase().includes('approved')} class:denied={detail.decision.outcome?.toLowerCase().includes('denied')} class:upcoming={detail.is_upcoming}>
-                            {detail.is_upcoming ? 'upcoming' : detail.decision.outcome}
-                          </span>
-                          {#if detail.decision.outcome_description}
-                            <span class="outcome-desc">{detail.decision.outcome_description}</span>
-                          {/if}
-                          {#if detail.decision.votes}
-                            <span class="vote-detail">
-                              {Object.entries(detail.decision.votes).map(([k, v]) => `${k}: ${v}`).join(', ')}
-                            </span>
-                          {/if}
-                        </div>
-
-                        {#if detail.summary}
-                          <div class="decision-summary">{detail.summary}</div>
-                        {/if}
-
-                        {#if detail.decision.body}
-                          <div class="detail-body">{detail.decision.body}</div>
-                        {/if}
-
-                        <!-- Public Testimony -->
-                        {#if detail.testimony?.public_comments && detail.testimony.public_comments.length > 0}
-                          {@const testimonies = detail.testimony.public_comments}
-                          {@const showAll = expandedTestimony.has(decision.title)}
-                          {@const displayTestimonies = showAll ? testimonies : testimonies.slice(0, 3)}
-                          <div class="detail-section">
-                            <div class="detail-label-row">
-                              <div class="detail-label">Public Testimony ({testimonies.length})</div>
-                              {#if aiAvailable}
-                                <button
-                                  class="summarize-btn"
-                                  disabled={aiResponseLoading.has(`ask-testimony:${decision.id}`)}
-                                  onclick={() => askAI(`ask-testimony:${decision.id}`, composeTestimonySummary(decision, testimonies))}
-                                >
-                                  {aiResponseLoading.has(`ask-testimony:${decision.id}`) ? 'Summarizing...' : aiResponses.has(`ask-testimony:${decision.id}`) ? 'Hide summary' : 'Summarize'}
-                                </button>
-                              {/if}
-                            </div>
-                            {#each displayTestimonies as comment}
-                              <div class="testimony-card">
-                                <div class="testimony-meta">
-                                  <span class="testimony-speaker">{comment.speaker}</span>
-                                  {#if comment.start_timestamp}
-                                    <span class="testimony-timestamp">{comment.start_timestamp}</span>
-                                  {/if}
-                                </div>
-                                <div class="testimony-text">{comment.text}</div>
-                                {#if comment.video_url}
-                                  <a class="testimony-video-link" href={comment.video_url} target="_blank" rel="noopener">Watch clip</a>
-                                {/if}
-                              </div>
-                            {/each}
-                            {#if testimonies.length > 3}
-                              <button class="detail-expand-btn" onclick={() => { if (showAll) { expandedTestimony.delete(decision.title); } else { expandedTestimony.add(decision.title); } expandedTestimony = new Set(expandedTestimony); }}>
-                                {showAll ? 'Show less' : `+${testimonies.length - 3} more`}
-                              </button>
-                            {/if}
-                            {#if aiResponses.has(`ask-testimony:${decision.id}`)}
-                              <div class="ai-response">
-                                <div class="ai-response-text prose">{@html renderMarkdown(aiResponses.get(`ask-testimony:${decision.id}`) ?? '')}</div>
-                                {#if activeProviderName}<span class="ai-response-provider">via {activeProviderName}</span>{/if}
-                              </div>
-                            {/if}
-                            <div class="ai-action-row">
-                              <button class="ai-action-btn ai-action-claude solo" onclick={(e: MouseEvent) => openExternalAI('claude', composeTestimonySummary(decision, testimonies), e)}>
-                                Discuss testimony in Claude <span class="ext-icon">↗</span>
-                              </button>
-                            </div>
-                          </div>
-                        {/if}
-
-                        <!-- Council Discussion -->
-                        {#if detail.testimony?.council_discussion && detail.testimony.council_discussion.length > 0}
-                          {@const excerpts = detail.testimony.council_discussion}
-                          {@const showAllCouncil = expandedCouncil.has(decision.title)}
-                          {@const displayExcerpts = showAllCouncil ? excerpts : excerpts.slice(0, 3)}
-                          <div class="detail-section">
-                            <div class="detail-label">Council Discussion ({excerpts.length})</div>
-                            {#each displayExcerpts as excerpt}
-                              <div class="testimony-card">
-                                <div class="testimony-meta">
-                                  <span class="testimony-speaker">{excerpt.speaker}</span>
-                                  {#if excerpt.start_timestamp}
-                                    <span class="testimony-timestamp">{excerpt.start_timestamp}</span>
-                                  {/if}
-                                </div>
-                                <div class="testimony-text">{excerpt.text}</div>
-                                {#if excerpt.video_url}
-                                  <a class="testimony-video-link" href={excerpt.video_url} target="_blank" rel="noopener">Watch clip</a>
-                                {/if}
-                              </div>
-                            {/each}
-                            {#if excerpts.length > 3}
-                              <button class="detail-expand-btn" onclick={() => { if (showAllCouncil) { expandedCouncil.delete(decision.title); } else { expandedCouncil.add(decision.title); } expandedCouncil = new Set(expandedCouncil); }}>
-                                {showAllCouncil ? 'Show less' : `+${excerpts.length - 3} more`}
-                              </button>
-                            {/if}
-                          </div>
-                        {/if}
-
-                        <!-- Related Decisions -->
-                        {#if detail.related_decisions && detail.related_decisions.length > 0}
-                          <div class="detail-section">
-                            <div class="detail-label">Related Decisions</div>
-                            {#each detail.related_decisions as related}
-                              <div class="related-item">
-                                <span class="outcome-dot {outcomeClass(related.outcome)}"></span>
-                                <span class="related-title">{related.title}</span>
-                                <span class="related-date">{related.date}</span>
-                              </div>
-                            {/each}
-                          </div>
-                        {/if}
-                        <!-- Voice buttons for decisions -->
-                        <div class="voice-actions detail-voice">
-                          {#if identity?.isUnlocked}
-                            <button
-                              class="voice-btn vb-support"
-                              class:active={userStances.get(decision.id) === 'support'}
-                              disabled={votingInProgress.has(decision.id)}
-                              onclick={() => handleVoice(decision.id, 'support')}
-                            >Support</button>
-                            <button
-                              class="voice-btn vb-oppose"
-                              class:active={userStances.get(decision.id) === 'oppose'}
-                              disabled={votingInProgress.has(decision.id)}
-                              onclick={() => handleVoice(decision.id, 'oppose')}
-                            >Oppose</button>
-                            <button
-                              class="voice-btn vb-watch"
-                              class:active={userStances.get(decision.id) === 'watching'}
-                              disabled={votingInProgress.has(decision.id)}
-                              onclick={() => handleVoice(decision.id, 'watching')}
-                            >Watch</button>
-                          {:else if identity}
-                            <span class="voice-locked">Unlock to vote</span>
-                          {/if}
-                        </div>
-                        <div class="ai-action-row">
-                          {#if aiAvailable}
-                            <button
-                              class="ai-action-btn ai-action-ask"
-                              class:active={aiResponses.has(`ask-decision:${decision.id}`)}
-                              disabled={aiResponseLoading.has(`ask-decision:${decision.id}`)}
-                              onclick={() => askAI(`ask-decision:${decision.id}`, composeDecisionContext(decision))}
-                            >
-                              <span class="sparkle">✦</span> {aiResponseLoading.has(`ask-decision:${decision.id}`) ? 'Thinking...' : aiResponses.has(`ask-decision:${decision.id}`) ? 'Hide' : activeProviderName}                            </button>
-                          {/if}
-                          <button class="ai-action-btn ai-action-claude" class:solo={!aiAvailable} onclick={(e: MouseEvent) => openExternalAI('claude', composeDecisionContext(decision), e)}>
-                            Claude <span class="ext-icon">↗</span>
-                          </button>
-                        </div>
-                        {#if aiResponses.has(`ask-decision:${decision.id}`)}
-                          <div class="ai-response">
-                            <div class="ai-response-text prose">{@html renderMarkdown(aiResponses.get(`ask-decision:${decision.id}`) ?? '')}</div>
-                            {#if activeProviderName}<span class="ai-response-provider">via {activeProviderName}</span>{/if}
-                          </div>
-                        {/if}
-                      {:else}
-                        <div class="detail-empty">No details available</div>
-                      {/if}
-                    {/if}
-                  </div>
-                {/if}
+                <CivicDecisionCard
+                  {decision}
+                  expanded={expandedDecisions.has(decision.title)}
+                  detail={decisionDetails.get(decision.title) ?? null}
+                  detailLoading={decisionLoading.has(decision.title)}
+                  voiceCounts={voiceCounts.get(decision.id) ?? null}
+                  userStance={userStances.get(decision.id) ?? null}
+                  votingDisabled={votingInProgress.has(decision.id)}
+                  locked={identity ? !identity.isUnlocked : true}
+                  showVoice={!!identity}
+                  expandedTestimony={expandedTestimony.has(decision.title)}
+                  expandedCouncil={expandedCouncil.has(decision.title)}
+                  {aiAvailable}
+                  {activeProviderName}
+                  decisionAiLoading={aiResponseLoading.has(`ask-decision:${decision.id}`)}
+                  decisionAiHtml={aiResponses.has(`ask-decision:${decision.id}`) ? renderMarkdown(aiResponses.get(`ask-decision:${decision.id}`) ?? '') : ''}
+                  testimonyAiLoading={aiResponseLoading.has(`ask-testimony:${decision.id}`)}
+                  testimonyAiHtml={aiResponses.has(`ask-testimony:${decision.id}`) ? renderMarkdown(aiResponses.get(`ask-testimony:${decision.id}`) ?? '') : ''}
+                  onexpand={() => toggleDecisionDetail(decision.title)}
+                  onvoice={({ entityId, stance }) => handleVoice(entityId, stance)}
+                  onaskdecision={() => askAI(`ask-decision:${decision.id}`, composeDecisionContext(decision))}
+                  onasktestimony={() => { const t = decisionDetails.get(decision.title)?.testimony?.public_comments ?? []; askAI(`ask-testimony:${decision.id}`, composeTestimonySummary(decision, t)); }}
+                  onexternaldecision={(e) => openExternalAI('claude', composeDecisionContext(decision), e)}
+                  onexternaltestimony={(e) => { const t = decisionDetails.get(decision.title)?.testimony?.public_comments ?? []; openExternalAI('claude', composeTestimonySummary(decision, t), e); }}
+                  ontoggletestimony={() => { if (expandedTestimony.has(decision.title)) { expandedTestimony.delete(decision.title); } else { expandedTestimony.add(decision.title); } expandedTestimony = new Set(expandedTestimony); }}
+                  ontogglecouncil={() => { if (expandedCouncil.has(decision.title)) { expandedCouncil.delete(decision.title); } else { expandedCouncil.add(decision.title); } expandedCouncil = new Set(expandedCouncil); }}
+                />
               </div>
             {/each}
           {/if}
@@ -3483,8 +3278,6 @@
     margin-top: 4px;
     line-height: 1.45;
   }
-  .card-why strong { color: #d1d5db; }
-
   .card-top-row {
     display: flex;
     align-items: center;
@@ -3824,8 +3617,6 @@
     text-align: left;
     color: inherit;
   }
-  .decision-toggle:hover .card-title { color: #60a5fa; }
-
   .expand-chevron {
     display: inline-block;
     flex-shrink: 0;

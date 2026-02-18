@@ -72,6 +72,26 @@
     <civic-synthesis-bar id="synth2"></civic-synthesis-bar>
   </div>
 
+  <h2>civic-agenda-item-card</h2>
+
+  <div class="card">
+    <civic-agenda-item-card id="agenda1"></civic-agenda-item-card>
+  </div>
+
+  <div class="card">
+    <civic-agenda-item-card id="agenda2"></civic-agenda-item-card>
+  </div>
+
+  <h2>civic-decision-card</h2>
+
+  <div class="card">
+    <civic-decision-card id="decision1"></civic-decision-card>
+  </div>
+
+  <div class="card">
+    <civic-decision-card id="decision2"></civic-decision-card>
+  </div>
+
   <h2>Event Log</h2>
   <div class="event-log" id="log">Waiting for interactions...</div>
 
@@ -108,6 +128,119 @@
     synth2.support = 8;
     synth2.oppose = 7;
     synth2.neutral = 1;
+
+    // Configure agenda item cards
+    const agenda1 = document.getElementById('agenda1');
+    agenda1.item = {
+      id: 'ai-001',
+      item_number: '7.a',
+      title: 'Zoning Amendment for Mixed-Use Development on 4th Street',
+      description: 'Proposed change from C-2 to MX-3 to allow residential above retail.',
+      why_it_matters: 'This could set a precedent for mixed-use zoning throughout downtown.',
+      meeting_title: 'Planning Commission',
+      meeting_date: '2026-02-25',
+      project_type: 'Land Use',
+      stance_eligible: true,
+      comment_eligible: true,
+    };
+    agenda1.voiceCounts = { support: 8, oppose: 3, watching: 5, attested: 4, unattested: 12 };
+    agenda1.showVoice = true;
+    agenda1.onvoice = (detail) => {
+      agenda1.userStance = detail.stance;
+      logEvent(`Agenda vote: ${detail.stance} on ${detail.entityId}`);
+    };
+
+    const agenda2 = document.getElementById('agenda2');
+    agenda2.item = {
+      id: 'ai-002',
+      item_number: '3.b',
+      title: 'Emergency Water Rate Increase',
+      description: 'Staff recommends 12% rate increase effective March 1 due to infrastructure costs.',
+      why_it_matters: 'Affects all residential water bills. Lower-income residents may need assistance.',
+      meeting_title: 'City Council',
+      meeting_date: '2026-02-28',
+      stance_eligible: true,
+      comment_eligible: false,
+    };
+    agenda2.showVoice = true;
+    agenda2.locked = true;
+
+    // Configure decision cards
+    const dec1 = document.getElementById('decision1');
+    dec1.decision = {
+      id: 'dec-001',
+      title: 'Approve Downtown Parking Structure Bond',
+      outcome: 'approved',
+      outcome_description: 'Approved with conditions for EV charging stations',
+      vote_tally: '4-1',
+      date: '2026-02-10',
+    };
+    dec1.voiceCounts = { support: 15, oppose: 2, watching: 8, total: 25, attested: 10 };
+    dec1.showVoice = true;
+    dec1.onexpand = () => {
+      dec1.expanded = !dec1.expanded;
+      if (dec1.expanded && !dec1.detail) {
+        dec1.detailLoading = true;
+        // Simulate loading detail
+        setTimeout(() => {
+          dec1.detail = {
+            found: true,
+            summary: 'Council approved $12M bond for a 3-story parking structure with 200 EV charging stations.',
+            decision: {
+              id: 'dec-001',
+              title: 'Approve Downtown Parking Structure Bond',
+              outcome: 'approved',
+              outcome_description: 'Approved with conditions for EV charging stations',
+              date: '2026-02-10',
+              body: 'The proposed structure will serve the downtown commercial district...',
+              votes: { Aye: 4, Nay: 1 },
+            },
+            testimony: {
+              public_comments: [
+                { speaker: 'Jane Smith', text: 'This is essential for downtown revitalization. We need more parking options.', start_timestamp: '1:23:45' },
+                { speaker: 'Bob Johnson', text: 'Concerned about the cost to taxpayers. Are there alternative financing options?', start_timestamp: '1:28:10' },
+                { speaker: 'Maria Garcia', text: 'The EV charging requirement is forward-thinking. I support this project.', start_timestamp: '1:31:22' },
+                { speaker: 'Tom Lee', text: 'Traffic impact on nearby residential streets needs to be addressed.', start_timestamp: '1:34:55' },
+              ],
+              council_discussion: [
+                { speaker: 'Mayor Collins', text: 'This addresses a longstanding need identified in the 2024 downtown plan.' },
+                { speaker: 'CM Rivera', text: 'I want to ensure we include adequate bicycle parking as well.' },
+              ],
+            },
+            related_decisions: [
+              { title: 'Downtown Plan 2024 Update', outcome: 'approved', date: '2024-06-15' },
+              { title: 'EV Infrastructure Grant Application', outcome: 'approved', date: '2025-09-20' },
+            ],
+          };
+          dec1.detailLoading = false;
+        }, 800);
+      }
+      logEvent(`Decision ${dec1.expanded ? 'expanded' : 'collapsed'}: ${dec1.decision.title}`);
+    };
+    dec1.onvoice = (detail) => {
+      dec1.userStance = detail.stance;
+      logEvent(`Decision vote: ${detail.stance} on ${detail.entityId}`);
+    };
+    dec1.ontoggletestimony = () => {
+      dec1.expandedTestimony = !dec1.expandedTestimony;
+    };
+    dec1.ontogglecouncil = () => {
+      dec1.expandedCouncil = !dec1.expandedCouncil;
+    };
+
+    const dec2 = document.getElementById('decision2');
+    dec2.decision = {
+      id: 'dec-002',
+      title: 'Deny Short-Term Rental Ordinance Amendment',
+      outcome: 'denied',
+      vote_tally: '2-3',
+      date: '2026-02-03',
+    };
+    dec2.voiceCounts = { support: 3, oppose: 22, watching: 5, total: 30, attested: 18 };
+    dec2.onexpand = () => {
+      dec2.expanded = !dec2.expanded;
+      logEvent(`Decision ${dec2.expanded ? 'expanded' : 'collapsed'}: ${dec2.decision.title}`);
+    };
 
     // Event logging
     const logEl = document.getElementById('log');
