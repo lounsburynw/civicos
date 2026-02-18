@@ -1,21 +1,20 @@
 # Daily Database Backup for Civic Platform
 #
-# Runs daily at 2:00 AM UTC (6:00 PM Pacific / 9:00 PM Eastern)
-# Backs up both SQLite databases with checksums and applies retention policy
+# DISABLED: Project migrated from Fly.io to Modal + Supabase.
+# Supabase provides automatic daily backups on paid plans.
+# Manual backups available via /db-backup slash command.
 #
-# Prerequisites:
-#   - FLY_API_TOKEN secret configured in repository settings
-#   - Fly.io CLI installed in workflow
-#   - civic-api app deployed on Fly.io
+# Original: Ran daily at 2:00 AM UTC via Fly.io SSH.
+# Disabled: 2026-02-17
 
 name: Daily Backup
 
 on:
-  schedule:
-    # Run daily at 2:00 AM UTC (6:00 PM Pacific)
-    - cron: '0 2 * * *'
+  # Disabled - Supabase handles backups natively
+  # schedule:
+  #   - cron: '0 2 * * *'
 
-  # Allow manual trigger for testing
+  # Allow manual trigger for testing (will fail - kept for reference)
   workflow_dispatch:
 
 env:
