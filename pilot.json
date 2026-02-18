@@ -4433,8 +4433,8 @@
         "description": "Extract platform-agnostic TypeScript client SDK (packages/civicos-client/) from browser extension src/lib/. Enables multiple UX surfaces (web app, MCP App iframe, other extensions) to share civic coordination logic.",
         "rationale": "Extension src/lib/ is 80% platform-agnostic. Chrome coupling concentrated in ~15 call sites across 4 files. All six business flows (voice, comment, commit, complete, withdraw, initiative) follow identical structure extractable behind Signer and StorageAdapter interfaces.",
         "interfaces": [
-          "Signer: sign(event) → SignedNostrEvent, signMessage(msg) → {public_key, signature, created_at}, isUnlocked() → boolean",
-          "StorageAdapter: get(key) → any, set(key, value) → void, remove(key) → void"
+          "Signer: sign(event) \u2192 SignedNostrEvent, signMessage(msg) \u2192 {public_key, signature, created_at}, isUnlocked() \u2192 boolean",
+          "StorageAdapter: get(key) \u2192 any, set(key, value) \u2192 void, remove(key) \u2192 void"
         ],
         "files_to_move": [
           "lib/types.ts (verbatim)",
@@ -4461,7 +4461,10 @@
         "type_mismatch": "Extension NostrEvent has pubkey?: string (optional). loom-core UnsignedEvent has pubkey: string (required). Signer should accept pubkey-optional and derive internally.",
         "depends_on": [
           "extension_connected_services_redesign"
-        ]
+        ],
+        "note": "Phase 1 (StorageAdapter, types, RegistryClient, ApiClient) and Phase 2 (Signer interface, event helpers, ExtensionSigner, cast* methods, SidePanel simplified) complete. Remaining: AI layer extraction, business operations extraction, second surface proof.",
+        "artifact": "packages/civicos-client/",
+        "test_file": "cd packages/civicos-client && npm run build && cd ../../apps/civicos-extension && npm run build"
       }
     },
     "micropayments": {

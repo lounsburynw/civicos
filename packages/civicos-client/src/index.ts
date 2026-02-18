@@ -1,5 +1,5 @@
 // Interfaces
-export type { StorageAdapter } from './interfaces.js';
+export type { StorageAdapter, Signer, UnsignedCivicEvent, SignedCivicEvent } from './interfaces.js';
 
 // Registry
 export { RegistryClient } from './registry.js';
@@ -41,3 +41,24 @@ export type {
   ContextMetadata,
   ToolResponse,
 } from './types.js';
+
+// Civic events — kinds and construction helpers
+export {
+  CivicEventKinds,
+  createVoiceContent,
+  createVoiceTags,
+  createRevokeContent,
+  createCommentTags,
+  createCommitmentContent,
+  createCommitmentTags,
+  createCompletionContent,
+  createCompletionTags,
+  createWithdrawalContent,
+  createWithdrawalTags,
+  createInitiativeContent,
+  createInitiativeTags,
+  createCivicActionContent,
+  createCivicActionTags,
+  createAttestationContent,
+  createAttestationTags,
+} from './events.js';
