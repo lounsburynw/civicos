@@ -19,6 +19,7 @@ export interface CityPulseData {
   /** Community issue statistics */
   community_pulse: CommunityPulse;
   clerk_email?: string;
+  relay_url?: string;
   error?: string;
 }
 

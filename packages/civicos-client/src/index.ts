@@ -63,6 +63,10 @@ export {
   createAttestationTags,
 } from './events.js';
 
+// Session — high-level orchestration
+export { CivicSession } from './session.js';
+export type { PulseBundle, CommentThread, InitiativeDetail } from './session.js';
+
 // AI — manager, providers, storage, prompts
 export { AIManager } from './ai/manager.js';
 export type { AIProvider, AITier, AICompletionResult, AIProviderConfig, AIPreferences } from './ai/types.js';
