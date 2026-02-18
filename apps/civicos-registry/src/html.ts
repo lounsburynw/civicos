@@ -51,11 +51,13 @@ export async function renderLandingPage(): Promise<Response> {
       const h = healthMap[s.id];
       const latency = h?.response_time_ms != null ? `${h.response_time_ms}ms` : "&mdash;";
       const tools = h?.tools_count != null ? String(h.tools_count) : "&mdash;";
+      const relayLabel = s.relay_endpoint ? `<span style="color:#3fb950">&#9679;</span>` : `<span style="color:#8b949e">&mdash;</span>`;
       return `
       <tr>
         <td>${levelBadge(s.level)}</td>
         <td><strong>${escapeHtml(s.display_name)}</strong><br><code style="font-size:12px;color:#8b949e">${escapeHtml(s.id)}</code></td>
         <td><a href="${escapeHtml(s.mcp_endpoint)}" style="color:#58a6ff">${escapeHtml(s.domain)}/mcp</a></td>
+        <td style="text-align:center">${relayLabel}</td>
         <td>${statusBadge(h)}</td>
         <td style="text-align:center">${tools}</td>
         <td style="text-align:right;color:#8b949e">${latency}</td>
@@ -167,6 +169,7 @@ export async function renderLandingPage(): Promise<Response> {
           <th>Level</th>
           <th>Jurisdiction</th>
           <th>MCP Endpoint</th>
+          <th style="text-align:center">Relay</th>
           <th>Status</th>
           <th style="text-align:center">Tools</th>
           <th style="text-align:right">Latency</th>

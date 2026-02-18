@@ -11,10 +11,23 @@ const RELAY_STORAGE_KEY = 'civicos_relay_url';
 const DEFAULT_API_URL = 'https://san-rafael.civicosproject.org';
 const API_STORAGE_KEY = 'civicos_api_url';
 
+/**
+ * Get the relay URL for the active jurisdiction.
+ * Priority: explicit override > registry lookup > default.
+ */
 export async function getRelayUrl(): Promise<string> {
   try {
+    // 1. Explicit override
     const result = await chrome.storage.local.get(RELAY_STORAGE_KEY);
-    return result[RELAY_STORAGE_KEY] || DEFAULT_RELAY_URL;
+    if (result[RELAY_STORAGE_KEY]) return result[RELAY_STORAGE_KEY];
+
+    // 2. Registry-based lookup
+    const { getRelayEndpoint } = await import('./registry.js');
+    const registryUrl = await getRelayEndpoint();
+    if (registryUrl) return registryUrl;
+
+    // 3. Fallback
+    return DEFAULT_RELAY_URL;
   } catch {
     return DEFAULT_RELAY_URL;
   }

@@ -11,6 +11,10 @@ export interface ServerInfo {
   origin_health_endpoint: string;
   /** Parent jurisdiction IDs (e.g., city -> state -> federal) */
   parent_jurisdictions: string[];
+  /** Relay HTTP endpoint for coordination (voices, subscriptions, actions) */
+  relay_endpoint: string;
+  /** Relay WebSocket endpoint for real-time updates */
+  relay_ws_endpoint: string;
 }
 
 const LEVEL_ORDER: Record<string, number> = {
@@ -34,10 +38,13 @@ function inferLevel(jurisdictionId: string): string {
 export function getServers(): ServerInfo[] {
   const jurisdictions = registryData.jurisdictions as Record<
     string,
-    { domain: string; display_name: string; modal_app_name: string; parent_jurisdictions?: string[]; level?: string }
+    { domain: string; display_name: string; modal_app_name: string; parent_jurisdictions?: string[]; level?: string; relay_endpoint?: string; relay_ws_endpoint?: string }
   >;
 
   const workspace = registryData.modal_workspace;
+  const defaultRelay = (registryData as Record<string, unknown>).relay as { url: string; ws_url?: string } | undefined;
+  const defaultRelayUrl = defaultRelay?.url ?? "";
+  const defaultRelayWsUrl = defaultRelay?.ws_url ?? "";
 
   const servers: ServerInfo[] = Object.entries(jurisdictions).map(
     ([id, config]) => ({
@@ -49,6 +56,8 @@ export function getServers(): ServerInfo[] {
       health_endpoint: `https://${config.domain}/health`,
       origin_health_endpoint: `https://${workspace}--${config.modal_app_name}-mcpserver-mcp-endpoint.modal.run/health`,
       parent_jurisdictions: config.parent_jurisdictions || [],
+      relay_endpoint: config.relay_endpoint || defaultRelayUrl,
+      relay_ws_endpoint: config.relay_ws_endpoint || defaultRelayWsUrl,
     })
   );
 
