@@ -1,3 +1,35 @@
+## Session — 2026-02-17 (Config Validation System)
+
+**Item:** city_onboarding/scaling/turnkey_city_deployment
+**Status:** In progress — config validation with helpful errors complete
+
+### What was done:
+1. **Deployed registry Worker** to Cloudflare — `parent_jurisdictions` now served in API responses
+2. **Built comprehensive config validation** in `jurisdiction_config.py`:
+   - `ValidationIssue` / `ValidationResult` dataclasses with severity levels (error/warning/info)
+   - `validate_jurisdiction_config()` — checks required fields, level-specific rules (city/state/federal), platform-specific rules (ProudCity, Granicus, Legistar, CivicClerk), hierarchy consistency, format validation (URLs, emails, zip codes, state codes), deployment readiness
+   - Every error includes an actionable `suggestion` field telling the operator exactly how to fix it
+   - `format_validation_result()` for structured CLI output
+   - `validate_all_configs()` for batch validation
+3. **Added `civicos-validate` CLI command** — standalone config validation tool
+   - `civicos-validate city-berkeley` — validate single config
+   - `civicos-validate --all` — validate all configs
+   - `--json` and `--errors-only` flags
+4. **Updated `validate_deploy_config()`** in cli.py to use new comprehensive validation
+5. All 4 existing configs pass validation clean, 42 smoke tests pass
+
+### Key files:
+- `packages/civicos/src/civicos/jurisdiction_config.py` — validation logic (~250 lines added)
+- `packages/civicos/src/civicos/cli.py` — `validate_main()` entry point, simplified `validate_deploy_config()`
+- `packages/civicos/pyproject.toml` — registered `civicos-validate` command
+
+### Next steps for turnkey_city_deployment:
+- HUD auto-discovery (FAC client exists, needs integration into onboarding workflow)
+- Onboarding wizard CLI (`civicos-onboard` — platform detection → config generation → validation)
+- Both depend on this validation system being in place
+
+---
+
 ## Session — 2026-02-17 (Multi-Level Jurisdiction Support)
 
 **Item:** city_onboarding/scaling/turnkey_city_deployment
