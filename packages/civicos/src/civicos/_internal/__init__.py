@@ -14,14 +14,6 @@ from civicos._internal.legal import (
     find_relevant_bills,
     find_relevant_programs,
 )
-from civicos._internal.coordination import (
-    run_coordination,
-    get_campaign_state,
-    CoordinationState,
-    run_suggestion_workflow,
-    get_suggestion_state,
-    SuggestionState,
-)
 from civicos._internal.jurisdiction import (
     JurisdictionError,
     normalize_jurisdiction,
@@ -44,14 +36,6 @@ __all__ = [
     "enrich_opportunities_batch",
     "find_relevant_bills",
     "find_relevant_programs",
-    # Coordination
-    "run_coordination",
-    "get_campaign_state",
-    "CoordinationState",
-    # Suggestions
-    "run_suggestion_workflow",
-    "get_suggestion_state",
-    "SuggestionState",
     # Jurisdiction utilities
     "JurisdictionError",
     "normalize_jurisdiction",

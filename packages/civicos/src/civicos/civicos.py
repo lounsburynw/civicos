@@ -22,7 +22,6 @@ Usage:
 
     # AI Orchestration
     c.suggestions()
-    c.coordinate("init_123", "plan_testimony")
     c.report_outcome("item_789", "passed")
 """
 
@@ -52,13 +51,6 @@ except ImportError:
     LEGAL_AVAILABLE = False
     LegalSearch = None
 
-try:
-    from civicos._internal.coordination import run_coordination, get_campaign_state
-    COORDINATION_AVAILABLE = True
-except ImportError:
-    COORDINATION_AVAILABLE = False
-    run_coordination = None
-
 
 # ─────────── RESULT TYPES (imported from types.py) ───────────
 # Re-exported for backward compatibility with existing imports from civicos.civic
@@ -78,7 +70,6 @@ from civicos.types import (
     Preparation,
     ActionDraft,
     Suggestion,
-    CoordinationPlan,
     Outcome,
     BudgetItem,
     BudgetSummary,
@@ -2066,36 +2057,6 @@ IMPORTANT: Start your response with a one-line action description (max 80 chars)
             )
             for s in results
         ]
-
-    def coordinate(self, initiative_id: str, action: str) -> CoordinationPlan:
-        """
-        Request coordination support.
-
-        Uses civicos-coordination LangGraph workflows to help groups
-        take collective action.
-
-        Args:
-            initiative_id: ID of the initiative to coordinate
-            action: Action type ("plan_testimony", "draft_letter", etc.)
-
-        Returns:
-            CoordinationPlan with steps and participants
-        """
-        if not COORDINATION_AVAILABLE:
-            raise ImportError(
-                "civicos-coordination not installed. "
-                "Install with: pip install civicos-coordination"
-            )
-
-        # Use civicos-coordination LangGraph
-        result = run_coordination(self.jurisdiction, initiative_id)
-
-        return CoordinationPlan(
-            action=action,
-            steps=result.get("steps", []),
-            participants=result.get("actors", {}).get("residents", []),
-            deadline=result.get("deadline"),
-        )
 
     def report_outcome(
         self,

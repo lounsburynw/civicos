@@ -17,7 +17,6 @@ Usage:
     c.add_voice("agenda_item", "item_123", "support", "As a cyclist...")
 
     # AI Orchestration
-    c.coordinate("init_123", "plan_testimony")
 """
 
 __version__ = "0.1.0"
@@ -41,7 +40,6 @@ from civicos.types import (
     Preparation,
     ActionDraft,
     Suggestion,
-    CoordinationPlan,
     Outcome,
     BudgetItem,
     BudgetSummary,
@@ -146,7 +144,6 @@ __all__ = [
     "Preparation",
     "ActionDraft",
     "Suggestion",
-    "CoordinationPlan",
     "Outcome",
     "BudgetItem",
     "BudgetSummary",

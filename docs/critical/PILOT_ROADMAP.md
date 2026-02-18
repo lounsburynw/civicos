@@ -27,8 +27,8 @@ Feb 2026+: Scale or Pivot
 
 **Goals**:
 1. ✅ Package consolidation into unified `civic/` package (see FINAL_PACKAGE_ARCHITECTURE.md)
-2. MCP server integration for Claude Desktop / LangGraph
-3. Coordination workflow hardening (detect → discover → route)
+2. MCP server integration for Claude Desktop
+3. Coordination infrastructure (relay protocol, voice casting)
 4. Pilot tooling (resident identification, outreach templates)
 
 **Success Criteria**: When pilot starts in January, zero technical blockers.
@@ -87,7 +87,7 @@ Feb 2026+: Scale or Pivot
 - [x] civic/: Unified package with Civic class
   - StateManager, Legistar/CivicClerk clients
   - Legislative matching, MCP integration
-  - LangGraph coordination workflow
+  - Relay coordination protocol (voice casting, subscriptions)
 
 ### Coordination Infrastructure
 - [x] detect_decision node (scoring logic)

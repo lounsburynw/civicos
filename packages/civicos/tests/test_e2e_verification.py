@@ -6272,7 +6272,6 @@ class TestCodeAuditArchitecture:
 
         # Orchestration methods (AI)
         assert hasattr(CivicOS, 'suggestions'), "Missing suggestions orchestration method"
-        assert hasattr(CivicOS, 'coordinate'), "Missing coordinate orchestration method"
         assert hasattr(CivicOS, 'report_outcome'), "Missing report_outcome orchestration method"
 
     def test_result_types_defined(self):
@@ -6282,7 +6281,7 @@ class TestCodeAuditArchitecture:
         from civicos.civicos import (
             RegulatoryStack, Decision, Meeting, Community,
             Initiative, Voice, Subscription, Preparation,
-            Suggestion, CoordinationPlan, Outcome
+            Suggestion, Outcome
         )
 
         # Query result types
@@ -6299,7 +6298,6 @@ class TestCodeAuditArchitecture:
 
         # Orchestration result types
         assert Suggestion is not None
-        assert CoordinationPlan is not None
         assert Outcome is not None
 
     def test_package_structure_matches_architecture(self):
@@ -6577,13 +6575,12 @@ class TestCodeAuditDependencies:
         dependencies = config['project'].get('dependencies', [])
 
         # Should have very few core dependencies (lean architecture)
-        # Expect: httpx (for HTTP), langgraph (for workflows)
+        # Expect: civicos-config, httpx
         assert len(dependencies) <= 5, f"Too many core dependencies: {dependencies}"
 
         # Verify key dependencies are present
         dep_names = [d.split('>=')[0].split('[')[0] for d in dependencies]
         assert 'httpx' in dep_names, "Missing httpx for HTTP operations"
-        assert 'langgraph' in dep_names, "Missing langgraph for workflows"
 
     def test_optional_dependencies_categorized(self):
         """
