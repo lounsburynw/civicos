@@ -33,10 +33,9 @@
   },
 
   "relay": {
-    "url": "https://civicos--civicos-relay-relayserver-relay-endpoint.modal.run",
-    "ws_url": "wss://civicos--civicos-relay-relayserver-relay-endpoint.modal.run",
     "modal_app_name": "civicos-relay",
-    "description": "Default relay for all jurisdictions. Override per-jurisdiction with relay_endpoint."
+    "modal_origin": "https://civicos--civicos-relay-relayserver-relay-endpoint.modal.run",
+    "description": "Default relay for all jurisdictions. Relay endpoint is derived from jurisdiction domain: https://{domain}/relay. Cloudflare routes /relay to the Modal origin."
   },
 
   "local_dev": {
