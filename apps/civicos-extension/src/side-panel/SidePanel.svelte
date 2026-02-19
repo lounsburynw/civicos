@@ -2,7 +2,7 @@
   import { sendMessage } from '../lib/messaging.js';
   import { api, registry } from '../lib/client.js';
   import { CivicSession } from '@civicos/client';
-  import type { CityPulseData, DecisionDetailData, DataProvenance, VoiceCounts, Initiative, CivicAction, CivicActionProgress, IssuePoint, BudgetCategory, Comment, CommentCounts, CommentSynthesis, RegistryServer } from '@civicos/client';
+  import type { CityPulseData, DecisionDetailData, DataProvenance, VoiceCounts, Initiative, CivicAction, CivicActionProgress, IssuePoint, BudgetCategory, CommentCounts, CommentSynthesis, RegistryServer } from '@civicos/client';
   import { isAIAvailable, getAIManager, onAIConfigChanged } from '../lib/ai.js';
   import type { IdentityInfo } from '../lib/providers/types.js';
   import 'leaflet/dist/leaflet.css';
@@ -11,12 +11,9 @@
   import { marked } from 'marked';
   import DOMPurify from 'dompurify';
   // Reusable components from @civicos/components
-  import CivicVoiceButtons from '@civicos/components/src/components/CivicVoiceButtons.svelte';
-  import CivicSynthesisBar from '@civicos/components/src/components/CivicSynthesisBar.svelte';
-  import CivicAgendaItemCard from '@civicos/components/src/components/CivicAgendaItemCard.svelte';
   import CivicDecisionCard from '@civicos/components/src/components/CivicDecisionCard.svelte';
   import CivicInitiativeCard from '@civicos/components/src/components/CivicInitiativeCard.svelte';
-  import CivicCommentThread from '@civicos/components/src/components/CivicCommentThread.svelte';
+  import CivicAgendaView from '@civicos/components/src/components/CivicAgendaView.svelte';
 
   Chart.register(DoughnutController, ArcElement, Tooltip, Legend);
 
@@ -75,21 +72,13 @@
   // Attestation state
   let hasAttestation = $state(false);
 
-  // Comment thread state
+  // Comment counts & synthesis (loaded in bulk, shared with CivicAgendaView)
   let commentCounts = $state(new Map<string, CommentCounts>());
-  let openThreads = $state(new Set<string>());
-  let threadComments = $state(new Map<string, Comment[]>());
-  let threadDrafts = $state(new Map<string, string>());
-  let threadSubmitting = $state(new Set<string>());
-  let threadLoading = $state(new Set<string>());
-  let threadErrors = $state(new Map<string, string>());
   let synthData = $state(new Map<string, CommentSynthesis>());
 
-  // AI drafting state
+  // AI state (shared across sections — decisions, initiatives)
   let aiAvailable = $state(false);
   let activeProviderName = $state('');
-  let draftingInProgress = $state(new Set<string>());
-  let enrichingInProgress = $state(new Set<string>());
 
   // Ask AI inline response state
   let aiResponses = $state(new Map<string, string>());
@@ -402,101 +391,6 @@
       for (const [id, s] of newSynths) synthData.set(id, s);
       synthData = new Map(synthData);
     });
-  }
-
-  async function toggleCommentThread(entityId: string) {
-    if (openThreads.has(entityId)) {
-      openThreads.delete(entityId);
-      openThreads = new Set(openThreads);
-      return;
-    }
-    openThreads.add(entityId);
-    openThreads = new Set(openThreads);
-
-    // Fetch comments and synthesis if not already loaded
-    if (!threadComments.has(entityId)) {
-      threadLoading.add(entityId);
-      threadLoading = new Set(threadLoading);
-      try {
-        const thread = await session.loadCommentThread(entityId);
-        threadComments.set(entityId, thread.comments);
-        threadComments = new Map(threadComments);
-        if (thread.synthesis) {
-          synthData.set(entityId, thread.synthesis);
-          synthData = new Map(synthData);
-        }
-        // Pre-fill draft with user's existing comment for editing
-        if (identity?.publicKey) {
-          const mine = thread.comments.find(c => c.public_key === identity!.publicKey);
-          if (mine && !threadDrafts.has(entityId)) {
-            threadDrafts.set(entityId, mine.comment_text);
-            threadDrafts = new Map(threadDrafts);
-          }
-        }
-      } catch {
-        threadErrors.set(entityId, 'Failed to load comments');
-        threadErrors = new Map(threadErrors);
-      }
-      threadLoading.delete(entityId);
-      threadLoading = new Set(threadLoading);
-    }
-  }
-
-  async function handleSubmitComment(entityId: string) {
-    const draft = (threadDrafts.get(entityId) || '').trim();
-    if (!draft || !identity?.isUnlocked) return;
-
-    threadSubmitting.add(entityId);
-    threadSubmitting = new Set(threadSubmitting);
-    threadErrors.delete(entityId);
-    threadErrors = new Map(threadErrors);
-
-    try {
-      const userStance = userStances.get(entityId);
-      const ok = await api.castComment(entityId, draft, activeJurisdiction, userStance);
-
-      if (ok) {
-        // Optimistic update: replace existing or prepend new
-        const pubkey = identity?.publicKey || '';
-        const newComment: Comment = {
-          entity: entityId,
-          comment_text: draft,
-          public_key: pubkey,
-          signature: '',
-          timestamp: new Date().toISOString(),
-          jurisdiction: activeJurisdiction,
-          stance: userStance,
-          deleted: false,
-        };
-        const existing = threadComments.get(entityId) || [];
-        const existingIdx = existing.findIndex(c => c.public_key === pubkey);
-        if (existingIdx >= 0) {
-          // Update in place (server upserts — 1 comment per user per entity)
-          existing[existingIdx] = newComment;
-          threadComments.set(entityId, [...existing]);
-        } else {
-          threadComments.set(entityId, [newComment, ...existing]);
-          // Only increment count for genuinely new comments
-          const prev = commentCounts.get(entityId) || { entity: entityId, count: 0 };
-          commentCounts.set(entityId, { ...prev, count: prev.count + 1 });
-          commentCounts = new Map(commentCounts);
-        }
-        threadComments = new Map(threadComments);
-
-        // Clear draft
-        threadDrafts.delete(entityId);
-        threadDrafts = new Map(threadDrafts);
-      } else {
-        threadErrors.set(entityId, 'Failed to submit comment');
-        threadErrors = new Map(threadErrors);
-      }
-    } catch {
-      threadErrors.set(entityId, 'Error submitting comment');
-      threadErrors = new Map(threadErrors);
-    }
-
-    threadSubmitting.delete(entityId);
-    threadSubmitting = new Set(threadSubmitting);
   }
 
   async function toggleDecisionDetail(title: string) {
@@ -919,7 +813,6 @@
     const lines: string[] = [];
     const counts = voiceCounts.get(entityId);
     const synth = synthData.get(entityId);
-    const comments = threadComments.get(entityId);
 
     if (counts && counts.total > 0) {
       lines.push('', '--- Community Sentiment ---');
@@ -931,41 +824,7 @@
     if (synth && synth.total > 0) {
       lines.push(`Public comments: ${synth.total} total (${synth.support} supportive, ${synth.oppose} opposed, ${synth.neutral} neutral)`);
     }
-    if (comments && comments.length > 0) {
-      const visible = comments.filter(c => !c.deleted);
-      if (visible.length > 0) {
-        lines.push('', 'Resident comments:');
-        for (const c of visible.slice(0, 8)) {
-          const stanceTag = c.stance ? ` [${c.stance}]` : '';
-          lines.push(`- "${c.comment_text}"${stanceTag}`);
-        }
-        if (visible.length > 8) lines.push(`... and ${visible.length - 8} more comments`);
-      }
-    }
     return lines;
-  }
-
-  function composeAgendaContext(item: import('../lib/types.js').PulseAgendaItem): string {
-    const lines = [
-      `I'd like to understand this civic agenda item from ${pulseData?.jurisdiction || 'my city'}:`,
-      '',
-      `**${item.title}**`,
-      `Meeting: ${item.meeting_title} (${item.meeting_date})`,
-    ];
-    if (item.item_number) lines.push(`Item #${item.item_number}`);
-    if (item.project_type) lines.push(`Type: ${item.project_type}`);
-    if (item.description) lines.push('', item.description);
-    if (item.why_it_matters) lines.push('', `Why it matters: ${item.why_it_matters}`);
-    lines.push(...composeSentimentBlock(`agenda-item:${item.id}`));
-    lines.push('', 'What are the key implications for residents? If community sentiment data is available, summarize what residents are saying and the key themes. What questions should I ask at the public hearing?');
-    return lines.join('\n');
-  }
-
-  function getMailtoLink(item: import('../lib/types.js').PulseAgendaItem): string {
-    if (!pulseData?.clerk_email) return '';
-    const subject = `Public Comment - Item ${item.item_number}: ${item.title} - ${item.meeting_title} ${item.meeting_date}`;
-    const body = `[Paste your drafted comment here]\n\nRegarding: ${item.title}\nMeeting: ${item.meeting_title}, ${item.meeting_date}\nItem: ${item.item_number}`;
-    return `mailto:${encodeURIComponent(pulseData.clerk_email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   }
 
   function composeDecisionContext(decision: import('../lib/types.js').PulseOutcome): string {
@@ -1020,30 +879,6 @@
     lines.push('1. A concise summary of the key themes and concerns raised');
     lines.push('2. Points of agreement and disagreement among speakers');
     lines.push('3. Any action items or follow-ups mentioned');
-    return lines.join('\n');
-  }
-
-  function composeThreadSummary(item: import('../lib/types.js').PulseAgendaItem, entityId: string): string {
-    const comments = threadComments.get(entityId) || [];
-    const lines = [
-      `Summarize the public comment thread for **${item.meeting_title}** (${item.meeting_date}), Agenda Item ${item.item_number}: ${item.title}.`,
-      '',
-    ];
-    const vc = voiceCounts.get(entityId);
-    if (vc) {
-      const total = (vc.support || 0) + (vc.oppose || 0) + (vc.watching || 0);
-      let sentimentLine = `**Community sentiment:** ${total} voices — ${vc.support || 0} support, ${vc.oppose || 0} oppose, ${vc.watching || 0} watching`;
-      if (vc.attested != null && vc.attested > 0) {
-        sentimentLine += ` (${vc.attested} attested)`;
-      }
-      lines.push(sentimentLine, '');
-    }
-    lines.push(`**${comments.length} public comment${comments.length !== 1 ? 's' : ''}:**`);
-    for (const c of comments) {
-      const stance = c.stance ? ` [${c.stance}]` : '';
-      lines.push(`- "${c.comment_text}"${stance}`);
-    }
-    lines.push('', 'Analyze these comments:', '1. What are the 2-3 key themes or concerns raised?', '2. Are there notable points of agreement or disagreement?', '3. What are the strongest arguments on each side?', '', 'Be concise. Use bullet points.');
     return lines.join('\n');
   }
 
@@ -1156,84 +991,6 @@
 
     aiResponseLoading.delete(key);
     aiResponseLoading = new Set(aiResponseLoading);
-  }
-
-  // === AI Drafting ===
-
-  async function handleDraftWithAI(entityId: string, item: import('../lib/types.js').PulseAgendaItem) {
-    draftingInProgress.add(entityId);
-    draftingInProgress = new Set(draftingInProgress);
-
-    try {
-      const stance = userStances.get(entityId);
-      const counts = voiceCounts.get(entityId);
-      const draft = await session.draftComment(item, stance, counts);
-
-      if (!draft) {
-        showToast('AI drafting failed');
-        draftingInProgress.delete(entityId);
-        draftingInProgress = new Set(draftingInProgress);
-        return;
-      }
-
-      threadDrafts.set(entityId, draft);
-      threadDrafts = new Map(threadDrafts);
-
-      // Open the thread if not already open
-      if (!openThreads.has(entityId)) {
-        openThreads.add(entityId);
-        openThreads = new Set(openThreads);
-        // Load comments if not already loaded
-        if (!threadComments.has(entityId)) {
-          threadLoading.add(entityId);
-          threadLoading = new Set(threadLoading);
-          try {
-            const thread = await session.loadCommentThread(entityId);
-            threadComments.set(entityId, thread.comments);
-            threadComments = new Map(threadComments);
-            if (thread.synthesis) {
-              synthData.set(entityId, thread.synthesis);
-              synthData = new Map(synthData);
-            }
-          } catch {
-            // Non-critical — draft is already in textarea
-          }
-          threadLoading.delete(entityId);
-          threadLoading = new Set(threadLoading);
-        }
-      }
-    } catch {
-      showToast('AI drafting failed — try again');
-    }
-
-    draftingInProgress.delete(entityId);
-    draftingInProgress = new Set(draftingInProgress);
-  }
-
-  async function handleEnrichDraft(entityId: string, item: import('../lib/types.js').PulseAgendaItem) {
-    const draft = (threadDrafts.get(entityId) || '').trim();
-    if (!draft) return;
-
-    enrichingInProgress.add(entityId);
-    enrichingInProgress = new Set(enrichingInProgress);
-
-    try {
-      const enriched = await session.enrichDraft(draft, item.id);
-      if (!enriched) {
-        showToast('Enrichment failed');
-        enrichingInProgress.delete(entityId);
-        enrichingInProgress = new Set(enrichingInProgress);
-        return;
-      }
-
-      threadDrafts.set(entityId, enriched);
-      threadDrafts = new Map(threadDrafts);
-    } catch {
-      showToast('Enrichment failed — server may be unavailable');
-    }
-
-    enrichingInProgress.delete(entityId);
-    enrichingInProgress = new Set(enrichingInProgress);
   }
 
   async function loadStances() {
@@ -2032,80 +1789,26 @@
         </button>
         {#if expanded.items}
           <div class="section-body">
-            {#each pulseData.upcoming_items as item}
-              <div class="card item-card">
-                <CivicAgendaItemCard
-                  {item}
-                  voiceCounts={voiceCounts.get(`agenda-item:${item.id}`) ?? null}
-                  userStance={userStances.get(`agenda-item:${item.id}`) ?? null}
-                  votingDisabled={votingInProgress.has(`agenda-item:${item.id}`)}
-                  locked={identity ? !identity.isUnlocked : true}
-                  showVoice={item.stance_eligible && !!identity}
-                  onvoice={({ entityId, stance }) => handleVoice(entityId, stance)}
-                />
-                <!-- Comment Thread -->
-                {#if item.comment_eligible}
-                  {@const commentEntityId = `agenda-item:${item.id}`}
-                  <CivicCommentThread
-                    entityId={commentEntityId}
-                    commentCount={commentCounts.get(commentEntityId)?.count || 0}
-                    attestedCount={commentCounts.get(commentEntityId)?.attested ?? 0}
-                    comments={threadComments.get(commentEntityId) || []}
-                    synthesis={synthData.get(commentEntityId) ?? null}
-                    expanded={openThreads.has(commentEntityId)}
-                    loading={threadLoading.has(commentEntityId)}
-                    submitting={threadSubmitting.has(commentEntityId)}
-                    error={threadErrors.get(commentEntityId) || ''}
-                    draft={threadDrafts.get(commentEntityId) || ''}
-                    userPublicKey={identity?.publicKey || ''}
-                    isUnlocked={identity?.isUnlocked ?? false}
-                    hasIdentity={!!identity}
-                    {aiAvailable}
-                    {activeProviderName}
-                    draftLoading={draftingInProgress.has(commentEntityId)}
-                    enrichLoading={enrichingInProgress.has(commentEntityId)}
-                    summarizeLoading={aiResponseLoading.has(`summarize-thread:${commentEntityId}`)}
-                    summaryHtml={renderMarkdown(aiResponses.get(`summarize-thread:${commentEntityId}`) ?? '')}
-                    showSummary={aiResponses.has(`summarize-thread:${commentEntityId}`)}
-                    clerkEmail={pulseData?.clerk_email || ''}
-                    mailtoHref={pulseData?.clerk_email ? getMailtoLink(item) : ''}
-                    ontoggle={() => toggleCommentThread(commentEntityId)}
-                    onsubmit={() => handleSubmitComment(commentEntityId)}
-                    ondraftchange={({ text }) => { threadDrafts.set(commentEntityId, text); threadDrafts = new Map(threadDrafts); }}
-                    ondraft={() => handleDraftWithAI(commentEntityId, item)}
-                    onenrich={() => handleEnrichDraft(commentEntityId, item)}
-                    onsummarize={() => askAI(`summarize-thread:${commentEntityId}`, composeThreadSummary(item, commentEntityId))}
-                  />
-                {/if}
-
-                {#if aiAvailable && identity?.isUnlocked && item.comment_eligible && !openThreads.has(`agenda-item:${item.id}`)}
-                  <button class="draft-btn draft-btn-standalone" onclick={() => handleDraftWithAI(`agenda-item:${item.id}`, item)} disabled={draftingInProgress.has(`agenda-item:${item.id}`)} title={activeProviderName ? `via ${activeProviderName}` : ''}>
-                    {draftingInProgress.has(`agenda-item:${item.id}`) ? 'Drafting...' : 'Draft with AI'}
-                  </button>
-                {/if}
-
-                <div class="ai-action-row">
-                  {#if aiAvailable}
-                    <button
-                      class="ai-action-btn ai-action-ask"
-                      class:active={aiResponses.has(`ask-agenda:${item.id}`)}
-                      disabled={aiResponseLoading.has(`ask-agenda:${item.id}`)}
-                      onclick={() => askAI(`ask-agenda:${item.id}`, composeAgendaContext(item))}
-                    >
-                      <span class="sparkle">✦</span> {aiResponseLoading.has(`ask-agenda:${item.id}`) ? 'Thinking...' : aiResponses.has(`ask-agenda:${item.id}`) ? 'Hide' : activeProviderName}                    </button>
-                  {/if}
-                  <button class="ai-action-btn ai-action-claude" class:solo={!aiAvailable} onclick={(e: MouseEvent) => openExternalAI('claude', composeAgendaContext(item), e)}>
-                    Claude <span class="ext-icon">↗</span>
-                  </button>
-                </div>
-                {#if aiResponses.has(`ask-agenda:${item.id}`)}
-                  <div class="ai-response">
-                    <div class="ai-response-text prose">{@html renderMarkdown(aiResponses.get(`ask-agenda:${item.id}`) ?? '')}</div>
-                    {#if activeProviderName}<span class="ai-response-provider">via {activeProviderName}</span>{/if}
-                  </div>
-                {/if}
-              </div>
-            {/each}
+            <CivicAgendaView
+              items={pulseData.upcoming_items}
+              {voiceCounts}
+              {userStances}
+              {votingInProgress}
+              {commentCounts}
+              {synthData}
+              {identity}
+              {aiAvailable}
+              {activeProviderName}
+              jurisdiction={activeJurisdiction}
+              clerkEmail={pulseData?.clerk_email || ''}
+              {session}
+              {api}
+              {renderMarkdown}
+              onvoice={({ entityId, stance }) => handleVoice(entityId, stance)}
+              onopenexternalai={({ context, event }) => openExternalAI('claude', context, event)}
+              ontoast={(message) => showToast(message)}
+              oncommentcountchange={(entityId, counts) => { commentCounts.set(entityId, counts); commentCounts = new Map(commentCounts); }}
+            />
           </div>
         {/if}
       </section>
@@ -4080,53 +3783,6 @@
     align-items: center;
     margin-bottom: 4px;
   }
-  /* === AI Action Row (Ask AI + Claude peer buttons) === */
-  .ai-action-row {
-    display: flex;
-    gap: 6px;
-    margin-top: 8px;
-  }
-  .ai-action-btn {
-    flex: 1;
-    padding: 5px 0;
-    font-size: 11px;
-    font-weight: 500;
-    border-radius: 6px;
-    cursor: pointer;
-    transition: all 0.15s ease;
-    text-align: center;
-  }
-  .ai-action-ask {
-    color: #60a5fa;
-    background: rgba(59,130,246,0.06);
-    border: 1px solid #3b82f630;
-  }
-  .ai-action-ask:hover:not(:disabled) {
-    background: rgba(59,130,246,0.14);
-    border-color: #3b82f6;
-    color: #93c5fd;
-  }
-  .ai-action-ask:disabled { opacity: 0.6; cursor: default; }
-  .ai-action-ask.active {
-    background: rgba(59,130,246,0.12);
-    border-color: #3b82f6;
-  }
-  .ai-action-claude {
-    color: #d4a574;
-    background: rgba(212,165,116,0.06);
-    border: 1px solid #d4a57430;
-  }
-  .ai-action-claude:hover {
-    background: rgba(212,165,116,0.14);
-    border-color: #d4a574;
-    color: #e8c9a0;
-  }
-  .ai-action-claude.solo {
-    flex: 1;
-  }
-  .sparkle { font-size: 10px; opacity: 0.7; }
-  .ext-icon { font-size: 9px; }
-
   /* === Connector Setup Banner === */
   .connector-banner {
     display: flex;
@@ -4181,64 +3837,6 @@
     align-self: flex-start;
   }
   .connector-banner-close:hover { color: #d1d5db; }
-
-  /* === AI Inline Response === */
-  .ai-response {
-    margin-top: 8px;
-    padding: 10px 12px;
-    background: rgba(139, 92, 246, 0.06);
-    border: 1px solid rgba(139, 92, 246, 0.15);
-    border-radius: 8px;
-  }
-  .ai-response-text {
-    font-size: 12px;
-    color: #d1d5db;
-    line-height: 1.5;
-  }
-  .ai-response-text.prose :global(p) { margin: 0 0 8px; }
-  .ai-response-text.prose :global(p:last-child) { margin-bottom: 0; }
-  .ai-response-text.prose :global(strong) { color: #e5e7eb; font-weight: 600; }
-  .ai-response-text.prose :global(em) { color: #c4b5fd; }
-  .ai-response-text.prose :global(ul), .ai-response-text.prose :global(ol) {
-    margin: 4px 0 8px;
-    padding-left: 18px;
-  }
-  .ai-response-text.prose :global(li) { margin-bottom: 2px; }
-  .ai-response-text.prose :global(code) {
-    font-size: 11px;
-    background: rgba(255,255,255,0.06);
-    padding: 1px 4px;
-    border-radius: 3px;
-    color: #e2e8f0;
-  }
-  .ai-response-text.prose :global(h1), .ai-response-text.prose :global(h2),
-  .ai-response-text.prose :global(h3), .ai-response-text.prose :global(h4) {
-    font-size: 12px;
-    font-weight: 600;
-    color: #e5e7eb;
-    margin: 8px 0 4px;
-  }
-  .ai-response-text.prose :global(h1:first-child), .ai-response-text.prose :global(h2:first-child),
-  .ai-response-text.prose :global(h3:first-child), .ai-response-text.prose :global(h4:first-child) {
-    margin-top: 0;
-  }
-  .ai-response-text.prose :global(blockquote) {
-    margin: 4px 0;
-    padding: 4px 10px;
-    border-left: 2px solid rgba(139, 92, 246, 0.3);
-    color: #a1a1aa;
-  }
-  .ai-response-text.prose :global(a) {
-    color: #60a5fa;
-    text-decoration: none;
-  }
-  .ai-response-text.prose :global(a:hover) { text-decoration: underline; }
-  .ai-response-provider {
-    display: block;
-    margin-top: 6px;
-    font-size: 10px;
-    color: #64748b;
-  }
 
   /* === Clipboard Toast (positioned near click) === */
   .clipboard-toast {
@@ -4884,29 +4482,6 @@
     display: flex;
     gap: 6px;
     margin-bottom: 6px;
-  }
-  .draft-btn {
-    font-size: 11px;
-    font-weight: 500;
-    padding: 4px 10px;
-    background: rgba(139, 92, 246, 0.1);
-    color: #a78bfa;
-    border: 1px solid rgba(139, 92, 246, 0.25);
-    border-radius: 6px;
-    cursor: pointer;
-    transition: all 0.15s ease;
-  }
-  .draft-btn:hover:not(:disabled) {
-    background: rgba(139, 92, 246, 0.2);
-    border-color: #a78bfa;
-  }
-  .draft-btn:disabled { opacity: 0.5; cursor: default; }
-  .draft-btn-standalone {
-    display: block;
-    width: 100%;
-    margin-top: 6px;
-    padding: 5px 0;
-    text-align: center;
   }
   .enrich-btn {
     font-size: 11px;
