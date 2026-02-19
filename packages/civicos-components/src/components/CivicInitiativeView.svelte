@@ -1,0 +1,1224 @@
+<script lang="ts">
+  import CivicInitiativeCard from './CivicInitiativeCard.svelte';
+
+  // Local type declarations (mirrors @civicos/client types)
+  interface Initiative {
+    id: string;
+    topic: string;
+    title: string;
+    description: string;
+    coordination_url?: string;
+    voice_count: number;
+    creator_attested?: boolean;
+    attested_voice_count?: number;
+  }
+
+  interface CivicAction {
+    id: string;
+    action_type: string;
+    description: string;
+    target?: string;
+    deadline?: string;
+    template?: string;
+  }
+
+  interface CivicActionProgress {
+    commitment_count: number;
+    completion_count: number;
+    target_count?: number;
+    progress_percent?: number;
+  }
+
+  // --- Props (shared state from parent) ---
+
+  let {
+    api = null as any,
+    session = null as any,
+    identity = null as { publicKey: string; isUnlocked?: boolean } | null,
+    jurisdiction = '',
+    // Callbacks to parent
+    ontoast = undefined as ((message: string) => void) | undefined,
+    onunlock = undefined as ((password: string) => Promise<boolean>) | undefined,
+  } = $props();
+
+  // --- Internal state ---
+
+  // Initiative data
+  let initiatives: Initiative[] = $state([]);
+  let initiativesLoading = $state(false);
+  let expandedInitiatives = $state(new Set<string>());
+  let initiativeActions = $state(new Map<string, CivicAction[]>());
+  let actionProgress = $state(new Map<string, CivicActionProgress>());
+  let actionsLoading = $state(new Set<string>());
+
+  // AI draft state (create form)
+  let formDraftLoading = $state(false);
+
+  // Commitment tracking (persisted via chrome.storage)
+  let committedActions = $state(new Set<string>());
+  let completedActions = $state(new Set<string>());
+  let actionInProgress = $state(new Set<string>());
+  let committedActionMeta = $state(new Map<string, { action_type: string; description: string; deadline?: string }>());
+  const COMMITMENTS_STORAGE_KEY = 'civicos_user_commitments';
+  const COMPLETIONS_STORAGE_KEY = 'civicos_user_completions';
+  const COMMITMENT_META_STORAGE_KEY = 'civicos_commitment_meta';
+
+  // Section expand state (owned)
+  let initiativesExpanded = $state(true);
+  let commitmentsExpanded = $state(true);
+
+  // Inline unlock (within create forms)
+  let unlockPassword = $state('');
+  let unlocking = $state(false);
+  let unlockError: string | null = $state(null);
+
+  // Create initiative form
+  let showCreateInitiative = $state(false);
+  let newInitiative = $state({ topic: '', title: '', description: '', coordination_url: '' });
+  let creatingInitiative = $state(false);
+  let customTopic = $state('');
+  const INITIATIVE_TOPICS = ['Traffic Safety', 'Housing', 'Parks', 'Budget', 'Environment', 'Public Safety', 'Infrastructure', 'Education'];
+
+  function selectTopic(t: string) {
+    if (newInitiative.topic === t) {
+      newInitiative.topic = '';
+    } else {
+      newInitiative.topic = t;
+      customTopic = '';
+    }
+  }
+  function selectCustomTopic() {
+    newInitiative.topic = '__custom__';
+  }
+  function effectiveTopic(): string {
+    return newInitiative.topic === '__custom__' ? customTopic.trim().toLowerCase() : newInitiative.topic.toLowerCase();
+  }
+
+  // Create action form (per initiative)
+  let showCreateAction: string | null = $state(null);
+  let newAction = $state({ action_type: 'written_comment', description: '', target: '', deadline: '', template: '', deadlineContext: '', targetCount: null as number | null });
+  let creatingAction = $state(false);
+
+  // Dynamic config per action type
+  const ACTION_TYPE_CONFIG: Record<string, {
+    descPlaceholder: string;
+    targetLabel: string;
+    targetPlaceholder: string;
+    showTemplate: boolean;
+    templateLabel: string;
+    templatePlaceholder: string;
+    deadlineLabel: string;
+    deadlineContextPlaceholder: string;
+  }> = {
+    written_comment: {
+      descPlaceholder: 'e.g., Submit a written comment opposing the median removal',
+      targetLabel: 'Submission link',
+      targetPlaceholder: 'https://city.gov/comment-form',
+      showTemplate: true,
+      templateLabel: 'Draft text',
+      templatePlaceholder: 'Dear Planning Commission, I urge you to...',
+      deadlineLabel: 'Deadline',
+      deadlineContextPlaceholder: 'e.g., Comment period closes March 1',
+    },
+    attend_meeting: {
+      descPlaceholder: 'e.g., Show up to the City Council meeting to oppose the redesign',
+      targetLabel: 'Meeting location or link',
+      targetPlaceholder: 'City Hall, Council Chambers',
+      showTemplate: true,
+      templateLabel: 'Logistics',
+      templatePlaceholder: 'Meeting at 7pm. Public comment is item 6 (~8pm). Free parking on 5th Ave after 6pm.',
+      deadlineLabel: 'Meeting date',
+      deadlineContextPlaceholder: 'e.g., Council votes at this meeting',
+    },
+    public_comment: {
+      descPlaceholder: 'e.g., Speak during public comment about pedestrian safety',
+      targetLabel: 'Meeting link',
+      targetPlaceholder: 'https://cityofsanrafael.org/city-council-meeting',
+      showTemplate: true,
+      templateLabel: 'Talking points',
+      templatePlaceholder: 'Key points: 1) Safety audit flagged this, 2) Schools nearby, 3) Request traffic calming',
+      deadlineLabel: 'Meeting date',
+      deadlineContextPlaceholder: 'e.g., Public comment heard before the vote',
+    },
+    contact_official: {
+      descPlaceholder: 'e.g., Email Councilmember about the median removal',
+      targetLabel: 'Email or phone',
+      targetPlaceholder: 'council@cityofsanrafael.org',
+      showTemplate: true,
+      templateLabel: 'Draft message',
+      templatePlaceholder: 'Dear Councilmember, I am writing to express my concern about...',
+      deadlineLabel: 'Deadline',
+      deadlineContextPlaceholder: 'e.g., Council votes March 3 — contact them before then',
+    },
+    signature: {
+      descPlaceholder: 'e.g., Sign the petition to preserve pedestrian islands',
+      targetLabel: 'Petition link',
+      targetPlaceholder: 'https://change.org/...',
+      showTemplate: false,
+      templateLabel: '',
+      templatePlaceholder: '',
+      deadlineLabel: 'Deadline',
+      deadlineContextPlaceholder: 'e.g., Petition submitted to Council on March 1',
+    },
+    share: {
+      descPlaceholder: 'e.g., Share the community letter on Nextdoor',
+      targetLabel: 'Link to share',
+      targetPlaceholder: 'https://...',
+      showTemplate: true,
+      templateLabel: 'Suggested post',
+      templatePlaceholder: 'The City wants to remove safety islands. Here\'s what you can do...',
+      deadlineLabel: 'Deadline',
+      deadlineContextPlaceholder: 'e.g., Share before the Council meeting for maximum impact',
+    },
+    custom: {
+      descPlaceholder: 'Describe what people should do',
+      targetLabel: 'Link',
+      targetPlaceholder: 'https://...',
+      showTemplate: true,
+      templateLabel: 'Instructions',
+      templatePlaceholder: 'Step-by-step instructions for this action...',
+      deadlineLabel: 'Deadline',
+      deadlineContextPlaceholder: 'Why does this need to happen by this date?',
+    },
+  };
+  const DEFAULT_ACTION_CONFIG = ACTION_TYPE_CONFIG.custom;
+  const DRAFTABLE_TYPES = new Set(['written_comment', 'public_comment', 'contact_official']);
+
+  // --- Initiative Loading ---
+
+  async function loadInitiatives() {
+    initiativesLoading = true;
+    try {
+      initiatives = await api.getInitiatives(jurisdiction);
+      loadAllActionStats();
+    } catch {
+      initiatives = [];
+    }
+    initiativesLoading = false;
+  }
+
+  async function loadAllActionStats() {
+    const toLoad = initiatives.filter(ini => !initiativeActions.has(ini.id));
+    if (toLoad.length === 0) return;
+    const details = await session.loadAllInitiativeDetails(toLoad);
+    for (const [iniId, detail] of details) {
+      initiativeActions.set(iniId, detail.actions);
+      for (const [actionId, progress] of detail.progress) {
+        actionProgress.set(actionId, progress);
+      }
+    }
+    initiativeActions = new Map(initiativeActions);
+    actionProgress = new Map(actionProgress);
+  }
+
+  async function toggleInitiativeDetail(initiativeId: string) {
+    if (expandedInitiatives.has(initiativeId)) {
+      expandedInitiatives.delete(initiativeId);
+      expandedInitiatives = new Set(expandedInitiatives);
+      return;
+    }
+
+    expandedInitiatives.add(initiativeId);
+    expandedInitiatives = new Set(expandedInitiatives);
+
+    if (!initiativeActions.has(initiativeId)) {
+      actionsLoading.add(initiativeId);
+      actionsLoading = new Set(actionsLoading);
+      try {
+        const detail = await session.loadInitiativeDetail(initiativeId);
+        initiativeActions.set(initiativeId, detail.actions);
+        initiativeActions = new Map(initiativeActions);
+        for (const [actionId, progress] of detail.progress) {
+          actionProgress.set(actionId, progress);
+        }
+        actionProgress = new Map(actionProgress);
+      } catch {
+        initiativeActions.set(initiativeId, []);
+        initiativeActions = new Map(initiativeActions);
+      } finally {
+        actionsLoading.delete(initiativeId);
+        actionsLoading = new Set(actionsLoading);
+      }
+    }
+  }
+
+  // --- Aggregate Stats ---
+
+  function aggregateStats(): { committed: number; completed: number } {
+    let committed = 0, completed = 0;
+    for (const p of actionProgress.values()) {
+      committed += p.commitment_count;
+      completed += p.completion_count;
+    }
+    return { committed, completed };
+  }
+
+  // --- Commitment Persistence ---
+
+  async function loadCommitments() {
+    try {
+      const storage = (globalThis as any).chrome?.storage?.local;
+      if (!storage) return;
+      const result = await storage.get([COMMITMENTS_STORAGE_KEY, COMPLETIONS_STORAGE_KEY, COMMITMENT_META_STORAGE_KEY]);
+      if (result[COMMITMENTS_STORAGE_KEY]) {
+        committedActions = new Set(result[COMMITMENTS_STORAGE_KEY] as string[]);
+      }
+      if (result[COMPLETIONS_STORAGE_KEY]) {
+        completedActions = new Set(result[COMPLETIONS_STORAGE_KEY] as string[]);
+      }
+      if (result[COMMITMENT_META_STORAGE_KEY]) {
+        committedActionMeta = new Map(Object.entries(result[COMMITMENT_META_STORAGE_KEY]) as [string, { action_type: string; description: string; deadline?: string }][]);
+      }
+    } catch {
+      // Ignore load errors
+    }
+  }
+
+  async function persistCommitments() {
+    try {
+      const storage = (globalThis as any).chrome?.storage?.local;
+      if (!storage) return;
+      const metaObj: Record<string, { action_type: string; description: string; deadline?: string }> = {};
+      committedActionMeta.forEach((v, k) => { metaObj[k] = v; });
+      await storage.set({
+        [COMMITMENTS_STORAGE_KEY]: [...committedActions],
+        [COMPLETIONS_STORAGE_KEY]: [...completedActions],
+        [COMMITMENT_META_STORAGE_KEY]: metaObj,
+      });
+    } catch {
+      // Ignore persist errors
+    }
+  }
+
+  // --- Action Handlers ---
+
+  async function handleCommit(action: CivicAction) {
+    if (actionInProgress.has(action.id)) return;
+    if (!identity?.isUnlocked) return;
+
+    actionInProgress.add(action.id);
+    actionInProgress = new Set(actionInProgress);
+
+    try {
+      const ok = await api.castCommitment(action.id, jurisdiction);
+      if (!ok) {
+        ontoast?.('Failed to commit. Relay may be unreachable.');
+        actionInProgress.delete(action.id);
+        actionInProgress = new Set(actionInProgress);
+        return;
+      }
+
+      committedActions.add(action.id);
+      committedActions = new Set(committedActions);
+      committedActionMeta.set(action.id, { action_type: action.action_type, description: action.description, deadline: action.deadline });
+      committedActionMeta = new Map(committedActionMeta);
+      persistCommitments();
+
+      const prev = actionProgress.get(action.id);
+      if (prev) {
+        actionProgress.set(action.id, { ...prev, commitment_count: prev.commitment_count + 1 });
+        actionProgress = new Map(actionProgress);
+      }
+      ontoast?.('Committed!');
+    } catch (err) {
+      ontoast?.(`Error: ${err instanceof Error ? err.message : 'unknown'}`);
+    }
+
+    actionInProgress.delete(action.id);
+    actionInProgress = new Set(actionInProgress);
+  }
+
+  async function handleComplete(action: CivicAction) {
+    if (actionInProgress.has(action.id)) return;
+    if (!identity?.isUnlocked) return;
+
+    actionInProgress.add(action.id);
+    actionInProgress = new Set(actionInProgress);
+
+    try {
+      const ok = await api.castCompletion(action.id, jurisdiction);
+      if (!ok) {
+        ontoast?.('Failed to mark action complete. Relay may be unreachable.');
+        actionInProgress.delete(action.id);
+        actionInProgress = new Set(actionInProgress);
+        return;
+      }
+
+      completedActions.add(action.id);
+      completedActions = new Set(completedActions);
+      persistCommitments();
+
+      const prev = actionProgress.get(action.id);
+      if (prev) {
+        actionProgress.set(action.id, { ...prev, completion_count: prev.completion_count + 1 });
+        actionProgress = new Map(actionProgress);
+      }
+      ontoast?.('Marked complete!');
+    } catch (err) {
+      ontoast?.(`Error: ${err instanceof Error ? err.message : 'unknown'}`);
+    }
+
+    actionInProgress.delete(action.id);
+    actionInProgress = new Set(actionInProgress);
+  }
+
+  async function handleWithdraw(action: CivicAction) {
+    if (actionInProgress.has(action.id)) return;
+    if (!identity?.isUnlocked) return;
+
+    actionInProgress.add(action.id);
+    actionInProgress = new Set(actionInProgress);
+
+    try {
+      const ok = await api.castWithdrawal(action.id);
+      if (!ok) {
+        ontoast?.('Failed to withdraw. Relay may be unreachable.');
+        actionInProgress.delete(action.id);
+        actionInProgress = new Set(actionInProgress);
+        return;
+      }
+
+      committedActions.delete(action.id);
+      committedActions = new Set(committedActions);
+      committedActionMeta.delete(action.id);
+      committedActionMeta = new Map(committedActionMeta);
+      persistCommitments();
+
+      const prev = actionProgress.get(action.id);
+      if (prev) {
+        actionProgress.set(action.id, { ...prev, commitment_count: Math.max(0, prev.commitment_count - 1) });
+        actionProgress = new Map(actionProgress);
+      }
+      ontoast?.('Withdrawn');
+    } catch (err) {
+      ontoast?.(`Error: ${err instanceof Error ? err.message : 'unknown'}`);
+    }
+
+    actionInProgress.delete(action.id);
+    actionInProgress = new Set(actionInProgress);
+  }
+
+  // --- AI Draft Generation ---
+
+  async function handleFormDraft(initiative: Initiative) {
+    if (formDraftLoading) return;
+    formDraftLoading = true;
+    try {
+      const description = newAction.description.trim()
+        || `${initiative.title}: ${initiative.description}`;
+      const result = await api.generateActionDraft(
+        newAction.action_type,
+        initiative.topic,
+        description,
+        newAction.target || undefined,
+        newAction.template || undefined,
+      );
+      if (result) {
+        newAction.template = result.draft;
+        if (result.description && !newAction.description.trim()) {
+          newAction.description = result.description;
+        }
+      } else {
+        ontoast?.('Failed to generate draft');
+      }
+    } catch {
+      ontoast?.('Draft generation error');
+    }
+    formDraftLoading = false;
+  }
+
+  // --- Create Handlers ---
+
+  async function handleCreateInitiative() {
+    if (creatingInitiative || !identity?.isUnlocked) return;
+    const topic = effectiveTopic();
+    if (!topic || !newInitiative.title.trim() || !newInitiative.description.trim()) return;
+
+    creatingInitiative = true;
+    try {
+      const created = await api.castInitiative(
+        jurisdiction,
+        topic,
+        newInitiative.title.trim(),
+        newInitiative.description.trim(),
+        newInitiative.coordination_url.trim() || undefined,
+      );
+      if (created) {
+        initiatives = [created, ...initiatives];
+        showCreateInitiative = false;
+        newInitiative = { topic: '', title: '', description: '', coordination_url: '' };
+        customTopic = '';
+        ontoast?.('Initiative created!');
+      } else {
+        ontoast?.('Failed to create initiative. Relay may be unreachable.');
+      }
+    } catch (err) {
+      ontoast?.(`Error: ${err instanceof Error ? err.message : 'unknown'}`);
+    }
+    creatingInitiative = false;
+  }
+
+  async function handleCreateAction(initiativeId: string) {
+    if (creatingAction || !identity?.isUnlocked) return;
+    if (!newAction.description.trim()) return;
+
+    creatingAction = true;
+    try {
+      const created = await api.castCivicAction(
+        initiativeId,
+        newAction.action_type,
+        newAction.description.trim(),
+        {
+          target: newAction.target.trim() || undefined,
+          deadline: newAction.deadline || undefined,
+          targetCount: newAction.targetCount ?? undefined,
+          template: newAction.template.trim() || undefined,
+          deadlineContext: newAction.deadlineContext.trim() || undefined,
+        },
+      );
+      if (created) {
+        const existing = initiativeActions.get(initiativeId) || [];
+        initiativeActions.set(initiativeId, [...existing, created]);
+        initiativeActions = new Map(initiativeActions);
+        showCreateAction = null;
+        newAction = { action_type: 'written_comment', description: '', target: '', deadline: '', template: '', deadlineContext: '', targetCount: null };
+        ontoast?.('Action created!');
+      } else {
+        ontoast?.('Failed to create action. Relay may be unreachable.');
+      }
+    } catch (err) {
+      ontoast?.(`Error: ${err instanceof Error ? err.message : 'unknown'}`);
+    }
+    creatingAction = false;
+  }
+
+  // --- Inline Unlock ---
+
+  async function handleUnlock() {
+    if (!unlockPassword || !onunlock) return;
+    unlocking = true;
+    unlockError = null;
+    const success = await onunlock(unlockPassword);
+    if (!success) {
+      unlockError = 'Wrong password';
+    }
+    unlockPassword = '';
+    unlocking = false;
+  }
+
+  // --- Deadline Helpers ---
+
+  function deadlineDaysLeft(deadline: string): number {
+    const d = new Date(deadline);
+    const now = new Date();
+    return Math.ceil((d.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+  }
+
+  function deadlineLabel(deadline: string): string {
+    const days = deadlineDaysLeft(deadline);
+    if (days < 0) return 'overdue';
+    if (days === 0) return 'due today';
+    if (days === 1) return 'due tomorrow';
+    return `${days}d left`;
+  }
+
+  function deadlineClass(deadline: string): string {
+    const days = deadlineDaysLeft(deadline);
+    if (days < 0) return 'overdue';
+    if (days <= 3) return 'urgent';
+    return 'normal';
+  }
+
+  function actionTypeLabel(type: string): string {
+    const labels: Record<string, string> = {
+      written_comment: 'Write Comment',
+      attend_meeting: 'Attend Meeting',
+      public_comment: 'Public Comment',
+      contact_official: 'Contact Official',
+      signature: 'Sign Petition',
+      share: 'Share',
+      custom: 'Action',
+    };
+    return labels[type] || type;
+  }
+
+  // --- Calendar Helpers (for My Commitments) ---
+
+  function actionGoogleCalendarUrl(meta: { action_type: string; description: string; deadline?: string }): string {
+    if (!meta.deadline) return '#';
+    const start = new Date(meta.deadline);
+    const end = new Date(start.getTime() + 1 * 60 * 60 * 1000);
+    const fmt = (d: Date) => d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+    const label = actionTypeLabel(meta.action_type);
+    return `https://www.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(`${label}: ${meta.description}`)}&dates=${fmt(start)}/${fmt(end)}`;
+  }
+
+  function downloadActionIcs(meta: { action_type: string; description: string; deadline?: string }) {
+    if (!meta.deadline) return;
+    const start = new Date(meta.deadline);
+    const end = new Date(start.getTime() + 1 * 60 * 60 * 1000);
+    const fmt = (d: Date) => d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+    const label = actionTypeLabel(meta.action_type);
+    const summary = `${label}: ${meta.description}`.slice(0, 100);
+    const ics = `BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//CivicOS//Action Calendar//EN\nBEGIN:VEVENT\nDTSTAMP:${fmt(new Date())}\nDTSTART:${fmt(start)}\nDTEND:${fmt(end)}\nSUMMARY:${summary}\nDESCRIPTION:${meta.description}\nEND:VEVENT\nEND:VCALENDAR`;
+    const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `civicos-action-${meta.action_type}.ics`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  // --- Load on mount ---
+  loadInitiatives();
+  loadCommitments();
+</script>
+
+<!-- Community Initiatives -->
+<section class="feed-section ini">
+  <button class="section-header" onclick={() => { initiativesExpanded = !initiativesExpanded; }}>
+    <span class="section-title">
+      Community Initiatives
+      {#if initiatives.length > 0}
+        <span class="ini-count">{initiatives.length}</span>
+      {/if}
+    </span>
+    <span class="chevron" class:open={initiativesExpanded}></span>
+  </button>
+  {#if initiativesExpanded}
+    <div class="ini-toolbar">
+      <button class="ini-new-btn" onclick={() => { showCreateInitiative = !showCreateInitiative; }}>
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        Start Initiative
+      </button>
+      {#if aggregateStats().committed > 0 || aggregateStats().completed > 0}
+        <div class="ini-aggregate-stats">
+          {#if aggregateStats().committed > 0}<span class="agg-stat">{aggregateStats().committed} committed</span>{/if}
+          {#if aggregateStats().completed > 0}<span class="agg-stat agg-completed">{aggregateStats().completed} completed</span>{/if}
+        </div>
+      {/if}
+    </div>
+    <!-- Create initiative form -->
+    {#if showCreateInitiative}
+      <div class="ini-form">
+        <div class="ini-form-header">
+          <div class="ini-form-title">Start a Community Initiative</div>
+          <button class="ini-form-close" aria-label="Close form" onclick={() => { showCreateInitiative = false; }}>
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+          </button>
+        </div>
+
+        {#if !identity}
+          <div class="ini-hint">Set up identity in Options to sign initiatives.</div>
+        {:else if !identity.isUnlocked && onunlock}
+          <div class="unlock-inline">
+            <form class="unlock-row" onsubmit={(e: Event) => { e.preventDefault(); handleUnlock(); }}>
+              <input type="password" class="ini-input" placeholder="Password to unlock" bind:value={unlockPassword} autocomplete="off" />
+              <button type="submit" class="ini-btn-primary" disabled={unlocking || !unlockPassword}>{unlocking ? 'Unlocking...' : 'Unlock'}</button>
+            </form>
+            {#if unlockError}
+              <div class="ini-error">{unlockError}</div>
+            {/if}
+          </div>
+        {/if}
+
+        <label class="ini-field-label">
+          Topic
+          <div class="ini-topic-chips">
+            {#each INITIATIVE_TOPICS as t}
+              <button class="ini-chip" class:active={newInitiative.topic === t} onclick={() => selectTopic(t)}>{t}</button>
+            {/each}
+            <button class="ini-chip" class:active={newInitiative.topic === '__custom__'} onclick={selectCustomTopic}>Other...</button>
+          </div>
+          {#if newInitiative.topic === '__custom__'}
+            <input type="text" class="ini-input" placeholder="Enter topic" maxlength={50} bind:value={customTopic} />
+          {/if}
+        </label>
+
+        <label class="ini-field-label">
+          Title
+          <input type="text" class="ini-input" placeholder="e.g., Safer crosswalks on 4th Street" maxlength={100} bind:value={newInitiative.title} />
+          <span class="ini-char-hint">{newInitiative.title.length}/100</span>
+        </label>
+
+        <label class="ini-field-label">
+          Description
+          <textarea class="ini-textarea" placeholder="What's the issue? What outcome do you want?" maxlength={1000} rows={3} bind:value={newInitiative.description}></textarea>
+          <span class="ini-char-hint">{newInitiative.description.length}/1000</span>
+        </label>
+
+        <label class="ini-field-label">
+          Coordination Channel <span class="ini-optional">(optional)</span>
+          <input type="url" class="ini-input" placeholder="Signal, SimpleX, Matrix, or Discord link" bind:value={newInitiative.coordination_url} />
+        </label>
+
+        <div class="ini-form-actions">
+          <button class="ini-btn-cancel" onclick={() => { showCreateInitiative = false; }}>Cancel</button>
+          <button class="ini-btn-primary" disabled={!identity?.isUnlocked || creatingInitiative || !effectiveTopic() || !newInitiative.title.trim() || !newInitiative.description.trim()} onclick={handleCreateInitiative}>
+            {creatingInitiative ? 'Creating...' : 'Create Initiative'}
+          </button>
+        </div>
+      </div>
+    {/if}
+
+    <div class="section-body">
+      {#if initiativesLoading && initiatives.length === 0}
+        <div class="ini-empty">Loading initiatives...</div>
+      {:else if initiatives.length === 0 && !showCreateInitiative}
+        <div class="ini-empty">
+          No active initiatives yet.
+          <button class="ini-start-link" onclick={() => { showCreateInitiative = true; }}>Start one</button>
+        </div>
+      {:else}
+        {#each initiatives as initiative}
+          <div class="ini-card" class:ini-card-expanded={expandedInitiatives.has(initiative.id)}>
+            <CivicInitiativeCard
+              {initiative}
+              expanded={expandedInitiatives.has(initiative.id)}
+              actions={initiativeActions.get(initiative.id) ?? []}
+              actionsLoading={actionsLoading.has(initiative.id)}
+              actionProgress={Object.fromEntries(actionProgress)}
+              committedActionIds={[...committedActions]}
+              completedActionIds={[...completedActions]}
+              actionInProgressIds={[...actionInProgress]}
+              isUnlocked={identity?.isUnlocked ?? false}
+              hasIdentity={!!identity}
+              showAddAction={showCreateAction !== initiative.id}
+              ontoggle={() => toggleInitiativeDetail(initiative.id)}
+              oncommit={({ actionId }: { actionId: string }) => {
+                const action = (initiativeActions.get(initiative.id) ?? []).find(a => a.id === actionId);
+                if (action) handleCommit(action);
+              }}
+              oncomplete={({ actionId }: { actionId: string }) => {
+                const action = (initiativeActions.get(initiative.id) ?? []).find(a => a.id === actionId);
+                if (action) handleComplete(action);
+              }}
+              onwithdraw={({ actionId }: { actionId: string }) => {
+                const action = (initiativeActions.get(initiative.id) ?? []).find(a => a.id === actionId);
+                if (action) handleWithdraw(action);
+              }}
+              oncopytemplate={async ({ template }: { template: string }) => {
+                await navigator.clipboard.writeText(template);
+                ontoast?.('Copied to clipboard');
+              }}
+              onaddaction={() => { showCreateAction = initiative.id; }}
+            />
+            {#if expandedInitiatives.has(initiative.id) && showCreateAction === initiative.id}
+              {@const actionConfig = ACTION_TYPE_CONFIG[newAction.action_type] || DEFAULT_ACTION_CONFIG}
+              <div class="ini-form ini-action-form" class:ini-drafting={formDraftLoading}>
+                {#if identity && !identity.isUnlocked && onunlock}
+                  <div class="unlock-inline">
+                    <form class="unlock-row" onsubmit={(e: Event) => { e.preventDefault(); handleUnlock(); }}>
+                      <input type="password" class="ini-input" placeholder="Password to unlock" bind:value={unlockPassword} autocomplete="off" />
+                      <button type="submit" class="ini-btn-primary ini-btn-sm" disabled={unlocking || !unlockPassword}>{unlocking ? 'Unlocking...' : 'Unlock'}</button>
+                    </form>
+                    {#if unlockError}
+                      <div class="ini-error">{unlockError}</div>
+                    {/if}
+                  </div>
+                {/if}
+                <select class="ini-input" bind:value={newAction.action_type}>
+                  <option value="written_comment">Write Comment</option>
+                  <option value="attend_meeting">Attend Meeting</option>
+                  <option value="public_comment">Public Comment</option>
+                  <option value="contact_official">Contact Official</option>
+                  <option value="signature">Sign Petition</option>
+                  <option value="share">Share</option>
+                  <option value="custom">Custom</option>
+                </select>
+                <label class="ini-field-label">Description
+                  <div class="ini-field">
+                    <textarea class="ini-input ini-textarea" placeholder={actionConfig.descPlaceholder} maxlength={500} rows={2} bind:value={newAction.description}></textarea>
+                    <span class="ini-char-count" class:near-limit={newAction.description.length > 400}>{newAction.description.length}/500</span>
+                  </div>
+                </label>
+                <label class="ini-field-label">{actionConfig.targetLabel}
+                  <div class="ini-field">
+                    <input class="ini-input" type="text" placeholder={actionConfig.targetPlaceholder} bind:value={newAction.target} />
+                  </div>
+                </label>
+                {#if actionConfig.showTemplate}
+                  <label class="ini-field-label">{actionConfig.templateLabel}
+                    <div class="ini-field">
+                      <textarea class="ini-input ini-textarea" placeholder={actionConfig.templatePlaceholder} maxlength={2000} rows={3} bind:value={newAction.template}></textarea>
+                      <span class="ini-char-count" class:near-limit={newAction.template.length > 1600}>{newAction.template.length}/2000</span>
+                    </div>
+                  </label>
+                  {#if DRAFTABLE_TYPES.has(newAction.action_type)}
+                    <button class="ini-btn-sm ini-btn-draft"
+                            disabled={formDraftLoading}
+                            onclick={() => handleFormDraft(initiative)}>
+                      {formDraftLoading ? 'Drafting...' : 'Draft with AI'}
+                    </button>
+                  {/if}
+                {/if}
+                <label class="ini-field-label">{actionConfig.deadlineLabel}
+                  <div class="ini-field">
+                    <input class="ini-input" type="date" bind:value={newAction.deadline} />
+                  </div>
+                </label>
+                {#if newAction.deadline}
+                  <label class="ini-field-label">Context
+                    <div class="ini-field">
+                      <input class="ini-input" type="text" placeholder={actionConfig.deadlineContextPlaceholder} maxlength={200} bind:value={newAction.deadlineContext} />
+                      <span class="ini-char-count" class:near-limit={newAction.deadlineContext.length > 160}>{newAction.deadlineContext.length}/200</span>
+                    </div>
+                  </label>
+                {/if}
+                {#if newAction.action_type === 'signature'}
+                  <div class="ini-field">
+                    <label class="ini-field-label">Signature goal
+                      <input class="ini-input" type="number" placeholder="e.g., 500" min={1} bind:value={newAction.targetCount} />
+                    </label>
+                  </div>
+                {/if}
+                <div class="ini-form-actions">
+                  <button class="ini-btn-cancel ini-btn-sm" onclick={() => { showCreateAction = null; }}>Cancel</button>
+                  <button class="ini-btn-primary ini-btn-sm" disabled={!identity?.isUnlocked || creatingAction || !newAction.description.trim()} onclick={() => handleCreateAction(initiative.id)}>
+                    {creatingAction ? 'Adding...' : 'Add Action'}
+                  </button>
+                </div>
+              </div>
+            {/if}
+          </div>
+        {/each}
+      {/if}
+    </div>
+  {/if}
+</section>
+
+<!-- My Commitments (personal tracker) -->
+{#if committedActionMeta.size > 0}
+  <section class="feed-section my-commitments-section">
+    <button class="section-header" onclick={() => { commitmentsExpanded = !commitmentsExpanded; }}>
+      <span class="section-title">
+        My Commitments
+        <span class="count-badge">{committedActionMeta.size}</span>
+      </span>
+      <span class="chevron" class:open={commitmentsExpanded}></span>
+    </button>
+    {#if commitmentsExpanded}
+      <div class="section-body">
+        {#each [...committedActionMeta.entries()] as [actionId, meta]}
+          <div class="card commitment-card" class:completed-commitment={completedActions.has(actionId)}>
+            <div class="action-header">
+              <span class="action-type-badge">{actionTypeLabel(meta.action_type)}</span>
+              {#if completedActions.has(actionId)}
+                <span class="commitment-status done">Done</span>
+              {:else if meta.deadline}
+                <span class="deadline-badge {deadlineClass(meta.deadline)}">
+                  {deadlineLabel(meta.deadline)}
+                </span>
+              {:else}
+                <span class="commitment-status active">Active</span>
+              {/if}
+            </div>
+            <div class="action-desc">{meta.description}</div>
+            {#if meta.deadline && !completedActions.has(actionId)}
+              <div class="commitment-cal-row">
+                <a href={actionGoogleCalendarUrl(meta)} target="_blank" rel="noopener" class="commitment-cal-btn">Google Calendar</a>
+                <button class="commitment-cal-btn" onclick={() => downloadActionIcs(meta)}>Download .ics</button>
+              </div>
+            {/if}
+          </div>
+        {/each}
+      </div>
+    {/if}
+  </section>
+{/if}
+
+<style>
+  /* === Section Layout (matches SidePanel patterns) === */
+  .feed-section {
+    margin-bottom: 2px;
+  }
+  .section-header {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 4px;
+    background: none;
+    border: none;
+    border-bottom: 1px solid #374151;
+    color: #eee;
+    cursor: pointer;
+  }
+  .section-title {
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .chevron {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-right: 2px solid #9ca3af;
+    border-bottom: 2px solid #9ca3af;
+    transform: rotate(-45deg);
+    transition: transform 0.15s ease;
+    flex-shrink: 0;
+  }
+  .chevron.open {
+    transform: rotate(45deg);
+  }
+  .section-body {
+    padding: 6px 0;
+  }
+  .ini-count {
+    font-size: 10px;
+    background: #374151;
+    color: #9ca3af;
+    padding: 1px 6px;
+    border-radius: 8px;
+    font-weight: 500;
+  }
+  .count-badge {
+    font-size: 10px;
+    background: #374151;
+    color: #9ca3af;
+    padding: 1px 6px;
+    border-radius: 8px;
+    font-weight: 500;
+  }
+
+  /* === Initiative Toolbar === */
+  .ini-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 4px;
+  }
+  .ini-new-btn {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    font-weight: 500;
+    color: #3b82f6;
+    background: none;
+    border: 1px solid #3b82f640;
+    border-radius: 6px;
+    padding: 4px 10px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .ini-new-btn:hover {
+    background: rgba(59, 130, 246, 0.08);
+    border-color: #3b82f6;
+    color: #60a5fa;
+  }
+  .ini-aggregate-stats {
+    display: flex;
+    gap: 8px;
+    font-size: 10px;
+    color: #6b7280;
+  }
+  .agg-stat { color: #9ca3af; }
+  .agg-completed { color: #4ade80; }
+
+  /* === Initiative Cards (wrapper) === */
+  .ini-card {
+    background: #262626;
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin-bottom: 6px;
+    border: 1px solid #374151;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+  .ini-card:hover { border-color: #3b82f6; box-shadow: 0 2px 8px rgba(59, 130, 246, 0.1); }
+  .ini-card-expanded { border-color: #3b82f6; }
+
+  .ini-empty {
+    font-size: 12px;
+    color: #6b7280;
+    padding: 12px 4px;
+    text-align: center;
+  }
+  .ini-start-link {
+    background: none;
+    border: none;
+    color: #3b82f6;
+    cursor: pointer;
+    font-size: 12px;
+    padding: 0;
+    text-decoration: underline;
+  }
+  .ini-start-link:hover { color: #60a5fa; }
+
+  /* === Create Forms === */
+  .ini-form {
+    background: #1a1a2e;
+    border: 1px solid #374151;
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 8px;
+  }
+  .ini-form-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+  }
+  .ini-form-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: #e5e7eb;
+  }
+  .ini-form-close {
+    background: none;
+    border: none;
+    color: #6b7280;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+  }
+  .ini-form-close:hover { color: #d1d5db; background: rgba(255, 255, 255, 0.06); }
+  .ini-field-label {
+    display: block;
+    font-size: 11px;
+    font-weight: 600;
+    color: #9ca3af;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+  .ini-optional { font-weight: 400; color: #6b7280; }
+  .ini-char-hint { font-size: 10px; font-weight: 400; color: #6b7280; text-align: right; }
+  .ini-hint {
+    font-size: 11px;
+    color: #f59e0b;
+    margin-bottom: 8px;
+    padding: 6px 8px;
+    background: #78350f20;
+    border-radius: 4px;
+    border: 1px solid #78350f40;
+  }
+  .ini-error {
+    font-size: 11px;
+    color: #f87171;
+    margin-top: 4px;
+    padding: 4px 8px;
+    background: #7f1d1d20;
+    border-radius: 4px;
+  }
+  .ini-input, .ini-textarea {
+    display: block;
+    width: 100%;
+    background: transparent;
+    border: 1px solid #374151;
+    color: #eee;
+    font-size: 13px;
+    padding: 6px 8px;
+    border-radius: 4px;
+    margin-top: 4px;
+    margin-bottom: 2px;
+    font-family: inherit;
+    box-sizing: border-box;
+  }
+  .ini-input:focus, .ini-textarea:focus { border-color: #60a5fa; outline: none; }
+  .ini-textarea { resize: vertical; min-height: 48px; }
+  select.ini-input { appearance: auto; cursor: pointer; }
+
+  .ini-field {
+    position: relative;
+  }
+  .ini-char-count {
+    position: absolute;
+    bottom: 6px;
+    right: 8px;
+    font-size: 10px;
+    color: #4b5563;
+  }
+  .ini-char-count.near-limit { color: #dc2626; }
+
+  /* === Topic Chips === */
+  .ini-topic-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 4px;
+    margin-bottom: 4px;
+  }
+  .ini-chip {
+    font-size: 11px;
+    padding: 3px 8px;
+    border-radius: 12px;
+    border: 1px solid #374151;
+    background: transparent;
+    color: #9ca3af;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .ini-chip:hover { border-color: #4b5563; color: #d1d5db; }
+  .ini-chip.active { background: #2563eb; border-color: #2563eb; color: white; }
+
+  /* === Form Actions === */
+  .ini-form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 10px;
+  }
+  .ini-btn-primary {
+    font-size: 13px;
+    font-weight: 500;
+    padding: 6px 16px;
+    border-radius: 6px;
+    background: #1d4ed8;
+    color: white;
+    border: none;
+    cursor: pointer;
+    transition: background 0.15s ease;
+  }
+  .ini-btn-primary:hover:not(:disabled) { background: #2563eb; }
+  .ini-btn-primary:disabled { opacity: 0.4; cursor: default; }
+  .ini-btn-cancel {
+    font-size: 13px;
+    padding: 6px 16px;
+    border-radius: 6px;
+    background: transparent;
+    color: #9ca3af;
+    border: 1px solid #374151;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .ini-btn-cancel:hover { border-color: #4b5563; color: #d1d5db; }
+  .ini-btn-sm { padding: 5px 12px; font-size: 12px; }
+
+  /* === AI Draft Button === */
+  .ini-btn-draft {
+    font-size: 11px;
+    font-weight: 500;
+    padding: 4px 10px;
+    background: rgba(139, 92, 246, 0.1);
+    color: #a78bfa;
+    border: 1px solid rgba(139, 92, 246, 0.25);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    margin-bottom: 6px;
+  }
+  .ini-btn-draft:hover:not(:disabled) { background: rgba(139, 92, 246, 0.2); border-color: rgba(139, 92, 246, 0.4); }
+  .ini-btn-draft:disabled { opacity: 0.5; cursor: default; }
+
+  .ini-action-form { margin-top: 4px; padding: 12px; }
+  .ini-drafting {
+    position: relative;
+    opacity: 0.7;
+  }
+  .ini-drafting::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, #a78bfa, transparent);
+    animation: draft-pulse 1.5s ease-in-out infinite;
+    border-radius: 8px 8px 0 0;
+  }
+  @keyframes draft-pulse {
+    0%, 100% { opacity: 0.3; }
+    50% { opacity: 1; }
+  }
+
+  /* === Unlock Inline === */
+  .unlock-inline {
+    margin-bottom: 8px;
+  }
+  .unlock-row {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+  }
+
+  /* === My Commitments Section === */
+  .my-commitments-section {
+    border-top: 2px solid #374151;
+    margin-top: 4px;
+    padding-top: 4px;
+  }
+
+  .card {
+    background: #262626;
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin-bottom: 6px;
+    border: 1px solid #374151;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  .commitment-card {
+    border-left: 2px solid #3b82f6;
+  }
+  .completed-commitment {
+    border-left-color: #22c55e;
+    opacity: 0.7;
+  }
+
+  .action-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px;
+  }
+  .action-type-badge {
+    font-size: 10px;
+    font-weight: 600;
+    padding: 1px 6px;
+    border-radius: 3px;
+    background: #1e3a5f;
+    color: #60a5fa;
+  }
+  .action-desc {
+    font-size: 12px;
+    color: #d1d5db;
+    line-height: 1.3;
+    margin-bottom: 4px;
+  }
+
+  .commitment-status {
+    font-size: 10px;
+    font-weight: 500;
+    padding: 1px 6px;
+    border-radius: 3px;
+  }
+  .commitment-status.active { background: rgba(59,130,246,0.12); color: #60a5fa; }
+  .commitment-status.done { background: #14532d; color: #4ade80; }
+
+  .deadline-badge {
+    font-size: 10px;
+    font-weight: 500;
+    padding: 1px 6px;
+    border-radius: 3px;
+  }
+  .deadline-badge.normal { background: #374151; color: #9ca3af; }
+  .deadline-badge.urgent { background: #78350f; color: #fbbf24; }
+  .deadline-badge.overdue { background: #7f1d1d; color: #f87171; }
+
+  .commitment-cal-row {
+    display: flex;
+    gap: 6px;
+    margin-top: 6px;
+  }
+  .commitment-cal-btn {
+    font-size: 10px;
+    color: #9ca3af;
+    background: none;
+    border: 1px solid #374151;
+    border-radius: 4px;
+    padding: 2px 8px;
+    cursor: pointer;
+    text-decoration: none;
+    transition: all 0.15s;
+  }
+  .commitment-cal-btn:hover { color: #60a5fa; border-color: #60a5fa; }
+</style>
