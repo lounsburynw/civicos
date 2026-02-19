@@ -2,7 +2,7 @@
   import { sendMessage } from '../lib/messaging.js';
   import { api, registry } from '../lib/client.js';
   import { CivicSession } from '@civicos/client';
-  import type { CityPulseData, DecisionDetailData, DataProvenance, VoiceCounts, Initiative, CivicAction, CivicActionProgress, IssuePoint, BudgetCategory, CommentCounts, CommentSynthesis, RegistryServer } from '@civicos/client';
+  import type { CityPulseData, DataProvenance, VoiceCounts, Initiative, CivicAction, CivicActionProgress, IssuePoint, BudgetCategory, CommentCounts, CommentSynthesis, RegistryServer } from '@civicos/client';
   import { isAIAvailable, getAIManager, onAIConfigChanged } from '../lib/ai.js';
   import type { IdentityInfo } from '../lib/providers/types.js';
   import 'leaflet/dist/leaflet.css';
@@ -11,9 +11,9 @@
   import { marked } from 'marked';
   import DOMPurify from 'dompurify';
   // Reusable components from @civicos/components
-  import CivicDecisionCard from '@civicos/components/src/components/CivicDecisionCard.svelte';
   import CivicInitiativeCard from '@civicos/components/src/components/CivicInitiativeCard.svelte';
   import CivicAgendaView from '@civicos/components/src/components/CivicAgendaView.svelte';
+  import CivicDecisionView from '@civicos/components/src/components/CivicDecisionView.svelte';
 
   Chart.register(DoughnutController, ArcElement, Tooltip, Legend);
 
@@ -45,13 +45,6 @@
     budget: false,
   });
 
-  // Decision detail expansion
-  let expandedDecisions = $state(new Set<string>());
-  let decisionDetails = $state(new Map<string, DecisionDetailData>());
-  let decisionLoading = $state(new Set<string>());
-  let expandedTestimony = $state(new Set<string>());
-  let expandedCouncil = $state(new Set<string>());
-
   // Data provenance
   let showProvenance = $state(false);
   let provenanceData: DataProvenance | null = $state(null);
@@ -79,10 +72,6 @@
   // AI state (shared across sections — decisions, initiatives)
   let aiAvailable = $state(false);
   let activeProviderName = $state('');
-
-  // Ask AI inline response state
-  let aiResponses = $state(new Map<string, string>());
-  let aiResponseLoading = $state(new Set<string>());
 
   // Jurisdiction state
   let activeJurisdiction = $state('city-san-rafael');
@@ -391,32 +380,6 @@
       for (const [id, s] of newSynths) synthData.set(id, s);
       synthData = new Map(synthData);
     });
-  }
-
-  async function toggleDecisionDetail(title: string) {
-    if (expandedDecisions.has(title)) {
-      expandedDecisions.delete(title);
-      expandedDecisions = new Set(expandedDecisions);
-      return;
-    }
-
-    expandedDecisions.add(title);
-    expandedDecisions = new Set(expandedDecisions);
-
-    if (!decisionDetails.has(title)) {
-      decisionLoading.add(title);
-      decisionLoading = new Set(decisionLoading);
-      try {
-        const detail = await session.loadDecisionDetail(title);
-        decisionDetails.set(title, detail);
-        decisionDetails = new Map(decisionDetails);
-      } catch (e) {
-        console.error('Failed to load decision detail:', e);
-      } finally {
-        decisionLoading.delete(title);
-        decisionLoading = new Set(decisionLoading);
-      }
-    }
   }
 
   async function toggleProvenance() {
@@ -807,81 +770,6 @@
     return `$${amount.toFixed(0)}`;
   }
 
-  // === Ask AI (context injection) ===
-
-  function composeSentimentBlock(entityId: string): string[] {
-    const lines: string[] = [];
-    const counts = voiceCounts.get(entityId);
-    const synth = synthData.get(entityId);
-
-    if (counts && counts.total > 0) {
-      lines.push('', '--- Community Sentiment ---');
-      lines.push(`Stances: ${counts.support} support, ${counts.oppose} oppose, ${counts.watching} watching`);
-      if (counts.attested != null && counts.attested > 0) {
-        lines.push(`Verified: ${counts.attested} attested (in-person verified), ${counts.unattested ?? 0} unattested`);
-      }
-    }
-    if (synth && synth.total > 0) {
-      lines.push(`Public comments: ${synth.total} total (${synth.support} supportive, ${synth.oppose} opposed, ${synth.neutral} neutral)`);
-    }
-    return lines;
-  }
-
-  function composeDecisionContext(decision: import('../lib/types.js').PulseOutcome): string {
-    const detail = decisionDetails.get(decision.title);
-    const lines = [
-      `I'd like to understand this civic decision from ${pulseData?.jurisdiction || 'my city'}:`,
-      '',
-      `**${decision.title}**`,
-      `Outcome: ${decision.outcome}`,
-      `Date: ${decision.date}`,
-    ];
-    if (decision.vote_tally) lines.push(`Vote: ${decision.vote_tally}`);
-    if (detail?.decision?.body) lines.push('', detail.decision.body);
-    if (detail?.testimony?.public_comments && detail.testimony.public_comments.length > 0) {
-      lines.push('', `--- Public Testimony (${detail.testimony.public_comments.length} speakers) ---`);
-      for (const c of detail.testimony.public_comments.slice(0, 8)) {
-        lines.push(`- **${c.speaker}:** ${c.text}`);
-      }
-      if (detail.testimony.public_comments.length > 8) {
-        lines.push(`... and ${detail.testimony.public_comments.length - 8} more speakers`);
-      }
-    }
-    if (detail?.testimony?.council_discussion && detail.testimony.council_discussion.length > 0) {
-      lines.push('', `--- Council Discussion (${detail.testimony.council_discussion.length} excerpts) ---`);
-      for (const c of detail.testimony.council_discussion.slice(0, 6)) {
-        lines.push(`- **${c.speaker}:** ${c.text}`);
-      }
-      if (detail.testimony.council_discussion.length > 6) {
-        lines.push(`... and ${detail.testimony.council_discussion.length - 6} more excerpts`);
-      }
-    }
-    lines.push(...composeSentimentBlock(decision.id));
-    lines.push('', 'What are the implications of this decision for residents? If testimony or community sentiment data is available, summarize the key themes and concerns raised. What should I know about this issue going forward?');
-    return lines.join('\n');
-  }
-
-  function composeTestimonySummary(decision: import('../lib/types.js').PulseOutcome, comments: import('../lib/types.js').TestimonyComment[]): string {
-    const lines = [
-      `Summarize the public testimony from this civic decision in ${pulseData?.jurisdiction || 'my city'}:`,
-      '',
-      `**${decision.title}**`,
-      `Outcome: ${decision.outcome} (${decision.date})`,
-      '',
-      `${comments.length} speakers testified:`,
-      '',
-    ];
-    for (const c of comments) {
-      lines.push(`**${c.speaker}:** ${c.text}`);
-      lines.push('');
-    }
-    lines.push('Please provide:');
-    lines.push('1. A concise summary of the key themes and concerns raised');
-    lines.push('2. Points of agreement and disagreement among speakers');
-    lines.push('3. Any action items or follow-ups mentioned');
-    return lines.join('\n');
-  }
-
   // === External AI Platform Routing ===
 
   type AIPlatform = 'claude';
@@ -960,37 +848,6 @@
     connectorInlineHint = { message: 'Paste this URL into the connector dialog:', url: mcpUrl, name: connectorName };
     if (connectorHintTimeout) clearTimeout(connectorHintTimeout);
     connectorHintTimeout = setTimeout(() => { connectorInlineHint = null; }, 15000);
-  }
-
-  async function askAI(key: string, context: string) {
-    // Toggle off if already showing a response for this key
-    if (aiResponses.has(key)) {
-      aiResponses.delete(key);
-      aiResponses = new Map(aiResponses);
-      return;
-    }
-
-    if (!aiAvailable) {
-      return;
-    }
-
-    aiResponseLoading.add(key);
-    aiResponseLoading = new Set(aiResponseLoading);
-
-    try {
-      const answer = await session.askQuestion(context);
-      if (answer) {
-        aiResponses.set(key, answer);
-        aiResponses = new Map(aiResponses);
-      } else {
-        showToast('AI request failed');
-      }
-    } catch (err) {
-      showToast(`AI request failed: ${err instanceof Error ? err.message : 'unknown error'}`);
-    }
-
-    aiResponseLoading.delete(key);
-    aiResponseLoading = new Set(aiResponseLoading);
   }
 
   async function loadStances() {
@@ -1827,41 +1684,22 @@
       </button>
       {#if expanded.outcomes}
         <div class="section-body">
-          {#if pulseData.recent_outcomes.length === 0}
-            <div class="empty-section">No recent decisions</div>
-          {:else}
-            {#each pulseData.recent_outcomes as decision}
-              <div class="card decision-card" class:expanded-card={expandedDecisions.has(decision.title)}>
-                <CivicDecisionCard
-                  {decision}
-                  expanded={expandedDecisions.has(decision.title)}
-                  detail={decisionDetails.get(decision.title) ?? null}
-                  detailLoading={decisionLoading.has(decision.title)}
-                  voiceCounts={voiceCounts.get(decision.id) ?? null}
-                  userStance={userStances.get(decision.id) ?? null}
-                  votingDisabled={votingInProgress.has(decision.id)}
-                  locked={identity ? !identity.isUnlocked : true}
-                  showVoice={!!identity}
-                  expandedTestimony={expandedTestimony.has(decision.title)}
-                  expandedCouncil={expandedCouncil.has(decision.title)}
-                  {aiAvailable}
-                  {activeProviderName}
-                  decisionAiLoading={aiResponseLoading.has(`ask-decision:${decision.id}`)}
-                  decisionAiHtml={aiResponses.has(`ask-decision:${decision.id}`) ? renderMarkdown(aiResponses.get(`ask-decision:${decision.id}`) ?? '') : ''}
-                  testimonyAiLoading={aiResponseLoading.has(`ask-testimony:${decision.id}`)}
-                  testimonyAiHtml={aiResponses.has(`ask-testimony:${decision.id}`) ? renderMarkdown(aiResponses.get(`ask-testimony:${decision.id}`) ?? '') : ''}
-                  onexpand={() => toggleDecisionDetail(decision.title)}
-                  onvoice={({ entityId, stance }) => handleVoice(entityId, stance)}
-                  onaskdecision={() => askAI(`ask-decision:${decision.id}`, composeDecisionContext(decision))}
-                  onasktestimony={() => { const t = decisionDetails.get(decision.title)?.testimony?.public_comments ?? []; askAI(`ask-testimony:${decision.id}`, composeTestimonySummary(decision, t)); }}
-                  onexternaldecision={(e) => openExternalAI('claude', composeDecisionContext(decision), e)}
-                  onexternaltestimony={(e) => { const t = decisionDetails.get(decision.title)?.testimony?.public_comments ?? []; openExternalAI('claude', composeTestimonySummary(decision, t), e); }}
-                  ontoggletestimony={() => { if (expandedTestimony.has(decision.title)) { expandedTestimony.delete(decision.title); } else { expandedTestimony.add(decision.title); } expandedTestimony = new Set(expandedTestimony); }}
-                  ontogglecouncil={() => { if (expandedCouncil.has(decision.title)) { expandedCouncil.delete(decision.title); } else { expandedCouncil.add(decision.title); } expandedCouncil = new Set(expandedCouncil); }}
-                />
-              </div>
-            {/each}
-          {/if}
+          <CivicDecisionView
+            decisions={pulseData.recent_outcomes}
+            {voiceCounts}
+            {userStances}
+            {votingInProgress}
+            {synthData}
+            {identity}
+            {aiAvailable}
+            {activeProviderName}
+            jurisdiction={activeJurisdiction}
+            {session}
+            {renderMarkdown}
+            onvoice={({ entityId, stance }) => handleVoice(entityId, stance)}
+            onopenexternalai={({ context, event }) => openExternalAI('claude', context, event)}
+            ontoast={(message) => showToast(message)}
+          />
         </div>
       {/if}
     </section>
@@ -3141,9 +2979,7 @@
   }
   .expand-chevron.open { transform: rotate(180deg); }
 
-  .expanded-card {
-    border: 1px solid #374151;
-  }
+
 
   .decision-detail {
     border-top: 1px solid #374151;
