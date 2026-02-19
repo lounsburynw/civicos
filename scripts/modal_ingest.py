@@ -136,6 +136,7 @@ civic_image = (
         "google-generativeai>=0.8.0",  # For Gemini-based extraction
         "PyPDF2>=3.0.0",  # For agenda PDF text extraction (decision/agenda pipelines)
         "openpyxl>=3.0.0",  # For HUD allocation Excel parsing
+        "fastapi>=0.100.0",  # Required by Modal for web endpoints
     )
     # Environment variables (must come before add_local_* per Modal requirements)
     .env({"CIVICOS_CONFIG_DIR": "/config/extraction"})
@@ -4180,7 +4181,7 @@ def get_stats(jurisdiction: str = "city-san-rafael") -> dict:
     memory=2048,
     timeout=1800,
 )
-@modal.web_endpoint(method="POST")
+@modal.fastapi_endpoint(method="POST")
 def trigger_ingest(body: dict):
     """HTTP endpoint for on-demand ingestion with reactive logic.
 
