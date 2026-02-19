@@ -335,20 +335,23 @@
     if (comments && comments.length > 0) {
       const visible = comments.filter(c => !c.deleted);
       if (visible.length > 0) {
-        lines.push('', 'Resident comments:');
+        const shown = Math.min(visible.length, 8);
+        lines.push('', `Resident comments (showing ${shown} of ${visible.length}, most recent first):`);
         for (const c of visible.slice(0, 8)) {
           const stanceTag = c.stance ? ` [${c.stance}]` : '';
           lines.push(`- "${c.comment_text}"${stanceTag}`);
         }
-        if (visible.length > 8) lines.push(`... and ${visible.length - 8} more comments`);
       }
     }
     return lines;
   }
 
   function composeAgendaContext(item: PulseAgendaItem): string {
+    const today = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    const source = jurisdiction || 'my city';
     const lines = [
-      `I'd like to understand this civic agenda item from ${jurisdiction || 'my city'}:`,
+      `--- CivicOS Context: Agenda Item ---`,
+      `Source: CivicOS (${source}) | ${today}`,
       '',
       `**${item.title}**`,
       `Meeting: ${item.meeting_title} (${item.meeting_date})`,
@@ -358,7 +361,8 @@
     if (item.description) lines.push('', item.description);
     if (item.why_it_matters) lines.push('', `Why it matters: ${item.why_it_matters}`);
     lines.push(...composeSentimentBlock(`agenda-item:${item.id}`));
-    lines.push('', 'What are the key implications for residents? If community sentiment data is available, summarize what residents are saying and the key themes. What questions should I ask at the public hearing?');
+    lines.push('', '--- End Context ---');
+    lines.push('', 'Suggested question: What are the key implications for residents? If community sentiment data is available, summarize what residents are saying and the key themes. What questions should I ask at the public hearing?');
     return lines.join('\n');
   }
 

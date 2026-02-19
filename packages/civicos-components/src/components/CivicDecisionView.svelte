@@ -192,8 +192,11 @@
 
   function composeDecisionContext(decision: PulseOutcome): string {
     const detail = decisionDetails.get(decision.title);
+    const today = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    const source = jurisdiction || 'my city';
     const lines = [
-      `I'd like to understand this civic decision from ${jurisdiction || 'my city'}:`,
+      `--- CivicOS Context: Decision ---`,
+      `Source: CivicOS (${source}) | ${today}`,
       '',
       `**${decision.title}**`,
       `Outcome: ${decision.outcome}`,
@@ -202,25 +205,24 @@
     if (decision.vote_tally) lines.push(`Vote: ${decision.vote_tally}`);
     if (detail?.decision?.body) lines.push('', detail.decision.body);
     if (detail?.testimony?.public_comments && detail.testimony.public_comments.length > 0) {
-      lines.push('', `--- Public Testimony (${detail.testimony.public_comments.length} speakers) ---`);
+      const total = detail.testimony.public_comments.length;
+      const shown = Math.min(total, 8);
+      lines.push('', `--- Public Testimony (showing ${shown} of ${total} speakers) ---`);
       for (const c of detail.testimony.public_comments.slice(0, 8)) {
         lines.push(`- **${c.speaker}:** ${c.text}`);
       }
-      if (detail.testimony.public_comments.length > 8) {
-        lines.push(`... and ${detail.testimony.public_comments.length - 8} more speakers`);
-      }
     }
     if (detail?.testimony?.council_discussion && detail.testimony.council_discussion.length > 0) {
-      lines.push('', `--- Council Discussion (${detail.testimony.council_discussion.length} excerpts) ---`);
+      const total = detail.testimony.council_discussion.length;
+      const shown = Math.min(total, 6);
+      lines.push('', `--- Council Discussion (showing ${shown} of ${total} excerpts) ---`);
       for (const c of detail.testimony.council_discussion.slice(0, 6)) {
         lines.push(`- **${c.speaker}:** ${c.text}`);
       }
-      if (detail.testimony.council_discussion.length > 6) {
-        lines.push(`... and ${detail.testimony.council_discussion.length - 6} more excerpts`);
-      }
     }
     lines.push(...composeSentimentBlock(decision.id));
-    lines.push('', 'What are the implications of this decision for residents? If testimony or community sentiment data is available, summarize the key themes and concerns raised. What should I know about this issue going forward?');
+    lines.push('', '--- End Context ---');
+    lines.push('', 'Suggested question: What are the implications of this decision for residents? If testimony or community sentiment data is available, summarize the key themes and concerns raised. What should I know about this issue going forward?');
     return lines.join('\n');
   }
 

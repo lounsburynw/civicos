@@ -28,6 +28,7 @@
     data,
     showCalendar = false,
     level = 'city',
+    jurisdiction = '',
     voiceCounts = new Map<string, VoiceCounts>(),
     userStances = new Map<string, Stance>(),
     votingInProgress = new Set<string>(),
@@ -38,6 +39,7 @@
     data: PulseData;
     showCalendar?: boolean;
     level?: JurisdictionLevel;
+    jurisdiction?: string;
     voiceCounts?: Map<string, VoiceCounts>;
     userStances?: Map<string, Stance>;
     votingInProgress?: Set<string>;
@@ -67,23 +69,37 @@
   let draggingId = $state<string | null>(null);
 
   function composeLegislationContext(item: { id?: string; title: string; meeting_title?: string; status?: string; summary?: string; description?: string; official_url?: string }): string {
+    const today = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    const source = jurisdiction || level || 'legislation';
     const lines = [
-      `I'd like to understand this legislation:`,
+      `--- CivicOS Context: Legislation ---`,
+      `Source: CivicOS (${source}) | ${today}`,
       '',
       `**${item.title}**`,
     ];
     if (item.meeting_title) lines.push(`Committee: ${item.meeting_title}`);
     if (item.status) lines.push(`Status: ${item.status}`);
+    if (item.id) {
+      const eid = billEntityId(item.id);
+      const counts = voiceCounts.get(eid);
+      if (counts && counts.total > 0) {
+        lines.push(`Community voices: ${counts.support} support, ${counts.oppose} oppose, ${counts.watching} watching`);
+      }
+    }
     if (item.summary) lines.push('', item.summary);
     if (item.description) lines.push('', `Why it matters: ${item.description}`);
     if (item.official_url) lines.push('', `Official text: ${item.official_url}`);
-    lines.push('', 'What are the key implications? Who does this affect and how?');
+    lines.push('', '--- End Context ---');
+    lines.push('', 'Suggested question: What are the key implications? Who does this affect and how?');
     return lines.join('\n');
   }
 
   function composeOutcomeContext(outcome: { id?: string; title: string; date: string; outcome: string; summary?: string; official_url?: string }): string {
+    const today = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    const source = jurisdiction || level || 'legislation';
     const lines = [
-      `I'd like to understand this legislative outcome:`,
+      `--- CivicOS Context: Legislative Outcome ---`,
+      `Source: CivicOS (${source}) | ${today}`,
       '',
       `**${outcome.title}**`,
       `Outcome: ${outcome.outcome.replace(/_/g, ' ')}`,
@@ -91,18 +107,34 @@
     ];
     if (outcome.summary) lines.push('', outcome.summary);
     if (outcome.official_url) lines.push('', `Official text: ${outcome.official_url}`);
-    lines.push('', 'What does this mean going forward? What are the implications?');
+    lines.push('', '--- End Context ---');
+    lines.push('', 'Suggested question: What does this mean going forward? What are the implications?');
     return lines.join('\n');
   }
 
   function composeMeetingContext(meeting: { title: string; date: string; time: string; location: string }): string {
+    const today = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    const source = jurisdiction || 'my city';
     const lines = [
+      `--- CivicOS Context: Meeting ---`,
+      `Source: CivicOS (${source}) | ${today}`,
+      '',
       `**${meeting.title}**`,
       `Date: ${meeting.date}`,
     ];
     if (meeting.time) lines.push(`Time: ${meeting.time}`);
     if (meeting.location) lines.push(`Location: ${meeting.location}`);
-    lines.push('', 'What should I know about this meeting? What topics are likely on the agenda?');
+    const meetingItems = (data.upcoming_items || []).filter(item => item.meeting_title === meeting.title);
+    if (meetingItems.length > 0) {
+      lines.push('', `Known agenda items (${meetingItems.length}):`);
+      for (const item of meetingItems) {
+        let line = `- ${item.title}`;
+        if (item.project_type) line += ` [${item.project_type}]`;
+        lines.push(line);
+      }
+    }
+    lines.push('', '--- End Context ---');
+    lines.push('', 'Suggested question: What should I know about this meeting? What topics are likely on the agenda?');
     return lines.join('\n');
   }
 
@@ -157,7 +189,8 @@
         </div>
       {:else}
         {#each data.decisions_this_week as meeting}
-          <CivicMeetingCard {meeting} {showCalendar} />
+          {@const meetingAgendaItems = (data.upcoming_items || []).filter(i => i.meeting_title === meeting.title).map(i => i.title)}
+        <CivicMeetingCard {meeting} {showCalendar} {jurisdiction} agendaItems={meetingAgendaItems} />
         {/each}
       {/if}
     </div>

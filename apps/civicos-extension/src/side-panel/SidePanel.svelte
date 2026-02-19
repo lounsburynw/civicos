@@ -826,6 +826,7 @@
       <CivicReadOnlyPulse
         data={tabData}
         level={tabServer?.level || 'city'}
+        jurisdiction={tabData?.jurisdiction || activeTab}
         {voiceCounts}
         {userStances}
         {votingInProgress}
