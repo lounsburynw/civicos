@@ -219,8 +219,9 @@
         .then(data => {
           parentPulseData.set(id, data);
           parentPulseData = new Map(parentPulseData);
-          // Load voice counts for this parent's legislation
+          // Load voice counts and comment counts for this parent's legislation
           loadParentVoiceCounts(id, data);
+          loadParentCommentCounts(id, data);
         })
         .catch(() => {
           parentPulseErrors.set(id, 'Server unavailable');
@@ -259,6 +260,51 @@
       voiceCounts = new Map(voiceCounts);
     } catch {
       // Voice counts are non-critical — silently ignore
+    }
+  }
+
+  function extractFocalPointEntityIds(pulse: CityPulseData): string[] {
+    const ids: string[] = [];
+    const p = pulse as any;
+    if (p.comment_periods) {
+      for (const period of p.comment_periods) {
+        if (period.document_number) ids.push(`rule:${period.document_number}`);
+      }
+    }
+    if (p.upcoming_hearings) {
+      for (const hearing of p.upcoming_hearings) {
+        if (hearing.bill_id) ids.push(`bill:${hearing.bill_id}`);
+      }
+    }
+    if (p.governors_desk) {
+      for (const bill of p.governors_desk) {
+        if (bill.bill_id) ids.push(`bill:${bill.bill_id}`);
+      }
+    }
+    return ids;
+  }
+
+  async function loadParentCommentCounts(jurisdictionId: string, pulse: CityPulseData) {
+    const ids = extractFocalPointEntityIds(pulse);
+    if (ids.length === 0) return;
+    try {
+      const counts = await api.getCommentCountsBatch(ids, jurisdictionId);
+      for (const [id, c] of counts) {
+        commentCounts.set(id, c);
+      }
+      commentCounts = new Map(commentCounts);
+      // Pre-fetch syntheses in background
+      const withComments = [...counts].filter(([, cc]) => cc.count > 0);
+      for (const [entityId] of withComments) {
+        api.getCommentSynthesis(entityId).then((synth: CommentSynthesis | null) => {
+          if (synth) {
+            synthData.set(entityId, synth);
+            synthData = new Map(synthData);
+          }
+        }).catch(() => {});
+      }
+    } catch {
+      // Comment counts are non-critical
     }
   }
 
@@ -868,7 +914,16 @@
         {userStances}
         {votingInProgress}
         {identity}
+        {commentCounts}
+        {synthData}
+        {session}
+        {api}
+        {aiAvailable}
+        {activeProviderName}
+        {renderMarkdown}
         onvoice={({ entityId, stance }) => handleVoice(entityId, stance, activeTab)}
+        ontoast={(message) => showToast(message)}
+        oncommentcountchange={(entityId, counts) => { commentCounts.set(entityId, counts); commentCounts = new Map(commentCounts); }}
       >
         <CivicInitiativeView
           {api}

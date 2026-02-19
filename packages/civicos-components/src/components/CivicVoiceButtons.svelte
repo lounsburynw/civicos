@@ -24,7 +24,10 @@
 </script>
 
 {#if locked}
-  <span class="voice-locked">Unlock to vote</span>
+  <div class="voice-locked-group">
+    <span class="voice-locked">Unlock to vote</span>
+    <span class="voice-disclaimer">Voices are informal signals — not official votes or testimony.</span>
+  </div>
 {:else}
   <div class="voice-actions">
     <button
@@ -88,9 +91,18 @@
     border-color: #3b82f6;
     color: #60a5fa;
   }
+  .voice-locked-group {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
   .voice-locked {
     font-size: 10px;
     color: #6b7280;
     font-style: italic;
+  }
+  .voice-disclaimer {
+    font-size: 9px;
+    color: #4b5563;
   }
 </style>

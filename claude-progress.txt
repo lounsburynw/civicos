@@ -1,3 +1,140 @@
+## Session — 2026-02-19 (4): Fix Blank UX + Finalize Engagement Ladder
+
+**Item:** engagement_ladder_ux (P0) — Fix blank UX bug, add section hints, commit all engagement work
+**Status:** Complete.
+
+### What was done
+- Fixed blank UX bug: removed `registry.clearUrlOverrides()` from SidePanel mount — it was clearing API URL from chrome.storage, making MCP server unreachable
+- Renamed `clearUrlOverrides()` to `clearRelayUrlOverride()` — only clears relay URL, preserves API URL
+- Added section hints for engagement ladder progression:
+  - Comment Periods: "Your comment directly shapes federal policy — the agency must read and respond"
+  - Hearings: "Hearings are open to public testimony — attend or submit written comments"
+  - Governor's Desk: already had "Bills awaiting governor's signature — call now to influence the outcome"
+- Extension build passes clean
+
+### Engagement Ladder UX Summary (across sessions 1-4)
+- **Awareness**: Meetings, outcomes, agenda items, legislation tracking ✓
+- **Participation**: Focal points at top (comment periods, hearings, governor's desk) with voice buttons, action hints, drag-to-AI ✓
+- **Coordination**: Comment threads with AI synthesis on all focal point cards, voice counts ✓
+- Data enrichment: hearing JOINs (bill_number/name), comment period fields (doc_type/topics/pdf), governor's desk label clarity ✓
+- Voice disclaimer: "Voices are informal signals — not official votes or testimony" ✓
+- Closed comment periods: voice buttons hidden, read-only tally shown ✓
+
+### Files changed
+- apps/civicos-extension/src/side-panel/SidePanel.svelte — removed clearUrlOverrides() call
+- packages/civicos-client/src/registry.ts — renamed clearUrlOverrides → clearRelayUrlOverride
+- packages/civicos-components/src/components/CivicReadOnlyPulse.svelte — added section hints
+
+---
+
+## Session — 2026-02-19 (3): Wire Community Comments to Focal Point Cards — NEEDS DEBUG
+
+**Item:** Wire CivicCommentThread component to focal point cards (comment periods, hearings, governor's desk) in CivicReadOnlyPulse.svelte
+**Status:** BROKEN — blank UX after last change. Needs immediate debug.
+
+### What was done (3 files changed for the feature, 1 file changed to fix relay URL):
+
+1. **`packages/civicos-components/src/components/CivicReadOnlyPulse.svelte`** (~180 lines added)
+   - Imported CivicCommentThread component
+   - Added Comment/CommentCounts/CommentSynthesis types, expanded IdentityInfo with publicKey
+   - Added new props: session, api, commentCounts, synthData, aiAvailable, activeProviderName, renderMarkdown, ontoast, oncommentcountchange
+   - Added comment thread state (openThreads, threadComments, threadDrafts, etc.)
+   - Added handlers: toggleCommentThread, handleSubmitComment, handleSummarize
+   - Rendered CivicCommentThread in all 3 focal point card types, gated on `{#if session}`
+   - Build passed clean
+
+2. **`apps/civicos-extension/src/side-panel/SidePanel.svelte`** (~58 lines added)
+   - Added extractFocalPointEntityIds() and loadParentCommentCounts() functions
+   - Called loadParentCommentCounts from loadParentPulse alongside loadParentVoiceCounts
+   - Passed new props to CivicReadOnlyPulse: session, api, commentCounts, synthData, aiAvailable, activeProviderName, renderMarkdown, ontoast, oncommentcountchange
+   - **LAST CHANGE (likely culprit):** Added `registry.clearUrlOverrides()` call at mount — this clears chrome.storage keys and MAY be breaking the initial load
+
+3. **`packages/civicos-client/src/session.ts`** (~27 lines added)
+   - Added extractFocalPointEntityIds() static method
+   - Added console.error logging in loadCommentThread
+
+4. **`packages/civicos-client/src/registry.ts`** (~20 lines changed)
+   - Changed getRelayUrl() to skip storage override (was: storage > registry > default, now: registry > default)
+   - Added clearUrlOverrides() method
+   - **THIS IS THE LIKELY CAUSE OF THE BLANK UX** — clearing URL overrides on startup may be clearing the API URL too, causing the MCP server URL to be unresolvable
+
+### Root cause of blank UX (most likely):
+
+The `clearUrlOverrides()` call clears BOTH `civicos_relay_url` AND `civicos_api_url` from chrome.storage. The `civicos_api_url` key might have been storing the correct MCP server URL that `getMcpUrl()` uses for ALL API requests (pulse loading, etc.). By clearing it, `getMcpUrl()` falls through to the registry or default, but if the registry cache is also stale, the entire API becomes unreachable → blank UX.
+
+### Debug steps for next session:
+
+1. **Revert the `clearUrlOverrides()` call** in SidePanel.svelte line 568:
+   ```
+   // registry.clearUrlOverrides();  // REMOVE THIS LINE
+   ```
+
+2. **Only clear the relay URL, not the API URL** — change `clearUrlOverrides()` to only clear RELAY_STORAGE_KEY:
+   ```typescript
+   async clearUrlOverrides(): Promise<void> {
+     await this.storage.set(RELAY_STORAGE_KEY, null);
+     // Do NOT clear API_STORAGE_KEY — it may hold valid MCP URL
+   }
+   ```
+
+3. **Or better yet:** Just remove the clearUrlOverrides approach entirely. Instead, fix the stale relay URL by forcing a registry refresh in getRelayUrl():
+   ```typescript
+   async getRelayUrl(): Promise<string> {
+     try {
+       // Force-refresh registry to avoid stale cache without relay_endpoint
+       const servers = await this.getRegistryServers(true);
+       const id = await this.getActiveJurisdiction();
+       const server = servers.find(s => s.jurisdiction_id === id);
+       if (server?.relay_endpoint) return server.relay_endpoint;
+       return DEFAULT_RELAY_URL;
+     } catch {
+       return DEFAULT_RELAY_URL;
+     }
+   }
+   ```
+
+4. **Test** after each change: `cd apps/civicos-extension && npm run build`, reload extension, check side panel renders
+
+### The original "failed to load comments" issue:
+
+The relay URL was resolving to `api.civicosproject.org` (stale chrome.storage value that doesn't exist as a DNS record). The relay at `san-rafael.civicosproject.org/relay` works fine — confirmed with curl returning 200 for `rule:` and `bill:` entity IDs. The fix needs to ensure `getRelayUrl()` gets the correct URL from the registry without nuking other storage keys.
+
+### Files to examine:
+- `packages/civicos-client/src/registry.ts` lines 136-152 (getRelayUrl) and 155-162 (clearUrlOverrides)
+- `apps/civicos-extension/src/side-panel/SidePanel.svelte` line 568 (clearUrlOverrides call)
+- Reference: `CivicAgendaView.svelte` lines 84-191 (working comment pattern to mirror)
+
+### Build/test:
+```bash
+cd apps/civicos-extension && npm run build  # Takes ~2s
+# Then reload extension in Chrome → chrome://extensions → CivicOS reload button
+# Open side panel, check California/Federal tabs for comment threads on focal point cards
+```
+
+## Session — 2026-02-19 (2): Engagement Ladder UX — Data Enrichment + Polish
+
+**Item:** engagement_ladder_ux (P0) — Enrich focal point data, add disclaimer, polish UX
+**Status:** Complete. All 5 enrichment tasks done.
+
+### What was done
+- JOIN legislative_events to legislation table in get_legislative_events() — hearings now show bill_number, bill_name, summary, official_url
+- Passed through document_type, topics, pdf_url, publication_date for comment period cards
+- Added voice disclaimer text below focal points: "Voices are informal signals..."
+- Renamed "Governor's Desk" header to "Awaiting Governor's Signature" for clarity
+- Hide voice buttons on closed comment periods (days_remaining <= 0), show read-only tally instead
+- Updated TypeScript types (CommentPeriod, LegislativeHearing) and Svelte PulseData inline types
+- Updated drag-to-AI context composers with enriched fields (summary, official_url)
+- Added CSS for doc-type-tag, topic-tag, closed-results, voice-disclaimer
+- Smoke tests: 42/42 passing
+
+### Files changed
+- packages/civicos/src/civicos/storage/postgres_backend.py — LEFT JOIN in get_legislative_events()
+- apps/civicos-mcp/tools/handlers.py — pass through enriched fields in pulse handler
+- packages/civicos-client/src/types.ts — CommentPeriod + LegislativeHearing types
+- packages/civicos-components/src/components/CivicReadOnlyPulse.svelte — all 5 UX improvements
+
+---
+
 ## Session — 2026-02-19: Engagement Ladder UX — Focal Points + Voice
 
 **Item:** engagement_ladder_ux (P0) — Promote focal points, add drag-to-AI, wire voices

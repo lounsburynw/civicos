@@ -583,6 +583,10 @@ def _legislation_pulse(
                     "days_remaining": days_remaining,
                     "comment_url": rule.get("comment_url", ""),
                     "html_url": rule.get("html_url", ""),
+                    "document_type": rule.get("document_type", ""),
+                    "topics": rule.get("topics") or [],
+                    "pdf_url": rule.get("pdf_url", ""),
+                    "publication_date": str(rule["publication_date"]) if rule.get("publication_date") else None,
                 })
             result["comment_periods"] = comment_periods
     except Exception as e:
@@ -607,11 +611,15 @@ def _legislation_pulse(
 
                 upcoming_hearings.append({
                     "bill_id": h.get("bill_id", ""),
+                    "bill_number": h.get("bill_number", ""),
+                    "bill_name": h.get("bill_name", ""),
                     "event_type": h.get("event_type", "hearing"),
                     "event_date": str(event_date) if event_date else None,
                     "days_until": days_until,
                     "committee": h.get("committee", ""),
                     "description": h.get("description", ""),
+                    "summary": h.get("bill_summary", ""),
+                    "official_url": h.get("official_url", ""),
                 })
             result["upcoming_hearings"] = upcoming_hearings
     except Exception as e:

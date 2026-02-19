@@ -6347,26 +6347,34 @@ class PostgresBackend:
         self._ensure_schema(conn)
         cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
-        query = "SELECT * FROM legislative_events WHERE 1=1"
+        query = """
+            SELECT le.*,
+                   l.bill_number, l.bill_name, l.summary AS bill_summary, l.official_url
+            FROM legislative_events le
+            LEFT JOIN legislation l
+                ON le.bill_id = l.bill_id AND le.state = l.state
+                AND l.valid_to IS NULL AND l.deleted_at IS NULL
+            WHERE 1=1
+        """
         params: List[Any] = []
 
         if bill_id is not None:
-            query += " AND bill_id = %s"
+            query += " AND le.bill_id = %s"
             params.append(bill_id)
 
         if state is not None:
-            query += " AND state = %s"
+            query += " AND le.state = %s"
             params.append(state)
 
         if event_type is not None:
-            query += " AND event_type = %s"
+            query += " AND le.event_type = %s"
             params.append(event_type)
 
         if upcoming_only:
-            query += " AND event_date >= CURRENT_DATE AND event_date <= CURRENT_DATE + %s * INTERVAL '1 day'"
+            query += " AND le.event_date >= CURRENT_DATE AND le.event_date <= CURRENT_DATE + %s * INTERVAL '1 day'"
             params.append(days_ahead)
 
-        query += " ORDER BY event_date ASC"
+        query += " ORDER BY le.event_date ASC"
 
         if limit:
             query += " LIMIT %s"
