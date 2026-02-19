@@ -49,6 +49,9 @@ LEGISLATION_TOOLS = frozenset([
 CROSS_LEVEL_TOOLS = frozenset([
     "search_regulatory_stack",        # Federal + state + local legislation
     "city_pulse",                     # Level-aware: meetings (city) or legislation (state/federal)
+    "prepare_initiative",             # Create initiative (jurisdiction-agnostic)
+    "broadcast_initiative",           # Broadcast initiative to relay
+    "list_initiatives",              # List initiatives for jurisdiction
 ])
 
 CITY_TOOLS = frozenset([
@@ -95,14 +98,11 @@ CITY_TOOLS = frozenset([
 ])
 
 COORDINATION_TOOLS = frozenset([
-    # Relay-based coordination (jurisdiction-scoped but relay-agnostic)
+    # Relay-based coordination (city-only — voice, subscriptions)
     "get_voice_counts",
     "subscribe_to_topic",
     "prepare_voice",
     "broadcast_voice",
-    "prepare_initiative",
-    "broadcast_initiative",
-    "list_initiatives",
     "list_relays",
 ])
 
