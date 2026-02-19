@@ -303,6 +303,65 @@ TOOL_DEFINITIONS: dict[str, ToolDefinition] = {
         },
     },
 
+    # ─────────── Legislation & Executive Order Tools ───────────
+    "search_legislation": {
+        "description": "Search state or federal legislation by topic, keyword, or status. Returns bills with sponsor info, status, and citizen leverage points where available.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "query": {"type": "string", "description": "Search topic or keyword (e.g., 'housing', 'climate', 'transportation')"},
+                "state": {"type": "string", "description": "State code: 'CA' for California, 'US' for federal. Defaults to both."},
+                "status": {"type": "string", "description": "Filter by bill status (e.g., 'Enrolled', 'Engrossed', 'Introduced')"},
+                "limit": {"type": "integer", "default": 10, "description": "Maximum results (default 10, max 50)"},
+            },
+            "required": ["query"],
+        },
+    },
+    "get_bill_detail": {
+        "description": "Get full detail for a specific bill including text, sponsors, status, and citizen leverage point (what you can do about it).",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "bill_id": {"type": "string", "description": "Bill identifier (e.g., 'ca-sb9', 'us-hr1234')"},
+                "state": {"type": "string", "description": "State code: 'CA' or 'US'. Will be inferred from bill_id prefix if omitted."},
+            },
+            "required": ["bill_id"],
+        },
+    },
+    "get_leverage_points": {
+        "description": "Find legislation with citizen action opportunities (leverage points). These are bills where residents can take specific action — testify at committee hearings, submit public comments, or advocate at local hearings.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "topic": {"type": "string", "description": "Filter by topic (e.g., 'housing', 'transportation')"},
+                "state": {"type": "string", "description": "State code: 'CA' for California, 'US' for federal. Defaults to both."},
+                "limit": {"type": "integer", "default": 10, "description": "Maximum results"},
+            },
+        },
+    },
+    "search_executive_orders": {
+        "description": "Search active Executive Orders by topic or keyword. Uses full-text search across titles, abstracts, and text.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "query": {"type": "string", "description": "Search topic or keyword (e.g., 'immigration', 'trade', 'environment')"},
+                "president": {"type": "string", "description": "Filter by president name"},
+                "limit": {"type": "integer", "default": 10, "description": "Maximum results"},
+            },
+            "required": ["query"],
+        },
+    },
+    "get_recent_executive_orders": {
+        "description": "Get recently signed Executive Orders. Useful for tracking new federal policy actions.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "president": {"type": "string", "description": "Filter by president name"},
+                "limit": {"type": "integer", "default": 10, "description": "Maximum results (default 10, max 50)"},
+            },
+        },
+    },
+
     # ─────────── Financial Tools ───────────
     "get_funding_flow": {
         "description": "Trace intergovernmental funding from federal to state to city budget",

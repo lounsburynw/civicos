@@ -1971,6 +1971,367 @@ def get_intergovernmental_revenue(
         return f"Error getting intergovernmental revenue: {str(e)}"
 
 
+# ─────────── Legislation & Executive Order Handlers ───────────
+
+
+def search_legislation(
+    civic: CivicClient,
+    jurisdiction: str,
+    validate_input: ValidateInput,
+    logger: Logger,
+    args: dict,
+) -> str:
+    """Search legislation by topic, state, and status."""
+    query = args.get("query", "")
+    state = args.get("state")
+    status = args.get("status")
+    limit = min(args.get("limit", 10), 50)
+
+    is_valid, sanitized, error = validate_input({"query": query})
+    if not is_valid:
+        return f"Error: Invalid input - {error}"
+    query = sanitized.get("query", query)
+
+    try:
+        results = []
+
+        # Determine which states to search
+        states_to_search = [state.upper()] if state else ["CA", "US"]
+
+        # First: try topic-column filter (works when topics are tagged)
+        for s in states_to_search:
+            bills = civic.storage.get_legislation(
+                state=s,
+                topic=query,
+                status=status,
+                limit=limit,
+            )
+            results.extend(bills)
+
+        # Second: keyword search across bill_name, summary, keywords
+        # This catches bills where the topic column isn't set
+        if len(results) < limit and query:
+            query_lower = query.lower()
+            for s in states_to_search:
+                # Fetch a broader set to search through
+                fetch_limit = max(200, limit * 20)
+                all_bills = civic.storage.get_legislation(
+                    state=s,
+                    status=status,
+                    limit=fetch_limit,
+                )
+                seen_ids = {b.get("bill_id") for b in results}
+                for bill in all_bills:
+                    if bill.get("bill_id") in seen_ids:
+                        continue
+                    name = (bill.get("bill_name") or "").lower()
+                    summary = (bill.get("summary") or "").lower()
+                    keywords = bill.get("keywords") or []
+                    keyword_str = " ".join(keywords).lower() if isinstance(keywords, list) else str(keywords).lower()
+                    if query_lower in name or query_lower in summary or query_lower in keyword_str:
+                        results.append(bill)
+                        seen_ids.add(bill.get("bill_id"))
+
+        # Deduplicate by bill_id and limit
+        seen = set()
+        unique = []
+        for bill in results:
+            bid = bill.get("bill_id")
+            if bid not in seen:
+                seen.add(bid)
+                unique.append(bill)
+        results = unique[:limit]
+
+        if not results:
+            return f"No legislation found matching '{query}'."
+
+        result_parts = [f"# Legislation Search: {query}", f"**{len(results)} bills found**", ""]
+
+        for bill in results:
+            bill_num = bill.get("bill_number", bill.get("bill_id", "Unknown"))
+            state_code = bill.get("state", "")
+            name = bill.get("bill_name", "Untitled")
+            bill_status = bill.get("status", "Unknown")
+            leverage = bill.get("leverage_point", "")
+
+            result_parts.append(f"## {bill_num} ({state_code})")
+            result_parts.append(f"**{name}**")
+            result_parts.append(f"- Status: {bill_status}")
+
+            if bill.get("summary"):
+                result_parts.append(f"- Summary: {bill['summary'][:200]}")
+
+            if leverage:
+                result_parts.append(f"- **Citizen action:** {leverage}")
+
+            result_parts.append("")
+
+        return "\n".join(result_parts)
+
+    except Exception as e:
+        logger.error(f"Error in search_legislation: {e}")
+        return f"Error searching legislation: {str(e)}"
+
+
+def get_bill_detail(
+    civic: CivicClient,
+    jurisdiction: str,
+    validate_input: ValidateInput,
+    logger: Logger,
+    args: dict,
+) -> str:
+    """Get full detail for a specific bill."""
+    bill_id = args.get("bill_id", "")
+    state = args.get("state")
+
+    if not bill_id:
+        return "Error: bill_id is required."
+
+    # Infer state from bill_id prefix if not provided
+    if not state:
+        if bill_id.lower().startswith("ca-") or bill_id.lower().startswith("ca_"):
+            state = "CA"
+        elif bill_id.lower().startswith("us-") or bill_id.lower().startswith("us_"):
+            state = "US"
+        else:
+            state = "CA"  # Default to CA
+
+    try:
+        bill = civic.storage.get_legislation_by_bill_id(state=state.upper(), bill_id=bill_id)
+
+        if not bill:
+            # Try the other state
+            other = "US" if state.upper() == "CA" else "CA"
+            bill = civic.storage.get_legislation_by_bill_id(state=other, bill_id=bill_id)
+            if not bill:
+                return f"Bill '{bill_id}' not found."
+
+        bill_num = bill.get("bill_number", bill.get("bill_id", "Unknown"))
+        name = bill.get("bill_name", "Untitled")
+        state_code = bill.get("state", "")
+
+        result_parts = [f"# {bill_num} ({state_code})", f"**{name}**", ""]
+
+        result_parts.append(f"- **Status:** {bill.get('status', 'Unknown')}")
+        if bill.get("enacted_date"):
+            result_parts.append(f"- **Enacted:** {bill['enacted_date']}")
+        if bill.get("official_url"):
+            result_parts.append(f"- **Official URL:** {bill['official_url']}")
+
+        if bill.get("summary"):
+            result_parts.extend(["", "## Summary", bill["summary"]])
+
+        if bill.get("leverage_point"):
+            result_parts.extend([
+                "", "## Citizen Action Opportunity",
+                bill["leverage_point"],
+            ])
+
+        if bill.get("local_implementation_required"):
+            result_parts.append("")
+            result_parts.append("**Local implementation required.**")
+            if bill.get("local_deadline"):
+                result_parts.append(f"Deadline: {bill['local_deadline']}")
+
+        if bill.get("keywords"):
+            keywords = bill["keywords"]
+            if isinstance(keywords, list):
+                result_parts.extend(["", f"**Topics:** {', '.join(keywords)}"])
+
+        return "\n".join(result_parts)
+
+    except Exception as e:
+        logger.error(f"Error in get_bill_detail: {e}")
+        return f"Error getting bill detail: {str(e)}"
+
+
+def get_leverage_points(
+    civic: CivicClient,
+    jurisdiction: str,
+    validate_input: ValidateInput,
+    logger: Logger,
+    args: dict,
+) -> str:
+    """Find legislation with citizen action opportunities."""
+    topic = args.get("topic")
+    state = args.get("state")
+    limit = min(args.get("limit", 10), 50)
+
+    try:
+        states_to_search = [state.upper()] if state else ["CA", "US"]
+        results = []
+
+        for s in states_to_search:
+            bills = civic.storage.get_legislation(
+                state=s,
+                topic=topic if topic else None,
+                limit=200,  # Fetch more to filter
+            )
+            for bill in bills:
+                if bill.get("leverage_point"):
+                    results.append(bill)
+
+        # If topic filter was too restrictive, also search by keyword
+        if len(results) < limit and topic:
+            topic_lower = topic.lower()
+            for s in states_to_search:
+                all_bills = civic.storage.get_legislation(state=s, limit=500)
+                for bill in all_bills:
+                    if not bill.get("leverage_point"):
+                        continue
+                    name = (bill.get("bill_name") or "").lower()
+                    summary = (bill.get("summary") or "").lower()
+                    leverage = (bill.get("leverage_point") or "").lower()
+                    if topic_lower in name or topic_lower in summary or topic_lower in leverage:
+                        if bill.get("bill_id") not in {b.get("bill_id") for b in results}:
+                            results.append(bill)
+
+        results = results[:limit]
+
+        if not results:
+            topic_msg = f" for '{topic}'" if topic else ""
+            return f"No legislation with citizen action opportunities found{topic_msg}."
+
+        result_parts = [
+            "# Citizen Action Opportunities",
+            f"**{len(results)} bills with leverage points**",
+            "",
+        ]
+
+        for bill in results:
+            bill_num = bill.get("bill_number", bill.get("bill_id", ""))
+            state_code = bill.get("state", "")
+            name = bill.get("bill_name", "")
+            leverage = bill.get("leverage_point", "")
+
+            result_parts.append(f"## {bill_num} ({state_code})")
+            result_parts.append(f"**{name}**")
+            result_parts.append(f"- Status: {bill.get('status', 'Unknown')}")
+            result_parts.append(f"- **What you can do:** {leverage}")
+            result_parts.append("")
+
+        return "\n".join(result_parts)
+
+    except Exception as e:
+        logger.error(f"Error in get_leverage_points: {e}")
+        return f"Error getting leverage points: {str(e)}"
+
+
+def search_executive_orders(
+    civic: CivicClient,
+    jurisdiction: str,
+    validate_input: ValidateInput,
+    logger: Logger,
+    args: dict,
+) -> str:
+    """Search active Executive Orders by topic."""
+    query = args.get("query", "")
+    president = args.get("president")
+    limit = min(args.get("limit", 10), 50)
+
+    is_valid, sanitized, error = validate_input({"query": query})
+    if not is_valid:
+        return f"Error: Invalid input - {error}"
+    query = sanitized.get("query", query)
+
+    try:
+        orders = civic.storage.search_executive_orders(
+            query=query,
+            president=president,
+            limit=limit,
+        )
+
+        if not orders:
+            return f"No Executive Orders found matching '{query}'."
+
+        result_parts = [
+            f"# Executive Orders: {query}",
+            f"**{len(orders)} orders found**",
+            "",
+        ]
+
+        for order in orders:
+            eo_num = order.get("eo_number", "")
+            title = order.get("title", "Untitled")
+            pres = order.get("president", "")
+            signed = order.get("signing_date", "")
+
+            header = f"EO {eo_num}" if eo_num else order.get("document_number", "Unknown")
+            result_parts.append(f"## {header}")
+            result_parts.append(f"**{title}**")
+            result_parts.append(f"- President: {pres}")
+            if signed:
+                result_parts.append(f"- Signed: {signed}")
+            if order.get("html_url"):
+                result_parts.append(f"- URL: {order['html_url']}")
+
+            preview = order.get("text_preview", "")
+            if preview:
+                # Strip HTML tags if present
+                clean = re.sub(r'<[^>]+>', ' ', preview)
+                clean = re.sub(r'\s+', ' ', clean).strip()
+                if clean:
+                    result_parts.append(f"- Preview: {clean[:300]}...")
+
+            result_parts.append("")
+
+        return "\n".join(result_parts)
+
+    except Exception as e:
+        logger.error(f"Error in search_executive_orders: {e}")
+        return f"Error searching executive orders: {str(e)}"
+
+
+def get_recent_executive_orders(
+    civic: CivicClient,
+    jurisdiction: str,
+    validate_input: ValidateInput,
+    logger: Logger,
+    args: dict,
+) -> str:
+    """Get recently signed Executive Orders."""
+    president = args.get("president")
+    limit = min(args.get("limit", 10), 50)
+
+    try:
+        orders = civic.storage.get_executive_orders(
+            president=president,
+            status="active",
+            limit=limit,
+        )
+
+        if not orders:
+            return "No recent Executive Orders found."
+
+        result_parts = [
+            "# Recent Executive Orders",
+            f"**{len(orders)} orders**",
+            "",
+        ]
+
+        for order in orders:
+            eo_num = order.get("eo_number", "")
+            title = order.get("title", "Untitled")
+            pres = order.get("president", "")
+            signed = order.get("signing_date", "")
+
+            header = f"EO {eo_num}" if eo_num else order.get("document_number", "Unknown")
+            result_parts.append(f"## {header}")
+            result_parts.append(f"**{title}**")
+            result_parts.append(f"- President: {pres}")
+            if signed:
+                result_parts.append(f"- Signed: {signed}")
+            if order.get("html_url"):
+                result_parts.append(f"- URL: {order['html_url']}")
+            result_parts.append("")
+
+        return "\n".join(result_parts)
+
+    except Exception as e:
+        logger.error(f"Error in get_recent_executive_orders: {e}")
+        return f"Error getting recent executive orders: {str(e)}"
+
+
 # ─────────── Action Handlers ───────────
 
 

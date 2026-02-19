@@ -27,8 +27,10 @@ from typing import Optional
 
 FEDERAL_TOOLS = frozenset([
     # These tools query shared federal datasets
-    "get_federal_expenditures",     # FAC Single Audit data
-    "get_funding_flow",             # Federal funding traces (also shows state/city)
+    "get_federal_expenditures",       # FAC Single Audit data
+    "get_funding_flow",               # Federal funding traces (also shows state/city)
+    "search_executive_orders",        # Search EOs by topic
+    "get_recent_executive_orders",    # Recent EOs
 ])
 
 STATE_TOOLS = frozenset([
@@ -36,9 +38,16 @@ STATE_TOOLS = frozenset([
     "get_intergovernmental_revenue",  # CA State Controller data
 ])
 
+# Legislation tools span state + federal levels
+LEGISLATION_TOOLS = frozenset([
+    "search_legislation",             # Search bills by topic/state/status
+    "get_bill_detail",                # Full bill detail with leverage point
+    "get_leverage_points",            # Bills with citizen action opportunities
+])
+
 # Regulatory stack spans all levels - include at all levels
 CROSS_LEVEL_TOOLS = frozenset([
-    "search_regulatory_stack",      # Federal + state + local legislation
+    "search_regulatory_stack",        # Federal + state + local legislation
 ])
 
 CITY_TOOLS = frozenset([
@@ -99,10 +108,10 @@ COORDINATION_TOOLS = frozenset([
 
 # Complete tool level mapping
 TOOL_LEVELS = {
-    "federal": FEDERAL_TOOLS | CROSS_LEVEL_TOOLS,
-    "state": FEDERAL_TOOLS | STATE_TOOLS | CROSS_LEVEL_TOOLS,
-    "county": FEDERAL_TOOLS | STATE_TOOLS | CROSS_LEVEL_TOOLS,  # Same as state for now
-    "city": FEDERAL_TOOLS | STATE_TOOLS | CITY_TOOLS | CROSS_LEVEL_TOOLS | COORDINATION_TOOLS,
+    "federal": FEDERAL_TOOLS | LEGISLATION_TOOLS | CROSS_LEVEL_TOOLS,
+    "state": FEDERAL_TOOLS | STATE_TOOLS | LEGISLATION_TOOLS | CROSS_LEVEL_TOOLS,
+    "county": FEDERAL_TOOLS | STATE_TOOLS | LEGISLATION_TOOLS | CROSS_LEVEL_TOOLS,
+    "city": FEDERAL_TOOLS | STATE_TOOLS | CITY_TOOLS | LEGISLATION_TOOLS | CROSS_LEVEL_TOOLS | COORDINATION_TOOLS,
 }
 
 
