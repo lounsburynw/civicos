@@ -2569,6 +2569,291 @@ def get_recent_executive_orders(
         return f"Error getting recent executive orders: {str(e)}"
 
 
+# ─────────── Participation Window Handlers ───────────
+
+
+def get_open_comment_periods(
+    civic: CivicClient,
+    jurisdiction: str,
+    validate_input: ValidateInput,
+    logger: Logger,
+    args: dict,
+) -> str:
+    """Get federal rules with open public comment periods."""
+    limit = min(args.get("limit", 10), 50)
+
+    try:
+        rules = civic.storage.get_open_comment_periods(limit=limit)
+
+        if not rules:
+            return "No federal rules with open comment periods found. Check back soon — new proposed rules are published regularly."
+
+        result_parts = [
+            "# Open Federal Comment Periods",
+            f"**{len(rules)} rules accepting public comments**",
+            "",
+            "These are proposed rules where you can submit feedback before the deadline.",
+            "",
+        ]
+
+        for rule in rules:
+            title = rule.get("title", "Untitled")
+            agencies = rule.get("agency_names", [])
+            agency_str = ", ".join(agencies) if agencies else "Unknown agency"
+            close_date = rule.get("comments_close_on", "")
+            comment_url = rule.get("comment_url", "")
+
+            # Calculate days remaining
+            days_remaining = ""
+            if close_date:
+                try:
+                    close = datetime.strptime(close_date, "%Y-%m-%d").date()
+                    delta = (close - datetime.now().date()).days
+                    if delta < 0:
+                        days_remaining = " (CLOSED)"
+                    elif delta == 0:
+                        days_remaining = " (CLOSES TODAY)"
+                    elif delta <= 7:
+                        days_remaining = f" ({delta} days left)"
+                    else:
+                        days_remaining = f" ({delta} days left)"
+                except ValueError:
+                    pass
+
+            result_parts.append(f"## {title[:100]}")
+            result_parts.append(f"- Agency: {agency_str}")
+            result_parts.append(f"- Comment deadline: {close_date}{days_remaining}")
+            if comment_url:
+                result_parts.append(f"- Submit comment: {comment_url}")
+            if rule.get("html_url"):
+                result_parts.append(f"- Full text: {rule['html_url']}")
+            if rule.get("abstract"):
+                result_parts.append(f"- Summary: {rule['abstract'][:300]}")
+            result_parts.append("")
+
+        return "\n".join(result_parts)
+
+    except Exception as e:
+        logger.error(f"Error in get_open_comment_periods: {e}")
+        return f"Error getting open comment periods: {str(e)}"
+
+
+def search_federal_rules(
+    civic: CivicClient,
+    jurisdiction: str,
+    validate_input: ValidateInput,
+    logger: Logger,
+    args: dict,
+) -> str:
+    """Search federal rulemaking documents by topic."""
+    query = args.get("query", "")
+    document_type = args.get("document_type")
+    limit = min(args.get("limit", 10), 50)
+
+    is_valid, sanitized, error = validate_input({"query": query})
+    if not is_valid:
+        return f"Error: Invalid input - {error}"
+    query = sanitized.get("query", query)
+
+    try:
+        rules = civic.storage.search_federal_rules(
+            query=query,
+            document_type=document_type,
+            limit=limit,
+        )
+
+        if not rules:
+            return f"No federal rules found matching '{query}'."
+
+        type_labels = {
+            "proposed_rule": "Proposed Rule",
+            "final_rule": "Final Rule",
+            "notice": "Notice",
+        }
+
+        result_parts = [
+            f"# Federal Rules: {query}",
+            f"**{len(rules)} rules found**",
+            "",
+        ]
+
+        for rule in rules:
+            title = rule.get("title", "Untitled")
+            doc_type = type_labels.get(rule.get("document_type", ""), rule.get("document_type", ""))
+            agencies = rule.get("agency_names", [])
+            agency_str = ", ".join(agencies) if agencies else "Unknown"
+            close_date = rule.get("comments_close_on", "")
+
+            result_parts.append(f"## {title[:100]}")
+            result_parts.append(f"- Type: {doc_type}")
+            result_parts.append(f"- Agency: {agency_str}")
+            if close_date:
+                result_parts.append(f"- Comment deadline: {close_date}")
+            if rule.get("comment_url"):
+                result_parts.append(f"- Submit comment: {rule['comment_url']}")
+            if rule.get("html_url"):
+                result_parts.append(f"- URL: {rule['html_url']}")
+            if rule.get("abstract"):
+                result_parts.append(f"- Summary: {rule['abstract'][:300]}")
+            result_parts.append("")
+
+        return "\n".join(result_parts)
+
+    except Exception as e:
+        logger.error(f"Error in search_federal_rules: {e}")
+        return f"Error searching federal rules: {str(e)}"
+
+
+def get_upcoming_hearings(
+    civic: CivicClient,
+    jurisdiction: str,
+    validate_input: ValidateInput,
+    logger: Logger,
+    args: dict,
+) -> str:
+    """Get upcoming state legislative committee hearings."""
+    state = args.get("state", "CA")
+    topic = args.get("topic")
+    days_ahead = args.get("days_ahead", 30)
+    limit = min(args.get("limit", 20), 50)
+
+    try:
+        events = civic.storage.get_upcoming_hearings(
+            state=state,
+            days_ahead=days_ahead,
+            limit=limit,
+        )
+
+        # If topic filter requested, filter by keyword match
+        if topic and events:
+            topic_lower = topic.lower()
+            events = [
+                e for e in events
+                if topic_lower in (e.get("description", "") or "").lower()
+                or topic_lower in (e.get("committee", "") or "").lower()
+                or topic_lower in (e.get("bill_id", "") or "").lower()
+            ]
+
+        if not events:
+            qualifier = f" on '{topic}'" if topic else ""
+            return f"No upcoming hearings found{qualifier} in the next {days_ahead} days."
+
+        result_parts = [
+            f"# Upcoming Legislative Hearings ({state})",
+            f"**{len(events)} hearings in next {days_ahead} days**",
+            "",
+            "These are committee hearings where public testimony may be accepted.",
+            "",
+        ]
+
+        for event in events:
+            bill_id = event.get("bill_id", "Unknown")
+            event_date = event.get("event_date", "")
+            committee = event.get("committee", "")
+            description = event.get("description", "")
+
+            # Calculate days until hearing
+            days_until = ""
+            if event_date:
+                try:
+                    hearing = datetime.strptime(event_date, "%Y-%m-%d").date()
+                    delta = (hearing - datetime.now().date()).days
+                    if delta == 0:
+                        days_until = " (TODAY)"
+                    elif delta == 1:
+                        days_until = " (tomorrow)"
+                    else:
+                        days_until = f" (in {delta} days)"
+                except ValueError:
+                    pass
+
+            result_parts.append(f"## {bill_id}")
+            result_parts.append(f"- Hearing date: {event_date}{days_until}")
+            if committee:
+                result_parts.append(f"- Committee: {committee}")
+            if event.get("location"):
+                result_parts.append(f"- Location: {event['location']}")
+            if description:
+                result_parts.append(f"- Details: {description[:300]}")
+            result_parts.append("")
+
+        return "\n".join(result_parts)
+
+    except Exception as e:
+        logger.error(f"Error in get_upcoming_hearings: {e}")
+        return f"Error getting upcoming hearings: {str(e)}"
+
+
+def get_governors_desk(
+    civic: CivicClient,
+    jurisdiction: str,
+    validate_input: ValidateInput,
+    logger: Logger,
+    args: dict,
+) -> str:
+    """Get bills awaiting governor's signature (Enrolled status)."""
+    state = args.get("state", "CA")
+    topic = args.get("topic")
+    limit = min(args.get("limit", 20), 50)
+
+    try:
+        # Status 5 = Enrolled (awaiting governor's signature)
+        bills = civic.storage.get_legislation(
+            state=state,
+            status="Enrolled",
+            limit=limit * 2,  # Fetch more to allow for topic filtering
+        )
+
+        # Also try status_id if text status doesn't work
+        if not bills:
+            bills = civic.storage.get_legislation(
+                state=state,
+                limit=200,
+            )
+            bills = [b for b in bills if str(b.get("status_id")) == "5" or b.get("status") == "Enrolled"]
+
+        # Filter by topic if requested
+        if topic and bills:
+            topic_lower = topic.lower()
+            bills = [
+                b for b in bills
+                if topic_lower in (b.get("bill_name", "") or "").lower()
+                or topic_lower in (b.get("summary", "") or "").lower()
+                or topic_lower in " ".join(b.get("keywords", []) or []).lower()
+            ]
+
+        bills = bills[:limit]
+
+        if not bills:
+            qualifier = f" on '{topic}'" if topic else ""
+            return f"No bills currently on the Governor's desk{qualifier}."
+
+        result_parts = [
+            f"# Governor's Desk ({state})",
+            f"**{len(bills)} bills awaiting signature**",
+            "",
+            "The governor has 12 days to sign or veto these bills. Constituent calls can influence the outcome.",
+            "",
+        ]
+
+        for bill in bills:
+            bill_num = bill.get("bill_number", bill.get("bill_id", "Unknown"))
+            name = bill.get("bill_name", "Untitled")
+
+            result_parts.append(f"## {bill_num}")
+            result_parts.append(f"**{name}**")
+            if bill.get("summary"):
+                result_parts.append(f"- Summary: {bill['summary'][:200]}")
+            result_parts.append(f"- **Action:** Call the Governor's office to express support or opposition")
+            result_parts.append("")
+
+        return "\n".join(result_parts)
+
+    except Exception as e:
+        logger.error(f"Error in get_governors_desk: {e}")
+        return f"Error getting governor's desk bills: {str(e)}"
+
+
 # ─────────── Action Handlers ───────────
 
 

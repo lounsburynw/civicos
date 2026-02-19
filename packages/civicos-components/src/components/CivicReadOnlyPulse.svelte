@@ -17,6 +17,9 @@
     upcoming_items?: Array<{ id?: string; title: string; meeting_title?: string; project_type?: string; description?: string; summary?: string; status?: string; official_url?: string }>;
     recent_outcomes: Array<{ id?: string; title: string; date: string; outcome: string; is_upcoming?: boolean; summary?: string; official_url?: string }>;
     generated_at: string;
+    comment_periods?: Array<{ document_number: string; title: string; abstract?: string; agency_names: string[]; comments_close_on: string; comment_url?: string; html_url?: string; days_remaining: number }>;
+    upcoming_hearings?: Array<{ bill_id: string; bill_number?: string; bill_name?: string; event_date: string; committee?: string; location?: string; description?: string; days_until: number }>;
+    governors_desk?: Array<{ bill_id: string; bill_number?: string; bill_name?: string; summary?: string; enrolled_date?: string }>;
   };
 
   type JurisdictionLevel = 'federal' | 'state' | 'city' | string;
@@ -149,10 +152,24 @@
     draggingId = null;
   }
 
+  const hasCommentPeriods = $derived((data.comment_periods ?? []).length > 0);
+  const hasHearings = $derived((data.upcoming_hearings ?? []).length > 0);
+  const hasGovernorsDesk = $derived((data.governors_desk ?? []).length > 0);
+
+  function urgencyClass(days: number): string {
+    if (days <= 0) return 'urgent-closed';
+    if (days <= 3) return 'urgent-critical';
+    if (days <= 7) return 'urgent-soon';
+    return 'urgent-normal';
+  }
+
   let expanded: Record<string, boolean> = $state({
     meetings: true,
     items: true,
     outcomes: true,
+    commentPeriods: true,
+    hearings: true,
+    governorsDesk: true,
   });
 
   function toggle(section: string) {
@@ -326,6 +343,124 @@
     </div>
   {/if}
 </section>
+
+<!-- Comment Periods (Federal) -->
+{#if hasCommentPeriods}
+  <section class="feed-section">
+    <button class="section-header" onclick={() => toggle('commentPeriods')}>
+      <span class="section-title">
+        Comment Periods
+        <span class="count-badge">{data.comment_periods!.length}</span>
+      </span>
+      <span class="chevron" class:open={expanded.commentPeriods}></span>
+    </button>
+    {#if expanded.commentPeriods}
+      <div class="section-body">
+        {#each data.comment_periods! as period}
+          <div class="card">
+            <div class="card-title">{period.title}</div>
+            <div class="card-meta">
+              <span>{period.agency_names.join(', ')}</span>
+              <span class="deadline-tag {urgencyClass(period.days_remaining)}">
+                {#if period.days_remaining <= 0}
+                  Closed
+                {:else if period.days_remaining === 1}
+                  1 day left
+                {:else}
+                  {period.days_remaining} days left
+                {/if}
+              </span>
+            </div>
+            {#if period.abstract}
+              <div class="card-summary">{period.abstract}</div>
+            {/if}
+            <div class="card-actions">
+              {#if period.comment_url}
+                <a href={period.comment_url} target="_blank" rel="noopener" class="action-link comment-link">Submit Comment</a>
+              {/if}
+              {#if period.html_url}
+                <a href={period.html_url} target="_blank" rel="noopener" class="action-link">Read Rule</a>
+              {/if}
+            </div>
+          </div>
+        {/each}
+      </div>
+    {/if}
+  </section>
+{/if}
+
+<!-- Upcoming Hearings (State) -->
+{#if hasHearings}
+  <section class="feed-section">
+    <button class="section-header" onclick={() => toggle('hearings')}>
+      <span class="section-title">
+        Upcoming Hearings
+        <span class="count-badge">{data.upcoming_hearings!.length}</span>
+      </span>
+      <span class="chevron" class:open={expanded.hearings}></span>
+    </button>
+    {#if expanded.hearings}
+      <div class="section-body">
+        {#each data.upcoming_hearings! as hearing}
+          <div class="card">
+            <div class="card-title">{hearing.bill_number || hearing.bill_id}</div>
+            {#if hearing.bill_name}
+              <div class="card-subtitle">{hearing.bill_name}</div>
+            {/if}
+            <div class="card-meta">
+              <span class="meta-date">{hearing.event_date}</span>
+              <span class="deadline-tag {urgencyClass(hearing.days_until)}">
+                {#if hearing.days_until === 0}
+                  Today
+                {:else if hearing.days_until === 1}
+                  Tomorrow
+                {:else}
+                  In {hearing.days_until} days
+                {/if}
+              </span>
+              {#if hearing.committee}
+                <span>{hearing.committee}</span>
+              {/if}
+            </div>
+            {#if hearing.description}
+              <div class="card-summary">{hearing.description}</div>
+            {/if}
+          </div>
+        {/each}
+      </div>
+    {/if}
+  </section>
+{/if}
+
+<!-- Governor's Desk (State) -->
+{#if hasGovernorsDesk}
+  <section class="feed-section">
+    <button class="section-header" onclick={() => toggle('governorsDesk')}>
+      <span class="section-title">
+        Governor's Desk
+        <span class="count-badge action-badge">{data.governors_desk!.length}</span>
+      </span>
+      <span class="chevron" class:open={expanded.governorsDesk}></span>
+    </button>
+    {#if expanded.governorsDesk}
+      <div class="section-body">
+        <div class="section-hint">Bills awaiting governor's signature — call now to influence the outcome</div>
+        {#each data.governors_desk! as bill}
+          <div class="card">
+            <div class="card-title">{bill.bill_number || bill.bill_id}</div>
+            {#if bill.bill_name}
+              <div class="card-subtitle">{bill.bill_name}</div>
+            {/if}
+            {#if bill.summary}
+              <div class="card-summary">{bill.summary}</div>
+            {/if}
+            <div class="card-leverage">Call the Governor's office to express support or opposition</div>
+          </div>
+        {/each}
+      </div>
+    {/if}
+  </section>
+{/if}
 
 {#if children}
   {@render children()}
@@ -519,6 +654,75 @@
     font-size: 10px;
     color: #60a5fa;
     font-weight: 500;
+  }
+  .card-subtitle {
+    color: #d1d5db;
+    font-size: 12px;
+    line-height: 1.3;
+    margin-top: 2px;
+  }
+  .deadline-tag {
+    font-size: 10px;
+    font-weight: 600;
+    padding: 1px 6px;
+    border-radius: 3px;
+  }
+  .deadline-tag.urgent-critical {
+    background: rgba(239, 68, 68, 0.15);
+    color: #f87171;
+  }
+  .deadline-tag.urgent-soon {
+    background: rgba(245, 158, 11, 0.15);
+    color: #fbbf24;
+  }
+  .deadline-tag.urgent-normal {
+    background: rgba(59, 130, 246, 0.12);
+    color: #60a5fa;
+  }
+  .deadline-tag.urgent-closed {
+    background: rgba(107, 114, 128, 0.15);
+    color: #6b7280;
+  }
+  .card-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+  }
+  .action-link {
+    font-size: 11px;
+    font-weight: 500;
+    color: #60a5fa;
+    text-decoration: none;
+    padding: 3px 8px;
+    border-radius: 4px;
+    background: rgba(59, 130, 246, 0.08);
+    border: 1px solid rgba(59, 130, 246, 0.2);
+    transition: all 0.15s ease;
+  }
+  .action-link:hover {
+    background: rgba(59, 130, 246, 0.16);
+    border-color: #3b82f6;
+    color: #93c5fd;
+  }
+  .action-link.comment-link {
+    color: #4ade80;
+    background: rgba(74, 222, 128, 0.08);
+    border-color: rgba(74, 222, 128, 0.2);
+  }
+  .action-link.comment-link:hover {
+    background: rgba(74, 222, 128, 0.16);
+    border-color: #4ade80;
+    color: #86efac;
+  }
+  .action-badge {
+    background: rgba(245, 158, 11, 0.15) !important;
+    color: #fbbf24 !important;
+  }
+  .section-hint {
+    font-size: 11px;
+    color: #9ca3af;
+    padding: 2px 8px 6px;
+    font-style: italic;
   }
   .pulse-footer {
     display: flex;

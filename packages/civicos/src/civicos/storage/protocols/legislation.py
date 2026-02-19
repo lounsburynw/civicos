@@ -231,3 +231,83 @@ class LegislationStorage(Protocol):
     ) -> int:
         """Get count of Executive Orders."""
         ...
+
+    # ========== Federal Rules Methods (Rulemaking / Comment Periods) ==========
+
+    def store_federal_rules(
+        self,
+        rules: List[Dict[str, Any]],
+    ) -> int:
+        """Store federal rulemaking documents (proposed rules, final rules, notices)."""
+        ...
+
+    def get_federal_rules(
+        self,
+        document_type: Optional[str] = None,
+        comments_open: bool = False,
+        limit: Optional[int] = None,
+        offset: int = 0,
+    ) -> List[Dict[str, Any]]:
+        """Retrieve federal rules with optional filtering."""
+        ...
+
+    def get_open_comment_periods(
+        self,
+        limit: int = 20,
+    ) -> List[Dict[str, Any]]:
+        """Get federal rules with open comment periods, sorted by deadline."""
+        ...
+
+    def search_federal_rules(
+        self,
+        query: str,
+        document_type: Optional[str] = None,
+        limit: int = 10,
+    ) -> List[Dict[str, Any]]:
+        """Search federal rules by topic/keyword using full-text search."""
+        ...
+
+    def get_federal_rules_count(
+        self,
+        document_type: Optional[str] = None,
+    ) -> int:
+        """Get count of federal rules."""
+        ...
+
+    # ========== Legislative Events Methods (Hearings, Votes) ==========
+
+    def store_legislative_events(
+        self,
+        events: List[Dict[str, Any]],
+    ) -> int:
+        """Store legislative events (hearings, votes, signings)."""
+        ...
+
+    def get_legislative_events(
+        self,
+        bill_id: Optional[str] = None,
+        state: Optional[str] = None,
+        event_type: Optional[str] = None,
+        upcoming_only: bool = False,
+        days_ahead: int = 30,
+        limit: Optional[int] = None,
+    ) -> List[Dict[str, Any]]:
+        """Retrieve legislative events with optional filtering."""
+        ...
+
+    def get_upcoming_hearings(
+        self,
+        state: Optional[str] = None,
+        days_ahead: int = 30,
+        limit: int = 20,
+    ) -> List[Dict[str, Any]]:
+        """Get upcoming legislative hearings."""
+        ...
+
+    def get_legislative_events_count(
+        self,
+        state: Optional[str] = None,
+        event_type: Optional[str] = None,
+    ) -> int:
+        """Get count of legislative events."""
+        ...

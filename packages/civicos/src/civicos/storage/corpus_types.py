@@ -51,6 +51,7 @@ class CorpusType(str, Enum):
     STATE_PROGRAMS = "state_programs"  # State pass-through grants (per-jurisdiction)
     CODIFIED_LAW = "codified_law" # Statutes (U.S. Code, CA Codes, etc.) - parameterized by jurisdiction
     EXECUTIVE_ORDERS = "executive_orders"  # Presidential executive orders (SESSION 432)
+    FEDERAL_RULES = "federal_rules"        # Federal rulemaking (proposed rules, final rules, notices)
 
     def __str__(self) -> str:
         return self.value
@@ -246,6 +247,17 @@ CORPUS_REGISTRY: Dict[CorpusType, CorpusConfig] = {
         aliases=("eo", "executive_order"),
         has_meeting_context=False,
     ),
+    CorpusType.FEDERAL_RULES: CorpusConfig(
+        display_name="Federal Rules",
+        storage_method="get_federal_rules",
+        count_method="get_federal_rules_count",
+        text_extractor="_federal_rule_to_text",
+        jurisdiction_type="both",  # Federal rules, queryable from any jurisdiction
+        sql_table="federal_rules",
+        vector_collection_suffix="federal_rules",
+        aliases=("federal_rule", "rulemaking", "nprm"),
+        has_meeting_context=False,
+    ),
 }
 
 
@@ -360,6 +372,8 @@ UNIFIED_SEARCH_ALIASES = {
     "statutes": CorpusType.CODIFIED_LAW,
     "executive_orders": CorpusType.EXECUTIVE_ORDERS,
     "eo": CorpusType.EXECUTIVE_ORDERS,
+    "federal_rules": CorpusType.FEDERAL_RULES,
+    "rulemaking": CorpusType.FEDERAL_RULES,
 }
 
 

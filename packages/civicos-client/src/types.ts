@@ -21,6 +21,12 @@ export interface CityPulseData {
   clerk_email?: string;
   relay_url?: string;
   error?: string;
+  /** Federal rules with open comment periods (participation windows) */
+  comment_periods?: CommentPeriod[];
+  /** Upcoming legislative hearings (participation windows) */
+  upcoming_hearings?: LegislativeHearing[];
+  /** Bills on the governor's desk (action window) */
+  governors_desk?: GovernorsDeskBill[];
 }
 
 export interface PulseMeeting {
@@ -58,6 +64,38 @@ export interface PulseOutcome {
 export interface CommunityPulse {
   total_issues?: number;
   top_types?: Record<string, number>;
+}
+
+// === Participation Windows ===
+
+export interface CommentPeriod {
+  document_number: string;
+  title: string;
+  abstract?: string;
+  agency_names: string[];
+  comments_close_on: string;
+  comment_url?: string;
+  html_url?: string;
+  days_remaining: number;
+}
+
+export interface LegislativeHearing {
+  bill_id: string;
+  bill_number?: string;
+  bill_name?: string;
+  event_date: string;
+  committee?: string;
+  location?: string;
+  description?: string;
+  days_until: number;
+}
+
+export interface GovernorsDeskBill {
+  bill_id: string;
+  bill_number?: string;
+  bill_name?: string;
+  summary?: string;
+  enrolled_date?: string;
 }
 
 // === Decision Detail (from /decision-detail) ===

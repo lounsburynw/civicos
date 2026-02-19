@@ -822,6 +822,73 @@ class PostgresBackend:
             ON executive_orders(status)
         """)
 
+        # Federal Rules table (rulemaking: proposed rules, final rules, notices)
+        # Stores participation windows (comment periods) from Federal Register
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS federal_rules (
+                id SERIAL PRIMARY KEY,
+                document_number TEXT NOT NULL UNIQUE,
+                title TEXT NOT NULL,
+                abstract TEXT,
+                agency_names JSONB,
+                publication_date DATE,
+                comments_close_on DATE,
+                comment_url TEXT,
+                html_url TEXT,
+                pdf_url TEXT,
+                regulation_id_numbers JSONB,
+                docket_ids JSONB,
+                document_type TEXT NOT NULL DEFAULT 'proposed_rule',
+                topics JSONB,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_federal_rules_document_type
+            ON federal_rules(document_type)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_federal_rules_comments_close_on
+            ON federal_rules(comments_close_on)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_federal_rules_publication_date
+            ON federal_rules(publication_date)
+        """)
+
+        # Legislative Events table (hearings, votes, signings for state/federal bills)
+        # Supports multiple events per bill for tracking participation windows
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS legislative_events (
+                id SERIAL PRIMARY KEY,
+                bill_id TEXT NOT NULL,
+                state TEXT NOT NULL DEFAULT 'CA',
+                event_type TEXT NOT NULL,
+                event_date DATE,
+                committee TEXT,
+                location TEXT,
+                description TEXT,
+                source TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_legislative_events_bill_id
+            ON legislative_events(bill_id)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_legislative_events_event_date
+            ON legislative_events(event_date)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_legislative_events_event_type
+            ON legislative_events(event_type)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_legislative_events_state
+            ON legislative_events(state)
+        """)
+
         # Refresh metadata table (SESSION 423)
         # Tracks last fetch times for incremental pipeline automation
         cursor.execute("""
@@ -5939,6 +6006,429 @@ class PostgresBackend:
 
         return [dict(row) for row in rows]
 
+    # ========== Federal Rules Methods (Rulemaking / Comment Periods) ==========
+
+    def store_federal_rules(
+        self,
+        rules: List[Dict[str, Any]],
+    ) -> int:
+        """
+        Store federal rulemaking documents (proposed rules, final rules, notices).
+
+        Args:
+            rules: List of rule dictionaries from FederalRegisterClient
+
+        Returns:
+            Number of rules successfully stored
+        """
+        conn = self._get_connection()
+        self._ensure_schema(conn)
+        cursor = conn.cursor()
+
+        try:
+            valid_rules = [r for r in rules if r.get("document_number")]
+            if not valid_rules:
+                conn.close()
+                return 0
+
+            values = []
+            for rule in valid_rules:
+                values.append((
+                    rule.get("document_number"),
+                    rule.get("title"),
+                    rule.get("abstract"),
+                    json.dumps(rule.get("agency_names", [])),
+                    rule.get("publication_date"),
+                    rule.get("comments_close_on"),
+                    rule.get("comment_url"),
+                    rule.get("html_url"),
+                    rule.get("pdf_url"),
+                    json.dumps(rule.get("regulation_id_numbers", [])),
+                    json.dumps(rule.get("docket_ids", [])),
+                    rule.get("document_type", "proposed_rule"),
+                    json.dumps(rule.get("topics", [])),
+                ))
+
+            if values:
+                psycopg2.extras.execute_values(
+                    cursor,
+                    """
+                    INSERT INTO federal_rules (
+                        document_number, title, abstract, agency_names,
+                        publication_date, comments_close_on, comment_url,
+                        html_url, pdf_url, regulation_id_numbers, docket_ids,
+                        document_type, topics
+                    ) VALUES %s
+                    ON CONFLICT (document_number) DO UPDATE SET
+                        title = EXCLUDED.title,
+                        abstract = EXCLUDED.abstract,
+                        agency_names = EXCLUDED.agency_names,
+                        comments_close_on = EXCLUDED.comments_close_on,
+                        comment_url = EXCLUDED.comment_url,
+                        document_type = EXCLUDED.document_type,
+                        topics = EXCLUDED.topics
+                    """,
+                    values,
+                    template="(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
+                    page_size=500,
+                )
+
+            conn.commit()
+            return len(valid_rules)
+
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
+
+    def get_federal_rules(
+        self,
+        document_type: Optional[str] = None,
+        comments_open: bool = False,
+        limit: Optional[int] = None,
+        offset: int = 0,
+    ) -> List[Dict[str, Any]]:
+        """
+        Retrieve federal rules with optional filtering.
+
+        Args:
+            document_type: Filter by type ("proposed_rule", "final_rule", "notice")
+            comments_open: If True, only return rules with comments_close_on > today
+            limit: Maximum number of rules to return
+            offset: Skip first N results
+
+        Returns:
+            List of rule dictionaries
+        """
+        conn = self._get_connection()
+        self._ensure_schema(conn)
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+        query = "SELECT * FROM federal_rules WHERE 1=1"
+        params: List[Any] = []
+
+        if document_type is not None:
+            query += " AND document_type = %s"
+            params.append(document_type)
+
+        if comments_open:
+            query += " AND comments_close_on IS NOT NULL AND comments_close_on >= CURRENT_DATE"
+
+        query += " ORDER BY comments_close_on ASC NULLS LAST, publication_date DESC"
+
+        if limit:
+            query += " LIMIT %s"
+            params.append(limit)
+
+        if offset > 0:
+            query += " OFFSET %s"
+            params.append(offset)
+
+        cursor.execute(query, params)
+        rows = cursor.fetchall()
+        conn.close()
+
+        rules = []
+        for row in rows:
+            rule = dict(row)
+            for key in ["publication_date", "comments_close_on", "created_at"]:
+                if key in rule and rule[key] is not None:
+                    if isinstance(rule[key], (datetime, date)):
+                        rule[key] = rule[key].isoformat()
+            # Parse JSONB fields that may be strings
+            for key in ["agency_names", "regulation_id_numbers", "docket_ids", "topics"]:
+                if key in rule and isinstance(rule[key], str):
+                    try:
+                        rule[key] = json.loads(rule[key])
+                    except json.JSONDecodeError:
+                        rule[key] = []
+            rules.append(rule)
+
+        return rules
+
+    def get_open_comment_periods(
+        self,
+        limit: int = 20,
+    ) -> List[Dict[str, Any]]:
+        """
+        Get federal rules with open comment periods, sorted by deadline.
+
+        Returns:
+            List of rules with comments_close_on > today, sorted by soonest deadline
+        """
+        return self.get_federal_rules(
+            document_type="proposed_rule",
+            comments_open=True,
+            limit=limit,
+        )
+
+    def search_federal_rules(
+        self,
+        query: str,
+        document_type: Optional[str] = None,
+        limit: int = 10,
+    ) -> List[Dict[str, Any]]:
+        """
+        Search federal rules by topic/keyword using full-text search.
+
+        Args:
+            query: Search query
+            document_type: Optional filter by type
+            limit: Maximum results
+
+        Returns:
+            List of matching rules with relevance scores
+        """
+        conn = self._get_connection()
+        self._ensure_schema(conn)
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+        sql = """
+            SELECT *,
+                ts_rank(
+                    to_tsvector('english', COALESCE(title, '') || ' ' || COALESCE(abstract, '')),
+                    plainto_tsquery('english', %s)
+                ) as relevance
+            FROM federal_rules
+            WHERE to_tsvector('english', COALESCE(title, '') || ' ' || COALESCE(abstract, ''))
+                  @@ plainto_tsquery('english', %s)
+        """
+        params: List[Any] = [query, query]
+
+        if document_type is not None:
+            sql += " AND document_type = %s"
+            params.append(document_type)
+
+        sql += " ORDER BY relevance DESC LIMIT %s"
+        params.append(limit)
+
+        cursor.execute(sql, params)
+        rows = cursor.fetchall()
+        conn.close()
+
+        rules = []
+        for row in rows:
+            rule = dict(row)
+            for key in ["publication_date", "comments_close_on", "created_at"]:
+                if key in rule and rule[key] is not None:
+                    if isinstance(rule[key], (datetime, date)):
+                        rule[key] = rule[key].isoformat()
+            for key in ["agency_names", "regulation_id_numbers", "docket_ids", "topics"]:
+                if key in rule and isinstance(rule[key], str):
+                    try:
+                        rule[key] = json.loads(rule[key])
+                    except json.JSONDecodeError:
+                        rule[key] = []
+            rules.append(rule)
+
+        return rules
+
+    def get_federal_rules_count(
+        self,
+        document_type: Optional[str] = None,
+    ) -> int:
+        """Get count of federal rules."""
+        conn = self._get_connection()
+        self._ensure_schema(conn)
+        cursor = conn.cursor()
+
+        query = "SELECT COUNT(*) FROM federal_rules WHERE 1=1"
+        params: List[Any] = []
+
+        if document_type is not None:
+            query += " AND document_type = %s"
+            params.append(document_type)
+
+        cursor.execute(query, params)
+        count = cursor.fetchone()[0]
+        conn.close()
+
+        return count
+
+    # ========== Legislative Events Methods (Hearings, Votes, Signings) ==========
+
+    def store_legislative_events(
+        self,
+        events: List[Dict[str, Any]],
+    ) -> int:
+        """
+        Store legislative events (hearings, votes, signings).
+
+        Args:
+            events: List of event dictionaries with fields:
+                - bill_id: Bill identifier
+                - state: State code (e.g., "CA")
+                - event_type: "hearing", "vote", "signing", "committee_referral"
+                - event_date: Date of the event
+                - committee: Committee name (optional)
+                - location: Hearing location (optional)
+                - description: Event description (optional)
+                - source: Data source ("legiscan_calendar", "last_action_parse", etc.)
+
+        Returns:
+            Number of events stored
+        """
+        conn = self._get_connection()
+        self._ensure_schema(conn)
+        cursor = conn.cursor()
+
+        try:
+            valid_events = [e for e in events if e.get("bill_id") and e.get("event_type")]
+            if not valid_events:
+                conn.close()
+                return 0
+
+            values = []
+            for event in valid_events:
+                values.append((
+                    event.get("bill_id"),
+                    event.get("state", "CA"),
+                    event.get("event_type"),
+                    event.get("event_date"),
+                    event.get("committee"),
+                    event.get("location"),
+                    event.get("description"),
+                    event.get("source"),
+                ))
+
+            if values:
+                psycopg2.extras.execute_values(
+                    cursor,
+                    """
+                    INSERT INTO legislative_events (
+                        bill_id, state, event_type, event_date,
+                        committee, location, description, source
+                    ) VALUES %s
+                    """,
+                    values,
+                    template="(%s, %s, %s, %s, %s, %s, %s, %s)",
+                    page_size=500,
+                )
+
+            conn.commit()
+            return len(valid_events)
+
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
+
+    def get_legislative_events(
+        self,
+        bill_id: Optional[str] = None,
+        state: Optional[str] = None,
+        event_type: Optional[str] = None,
+        upcoming_only: bool = False,
+        days_ahead: int = 30,
+        limit: Optional[int] = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        Retrieve legislative events with optional filtering.
+
+        Args:
+            bill_id: Filter by specific bill
+            state: Filter by state code
+            event_type: Filter by event type ("hearing", "vote", etc.)
+            upcoming_only: If True, only return events with event_date >= today
+            days_ahead: When upcoming_only, limit to this many days ahead
+            limit: Maximum results
+
+        Returns:
+            List of event dictionaries
+        """
+        conn = self._get_connection()
+        self._ensure_schema(conn)
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+        query = "SELECT * FROM legislative_events WHERE 1=1"
+        params: List[Any] = []
+
+        if bill_id is not None:
+            query += " AND bill_id = %s"
+            params.append(bill_id)
+
+        if state is not None:
+            query += " AND state = %s"
+            params.append(state)
+
+        if event_type is not None:
+            query += " AND event_type = %s"
+            params.append(event_type)
+
+        if upcoming_only:
+            query += " AND event_date >= CURRENT_DATE AND event_date <= CURRENT_DATE + %s * INTERVAL '1 day'"
+            params.append(days_ahead)
+
+        query += " ORDER BY event_date ASC"
+
+        if limit:
+            query += " LIMIT %s"
+            params.append(limit)
+
+        cursor.execute(query, params)
+        rows = cursor.fetchall()
+        conn.close()
+
+        events = []
+        for row in rows:
+            event = dict(row)
+            for key in ["event_date", "created_at"]:
+                if key in event and event[key] is not None:
+                    if isinstance(event[key], (datetime, date)):
+                        event[key] = event[key].isoformat()
+            events.append(event)
+
+        return events
+
+    def get_upcoming_hearings(
+        self,
+        state: Optional[str] = None,
+        days_ahead: int = 30,
+        limit: int = 20,
+    ) -> List[Dict[str, Any]]:
+        """
+        Get upcoming legislative hearings.
+
+        Returns:
+            List of hearing events with bill info, sorted by date
+        """
+        return self.get_legislative_events(
+            state=state,
+            event_type="hearing",
+            upcoming_only=True,
+            days_ahead=days_ahead,
+            limit=limit,
+        )
+
+    def get_legislative_events_count(
+        self,
+        state: Optional[str] = None,
+        event_type: Optional[str] = None,
+    ) -> int:
+        """Get count of legislative events."""
+        conn = self._get_connection()
+        self._ensure_schema(conn)
+        cursor = conn.cursor()
+
+        query = "SELECT COUNT(*) FROM legislative_events WHERE 1=1"
+        params: List[Any] = []
+
+        if state is not None:
+            query += " AND state = %s"
+            params.append(state)
+
+        if event_type is not None:
+            query += " AND event_type = %s"
+            params.append(event_type)
+
+        cursor.execute(query, params)
+        count = cursor.fetchone()[0]
+        conn.close()
+
+        return count
+
     # ========== Budget Items Methods (Municipal/County Budget Line Items) ==========
 
     def store_budget_items(
@@ -8487,6 +8977,12 @@ def _verify_protocol_compliance() -> None:
         'store_codified_law', 'get_codified_law', 'get_codified_law_count',
         # Executive orders methods (SESSION 432)
         'store_executive_orders', 'get_executive_orders', 'get_executive_orders_count',
+        # Federal rules methods (rulemaking / comment periods)
+        'store_federal_rules', 'get_federal_rules', 'get_federal_rules_count',
+        'get_open_comment_periods', 'search_federal_rules',
+        # Legislative events methods (hearings, votes)
+        'store_legislative_events', 'get_legislative_events', 'get_legislative_events_count',
+        'get_upcoming_hearings',
         # Budget items methods (SESSION 434)
         'store_budget_items', 'get_budget_items', 'get_budget_summary', 'get_budget_items_count',
         # Federal awards methods (SESSION 439)
