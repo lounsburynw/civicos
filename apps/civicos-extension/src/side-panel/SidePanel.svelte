@@ -243,8 +243,10 @@
 
   async function checkServerHealth(server: RegistryServer): Promise<ServerHealthStatus> {
     const start = performance.now();
+    // Serverless containers may need 15s+ to cold-start
+    const timeout = server.level === 'city' ? 5000 : 20000;
     try {
-      const response = await fetch(server.health_endpoint, { signal: AbortSignal.timeout(5000) });
+      const response = await fetch(server.health_endpoint, { signal: AbortSignal.timeout(timeout) });
       const latency_ms = Math.round(performance.now() - start);
       if (!response.ok) return { status: 'degraded', latency_ms, checked_at: Date.now() };
       const data = await response.json();
