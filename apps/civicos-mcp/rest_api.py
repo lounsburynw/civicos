@@ -163,90 +163,11 @@ def create_rest_router(registry, civic, jurisdiction, validate_input, logger):
             logger.error(f"Tool {name} error: {e}")
             raise HTTPException(status_code=500, detail=str(e))
 
-    def _legislation_pulse() -> dict:
-        """Generate pulse data from legislation for state/federal servers."""
-        from datetime import datetime
-        now = datetime.now()
-        storage = civic._storage
-
-        # Determine state code from jurisdiction
-        if jurisdiction.startswith("country-"):
-            state = "US"
-        elif jurisdiction.startswith("state-"):
-            state = "CA"
-        else:
-            state = "CA"
-
-        result = {
-            "jurisdiction": jurisdiction,
-            "generated_at": now.isoformat(),
-            "decisions_this_week": [],
-            "upcoming_items": [],
-            "recent_outcomes": [],
-            "community_pulse": {},
-        }
-
-        try:
-            # Actionable bills (with leverage points) as "upcoming items"
-            bills = storage.get_legislation(state=state, limit=200)
-            actionable = [b for b in bills if b.get("leverage_point")]
-
-            for bill in actionable[:10]:
-                result["upcoming_items"].append({
-                    "id": bill.get("bill_id", ""),
-                    "meeting_id": "",
-                    "item_number": bill.get("bill_number", ""),
-                    "title": bill.get("bill_name", "Untitled Bill"),
-                    "project_type": bill.get("status", ""),
-                    "stance_eligible": False,
-                    "comment_eligible": False,
-                    "description": bill.get("leverage_point", ""),
-                    "why_it_matters": bill.get("summary", "")[:200] if bill.get("summary") else "",
-                    "meeting_title": f"{bill.get('bill_number', '')} ({state})",
-                    "meeting_date": "",
-                })
-
-            # Recent bills as "outcomes"
-            for bill in bills[:10]:
-                status = bill.get("status", "")
-                # Map legislation status to outcome-style labels
-                outcome = "on_agenda"
-                if isinstance(status, str):
-                    sl = status.lower()
-                    if "passed" in sl or "signed" in sl or "enacted" in sl:
-                        outcome = "passed"
-                    elif "failed" in sl or "dead" in sl or "vetoed" in sl:
-                        outcome = "failed"
-
-                result["recent_outcomes"].append({
-                    "id": bill.get("bill_id", ""),
-                    "title": f"{bill.get('bill_number', '')} — {bill.get('bill_name', 'Bill')}",
-                    "outcome": outcome,
-                    "is_upcoming": outcome == "on_agenda",
-                    "date": bill.get("last_action_date", "Recent") or "Recent",
-                })
-
-            # Summary stats
-            total_with_lp = len(actionable)
-            result["community_pulse"] = {
-                "total_issues": len(bills),
-                "top_types": {"Actionable bills": total_with_lp, "Total tracked": len(bills)},
-            }
-        except Exception as e:
-            logger.error(f"Error in legislation_pulse: {e}")
-            result["error"] = str(e)
-
-        return result
-
     @router.post("/city-pulse", response_model=ToolResponse,
                  summary="Get structured civic data",
                  description="Get structured civic activity data as JSON. For city servers: meetings, decisions, issues. For state/federal: legislation and leverage points.")
     async def city_pulse(request: CityPulseRequest):
-        try:
-            data = call_tool_safe("city_pulse", request.model_dump())
-        except Exception:
-            # city_pulse tool not available (state/federal server) — use legislation pulse
-            data = _legislation_pulse()
+        data = call_tool_safe("city_pulse", request.model_dump())
         # Include relay URL so clients can auto-discover coordination endpoints
         if isinstance(data, dict) and "relay_url" not in data:
             from civicos.registry import get_relay_url

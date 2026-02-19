@@ -45,9 +45,10 @@ LEGISLATION_TOOLS = frozenset([
     "get_leverage_points",            # Bills with citizen action opportunities
 ])
 
-# Regulatory stack spans all levels - include at all levels
+# Tools available at all levels
 CROSS_LEVEL_TOOLS = frozenset([
     "search_regulatory_stack",        # Federal + state + local legislation
+    "city_pulse",                     # Level-aware: meetings (city) or legislation (state/federal)
 ])
 
 CITY_TOOLS = frozenset([
@@ -87,7 +88,6 @@ CITY_TOOLS = frozenset([
     "prepare_for_meeting",
 
     # Overview
-    "city_pulse",
     "get_started",
 
     # Context assembly
