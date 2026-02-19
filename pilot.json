@@ -1555,7 +1555,7 @@
     "scaling": {
       "turnkey_city_deployment": {
         "status": "not_ready",
-        "priority": 0,
+        "priority": 1,
         "description": "Make unified config system actually reduce new city deployment effort. Currently config is ~20% of work; extractors, HUD mapping, and elections are ~80%.",
         "rationale": "Session 545 audit found: core infrastructure 70-75% generalizable, but election data (1/5), HUD grantee mapping (manual), and platform-specific extractors still require significant per-city work.",
         "audit_reference": "docs/critical/CITY_DEPLOYMENT_AUDIT.md",
@@ -2579,7 +2579,7 @@
       },
       "engagement_ladder_ux": {
         "status": "not_ready",
-        "priority": 3,
+        "priority": 0,
         "artifact": "Progressive engagement UX from awareness to coordination",
         "description": "UX flow that guides users through engagement ladder: Awareness (what's happening) \u2192 Relevance (what affects me) \u2192 Participation (where I can act) \u2192 Coordination (who's with me). Each dashboard view surfaces the 'next step' without forcing it.",
         "note": "Session 542: The engagement ladder is the conceptual spine of the dashboard. This item is about making the progression feel natural in the UX."
@@ -4471,24 +4471,32 @@
         "priority": 1,
         "description": "Reusable Web Components layer (@civicos/components) built on @civicos/client SDK. Svelte compiles to Custom Elements natively. Enables any surface (extension, Open WebUI, standalone page, MCP App) to embed <civic-*> elements without framework dependencies.",
         "architecture": {
-          "layer_1": "@civicos/client — data, API, AI, orchestration (DONE)",
-          "layer_2": "@civicos/components — reusable UI widgets (Web Components)",
-          "layer_3": "Surface apps — compose widgets + layout"
+          "layer_1": "@civicos/client \u2014 data, API, AI, orchestration (DONE)",
+          "layer_2": "@civicos/components \u2014 reusable UI widgets (Web Components)",
+          "layer_3": "Surface apps \u2014 compose widgets + layout"
         },
         "candidate_components": [
           {
             "name": "<civic-voice-buttons>",
             "priority": 1,
             "description": "Support/Oppose/Watch button group with active state. Appears 7+ times in SidePanel.",
-            "props": ["userStance", "disabled", "locked"],
-            "events": ["voice"],
+            "props": [
+              "userStance",
+              "disabled",
+              "locked"
+            ],
+            "events": [
+              "voice"
+            ],
             "complexity": "low"
           },
           {
             "name": "<civic-synthesis-bar>",
             "priority": 1,
             "description": "Stacked bar chart showing comment support/oppose/neutral distribution. Pure presentational.",
-            "props": ["synthesis"],
+            "props": [
+              "synthesis"
+            ],
             "events": [],
             "complexity": "low"
           },
@@ -4496,24 +4504,57 @@
             "name": "<civic-agenda-item-card>",
             "priority": 2,
             "description": "Agenda item card with title, description, eligibility tags, voice counts, comment thread toggle, AI drafting.",
-            "props": ["item", "voiceCounts", "userStance", "commentCount", "isUnlocked", "aiAvailable"],
-            "events": ["voice", "draft", "comment-toggle", "ask-ai"],
+            "props": [
+              "item",
+              "voiceCounts",
+              "userStance",
+              "commentCount",
+              "isUnlocked",
+              "aiAvailable"
+            ],
+            "events": [
+              "voice",
+              "draft",
+              "comment-toggle",
+              "ask-ai"
+            ],
             "complexity": "medium"
           },
           {
             "name": "<civic-decision-card>",
             "priority": 2,
             "description": "Expandable decision with outcome, vote tally, testimony, council discussion, voice buttons.",
-            "props": ["decision", "expanded", "voiceCount", "userStance", "detail"],
-            "events": ["toggle-expand", "voice", "ask-ai", "load-details"],
+            "props": [
+              "decision",
+              "expanded",
+              "voiceCount",
+              "userStance",
+              "detail"
+            ],
+            "events": [
+              "toggle-expand",
+              "voice",
+              "ask-ai",
+              "load-details"
+            ],
             "complexity": "medium"
           },
           {
             "name": "<civic-initiative-card>",
             "priority": 3,
             "description": "Initiative with nested civic actions, progress bars, commit/complete/withdraw. Most complex state.",
-            "props": ["initiative", "actions", "actionProgress", "committedActions"],
-            "events": ["commit", "complete", "withdraw", "create-action"],
+            "props": [
+              "initiative",
+              "actions",
+              "actionProgress",
+              "committedActions"
+            ],
+            "events": [
+              "commit",
+              "complete",
+              "withdraw",
+              "create-action"
+            ],
             "complexity": "high"
           }
         ],
@@ -4525,12 +4566,14 @@
         ],
         "technical_considerations": [
           "Svelte customElement option compiles to Web Components (Shadow DOM)",
-          "Shadow DOM scopes CSS — must bundle styles with component, not rely on global styles",
-          "Props passed as attributes (strings) — complex objects need JSON serialization or property access",
-          "Cross-component state via CustomEvents (bubbling) — no shared store in Shadow DOM",
-          "Extension can import components directly (same bundler) — external surfaces use <script> tag"
+          "Shadow DOM scopes CSS \u2014 must bundle styles with component, not rely on global styles",
+          "Props passed as attributes (strings) \u2014 complex objects need JSON serialization or property access",
+          "Cross-component state via CustomEvents (bubbling) \u2014 no shared store in Shadow DOM",
+          "Extension can import components directly (same bundler) \u2014 external surfaces use <script> tag"
         ],
-        "depends_on": ["client_sdk_extraction"],
+        "depends_on": [
+          "client_sdk_extraction"
+        ],
         "artifact": "packages/civicos-components/",
         "test_file": "cd packages/civicos-components && npm run build"
       }
