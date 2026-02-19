@@ -249,12 +249,21 @@
   let attestationVerifying = $state(false);
   let attestationEvent: Record<string, unknown> | null = $state(null);
   let attestationDate: string | null = $state(null);
+  let attestationJurisdiction: string | null = $state(null);
+
+  function extractAttestationJurisdiction(event: Record<string, unknown>): string | null {
+    const tags = event?.tags;
+    if (!Array.isArray(tags)) return null;
+    const jTag = tags.find((t: unknown) => Array.isArray(t) && t[0] === 'j');
+    return Array.isArray(jTag) && typeof jTag[1] === 'string' ? jTag[1] : null;
+  }
 
   async function loadAttestationStatus() {
     // Check local storage first
     const stored = await chrome.storage.local.get('civicos_attestation');
     if (stored.civicos_attestation) {
       attestationEvent = stored.civicos_attestation;
+      attestationJurisdiction = extractAttestationJurisdiction(stored.civicos_attestation);
       const createdAt = (attestationEvent as Record<string, unknown>)?.created_at;
       if (typeof createdAt === 'number') {
         attestationDate = new Date(createdAt * 1000).toLocaleDateString('en-US', {
@@ -274,6 +283,7 @@
           const status = await api.getAttestationStatus(pubkeyResponse.data);
           if (status.attested && status.attestation_event) {
             attestationEvent = status.attestation_event;
+            attestationJurisdiction = extractAttestationJurisdiction(status.attestation_event);
             attestationDate = status.attested_at
               ? new Date(status.attested_at).toLocaleDateString('en-US', {
                   year: 'numeric', month: 'short', day: 'numeric',
@@ -301,6 +311,7 @@
       });
       if (response.success && response.data) {
         attestationEvent = response.data;
+        attestationJurisdiction = extractAttestationJurisdiction(response.data);
         const createdAt = (response.data as Record<string, unknown>)?.created_at;
         if (typeof createdAt === 'number') {
           attestationDate = new Date(createdAt * 1000).toLocaleDateString('en-US', {
@@ -446,17 +457,17 @@
 
       <h3 class="subsection-label">Residency</h3>
       {#if attestationEvent}
-        {@const selectedServer = availableServers.find(s => s.jurisdiction_id === selectedJurisdiction)}
+        {@const attestedServer = availableServers.find(s => s.jurisdiction_id === attestationJurisdiction)}
         <div class="attested-badge">
           <span class="attested-check">&#10003;</span>
-          Verified {selectedServer?.display_name || selectedJurisdiction} Resident
+          Verified {attestedServer?.display_name || attestationJurisdiction} Resident
           {#if attestationDate}
             <span class="attested-date">{attestationDate}</span>
           {/if}
         </div>
-        {#if selectedServer?.parent_jurisdictions?.length}
+        {#if attestedServer?.parent_jurisdictions?.length}
           <div class="residency-derived">
-            Also recognized as {selectedServer.parent_jurisdictions
+            Also recognized as {attestedServer.parent_jurisdictions
               .map(pid => availableServers.find(s => s.jurisdiction_id === pid)?.display_name || pid)
               .join(' and ')} resident
           </div>

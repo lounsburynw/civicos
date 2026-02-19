@@ -49,7 +49,7 @@
         <span class="lock-status">locked</span>
       {/if}
       {#if hasAttestation}
-        <span class="attested-chip">Attested</span>
+        <span class="attested-chip">Verified</span>
       {/if}
     </div>
     {#if !identity.isUnlocked}
