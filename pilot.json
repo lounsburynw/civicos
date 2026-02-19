@@ -1555,7 +1555,7 @@
     "scaling": {
       "turnkey_city_deployment": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "description": "Make unified config system actually reduce new city deployment effort. Currently config is ~20% of work; extractors, HUD mapping, and elections are ~80%.",
         "rationale": "Session 545 audit found: core infrastructure 70-75% generalizable, but election data (1/5), HUD grantee mapping (manual), and platform-specific extractors still require significant per-city work.",
         "audit_reference": "docs/critical/CITY_DEPLOYMENT_AUDIT.md",
@@ -4467,8 +4467,8 @@
         "test_file": "cd packages/civicos-client && npm run build && cd ../../apps/civicos-extension && npm run build"
       },
       "civic_web_components": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 1,
         "description": "Reusable Web Components layer (@civicos/components) built on @civicos/client SDK. Svelte compiles to Custom Elements natively. Enables any surface (extension, Open WebUI, standalone page, MCP App) to embed <civic-*> elements without framework dependencies.",
         "architecture": {
           "layer_1": "@civicos/client — data, API, AI, orchestration (DONE)",
