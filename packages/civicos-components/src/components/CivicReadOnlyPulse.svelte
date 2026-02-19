@@ -4,7 +4,7 @@
 
   type PulseData = {
     decisions_this_week: Array<{ title: string; date: string; time: string; location: string; meeting_datetime: string }>;
-    upcoming_items?: Array<{ title: string; meeting_title?: string; project_type?: string }>;
+    upcoming_items?: Array<{ title: string; meeting_title?: string; project_type?: string; description?: string }>;
     recent_outcomes: Array<{ title: string; date: string; outcome: string }>;
     generated_at: string;
   };
@@ -22,10 +22,10 @@
   } = $props();
 
   const isLegislative = $derived(level === 'state' || level === 'federal');
-  const meetingsLabel = $derived(isLegislative ? 'Committee Hearings' : 'Meetings');
+  const meetingsLabel = $derived(isLegislative ? 'Active Topics' : 'Meetings');
   const itemsLabel = $derived(isLegislative ? 'Key Legislation' : 'Agenda Items');
-  const outcomesLabel = $derived(isLegislative ? 'Bill Status' : 'Recent Outcomes');
-  const emptyMeetings = $derived(isLegislative ? 'No tracked hearings' : 'No upcoming meetings');
+  const outcomesLabel = $derived(isLegislative ? 'Bill Activity' : 'Recent Outcomes');
+  const emptyMeetings = $derived(isLegislative ? 'No tracked topics' : 'No upcoming meetings');
   const emptyItems = $derived(isLegislative ? 'No actionable legislation' : 'No upcoming agenda items');
   const emptyOutcomes = $derived(isLegislative ? 'No tracked bills' : 'No recent outcomes');
 
@@ -55,6 +55,18 @@
     <div class="section-body">
       {#if data.decisions_this_week.length === 0}
         <div class="empty-section">{emptyMeetings}</div>
+      {:else if isLegislative}
+        <div class="topic-grid">
+          {#each data.decisions_this_week as topic}
+            <div class="topic-card">
+              <div class="topic-name">{topic.title}</div>
+              <div class="topic-count">{topic.date}</div>
+              {#if topic.time}
+                <div class="topic-breakdown">{topic.time}</div>
+              {/if}
+            </div>
+          {/each}
+        </div>
       {:else}
         {#each data.decisions_this_week as meeting}
           <CivicMeetingCard {meeting} {showCalendar} />
@@ -91,6 +103,9 @@
                 <span class="item-type">{item.project_type}</span>
               {/if}
             </div>
+            {#if isLegislative && item.description}
+              <div class="card-desc">{item.description}</div>
+            {/if}
           </div>
         {/each}
       {/if}
@@ -239,6 +254,39 @@
   .outcome-label {
     font-weight: 500;
     text-transform: capitalize;
+  }
+  .topic-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 6px;
+  }
+  .topic-card {
+    background: #262626;
+    border-radius: 8px;
+    padding: 10px 12px;
+    border: 1px solid #374151;
+  }
+  .topic-name {
+    color: #eee;
+    font-size: 13px;
+    font-weight: 500;
+  }
+  .topic-count {
+    color: #60a5fa;
+    font-size: 11px;
+    font-weight: 600;
+    margin-top: 2px;
+  }
+  .topic-breakdown {
+    color: #6b7280;
+    font-size: 10px;
+    margin-top: 2px;
+  }
+  .card-desc {
+    color: #9ca3af;
+    font-size: 12px;
+    line-height: 1.4;
+    margin-top: 6px;
   }
   .pulse-footer {
     display: flex;

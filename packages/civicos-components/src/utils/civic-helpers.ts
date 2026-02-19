@@ -30,17 +30,19 @@ export function truncateNpub(npub: string): string {
 export function outcomeIcon(outcome: string): string {
   const lower = outcome.toLowerCase();
   if (lower === 'on_agenda') return '\u25B6';
-  if (lower.includes('approved') || lower.includes('passed') || lower.includes('adopted')) return '\u2713';
-  if (lower.includes('denied') || lower.includes('failed') || lower.includes('rejected')) return '\u2717';
+  if (lower.includes('approved') || lower.includes('passed') || lower.includes('adopted') || lower.includes('enrolled') || lower.includes('signed') || lower.includes('enacted')) return '\u2713';
+  if (lower.includes('denied') || lower.includes('failed') || lower.includes('rejected') || lower.includes('vetoed')) return '\u2717';
   if (lower.includes('continued') || lower.includes('tabled')) return '\u21BB';
+  if (lower.includes('introduced') || lower.includes('engrossed') || lower.includes('active') || lower.includes('pending')) return '\u25B6';
   return '\u2022';
 }
 
 export function outcomeClass(outcome: string): string {
   const lower = outcome.toLowerCase();
   if (lower === 'on_agenda') return 'upcoming';
-  if (lower.includes('approved') || lower.includes('passed') || lower.includes('adopted')) return 'passed';
-  if (lower.includes('denied') || lower.includes('failed') || lower.includes('rejected')) return 'failed';
+  if (lower.includes('approved') || lower.includes('passed') || lower.includes('adopted') || lower.includes('enrolled') || lower.includes('signed') || lower.includes('enacted')) return 'passed';
+  if (lower.includes('denied') || lower.includes('failed') || lower.includes('rejected') || lower.includes('vetoed')) return 'failed';
+  if (lower.includes('introduced') || lower.includes('engrossed') || lower.includes('active') || lower.includes('pending')) return 'upcoming';
   return 'other';
 }
 
