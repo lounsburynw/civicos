@@ -9,3 +9,6 @@ import './components/CivicCommentThread.svelte';
 import './components/CivicAgendaView.svelte';
 import './components/CivicDecisionView.svelte';
 import './components/CivicInitiativeView.svelte';
+// Visualization components (own data loading, self-contained rendering)
+import './components/CivicIssueMap.svelte';
+import './components/CivicBudgetBreakdown.svelte';
