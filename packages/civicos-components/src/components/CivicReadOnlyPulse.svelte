@@ -15,7 +15,7 @@
   type PulseData = {
     decisions_this_week: Array<{ title: string; date: string; time: string; location: string; meeting_datetime: string }>;
     upcoming_items?: Array<{ id?: string; title: string; meeting_title?: string; project_type?: string; description?: string }>;
-    recent_outcomes: Array<{ id?: string; title: string; date: string; outcome: string }>;
+    recent_outcomes: Array<{ id?: string; title: string; date: string; outcome: string; is_upcoming?: boolean }>;
     generated_at: string;
   };
 
@@ -192,7 +192,7 @@
                 <span class="voice-count-badge">{counts.total} voice{counts.total !== 1 ? 's' : ''}</span>
               {/if}
             </div>
-            {#if eid && onvoice}
+            {#if eid && onvoice && outcome.is_upcoming}
               <div class="card-voice">
                 <CivicVoiceButtons
                   entityId={eid}
