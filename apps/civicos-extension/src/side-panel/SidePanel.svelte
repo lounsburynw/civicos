@@ -790,9 +790,21 @@
       <div class="error-state">
         <span class="error-icon">!</span>
         <p>Server warming up — try again shortly</p>
+        <button class="btn-retry" onclick={() => {
+          if (!tabServer) return;
+          const id = tabServer.jurisdiction_id;
+          parentPulseErrors.delete(id);
+          parentPulseErrors = new Map(parentPulseErrors);
+          parentPulseLoading.add(id);
+          parentPulseLoading = new Set(parentPulseLoading);
+          api.getCityPulseFromServer(registry.getServerBaseUrl(tabServer))
+            .then(data => { parentPulseData.set(id, data); parentPulseData = new Map(parentPulseData); })
+            .catch(() => { parentPulseErrors.set(id, 'Server unavailable'); parentPulseErrors = new Map(parentPulseErrors); })
+            .finally(() => { parentPulseLoading.delete(id); parentPulseLoading = new Set(parentPulseLoading); });
+        }}>Retry</button>
       </div>
     {:else if tabData}
-      <CivicReadOnlyPulse data={tabData} />
+      <CivicReadOnlyPulse data={tabData} level={tabServer?.level || 'city'} />
     {:else}
       <div class="empty-section" style="padding: 24px 12px; text-align: center;">
         No data available for {tabServer?.display_name || activeTab}

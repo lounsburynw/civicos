@@ -9,13 +9,25 @@
     generated_at: string;
   };
 
+  type JurisdictionLevel = 'federal' | 'state' | 'city' | string;
+
   let {
     data,
     showCalendar = false,
+    level = 'city',
   }: {
     data: PulseData;
     showCalendar?: boolean;
+    level?: JurisdictionLevel;
   } = $props();
+
+  const isLegislative = $derived(level === 'state' || level === 'federal');
+  const meetingsLabel = $derived(isLegislative ? 'Committee Hearings' : 'Meetings');
+  const itemsLabel = $derived(isLegislative ? 'Key Legislation' : 'Agenda Items');
+  const outcomesLabel = $derived(isLegislative ? 'Bill Status' : 'Recent Outcomes');
+  const emptyMeetings = $derived(isLegislative ? 'No tracked hearings' : 'No upcoming meetings');
+  const emptyItems = $derived(isLegislative ? 'No actionable legislation' : 'No upcoming agenda items');
+  const emptyOutcomes = $derived(isLegislative ? 'No tracked bills' : 'No recent outcomes');
 
   let expanded: Record<string, boolean> = $state({
     meetings: true,
@@ -28,11 +40,11 @@
   }
 </script>
 
-<!-- Meetings -->
+<!-- Meetings / Hearings -->
 <section class="feed-section">
   <button class="section-header" onclick={() => toggle('meetings')}>
     <span class="section-title">
-      Meetings
+      {meetingsLabel}
       {#if data.decisions_this_week.length > 0}
         <span class="count-badge">{data.decisions_this_week.length}</span>
       {/if}
@@ -42,7 +54,7 @@
   {#if expanded.meetings}
     <div class="section-body">
       {#if data.decisions_this_week.length === 0}
-        <div class="empty-section">No upcoming meetings</div>
+        <div class="empty-section">{emptyMeetings}</div>
       {:else}
         {#each data.decisions_this_week as meeting}
           <CivicMeetingCard {meeting} {showCalendar} />
@@ -52,11 +64,11 @@
   {/if}
 </section>
 
-<!-- Agenda Items -->
+<!-- Agenda Items / Legislation -->
 <section class="feed-section">
   <button class="section-header" onclick={() => toggle('items')}>
     <span class="section-title">
-      Agenda Items
+      {itemsLabel}
       {#if data.upcoming_items && data.upcoming_items.length > 0}
         <span class="count-badge">{data.upcoming_items.length}</span>
       {/if}
@@ -66,7 +78,7 @@
   {#if expanded.items}
     <div class="section-body">
       {#if !data.upcoming_items || data.upcoming_items.length === 0}
-        <div class="empty-section">No upcoming agenda items</div>
+        <div class="empty-section">{emptyItems}</div>
       {:else}
         {#each data.upcoming_items as item}
           <div class="card">
@@ -86,11 +98,11 @@
   {/if}
 </section>
 
-<!-- Recent Outcomes -->
+<!-- Recent Outcomes / Bill Status -->
 <section class="feed-section">
   <button class="section-header" onclick={() => toggle('outcomes')}>
     <span class="section-title">
-      Recent Outcomes
+      {outcomesLabel}
       {#if data.recent_outcomes.length > 0}
         <span class="count-badge">{data.recent_outcomes.length}</span>
       {/if}
@@ -100,7 +112,7 @@
   {#if expanded.outcomes}
     <div class="section-body">
       {#if data.recent_outcomes.length === 0}
-        <div class="empty-section">No recent outcomes</div>
+        <div class="empty-section">{emptyOutcomes}</div>
       {:else}
         {#each data.recent_outcomes as outcome}
           <div class="card">

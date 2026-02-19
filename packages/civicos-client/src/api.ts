@@ -71,19 +71,34 @@ export class ApiClient {
 
   async getCityPulseFromServer(serverBaseUrl: string, daysAhead = 14, daysBack = 30): Promise<CityPulseData> {
     const url = `${serverBaseUrl}/api/tools/city-pulse`;
-    const response = await fetch(url, {
+    const opts: RequestInit = {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ days_ahead: daysAhead, days_back: daysBack }),
-    });
-    if (!response.ok) {
-      throw new Error(`API error ${response.status}: ${response.statusText}`);
+    };
+
+    // Retry once on failure (handles cold-start timeouts on serverless containers)
+    let lastError: Error | undefined;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const response = await fetch(url, {
+          ...opts,
+          signal: AbortSignal.timeout(attempt === 0 ? 15000 : 30000),
+        });
+        if (!response.ok) {
+          throw new Error(`API error ${response.status}: ${response.statusText}`);
+        }
+        const result = await response.json();
+        if (!result.success) {
+          throw new Error(result.error || 'API returned an error');
+        }
+        return result.data;
+      } catch (err) {
+        lastError = err instanceof Error ? err : new Error(String(err));
+        if (attempt === 0) await new Promise(r => setTimeout(r, 1000));
+      }
     }
-    const result = await response.json();
-    if (!result.success) {
-      throw new Error(result.error || 'API returned an error');
-    }
-    return result.data;
+    throw lastError!;
   }
 
   async getDecisionDetail(title: string): Promise<DecisionDetailData> {
