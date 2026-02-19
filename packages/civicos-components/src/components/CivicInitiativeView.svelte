@@ -81,6 +81,7 @@
   const CITY_TOPICS = ['Traffic Safety', 'Housing', 'Parks', 'Budget', 'Environment', 'Public Safety', 'Infrastructure', 'Education'];
   const PARENT_TOPICS = ['Healthcare', 'Housing', 'Education', 'Environment', 'Budget', 'Public Safety', 'Transportation', 'Labor'];
   let INITIATIVE_TOPICS = $derived(level === 'city' ? CITY_TOPICS : PARENT_TOPICS);
+  let sectionTitle = $derived(level === 'city' ? 'Community Initiatives' : 'Civic Initiatives');
 
   function selectTopic(t: string) {
     if (newInitiative.topic === t) {
@@ -582,7 +583,7 @@
 <section class="feed-section ini">
   <button class="section-header" onclick={() => { initiativesExpanded = !initiativesExpanded; }}>
     <span class="section-title">
-      Community Initiatives
+      {sectionTitle}
       {#if initiatives.length > 0}
         <span class="ini-count">{initiatives.length}</span>
       {/if}
