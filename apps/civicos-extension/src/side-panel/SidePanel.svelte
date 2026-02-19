@@ -16,6 +16,7 @@
   import CivicAgendaItemCard from '@civicos/components/src/components/CivicAgendaItemCard.svelte';
   import CivicDecisionCard from '@civicos/components/src/components/CivicDecisionCard.svelte';
   import CivicInitiativeCard from '@civicos/components/src/components/CivicInitiativeCard.svelte';
+  import CivicCommentThread from '@civicos/components/src/components/CivicCommentThread.svelte';
 
   Chart.register(DoughnutController, ArcElement, Tooltip, Legend);
 
@@ -401,11 +402,6 @@
       for (const [id, s] of newSynths) synthData.set(id, s);
       synthData = new Map(synthData);
     });
-  }
-
-  function getUserComment(entityId: string): Comment | undefined {
-    if (!identity?.publicKey) return undefined;
-    return (threadComments.get(entityId) || []).find(c => c.public_key === identity!.publicKey);
   }
 
   async function toggleCommentThread(entityId: string) {
@@ -2050,140 +2046,36 @@
                 <!-- Comment Thread -->
                 {#if item.comment_eligible}
                   {@const commentEntityId = `agenda-item:${item.id}`}
-                  <div class="comment-section">
-                    <div class="comment-actions-row">
-                      <button class="comment-toggle" onclick={() => toggleCommentThread(commentEntityId)}>
-                        <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M2 3h12v7H5l-3 3V3z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>
-                        {commentCounts.get(commentEntityId)?.count || 0} {(commentCounts.get(commentEntityId)?.count || 0) === 1 ? 'comment' : 'comments'}{#if (commentCounts.get(commentEntityId)?.attested ?? 0) > 0}&nbsp;({commentCounts.get(commentEntityId)?.attested} attested){/if}
-                        <span class="chevron-sm" class:open={openThreads.has(commentEntityId)}></span>
-                      </button>
-                      {#if pulseData?.clerk_email && item.comment_eligible}
-                        <a class="email-clerk-btn" href={getMailtoLink(item)} title="Email your comment to the City Clerk">
-                          <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M2 4l6 4 6-4M2 4v8h12V4H2z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>
-                          Email Clerk
-                        </a>
-                      {/if}
-                    </div>
-                    {#if openThreads.has(commentEntityId)}
-                      <div class="comment-thread">
-                        {#if threadLoading.has(commentEntityId)}
-                          <div class="thread-loading">Loading comments...</div>
-                        {:else}
-                          <!-- Synthesis bar (reusable component) -->
-                          {#if synthData.has(commentEntityId)}
-                            {@const synth = synthData.get(commentEntityId)!}
-                            <CivicSynthesisBar
-                              support={synth.support}
-                              oppose={synth.oppose}
-                              neutral={synth.neutral}
-                            />
-                          {/if}
-
-                          <!-- Summarize thread button -->
-                          {#if aiAvailable && (threadComments.get(commentEntityId) || []).length >= 2}
-                            <div class="thread-summarize-row">
-                              <button
-                                class="summarize-btn"
-                                disabled={aiResponseLoading.has(`summarize-thread:${commentEntityId}`)}
-                                onclick={() => askAI(`summarize-thread:${commentEntityId}`, composeThreadSummary(item, commentEntityId))}
-                              >
-                                <span class="sparkle">✦</span>
-                                {aiResponseLoading.has(`summarize-thread:${commentEntityId}`) ? 'Summarizing...' : aiResponses.has(`summarize-thread:${commentEntityId}`) ? 'Hide summary' : 'Summarize'}
-                              </button>
-                            </div>
-                            {#if aiResponses.has(`summarize-thread:${commentEntityId}`)}
-                              <div class="ai-response thread-summary-response">
-                                <div class="ai-response-text prose">{@html renderMarkdown(aiResponses.get(`summarize-thread:${commentEntityId}`) ?? '')}</div>
-                              </div>
-                            {/if}
-                          {/if}
-
-                          <!-- Comment list -->
-                          {#if (threadComments.get(commentEntityId) || []).length > 0}
-                            <div class="thread-list">
-                              {#each (threadComments.get(commentEntityId) || []) as comment}
-                                <div class="thread-comment" class:stance-support={comment.stance === 'support'} class:stance-oppose={comment.stance === 'oppose'}>
-                                  <div class="thread-comment-meta">
-                                    <span class="thread-author">{identity?.publicKey && comment.public_key === identity.publicKey ? 'You' : comment.public_key.slice(0, 8) + '...'}</span>
-                                    {#if comment.attested}<span class="thread-attested">Attested</span>{/if}
-                                    {#if comment.stance}
-                                      <span class="thread-stance" class:support={comment.stance === 'support'} class:oppose={comment.stance === 'oppose'}>{comment.stance}</span>
-                                    {/if}
-                                    <span class="thread-time">{new Date(comment.timestamp).toLocaleDateString()}</span>
-                                  </div>
-                                  <div class="thread-text">{comment.comment_text}</div>
-                                </div>
-                              {/each}
-                            </div>
-                          {:else}
-                            <div class="thread-empty">No comments yet. Be the first!</div>
-                          {/if}
-
-                          <!-- Compose area -->
-                          {#if identity?.isUnlocked}
-                            {@const userExisting = getUserComment(commentEntityId)}
-                            <div class="thread-compose">
-                              {#if aiAvailable}
-                                <div class="draft-toolbar">
-                                  <button
-                                    class="draft-btn"
-                                    disabled={draftingInProgress.has(commentEntityId)}
-                                    onclick={() => handleDraftWithAI(commentEntityId, item)}
-                                    title={activeProviderName ? `via ${activeProviderName}` : ''}
-                                  >
-                                    {draftingInProgress.has(commentEntityId) ? 'Drafting...' : 'Draft with AI'}
-                                  </button>
-                                  {#if (threadDrafts.get(commentEntityId) || '').trim()}
-                                    <button
-                                      class="enrich-btn"
-                                      disabled={enrichingInProgress.has(commentEntityId)}
-                                      onclick={() => handleEnrichDraft(commentEntityId, item)}
-                                    >
-                                      {enrichingInProgress.has(commentEntityId) ? 'Enriching...' : 'Enrich with context'}
-                                    </button>
-                                  {/if}
-                                  {#if activeProviderName}
-                                    <span class="ai-provider-tag">via {activeProviderName}</span>
-                                  {/if}
-                                </div>
-                              {/if}
-                              <textarea
-                                class="thread-textarea"
-                                class:ai-loading={draftingInProgress.has(commentEntityId) || enrichingInProgress.has(commentEntityId)}
-                                placeholder={userExisting ? 'Edit your comment...' : 'Add a comment...'}
-                                rows={2}
-                                maxlength={500}
-                                value={threadDrafts.get(commentEntityId) || ''}
-                                oninput={(e: Event) => { threadDrafts.set(commentEntityId, (e.target as HTMLTextAreaElement).value); threadDrafts = new Map(threadDrafts); }}
-                              ></textarea>
-                              <div class="thread-compose-footer">
-                                <span class="ini-char-count" class:near-limit={(threadDrafts.get(commentEntityId) || '').length > 400}>
-                                  {(threadDrafts.get(commentEntityId) || '').length}/500
-                                </span>
-                                <button
-                                  class="thread-submit"
-                                  disabled={!(threadDrafts.get(commentEntityId) || '').trim() || threadSubmitting.has(commentEntityId)}
-                                  onclick={() => handleSubmitComment(commentEntityId)}
-                                >
-                                  {#if threadSubmitting.has(commentEntityId)}
-                                    {userExisting ? 'Updating...' : 'Posting...'}
-                                  {:else}
-                                    {userExisting ? 'Update' : 'Post'}
-                                  {/if}
-                                </button>
-                              </div>
-                            </div>
-                          {:else if identity}
-                            <div class="thread-locked">Unlock to comment</div>
-                          {/if}
-
-                          {#if threadErrors.has(commentEntityId)}
-                            <div class="thread-error">{threadErrors.get(commentEntityId)}</div>
-                          {/if}
-                        {/if}
-                      </div>
-                    {/if}
-                  </div>
+                  <CivicCommentThread
+                    entityId={commentEntityId}
+                    commentCount={commentCounts.get(commentEntityId)?.count || 0}
+                    attestedCount={commentCounts.get(commentEntityId)?.attested ?? 0}
+                    comments={threadComments.get(commentEntityId) || []}
+                    synthesis={synthData.get(commentEntityId) ?? null}
+                    expanded={openThreads.has(commentEntityId)}
+                    loading={threadLoading.has(commentEntityId)}
+                    submitting={threadSubmitting.has(commentEntityId)}
+                    error={threadErrors.get(commentEntityId) || ''}
+                    draft={threadDrafts.get(commentEntityId) || ''}
+                    userPublicKey={identity?.publicKey || ''}
+                    isUnlocked={identity?.isUnlocked ?? false}
+                    hasIdentity={!!identity}
+                    {aiAvailable}
+                    {activeProviderName}
+                    draftLoading={draftingInProgress.has(commentEntityId)}
+                    enrichLoading={enrichingInProgress.has(commentEntityId)}
+                    summarizeLoading={aiResponseLoading.has(`summarize-thread:${commentEntityId}`)}
+                    summaryHtml={renderMarkdown(aiResponses.get(`summarize-thread:${commentEntityId}`) ?? '')}
+                    showSummary={aiResponses.has(`summarize-thread:${commentEntityId}`)}
+                    clerkEmail={pulseData?.clerk_email || ''}
+                    mailtoHref={pulseData?.clerk_email ? getMailtoLink(item) : ''}
+                    ontoggle={() => toggleCommentThread(commentEntityId)}
+                    onsubmit={() => handleSubmitComment(commentEntityId)}
+                    ondraftchange={({ text }) => { threadDrafts.set(commentEntityId, text); threadDrafts = new Map(threadDrafts); }}
+                    ondraft={() => handleDraftWithAI(commentEntityId, item)}
+                    onenrich={() => handleEnrichDraft(commentEntityId, item)}
+                    onsummarize={() => askAI(`summarize-thread:${commentEntityId}`, composeThreadSummary(item, commentEntityId))}
+                  />
                 {/if}
 
                 {#if aiAvailable && identity?.isUnlocked && item.comment_eligible && !openThreads.has(`agenda-item:${item.id}`)}
@@ -4188,219 +4080,6 @@
     align-items: center;
     margin-bottom: 4px;
   }
-  .summarize-btn {
-    font-size: 10px;
-    color: #60a5fa;
-    background: none;
-    border: 1px solid #3b82f640;
-    border-radius: 4px;
-    padding: 1px 8px;
-    cursor: pointer;
-    transition: all 0.15s ease;
-  }
-  .summarize-btn:hover {
-    background: rgba(59,130,246,0.12);
-    border-color: #3b82f6;
-    color: #93c5fd;
-  }
-  .thread-summarize-row {
-    display: flex;
-    justify-content: flex-end;
-    margin-bottom: 6px;
-  }
-  .thread-summary-response {
-    margin-bottom: 8px;
-    border-left: 2px solid #3b82f640;
-    padding-left: 8px;
-  }
-
-  /* === Comment Thread === */
-  .comment-section { margin-top: 8px; }
-  .comment-actions-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-  .email-clerk-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    font-size: 11px;
-    color: #9ca3af;
-    text-decoration: none;
-    padding: 4px 8px;
-    border-radius: 6px;
-    border: 1px solid transparent;
-    transition: all 0.15s ease;
-  }
-  .email-clerk-btn:hover {
-    color: #d1d5db;
-    background: rgba(59,130,246,0.08);
-    border-color: rgba(59,130,246,0.2);
-  }
-  .email-clerk-btn svg { opacity: 0.6; }
-  .comment-toggle {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 11px;
-    color: #9ca3af;
-    background: none;
-    border: none;
-    cursor: pointer;
-    padding: 4px 0;
-    transition: color 0.15s;
-  }
-  .comment-toggle:hover { color: #d1d5db; }
-  .comment-toggle svg { opacity: 0.6; }
-  .chevron-sm {
-    display: inline-block;
-    width: 8px;
-    height: 8px;
-    border-right: 1.5px solid currentColor;
-    border-bottom: 1.5px solid currentColor;
-    transform: rotate(-45deg);
-    transition: transform 0.15s;
-    margin-left: 2px;
-  }
-  .chevron-sm.open { transform: rotate(45deg); }
-  .comment-thread {
-    margin-top: 6px;
-    padding: 8px;
-    background: #1e1e1e;
-    border: 1px solid #2a2a2a;
-    border-radius: 8px;
-  }
-  .thread-loading, .thread-empty, .thread-locked {
-    font-size: 11px;
-    color: #6b7280;
-    text-align: center;
-    padding: 8px 0;
-  }
-
-  /* Synthesis bar */
-  .synthesis-bar-wrapper { margin-bottom: 8px; }
-  .synthesis-bar {
-    display: flex;
-    height: 6px;
-    border-radius: 3px;
-    overflow: hidden;
-    background: #262626;
-  }
-  .bar-seg { min-width: 4px; }
-  .bar-support { background: #22c55e; }
-  .bar-oppose { background: #ef4444; }
-  .bar-neutral { background: #9ca3af; }
-  .synthesis-labels {
-    display: flex;
-    gap: 8px;
-    margin-top: 4px;
-  }
-  .synth-label {
-    font-size: 10px;
-    color: #6b7280;
-  }
-  .synth-support { color: #22c55e; }
-  .synth-oppose { color: #ef4444; }
-
-  /* Thread list */
-  .thread-list {
-    max-height: 200px;
-    overflow-y: auto;
-    margin-bottom: 8px;
-  }
-  .thread-comment {
-    padding: 6px 8px;
-    border-radius: 6px;
-    margin-bottom: 4px;
-    background: #262626;
-  }
-  .thread-comment.stance-support { border-left: 2px solid rgba(34, 197, 94, 0.3); }
-  .thread-comment.stance-oppose { border-left: 2px solid rgba(239, 68, 68, 0.3); }
-  .thread-comment-meta {
-    display: flex;
-    gap: 6px;
-    align-items: center;
-    margin-bottom: 2px;
-  }
-  .thread-author {
-    font-size: 10px;
-    font-weight: 600;
-    color: #d1d5db;
-  }
-  .thread-attested {
-    font-size: 8px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.3px;
-    padding: 1px 5px;
-    border-radius: 8px;
-    background: rgba(34, 197, 94, 0.12);
-    color: #22c55e;
-  }
-  .thread-stance {
-    font-size: 9px;
-    padding: 1px 5px;
-    border-radius: 8px;
-    background: #374151;
-    color: #9ca3af;
-  }
-  .thread-stance.support { background: rgba(34,197,94,0.15); color: #22c55e; }
-  .thread-stance.oppose { background: rgba(239,68,68,0.15); color: #ef4444; }
-  .thread-time {
-    font-size: 10px;
-    color: #6b7280;
-  }
-  .thread-text {
-    font-size: 12px;
-    color: #d1d5db;
-    line-height: 1.4;
-    white-space: pre-wrap;
-  }
-
-  /* Compose area */
-  .thread-compose { margin-top: 8px; }
-  .thread-textarea {
-    display: block;
-    width: 100%;
-    padding: 6px 8px;
-    background: transparent;
-    border: 1px solid #374151;
-    border-radius: 6px;
-    color: #eee;
-    font-size: 12px;
-    font-family: inherit;
-    outline: none;
-    resize: vertical;
-    min-height: 40px;
-    box-sizing: border-box;
-  }
-  .thread-textarea:focus { border-color: #60a5fa; }
-  .thread-compose-footer {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-top: 4px;
-  }
-  .thread-submit {
-    font-size: 11px;
-    font-weight: 500;
-    padding: 4px 12px;
-    background: #3b82f6;
-    color: white;
-    border: none;
-    border-radius: 6px;
-    cursor: pointer;
-    transition: background 0.15s;
-  }
-  .thread-submit:hover:not(:disabled) { background: #2563eb; }
-  .thread-submit:disabled { opacity: 0.4; cursor: default; }
-  .thread-error {
-    font-size: 10px;
-    color: #ef4444;
-    margin-top: 4px;
-  }
-
   /* === AI Action Row (Ask AI + Claude peer buttons) === */
   .ai-action-row {
     display: flex;
@@ -5250,12 +4929,5 @@
     color: #64748b;
     align-self: center;
     white-space: nowrap;
-  }
-  .thread-textarea.ai-loading {
-    animation: ai-pulse 1.5s ease-in-out infinite;
-  }
-  @keyframes ai-pulse {
-    0%, 100% { border-color: #374151; }
-    50% { border-color: #a78bfa; }
   }
 </style>
