@@ -252,6 +252,8 @@
         {#if expanded.commentPeriods}
           <div class="section-body">
             {#each data.comment_periods! as period}
+              {@const eid = `rule:${period.document_number}`}
+              {@const counts = voiceCounts.get(eid)}
               <div class="card focal-card" class:dragging={draggingId === period.document_number}
                    draggable="true"
                    ondragstart={(e: DragEvent) => handleDragStart(e, composeCommentPeriodContext(period), period.document_number)}
@@ -268,6 +270,9 @@
                       {period.days_remaining} days left
                     {/if}
                   </span>
+                  {#if counts && counts.total > 0}
+                    <span class="voice-count-badge">{counts.total} voice{counts.total !== 1 ? 's' : ''}</span>
+                  {/if}
                 </div>
                 {#if period.abstract}
                   <div class="card-summary">{period.abstract}</div>
@@ -280,6 +285,17 @@
                     <a href={period.html_url} target="_blank" rel="noopener" class="action-link">Read Rule</a>
                   {/if}
                 </div>
+                {#if onvoice}
+                  <div class="card-voice">
+                    <CivicVoiceButtons
+                      entityId={eid}
+                      userStance={userStances.get(eid) ?? null}
+                      disabled={votingInProgress.has(eid)}
+                      locked={!identity?.isUnlocked}
+                      {onvoice}
+                    />
+                  </div>
+                {/if}
               </div>
             {/each}
           </div>
@@ -300,6 +316,8 @@
         {#if expanded.hearings}
           <div class="section-body">
             {#each data.upcoming_hearings! as hearing}
+              {@const eid = billEntityId(hearing.bill_id)}
+              {@const counts = voiceCounts.get(eid)}
               <div class="card focal-card" class:dragging={draggingId === hearing.bill_id}
                    draggable="true"
                    ondragstart={(e: DragEvent) => handleDragStart(e, composeHearingContext(hearing), hearing.bill_id)}
@@ -322,9 +340,23 @@
                   {#if hearing.committee}
                     <span>{hearing.committee}</span>
                   {/if}
+                  {#if counts && counts.total > 0}
+                    <span class="voice-count-badge">{counts.total} voice{counts.total !== 1 ? 's' : ''}</span>
+                  {/if}
                 </div>
                 {#if hearing.description}
                   <div class="card-summary">{hearing.description}</div>
+                {/if}
+                {#if onvoice}
+                  <div class="card-voice">
+                    <CivicVoiceButtons
+                      entityId={eid}
+                      userStance={userStances.get(eid) ?? null}
+                      disabled={votingInProgress.has(eid)}
+                      locked={!identity?.isUnlocked}
+                      {onvoice}
+                    />
+                  </div>
                 {/if}
               </div>
             {/each}
@@ -347,6 +379,8 @@
           <div class="section-body">
             <div class="section-hint">Bills awaiting governor's signature — call now to influence the outcome</div>
             {#each data.governors_desk! as bill}
+              {@const eid = billEntityId(bill.bill_id)}
+              {@const counts = voiceCounts.get(eid)}
               <div class="card focal-card" class:dragging={draggingId === bill.bill_id}
                    draggable="true"
                    ondragstart={(e: DragEvent) => handleDragStart(e, composeGovernorsDeskContext(bill), bill.bill_id)}
@@ -359,6 +393,22 @@
                   <div class="card-summary">{bill.summary}</div>
                 {/if}
                 <div class="card-leverage">Call the Governor's office to express support or opposition</div>
+                {#if counts && counts.total > 0}
+                  <div class="card-meta">
+                    <span class="voice-count-badge">{counts.total} voice{counts.total !== 1 ? 's' : ''}</span>
+                  </div>
+                {/if}
+                {#if onvoice}
+                  <div class="card-voice">
+                    <CivicVoiceButtons
+                      entityId={eid}
+                      userStance={userStances.get(eid) ?? null}
+                      disabled={votingInProgress.has(eid)}
+                      locked={!identity?.isUnlocked}
+                      {onvoice}
+                    />
+                  </div>
+                {/if}
               </div>
             {/each}
           </div>
