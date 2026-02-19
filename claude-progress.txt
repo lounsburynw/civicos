@@ -1,3 +1,56 @@
+## Session — 2026-02-18 (Web Components Phase 5: Smart View Components)
+
+**Item:** civic_web_components (P0) — Phase 5
+**Status:** Phase 5 complete, item remains not_ready (Phase 6+ next)
+
+### What was done:
+- Created `CivicAgendaView` smart component (593 lines) — first view-level component
+- Component owns all comment thread, AI draft, and AI response state internally
+- Component calls session/api directly for thread loading, comment submission, AI drafting
+- Moved 6 handler functions + 4 composition functions from SidePanel to component
+- Moved agenda template section (90 lines of per-item rendering)
+- Moved agenda-specific CSS (~100 lines: .ai-action-*, .ai-response-*, .draft-btn-*)
+- Cleaned up 4 unused imports from SidePanel
+- Updated SidePanel's composeSentimentBlock to remove thread reference
+- SidePanel: 4933 → 4508 lines (-425)
+- Components package: 6 → 7 components (2566 total lines)
+- Both packages build clean
+
+### Design decisions:
+- CivicAgendaView is a regular Svelte component (no customElement) — complex props (Maps, functions, Session) require Svelte's full prop system
+- Component owns interaction-specific state; parent owns shared data (voiceCounts, stances)
+- Parent provides session/api via props (dependency injection) — keeps component testable
+- composeSentimentBlock duplicated in component (reads different state than parent's version)
+- Comment count changes emitted back to parent via oncommentcountchange callback
+
+### What remains for civic_web_components:
+- Phase 6: Decision view extraction (CivicDecisionView smart component)
+- Phase 7: Initiative view extraction (CivicInitiativeView smart component)
+- Phase 8+: Map, budget, remaining SidePanel sections
+
+## Session — 2026-02-18 (Web Components Phase 4: Comment Thread)
+
+**Item:** civic_web_components (P0) — Phase 4
+**Status:** Phase 4 complete, item remains not_ready (Phase 5: smart view components next)
+**Commit:** 511cf44
+
+### What was done:
+- Created `CivicCommentThread` (489 lines) — toggle, comment list with stance coloring, synthesis bar, AI draft/enrich/summarize, compose area, email clerk link
+- Integrated into SidePanel, replacing ~137 lines of inline template + ~213 lines of CSS
+- Removed unused `getUserComment()` function
+- Updated standalone demo with 3 thread examples (expanded with AI, collapsed lazy-load, locked user)
+- Both packages build clean
+
+### SidePanel: 4933 lines (was 5261 after Phase 3)
+### Components package: 6 components (1,973 lines total)
+### Standalone bundle: 168KB
+
+### Architectural shift decided:
+- Phases 1-4 extracted **leaf components** (cards, buttons, threads) — presentational only
+- SidePanel still ~5K lines because handler functions + state remain in parent
+- Next phase: extract **smart view components** that own their state and talk to session/API
+- First candidate: `<CivicAgendaView>` — the pulse/agenda tab with items, comments, AI, voices
+
 ## Session — 2026-02-18 (Web Components Phase 3: Initiative Card)
 
 **Item:** civic_web_components (P0) — Phase 3
