@@ -1,3 +1,30 @@
+## Session — 2026-02-18 (Web Components Phase 6: Decision View)
+
+**Item:** civic_web_components (P0) — Phase 6
+**Status:** Phase 6 complete, item remains not_ready (Phase 7+ next)
+
+### What was done:
+- Created `CivicDecisionView` smart component (287 lines) — owns decision expansion, detail loading, testimony/council toggles, AI responses
+- Follows same pattern as Phase 5's CivicAgendaView (dependency injection for session/API, internal state ownership)
+- SidePanel dropped from 4,508 → 4,344 lines (-164 lines)
+- Removed from SidePanel: expandedDecisions, decisionDetails, decisionLoading, expandedTestimony, expandedCouncil, toggleDecisionDetail, composeDecisionContext, composeTestimonySummary, composeSentimentBlock, askAI, aiResponses, aiResponseLoading, DecisionDetailData import
+- Both packages build clean
+
+### Component inventory (2,853 lines total, 8 components):
+- `<civic-voice-buttons>` (96 lines) — Phase 1
+- `<civic-synthesis-bar>` (58 lines) — Phase 1
+- `<civic-agenda-item-card>` (159 lines) — Phase 2
+- `<civic-decision-card>` (629 lines) — Phase 2
+- `<civic-initiative-card>` (542 lines) — Phase 3
+- `<civic-comment-thread>` (489 lines) — Phase 4
+- `CivicAgendaView` (593 lines) — Phase 5 (smart view)
+- `CivicDecisionView` (287 lines) — Phase 6 (smart view)
+
+### SidePanel: 4,344 lines (was 5,540 at start, -1,196 total)
+### Standalone bundle: 200KB
+
+---
+
 ## Session — 2026-02-18 (Web Components Phase 5: Smart View Components)
 
 **Item:** civic_web_components (P0) — Phase 5
