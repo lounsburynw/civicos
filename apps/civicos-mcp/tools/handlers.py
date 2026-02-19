@@ -501,7 +501,7 @@ def _legislation_pulse(
                 "item_number": bill.get("bill_number", ""),
                 "title": bill.get("bill_name", "Untitled Bill"),
                 "project_type": topic_label,
-                "stance_eligible": False,
+                "stance_eligible": True,
                 "comment_eligible": False,
                 "description": bill.get("leverage_point", ""),
                 "why_it_matters": bill.get("summary", "")[:200] if bill.get("summary") else "",

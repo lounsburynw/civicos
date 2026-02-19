@@ -1,15 +1,26 @@
 <script lang="ts">
   import CivicMeetingCard from './CivicMeetingCard.svelte';
+  import CivicVoiceButtons from './CivicVoiceButtons.svelte';
   import { outcomeIcon, outcomeClass, formatRelativeDate } from '../utils/civic-helpers.js';
+
+  type Stance = 'support' | 'oppose' | 'watching';
+
+  type VoiceCounts = {
+    support: number;
+    oppose: number;
+    watching: number;
+    total: number;
+  };
 
   type PulseData = {
     decisions_this_week: Array<{ title: string; date: string; time: string; location: string; meeting_datetime: string }>;
-    upcoming_items?: Array<{ title: string; meeting_title?: string; project_type?: string; description?: string }>;
-    recent_outcomes: Array<{ title: string; date: string; outcome: string }>;
+    upcoming_items?: Array<{ id?: string; title: string; meeting_title?: string; project_type?: string; description?: string }>;
+    recent_outcomes: Array<{ id?: string; title: string; date: string; outcome: string }>;
     generated_at: string;
   };
 
   type JurisdictionLevel = 'federal' | 'state' | 'city' | string;
+  type IdentityInfo = { isUnlocked?: boolean } | null;
 
   import type { Snippet } from 'svelte';
 
@@ -17,13 +28,27 @@
     data,
     showCalendar = false,
     level = 'city',
+    voiceCounts = new Map<string, VoiceCounts>(),
+    userStances = new Map<string, Stance>(),
+    votingInProgress = new Set<string>(),
+    identity = null as IdentityInfo,
+    onvoice,
     children,
   }: {
     data: PulseData;
     showCalendar?: boolean;
     level?: JurisdictionLevel;
+    voiceCounts?: Map<string, VoiceCounts>;
+    userStances?: Map<string, Stance>;
+    votingInProgress?: Set<string>;
+    identity?: IdentityInfo;
+    onvoice?: (detail: { entityId: string; stance: Stance }) => void;
     children?: Snippet;
   } = $props();
+
+  function billEntityId(id: string): string {
+    return `bill:${id}`;
+  }
 
   const isLegislative = $derived(level === 'state' || level === 'federal');
   const meetingsLabel = $derived(isLegislative ? 'Active Topics' : 'Meetings');
@@ -97,6 +122,8 @@
         <div class="empty-section">{emptyItems}</div>
       {:else}
         {#each data.upcoming_items as item}
+          {@const eid = item.id ? billEntityId(item.id) : ''}
+          {@const counts = eid ? voiceCounts.get(eid) : undefined}
           <div class="card">
             <div class="card-title">{item.title}</div>
             <div class="card-meta">
@@ -106,9 +133,23 @@
               {#if item.project_type}
                 <span class="item-type">{item.project_type}</span>
               {/if}
+              {#if counts && counts.total > 0}
+                <span class="voice-count-badge">{counts.total} voice{counts.total !== 1 ? 's' : ''}</span>
+              {/if}
             </div>
             {#if isLegislative && item.description}
               <div class="card-desc">{item.description}</div>
+            {/if}
+            {#if eid && onvoice}
+              <div class="card-voice">
+                <CivicVoiceButtons
+                  entityId={eid}
+                  userStance={userStances.get(eid) ?? null}
+                  disabled={votingInProgress.has(eid)}
+                  locked={!identity?.isUnlocked}
+                  {onvoice}
+                />
+              </div>
             {/if}
           </div>
         {/each}
@@ -134,6 +175,8 @@
         <div class="empty-section">{emptyOutcomes}</div>
       {:else}
         {#each data.recent_outcomes as outcome}
+          {@const eid = outcome.id ? billEntityId(outcome.id) : ''}
+          {@const counts = eid ? voiceCounts.get(eid) : undefined}
           <div class="card">
             <div class="card-title">
               <span class="outcome-icon {outcomeClass(outcome.outcome)}">{outcomeIcon(outcome.outcome)}</span>
@@ -145,7 +188,21 @@
                 <span class="meta-sep">&middot;</span>
                 <span class="outcome-label">{outcome.outcome.replace(/_/g, ' ')}</span>
               {/if}
+              {#if counts && counts.total > 0}
+                <span class="voice-count-badge">{counts.total} voice{counts.total !== 1 ? 's' : ''}</span>
+              {/if}
             </div>
+            {#if eid && onvoice}
+              <div class="card-voice">
+                <CivicVoiceButtons
+                  entityId={eid}
+                  userStance={userStances.get(eid) ?? null}
+                  disabled={votingInProgress.has(eid)}
+                  locked={!identity?.isUnlocked}
+                  {onvoice}
+                />
+              </div>
+            {/if}
           </div>
         {/each}
       {/if}
@@ -295,6 +352,16 @@
     font-size: 12px;
     line-height: 1.4;
     margin-top: 6px;
+  }
+  .card-voice {
+    margin-top: 8px;
+    padding-top: 6px;
+    border-top: 1px solid #374151;
+  }
+  .voice-count-badge {
+    font-size: 10px;
+    color: #60a5fa;
+    font-weight: 500;
   }
   .pulse-footer {
     display: flex;
