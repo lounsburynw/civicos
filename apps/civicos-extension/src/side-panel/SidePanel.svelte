@@ -62,7 +62,44 @@
   const STANCES_STORAGE_KEY = 'civicos_user_stances';
 
   // Attestation state
-  let hasAttestation = $state(false);
+  let attestationLabels: string[] = $state([]);
+
+  // US state abbreviations for compact badge display
+  const STATE_ABBREVS: Record<string, string> = {
+    'state-california': 'CA', 'state-texas': 'TX', 'state-new-york': 'NY',
+    'state-florida': 'FL', 'state-illinois': 'IL', 'state-pennsylvania': 'PA',
+    'state-ohio': 'OH', 'state-georgia': 'GA', 'state-michigan': 'MI',
+    'state-washington': 'WA', 'state-oregon': 'OR', 'state-colorado': 'CO',
+    'state-virginia': 'VA', 'state-massachusetts': 'MA', 'state-arizona': 'AZ',
+    'state-nevada': 'NV', 'state-minnesota': 'MN', 'state-maryland': 'MD',
+  };
+
+  function buildAttestationLabels(event: Record<string, unknown> | null | undefined): string[] {
+    if (!event) return [];
+    const tags = event?.tags;
+    if (!Array.isArray(tags)) return ['verified'];
+    const jTag = tags.find((t: unknown) => Array.isArray(t) && t[0] === 'j');
+    const jurisdictionId = Array.isArray(jTag) && typeof jTag[1] === 'string' ? jTag[1] : null;
+    if (!jurisdictionId) return [];
+
+    const labels: string[] = [];
+    const server = availableServers.find(s => s.jurisdiction_id === jurisdictionId);
+    labels.push(server?.display_name?.toLowerCase() || jurisdictionId.replace(/^city-/, '').replace(/-/g, ' '));
+
+    // Add parent jurisdictions (skip federal)
+    const parents = server?.parent_jurisdictions ?? [];
+    for (const pid of parents) {
+      if (pid.startsWith('federal-')) continue;
+      const abbrev = STATE_ABBREVS[pid];
+      if (abbrev) {
+        labels.push(abbrev);
+      } else {
+        const parentServer = availableServers.find(s => s.jurisdiction_id === pid);
+        if (parentServer) labels.push(parentServer.display_name.toLowerCase());
+      }
+    }
+    return labels;
+  }
 
   // Comment counts & synthesis (loaded in bulk, shared with CivicAgendaView)
   let commentCounts = $state(new Map<string, CommentCounts>());
@@ -128,9 +165,9 @@
     // Check attestation status from local storage
     try {
       const stored = await chrome.storage.local.get('civicos_attestation');
-      hasAttestation = !!stored.civicos_attestation;
+      attestationLabels = buildAttestationLabels(stored.civicos_attestation);
     } catch {
-      hasAttestation = false;
+      attestationLabels = [];
     }
   }
 
@@ -507,7 +544,7 @@
       loadIdentity();
     }
     if (changes['civicos_attestation']) {
-      hasAttestation = !!changes['civicos_attestation'].newValue;
+      attestationLabels = buildAttestationLabels(changes['civicos_attestation'].newValue);
     }
     if (changes[CONNECTOR_SETUP_KEY]) {
       connectorSetupDismissed = changes[CONNECTOR_SETUP_KEY].newValue ?? false;
@@ -626,7 +663,7 @@
   <CivicIdentityChip
     {identity}
     {loading}
-    {hasAttestation}
+    {attestationLabels}
     onunlock={async (password) => {
       const response = await sendMessage<boolean>({ type: 'UNLOCK', password });
       if (response.success && response.data) {
