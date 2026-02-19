@@ -1,3 +1,33 @@
+## Session — 2026-02-18 (Web Components Phase 3: Initiative Card)
+
+**Item:** civic_web_components (P0) — Phase 3
+**Status:** Phase 3 complete, item remains not_ready (Phase 4: comment thread next)
+
+### What was done:
+- Created `CivicInitiativeCard` (542 lines) — collapsed view with topic pill, voice counts, attested badge, stats; expanded view with coordination link, action cards, progress bars, commit/complete/withdraw buttons, template draft + copy
+- Integrated into SidePanel, replacing ~195 lines of inline rendering with component usage
+- Updated standalone demo with 2 initiative card examples (one fully loaded, one with async action loading)
+- Both packages build clean (no errors, no unused CSS warnings)
+
+### Design decisions:
+- Component renders card *content* (no `.ini-card` wrapper) — parent provides the card container (same pattern as Phase 1/2)
+- All state management via callback props (`ontoggle`, `oncommit`, `oncomplete`, `onwithdraw`, `oncopytemplate`, `onaddaction`)
+- Create initiative form and create action form stay in parent (heavy two-way binding + identity management)
+- `showAddAction` boolean prop controls whether "Add Action" button shows (hidden when parent shows create form)
+- Action progress, committed/completed/inProgress IDs passed as Record/arrays (converted from Maps/Sets in parent)
+- Stats (committed count, done count) computed internally via `$derived` from actions + actionProgress props
+- Helper functions (`actionTypeLabel`, `deadlineLabel`, `deadlineClass`) duplicated as pure functions in component
+
+### SidePanel: 5261 lines (was 5349 after Phase 2)
+### Components package: 5 components (VoiceButtons, SynthesisBar, AgendaItemCard, DecisionCard, InitiativeCard)
+### Standalone bundle: 146KB (was 120KB after Phase 2)
+
+### What remains for civic_web_components:
+- Phase 4: Comment thread component (high complexity — AI drafting, enrichment, thread state)
+- Phase 5+: Map, budget, remaining sections
+
+---
+
 ## Session — 2026-02-18 (Web Components Phase 1: Package Scaffold + First Components)
 
 **Item:** civic_web_components (P0) — Phase 1

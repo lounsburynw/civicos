@@ -92,6 +92,16 @@
     <civic-decision-card id="decision2"></civic-decision-card>
   </div>
 
+  <h2>civic-initiative-card</h2>
+
+  <div class="card" style="background: #262626; border-color: #374151; border-radius: 10px; padding: 12px 14px;">
+    <civic-initiative-card id="ini1"></civic-initiative-card>
+  </div>
+
+  <div class="card" style="background: #262626; border-color: #374151; border-radius: 10px; padding: 12px 14px;">
+    <civic-initiative-card id="ini2"></civic-initiative-card>
+  </div>
+
   <h2>Event Log</h2>
   <div class="event-log" id="log">Waiting for interactions...</div>
 
@@ -241,6 +251,75 @@
       dec2.expanded = !dec2.expanded;
       logEvent(`Decision ${dec2.expanded ? 'expanded' : 'collapsed'}: ${dec2.decision.title}`);
     };
+
+    // Configure initiative cards
+    const ini1 = document.getElementById('ini1');
+    ini1.initiative = {
+      id: 'ini-001',
+      topic: 'housing',
+      title: 'Affordable Housing Near Transit',
+      description: 'Advocacy initiative to increase affordable housing requirements for developments within 0.5 miles of SMART stations.',
+      coordination_url: 'https://example.com/housing-coalition',
+      voice_count: 12,
+      creator_attested: true,
+      attested_voice_count: 8,
+    };
+    ini1.actions = [
+      { id: 'act-001', action_type: 'written_comment', description: 'Write to Planning Commission supporting inclusionary zoning increases near transit', target: 'San Rafael Planning Commission', deadline: '2026-03-15', template: 'Dear Planning Commissioners,\n\nI am writing to support increasing inclusionary housing requirements for developments near SMART stations...' },
+      { id: 'act-002', action_type: 'attend_meeting', description: 'Attend the March Planning Commission meeting to show support', target: 'City Hall Council Chambers', deadline: '2026-03-20' },
+    ];
+    ini1.actionProgress = {
+      'act-001': { commitment_count: 5, completion_count: 2, target_count: 20, progress_percent: 10 },
+      'act-002': { commitment_count: 8, completion_count: 0, target_count: 15, progress_percent: 0 },
+    };
+    ini1.committedActionIds = ['act-001'];
+    ini1.isUnlocked = true;
+    ini1.hasIdentity = true;
+    ini1.ontoggle = () => {
+      ini1.expanded = !ini1.expanded;
+      logEvent(`Initiative ${ini1.expanded ? 'expanded' : 'collapsed'}: ${ini1.initiative.title}`);
+    };
+    ini1.oncommit = ({ actionId }) => {
+      ini1.committedActionIds = [...ini1.committedActionIds, actionId];
+      logEvent(`Committed to action: ${actionId}`);
+    };
+    ini1.oncomplete = ({ actionId }) => {
+      ini1.completedActionIds = [...(ini1.completedActionIds || []), actionId];
+      logEvent(`Completed action: ${actionId}`);
+    };
+    ini1.onwithdraw = ({ actionId }) => {
+      ini1.committedActionIds = ini1.committedActionIds.filter(id => id !== actionId);
+      logEvent(`Withdrew from action: ${actionId}`);
+    };
+    ini1.oncopytemplate = ({ template }) => {
+      navigator.clipboard.writeText(template).then(() => logEvent('Template copied to clipboard'));
+    };
+    ini1.onaddaction = () => logEvent('Add action clicked for ini-001');
+
+    const ini2 = document.getElementById('ini2');
+    ini2.initiative = {
+      id: 'ini-002',
+      topic: 'traffic',
+      title: 'Safe Streets for Lincoln Ave',
+      description: 'Community campaign for traffic calming measures on Lincoln Avenue between 2nd and 5th streets.',
+      voice_count: 4,
+    };
+    ini2.hasIdentity = true;
+    ini2.ontoggle = () => {
+      ini2.expanded = !ini2.expanded;
+      if (ini2.expanded && !ini2.actions?.length) {
+        ini2.actionsLoading = true;
+        setTimeout(() => {
+          ini2.actions = [
+            { id: 'act-003', action_type: 'signature', description: 'Sign the petition for traffic calming on Lincoln Ave', target: 'City Council', deadline: '2026-04-01' },
+          ];
+          ini2.actionProgress = { 'act-003': { commitment_count: 45, completion_count: 45, target_count: 500, progress_percent: 9 } };
+          ini2.actionsLoading = false;
+        }, 600);
+      }
+      logEvent(`Initiative ${ini2.expanded ? 'expanded' : 'collapsed'}: ${ini2.initiative.title}`);
+    };
+    ini2.onaddaction = () => logEvent('Add action clicked for ini-002');
 
     // Event logging
     const logEl = document.getElementById('log');
