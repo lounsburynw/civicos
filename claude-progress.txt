@@ -20305,3 +20305,28 @@ Created `CivicSession` class in `packages/civicos-client/src/session.ts` (220 li
 ### Next session recommendation
 - Enrich leverage points via AI batch job (user-directed)
 - This would make get_leverage_points tool genuinely useful at scale
+
+## Session — 2026-02-19: Extension State/Federal Tabs Fix
+
+### What was done
+- Debugged extension showing "Server warming up" on California/Federal tabs
+- Root cause: previous session tested wrong URL (without /mcp prefix). Cloudflare only routes /mcp/* to Modal.
+- The extension constructs correct URLs via registry mcp_endpoint — API was already working
+- Added _legislation_pulse() fallback for city_pulse on state/federal servers
+- Added retry-with-timeout (15s/30s) to getCityPulseFromServer for cold-start resilience
+- Added jurisdiction-aware labels to CivicReadOnlyPulse (Key Legislation, Bill Status, Committee Hearings)
+- Added retry button on parent tab error state
+- Fixed Invalid Date for bills without last_action_date (formatRelativeDate handles unparseable strings)
+- Increased health check timeout from 5s to 20s for non-city servers
+- Refactored: moved _legislation_pulse into handlers.py, city_pulse now level-aware, added to CROSS_LEVEL_TOOLS
+- Redeployed California and Federal Modal servers
+
+### Commits
+- f56677e fix: Enable extension state/federal tabs with legislation pulse fallback
+- 109ae82 fix: Handle Invalid Date in bill status and increase health check timeout
+- 88a47fe refactor: Move legislation pulse into handler layer (architecture critic)
+
+### Next session recommendation
+- Iterate on state/federal tab UX quality
+- Enable state/federal-level initiatives
+- Design attestation origin display
