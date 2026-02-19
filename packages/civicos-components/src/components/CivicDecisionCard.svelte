@@ -2,6 +2,7 @@
 
 <script lang="ts">
   import CivicVoiceButtons from './CivicVoiceButtons.svelte';
+  import { outcomeIcon, outcomeClass } from '../utils/civic-helpers.js';
 
   type Stance = 'support' | 'oppose' | 'watching';
 
@@ -97,23 +98,6 @@
     ontoggletestimony?: () => void;
     ontogglecouncil?: () => void;
   } = $props();
-
-  function outcomeIcon(outcome: string): string {
-    const lower = outcome.toLowerCase();
-    if (lower === 'on_agenda') return '\u25B6';
-    if (lower.includes('approved') || lower.includes('passed') || lower.includes('adopted')) return '\u2713';
-    if (lower.includes('denied') || lower.includes('failed') || lower.includes('rejected')) return '\u2717';
-    if (lower.includes('continued') || lower.includes('tabled')) return '\u21BB';
-    return '\u2022';
-  }
-
-  function outcomeClass(outcome: string): string {
-    const lower = outcome.toLowerCase();
-    if (lower === 'on_agenda') return 'upcoming';
-    if (lower.includes('approved') || lower.includes('passed') || lower.includes('adopted')) return 'passed';
-    if (lower.includes('denied') || lower.includes('failed') || lower.includes('rejected')) return 'failed';
-    return 'other';
-  }
 
   let testimonies = $derived(detail?.testimony?.public_comments ?? []);
   let displayTestimonies = $derived(expandedTestimony ? testimonies : testimonies.slice(0, 3));

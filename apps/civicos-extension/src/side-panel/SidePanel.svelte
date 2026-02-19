@@ -7,12 +7,16 @@
   import type { IdentityInfo } from '../lib/providers/types.js';
   import { marked } from 'marked';
   import DOMPurify from 'dompurify';
-  // Reusable components from @civicos/components
+  // Reusable components and utilities from @civicos/components
   import CivicAgendaView from '@civicos/components/src/components/CivicAgendaView.svelte';
   import CivicDecisionView from '@civicos/components/src/components/CivicDecisionView.svelte';
   import CivicInitiativeView from '@civicos/components/src/components/CivicInitiativeView.svelte';
   import CivicIssueMap from '@civicos/components/src/components/CivicIssueMap.svelte';
   import CivicBudgetBreakdown from '@civicos/components/src/components/CivicBudgetBreakdown.svelte';
+  import CivicMeetingCard from '@civicos/components/src/components/CivicMeetingCard.svelte';
+  import CivicProvenancePanel from '@civicos/components/src/components/CivicProvenancePanel.svelte';
+  import CivicIdentityChip from '@civicos/components/src/components/CivicIdentityChip.svelte';
+  import CivicReadOnlyPulse from '@civicos/components/src/components/CivicReadOnlyPulse.svelte';
 
   // High-level orchestration session (stateless — recreated when AI config changes)
   let session = new CivicSession(api, registry, getAIManager());
@@ -88,18 +92,10 @@
   let serverHealth = $state(new Map<string, ServerHealthStatus>());
   let relayHealth: ServerHealthStatus | null = $state(null);
 
-  // Calendar dropdown
-  let calendarOpen: string | null = $state(null);
-
   // Connector setup state
   let connectorSetupDismissed = $state(false);
   let connectorSetupLoaded = $state(false);
   const CONNECTOR_SETUP_KEY = 'civicos_connector_setup_dismissed';
-
-  // Inline unlock
-  let unlockPassword = $state('');
-  let unlocking = $state(false);
-  let unlockError: string | null = $state(null);
 
   // Component refs (for lazy-load triggering)
   let issueMapRef: CivicIssueMap | undefined = $state(undefined);
@@ -136,25 +132,6 @@
     } catch {
       hasAttestation = false;
     }
-  }
-
-  async function handleUnlock() {
-    if (!unlockPassword) return;
-    unlocking = true;
-    unlockError = null;
-
-    const response = await sendMessage<boolean>({
-      type: 'UNLOCK',
-      password: unlockPassword,
-    });
-
-    if (response.success && response.data) {
-      identity = identity ? { ...identity, isUnlocked: true } : identity;
-    } else {
-      unlockError = 'Wrong password';
-    }
-    unlockPassword = '';
-    unlocking = false;
   }
 
   async function initJurisdiction() {
@@ -305,35 +282,6 @@
       });
     }
     await Promise.all(checks);
-  }
-
-  function isPastMeeting(meeting: { meeting_datetime: string }): boolean {
-    return new Date(meeting.meeting_datetime) < new Date();
-  }
-
-  function googleCalendarUrl(meeting: { title: string; date: string; time: string; location: string; meeting_datetime: string }): string {
-    const start = new Date(meeting.meeting_datetime);
-    const end = new Date(start.getTime() + 2 * 60 * 60 * 1000); // assume 2hr
-    const fmt = (d: Date) => d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
-    return `https://www.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(meeting.title)}&dates=${fmt(start)}/${fmt(end)}&location=${encodeURIComponent(meeting.location || '')}`;
-  }
-
-  function downloadIcs(meeting: { title: string; location: string; meeting_datetime: string }) {
-    const start = new Date(meeting.meeting_datetime);
-    const end = new Date(start.getTime() + 2 * 60 * 60 * 1000);
-    const fmt = (d: Date) => d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
-    const ics = `BEGIN:VCALENDAR\nVERSION:2.0\nBEGIN:VEVENT\nDTSTART:${fmt(start)}\nDTEND:${fmt(end)}\nSUMMARY:${meeting.title}\nLOCATION:${meeting.location || ''}\nEND:VEVENT\nEND:VCALENDAR`;
-    const blob = new Blob([ics], { type: 'text/calendar' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${meeting.title.replace(/[^a-zA-Z0-9]/g, '_')}.ics`;
-    a.click();
-    URL.revokeObjectURL(url);
-  }
-
-  function toggleCalendar(meetingTitle: string) {
-    calendarOpen = calendarOpen === meetingTitle ? null : meetingTitle;
   }
 
   // === External AI Platform Routing ===
@@ -513,43 +461,6 @@
     chrome.runtime.openOptionsPage();
   }
 
-  function truncateNpub(npub: string): string {
-    if (npub.length <= 16) return npub;
-    return npub.slice(0, 10) + '...' + npub.slice(-6);
-  }
-
-  function formatMeetingTime(meeting: { date: string; time: string }): string {
-    return meeting.time ? `${meeting.date} @ ${meeting.time}` : meeting.date;
-  }
-
-  function outcomeIcon(outcome: string): string {
-    const lower = outcome.toLowerCase();
-    if (lower === 'on_agenda') return '\u25B6';
-    if (lower.includes('approved') || lower.includes('passed') || lower.includes('adopted')) return '\u2713';
-    if (lower.includes('denied') || lower.includes('failed') || lower.includes('rejected')) return '\u2717';
-    if (lower.includes('continued') || lower.includes('tabled')) return '\u21BB';
-    return '\u2022';
-  }
-
-  function outcomeClass(outcome: string): string {
-    const lower = outcome.toLowerCase();
-    if (lower === 'on_agenda') return 'upcoming';
-    if (lower.includes('approved') || lower.includes('passed') || lower.includes('adopted')) return 'passed';
-    if (lower.includes('denied') || lower.includes('failed') || lower.includes('rejected')) return 'failed';
-    return 'other';
-  }
-
-  function formatRelativeDate(dateStr: string | null): string {
-    if (!dateStr) return 'unknown';
-    const d = new Date(dateStr);
-    const now = new Date();
-    const diffMs = now.getTime() - d.getTime();
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-    if (diffDays === 0) return 'today';
-    if (diffDays === 1) return 'yesterday';
-    if (diffDays < 30) return `${diffDays}d ago`;
-    return d.toLocaleDateString();
-  }
 
   // Load on mount
   initJurisdiction();
@@ -659,55 +570,7 @@
 
   <!-- Data Provenance Panel -->
   {#if showProvenance}
-    <div class="provenance-panel">
-      {#if provenanceLoading}
-        <div class="prov-loading">Loading data sources...</div>
-      {:else if provenanceData}
-        <div class="prov-header">
-          <span class="prov-title">Data Sources</span>
-          <span class="prov-jurisdiction">{provenanceData.jurisdiction}</span>
-        </div>
-        <div class="prov-stats">
-          <span>{provenanceData.total_storage_docs.toLocaleString()} records</span>
-          <span class="meta-sep">&middot;</span>
-          <span>{provenanceData.total_vector_docs.toLocaleString()} embeddings</span>
-        </div>
-        <div class="prov-corpora">
-          {#each provenanceData.corpora as corpus}
-            <div class="corpus-row">
-              <span class="corpus-name">{corpus.display_name}</span>
-              <span class="corpus-stats">
-                <span class="corpus-count">{corpus.storage_count.toLocaleString()}</span>
-                {#if corpus.vector_count > 0}
-                  {#if corpus.vector_count > corpus.storage_count}
-                    <!-- Chunked corpus (e.g. transcripts → many embeddings) -->
-                    <span class="corpus-indexed">indexed</span>
-                  {:else if corpus.coverage_percent !== null && corpus.coverage_percent >= 99}
-                    <span class="corpus-indexed">indexed</span>
-                  {:else if corpus.coverage_percent !== null}
-                    <span class="corpus-coverage" class:low={corpus.coverage_percent < 50}>
-                      {Math.round(corpus.coverage_percent)}%
-                    </span>
-                  {/if}
-                {:else if corpus.coverage_percent !== null}
-                  <span class="corpus-coverage low">0%</span>
-                {/if}
-              </span>
-            </div>
-          {/each}
-        </div>
-        <div class="prov-footer-row">
-          {#if provenanceData.freshness.last_updated}
-            <span class="prov-freshness">
-              Updated {formatRelativeDate(provenanceData.freshness.last_updated)}
-            </span>
-          {/if}
-          <span class="prov-backend">{provenanceData.storage_backend}</span>
-        </div>
-      {:else}
-        <div class="prov-loading">Unable to load data sources</div>
-      {/if}
-    </div>
+    <CivicProvenancePanel data={provenanceData} loading={provenanceLoading} />
   {/if}
 
 
@@ -741,39 +604,20 @@
   {/if}
 
   <!-- Identity chip -->
-  {#if loading}
-    <div class="identity-chip skeleton">&nbsp;</div>
-  {:else if identity}
-    <div class="identity-chip">
-      <div class="chip-row">
-        <span class="tier-badge private">private</span>
-        {#if identity.isUnlocked}
-          <span class="lock-status unlocked">unlocked</span>
-        {:else}
-          <span class="lock-status">locked</span>
-        {/if}
-        {#if hasAttestation}
-          <span class="attested-chip">Attested</span>
-        {/if}
-      </div>
-      {#if !identity.isUnlocked}
-        <form class="chip-unlock-form" onsubmit={(e: Event) => { e.preventDefault(); handleUnlock(); }}>
-          <input type="password" class="chip-unlock-input" placeholder="Password" bind:value={unlockPassword} autocomplete="off" />
-          <button type="submit" class="chip-unlock-btn" disabled={unlocking || !unlockPassword}>{unlocking ? '...' : 'Unlock'}</button>
-        </form>
-        {#if unlockError}
-          <div class="chip-unlock-error">{unlockError}</div>
-        {/if}
-      {:else}
-        <div class="npub">{truncateNpub(identity.npub)}</div>
-      {/if}
-    </div>
-  {:else}
-    <div class="identity-chip empty">
-      <span>No identity</span>
-      <button class="link-btn" onclick={openOptions}>Set up</button>
-    </div>
-  {/if}
+  <CivicIdentityChip
+    {identity}
+    {loading}
+    {hasAttestation}
+    onunlock={async (password) => {
+      const response = await sendMessage<boolean>({ type: 'UNLOCK', password });
+      if (response.success && response.data) {
+        identity = identity ? { ...identity, isUnlocked: true } : identity;
+        return true;
+      }
+      return false;
+    }}
+    onopenoptions={openOptions}
+  />
 
   <!-- City Pulse content -->
   {#if activeTab === activeJurisdiction}
@@ -806,32 +650,7 @@
             <div class="empty-section">No upcoming meetings</div>
           {:else}
             {#each pulseData.decisions_this_week as meeting}
-              <div class="card meeting-card" class:past-meeting={isPastMeeting(meeting)}>
-                <div class="meeting-top-row">
-                  <div class="card-title">
-                    {#if isPastMeeting(meeting)}<span class="past-icon" title="Past meeting">&#128337;</span>{/if}
-                    {meeting.title}
-                  </div>
-                  <button class="cal-btn" onclick={() => toggleCalendar(meeting.title)} title="Add to calendar" disabled={isPastMeeting(meeting)}>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" />
-                    </svg>
-                  </button>
-                </div>
-                <div class="card-meta">
-                  <span class="meta-date">{formatMeetingTime(meeting)}</span>
-                  {#if meeting.location}
-                    <span class="meta-sep">&middot;</span>
-                    <span class="meta-location">{meeting.location}</span>
-                  {/if}
-                </div>
-                {#if calendarOpen === meeting.title}
-                  <div class="cal-dropdown">
-                    <a href={googleCalendarUrl(meeting)} target="_blank" rel="noopener" class="cal-option">Google Calendar</a>
-                    <button class="cal-option" onclick={() => downloadIcs(meeting)}>Download .ics</button>
-                  </div>
-                {/if}
-              </div>
+              <CivicMeetingCard {meeting} />
             {/each}
           {/if}
         </div>
@@ -973,118 +792,7 @@
         <p>Server warming up — try again shortly</p>
       </div>
     {:else if tabData}
-      <!-- Meetings -->
-      <section class="feed-section">
-        <button class="section-header" onclick={() => toggle('meetings')}>
-          <span class="section-title">
-            Meetings
-            {#if tabData.decisions_this_week.length > 0}
-              <span class="count-badge">{tabData.decisions_this_week.length}</span>
-            {/if}
-          </span>
-          <span class="chevron" class:open={expanded.meetings}></span>
-        </button>
-        {#if expanded.meetings}
-          <div class="section-body">
-            {#if tabData.decisions_this_week.length === 0}
-              <div class="empty-section">No upcoming meetings</div>
-            {:else}
-              {#each tabData.decisions_this_week as meeting}
-                <div class="card meeting-card" class:past-meeting={isPastMeeting(meeting)}>
-                  <div class="meeting-top-row">
-                    <div class="card-title">
-                      {#if isPastMeeting(meeting)}<span class="past-icon" title="Past meeting">&#128337;</span>{/if}
-                      {meeting.title}
-                    </div>
-                  </div>
-                  <div class="card-meta">
-                    <span class="meta-date">{formatMeetingTime(meeting)}</span>
-                    {#if meeting.location}
-                      <span class="meta-sep">&middot;</span>
-                      <span class="meta-location">{meeting.location}</span>
-                    {/if}
-                  </div>
-                </div>
-              {/each}
-            {/if}
-          </div>
-        {/if}
-      </section>
-
-      <!-- Agenda Items -->
-      <section class="feed-section">
-        <button class="section-header" onclick={() => toggle('items')}>
-          <span class="section-title">
-            Agenda Items
-            {#if tabData.upcoming_items && tabData.upcoming_items.length > 0}
-              <span class="count-badge">{tabData.upcoming_items.length}</span>
-            {/if}
-          </span>
-          <span class="chevron" class:open={expanded.items}></span>
-        </button>
-        {#if expanded.items}
-          <div class="section-body">
-            {#if !tabData.upcoming_items || tabData.upcoming_items.length === 0}
-              <div class="empty-section">No upcoming agenda items</div>
-            {:else}
-              {#each tabData.upcoming_items as item}
-                <div class="card item-card">
-                  <div class="card-title">{item.title}</div>
-                  <div class="card-meta">
-                    {#if item.meeting_title}
-                      <span class="meta-body">{item.meeting_title}</span>
-                    {/if}
-                    {#if item.project_type}
-                      <span class="item-type">{item.project_type}</span>
-                    {/if}
-                  </div>
-                </div>
-              {/each}
-            {/if}
-          </div>
-        {/if}
-      </section>
-
-      <!-- Recent Outcomes -->
-      <section class="feed-section">
-        <button class="section-header" onclick={() => toggle('outcomes')}>
-          <span class="section-title">
-            Recent Outcomes
-            {#if tabData.recent_outcomes.length > 0}
-              <span class="count-badge">{tabData.recent_outcomes.length}</span>
-            {/if}
-          </span>
-          <span class="chevron" class:open={expanded.outcomes}></span>
-        </button>
-        {#if expanded.outcomes}
-          <div class="section-body">
-            {#if tabData.recent_outcomes.length === 0}
-              <div class="empty-section">No recent outcomes</div>
-            {:else}
-              {#each tabData.recent_outcomes as outcome}
-                <div class="card">
-                  <div class="card-title">
-                    <span class="outcome-icon {outcomeClass(outcome.outcome)}">{outcomeIcon(outcome.outcome)}</span>
-                    {outcome.title}
-                  </div>
-                  <div class="card-meta">
-                    <span class="meta-date">{formatRelativeDate(outcome.date)}</span>
-                    {#if outcome.outcome}
-                      <span class="meta-sep">&middot;</span>
-                      <span class="outcome-label">{outcome.outcome.replace(/_/g, ' ')}</span>
-                    {/if}
-                  </div>
-                </div>
-              {/each}
-            {/if}
-          </div>
-        {/if}
-      </section>
-
-      <!-- Footer -->
-      <footer class="pulse-footer">
-        <span class="footer-ts">Updated {new Date(tabData.generated_at).toLocaleTimeString()}</span>
-      </footer>
+      <CivicReadOnlyPulse data={tabData} />
     {:else}
       <div class="empty-section" style="padding: 24px 12px; text-align: center;">
         No data available for {tabServer?.display_name || activeTab}
@@ -1229,140 +937,6 @@
     to { transform: rotate(360deg); }
   }
 
-  /* === Identity Chip === */
-  .identity-chip {
-    background: #262626;
-    border-radius: 8px;
-    padding: 10px 12px;
-    margin-bottom: 12px;
-  }
-  .identity-chip.skeleton {
-    height: 48px;
-    animation: pulse 1.5s infinite;
-  }
-  .identity-chip.empty {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    color: #6b7280;
-    font-size: 12px;
-  }
-
-  @keyframes pulse {
-    0%, 100% { opacity: 0.6; }
-    50% { opacity: 0.3; }
-  }
-
-  .chip-row {
-    display: flex;
-    gap: 8px;
-    align-items: center;
-    margin-bottom: 4px;
-  }
-
-  .tier-badge {
-    font-size: 10px;
-    font-weight: 600;
-    text-transform: uppercase;
-    padding: 1px 6px;
-    border-radius: 3px;
-    background: #374151;
-    color: #9ca3af;
-  }
-  .tier-badge.private { background: #3b1f4b; color: #c084fc; }
-
-  .lock-status {
-    font-size: 10px;
-    color: #ef4444;
-  }
-  .lock-status.unlocked { color: #22c55e; }
-  .attested-chip {
-    font-size: 9px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    color: #22c55e;
-    background: rgba(34, 197, 94, 0.12);
-    padding: 1px 6px;
-    border-radius: 3px;
-    margin-left: auto;
-  }
-  .lock-btn {
-    background: none;
-    border: 1px solid #ef4444;
-    border-radius: 4px;
-    cursor: pointer;
-    padding: 1px 6px;
-    font-size: 10px;
-    color: #ef4444;
-  }
-  .lock-btn:hover { background: rgba(239, 68, 68, 0.1); }
-  .lock-btn:disabled { opacity: 0.5; cursor: default; }
-
-  .chip-unlock-form {
-    display: flex;
-    gap: 6px;
-    margin-top: 6px;
-  }
-  .chip-unlock-input {
-    flex: 1;
-    min-width: 0;
-    padding: 4px 8px;
-    background: #1a1a1a;
-    border: 1px solid #404040;
-    border-radius: 4px;
-    color: #e5e7eb;
-    font-size: 12px;
-    outline: none;
-  }
-  .chip-unlock-input:focus { border-color: #6366f1; }
-  .chip-unlock-btn {
-    background: #6366f1;
-    color: white;
-    border: none;
-    padding: 4px 10px;
-    border-radius: 4px;
-    font-size: 11px;
-    font-weight: 500;
-    cursor: pointer;
-    flex-shrink: 0;
-  }
-  .chip-unlock-btn:hover { background: #4f46e5; }
-  .chip-unlock-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-  .chip-unlock-error {
-    font-size: 10px;
-    color: #ef4444;
-    margin-top: 2px;
-  }
-
-  .unlock-inline {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    margin-bottom: 6px;
-  }
-  .unlock-row {
-    display: flex;
-    gap: 6px;
-    align-items: center;
-  }
-
-  .npub {
-    font-family: 'SF Mono', 'Fira Code', monospace;
-    font-size: 11px;
-    color: #6b7280;
-  }
-
-  .link-btn {
-    background: none;
-    border: none;
-    color: #3b82f6;
-    cursor: pointer;
-    font-size: 12px;
-    text-decoration: underline;
-  }
-  .link-btn:hover { color: #60a5fa; }
-
   /* === Loading / Error states === */
   .loading-state {
     text-align: center;
@@ -1481,119 +1055,6 @@
   }
 
   /* === Cards === */
-  .card {
-    background: #262626;
-    border-radius: 10px;
-    padding: 12px 14px;
-    margin-bottom: 6px;
-    border: 1px solid #374151;
-    transition: border-color 0.15s ease, box-shadow 0.15s ease;
-  }
-  .card:hover {
-    border-color: #3b82f6;
-    box-shadow: 0 2px 8px rgba(59,130,246,0.1);
-  }
-
-  .card-title {
-    color: #eee;
-    font-size: 14px;
-    font-weight: 500;
-    line-height: 1.3;
-  }
-
-  .card-meta {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    font-size: 11px;
-    color: #6b7280;
-    margin-top: 4px;
-    flex-wrap: wrap;
-  }
-
-  .meta-sep { color: #4b5563; }
-
-  .card-desc {
-    color: #9ca3af;
-    font-size: 12px;
-    margin-top: 4px;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-  }
-
-  .card-why {
-    color: #9ca3af;
-    font-size: 12px;
-    margin-top: 4px;
-    line-height: 1.45;
-  }
-  .card-top-row {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    margin-bottom: 4px;
-    font-size: 11px;
-    color: #6b7280;
-  }
-
-  .item-number {
-    color: #60a5fa;
-    font-weight: 600;
-  }
-
-  .card-tags {
-    display: flex;
-    gap: 4px;
-    margin-top: 6px;
-    flex-wrap: wrap;
-  }
-
-  .tag {
-    font-size: 10px;
-    padding: 1px 6px;
-    border-radius: 3px;
-    background: #374151;
-    color: #9ca3af;
-  }
-  .tag-voice { background: #1e3a5f; color: #60a5fa; }
-  .tag-comment { background: #1a332e; color: #34d399; }
-
-  /* === Decision cards === */
-  .decision-row {
-    display: flex;
-    gap: 10px;
-    align-items: flex-start;
-  }
-
-  .outcome-icon {
-    flex-shrink: 0;
-    width: 20px;
-    height: 20px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 50%;
-    font-size: 11px;
-    font-weight: 700;
-    margin-top: 1px;
-  }
-  .outcome-icon.passed { background: #14532d; color: #4ade80; }
-  .outcome-icon.failed { background: #7f1d1d; color: #f87171; }
-  .outcome-icon.upcoming { background: #1e3a5f; color: #60a5fa; }
-  .outcome-icon.other { background: #374151; color: #9ca3af; }
-
-  .decision-info { flex: 1; min-width: 0; }
-
-  .outcome-label {
-    font-weight: 500;
-    text-transform: capitalize;
-  }
-  .outcome-label.passed { color: #4ade80; }
-  .outcome-label.failed { color: #f87171; }
-  .outcome-label.upcoming { color: #60a5fa; }
-  .outcome-label.other { color: #9ca3af; }
 
   /* === Footer === */
   .pulse-footer {
@@ -1605,105 +1066,6 @@
     border-top: 1px solid #374151;
     font-size: 10px;
     color: #4b5563;
-  }
-
-  /* === Parent Jurisdiction Sections === */
-  .level-badge {
-    display: inline-block;
-    font-size: 9px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    color: #9ca3af;
-    background: #1f2937;
-    border: 1px solid #374151;
-    border-radius: 3px;
-    padding: 1px 5px;
-    margin-right: 4px;
-    vertical-align: middle;
-  }
-
-  /* === Provenance Panel === */
-  .provenance-panel {
-    background: #262626;
-    border-radius: 8px;
-    padding: 10px 12px;
-    margin-bottom: 12px;
-    border: 1px solid #374151;
-  }
-  .prov-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 6px;
-  }
-  .prov-title {
-    font-size: 12px;
-    font-weight: 600;
-    color: #eee;
-  }
-  .prov-jurisdiction {
-    font-size: 10px;
-    color: #6b7280;
-  }
-  .prov-stats {
-    display: flex;
-    gap: 4px;
-    font-size: 11px;
-    color: #9ca3af;
-    margin-bottom: 8px;
-  }
-  .prov-corpora {
-    border-top: 1px solid #374151;
-    padding-top: 6px;
-  }
-  .corpus-row {
-    display: flex;
-    justify-content: space-between;
-    padding: 3px 0;
-    font-size: 11px;
-  }
-  .corpus-name { color: #d1d5db; }
-  .corpus-stats {
-    display: flex;
-    gap: 6px;
-    align-items: center;
-  }
-  .corpus-count { color: #6b7280; font-variant-numeric: tabular-nums; }
-  .corpus-indexed {
-    font-size: 9px;
-    color: #4ade80;
-    text-transform: uppercase;
-    letter-spacing: 0.3px;
-  }
-  .corpus-coverage {
-    font-size: 10px;
-    color: #6b7280;
-    font-variant-numeric: tabular-nums;
-  }
-  .corpus-coverage.low { color: #f59e0b; }
-  .prov-footer-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    border-top: 1px solid #374151;
-    padding-top: 6px;
-    margin-top: 6px;
-  }
-  .prov-freshness {
-    font-size: 10px;
-    color: #4b5563;
-  }
-  .prov-backend {
-    font-size: 9px;
-    color: #4b5563;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-  }
-  .prov-loading {
-    font-size: 11px;
-    color: #6b7280;
-    padding: 8px 0;
   }
 
   .icon-btn.active { color: #60a5fa; background: #333; }
@@ -1719,325 +1081,7 @@
   .health-dot.degraded { background: #f59e0b; }
   .health-dot.offline { background: #ef4444; }
   .health-dot.unknown { background: #4b5563; }
-  .service-badge {
-    font-size: 9px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    padding: 1px 5px;
-    border-radius: 3px;
-  }
-  .service-badge.primary {
-    color: #60a5fa;
-    background: rgba(59, 130, 246, 0.15);
-  }
 
-  /* === Past Meeting === */
-  .past-meeting {
-    opacity: 0.65;
-  }
-  .past-icon {
-    font-size: 12px;
-    margin-right: 4px;
-  }
-  .meeting-top-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    gap: 6px;
-  }
-
-  /* === Calendar === */
-  .cal-btn {
-    flex-shrink: 0;
-    background: none;
-    border: none;
-    color: #6b7280;
-    cursor: pointer;
-    padding: 2px;
-    border-radius: 3px;
-  }
-  .cal-btn:hover:not(:disabled) { color: #60a5fa; background: #374151; }
-  .cal-btn:disabled { opacity: 0.3; cursor: default; }
-
-  .cal-dropdown {
-    display: flex;
-    gap: 8px;
-    margin-top: 6px;
-    padding-top: 6px;
-    border-top: 1px solid #374151;
-  }
-  .cal-option {
-    font-size: 11px;
-    color: #3b82f6;
-    background: none;
-    border: none;
-    cursor: pointer;
-    padding: 0;
-    text-decoration: none;
-  }
-  .cal-option:hover { color: #60a5fa; text-decoration: underline; }
-
-  /* === Voice Counts === */
-  .voice-counts {
-    display: flex;
-    gap: 6px;
-    margin-top: 4px;
-    font-size: 10px;
-  }
-  .vc {
-    padding: 1px 5px;
-    border-radius: 3px;
-  }
-  .vc-support { background: #14532d; color: #4ade80; }
-  .vc-oppose { background: #7f1d1d; color: #f87171; }
-  .vc-watch { background: #374151; color: #9ca3af; }
-  .vc-attested { background: rgba(34, 197, 94, 0.12); color: #22c55e; }
-
-  .voice-inline {
-    color: #60a5fa;
-    font-size: 10px;
-  }
-
-  /* === Decision Expansion === */
-  .decision-toggle {
-    width: 100%;
-    background: none;
-    border: none;
-    cursor: pointer;
-    padding: 0;
-    text-align: left;
-    color: inherit;
-  }
-  .expand-chevron {
-    display: inline-block;
-    flex-shrink: 0;
-    width: 0;
-    height: 0;
-    border-left: 4px solid transparent;
-    border-right: 4px solid transparent;
-    border-top: 5px solid #4b5563;
-    transition: transform 0.15s ease;
-    margin-left: 6px;
-    margin-top: 6px;
-  }
-  .expand-chevron.open { transform: rotate(180deg); }
-
-
-
-  .decision-detail {
-    border-top: 1px solid #374151;
-    padding-top: 8px;
-    margin-top: 8px;
-  }
-  .detail-loading {
-    font-size: 11px;
-    color: #6b7280;
-    padding: 4px 0;
-  }
-  .outcome-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 8px;
-  }
-  .outcome-badge {
-    font-size: 11px;
-    font-weight: 600;
-    padding: 2px 8px;
-    border-radius: 4px;
-    background: rgba(107, 114, 128, 0.15);
-    color: #9ca3af;
-  }
-  .outcome-badge.approved {
-    background: rgba(34, 197, 94, 0.15);
-    color: #4ade80;
-  }
-  .outcome-badge.denied {
-    background: rgba(239, 68, 68, 0.15);
-    color: #f87171;
-  }
-  .outcome-badge.upcoming {
-    background: rgba(96, 165, 250, 0.15);
-    color: #60a5fa;
-  }
-  .outcome-desc {
-    font-size: 11px;
-    color: #9ca3af;
-    font-style: italic;
-  }
-  .vote-detail {
-    font-size: 11px;
-    color: #6b7280;
-  }
-  .decision-summary {
-    font-size: 13px;
-    color: #d1d5db;
-    line-height: 1.5;
-    margin-bottom: 10px;
-    padding: 8px 10px;
-    background: rgba(59, 130, 246, 0.08);
-    border-left: 3px solid rgba(59, 130, 246, 0.4);
-    border-radius: 0 4px 4px 0;
-  }
-  .detail-body {
-    font-size: 12px;
-    color: #9ca3af;
-    line-height: 1.45;
-    margin-bottom: 8px;
-    display: -webkit-box;
-    -webkit-line-clamp: 4;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-  }
-  .detail-section {
-    margin-bottom: 10px;
-    padding-top: 8px;
-    border-top: 1px solid #262626;
-  }
-  .detail-label {
-    font-size: 10px;
-    font-weight: 600;
-    color: #6b7280;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    margin-bottom: 6px;
-  }
-  .testimony-card {
-    font-size: 11px;
-    padding: 6px 8px;
-    margin-top: 4px;
-    background: rgba(255, 255, 255, 0.03);
-    border-radius: 4px;
-    border-left: 2px solid rgba(96, 165, 250, 0.3);
-  }
-  .testimony-meta {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    margin-bottom: 2px;
-  }
-  .testimony-speaker {
-    color: #d1d5db;
-    font-weight: 600;
-    font-size: 11px;
-  }
-  .testimony-timestamp {
-    font-size: 10px;
-    color: #6b7280;
-    font-family: 'SF Mono', 'Menlo', monospace;
-    background: rgba(255, 255, 255, 0.05);
-    padding: 0 4px;
-    border-radius: 3px;
-  }
-  .testimony-text {
-    color: #9ca3af;
-    line-height: 1.4;
-    display: -webkit-box;
-    -webkit-line-clamp: 3;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-  }
-  .testimony-video-link {
-    display: inline-block;
-    font-size: 10px;
-    color: #60a5fa;
-    text-decoration: none;
-    margin-top: 2px;
-  }
-  .testimony-video-link:hover { text-decoration: underline; }
-  .detail-expand-btn {
-    font-size: 10px;
-    color: #3b82f6;
-    background: none;
-    border: none;
-    cursor: pointer;
-    padding: 4px 0;
-    margin-top: 2px;
-  }
-  .detail-expand-btn:hover { color: #60a5fa; }
-  .related-item {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 11px;
-    padding: 3px 0;
-  }
-  .outcome-dot {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    flex-shrink: 0;
-  }
-  .outcome-dot.passed { background: #4ade80; }
-  .outcome-dot.failed { background: #f87171; }
-  .outcome-dot.other { background: #9ca3af; }
-  .related-title { color: #d1d5db; flex: 1; }
-  .related-date { color: #4b5563; }
-  .detail-empty {
-    font-size: 11px;
-    color: #4b5563;
-    font-style: italic;
-  }
-
-  /* === Voice Action Buttons === */
-  .voice-actions {
-    display: flex;
-    gap: 6px;
-    margin-top: 8px;
-    align-items: center;
-  }
-  .detail-voice {
-    border-top: 1px solid #374151;
-    padding-top: 8px;
-    margin-top: 8px;
-  }
-  .voice-btn {
-    font-size: 11px;
-    padding: 4px 10px;
-    border-radius: 12px;
-    border: 1px solid #374151;
-    background: transparent;
-    color: #9ca3af;
-    cursor: pointer;
-    transition: all 0.15s ease;
-  }
-  .voice-btn:hover:not(:disabled) {
-    border-color: #4b5563;
-    color: #eee;
-  }
-  .voice-btn:disabled {
-    opacity: 0.5;
-    cursor: default;
-  }
-  .vb-support.active {
-    background: #14532d;
-    border-color: #22c55e;
-    color: #4ade80;
-  }
-  .vb-oppose.active {
-    background: #7f1d1d;
-    border-color: #ef4444;
-    color: #f87171;
-  }
-  .vb-watch.active {
-    background: #1e3a5f;
-    border-color: #3b82f6;
-    color: #60a5fa;
-  }
-  .voice-locked {
-    font-size: 10px;
-    color: #6b7280;
-    font-style: italic;
-  }
-
-  /* === Detail Label Row (with action button) === */
-  .detail-label-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 4px;
-  }
   /* === Connector Setup Banner === */
   .connector-banner {
     display: flex;
@@ -2183,35 +1227,5 @@
   @keyframes toast-in {
     from { opacity: 0; transform: translateX(-50%) translateY(8px); }
     to { opacity: 1; transform: translateX(-50%) translateY(0); }
-  }
-
-
-  /* === AI Draft Toolbar === */
-  .draft-toolbar {
-    display: flex;
-    gap: 6px;
-    margin-bottom: 6px;
-  }
-  .enrich-btn {
-    font-size: 11px;
-    font-weight: 500;
-    padding: 4px 10px;
-    background: rgba(34, 197, 94, 0.08);
-    color: #4ade80;
-    border: 1px solid rgba(34, 197, 94, 0.2);
-    border-radius: 6px;
-    cursor: pointer;
-    transition: all 0.15s ease;
-  }
-  .enrich-btn:hover:not(:disabled) {
-    background: rgba(34, 197, 94, 0.15);
-    border-color: #4ade80;
-  }
-  .enrich-btn:disabled { opacity: 0.5; cursor: default; }
-  .ai-provider-tag {
-    font-size: 10px;
-    color: #64748b;
-    align-self: center;
-    white-space: nowrap;
   }
 </style>

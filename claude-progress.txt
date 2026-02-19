@@ -1,3 +1,46 @@
+## Session — 2026-02-18 (Web Components Phase 9: SidePanel Lean-out)
+
+**Item:** civic_web_components (P0) — Phase 9
+**Status:** Phase 9 complete. SidePanel reduced from 2,217 → 1,233 lines (44% reduction this phase, 78% total from original 5,540). 15 components + shared utils in @civicos/components (5,370 lines).
+
+### Phase 9 Changes
+1. Removed 337 lines of dead CSS from Phases 1-8 extractions
+2. Extracted utility functions to `@civicos/components/src/utils/civic-helpers.ts` (8 pure functions: isPastMeeting, formatMeetingTime, formatRelativeDate, truncateNpub, outcomeIcon, outcomeClass, googleCalendarUrl, downloadIcs)
+3. Extracted CivicMeetingCard — meeting card with optional calendar dropdown, deduplicates primary + parent tabs
+4. Extracted CivicProvenancePanel — data provenance display (jurisdiction, corpora, coverage, freshness)
+5. Extracted CivicIdentityChip — identity display with unlock form, attestation status
+6. Extracted CivicReadOnlyPulse — read-only jurisdiction pulse view (meetings + agenda + outcomes), replaces 90-line parent tab inline rendering
+7. Cleaned up all orphaned CSS (0 unused classes remaining)
+
+### Component Inventory (15 components, 5,370 lines)
+| Component | Lines | Phase | Type |
+|-----------|-------|-------|------|
+| CivicVoiceButtons | 96 | 1 | Leaf (customElement) |
+| CivicSynthesisBar | 58 | 1 | Leaf (customElement) |
+| CivicAgendaItemCard | 159 | 2 | Leaf (customElement) |
+| CivicDecisionCard | 629 | 2 | Leaf (customElement) |
+| CivicInitiativeCard | 542 | 3 | Leaf (customElement) |
+| CivicCommentThread | 489 | 4 | Leaf (customElement) |
+| CivicAgendaView | 593 | 5 | Smart view |
+| CivicDecisionView | 287 | 6 | Smart view |
+| CivicInitiativeView | 1,224 | 7 | Smart view |
+| CivicIssueMap | 371 | 8 | Visualization |
+| CivicBudgetBreakdown | 205 | 8 | Visualization |
+| CivicMeetingCard | 109 | 9 | Presentation |
+| CivicProvenancePanel | 132 | 9 | Presentation |
+| CivicIdentityChip | 149 | 9 | Presentation |
+| CivicReadOnlyPulse | 222 | 9 | Composite view |
+
+### SidePanel Breakdown (1,233 lines)
+- Script: 498 lines (orchestration, state, platform integration)
+- Template: 318 lines (section wrappers composing components)
+- Style: 418 lines (header, breadcrumb, section layout, toasts)
+
+### Key Architecture Decisions
+- CivicDecisionCard now imports outcomeIcon/outcomeClass from shared utils (deduplication)
+- CivicReadOnlyPulse enables any new surface to render a jurisdiction's pulse with one component
+- SidePanel is now a thin orchestration shell — all content rendering is in @civicos/components
+
 ## Session — 2026-02-18 (Web Components Phase 7: Initiative View)
 
 **Item:** civic_web_components (P0) — Phase 7
