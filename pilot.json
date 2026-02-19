@@ -1555,7 +1555,7 @@
     "scaling": {
       "turnkey_city_deployment": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "description": "Make unified config system actually reduce new city deployment effort. Currently config is ~20% of work; extractors, HUD mapping, and elections are ~80%.",
         "rationale": "Session 545 audit found: core infrastructure 70-75% generalizable, but election data (1/5), HUD grantee mapping (manual), and platform-specific extractors still require significant per-city work.",
         "audit_reference": "docs/critical/CITY_DEPLOYMENT_AUDIT.md",
@@ -2578,11 +2578,11 @@
         ]
       },
       "engagement_ladder_ux": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 0,
         "artifact": "Progressive engagement UX from awareness to coordination",
         "description": "UX flow that guides users through engagement ladder: Awareness (what's happening) \u2192 Relevance (what affects me) \u2192 Participation (where I can act) \u2192 Coordination (who's with me). Each dashboard view surfaces the 'next step' without forcing it.",
-        "note": "Session 2: Promoted focal points (comment periods, hearings, governor desk) to top of pulse under Take Action group. Added drag-to-AI with context composers for all 3 types. Added voice buttons (support/oppose/watching) to all focal point cards. Simulated user panel identified gaps: hearing data needs bill_number/bill_name JOINs, voice disclaimer needed, plain-language summaries wanted. Next: Enrich hearing data via JOIN, add voice disclaimer, wire LegiScan calendar API, add document_type/topics to comment periods."
+        "note": "Sessions 1-4: Complete engagement ladder from awareness to coordination. Focal points at top with section hints guiding action. Comment threads with AI synthesis on all focal point cards. Voice buttons with disclaimer, hidden on closed periods. Data enrichment (hearing JOINs, comment period fields). Governor desk label clarity. Fixed blank UX bug from clearUrlOverrides."
       },
       "civic_dashboard_mvp": {
         "status": "ready",
