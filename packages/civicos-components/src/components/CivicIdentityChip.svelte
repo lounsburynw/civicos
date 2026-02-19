@@ -9,13 +9,13 @@
   let {
     identity,
     loading = false,
-    hasAttestation = false,
+    attestationLabels = [],
     onunlock,
     onopenoptions,
   }: {
     identity: IdentityInfo | null;
     loading?: boolean;
-    hasAttestation?: boolean;
+    attestationLabels?: string[];
     onunlock?: (password: string) => Promise<boolean>;
     onopenoptions?: () => void;
   } = $props();
@@ -48,8 +48,12 @@
       {:else}
         <span class="lock-status">locked</span>
       {/if}
-      {#if hasAttestation}
-        <span class="attested-chip">Verified</span>
+      {#if attestationLabels.length > 0}
+        <span class="attested-chips">
+          {#each attestationLabels as label}
+            <span class="attested-chip">{label}</span>
+          {/each}
+        </span>
       {/if}
     </div>
     {#if !identity.isUnlocked}
@@ -111,6 +115,11 @@
   .tier-badge.private { background: #3b1f4b; color: #c084fc; }
   .lock-status { font-size: 10px; color: #ef4444; }
   .lock-status.unlocked { color: #22c55e; }
+  .attested-chips {
+    display: flex;
+    gap: 4px;
+    margin-left: auto;
+  }
   .attested-chip {
     font-size: 9px;
     font-weight: 600;
@@ -120,7 +129,6 @@
     background: rgba(34, 197, 94, 0.12);
     padding: 1px 6px;
     border-radius: 3px;
-    margin-left: auto;
   }
   .chip-unlock-form {
     display: flex;
