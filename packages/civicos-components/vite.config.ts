@@ -15,5 +15,8 @@ export default defineConfig({
       formats: ['es'],
       fileName: 'civicos-components',
     },
+    rollupOptions: {
+      external: ['leaflet', 'leaflet/dist/leaflet.css', 'chart.js'],
+    },
   },
 });

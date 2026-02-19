@@ -2,20 +2,17 @@
   import { sendMessage } from '../lib/messaging.js';
   import { api, registry } from '../lib/client.js';
   import { CivicSession } from '@civicos/client';
-  import type { CityPulseData, DataProvenance, VoiceCounts, IssuePoint, BudgetCategory, CommentCounts, CommentSynthesis, RegistryServer } from '@civicos/client';
+  import type { CityPulseData, DataProvenance, VoiceCounts, CommentCounts, CommentSynthesis, RegistryServer } from '@civicos/client';
   import { isAIAvailable, getAIManager, onAIConfigChanged } from '../lib/ai.js';
   import type { IdentityInfo } from '../lib/providers/types.js';
-  import 'leaflet/dist/leaflet.css';
-  import L from 'leaflet';
-  import { Chart, DoughnutController, ArcElement, Tooltip, Legend } from 'chart.js';
   import { marked } from 'marked';
   import DOMPurify from 'dompurify';
   // Reusable components from @civicos/components
   import CivicAgendaView from '@civicos/components/src/components/CivicAgendaView.svelte';
   import CivicDecisionView from '@civicos/components/src/components/CivicDecisionView.svelte';
   import CivicInitiativeView from '@civicos/components/src/components/CivicInitiativeView.svelte';
-
-  Chart.register(DoughnutController, ArcElement, Tooltip, Legend);
+  import CivicIssueMap from '@civicos/components/src/components/CivicIssueMap.svelte';
+  import CivicBudgetBreakdown from '@civicos/components/src/components/CivicBudgetBreakdown.svelte';
 
   // High-level orchestration session (stateless — recreated when AI config changes)
   let session = new CivicSession(api, registry, getAIManager());
@@ -104,21 +101,9 @@
   let unlocking = $state(false);
   let unlockError: string | null = $state(null);
 
-  // Issue map state
-  let issuePoints: IssuePoint[] = $state([]);
-  let issueMapLoading = $state(false);
-  let issueMapLoaded = $state(false);
-  let leafletMap: L.Map | null = null;
-  let mapContainer: HTMLDivElement | undefined = $state(undefined);
-
-  // Budget chart state
-  let budgetCategories: BudgetCategory[] = $state([]);
-  let budgetTotal = $state(0);
-  let budgetYear = $state('');
-  let budgetLoading = $state(false);
-  let budgetLoaded = $state(false);
-  let chartCanvas: HTMLCanvasElement | undefined = $state(undefined);
-  let budgetChart: Chart | null = null;
+  // Component refs (for lazy-load triggering)
+  let issueMapRef: CivicIssueMap | undefined = $state(undefined);
+  let budgetRef: CivicBudgetBreakdown | undefined = $state(undefined);
 
   // Toast notification
   let toastMessage: string | null = $state(null);
@@ -349,263 +334,6 @@
 
   function toggleCalendar(meetingTitle: string) {
     calendarOpen = calendarOpen === meetingTitle ? null : meetingTitle;
-  }
-
-  // === Issue Map ===
-
-  const ISSUE_COLORS: Record<string, string> = {
-    'Pothole': '#ef4444',
-    'Graffiti': '#f59e0b',
-    'Illegal Dumping': '#8b5cf6',
-    'Sidewalk': '#3b82f6',
-    'Street Light': '#eab308',
-    'Tree': '#22c55e',
-    'Traffic': '#f97316',
-    'Other': '#6b7280',
-  };
-
-  function getIssueColor(type: string): string {
-    for (const [key, color] of Object.entries(ISSUE_COLORS)) {
-      if (type.toLowerCase().includes(key.toLowerCase())) return color;
-    }
-    return ISSUE_COLORS['Other'];
-  }
-
-  function getIssueCategory(type: string): string {
-    for (const key of Object.keys(ISSUE_COLORS)) {
-      if (type.toLowerCase().includes(key.toLowerCase())) return key;
-    }
-    return 'Other';
-  }
-
-  let activeIssueFilters = $state(new Set(Object.keys(ISSUE_COLORS)));
-  let issueLayerGroups = new Map<string, L.LayerGroup>();
-  let mapExpanded = $state(false);
-  let mapDaysFilter: number | null = $state(null); // null = all time
-
-  const MAP_DAYS_OPTIONS: { label: string; value: number | null }[] = [
-    { label: '7d', value: 7 },
-    { label: '30d', value: 30 },
-    { label: '90d', value: 90 },
-    { label: 'All', value: null },
-  ];
-
-  function toggleMapExpanded() {
-    mapExpanded = !mapExpanded;
-    // Wait for CSS transition (200ms) to finish before recalculating tile coverage
-    setTimeout(() => leafletMap?.invalidateSize(), 250);
-  }
-
-  function issuesInWindow(points: IssuePoint[], days: number | null): IssuePoint[] {
-    if (days === null) return points;
-    const cutoff = new Date();
-    cutoff.setDate(cutoff.getDate() - days);
-    return points.filter(pt => new Date(pt.created_at) >= cutoff);
-  }
-
-  function timeFilteredPoints(): IssuePoint[] {
-    return issuesInWindow(issuePoints, mapDaysFilter);
-  }
-
-  function categoryCounts(): Map<string, number> {
-    const counts = new Map<string, number>();
-    for (const cat of Object.keys(ISSUE_COLORS)) counts.set(cat, 0);
-    for (const pt of timeFilteredPoints()) {
-      const cat = getIssueCategory(pt.type);
-      counts.set(cat, (counts.get(cat) || 0) + 1);
-    }
-    return counts;
-  }
-
-  function issueTrend(): { pct: number; direction: 'up' | 'down' | 'flat' } | null {
-    // Compare current 30d vs previous 30d
-    const now = new Date();
-    const d30ago = new Date(); d30ago.setDate(now.getDate() - 30);
-    const d60ago = new Date(); d60ago.setDate(now.getDate() - 60);
-    const current = issuePoints.filter(pt => new Date(pt.created_at) >= d30ago).length;
-    const previous = issuePoints.filter(pt => {
-      const d = new Date(pt.created_at);
-      return d >= d60ago && d < d30ago;
-    }).length;
-    if (previous === 0 && current === 0) return null;
-    if (previous === 0) return { pct: 100, direction: 'up' };
-    const pct = Math.round(((current - previous) / previous) * 100);
-    if (pct === 0) return { pct: 0, direction: 'flat' };
-    return { pct: Math.abs(pct), direction: pct > 0 ? 'up' : 'down' };
-  }
-
-  function toggleIssueFilter(category: string) {
-    if (activeIssueFilters.has(category)) {
-      activeIssueFilters.delete(category);
-      const lg = issueLayerGroups.get(category);
-      if (lg && leafletMap) leafletMap.removeLayer(lg);
-    } else {
-      activeIssueFilters.add(category);
-      const lg = issueLayerGroups.get(category);
-      if (lg && leafletMap) leafletMap.addLayer(lg);
-    }
-    activeIssueFilters = new Set(activeIssueFilters);
-  }
-
-  function setDaysFilter(days: number | null) {
-    mapDaysFilter = days;
-    rebuildMapMarkers();
-  }
-
-  function rebuildMapMarkers() {
-    if (!leafletMap) return;
-    // Remove existing layer groups
-    for (const lg of issueLayerGroups.values()) {
-      leafletMap.removeLayer(lg);
-    }
-    issueLayerGroups.clear();
-    // Rebuild from time-filtered points
-    const points = timeFilteredPoints();
-    const grouped = new Map<string, L.CircleMarker[]>();
-    for (const pt of points) {
-      const cat = getIssueCategory(pt.type);
-      const marker = L.circleMarker([pt.lat, pt.lng], {
-        radius: 5,
-        color: getIssueColor(pt.type),
-        fillColor: getIssueColor(pt.type),
-        fillOpacity: 0.7,
-        weight: 1,
-      }).bindPopup(`<b>${pt.type}</b><br>${pt.address}<br><small>${pt.status}</small>`);
-      if (!grouped.has(cat)) grouped.set(cat, []);
-      grouped.get(cat)!.push(marker);
-    }
-    for (const [cat, markers] of grouped) {
-      const lg = L.layerGroup(markers);
-      issueLayerGroups.set(cat, lg);
-      if (activeIssueFilters.has(cat)) lg.addTo(leafletMap);
-    }
-  }
-
-  function filteredIssueCount(): number {
-    return timeFilteredPoints().filter(pt => activeIssueFilters.has(getIssueCategory(pt.type))).length;
-  }
-
-  async function loadIssueMap() {
-    if (issueMapLoaded || issueMapLoading) return;
-    issueMapLoading = true;
-    try {
-      const data = await api.getIssueGeography(500);
-      issuePoints = data.points;
-      issueMapLoaded = true;
-    } catch (e) {
-      console.error('Failed to load issue map:', e);
-    } finally {
-      issueMapLoading = false;
-    }
-  }
-
-  // Render map when container becomes available (after Svelte re-renders)
-  $effect(() => {
-    if (mapContainer && issuePoints.length > 0) {
-      // Use tick to ensure DOM is fully ready
-      requestAnimationFrame(() => renderMap());
-    }
-  });
-
-  function renderMap() {
-    if (!mapContainer || issuePoints.length === 0) return;
-
-    // If map already exists, just invalidate size (handles re-expand)
-    if (leafletMap) {
-      leafletMap.invalidateSize();
-      return;
-    }
-
-    leafletMap = L.map(mapContainer, {
-      zoomControl: false,
-      attributionControl: false,
-    }).setView([37.9735, -122.5311], 13);
-
-    L.control.zoom({ position: 'topright' }).addTo(leafletMap);
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-      maxZoom: 19,
-    }).addTo(leafletMap);
-
-    // Build markers from time-filtered points
-    rebuildMapMarkers();
-
-    // Fit bounds to all points (not filtered, so initial view is stable)
-    if (issuePoints.length > 1) {
-      const bounds = L.latLngBounds(issuePoints.map(p => [p.lat, p.lng] as [number, number]));
-      leafletMap.fitBounds(bounds, { padding: [20, 20] });
-    }
-
-    // Invalidate size after a brief delay to ensure container has final dimensions
-    setTimeout(() => leafletMap?.invalidateSize(), 200);
-  }
-
-  // === Budget Chart ===
-
-  const BUDGET_COLORS = [
-    '#3b82f6', '#ec4899', '#14b8a6', '#f59e0b', '#ef4444',
-    '#8b5cf6', '#22c55e', '#3b82f6', '#f97316', '#6b7280',
-    '#a855f7', '#06b6d4', '#84cc16', '#e11d48',
-  ];
-
-  async function loadBudget() {
-    if (budgetLoaded || budgetLoading) return;
-    budgetLoading = true;
-    try {
-      const data = await api.getBudgetSummary('department');
-      budgetCategories = data.categories;
-      budgetTotal = data.total_budgeted_dollars;
-      budgetYear = data.fiscal_year;
-      budgetLoaded = true;
-    } catch (e) {
-      console.error('Failed to load budget:', e);
-    } finally {
-      budgetLoading = false;
-    }
-  }
-
-  // Render chart when canvas becomes available (after Svelte re-renders)
-  $effect(() => {
-    if (chartCanvas && budgetCategories.length > 0) {
-      requestAnimationFrame(() => renderBudgetChart());
-    }
-  });
-
-  function renderBudgetChart() {
-    if (!chartCanvas || budgetCategories.length === 0) return;
-    if (budgetChart) { budgetChart.destroy(); budgetChart = null; }
-
-    budgetChart = new Chart(chartCanvas, {
-      type: 'doughnut',
-      data: {
-        labels: budgetCategories.map(c => c.category),
-        datasets: [{
-          data: budgetCategories.map(c => c.budgeted_dollars),
-          backgroundColor: budgetCategories.map((_, i) => BUDGET_COLORS[i % BUDGET_COLORS.length]),
-          borderWidth: 0,
-        }],
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: true,
-        plugins: {
-          legend: { display: false },
-          tooltip: {
-            callbacks: {
-              label: (ctx) => {
-                const val = ctx.raw as number;
-                return ` $${(val / 1_000_000).toFixed(1)}M (${budgetCategories[ctx.dataIndex].percentage}%)`;
-              },
-            },
-          },
-        },
-      },
-    });
-  }
-
-  function formatDollars(amount: number): string {
-    if (amount >= 1_000_000) return `$${(amount / 1_000_000).toFixed(1)}M`;
-    if (amount >= 1_000) return `$${(amount / 1_000).toFixed(0)}K`;
-    return `$${amount.toFixed(0)}`;
   }
 
   // === External AI Platform Routing ===
@@ -1199,91 +927,26 @@
 
     <!-- Issue Map -->
     <section class="feed-section">
-      <button class="section-header" onclick={() => { toggle('issueMap'); if (!issueMapLoaded) loadIssueMap(); }}>
+      <button class="section-header" onclick={() => { toggle('issueMap'); issueMapRef?.load(); }}>
         <span class="section-title">Issue Map</span>
         <span class="chevron" class:open={expanded.issueMap}></span>
       </button>
       {#if expanded.issueMap}
         <div class="section-body">
-          {#if issueMapLoading}
-            <div class="viz-loading">Loading issue locations...</div>
-          {:else if issuePoints.length === 0}
-            <div class="empty-section">No issue location data available</div>
-          {:else}
-            {@const counts = categoryCounts()}
-            {@const trend = issueTrend()}
-            <div class="map-time-bar">
-              {#each MAP_DAYS_OPTIONS as opt}
-                <button
-                  class="time-chip"
-                  class:active={mapDaysFilter === opt.value}
-                  onclick={() => setDaysFilter(opt.value)}
-                >{opt.label}</button>
-              {/each}
-              {#if trend}
-                <span class="trend-stat" class:trend-up={trend.direction === 'up'} class:trend-down={trend.direction === 'down'}>
-                  {trend.direction === 'up' ? '↑' : trend.direction === 'down' ? '↓' : '—'} {trend.pct}% past 30d
-                </span>
-              {/if}
-            </div>
-            <div class="map-filters">
-              {#each Object.entries(ISSUE_COLORS) as [label, color]}
-                <button
-                  class="filter-chip"
-                  class:inactive={!activeIssueFilters.has(label)}
-                  onclick={() => toggleIssueFilter(label)}
-                >
-                  <span class="legend-dot" style="background:{activeIssueFilters.has(label) ? color : '#4b5563'}"></span>
-                  {label}
-                  <span class="chip-count">{counts.get(label) || 0}</span>
-                </button>
-              {/each}
-            </div>
-            <div class="map-container" class:map-expanded={mapExpanded}>
-              <div class="map-wrapper" bind:this={mapContainer}></div>
-              <button class="map-expand-btn" onclick={toggleMapExpanded} title={mapExpanded ? 'Collapse map' : 'Expand map'}>
-                {mapExpanded ? '↙' : '↗'}
-              </button>
-            </div>
-            <div class="viz-stat">{filteredIssueCount()} of {timeFilteredPoints().length} issues shown</div>
-          {/if}
+          <CivicIssueMap bind:this={issueMapRef} {api} />
         </div>
       {/if}
     </section>
 
     <!-- Budget Breakdown -->
     <section class="feed-section">
-      <button class="section-header" onclick={() => { toggle('budget'); if (!budgetLoaded) loadBudget(); }}>
+      <button class="section-header" onclick={() => { toggle('budget'); budgetRef?.load(); }}>
         <span class="section-title">Budget</span>
         <span class="chevron" class:open={expanded.budget}></span>
       </button>
       {#if expanded.budget}
         <div class="section-body">
-          {#if budgetLoading}
-            <div class="viz-loading">Loading budget data...</div>
-          {:else if budgetCategories.length === 0}
-            <div class="empty-section">No budget data available</div>
-          {:else}
-            <div class="budget-header">
-              <span class="budget-total">{formatDollars(budgetTotal)}</span>
-              <span class="budget-year">{budgetYear}</span>
-            </div>
-            <div class="chart-wrapper">
-              <canvas bind:this={chartCanvas} width="200" height="200"></canvas>
-            </div>
-            <div class="budget-legend">
-              {#each budgetCategories.slice(0, 8) as cat, i}
-                <div class="budget-legend-item">
-                  <span class="legend-dot" style="background:{BUDGET_COLORS[i % BUDGET_COLORS.length]}"></span>
-                  <span class="budget-cat-name">{cat.category}</span>
-                  <span class="budget-cat-amount">{formatDollars(cat.budgeted_dollars)} ({cat.percentage}%)</span>
-                </div>
-              {/each}
-              {#if budgetCategories.length > 8}
-                <div class="budget-legend-more">+{budgetCategories.length - 8} more departments</div>
-              {/if}
-            </div>
-          {/if}
+          <CivicBudgetBreakdown bind:this={budgetRef} {api} />
         </div>
       {/if}
     </section>
@@ -1932,65 +1595,6 @@
   .outcome-label.upcoming { color: #60a5fa; }
   .outcome-label.other { color: #9ca3af; }
 
-  /* === Issue Map Filters === */
-  .map-time-bar {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    margin-bottom: 6px;
-  }
-  .time-chip {
-    padding: 2px 10px;
-    border-radius: 10px;
-    border: 1px solid #374151;
-    background: transparent;
-    color: #9ca3af;
-    font-size: 10px;
-    cursor: pointer;
-    transition: all 0.15s;
-  }
-  .time-chip:hover { border-color: #6b7280; }
-  .time-chip.active {
-    background: #374151;
-    color: #f3f4f6;
-    border-color: #6b7280;
-  }
-  .trend-stat {
-    margin-left: auto;
-    font-size: 10px;
-    color: #9ca3af;
-  }
-  .trend-stat.trend-up { color: #f87171; }
-  .trend-stat.trend-down { color: #4ade80; }
-  .map-filters {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
-    margin-bottom: 8px;
-  }
-  .filter-chip {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    padding: 2px 8px;
-    border-radius: 12px;
-    border: 1px solid #374151;
-    background: #1f2937;
-    color: #d1d5db;
-    font-size: 10px;
-    cursor: pointer;
-    transition: opacity 0.15s, border-color 0.15s;
-  }
-  .filter-chip:hover { border-color: #6b7280; }
-  .filter-chip.inactive {
-    opacity: 0.4;
-    border-color: #1f2937;
-  }
-  .chip-count {
-    color: #6b7280;
-    font-variant-numeric: tabular-nums;
-  }
-
   /* === Footer === */
   .pulse-footer {
     display: flex;
@@ -2425,115 +2029,6 @@
     font-size: 10px;
     color: #6b7280;
     font-style: italic;
-  }
-
-  /* === Visualization Shared === */
-  .viz-loading {
-    font-size: 11px;
-    color: #6b7280;
-    padding: 12px 0;
-    text-align: center;
-  }
-  .viz-stat {
-    font-size: 10px;
-    color: #4b5563;
-    text-align: center;
-    margin-top: 4px;
-  }
-  .legend-dot {
-    display: inline-block;
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    flex-shrink: 0;
-  }
-
-  /* === Issue Map === */
-  .map-container {
-    position: relative;
-  }
-  .map-wrapper {
-    height: 220px;
-    border-radius: 6px;
-    overflow: hidden;
-    border: 1px solid #374151;
-    transition: height 0.2s ease;
-  }
-  .map-expanded .map-wrapper {
-    height: 70vh;
-  }
-  .map-expand-btn {
-    position: absolute;
-    top: 6px;
-    left: 6px;
-    width: 26px;
-    height: 26px;
-    border-radius: 4px;
-    border: none;
-    background: rgba(31, 41, 55, 0.85);
-    color: #d1d5db;
-    font-size: 14px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 1000;
-  }
-  .map-expand-btn:hover {
-    background: rgba(55, 65, 81, 0.9);
-  }
-
-  /* === Budget Chart === */
-  .budget-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: baseline;
-    margin-bottom: 8px;
-  }
-  .budget-total {
-    font-size: 18px;
-    font-weight: 700;
-    color: #eee;
-  }
-  .budget-year {
-    font-size: 11px;
-    color: #6b7280;
-  }
-  .chart-wrapper {
-    display: flex;
-    justify-content: center;
-    padding: 4px 0;
-  }
-  .chart-wrapper canvas {
-    max-width: 200px;
-    max-height: 200px;
-  }
-  .budget-legend {
-    margin-top: 8px;
-  }
-  .budget-legend-item {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 11px;
-    padding: 3px 0;
-  }
-  .budget-cat-name {
-    flex: 1;
-    color: #d1d5db;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  .budget-cat-amount {
-    color: #6b7280;
-    font-variant-numeric: tabular-nums;
-    white-space: nowrap;
-  }
-  .budget-legend-more {
-    font-size: 10px;
-    color: #4b5563;
-    margin-top: 4px;
   }
 
   /* === Detail Label Row (with action button) === */
