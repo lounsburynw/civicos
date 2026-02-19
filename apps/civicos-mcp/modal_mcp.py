@@ -258,6 +258,12 @@ class MCPServer:
             "get_voting_record": handlers.get_voting_record,
             "get_decision_context": handlers.get_decision_context,
             "decision_detail": handlers.decision_detail,
+            # Legislation & Executive Order Tools (federal/state/city)
+            "search_legislation": handlers.search_legislation,
+            "get_bill_detail": handlers.get_bill_detail,
+            "get_leverage_points": handlers.get_leverage_points,
+            "search_executive_orders": handlers.search_executive_orders,
+            "get_recent_executive_orders": handlers.get_recent_executive_orders,
             # Financial Tools (federal/state/city)
             "get_funding_flow": handlers.get_funding_flow,
             "get_federal_expenditures": handlers.get_federal_expenditures,
