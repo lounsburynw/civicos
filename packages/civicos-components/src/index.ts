@@ -8,3 +8,4 @@ import './components/CivicCommentThread.svelte';
 // Smart view components (own internal state, compose leaf components)
 import './components/CivicAgendaView.svelte';
 import './components/CivicDecisionView.svelte';
+import './components/CivicInitiativeView.svelte';

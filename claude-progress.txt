@@ -1,3 +1,38 @@
+## Session — 2026-02-18 (Web Components Phase 7: Initiative View)
+
+**Item:** civic_web_components (P0) — Phase 7
+**Status:** Phase 7 complete, item remains not_ready (Phase 8+ next)
+
+### What was done:
+- Created `CivicInitiativeView` (1,224 lines) — smart view component for initiatives + commitments
+- Extracted from SidePanel: initiative state, commitment tracking, create forms, action handlers, calendar helpers, all CSS
+- SidePanel reduced from 4,344 → 2,722 lines (-1,622 lines, -37%)
+- Component owns all internal state: initiatives, expansion, commitments, forms, AI drafts
+- Commitment persistence uses chrome.storage.local with safe access (falls back gracefully)
+- Inline unlock delegated to parent via `onunlock` callback
+- Both packages build clean (components + extension)
+
+### Component inventory (9 components, 4,077 lines total):
+- `CivicVoiceButtons` (96 lines) — Phase 1
+- `CivicSynthesisBar` (58 lines) — Phase 1
+- `CivicAgendaItemCard` (159 lines) — Phase 2
+- `CivicDecisionCard` (629 lines) — Phase 2
+- `CivicInitiativeCard` (542 lines) — Phase 3
+- `CivicCommentThread` (489 lines) — Phase 4
+- `CivicAgendaView` (593 lines) — Phase 5
+- `CivicDecisionView` (287 lines) — Phase 6
+- **`CivicInitiativeView`** (1,224 lines) — Phase 7
+
+### SidePanel: 2,722 lines (was 5,540 at Phase 1 start → -50.8% total reduction)
+
+### What remains for civic_web_components:
+- Phase 8: Issue Map (CivicIssueMap) — Leaflet integration (~120 line reduction)
+- Phase 9: Budget Chart (CivicBudgetChart) — Chart.js wrapper (~100 line reduction)
+- Phase 10: Data Provenance (CivicProvenancePanel) — status display (~100 line reduction)
+- Phase 11: Parent Jurisdiction Tabs — read-only lists (~100+ line reduction)
+
+---
+
 ## Session — 2026-02-18 (Web Components Phase 6: Decision View)
 
 **Item:** civic_web_components (P0) — Phase 6
