@@ -50,7 +50,7 @@ export function getServers(): ServerInfo[] {
       display_name: config.display_name,
       domain: config.domain,
       mcp_endpoint: `https://${config.domain}/mcp`,
-      health_endpoint: `https://${config.domain}/mcp/health`,
+      health_endpoint: `https://${config.domain}/health`,
       origin_health_endpoint: `https://${workspace}--${config.modal_app_name}-mcpserver-mcp-endpoint.modal.run/health`,
       parent_jurisdictions: config.parent_jurisdictions || [],
       relay_endpoint: config.relay_endpoint || `https://${config.domain}/relay`,

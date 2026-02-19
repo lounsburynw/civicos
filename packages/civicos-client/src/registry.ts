@@ -17,7 +17,7 @@ const DEFAULT_JURISDICTION = 'city-san-rafael';
 const API_STORAGE_KEY = 'civicos_api_url';
 const RELAY_STORAGE_KEY = 'civicos_relay_url';
 
-const DEFAULT_API_URL = 'https://san-rafael.civicosproject.org/mcp';
+const DEFAULT_API_URL = 'https://san-rafael.civicosproject.org';
 const DEFAULT_RELAY_URL = 'https://san-rafael.civicosproject.org/relay';
 
 export type JurisdictionLevel = 'federal' | 'state' | 'county' | 'city' | 'district' | 'neighborhood' | string;
@@ -84,7 +84,9 @@ export class RegistryClient {
   async getServerUrl(jurisdictionId: string): Promise<string | null> {
     const servers = await this.getRegistryServers();
     const server = servers.find(s => s.jurisdiction_id === jurisdictionId);
-    return server?.mcp_endpoint || null;
+    if (!server) return null;
+    // Strip /mcp path — REST API lives at the domain root (/api/tools/*)
+    return server.mcp_endpoint.replace(/\/mcp\/?$/, '');
   }
 
   async getParentServers(jurisdictionId?: string): Promise<RegistryServer[]> {
@@ -105,7 +107,8 @@ export class RegistryClient {
   }
 
   getServerBaseUrl(server: RegistryServer): string {
-    return server.mcp_endpoint;
+    // Strip /mcp path — REST API lives at the domain root (/api/tools/*)
+    return server.mcp_endpoint.replace(/\/mcp\/?$/, '');
   }
 
   // === Endpoint resolution (merged from relay-client.ts) ===
@@ -131,13 +134,10 @@ export class RegistryClient {
 
   /**
    * Get the relay URL for the active jurisdiction.
-   * Priority: explicit override > registry lookup > default.
+   * Priority: registry lookup > default.
    */
   async getRelayUrl(): Promise<string> {
     try {
-      const override = await this.storage.get<string>(RELAY_STORAGE_KEY);
-      if (override) return override;
-
       const registryUrl = await this.getRelayEndpoint();
       if (registryUrl) return registryUrl;
 
@@ -155,6 +155,11 @@ export class RegistryClient {
   /** Set a manual relay URL override. */
   async setRelayUrl(url: string): Promise<void> {
     await this.storage.set(RELAY_STORAGE_KEY, url);
+  }
+
+  /** Clear stale relay URL override from storage. Does not touch API URL. */
+  async clearRelayUrlOverride(): Promise<void> {
+    await this.storage.set(RELAY_STORAGE_KEY, null);
   }
 
   // === Private ===

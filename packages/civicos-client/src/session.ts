@@ -129,7 +129,10 @@ export class CivicSession {
   /** Load comments and synthesis for an entity. */
   async loadCommentThread(entityId: string): Promise<CommentThread> {
     const [comments, synthesis] = await Promise.all([
-      this.api.getComments(entityId),
+      this.api.getComments(entityId).catch((err) => {
+        console.error('[CivicSession] getComments failed for', entityId, err);
+        throw err; // Re-throw so caller can handle
+      }),
       this.api.getCommentSynthesis(entityId),
     ]);
     return { comments, synthesis };
@@ -214,6 +217,28 @@ export class CivicSession {
     const ids: string[] = [];
     if (pulse.upcoming_items) {
       ids.push(...pulse.upcoming_items.filter(i => i.comment_eligible).map(i => `agenda-item:${i.id}`));
+    }
+    return ids;
+  }
+
+  /** Extract entity IDs from focal point data (comment periods, hearings, governor's desk). */
+  static extractFocalPointEntityIds(pulse: CityPulseData): string[] {
+    const ids: string[] = [];
+    const p = pulse as any;
+    if (p.comment_periods) {
+      for (const period of p.comment_periods) {
+        if (period.document_number) ids.push(`rule:${period.document_number}`);
+      }
+    }
+    if (p.upcoming_hearings) {
+      for (const hearing of p.upcoming_hearings) {
+        if (hearing.bill_id) ids.push(`bill:${hearing.bill_id}`);
+      }
+    }
+    if (p.governors_desk) {
+      for (const bill of p.governors_desk) {
+        if (bill.bill_id) ids.push(`bill:${bill.bill_id}`);
+      }
     }
     return ids;
   }

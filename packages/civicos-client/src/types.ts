@@ -77,6 +77,10 @@ export interface CommentPeriod {
   comment_url?: string;
   html_url?: string;
   days_remaining: number;
+  document_type?: string;
+  topics?: string[];
+  pdf_url?: string;
+  publication_date?: string;
 }
 
 export interface LegislativeHearing {
@@ -87,6 +91,8 @@ export interface LegislativeHearing {
   committee?: string;
   location?: string;
   description?: string;
+  summary?: string;
+  official_url?: string;
   days_until: number;
 }
 

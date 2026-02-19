@@ -1,6 +1,7 @@
 <script lang="ts">
   import CivicMeetingCard from './CivicMeetingCard.svelte';
   import CivicVoiceButtons from './CivicVoiceButtons.svelte';
+  import CivicCommentThread from './CivicCommentThread.svelte';
   import { outcomeIcon, outcomeClass, formatRelativeDate } from '../utils/civic-helpers.js';
 
   type Stance = 'support' | 'oppose' | 'watching';
@@ -17,13 +18,40 @@
     upcoming_items?: Array<{ id?: string; title: string; meeting_title?: string; project_type?: string; description?: string; summary?: string; status?: string; official_url?: string }>;
     recent_outcomes: Array<{ id?: string; title: string; date: string; outcome: string; is_upcoming?: boolean; summary?: string; official_url?: string }>;
     generated_at: string;
-    comment_periods?: Array<{ document_number: string; title: string; abstract?: string; agency_names: string[]; comments_close_on: string; comment_url?: string; html_url?: string; days_remaining: number }>;
-    upcoming_hearings?: Array<{ bill_id: string; bill_number?: string; bill_name?: string; event_date: string; committee?: string; location?: string; description?: string; days_until: number }>;
+    comment_periods?: Array<{ document_number: string; title: string; abstract?: string; agency_names: string[]; comments_close_on: string; comment_url?: string; html_url?: string; days_remaining: number; document_type?: string; topics?: string[]; pdf_url?: string; publication_date?: string }>;
+    upcoming_hearings?: Array<{ bill_id: string; bill_number?: string; bill_name?: string; event_date: string; committee?: string; location?: string; description?: string; summary?: string; official_url?: string; days_until: number }>;
     governors_desk?: Array<{ bill_id: string; bill_number?: string; bill_name?: string; summary?: string; enrolled_date?: string }>;
   };
 
+  interface Comment {
+    entity: string;
+    comment_text: string;
+    public_key: string;
+    signature: string;
+    timestamp: string;
+    jurisdiction?: string;
+    stance?: string;
+    deleted: boolean;
+    attested?: boolean;
+  }
+
+  interface CommentCounts {
+    entity: string;
+    count: number;
+    attested?: number;
+    unattested?: number;
+  }
+
+  interface CommentSynthesis {
+    entity_id: string;
+    total: number;
+    support: number;
+    oppose: number;
+    neutral: number;
+  }
+
   type JurisdictionLevel = 'federal' | 'state' | 'city' | string;
-  type IdentityInfo = { isUnlocked?: boolean } | null;
+  type IdentityInfo = { publicKey?: string; isUnlocked?: boolean } | null;
 
   import type { Snippet } from 'svelte';
 
@@ -36,7 +64,16 @@
     userStances = new Map<string, Stance>(),
     votingInProgress = new Set<string>(),
     identity = null as IdentityInfo,
+    commentCounts: parentCommentCounts = new Map<string, CommentCounts>(),
+    synthData: parentSynthData = new Map<string, CommentSynthesis>(),
+    session = null as any,
+    api = null as any,
+    aiAvailable = false,
+    activeProviderName = '',
+    renderMarkdown = (text: string) => text,
     onvoice,
+    ontoast,
+    oncommentcountchange,
     children,
   }: {
     data: PulseData;
@@ -47,7 +84,16 @@
     userStances?: Map<string, Stance>;
     votingInProgress?: Set<string>;
     identity?: IdentityInfo;
+    commentCounts?: Map<string, CommentCounts>;
+    synthData?: Map<string, CommentSynthesis>;
+    session?: any;
+    api?: any;
+    aiAvailable?: boolean;
+    activeProviderName?: string;
+    renderMarkdown?: (text: string) => string;
     onvoice?: (detail: { entityId: string; stance: Stance }) => void;
+    ontoast?: (message: string) => void;
+    oncommentcountchange?: (entityId: string, counts: CommentCounts) => void;
     children?: Snippet;
   } = $props();
 
@@ -70,6 +116,12 @@
   }
 
   let draggingId = $state<string | null>(null);
+  let expandedAbstracts = $state(new Set<string>());
+
+  function truncate(text: string, max: number): string {
+    if (text.length <= max) return text;
+    return text.slice(0, max).replace(/\s+\S*$/, '') + '...';
+  }
 
   function composeLegislationContext(item: { id?: string; title: string; meeting_title?: string; status?: string; summary?: string; description?: string; official_url?: string }): string {
     const today = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
@@ -177,7 +229,7 @@
     return lines.join('\n');
   }
 
-  function composeHearingContext(hearing: { bill_id: string; bill_number?: string; bill_name?: string; event_date: string; committee?: string; location?: string; description?: string; days_until: number }): string {
+  function composeHearingContext(hearing: { bill_id: string; bill_number?: string; bill_name?: string; event_date: string; committee?: string; location?: string; description?: string; summary?: string; official_url?: string; days_until: number }): string {
     const today = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
     const label = hearing.bill_number || hearing.bill_id;
     const lines = [
@@ -190,7 +242,9 @@
     lines.push(`Hearing date: ${hearing.event_date} (${hearing.days_until === 0 ? 'Today' : hearing.days_until === 1 ? 'Tomorrow' : `in ${hearing.days_until} days`})`);
     if (hearing.committee) lines.push(`Committee: ${hearing.committee}`);
     if (hearing.location) lines.push(`Location: ${hearing.location}`);
-    if (hearing.description) lines.push('', hearing.description);
+    if (hearing.summary) lines.push('', hearing.summary);
+    else if (hearing.description) lines.push('', hearing.description);
+    if (hearing.official_url) lines.push('', `Bill details: ${hearing.official_url}`);
     lines.push('', '--- End Context ---');
     lines.push('', 'Suggested question: What should I know about this bill and hearing? How can I participate?');
     return lines.join('\n');
@@ -232,6 +286,158 @@
   function toggle(section: string) {
     expanded[section] = !expanded[section];
   }
+
+  // --- Comment Thread State ---
+
+  let openThreads = $state(new Set<string>());
+  let threadComments = $state(new Map<string, Comment[]>());
+  let threadDrafts = $state(new Map<string, string>());
+  let threadSubmitting = $state(new Set<string>());
+  let threadLoading = $state(new Set<string>());
+  let threadErrors = $state(new Map<string, string>());
+  let localSynthData = $state(new Map<string, CommentSynthesis>());
+  let aiResponseLoading = $state(new Set<string>());
+  let aiResponses = $state(new Map<string, string>());
+
+  function getSynthesis(entityId: string): CommentSynthesis | null {
+    return localSynthData.get(entityId) ?? parentSynthData.get(entityId) ?? null;
+  }
+
+  async function toggleCommentThread(entityId: string) {
+    if (!session) return;
+    if (openThreads.has(entityId)) {
+      openThreads.delete(entityId);
+      openThreads = new Set(openThreads);
+      return;
+    }
+    openThreads.add(entityId);
+    openThreads = new Set(openThreads);
+
+    if (!threadComments.has(entityId)) {
+      threadLoading.add(entityId);
+      threadLoading = new Set(threadLoading);
+      try {
+        const thread = await session.loadCommentThread(entityId);
+        threadComments.set(entityId, thread.comments);
+        threadComments = new Map(threadComments);
+        if (thread.synthesis) {
+          localSynthData.set(entityId, thread.synthesis);
+          localSynthData = new Map(localSynthData);
+        }
+        if (identity?.publicKey) {
+          const mine = thread.comments.find((c: Comment) => c.public_key === identity!.publicKey);
+          if (mine && !threadDrafts.has(entityId)) {
+            threadDrafts.set(entityId, mine.comment_text);
+            threadDrafts = new Map(threadDrafts);
+          }
+        }
+      } catch (err) {
+        console.error('[CivicOS] Failed to load comments for', entityId, err);
+        const msg = err instanceof Error ? err.message : 'Failed to load comments';
+        threadErrors.set(entityId, msg);
+        threadErrors = new Map(threadErrors);
+        // Still allow thread to display (empty) so user can post
+        if (!threadComments.has(entityId)) {
+          threadComments.set(entityId, []);
+          threadComments = new Map(threadComments);
+        }
+      }
+      threadLoading.delete(entityId);
+      threadLoading = new Set(threadLoading);
+    }
+  }
+
+  async function handleSubmitComment(entityId: string) {
+    const draft = (threadDrafts.get(entityId) || '').trim();
+    if (!draft || !identity?.isUnlocked || !api) return;
+
+    threadSubmitting.add(entityId);
+    threadSubmitting = new Set(threadSubmitting);
+    threadErrors.delete(entityId);
+    threadErrors = new Map(threadErrors);
+
+    try {
+      const userStance = userStances.get(entityId);
+      const ok = await api.castComment(entityId, draft, jurisdiction, userStance);
+
+      if (ok) {
+        const pubkey = identity?.publicKey || '';
+        const newComment: Comment = {
+          entity: entityId,
+          comment_text: draft,
+          public_key: pubkey,
+          signature: '',
+          timestamp: new Date().toISOString(),
+          jurisdiction,
+          stance: userStance,
+          deleted: false,
+        };
+        const existing = threadComments.get(entityId) || [];
+        const existingIdx = existing.findIndex(c => c.public_key === pubkey);
+        if (existingIdx >= 0) {
+          existing[existingIdx] = newComment;
+          threadComments.set(entityId, [...existing]);
+        } else {
+          threadComments.set(entityId, [newComment, ...existing]);
+          const prev = parentCommentCounts.get(entityId) || { entity: entityId, count: 0 };
+          const updated = { ...prev, count: prev.count + 1 };
+          oncommentcountchange?.(entityId, updated);
+        }
+        threadComments = new Map(threadComments);
+        threadDrafts.delete(entityId);
+        threadDrafts = new Map(threadDrafts);
+      } else {
+        threadErrors.set(entityId, 'Failed to submit comment');
+        threadErrors = new Map(threadErrors);
+      }
+    } catch {
+      threadErrors.set(entityId, 'Error submitting comment');
+      threadErrors = new Map(threadErrors);
+    }
+
+    threadSubmitting.delete(entityId);
+    threadSubmitting = new Set(threadSubmitting);
+  }
+
+  async function handleSummarize(entityId: string, title: string) {
+    const key = `summarize-thread:${entityId}`;
+    if (aiResponses.has(key)) {
+      aiResponses.delete(key);
+      aiResponses = new Map(aiResponses);
+      return;
+    }
+    if (!session?.askQuestion) return;
+
+    aiResponseLoading.add(key);
+    aiResponseLoading = new Set(aiResponseLoading);
+
+    const comments = threadComments.get(entityId) || [];
+    const lines = [
+      `Summarize the public comment thread for: **${title}**`,
+      '',
+      `**${comments.length} public comment${comments.length !== 1 ? 's' : ''}:**`,
+    ];
+    for (const c of comments) {
+      const stanceTag = c.stance ? ` [${c.stance}]` : '';
+      lines.push(`- "${c.comment_text}"${stanceTag}`);
+    }
+    lines.push('', 'Analyze these comments:', '1. What are the key themes?', '2. Are there points of agreement or disagreement?', '3. What are the strongest arguments?', '', 'Be concise. Use bullet points.');
+
+    try {
+      const answer = await session.askQuestion(lines.join('\n'));
+      if (answer) {
+        aiResponses.set(key, answer);
+        aiResponses = new Map(aiResponses);
+      } else {
+        ontoast?.('AI summarization failed');
+      }
+    } catch {
+      ontoast?.('AI summarization failed');
+    }
+
+    aiResponseLoading.delete(key);
+    aiResponseLoading = new Set(aiResponseLoading);
+  }
 </script>
 
 <!-- Focal Points: Time-sensitive participation opportunities (shown first) -->
@@ -251,6 +457,7 @@
         </button>
         {#if expanded.commentPeriods}
           <div class="section-body">
+            <div class="section-hint">Your comment directly shapes federal policy — the agency must read and respond</div>
             {#each data.comment_periods! as period}
               {@const eid = `rule:${period.document_number}`}
               {@const counts = voiceCounts.get(eid)}
@@ -261,9 +468,14 @@
                 <div class="card-title">{period.title}</div>
                 <div class="card-meta">
                   <span>{period.agency_names.join(', ')}</span>
+                  {#if period.document_type}
+                    <span class="doc-type-tag">{period.document_type === 'proposed_rule' ? 'Proposed Rule' : period.document_type.replace(/_/g, ' ')}</span>
+                  {/if}
                   <span class="deadline-tag {urgencyClass(period.days_remaining)}">
-                    {#if period.days_remaining <= 0}
+                    {#if period.days_remaining < 0}
                       Closed
+                    {:else if period.days_remaining === 0}
+                      Closes today
                     {:else if period.days_remaining === 1}
                       1 day left
                     {:else}
@@ -274,18 +486,35 @@
                     <span class="voice-count-badge">{counts.total} voice{counts.total !== 1 ? 's' : ''}</span>
                   {/if}
                 </div>
+                {#if period.topics && period.topics.length > 0}
+                  <div class="card-topics">
+                    {#each period.topics.slice(0, 3) as topic}
+                      <span class="topic-tag">{topic}</span>
+                    {/each}
+                  </div>
+                {/if}
                 {#if period.abstract}
-                  <div class="card-summary">{period.abstract}</div>
+                  <div class="card-summary">
+                    {#if period.abstract.length > 150 && !expandedAbstracts.has(period.document_number)}
+                      {truncate(period.abstract, 150)}
+                      <button class="expand-btn" onclick={() => { expandedAbstracts.add(period.document_number); expandedAbstracts = new Set(expandedAbstracts); }}>more</button>
+                    {:else}
+                      {period.abstract}
+                    {/if}
+                  </div>
                 {/if}
                 <div class="card-actions">
-                  {#if period.comment_url}
+                  {#if period.comment_url && period.days_remaining >= 0}
                     <a href={period.comment_url} target="_blank" rel="noopener" class="action-link comment-link">Submit Comment</a>
                   {/if}
                   {#if period.html_url}
                     <a href={period.html_url} target="_blank" rel="noopener" class="action-link">Read Rule</a>
                   {/if}
+                  {#if period.pdf_url}
+                    <a href={period.pdf_url} target="_blank" rel="noopener" class="action-link">PDF</a>
+                  {/if}
                 </div>
-                {#if onvoice}
+                {#if onvoice && period.days_remaining >= 0}
                   <div class="card-voice">
                     <CivicVoiceButtons
                       entityId={eid}
@@ -295,6 +524,36 @@
                       {onvoice}
                     />
                   </div>
+                {:else if counts && counts.total > 0 && period.days_remaining < 0}
+                  <div class="card-meta closed-results">
+                    <span class="voice-count-badge">{counts.total} voice{counts.total !== 1 ? 's' : ''} recorded</span>
+                  </div>
+                {/if}
+                {#if session}
+                  <CivicCommentThread
+                    entityId={eid}
+                    commentCount={parentCommentCounts.get(eid)?.count || 0}
+                    attestedCount={parentCommentCounts.get(eid)?.attested ?? 0}
+                    comments={threadComments.get(eid) || []}
+                    synthesis={getSynthesis(eid)}
+                    expanded={openThreads.has(eid)}
+                    loading={threadLoading.has(eid)}
+                    submitting={threadSubmitting.has(eid)}
+                    error={threadErrors.get(eid) || ''}
+                    draft={threadDrafts.get(eid) || ''}
+                    userPublicKey={identity?.publicKey || ''}
+                    isUnlocked={identity?.isUnlocked ?? false}
+                    hasIdentity={!!identity}
+                    {aiAvailable}
+                    {activeProviderName}
+                    summarizeLoading={aiResponseLoading.has(`summarize-thread:${eid}`)}
+                    summaryHtml={renderMarkdown(aiResponses.get(`summarize-thread:${eid}`) ?? '')}
+                    showSummary={aiResponses.has(`summarize-thread:${eid}`)}
+                    ontoggle={() => toggleCommentThread(eid)}
+                    onsubmit={() => handleSubmitComment(eid)}
+                    ondraftchange={({ text }: { text: string }) => { threadDrafts.set(eid, text); threadDrafts = new Map(threadDrafts); }}
+                    onsummarize={() => handleSummarize(eid, period.title)}
+                  />
                 {/if}
               </div>
             {/each}
@@ -315,6 +574,7 @@
         </button>
         {#if expanded.hearings}
           <div class="section-body">
+            <div class="section-hint">Hearings are open to public testimony — attend or submit written comments</div>
             {#each data.upcoming_hearings! as hearing}
               {@const eid = billEntityId(hearing.bill_id)}
               {@const counts = voiceCounts.get(eid)}
@@ -344,8 +604,15 @@
                     <span class="voice-count-badge">{counts.total} voice{counts.total !== 1 ? 's' : ''}</span>
                   {/if}
                 </div>
-                {#if hearing.description}
+                {#if hearing.summary}
+                  <div class="card-summary">{hearing.summary}</div>
+                {:else if hearing.description}
                   <div class="card-summary">{hearing.description}</div>
+                {/if}
+                {#if hearing.official_url}
+                  <div class="card-actions">
+                    <a href={hearing.official_url} target="_blank" rel="noopener" class="action-link">View Bill</a>
+                  </div>
                 {/if}
                 {#if onvoice}
                   <div class="card-voice">
@@ -357,6 +624,32 @@
                       {onvoice}
                     />
                   </div>
+                {/if}
+                {#if session}
+                  <CivicCommentThread
+                    entityId={eid}
+                    commentCount={parentCommentCounts.get(eid)?.count || 0}
+                    attestedCount={parentCommentCounts.get(eid)?.attested ?? 0}
+                    comments={threadComments.get(eid) || []}
+                    synthesis={getSynthesis(eid)}
+                    expanded={openThreads.has(eid)}
+                    loading={threadLoading.has(eid)}
+                    submitting={threadSubmitting.has(eid)}
+                    error={threadErrors.get(eid) || ''}
+                    draft={threadDrafts.get(eid) || ''}
+                    userPublicKey={identity?.publicKey || ''}
+                    isUnlocked={identity?.isUnlocked ?? false}
+                    hasIdentity={!!identity}
+                    {aiAvailable}
+                    {activeProviderName}
+                    summarizeLoading={aiResponseLoading.has(`summarize-thread:${eid}`)}
+                    summaryHtml={renderMarkdown(aiResponses.get(`summarize-thread:${eid}`) ?? '')}
+                    showSummary={aiResponses.has(`summarize-thread:${eid}`)}
+                    ontoggle={() => toggleCommentThread(eid)}
+                    onsubmit={() => handleSubmitComment(eid)}
+                    ondraftchange={({ text }: { text: string }) => { threadDrafts.set(eid, text); threadDrafts = new Map(threadDrafts); }}
+                    onsummarize={() => handleSummarize(eid, hearing.bill_number || hearing.bill_id)}
+                  />
                 {/if}
               </div>
             {/each}
@@ -370,7 +663,7 @@
       <section class="feed-section">
         <button class="section-header" onclick={() => toggle('governorsDesk')}>
           <span class="section-title">
-            Governor's Desk
+            Awaiting Governor's Signature
             <span class="count-badge action-badge">{data.governors_desk!.length}</span>
           </span>
           <span class="chevron" class:open={expanded.governorsDesk}></span>
@@ -408,6 +701,32 @@
                       {onvoice}
                     />
                   </div>
+                {/if}
+                {#if session}
+                  <CivicCommentThread
+                    entityId={eid}
+                    commentCount={parentCommentCounts.get(eid)?.count || 0}
+                    attestedCount={parentCommentCounts.get(eid)?.attested ?? 0}
+                    comments={threadComments.get(eid) || []}
+                    synthesis={getSynthesis(eid)}
+                    expanded={openThreads.has(eid)}
+                    loading={threadLoading.has(eid)}
+                    submitting={threadSubmitting.has(eid)}
+                    error={threadErrors.get(eid) || ''}
+                    draft={threadDrafts.get(eid) || ''}
+                    userPublicKey={identity?.publicKey || ''}
+                    isUnlocked={identity?.isUnlocked ?? false}
+                    hasIdentity={!!identity}
+                    {aiAvailable}
+                    {activeProviderName}
+                    summarizeLoading={aiResponseLoading.has(`summarize-thread:${eid}`)}
+                    summaryHtml={renderMarkdown(aiResponses.get(`summarize-thread:${eid}`) ?? '')}
+                    showSummary={aiResponses.has(`summarize-thread:${eid}`)}
+                    ontoggle={() => toggleCommentThread(eid)}
+                    onsubmit={() => handleSubmitComment(eid)}
+                    ondraftchange={({ text }: { text: string }) => { threadDrafts.set(eid, text); threadDrafts = new Map(threadDrafts); }}
+                    onsummarize={() => handleSummarize(eid, bill.bill_number || bill.bill_id)}
+                  />
                 {/if}
               </div>
             {/each}
@@ -704,6 +1023,43 @@
     line-height: 1.4;
     margin-top: 6px;
   }
+  .expand-btn {
+    background: none;
+    border: none;
+    color: #60a5fa;
+    font-size: 12px;
+    cursor: pointer;
+    padding: 0 2px;
+    text-decoration: underline;
+  }
+  .expand-btn:hover {
+    color: #93bbfd;
+  }
+  .closed-results {
+    margin-top: 6px;
+    opacity: 0.7;
+  }
+  .doc-type-tag {
+    font-size: 10px;
+    text-transform: capitalize;
+    color: #a5b4fc;
+    background: rgba(99, 102, 241, 0.1);
+    padding: 1px 6px;
+    border-radius: 3px;
+  }
+  .card-topics {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 4px;
+  }
+  .topic-tag {
+    font-size: 10px;
+    color: #9ca3af;
+    background: rgba(107, 114, 128, 0.15);
+    padding: 1px 6px;
+    border-radius: 3px;
+  }
   .card-leverage {
     color: #60a5fa;
     font-size: 11px;
@@ -853,6 +1209,15 @@
     letter-spacing: 0.08em;
     color: #f59e0b;
     padding: 4px 4px 2px;
+  }
+  .voice-disclaimer {
+    font-size: 11px;
+    color: #9ca3af;
+    font-style: italic;
+    padding: 8px 8px 4px;
+    margin-top: 4px;
+    line-height: 1.4;
+    border-top: 1px solid rgba(107, 114, 128, 0.2);
   }
   .focal-badge {
     background: rgba(245, 158, 11, 0.15) !important;
