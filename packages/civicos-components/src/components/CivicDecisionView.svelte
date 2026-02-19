@@ -150,6 +150,26 @@
     aiResponseLoading = new Set(aiResponseLoading);
   }
 
+  // --- Drag-to-AI ---
+
+  function escapeHtml(text: string): string {
+    return text.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+  }
+
+  let draggingDecision = $state<string | null>(null);
+
+  function handleDragStart(e: DragEvent, decision: PulseOutcome) {
+    const markdown = composeDecisionContext(decision);
+    e.dataTransfer!.effectAllowed = 'all';
+    e.dataTransfer!.setData('text/html', '<pre>' + escapeHtml(markdown) + '</pre>');
+    e.dataTransfer!.setData('text/plain', markdown);
+    draggingDecision = decision.id;
+  }
+
+  function handleDragEnd() {
+    draggingDecision = null;
+  }
+
   // --- Context Composition ---
 
   function composeSentimentBlock(entityId: string): string[] {
@@ -230,7 +250,11 @@
   <div class="empty-section">No recent decisions</div>
 {:else}
   {#each decisions as decision}
-    <div class="card decision-card" class:expanded-card={expandedDecisions.has(decision.title)}>
+    <div class="card decision-card" class:expanded-card={expandedDecisions.has(decision.title)}
+         class:dragging={draggingDecision === decision.id}
+         draggable="true"
+         ondragstart={(e: DragEvent) => handleDragStart(e, decision)}
+         ondragend={handleDragEnd}>
       <CivicDecisionCard
         {decision}
         expanded={expandedDecisions.has(decision.title)}
@@ -269,11 +293,17 @@
     padding: 12px 14px;
     margin-bottom: 6px;
     border: 1px solid #374151;
-    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
+    cursor: grab;
   }
   .card:hover {
     border-color: #3b82f6;
     box-shadow: 0 2px 8px rgba(59,130,246,0.1);
+  }
+  .card:active { cursor: grabbing; }
+  .card.dragging {
+    opacity: 0.4;
+    border-color: #3b82f6;
   }
   .expanded-card {
     border: 1px solid #374151;
