@@ -466,25 +466,11 @@
     userStances = new Map(userStances);
     persistStances();
 
-    // Sign and submit
-    try {
-      const jurisdiction = overrideJurisdiction || pulseData?.jurisdiction || activeJurisdiction;
-      const ok = await api.castVoice(entityId, stance, jurisdiction);
-      if (!ok) {
-        throw new Error('Relay submission failed');
-      }
-    } catch {
-      // Revert on failure
-      voiceCounts.set(entityId, prevCounts);
-      voiceCounts = new Map(voiceCounts);
-      if (prevStance) {
-        userStances.set(entityId, prevStance);
-      } else {
-        userStances.delete(entityId);
-      }
-      userStances = new Map(userStances);
-      persistStances();
-    }
+    // Sign and submit (fire-and-forget — stance is persisted locally regardless)
+    const jurisdiction = overrideJurisdiction || pulseData?.jurisdiction || activeJurisdiction;
+    api.castVoice(entityId, stance, jurisdiction).catch(() => {
+      // Relay submission failed — local stance persists, will sync on next load
+    });
 
     votingInProgress.delete(entityId);
     votingInProgress = new Set(votingInProgress);
