@@ -612,12 +612,12 @@ def _legislation_pulse(
         logger.error(f"Error fetching upcoming hearings: {e}")
 
     # ── Governor's desk (enrolled bills awaiting signature) ──
+    # LegiScan status 3 = Enrolled (passed both chambers, awaiting governor)
     try:
-        enrolled = storage.get_legislation(state=state, status="Enrolled", limit=20)
+        enrolled = storage.get_legislation(state=state, status="3", limit=20)
         if not enrolled:
-            # Fallback: some data may use status_id instead of status text
-            all_bills = storage.get_legislation(state=state, limit=500)
-            enrolled = [b for b in all_bills if str(b.get("status_id")) == "5"][:20]
+            # Fallback: try text status values
+            enrolled = storage.get_legislation(state=state, status="Enrolled", limit=20)
         if enrolled:
             governors_desk = []
             for bill in enrolled:

@@ -4889,6 +4889,11 @@ class PostgresBackend:
                     bill['metadata'] = json.loads(bill['metadata'])
                 except json.JSONDecodeError:
                     bill['metadata'] = {}
+            # Promote key metadata fields to top-level for downstream consumers
+            if isinstance(bill.get('metadata'), dict):
+                for field in ('last_action', 'last_action_date', 'status_date'):
+                    if field not in bill or not bill[field]:
+                        bill[field] = bill['metadata'].get(field, '')
             # Convert datetime/date objects to ISO strings
             for key in ['enacted_date', 'local_deadline', 'created_at', 'valid_from', 'valid_to']:
                 if key in bill and bill[key] is not None:
