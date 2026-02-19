@@ -2582,7 +2582,7 @@
         "priority": 0,
         "artifact": "Progressive engagement UX from awareness to coordination",
         "description": "UX flow that guides users through engagement ladder: Awareness (what's happening) \u2192 Relevance (what affects me) \u2192 Participation (where I can act) \u2192 Coordination (who's with me). Each dashboard view surfaces the 'next step' without forcing it.",
-        "note": "Session 542: The engagement ladder is the conceptual spine of the dashboard. This item is about making the progression feel natural in the UX."
+        "note": "Session 542: Built conceptual spine. Session: Improved state/federal tab UX with topic overview grid, proper Legiscan status mapping, leverage point descriptions, and bill activity ordering. Awareness + Relevance layers done. Next: deploy to Modal, iterate Participation (initiatives) + Coordination (voices on bills)."
       },
       "civic_dashboard_mvp": {
         "status": "ready",

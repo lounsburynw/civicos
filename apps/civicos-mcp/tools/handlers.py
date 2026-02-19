@@ -340,12 +340,74 @@ def compose_public_comment(
     return "\n".join(result_parts)
 
 
+# Legiscan progress status codes → friendly labels
+LEGISCAN_STATUS = {
+    "1": "Introduced",
+    "2": "Engrossed",
+    "3": "Enrolled",
+    "4": "Passed",
+    "5": "Vetoed",
+    "6": "Failed",
+}
+
+# Map status labels → outcome categories for icon/color rendering
+LEGISLATIVE_OUTCOME_MAP = {
+    "Passed": "passed",
+    "Enrolled": "passed",
+    "Engrossed": "on_agenda",
+    "Introduced": "on_agenda",
+    "Vetoed": "failed",
+    "Failed": "failed",
+}
+
+
+def _resolve_bill_status(bill: dict) -> tuple[str, str]:
+    """Return (friendly_label, outcome_category) for a bill's status.
+
+    Handles both Legiscan numeric codes and curated text statuses.
+    """
+    raw = bill.get("status", "")
+    # Legiscan numeric code
+    if raw in LEGISCAN_STATUS:
+        label = LEGISCAN_STATUS[raw]
+        return label, LEGISLATIVE_OUTCOME_MAP.get(label, "other")
+    # Curated text status
+    if isinstance(raw, str) and raw:
+        sl = raw.lower()
+        if "passed" in sl or "signed" in sl or "enacted" in sl:
+            return raw, "passed"
+        if "failed" in sl or "dead" in sl or "vetoed" in sl:
+            return raw, "failed"
+        # Active, Pending, etc.
+        return raw, "on_agenda"
+    return "Unknown", "other"
+
+
+def _bill_date(bill: dict) -> str:
+    """Best available date for a bill.
+
+    Prefers action/enacted dates over ingestion timestamps.
+    Returns empty string if only an ingestion date is available.
+    """
+    return (
+        bill.get("last_action_date")
+        or bill.get("enacted_date")
+        or ""
+    )
+
+
 def _legislation_pulse(
     civic: CivicClient,
     jurisdiction: str,
     logger: Logger,
 ) -> dict:
-    """Generate pulse data from legislation for state/federal servers."""
+    """Generate pulse data from legislation for state/federal servers.
+
+    Sections:
+      decisions_this_week → Topic overview (topic name, bill counts, stage breakdown)
+      upcoming_items      → Key legislation (bills with leverage points, by topic)
+      recent_outcomes     → Bill activity (proper status labels and dates)
+    """
     now = datetime.now()
     storage = civic._storage
 
@@ -367,50 +429,130 @@ def _legislation_pulse(
     }
 
     try:
-        bills = storage.get_legislation(state=state, limit=200)
-        actionable = [b for b in bills if b.get("leverage_point")]
+        bills = storage.get_legislation(state=state, limit=500)
 
+        # ── Resolve statuses for all bills ──
+        for b in bills:
+            b["_label"], b["_outcome"] = _resolve_bill_status(b)
+
+        # ── Section 1: Topic overview ──
+        # Group bills by topic and count by stage
+        topic_counts: dict[str, dict] = {}
+        for b in bills:
+            topic = b.get("topic") or "other"
+            if topic not in topic_counts:
+                topic_counts[topic] = {"total": 0, "active": 0, "passed": 0, "failed": 0}
+            tc = topic_counts[topic]
+            tc["total"] += 1
+            if b["_outcome"] == "passed":
+                tc["passed"] += 1
+            elif b["_outcome"] == "failed":
+                tc["failed"] += 1
+            else:
+                tc["active"] += 1
+
+        # Sort topics: named topics by count desc, "other"/None last
+        def _topic_sort_key(item: tuple) -> tuple:
+            name, counts = item
+            is_other = name in (None, "other", "Other", "")
+            return (is_other, -counts["total"])
+
+        sorted_topics = sorted(topic_counts.items(), key=_topic_sort_key)
+        named_topics = [(n, c) for n, c in sorted_topics
+                        if n not in (None, "other", "Other", "")]
+
+        if named_topics:
+            # Show topic breakdown (categories with real names)
+            for topic_name, counts in sorted_topics[:8]:
+                label = topic_name.replace("_", " ").title() if topic_name else "Other"
+                parts = []
+                if counts["active"]:
+                    parts.append(f"{counts['active']} active")
+                if counts["passed"]:
+                    parts.append(f"{counts['passed']} passed")
+                if counts["failed"]:
+                    parts.append(f"{counts['failed']} failed")
+                result["decisions_this_week"].append({
+                    "title": f"{label}",
+                    "date": f"{counts['total']} bills",
+                    "time": " · ".join(parts),
+                    "location": "",
+                    "meeting_datetime": now.isoformat(),
+                })
+        else:
+            # No topic data — show stage-based overview instead
+            stage_counts = Counter(b["_label"] for b in bills)
+            for stage_label, count in stage_counts.most_common():
+                result["decisions_this_week"].append({
+                    "title": stage_label,
+                    "date": f"{count} bills",
+                    "time": "",
+                    "location": "",
+                    "meeting_datetime": now.isoformat(),
+                })
+
+        # ── Section 2: Key legislation (actionable bills) ──
+        actionable = [b for b in bills if b.get("leverage_point")]
         for bill in actionable[:10]:
+            topic = bill.get("topic") or ""
+            topic_label = topic.replace("_", " ").title() if topic else ""
             result["upcoming_items"].append({
                 "id": bill.get("bill_id", ""),
-                "meeting_id": "",
                 "item_number": bill.get("bill_number", ""),
                 "title": bill.get("bill_name", "Untitled Bill"),
-                "project_type": bill.get("status", ""),
+                "project_type": topic_label,
                 "stance_eligible": False,
                 "comment_eligible": False,
                 "description": bill.get("leverage_point", ""),
                 "why_it_matters": bill.get("summary", "")[:200] if bill.get("summary") else "",
-                "meeting_title": f"{bill.get('bill_number', '')} ({state})",
+                "meeting_title": bill.get("bill_number", ""),
                 "meeting_date": "",
             })
 
-        for bill in bills[:10]:
-            status = bill.get("status", "")
-            outcome = "on_agenda"
-            if isinstance(status, str):
-                sl = status.lower()
-                if "passed" in sl or "signed" in sl or "enacted" in sl:
-                    outcome = "passed"
-                elif "failed" in sl or "dead" in sl or "vetoed" in sl:
-                    outcome = "failed"
+        # ── Section 3: Bill activity (resolved + notable) ──
+        # Mix of resolved (passed/vetoed/failed) and notable active bills
+        resolved = [b for b in bills if b["_outcome"] in ("passed", "failed")]
+        active_with_lp = [b for b in bills
+                          if b["_outcome"] not in ("passed", "failed")
+                          and b.get("leverage_point")]
 
+        # Sort each group by date descending (most recent first)
+        def _by_date_desc(b: dict) -> str:
+            return _bill_date(b) or "0000"
+
+        resolved.sort(key=_by_date_desc, reverse=True)
+        active_with_lp.sort(key=_by_date_desc, reverse=True)
+
+        ordered = resolved[:7] + active_with_lp[:3]
+
+        for bill in ordered:
             result["recent_outcomes"].append({
                 "id": bill.get("bill_id", ""),
                 "title": f"{bill.get('bill_number', '')} — {bill.get('bill_name', 'Bill')}",
-                "outcome": outcome,
-                "is_upcoming": outcome == "on_agenda",
-                "date": bill.get("last_action_date", "Recent") or "Recent",
+                "outcome": bill["_label"],
+                "is_upcoming": bill["_outcome"] == "on_agenda",
+                "date": _bill_date(bill),
             })
 
-        total_with_lp = len(actionable)
+        # ── Community pulse: topic breakdown ──
+        topic_summary = {}
+        for topic_name, counts in sorted_topics[:6]:
+            label = topic_name.replace("_", " ").title() if topic_name else "Other"
+            topic_summary[label] = counts["total"]
         result["community_pulse"] = {
             "total_issues": len(bills),
-            "top_types": {"Actionable bills": total_with_lp, "Total tracked": len(bills)},
+            "top_types": topic_summary,
         }
+
     except Exception as e:
         logger.error(f"Error in legislation_pulse: {e}")
         result["error"] = str(e)
+        bills = []
+
+    # Clean up internal fields added during processing
+    for b in bills:
+        b.pop("_label", None)
+        b.pop("_outcome", None)
 
     return result
 

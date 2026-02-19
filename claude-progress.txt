@@ -1,3 +1,38 @@
+## Session — 2026-02-18 (State/Federal Tab UX Iteration)
+
+**Item:** engagement_ladder_ux (P0) — State/Federal tab UX quality
+**Status:** Complete. Rewrote _legislation_pulse backend + adapted frontend for legislative levels.
+
+### Changes
+**Backend (`apps/civicos-mcp/tools/handlers.py`):**
+- Added `LEGISCAN_STATUS` mapping (1=Introduced, 2=Engrossed, 4=Passed, 5=Vetoed, 6=Failed)
+- Added `_resolve_bill_status()` + `_bill_date()` helpers
+- Rewrote `_legislation_pulse()` with 3 improved sections:
+  - Section 1 (Active Topics): Topic breakdown with bill stage counts (CA), or stage-based overview (US)
+  - Section 2 (Key Legislation): Bills with leverage points, topic badges, action descriptions
+  - Section 3 (Bill Activity): Resolved bills first (7), then active with leverage (3), proper status labels
+  - Community pulse: Topic breakdown instead of generic "Actionable: X"
+
+**Frontend (`packages/civicos-components/`):**
+- CivicReadOnlyPulse: Topic grid rendering for legislative levels (2-column cards)
+- Leverage point description shown on Key Legislation cards
+- Section labels: "Active Topics", "Key Legislation", "Bill Activity"
+- civic-helpers: outcomeIcon/outcomeClass handle legislative statuses (introduced, engrossed, vetoed, etc.)
+
+### Testing
+- 42/42 smoke tests pass
+- Extension builds clean
+- Handler tested with CA (topic breakdown) and US (stage fallback) data
+
+### Commits
+- (pending commit)
+
+### Next session recommendation
+- Deploy to Modal (state + federal servers) and verify in extension
+- Consider: enrich federal bill topics (currently all "other")
+- Enable state/federal-level initiatives (start_something)
+- Attestation origin display design
+
 ## Session — 2026-02-18 (Leverage Point Enrichment)
 
 **Item:** Leverage point enrichment for legislation bills
