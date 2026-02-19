@@ -504,7 +504,9 @@ def _legislation_pulse(
                 "stance_eligible": True,
                 "comment_eligible": False,
                 "description": bill.get("leverage_point", ""),
-                "why_it_matters": bill.get("summary", "")[:200] if bill.get("summary") else "",
+                "summary": bill.get("summary", ""),
+                "status": bill["_label"],
+                "official_url": bill.get("official_url", ""),
                 "meeting_title": bill.get("bill_number", ""),
                 "meeting_date": "",
             })
@@ -532,6 +534,8 @@ def _legislation_pulse(
                 "outcome": bill["_label"],
                 "is_upcoming": bill["_outcome"] == "on_agenda",
                 "date": _bill_date(bill),
+                "summary": bill.get("summary", ""),
+                "official_url": bill.get("official_url", ""),
             })
 
         # ── Community pulse: topic breakdown ──
