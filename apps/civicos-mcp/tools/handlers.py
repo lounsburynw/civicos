@@ -1974,6 +1974,17 @@ def get_intergovernmental_revenue(
 # ─────────── Legislation & Executive Order Handlers ───────────
 
 
+def _default_legislation_states(jurisdiction: str) -> list[str]:
+    """Return default state codes to search based on server jurisdiction level."""
+    if jurisdiction.startswith("country-"):
+        return ["US"]
+    elif jurisdiction.startswith("state-"):
+        return ["CA"]  # TODO: derive from jurisdiction ID
+    else:
+        # City-level: search both state and federal
+        return ["CA", "US"]
+
+
 def search_legislation(
     civic: CivicClient,
     jurisdiction: str,
@@ -1996,7 +2007,7 @@ def search_legislation(
         results = []
 
         # Determine which states to search
-        states_to_search = [state.upper()] if state else ["CA", "US"]
+        states_to_search = [state.upper()] if state else _default_legislation_states(jurisdiction)
 
         # First: try topic-column filter (works when topics are tagged)
         for s in states_to_search:
@@ -2158,7 +2169,7 @@ def get_leverage_points(
     limit = min(args.get("limit", 10), 50)
 
     try:
-        states_to_search = [state.upper()] if state else ["CA", "US"]
+        states_to_search = [state.upper()] if state else _default_legislation_states(jurisdiction)
         results = []
 
         for s in states_to_search:
