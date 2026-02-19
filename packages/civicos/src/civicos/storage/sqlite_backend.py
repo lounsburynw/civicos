@@ -3575,6 +3575,74 @@ class SQLiteBackend:
         """Get count of federal program allocations (stub for SQLite)."""
         return 0
 
+    # ========== Federal Rules Methods (stub for SQLite) ==========
+
+    def store_federal_rules(self, rules: list[dict]) -> int:
+        """Store federal rules (stub for SQLite)."""
+        return 0
+
+    def get_federal_rules(
+        self,
+        document_type: Optional[str] = None,
+        comments_open: bool = False,
+        limit: Optional[int] = None,
+        offset: int = 0,
+    ) -> list[dict]:
+        """Retrieve federal rules (stub for SQLite)."""
+        return []
+
+    def get_open_comment_periods(self, limit: int = 20) -> list[dict]:
+        """Get open comment periods (stub for SQLite)."""
+        return []
+
+    def search_federal_rules(
+        self,
+        query: str,
+        document_type: Optional[str] = None,
+        limit: int = 10,
+    ) -> list[dict]:
+        """Search federal rules (stub for SQLite)."""
+        return []
+
+    def get_federal_rules_count(self, document_type: Optional[str] = None) -> int:
+        """Get count of federal rules (stub for SQLite)."""
+        return 0
+
+    # ========== Legislative Events Methods (stub for SQLite) ==========
+
+    def store_legislative_events(self, events: list[dict]) -> int:
+        """Store legislative events (stub for SQLite)."""
+        return 0
+
+    def get_legislative_events(
+        self,
+        bill_id: Optional[str] = None,
+        state: Optional[str] = None,
+        event_type: Optional[str] = None,
+        upcoming_only: bool = False,
+        days_ahead: int = 30,
+        limit: Optional[int] = None,
+    ) -> list[dict]:
+        """Retrieve legislative events (stub for SQLite)."""
+        return []
+
+    def get_upcoming_hearings(
+        self,
+        state: Optional[str] = None,
+        days_ahead: int = 30,
+        limit: int = 20,
+    ) -> list[dict]:
+        """Get upcoming hearings (stub for SQLite)."""
+        return []
+
+    def get_legislative_events_count(
+        self,
+        state: Optional[str] = None,
+        event_type: Optional[str] = None,
+    ) -> int:
+        """Get count of legislative events (stub for SQLite)."""
+        return 0
+
 
 # Verify protocol compliance at import time
 # StorageBackend is @runtime_checkable, so isinstance() works

@@ -5,6 +5,8 @@ This module provides a single entrypoint for running all data ingestion tasks
 in parallel on Modal's serverless compute infrastructure. It orchestrates:
 - Municipal code fetch (Municode API)
 - Legislation sync (LegiScan API) - master list + text population
+- Federal rules fetch (Federal Register API) - proposed rules, final rules, notices
+- Legislative events extraction - hearing dates parsed from existing bills
 - Meeting discovery (ProudCity API) - supports incremental fetch
 - Issue fetch (SeeClickFix API) - supports incremental fetch
 - Transcript extraction (AssemblyAI) - downloads audio and transcribes with speaker diarization
@@ -16,20 +18,26 @@ in parallel on Modal's serverless compute infrastructure. It orchestrates:
 Architecture:
     modal run scripts/modal_ingest.py --all
     └── spawn() parallel tasks:
-        ├── fetch_municipal_code()  → Postgres
-        ├── sync_legislation()      → Postgres (master list + text)
-        ├── fetch_meetings()        → Postgres (incremental)
-        ├── fetch_issues()          → Postgres (incremental)
-        ├── extract_transcripts()   → R2 (audio) + Postgres (transcripts), after meetings
-        ├── extract_chunks()        → Postgres (incremental, after meetings)
-        ├── extract_agenda_items()  → Postgres (LLM-powered)
-        └── index_vectors()         → pgvector
+        ├── fetch_municipal_code()       → Postgres
+        ├── sync_legislation()           → Postgres (master list + text)
+        ├── fetch_meetings()             → Postgres (incremental)
+        ├── fetch_issues()               → Postgres (incremental)
+        ├── extract_transcripts()        → R2 (audio) + Postgres (transcripts), after meetings
+        ├── extract_chunks()             → Postgres (incremental, after meetings)
+        ├── extract_agenda_items()       → Postgres (LLM-powered)
+        └── index_vectors()              → pgvector
 
-    modal run scripts/modal_ingest.py --decisions  # Not in --all (weekly only)
-    └── extract_decisions()         → Postgres (LLM-powered, weekly)
+    modal run scripts/modal_ingest.py --decisions        # Not in --all (weekly only)
+    └── extract_decisions()              → Postgres (LLM-powered, weekly)
+
+    modal run scripts/modal_ingest.py --federal-rules    # Not in --all (weekly only)
+    └── fetch_federal_rules()            → Postgres (Federal Register API, free)
+
+    modal run scripts/modal_ingest.py --legislative-events  # Not in --all (weekly only)
+    └── extract_legislative_events()     → Postgres (no API calls, parses existing bills)
 
     Scheduled refreshes (via modal deploy):
-        scheduled_low_velocity_refresh()  # Weekly: municipal code, legislation, decisions
+        scheduled_low_velocity_refresh()  # Weekly: legislation, EOs, federal rules, legislative events, decisions
         scheduled_high_velocity_refresh() # Daily: meetings, issues, transcripts, chunks, agenda items, vectors
         scheduled_election_refresh()      # Monthly: elections from Google Civic API
 
@@ -52,6 +60,8 @@ Usage:
     # Run specific components
     modal run scripts/modal_ingest.py --municipal
     modal run scripts/modal_ingest.py --legislation
+    modal run scripts/modal_ingest.py --federal-rules
+    modal run scripts/modal_ingest.py --legislative-events
     modal run scripts/modal_ingest.py --meetings
     modal run scripts/modal_ingest.py --issues
     modal run scripts/modal_ingest.py --transcripts
@@ -78,6 +88,7 @@ API Quota Considerations:
       - Running both exceeds monthly quota
     - ProudCity API: No quota, ~1 req/s rate limit
     - SeeClickFix API: No quota, ~1 req/s rate limit
+    - Federal Register API: No quota, no key needed, ~1 req/s rate limit
     - Recommendation: Use --legislation-jurisdiction to run one at a time
 
 Cost Estimates (Modal compute):
@@ -976,6 +987,224 @@ def backfill_executive_orders_text(
         "elapsed_seconds": elapsed,
         "num_workers": len(batches),
     }
+
+
+# =============================================================================
+# Federal Rules (Federal Register API — Proposed Rules, Final Rules, Notices)
+# =============================================================================
+
+@app.function(
+    image=civic_image,
+    secrets=[modal.Secret.from_name("civic-db")],
+    memory=4096,
+    timeout=3600,  # 1 hour
+    retries=modal.Retries(max_retries=2, backoff_coefficient=2.0, initial_delay=30.0),
+)
+def fetch_federal_rules(
+    dry_run: bool = False,
+    incremental: bool = True,
+    days_lookback: int = 90,
+    auto_index: bool = False,
+) -> dict:
+    """Fetch federal rulemaking documents from Federal Register API and store to Postgres.
+
+    Fetches three document types:
+    - Proposed rules (NPRMs) — have public comment periods
+    - Final rules — codified regulations
+    - Notices — agency announcements
+
+    Supports incremental fetch using the most recent publication_date in the DB.
+    Weekly refresh recommended (low velocity, free API, no key needed).
+
+    Args:
+        dry_run: If True, fetch but don't store
+        incremental: If True, only fetch rules published since last refresh
+        days_lookback: Days to look back for initial/full fetch (default 90)
+        auto_index: If True, trigger vector indexing after successful storage
+    """
+    import logging
+    import os
+    import time
+    from datetime import datetime, timedelta
+
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+    logger = logging.getLogger(__name__)
+    start_time = time.time()
+
+    from civicos.storage.postgres_backend import PostgresBackend
+    from civicos_extraction.clients.federal_register import FederalRegisterClient
+
+    database_url = os.environ.get("DATABASE_URL")
+    if not database_url:
+        raise ValueError("DATABASE_URL not set")
+
+    backend = PostgresBackend(database_url)
+    client = FederalRegisterClient()
+
+    # Determine date filter for incremental fetch
+    since_date = None
+    if incremental:
+        existing_rules = backend.get_federal_rules(limit=1)
+        if existing_rules:
+            latest = existing_rules[0]
+            pub_date = latest.get("publication_date") or latest.get("created_at")
+            if pub_date:
+                overlap_days = 14
+                if hasattr(pub_date, 'strftime'):
+                    since_date = (pub_date - timedelta(days=overlap_days)).strftime("%Y-%m-%d")
+                else:
+                    from datetime import date as date_type
+                    parsed = date_type.fromisoformat(str(pub_date)[:10])
+                    since_date = (parsed - timedelta(days=overlap_days)).strftime("%Y-%m-%d")
+                logger.info(f"[RULES] Incremental mode: fetching since {since_date} (latest in DB: {pub_date})")
+            else:
+                since_date = (datetime.now() - timedelta(days=days_lookback)).strftime("%Y-%m-%d")
+                logger.info(f"[RULES] Initial fetch: looking back {days_lookback} days (since {since_date})")
+        else:
+            since_date = (datetime.now() - timedelta(days=days_lookback)).strftime("%Y-%m-%d")
+            logger.info(f"[RULES] Initial fetch: looking back {days_lookback} days (since {since_date})")
+    else:
+        since_date = (datetime.now() - timedelta(days=days_lookback)).strftime("%Y-%m-%d")
+        logger.info(f"[RULES] Full fetch: looking back {days_lookback} days (since {since_date})")
+
+    # Fetch all three rule types from Federal Register API
+    all_rules = []
+    for rule_type, method in [
+        ("proposed rules", client.get_proposed_rules),
+        ("final rules", client.get_final_rules),
+        ("notices", client.get_notices),
+    ]:
+        logger.info(f"[RULES] Fetching {rule_type}...")
+        rules = method(since_date=since_date, per_page=100, max_pages=20)
+        logger.info(f"[RULES] Fetched {len(rules)} {rule_type}")
+        all_rules.extend(rules)
+
+    logger.info(f"[RULES] Total fetched: {len(all_rules)} rules across all types")
+
+    # Store to database
+    stored_count = 0
+    if all_rules and not dry_run:
+        try:
+            stored_count = backend.store_federal_rules(all_rules)
+            logger.info(f"[RULES] Stored {stored_count} new rules (deduped)")
+
+            backend.update_refresh_metadata(
+                "federal-US", "federal_rules", "federal_register",
+                items_fetched=len(all_rules),
+                items_stored=stored_count,
+                status="completed",
+            )
+        except Exception as e:
+            logger.error(f"Error storing federal rules: {e}")
+            backend.update_refresh_metadata(
+                "federal-US", "federal_rules", "federal_register",
+                status="failed", error_message=str(e),
+            )
+            raise
+    elif dry_run:
+        logger.info("[RULES] Dry run - skipping storage")
+
+    # Auto-index vectors if requested and data was stored
+    vector_result = None
+    if auto_index and stored_count > 0 and not dry_run:
+        logger.info("[RULES] Auto-indexing vectors for federal_rules...")
+        vector_result = index_vectors.remote(
+            jurisdiction="federal-US",
+            corpus="federal_rules",
+            reindex=False,
+        )
+        logger.info(f"  Vectors indexed: {vector_result.get('total_indexed', 0)}")
+
+    elapsed = time.time() - start_time
+    result = {
+        "task": "federal_rules",
+        "rules_fetched": len(all_rules),
+        "rules_stored": stored_count,
+        "since_date": since_date,
+        "incremental": incremental,
+        "dry_run": dry_run,
+        "auto_index": auto_index,
+        "elapsed_seconds": elapsed,
+        "cost_usd": 4 * elapsed * 0.000463,
+    }
+    if vector_result:
+        result["vector_result"] = vector_result
+    return result
+
+
+# =============================================================================
+# Legislative Events (Hearing dates parsed from existing legislation)
+# =============================================================================
+
+@app.function(
+    image=civic_image,
+    secrets=[modal.Secret.from_name("civic-db")],
+    memory=4096,
+    timeout=1800,  # 30 min
+)
+def extract_legislative_events(
+    state: str = "CA",
+    dry_run: bool = False,
+) -> dict:
+    """Extract legislative events (hearings) from existing bill data in Postgres.
+
+    Reads bills already stored in the legislation table and parses last_action
+    text for hearing dates and committee references. No external API calls needed.
+
+    Args:
+        state: State code to process (default "CA")
+        dry_run: If True, parse but don't store
+    """
+    import logging
+    import os
+    import time
+
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+    logger = logging.getLogger(__name__)
+    start_time = time.time()
+
+    from civicos.storage.postgres_backend import PostgresBackend
+    from civicos_extraction.clients.legiscan import parse_hearing_events_from_legislation
+
+    database_url = os.environ.get("DATABASE_URL")
+    if not database_url:
+        raise ValueError("DATABASE_URL not set")
+
+    backend = PostgresBackend(database_url)
+
+    # Read existing bills (no API calls)
+    logger.info(f"[EVENTS] Reading {state} legislation from database...")
+    bills = backend.get_legislation(state=state, limit=5000)
+    logger.info(f"[EVENTS] Read {len(bills)} bills")
+
+    # Parse hearing events from bill data
+    events = parse_hearing_events_from_legislation(bills, state=state)
+    logger.info(f"[EVENTS] Parsed {len(events)} hearing events from bill actions")
+
+    # Store to database
+    stored_count = 0
+    if events and not dry_run:
+        try:
+            stored_count = backend.store_legislative_events(events)
+            logger.info(f"[EVENTS] Stored {stored_count} legislative events (deduped)")
+        except Exception as e:
+            logger.error(f"Error storing legislative events: {e}")
+            raise
+    elif dry_run:
+        logger.info("[EVENTS] Dry run - skipping storage")
+
+    elapsed = time.time() - start_time
+    result = {
+        "task": "legislative_events",
+        "state": state,
+        "bills_read": len(bills),
+        "events_parsed": len(events),
+        "events_stored": stored_count,
+        "dry_run": dry_run,
+        "elapsed_seconds": elapsed,
+        "cost_usd": 4 * elapsed * 0.000463,
+    }
+    return result
 
 
 # =============================================================================
@@ -3211,6 +3440,29 @@ def scheduled_low_velocity_refresh():
         logger.exception("Executive Orders fetch failed")
         results["executive_orders"] = {"status": "failed", "error": str(e)}
 
+    # Federal Rules from Federal Register (proposed rules, final rules, notices)
+    try:
+        logger.info("Fetching Federal Rules from Federal Register...")
+        result = fetch_federal_rules.local(dry_run=False, incremental=True, auto_index=True)
+        results["federal_rules"] = result
+        stored = result.get('rules_stored', 0)
+        indexed = result.get('vector_result', {}).get('total_indexed', 0) if result.get('auto_index') else 0
+        logger.info(f"  Federal Rules: {stored} new rules stored (of {result.get('rules_fetched', 0)} fetched), {indexed} vectors indexed")
+    except Exception as e:
+        logger.exception("Federal Rules fetch failed")
+        results["federal_rules"] = {"status": "failed", "error": str(e)}
+
+    # Legislative Events (hearing dates parsed from existing legislation — no API calls)
+    try:
+        logger.info("Extracting legislative events from CA legislation...")
+        result = extract_legislative_events.local(state="CA", dry_run=False)
+        results["legislative_events_CA"] = result
+        stored = result.get('events_stored', 0)
+        logger.info(f"  Legislative Events CA: {stored} events stored (of {result.get('events_parsed', 0)} parsed from {result.get('bills_read', 0)} bills)")
+    except Exception as e:
+        logger.exception("Legislative events extraction failed")
+        results["legislative_events_CA"] = {"status": "failed", "error": str(e)}
+
     # Federal programs from SAM.gov (full catalog refresh)
     try:
         logger.info("Fetching federal programs from SAM.gov...")
@@ -4040,6 +4292,8 @@ def main(
     legislation: bool = False,
     executive_orders: bool = False,
     federal_programs: bool = False,
+    federal_rules: bool = False,
+    legislative_events: bool = False,
     meetings: bool = False,
     issues: bool = False,
     elections: bool = False,
@@ -4159,6 +4413,8 @@ def main(
     run_legislation = all or legislation
     run_executive_orders = all or executive_orders
     run_federal_programs = federal_programs  # Not in --all (weekly refresh)
+    run_federal_rules = federal_rules  # Not in --all (weekly refresh)
+    run_legislative_events = legislative_events  # Not in --all (weekly refresh)
     run_meetings = all or meetings
     run_issues = all or issues
     run_elections = all or elections
@@ -4170,8 +4426,8 @@ def main(
     run_videos = videos  # Not in --all (YouTube jurisdictions need explicit flag)
     run_vectors = all or vectors
 
-    if not (run_municipal or run_legislation or run_executive_orders or run_federal_programs or run_meetings or run_issues or run_elections or run_elected_officials or run_videos or run_transcripts or run_chunks or run_agenda or run_decisions or run_vectors):
-        print("No tasks specified. Use --all, --municipal, --legislation, --executive-orders, --federal-programs, --meetings, --issues, --elections, --elected-officials, --videos, --transcripts, --chunks, --agenda, --decisions, or --vectors")
+    if not (run_municipal or run_legislation or run_executive_orders or run_federal_programs or run_federal_rules or run_legislative_events or run_meetings or run_issues or run_elections or run_elected_officials or run_videos or run_transcripts or run_chunks or run_agenda or run_decisions or run_vectors):
+        print("No tasks specified. Use --all, --municipal, --legislation, --executive-orders, --federal-programs, --federal-rules, --legislative-events, --meetings, --issues, --elections, --elected-officials, --videos, --transcripts, --chunks, --agenda, --decisions, or --vectors")
         print("Use --stats-only to check current state")
         return
 
@@ -4187,6 +4443,10 @@ def main(
         task_list.append("executive_orders")
     if run_federal_programs:
         task_list.append("federal_programs")
+    if run_federal_rules:
+        task_list.append("federal_rules")
+    if run_legislative_events:
+        task_list.append("legislative_events")
     if run_meetings:
         task_list.append("meetings")
     if run_issues:
@@ -4216,6 +4476,10 @@ def main(
         print(f"  Executive Orders: federal-US (incremental)")
     if run_federal_programs:
         print(f"  Federal Programs: SAM.gov (full catalog)")
+    if run_federal_rules:
+        print(f"  Federal Rules: Federal Register (proposed rules, final rules, notices)")
+    if run_legislative_events:
+        print(f"  Legislative Events: {legislation_jurisdiction} (hearing dates from existing bills)")
     if run_meetings:
         print(f"  Meetings: {jurisdiction}" + (" (incremental)" if incremental else ""))
     if run_issues:
@@ -4277,6 +4541,25 @@ def main(
             auto_index=auto_index,
         )
         handles.append(("federal_programs", handle))
+
+    if run_federal_rules:
+        print("Spawning federal rules fetch...")
+        handle = fetch_federal_rules.spawn(
+            dry_run=dry_run,
+            incremental=True,
+            auto_index=auto_index,
+        )
+        handles.append(("federal_rules", handle))
+
+    if run_legislative_events:
+        print("Spawning legislative events extraction...")
+        # Extract state code from legislation_jurisdiction (e.g., "state-CA" -> "CA")
+        state_code = legislation_jurisdiction.split("-")[-1] if "-" in legislation_jurisdiction else "CA"
+        handle = extract_legislative_events.spawn(
+            state=state_code,
+            dry_run=dry_run,
+        )
+        handles.append(("legislative_events", handle))
 
     if run_meetings:
         print("Spawning meetings fetch...")
@@ -4413,6 +4696,10 @@ def main(
             print(f"+ Legislation: {result.get('bills_with_text', 0)}/{result.get('bills_processed', 0)} bills processed, {result.get('api_calls', 0)} API calls")
         elif name == "federal_programs":
             print(f"+ Federal Programs: {result.get('programs_fetched', 0)} fetched, {result.get('programs_stored', 0)} stored")
+        elif name == "federal_rules":
+            print(f"+ Federal Rules: {result.get('rules_fetched', 0)} fetched, {result.get('rules_stored', 0)} stored")
+        elif name == "legislative_events":
+            print(f"+ Legislative Events: {result.get('events_parsed', 0)} parsed, {result.get('events_stored', 0)} stored")
         elif name == "meetings":
             incr = " (incremental)" if result.get("incremental") else ""
             print(f"+ Meetings{incr}: {result.get('meetings_fetched', 0)} fetched, {result.get('meetings_stored', 0)} stored")

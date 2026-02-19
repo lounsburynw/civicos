@@ -553,6 +553,86 @@ def _legislation_pulse(
         result["error"] = str(e)
         bills = []
 
+    # ── Federal comment periods (open proposed rules) ──
+    try:
+        open_rules = storage.get_open_comment_periods(limit=10)
+        if open_rules:
+            comment_periods = []
+            for rule in open_rules:
+                close_date = rule.get("comments_close_on")
+                days_remaining = None
+                if close_date:
+                    if hasattr(close_date, 'date'):
+                        close_dt = close_date.date()
+                    elif isinstance(close_date, str):
+                        close_dt = datetime.strptime(close_date[:10], "%Y-%m-%d").date()
+                    else:
+                        close_dt = close_date
+                    days_remaining = (close_dt - now.date()).days
+
+                comment_periods.append({
+                    "document_number": rule.get("document_number", ""),
+                    "title": rule.get("title", ""),
+                    "agency": (rule.get("agency_names") or [""])[0] if isinstance(rule.get("agency_names"), list) else rule.get("agency_names", ""),
+                    "comments_close_on": str(close_date) if close_date else None,
+                    "days_remaining": days_remaining,
+                    "federal_register_url": rule.get("federal_register_url", ""),
+                })
+            result["comment_periods"] = comment_periods
+    except Exception as e:
+        logger.error(f"Error fetching comment periods: {e}")
+
+    # ── Upcoming legislative hearings ──
+    try:
+        hearings = storage.get_upcoming_hearings(state=state, days_ahead=30, limit=10)
+        if hearings:
+            upcoming_hearings = []
+            for h in hearings:
+                event_date = h.get("event_date")
+                days_until = None
+                if event_date:
+                    if hasattr(event_date, 'date'):
+                        event_dt = event_date.date()
+                    elif isinstance(event_date, str):
+                        event_dt = datetime.strptime(event_date[:10], "%Y-%m-%d").date()
+                    else:
+                        event_dt = event_date
+                    days_until = (event_dt - now.date()).days
+
+                upcoming_hearings.append({
+                    "bill_id": h.get("bill_id", ""),
+                    "event_type": h.get("event_type", "hearing"),
+                    "event_date": str(event_date) if event_date else None,
+                    "days_until": days_until,
+                    "committee": h.get("committee", ""),
+                    "description": h.get("description", ""),
+                })
+            result["upcoming_hearings"] = upcoming_hearings
+    except Exception as e:
+        logger.error(f"Error fetching upcoming hearings: {e}")
+
+    # ── Governor's desk (enrolled bills awaiting signature) ──
+    try:
+        enrolled = storage.get_legislation(state=state, status="Enrolled", limit=20)
+        if not enrolled:
+            # Fallback: some data may use status_id instead of status text
+            all_bills = storage.get_legislation(state=state, limit=500)
+            enrolled = [b for b in all_bills if str(b.get("status_id")) == "5"][:20]
+        if enrolled:
+            governors_desk = []
+            for bill in enrolled:
+                governors_desk.append({
+                    "bill_id": bill.get("bill_id", ""),
+                    "bill_number": bill.get("bill_number", ""),
+                    "title": bill.get("bill_name", bill.get("title", "")),
+                    "status": bill.get("status", "Enrolled"),
+                    "last_action": bill.get("last_action", ""),
+                    "official_url": bill.get("official_url", ""),
+                })
+            result["governors_desk"] = governors_desk
+    except Exception as e:
+        logger.error(f"Error fetching governor's desk bills: {e}")
+
     # Clean up internal fields added during processing
     for b in bills:
         b.pop("_label", None)
