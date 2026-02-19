@@ -130,6 +130,11 @@ def add_legislative_parser(subparsers: argparse._SubParsersAction) -> None:
         action="store_true",
         help="Bulk ingest ALL bills from LegiScan master list (requires --cloud). Gets ~2,800 CA bills in 1 API call.",
     )
+    parser.add_argument(
+        "--enrich",
+        action="store_true",
+        help="Run leverage point enrichment after storing bills (requires --cloud and ANTHROPIC_API_KEY)",
+    )
 
 
 def run_legislative(args: argparse.Namespace) -> int:
@@ -153,10 +158,13 @@ def run_legislative(args: argparse.Namespace) -> int:
         if not args.cloud:
             logger.error("--bulk requires --cloud flag")
             return 1
-        return bulk_ingest_legislation(
+        result = bulk_ingest_legislation(
             state=args.state,
             dry_run=args.dry_run,
         )
+        if result == 0 and args.enrich and not args.dry_run:
+            result = _run_post_store_enrichment(args.state)
+        return result
 
     if args.schedule:
         run_scheduled(
@@ -183,7 +191,76 @@ def run_legislative(args: argparse.Namespace) -> int:
         if result is None and not args.dry_run:
             return 1
 
+        if args.enrich and args.cloud and not args.dry_run and result is not None:
+            _run_post_store_enrichment(args.state)
+
         return 0
+
+
+def _run_post_store_enrichment(state: str) -> int:
+    """Run leverage point enrichment on unenriched bills after store stage."""
+    try:
+        from civicos_extraction.cli.enrich_leverage_points import (
+            get_unenriched_bills, enrich_batch, get_leverage_stats
+        )
+    except ImportError:
+        logger.warning("enrich_leverage_points module not available — skipping enrichment")
+        return 0
+
+    if not os.getenv("ANTHROPIC_API_KEY"):
+        logger.warning("ANTHROPIC_API_KEY not set — skipping leverage point enrichment")
+        return 0
+
+    import time
+
+    state_map = {
+        "california": "CA",
+        "federal": "US",
+        "congress": "US",
+    }
+    state_code = state_map.get(state.lower(), state.upper())
+
+    logger.info("=" * 50)
+    logger.info("Stage 3.5: Leverage Point Enrichment")
+    logger.info("=" * 50)
+
+    bills = get_unenriched_bills(state_code)
+    if not bills:
+        logger.info("No bills need leverage point enrichment")
+        return 0
+
+    logger.info(f"Enriching {len(bills)} bills with leverage points...")
+
+    batch_size = 25
+    all_updates = []
+    total_enriched = 0
+
+    for i in range(0, len(bills), batch_size):
+        batch = bills[i:i + batch_size]
+        enriched = enrich_batch(batch)
+        for r in enriched:
+            all_updates.append(r)
+        total_enriched += len(enriched)
+
+        if len(all_updates) >= 500:
+            from civicos.storage.postgres_backend import PostgresBackend
+            backend = PostgresBackend(os.environ["DATABASE_URL"])
+            backend.update_legislation_leverage_points(state_code, all_updates)
+            all_updates = []
+
+        if i + batch_size < len(bills):
+            time.sleep(0.3)
+
+    if all_updates:
+        from civicos.storage.postgres_backend import PostgresBackend
+        backend = PostgresBackend(os.environ["DATABASE_URL"])
+        backend.update_legislation_leverage_points(state_code, all_updates)
+
+    stats = get_leverage_stats(state_code)
+    pct = (stats["enriched"] / stats["total"] * 100) if stats["total"] > 0 else 0
+    logger.info(f"Enriched {total_enriched} bills | Coverage: {stats['enriched']}/{stats['total']} ({pct:.1f}%)")
+
+    return 0
 
 
 def check_api_keys() -> Dict[str, bool]:

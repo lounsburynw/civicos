@@ -61,6 +61,10 @@ Usage:
     civic-extract classify-topics --state CA --dry-run
     civic-extract classify-topics --state CA --stats
 
+    civic-extract enrich-leverage --state CA
+    civic-extract enrich-leverage --state CA --dry-run
+    civic-extract enrich-leverage --state CA --stats
+
     civic-extract municipal-code --jurisdiction city-san-rafael
     civic-extract municipal-code --jurisdiction city-san-rafael --cloud
     civic-extract municipal-code --jurisdiction city-san-rafael --stats --cloud
@@ -101,6 +105,7 @@ from civicos_extraction.cli.audio import add_audio_parser, run_audio
 from civicos_extraction.cli.audit_cli import add_audit_parser, run_audit
 from civicos_extraction.cli.chunks import add_chunks_parser, run_chunks
 from civicos_extraction.cli.classify_topics import add_classify_topics_parser, run_classify_topics
+from civicos_extraction.cli.enrich_leverage_points import add_enrich_leverage_parser, run_enrich_leverage
 from civicos_extraction.cli.decisions import add_decisions_parser, run_decisions
 from civicos_extraction.cli.discover import add_discover_parser, run_discover
 from civicos_extraction.cli.issues import add_issues_parser, run_issues
@@ -144,6 +149,7 @@ def main() -> int:
     add_audit_parser(subparsers)
     add_chunks_parser(subparsers)
     add_classify_topics_parser(subparsers)
+    add_enrich_leverage_parser(subparsers)
     add_decisions_parser(subparsers)
     add_discover_parser(subparsers)
     add_issues_parser(subparsers)
@@ -178,6 +184,8 @@ def main() -> int:
         return run_chunks(args)
     elif args.command == "classify-topics":
         return run_classify_topics(args)
+    elif args.command == "enrich-leverage":
+        return run_enrich_leverage(args)
     elif args.command == "decisions":
         return run_decisions(args)
     elif args.command == "discover":

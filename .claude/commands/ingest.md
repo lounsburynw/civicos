@@ -129,6 +129,26 @@ civic-extract agenda --jurisdiction {jurisdiction}
 civic-extract decisions --jurisdiction {jurisdiction}
 ```
 
+## Legislation Pipeline
+
+```bash
+# Bulk ingest legislation from LegiScan with leverage point enrichment
+civic-extract legislative --state california --bulk --cloud --enrich
+
+# Or run enrichment separately (backfill existing bills)
+civic-extract enrich-leverage --state CA
+civic-extract enrich-leverage --state US
+
+# Check coverage
+civic-extract enrich-leverage --state CA --stats
+```
+
+Pipeline stages for legislation:
+1. **Discover/Ingest**: LegiScan API fetches bills
+2. **Store**: `store_legislation()` persists to PostgreSQL
+3. **Enrich** (Stage 3.5): AI generates leverage points for actionable bills
+4. **Index**: Vector embeddings for semantic search
+
 ## Issues Pipeline (SeeClickFix)
 
 ```bash

@@ -97,6 +97,23 @@ class LegislationStorage(Protocol):
         """
         ...
 
+    def update_legislation_leverage_points(
+        self,
+        state: str,
+        updates: List[Dict[str, Any]],
+    ) -> int:
+        """
+        Update leverage_point field for legislation bills.
+
+        Args:
+            state: State code (e.g., "CA", "US")
+            updates: List of dicts with 'bill_id' and 'leverage_point'
+
+        Returns:
+            Number of bills updated
+        """
+        ...
+
     # ========== Municipal Code Methods ==========
 
     def store_municipal_code(
