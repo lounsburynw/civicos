@@ -362,6 +362,52 @@ TOOL_DEFINITIONS: dict[str, ToolDefinition] = {
         },
     },
 
+    # ─────────── Participation Window Tools ───────────
+    "get_open_comment_periods": {
+        "description": "Get federal rules with open public comment periods, sorted by deadline. These are proposed rules (NPRMs) where citizens can submit feedback before the deadline. The most impactful federal participation mechanism.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "limit": {"type": "integer", "default": 10, "description": "Maximum results"},
+            },
+        },
+    },
+    "search_federal_rules": {
+        "description": "Search federal rulemaking documents (proposed rules, final rules, notices) by topic. Includes comment period deadlines and links.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "query": {"type": "string", "description": "Search topic or keyword (e.g., 'housing', 'environment', 'healthcare')"},
+                "document_type": {"type": "string", "description": "Filter: 'proposed_rule', 'final_rule', or 'notice'"},
+                "limit": {"type": "integer", "default": 10, "description": "Maximum results"},
+            },
+            "required": ["query"],
+        },
+    },
+    "get_upcoming_hearings": {
+        "description": "Get upcoming state legislative committee hearings. Shows bills with scheduled hearing dates where public testimony is possible.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "state": {"type": "string", "default": "CA", "description": "State code (default: CA)"},
+                "topic": {"type": "string", "description": "Filter by topic keyword"},
+                "days_ahead": {"type": "integer", "default": 30, "description": "Days to look ahead"},
+                "limit": {"type": "integer", "default": 20, "description": "Maximum results"},
+            },
+        },
+    },
+    "get_governors_desk": {
+        "description": "Get bills awaiting governor's signature (Enrolled status). These represent a 12-day action window where constituent calls to the governor's office can influence whether a bill is signed or vetoed.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "state": {"type": "string", "default": "CA", "description": "State code (default: CA)"},
+                "topic": {"type": "string", "description": "Filter by topic keyword"},
+                "limit": {"type": "integer", "default": 20, "description": "Maximum results"},
+            },
+        },
+    },
+
     # ─────────── Financial Tools ───────────
     "get_funding_flow": {
         "description": "Trace intergovernmental funding from federal to state to city budget",

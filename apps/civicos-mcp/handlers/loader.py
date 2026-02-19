@@ -31,11 +31,15 @@ FEDERAL_TOOLS = frozenset([
     "get_funding_flow",               # Federal funding traces (also shows state/city)
     "search_executive_orders",        # Search EOs by topic
     "get_recent_executive_orders",    # Recent EOs
+    "get_open_comment_periods",       # Federal rules with open comment periods
+    "search_federal_rules",           # Search federal rulemaking documents
 ])
 
 STATE_TOOLS = frozenset([
     # These tools query state-level datasets
     "get_intergovernmental_revenue",  # CA State Controller data
+    "get_upcoming_hearings",          # State legislative committee hearings
+    "get_governors_desk",             # Bills awaiting governor's signature
 ])
 
 # Legislation tools span state + federal levels

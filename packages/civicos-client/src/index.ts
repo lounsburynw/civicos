@@ -43,6 +43,9 @@ export type {
   TestimonySection,
   ContextMetadata,
   ToolResponse,
+  CommentPeriod,
+  LegislativeHearing,
+  GovernorsDeskBill,
 } from './types.js';
 
 // Civic events — kinds and construction helpers

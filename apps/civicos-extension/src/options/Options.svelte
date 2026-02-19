@@ -290,7 +290,7 @@
 
   async function redeemAttestation() {
     if (!attestationCode.trim()) {
-      setStatus('Enter an attestation code', 'error');
+      setStatus('Enter a verification code', 'error');
       return;
     }
     attestationVerifying = true;
@@ -308,12 +308,12 @@
           });
         }
         attestationCode = '';
-        setStatus('Attestation verified', 'success');
+        setStatus('Residency verified', 'success');
       } else {
-        setStatus((response as { error?: string }).error || 'Attestation failed', 'error');
+        setStatus((response as { error?: string }).error || 'Verification failed', 'error');
       }
     } catch (err) {
-      setStatus(err instanceof Error ? err.message : 'Attestation error', 'error');
+      setStatus(err instanceof Error ? err.message : 'Verification error', 'error');
     }
     attestationVerifying = false;
   }
@@ -361,14 +361,12 @@
   {#if loading}
     <div class="loading">Loading...</div>
   {:else if identity}
-    <!-- Current identity display -->
-    <section class="card">
-      <h2>Current Identity</h2>
+    <!-- Your Profile -->
+    <section class="card profile-section">
+      <h2>Your Profile</h2>
+
+      <h3 class="subsection-label">Identity</h3>
       <div class="info-grid">
-        <div class="info-row">
-          <span class="info-label">Tier</span>
-          <span class="tier-badge private">private</span>
-        </div>
         <div class="info-row">
           <span class="info-label">Status</span>
           <span class="lock-status" class:unlocked={identity.isUnlocked}>
@@ -412,9 +410,77 @@
             {unlocking ? 'Unlocking...' : 'Unlock'}
           </button>
         </form>
-
-        <button class="btn-danger" onclick={deleteIdentity}>Delete Identity</button>
       </div>
+
+      <hr class="subsection-divider" />
+
+      <h3 class="subsection-label">Jurisdiction</h3>
+      {#if availableServers.length > 0}
+        <div class="form-group">
+          <select id="jurisdiction-select" class="jurisdiction-select" bind:value={selectedJurisdiction}>
+            {#each availableServers as server (server.jurisdiction_id)}
+              <option value={server.jurisdiction_id}>
+                {server.display_name} ({server.level})
+              </option>
+            {/each}
+          </select>
+        </div>
+
+        {@const selectedServer = availableServers.find(s => s.jurisdiction_id === selectedJurisdiction)}
+        {#if selectedServer?.parent_jurisdictions?.length}
+          <div class="parent-info">
+            Also showing: {selectedServer.parent_jurisdictions
+              .map(pid => availableServers.find(s => s.jurisdiction_id === pid)?.display_name || pid)
+              .join(', ')}
+          </div>
+        {/if}
+
+        <button class="btn-primary" onclick={saveJurisdiction} disabled={jurisdictionSaving}>
+          {jurisdictionSaving ? 'Saving...' : 'Save Jurisdiction'}
+        </button>
+      {:else}
+        <div class="jurisdiction-loading">Loading available jurisdictions...</div>
+      {/if}
+
+      <hr class="subsection-divider" />
+
+      <h3 class="subsection-label">Residency</h3>
+      {#if attestationEvent}
+        {@const selectedServer = availableServers.find(s => s.jurisdiction_id === selectedJurisdiction)}
+        <div class="attested-badge">
+          <span class="attested-check">&#10003;</span>
+          Verified {selectedServer?.display_name || selectedJurisdiction} Resident
+          {#if attestationDate}
+            <span class="attested-date">{attestationDate}</span>
+          {/if}
+        </div>
+        {#if selectedServer?.parent_jurisdictions?.length}
+          <div class="residency-derived">
+            Also recognized as {selectedServer.parent_jurisdictions
+              .map(pid => availableServers.find(s => s.jurisdiction_id === pid)?.display_name || pid)
+              .join(' and ')} resident
+          </div>
+        {/if}
+      {:else if identity.isUnlocked}
+        <p class="section-desc">Enter a code received at a civic event.</p>
+        <form class="attestation-form" onsubmit={(e: Event) => { e.preventDefault(); redeemAttestation(); }}>
+          <input
+            type="text"
+            placeholder="SR-2026-02-XXXX"
+            bind:value={attestationCode}
+            autocomplete="off"
+          />
+          <button type="submit" class="btn-primary" disabled={attestationVerifying || !attestationCode.trim()}>
+            {attestationVerifying ? 'Verifying...' : 'Verify'}
+          </button>
+        </form>
+      {:else}
+        <p class="section-desc">Unlock your identity to verify your residency.</p>
+      {/if}
+
+      <hr class="subsection-divider" />
+
+      <button class="btn-danger" onclick={deleteIdentity}>Delete Identity</button>
     </section>
   {:else}
     <!-- Create new identity -->
@@ -462,40 +528,10 @@
     </section>
   {/if}
 
-  <!-- Attestation Section -->
-  {#if identity}
-    <section class="card attestation-section">
-      <h2>Attestation</h2>
-      {#if attestationEvent}
-        <div class="attested-badge">
-          <span class="attested-check">&#10003;</span>
-          Attested for {availableServers.find(s => s.jurisdiction_id === selectedJurisdiction)?.display_name || selectedJurisdiction}
-          {#if attestationDate}
-            <span class="attested-date">{attestationDate}</span>
-          {/if}
-        </div>
-      {:else if identity.isUnlocked}
-        <p class="section-desc">Enter a code received at a civic event to verify your physical presence.</p>
-        <form class="attestation-form" onsubmit={(e: Event) => { e.preventDefault(); redeemAttestation(); }}>
-          <input
-            type="text"
-            placeholder="SR-2026-02-XXXX"
-            bind:value={attestationCode}
-            autocomplete="off"
-          />
-          <button type="submit" class="btn-primary" disabled={attestationVerifying || !attestationCode.trim()}>
-            {attestationVerifying ? 'Verifying...' : 'Verify Code'}
-          </button>
-        </form>
-      {:else}
-        <p class="section-desc">Unlock your identity to enter an attestation code.</p>
-      {/if}
-    </section>
-  {/if}
-
-  <!-- AI Provider Configuration -->
-  <section class="card ai-section">
-    <h2>AI Drafting Provider</h2>
+  <!-- Preferences -->
+  <section class="card preferences-section">
+    <h2>Preferences</h2>
+    <h3 class="subsection-label">AI Drafting Provider</h3>
     <p class="section-desc">Choose an AI provider for comment drafting.</p>
 
     <div class="form-group">
@@ -569,39 +605,6 @@
     {/if}
   </section>
 
-  <!-- Jurisdiction Selection -->
-  <section class="card jurisdiction-section">
-    <h2>Jurisdiction</h2>
-    <p class="section-desc">Select your city or region for civic data.</p>
-
-    {#if availableServers.length > 0}
-      <div class="form-group">
-        <label for="jurisdiction-select">Active Jurisdiction</label>
-        <select id="jurisdiction-select" class="jurisdiction-select" bind:value={selectedJurisdiction}>
-          {#each availableServers as server (server.jurisdiction_id)}
-            <option value={server.jurisdiction_id}>
-              {server.display_name} ({server.level})
-            </option>
-          {/each}
-        </select>
-      </div>
-
-      {@const selectedServer = availableServers.find(s => s.jurisdiction_id === selectedJurisdiction)}
-      {#if selectedServer?.parent_jurisdictions?.length}
-        <div class="parent-info">
-          Also showing: {selectedServer.parent_jurisdictions
-            .map(pid => availableServers.find(s => s.jurisdiction_id === pid)?.display_name || pid)
-            .join(', ')}
-        </div>
-      {/if}
-
-      <button class="btn-primary" onclick={saveJurisdiction} disabled={jurisdictionSaving}>
-        {jurisdictionSaving ? 'Saving...' : 'Save Jurisdiction'}
-      </button>
-    {:else}
-      <div class="jurisdiction-loading">Loading available jurisdictions...</div>
-    {/if}
-  </section>
 </div>
 
 <style>
@@ -673,17 +676,6 @@
     text-transform: uppercase;
     font-weight: 500;
   }
-
-  .tier-badge {
-    font-size: 11px;
-    font-weight: 600;
-    text-transform: uppercase;
-    padding: 2px 8px;
-    border-radius: 4px;
-    background: #374151;
-    color: #9ca3af;
-  }
-  .tier-badge.private { background: #3b1f4b; color: #c084fc; }
 
   .lock-status {
     font-size: 12px;
@@ -834,9 +826,27 @@
     border-top: 1px solid #334155;
   }
 
-  /* Attestation Section */
-  .attestation-section {
-    margin-top: 24px;
+  /* Subsection styles */
+  .subsection-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #64748b;
+    margin: 0 0 12px 0;
+  }
+
+  .subsection-divider {
+    border: none;
+    border-top: 1px solid #334155;
+    margin: 20px 0;
+  }
+
+  .residency-derived {
+    font-size: 12px;
+    color: #64748b;
+    margin-top: 8px;
+    padding-left: 26px;
   }
 
   .attested-badge {
@@ -877,8 +887,8 @@
     flex-shrink: 0;
   }
 
-  /* AI Provider Section */
-  .ai-section {
+  /* Preferences Section */
+  .preferences-section {
     margin-top: 24px;
   }
 
@@ -966,11 +976,6 @@
     padding: 6px;
     background: rgba(34, 197, 94, 0.08);
     border-radius: 6px;
-  }
-
-  /* Jurisdiction Section */
-  .jurisdiction-section {
-    margin-top: 24px;
   }
 
   .jurisdiction-select {

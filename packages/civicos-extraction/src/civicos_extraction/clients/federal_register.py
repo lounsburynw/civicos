@@ -251,6 +251,208 @@ class FederalRegisterClient:
 
         return self._normalize_executive_order(response)
 
+    def get_proposed_rules(
+        self,
+        since_date: Optional[str] = None,
+        agency_ids: Optional[List[str]] = None,
+        per_page: int = 100,
+        max_pages: int = 10,
+    ) -> List[Dict[str, Any]]:
+        """
+        Fetch proposed rules (NPRMs) with open comment periods.
+
+        These are the primary federal participation mechanism — proposed rules
+        have mandatory public comment periods where citizens can submit feedback.
+
+        Args:
+            since_date: ISO date string (YYYY-MM-DD) for incremental fetch
+            agency_ids: Optional list of agency slugs to filter (e.g., ["HUD", "EPA"])
+            per_page: Results per page (max 1000)
+            max_pages: Maximum pages to fetch
+
+        Returns:
+            List of rule dictionaries normalized for storage in federal_rules table
+        """
+        return self._fetch_rules(
+            document_type="PRORULE",
+            since_date=since_date,
+            agency_ids=agency_ids,
+            per_page=per_page,
+            max_pages=max_pages,
+        )
+
+    def get_final_rules(
+        self,
+        since_date: Optional[str] = None,
+        agency_ids: Optional[List[str]] = None,
+        per_page: int = 100,
+        max_pages: int = 10,
+    ) -> List[Dict[str, Any]]:
+        """
+        Fetch final rules published in the Federal Register.
+
+        Args:
+            since_date: ISO date string (YYYY-MM-DD) for incremental fetch
+            agency_ids: Optional list of agency slugs to filter
+            per_page: Results per page (max 1000)
+            max_pages: Maximum pages to fetch
+
+        Returns:
+            List of rule dictionaries normalized for storage
+        """
+        return self._fetch_rules(
+            document_type="RULE",
+            since_date=since_date,
+            agency_ids=agency_ids,
+            per_page=per_page,
+            max_pages=max_pages,
+        )
+
+    def get_notices(
+        self,
+        since_date: Optional[str] = None,
+        agency_ids: Optional[List[str]] = None,
+        per_page: int = 100,
+        max_pages: int = 10,
+    ) -> List[Dict[str, Any]]:
+        """
+        Fetch notices from the Federal Register.
+
+        Args:
+            since_date: ISO date string (YYYY-MM-DD) for incremental fetch
+            agency_ids: Optional list of agency slugs to filter
+            per_page: Results per page (max 1000)
+            max_pages: Maximum pages to fetch
+
+        Returns:
+            List of notice dictionaries normalized for storage
+        """
+        return self._fetch_rules(
+            document_type="NOTICE",
+            since_date=since_date,
+            agency_ids=agency_ids,
+            per_page=per_page,
+            max_pages=max_pages,
+        )
+
+    def _fetch_rules(
+        self,
+        document_type: str,
+        since_date: Optional[str] = None,
+        agency_ids: Optional[List[str]] = None,
+        per_page: int = 100,
+        max_pages: int = 10,
+    ) -> List[Dict[str, Any]]:
+        """
+        Internal method to fetch rulemaking documents from Federal Register.
+
+        Args:
+            document_type: "PRORULE" (proposed), "RULE" (final), or "NOTICE"
+            since_date: ISO date string for incremental fetch
+            agency_ids: Optional agency slug filter
+            per_page: Results per page
+            max_pages: Max pages to fetch
+
+        Returns:
+            List of normalized rule dictionaries
+        """
+        all_rules = []
+        page = 1
+
+        base_params = {
+            "conditions[type]": document_type,
+            "per_page": min(per_page, 1000),
+            "order": "newest",
+            "fields[]": [
+                "document_number",
+                "title",
+                "abstract",
+                "agencies",
+                "agency_names",
+                "publication_date",
+                "comment_url",
+                "comments_close_on",
+                "regulation_id_numbers",
+                "docket_ids",
+                "pdf_url",
+                "html_url",
+                "type",
+                "subtype",
+                "topics",
+            ],
+        }
+
+        if since_date:
+            base_params["conditions[publication_date][gte]"] = since_date
+
+        if agency_ids:
+            for i, agency in enumerate(agency_ids):
+                base_params[f"conditions[agencies][]"] = agency
+
+        while page <= max_pages:
+            params = {**base_params, "page": page}
+            response = self._make_request("documents", params)
+
+            if not response:
+                print(f"Failed to fetch page {page}, stopping")
+                break
+
+            results = response.get("results", [])
+            if not results:
+                break
+
+            for raw_rule in results:
+                normalized = self._normalize_rule(raw_rule, document_type)
+                if normalized:
+                    all_rules.append(normalized)
+
+            total_pages = response.get("total_pages", 1)
+            if page >= total_pages:
+                break
+
+            page += 1
+
+        return all_rules
+
+    def _normalize_rule(self, raw: Dict, document_type: str) -> Optional[Dict[str, Any]]:
+        """
+        Normalize a Federal Register rulemaking document.
+
+        Maps Federal Register schema -> federal_rules table schema.
+        """
+        document_number = raw.get("document_number")
+        if not document_number:
+            return None
+
+        # Map FR document type to our internal type
+        type_map = {
+            "PRORULE": "proposed_rule",
+            "RULE": "final_rule",
+            "NOTICE": "notice",
+        }
+
+        # Extract agency names
+        agency_names = raw.get("agency_names", [])
+        if not agency_names:
+            agencies = raw.get("agencies", [])
+            agency_names = [a.get("name", "") for a in agencies if isinstance(a, dict)]
+
+        return {
+            "document_number": document_number,
+            "title": raw.get("title", ""),
+            "abstract": raw.get("abstract"),
+            "agency_names": agency_names,
+            "publication_date": raw.get("publication_date"),
+            "comments_close_on": raw.get("comments_close_on"),
+            "comment_url": raw.get("comment_url"),
+            "html_url": raw.get("html_url"),
+            "pdf_url": raw.get("pdf_url"),
+            "regulation_id_numbers": raw.get("regulation_id_numbers", []),
+            "docket_ids": raw.get("docket_ids", []),
+            "document_type": type_map.get(document_type, document_type.lower()),
+            "topics": raw.get("topics", []),
+        }
+
     def get_current_president_eos(
         self,
         president_name: str = None,
@@ -325,6 +527,16 @@ if __name__ == "__main__":
     print("\n\nTesting incremental fetch (last 7 days)...")
     recent = get_recent_executive_orders(days_back=7)
     print(f"Found {len(recent)} EOs in last 7 days")
+
+    # Test 3: Proposed rules with comment periods
+    print("\n\nFetching proposed rules with comment periods...")
+    rules = client.get_proposed_rules(per_page=5, max_pages=1)
+    print(f"Found {len(rules)} proposed rules")
+    for rule in rules[:3]:
+        print(f"\n  Title: {rule['title'][:80]}...")
+        print(f"  Agency: {', '.join(rule.get('agency_names', []))}")
+        print(f"  Comments close: {rule.get('comments_close_on', 'N/A')}")
+        print(f"  Comment URL: {rule.get('comment_url', 'N/A')}")
 
     print("\n" + "=" * 50)
     print("Federal Register client test complete!")
