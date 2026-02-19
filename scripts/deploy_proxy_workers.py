@@ -2,10 +2,8 @@
 """Deploy Cloudflare proxy workers for jurisdiction domains.
 
 Routes:
-  /mcp or /mcp/  → MCP origin (forwarded as /mcp/)
-  /mcp/*          → MCP origin (strip /mcp prefix)
   /relay/*        → Relay origin (strip /relay prefix)
-  everything else → 404
+  everything else → MCP origin (handles /mcp, /api/tools/*, /health, /openapi.json)
 
 Usage:
   python3 scripts/deploy_proxy_workers.py             # Deploy all 3
@@ -63,20 +61,14 @@ def generate_worker_js(mcp_origin: str, relay_origin: str) -> str:
 
     let modalBase, pathname;
 
-    if (url.pathname === "/mcp" || url.pathname === "/mcp/") {{
-      // MCP protocol endpoint — forward as /mcp/
-      modalBase = "{mcp_origin}";
-      pathname = "/mcp/";
-    }} else if (url.pathname.startsWith("/mcp/")) {{
-      // MCP sub-paths — strip /mcp prefix
-      modalBase = "{mcp_origin}";
-      pathname = url.pathname.slice("/mcp".length) || "/";
-    }} else if (url.pathname.startsWith("/relay")) {{
+    if (url.pathname.startsWith("/relay")) {{
       // Relay — strip /relay prefix
       modalBase = "{relay_origin}";
       pathname = url.pathname.slice("/relay".length) || "/";
     }} else {{
-      return new Response("Not Found", {{ status: 404 }});
+      // Everything else → MCP origin (handles /mcp, /api/tools/*, /health, /openapi.json)
+      modalBase = "{mcp_origin}";
+      pathname = url.pathname;
     }}
 
     const modalUrl = modalBase + pathname + url.search;
