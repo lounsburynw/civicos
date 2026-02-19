@@ -155,6 +155,63 @@
   const hasCommentPeriods = $derived((data.comment_periods ?? []).length > 0);
   const hasHearings = $derived((data.upcoming_hearings ?? []).length > 0);
   const hasGovernorsDesk = $derived((data.governors_desk ?? []).length > 0);
+  const hasFocalPoints = $derived(hasCommentPeriods || hasHearings || hasGovernorsDesk);
+
+  // --- Focal Point Context Composers (Drag-to-AI) ---
+
+  function composeCommentPeriodContext(period: { document_number: string; title: string; abstract?: string; agency_names: string[]; comments_close_on: string; comment_url?: string; html_url?: string; days_remaining: number }): string {
+    const today = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    const lines = [
+      `--- CivicOS Context: Federal Comment Period ---`,
+      `Source: CivicOS (federal rulemaking) | ${today}`,
+      '',
+      `**${period.title}**`,
+      `Agency: ${period.agency_names.join(', ')}`,
+      `Comment deadline: ${period.comments_close_on} (${period.days_remaining} days remaining)`,
+    ];
+    if (period.abstract) lines.push('', period.abstract);
+    if (period.comment_url) lines.push('', `Submit comment: ${period.comment_url}`);
+    if (period.html_url) lines.push('', `Read full rule: ${period.html_url}`);
+    lines.push('', '--- End Context ---');
+    lines.push('', 'Suggested question: Help me draft a public comment on this proposed rule. What are the key issues to address?');
+    return lines.join('\n');
+  }
+
+  function composeHearingContext(hearing: { bill_id: string; bill_number?: string; bill_name?: string; event_date: string; committee?: string; location?: string; description?: string; days_until: number }): string {
+    const today = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    const label = hearing.bill_number || hearing.bill_id;
+    const lines = [
+      `--- CivicOS Context: Legislative Hearing ---`,
+      `Source: CivicOS (state legislature) | ${today}`,
+      '',
+      `**${label}**`,
+    ];
+    if (hearing.bill_name) lines.push(hearing.bill_name);
+    lines.push(`Hearing date: ${hearing.event_date} (${hearing.days_until === 0 ? 'Today' : hearing.days_until === 1 ? 'Tomorrow' : `in ${hearing.days_until} days`})`);
+    if (hearing.committee) lines.push(`Committee: ${hearing.committee}`);
+    if (hearing.location) lines.push(`Location: ${hearing.location}`);
+    if (hearing.description) lines.push('', hearing.description);
+    lines.push('', '--- End Context ---');
+    lines.push('', 'Suggested question: What should I know about this bill and hearing? How can I participate?');
+    return lines.join('\n');
+  }
+
+  function composeGovernorsDeskContext(bill: { bill_id: string; bill_number?: string; bill_name?: string; summary?: string; enrolled_date?: string }): string {
+    const today = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    const label = bill.bill_number || bill.bill_id;
+    const lines = [
+      `--- CivicOS Context: Governor's Desk ---`,
+      `Source: CivicOS (state legislature) | ${today}`,
+      '',
+      `**${label}** — Awaiting Governor's Signature`,
+    ];
+    if (bill.bill_name) lines.push(bill.bill_name);
+    if (bill.enrolled_date) lines.push(`Enrolled: ${bill.enrolled_date}`);
+    if (bill.summary) lines.push('', bill.summary);
+    lines.push('', '--- End Context ---');
+    lines.push('', "Suggested question: What does this bill do? Should the governor sign it? Help me draft a message to the governor's office.");
+    return lines.join('\n');
+  }
 
   function urgencyClass(days: number): string {
     if (days <= 0) return 'urgent-closed';
@@ -176,6 +233,140 @@
     expanded[section] = !expanded[section];
   }
 </script>
+
+<!-- Focal Points: Time-sensitive participation opportunities (shown first) -->
+{#if hasFocalPoints}
+  <div class="focal-points-group">
+    <div class="focal-points-label">Take Action</div>
+
+    <!-- Comment Periods (Federal) -->
+    {#if hasCommentPeriods}
+      <section class="feed-section">
+        <button class="section-header" onclick={() => toggle('commentPeriods')}>
+          <span class="section-title">
+            Comment Periods
+            <span class="count-badge focal-badge">{data.comment_periods!.length}</span>
+          </span>
+          <span class="chevron" class:open={expanded.commentPeriods}></span>
+        </button>
+        {#if expanded.commentPeriods}
+          <div class="section-body">
+            {#each data.comment_periods! as period}
+              <div class="card focal-card" class:dragging={draggingId === period.document_number}
+                   draggable="true"
+                   ondragstart={(e: DragEvent) => handleDragStart(e, composeCommentPeriodContext(period), period.document_number)}
+                   ondragend={handleDragEnd}>
+                <div class="card-title">{period.title}</div>
+                <div class="card-meta">
+                  <span>{period.agency_names.join(', ')}</span>
+                  <span class="deadline-tag {urgencyClass(period.days_remaining)}">
+                    {#if period.days_remaining <= 0}
+                      Closed
+                    {:else if period.days_remaining === 1}
+                      1 day left
+                    {:else}
+                      {period.days_remaining} days left
+                    {/if}
+                  </span>
+                </div>
+                {#if period.abstract}
+                  <div class="card-summary">{period.abstract}</div>
+                {/if}
+                <div class="card-actions">
+                  {#if period.comment_url}
+                    <a href={period.comment_url} target="_blank" rel="noopener" class="action-link comment-link">Submit Comment</a>
+                  {/if}
+                  {#if period.html_url}
+                    <a href={period.html_url} target="_blank" rel="noopener" class="action-link">Read Rule</a>
+                  {/if}
+                </div>
+              </div>
+            {/each}
+          </div>
+        {/if}
+      </section>
+    {/if}
+
+    <!-- Upcoming Hearings (State) -->
+    {#if hasHearings}
+      <section class="feed-section">
+        <button class="section-header" onclick={() => toggle('hearings')}>
+          <span class="section-title">
+            Upcoming Hearings
+            <span class="count-badge focal-badge">{data.upcoming_hearings!.length}</span>
+          </span>
+          <span class="chevron" class:open={expanded.hearings}></span>
+        </button>
+        {#if expanded.hearings}
+          <div class="section-body">
+            {#each data.upcoming_hearings! as hearing}
+              <div class="card focal-card" class:dragging={draggingId === hearing.bill_id}
+                   draggable="true"
+                   ondragstart={(e: DragEvent) => handleDragStart(e, composeHearingContext(hearing), hearing.bill_id)}
+                   ondragend={handleDragEnd}>
+                <div class="card-title">{hearing.bill_number || hearing.bill_id}</div>
+                {#if hearing.bill_name}
+                  <div class="card-subtitle">{hearing.bill_name}</div>
+                {/if}
+                <div class="card-meta">
+                  <span class="meta-date">{hearing.event_date}</span>
+                  <span class="deadline-tag {urgencyClass(hearing.days_until)}">
+                    {#if hearing.days_until === 0}
+                      Today
+                    {:else if hearing.days_until === 1}
+                      Tomorrow
+                    {:else}
+                      In {hearing.days_until} days
+                    {/if}
+                  </span>
+                  {#if hearing.committee}
+                    <span>{hearing.committee}</span>
+                  {/if}
+                </div>
+                {#if hearing.description}
+                  <div class="card-summary">{hearing.description}</div>
+                {/if}
+              </div>
+            {/each}
+          </div>
+        {/if}
+      </section>
+    {/if}
+
+    <!-- Governor's Desk (State) -->
+    {#if hasGovernorsDesk}
+      <section class="feed-section">
+        <button class="section-header" onclick={() => toggle('governorsDesk')}>
+          <span class="section-title">
+            Governor's Desk
+            <span class="count-badge action-badge">{data.governors_desk!.length}</span>
+          </span>
+          <span class="chevron" class:open={expanded.governorsDesk}></span>
+        </button>
+        {#if expanded.governorsDesk}
+          <div class="section-body">
+            <div class="section-hint">Bills awaiting governor's signature — call now to influence the outcome</div>
+            {#each data.governors_desk! as bill}
+              <div class="card focal-card" class:dragging={draggingId === bill.bill_id}
+                   draggable="true"
+                   ondragstart={(e: DragEvent) => handleDragStart(e, composeGovernorsDeskContext(bill), bill.bill_id)}
+                   ondragend={handleDragEnd}>
+                <div class="card-title">{bill.bill_number || bill.bill_id}</div>
+                {#if bill.bill_name}
+                  <div class="card-subtitle">{bill.bill_name}</div>
+                {/if}
+                {#if bill.summary}
+                  <div class="card-summary">{bill.summary}</div>
+                {/if}
+                <div class="card-leverage">Call the Governor's office to express support or opposition</div>
+              </div>
+            {/each}
+          </div>
+        {/if}
+      </section>
+    {/if}
+  </div>
+{/if}
 
 <!-- Meetings / Hearings -->
 <section class="feed-section">
@@ -343,124 +534,6 @@
     </div>
   {/if}
 </section>
-
-<!-- Comment Periods (Federal) -->
-{#if hasCommentPeriods}
-  <section class="feed-section">
-    <button class="section-header" onclick={() => toggle('commentPeriods')}>
-      <span class="section-title">
-        Comment Periods
-        <span class="count-badge">{data.comment_periods!.length}</span>
-      </span>
-      <span class="chevron" class:open={expanded.commentPeriods}></span>
-    </button>
-    {#if expanded.commentPeriods}
-      <div class="section-body">
-        {#each data.comment_periods! as period}
-          <div class="card">
-            <div class="card-title">{period.title}</div>
-            <div class="card-meta">
-              <span>{period.agency_names.join(', ')}</span>
-              <span class="deadline-tag {urgencyClass(period.days_remaining)}">
-                {#if period.days_remaining <= 0}
-                  Closed
-                {:else if period.days_remaining === 1}
-                  1 day left
-                {:else}
-                  {period.days_remaining} days left
-                {/if}
-              </span>
-            </div>
-            {#if period.abstract}
-              <div class="card-summary">{period.abstract}</div>
-            {/if}
-            <div class="card-actions">
-              {#if period.comment_url}
-                <a href={period.comment_url} target="_blank" rel="noopener" class="action-link comment-link">Submit Comment</a>
-              {/if}
-              {#if period.html_url}
-                <a href={period.html_url} target="_blank" rel="noopener" class="action-link">Read Rule</a>
-              {/if}
-            </div>
-          </div>
-        {/each}
-      </div>
-    {/if}
-  </section>
-{/if}
-
-<!-- Upcoming Hearings (State) -->
-{#if hasHearings}
-  <section class="feed-section">
-    <button class="section-header" onclick={() => toggle('hearings')}>
-      <span class="section-title">
-        Upcoming Hearings
-        <span class="count-badge">{data.upcoming_hearings!.length}</span>
-      </span>
-      <span class="chevron" class:open={expanded.hearings}></span>
-    </button>
-    {#if expanded.hearings}
-      <div class="section-body">
-        {#each data.upcoming_hearings! as hearing}
-          <div class="card">
-            <div class="card-title">{hearing.bill_number || hearing.bill_id}</div>
-            {#if hearing.bill_name}
-              <div class="card-subtitle">{hearing.bill_name}</div>
-            {/if}
-            <div class="card-meta">
-              <span class="meta-date">{hearing.event_date}</span>
-              <span class="deadline-tag {urgencyClass(hearing.days_until)}">
-                {#if hearing.days_until === 0}
-                  Today
-                {:else if hearing.days_until === 1}
-                  Tomorrow
-                {:else}
-                  In {hearing.days_until} days
-                {/if}
-              </span>
-              {#if hearing.committee}
-                <span>{hearing.committee}</span>
-              {/if}
-            </div>
-            {#if hearing.description}
-              <div class="card-summary">{hearing.description}</div>
-            {/if}
-          </div>
-        {/each}
-      </div>
-    {/if}
-  </section>
-{/if}
-
-<!-- Governor's Desk (State) -->
-{#if hasGovernorsDesk}
-  <section class="feed-section">
-    <button class="section-header" onclick={() => toggle('governorsDesk')}>
-      <span class="section-title">
-        Governor's Desk
-        <span class="count-badge action-badge">{data.governors_desk!.length}</span>
-      </span>
-      <span class="chevron" class:open={expanded.governorsDesk}></span>
-    </button>
-    {#if expanded.governorsDesk}
-      <div class="section-body">
-        <div class="section-hint">Bills awaiting governor's signature — call now to influence the outcome</div>
-        {#each data.governors_desk! as bill}
-          <div class="card">
-            <div class="card-title">{bill.bill_number || bill.bill_id}</div>
-            {#if bill.bill_name}
-              <div class="card-subtitle">{bill.bill_name}</div>
-            {/if}
-            {#if bill.summary}
-              <div class="card-summary">{bill.summary}</div>
-            {/if}
-            <div class="card-leverage">Call the Governor's office to express support or opposition</div>
-          </div>
-        {/each}
-      </div>
-    {/if}
-  </section>
-{/if}
 
 {#if children}
   {@render children()}
@@ -717,6 +790,30 @@
   .action-badge {
     background: rgba(245, 158, 11, 0.15) !important;
     color: #fbbf24 !important;
+  }
+  .focal-points-group {
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #374151;
+  }
+  .focal-points-label {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #f59e0b;
+    padding: 4px 4px 2px;
+  }
+  .focal-badge {
+    background: rgba(245, 158, 11, 0.15) !important;
+    color: #fbbf24 !important;
+  }
+  .focal-card {
+    border-color: rgba(245, 158, 11, 0.2);
+  }
+  .focal-card:hover {
+    border-color: #f59e0b;
+    box-shadow: 0 2px 8px rgba(245, 158, 11, 0.1);
   }
   .section-hint {
     font-size: 11px;
