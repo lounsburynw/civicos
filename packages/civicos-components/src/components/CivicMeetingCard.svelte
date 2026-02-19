@@ -12,9 +12,13 @@
   let {
     meeting,
     showCalendar = true,
+    jurisdiction = '',
+    agendaItems = [] as string[],
   }: {
     meeting: Meeting;
     showCalendar?: boolean;
+    jurisdiction?: string;
+    agendaItems?: string[];
   } = $props();
 
   let calendarOpen = $state(false);
@@ -26,13 +30,25 @@
   }
 
   function composeMeetingContext(): string {
+    const today = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    const source = jurisdiction || 'my city';
     const lines = [
+      `--- CivicOS Context: Meeting ---`,
+      `Source: CivicOS (${source}) | ${today}`,
+      '',
       `**${meeting.title}**`,
       `Date: ${meeting.date}`,
     ];
     if (meeting.time) lines.push(`Time: ${meeting.time}`);
     if (meeting.location) lines.push(`Location: ${meeting.location}`);
-    lines.push('', 'What should I know about this meeting? What topics are likely on the agenda?');
+    if (agendaItems.length > 0) {
+      lines.push('', `Known agenda items (${agendaItems.length}):`);
+      for (const title of agendaItems) {
+        lines.push(`- ${title}`);
+      }
+    }
+    lines.push('', '--- End Context ---');
+    lines.push('', 'Suggested question: What should I know about this meeting? What topics are likely on the agenda?');
     return lines.join('\n');
   }
 

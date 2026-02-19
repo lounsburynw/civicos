@@ -198,8 +198,11 @@
 
   function composeInitiativeContext(initiative: Initiative): string {
     const actions = initiativeActions.get(initiative.id) ?? [];
+    const today = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    const source = jurisdiction || 'my city';
     const lines = [
-      `I'd like to understand this community initiative from ${jurisdiction || 'my city'}:`,
+      `--- CivicOS Context: Community Initiative ---`,
+      `Source: CivicOS (${source}) | ${today}`,
       '',
       `**${initiative.title}**`,
       `Topic: ${initiative.topic}`,
@@ -222,7 +225,8 @@
     if (initiative.coordination_url) {
       lines.push('', `Coordination: ${initiative.coordination_url}`);
     }
-    lines.push('', 'What advice would you give to someone wanting to support this initiative? What are the most effective actions they could take?');
+    lines.push('', '--- End Context ---');
+    lines.push('', 'Suggested question: What advice would you give to someone wanting to support this initiative? What are the most effective actions they could take?');
     return lines.join('\n');
   }
 
