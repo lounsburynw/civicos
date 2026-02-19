@@ -188,6 +188,56 @@
   const DEFAULT_ACTION_CONFIG = ACTION_TYPE_CONFIG.custom;
   const DRAFTABLE_TYPES = new Set(['written_comment', 'public_comment', 'contact_official']);
 
+  // --- Drag-to-AI ---
+
+  function escapeHtml(text: string): string {
+    return text.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+  }
+
+  let draggingId = $state<string | null>(null);
+
+  function composeInitiativeContext(initiative: Initiative): string {
+    const actions = initiativeActions.get(initiative.id) ?? [];
+    const lines = [
+      `I'd like to understand this community initiative from ${jurisdiction || 'my city'}:`,
+      '',
+      `**${initiative.title}**`,
+      `Topic: ${initiative.topic}`,
+      `Supporters: ${initiative.voice_count}`,
+    ];
+    if (initiative.attested_voice_count) {
+      lines.push(`Verified supporters: ${initiative.attested_voice_count}`);
+    }
+    lines.push('', initiative.description);
+    if (actions.length > 0) {
+      lines.push('', `### Actions (${actions.length})`);
+      for (const a of actions) {
+        const progress = actionProgress.get(a.id);
+        let line = `- **${actionTypeLabel(a.action_type)}**: ${a.description}`;
+        if (a.deadline) line += ` (deadline: ${a.deadline})`;
+        if (progress) line += ` — ${progress.commitment_count} committed, ${progress.completion_count} completed`;
+        lines.push(line);
+      }
+    }
+    if (initiative.coordination_url) {
+      lines.push('', `Coordination: ${initiative.coordination_url}`);
+    }
+    lines.push('', 'What advice would you give to someone wanting to support this initiative? What are the most effective actions they could take?');
+    return lines.join('\n');
+  }
+
+  function handleDragStart(e: DragEvent, initiative: Initiative) {
+    const markdown = composeInitiativeContext(initiative);
+    e.dataTransfer!.effectAllowed = 'all';
+    e.dataTransfer!.setData('text/html', '<pre>' + escapeHtml(markdown) + '</pre>');
+    e.dataTransfer!.setData('text/plain', markdown);
+    draggingId = initiative.id;
+  }
+
+  function handleDragEnd() {
+    draggingId = null;
+  }
+
   // --- Initiative Loading ---
 
   async function loadInitiatives() {
@@ -676,7 +726,11 @@
         </div>
       {:else}
         {#each initiatives as initiative}
-          <div class="ini-card" class:ini-card-expanded={expandedInitiatives.has(initiative.id)}>
+          <div class="ini-card" class:ini-card-expanded={expandedInitiatives.has(initiative.id)}
+               class:dragging={draggingId === initiative.id}
+               draggable="true"
+               ondragstart={(e: DragEvent) => handleDragStart(e, initiative)}
+               ondragend={handleDragEnd}>
             <CivicInitiativeCard
               {initiative}
               expanded={expandedInitiatives.has(initiative.id)}
@@ -933,9 +987,12 @@
     padding: 12px 14px;
     margin-bottom: 6px;
     border: 1px solid #374151;
-    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
+    cursor: grab;
   }
   .ini-card:hover { border-color: #3b82f6; box-shadow: 0 2px 8px rgba(59, 130, 246, 0.1); }
+  .ini-card:active { cursor: grabbing; }
+  .ini-card.dragging { opacity: 0.4; border-color: #3b82f6; }
   .ini-card-expanded { border-color: #3b82f6; }
 
   .ini-empty {

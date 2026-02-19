@@ -58,6 +58,65 @@
   const emptyItems = $derived(isLegislative ? 'No actionable legislation' : 'No upcoming agenda items');
   const emptyOutcomes = $derived(isLegislative ? 'No tracked bills' : 'No recent outcomes');
 
+  // --- Drag-to-AI ---
+
+  function escapeHtml(text: string): string {
+    return text.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+  }
+
+  let draggingId = $state<string | null>(null);
+
+  function composeLegislationContext(item: { id?: string; title: string; meeting_title?: string; status?: string; summary?: string; description?: string; official_url?: string }): string {
+    const lines = [
+      `I'd like to understand this legislation:`,
+      '',
+      `**${item.title}**`,
+    ];
+    if (item.meeting_title) lines.push(`Committee: ${item.meeting_title}`);
+    if (item.status) lines.push(`Status: ${item.status}`);
+    if (item.summary) lines.push('', item.summary);
+    if (item.description) lines.push('', `Why it matters: ${item.description}`);
+    if (item.official_url) lines.push('', `Official text: ${item.official_url}`);
+    lines.push('', 'What are the key implications? Who does this affect and how?');
+    return lines.join('\n');
+  }
+
+  function composeOutcomeContext(outcome: { id?: string; title: string; date: string; outcome: string; summary?: string; official_url?: string }): string {
+    const lines = [
+      `I'd like to understand this legislative outcome:`,
+      '',
+      `**${outcome.title}**`,
+      `Outcome: ${outcome.outcome.replace(/_/g, ' ')}`,
+      `Date: ${outcome.date}`,
+    ];
+    if (outcome.summary) lines.push('', outcome.summary);
+    if (outcome.official_url) lines.push('', `Official text: ${outcome.official_url}`);
+    lines.push('', 'What does this mean going forward? What are the implications?');
+    return lines.join('\n');
+  }
+
+  function composeMeetingContext(meeting: { title: string; date: string; time: string; location: string }): string {
+    const lines = [
+      `**${meeting.title}**`,
+      `Date: ${meeting.date}`,
+    ];
+    if (meeting.time) lines.push(`Time: ${meeting.time}`);
+    if (meeting.location) lines.push(`Location: ${meeting.location}`);
+    lines.push('', 'What should I know about this meeting? What topics are likely on the agenda?');
+    return lines.join('\n');
+  }
+
+  function handleDragStart(e: DragEvent, markdown: string, id: string) {
+    e.dataTransfer!.effectAllowed = 'all';
+    e.dataTransfer!.setData('text/html', '<pre>' + escapeHtml(markdown) + '</pre>');
+    e.dataTransfer!.setData('text/plain', markdown);
+    draggingId = id;
+  }
+
+  function handleDragEnd() {
+    draggingId = null;
+  }
+
   let expanded: Record<string, boolean> = $state({
     meetings: true,
     items: true,
@@ -124,7 +183,10 @@
         {#each data.upcoming_items as item}
           {@const eid = item.id ? billEntityId(item.id) : ''}
           {@const counts = eid ? voiceCounts.get(eid) : undefined}
-          <div class="card">
+          <div class="card" class:dragging={draggingId === (item.id || item.title)}
+               draggable="true"
+               ondragstart={(e: DragEvent) => handleDragStart(e, composeLegislationContext(item), item.id || item.title)}
+               ondragend={handleDragEnd}>
             <div class="card-title">
               {#if isLegislative && item.official_url}
                 <a href={item.official_url} target="_blank" rel="noopener" class="card-link">{item.title}</a>
@@ -189,7 +251,10 @@
         {#each data.recent_outcomes as outcome}
           {@const eid = outcome.id ? billEntityId(outcome.id) : ''}
           {@const counts = eid ? voiceCounts.get(eid) : undefined}
-          <div class="card">
+          <div class="card" class:dragging={draggingId === (outcome.id || outcome.title)}
+               draggable="true"
+               ondragstart={(e: DragEvent) => handleDragStart(e, composeOutcomeContext(outcome), outcome.id || outcome.title)}
+               ondragend={handleDragEnd}>
             <div class="card-title">
               <span class="outcome-icon {outcomeClass(outcome.outcome)}">{outcomeIcon(outcome.outcome)}</span>
               {#if isLegislative && outcome.official_url}
@@ -289,11 +354,17 @@
     padding: 12px 14px;
     margin-bottom: 6px;
     border: 1px solid #374151;
-    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
+    cursor: grab;
   }
   .card:hover {
     border-color: #3b82f6;
     box-shadow: 0 2px 8px rgba(59,130,246,0.1);
+  }
+  .card:active { cursor: grabbing; }
+  .card.dragging {
+    opacity: 0.4;
+    border-color: #3b82f6;
   }
   .card-title {
     color: #eee;
