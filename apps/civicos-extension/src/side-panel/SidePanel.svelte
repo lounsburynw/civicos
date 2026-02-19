@@ -806,23 +806,24 @@
         }}>Retry</button>
       </div>
     {:else if tabData}
-      <CivicReadOnlyPulse data={tabData} level={tabServer?.level || 'city'} />
-      <CivicInitiativeView
-        {api}
-        {session}
-        {identity}
-        jurisdiction={tabData?.jurisdiction || activeTab}
-        level={tabServer?.level === 'federal' ? 'federal' : tabServer?.level === 'state' ? 'state' : 'city'}
-        ontoast={(message) => showToast(message)}
-        onunlock={async (password) => {
-          const response = await sendMessage({ type: 'UNLOCK', password });
-          if (response.success && response.data) {
-            identity = identity ? { ...identity, isUnlocked: true } : identity;
-            return true;
-          }
-          return false;
-        }}
-      />
+      <CivicReadOnlyPulse data={tabData} level={tabServer?.level || 'city'}>
+        <CivicInitiativeView
+          {api}
+          {session}
+          {identity}
+          jurisdiction={tabData?.jurisdiction || activeTab}
+          level={tabServer?.level === 'federal' ? 'federal' : tabServer?.level === 'state' ? 'state' : 'city'}
+          ontoast={(message) => showToast(message)}
+          onunlock={async (password) => {
+            const response = await sendMessage({ type: 'UNLOCK', password });
+            if (response.success && response.data) {
+              identity = identity ? { ...identity, isUnlocked: true } : identity;
+              return true;
+            }
+            return false;
+          }}
+        />
+      </CivicReadOnlyPulse>
     {:else}
       <div class="empty-section" style="padding: 24px 12px; text-align: center;">
         No data available for {tabServer?.display_name || activeTab}
