@@ -14,8 +14,8 @@
 
   type PulseData = {
     decisions_this_week: Array<{ title: string; date: string; time: string; location: string; meeting_datetime: string }>;
-    upcoming_items?: Array<{ id?: string; title: string; meeting_title?: string; project_type?: string; description?: string }>;
-    recent_outcomes: Array<{ id?: string; title: string; date: string; outcome: string; is_upcoming?: boolean }>;
+    upcoming_items?: Array<{ id?: string; title: string; meeting_title?: string; project_type?: string; description?: string; summary?: string; status?: string; official_url?: string }>;
+    recent_outcomes: Array<{ id?: string; title: string; date: string; outcome: string; is_upcoming?: boolean; summary?: string; official_url?: string }>;
     generated_at: string;
   };
 
@@ -125,10 +125,19 @@
           {@const eid = item.id ? billEntityId(item.id) : ''}
           {@const counts = eid ? voiceCounts.get(eid) : undefined}
           <div class="card">
-            <div class="card-title">{item.title}</div>
+            <div class="card-title">
+              {#if isLegislative && item.official_url}
+                <a href={item.official_url} target="_blank" rel="noopener" class="card-link">{item.title}</a>
+              {:else}
+                {item.title}
+              {/if}
+            </div>
             <div class="card-meta">
               {#if item.meeting_title}
                 <span>{item.meeting_title}</span>
+              {/if}
+              {#if isLegislative && item.status}
+                <span class="status-tag">{item.status}</span>
               {/if}
               {#if item.project_type}
                 <span class="item-type">{item.project_type}</span>
@@ -137,8 +146,11 @@
                 <span class="voice-count-badge">{counts.total} voice{counts.total !== 1 ? 's' : ''}</span>
               {/if}
             </div>
+            {#if isLegislative && item.summary}
+              <div class="card-summary">{item.summary}</div>
+            {/if}
             {#if isLegislative && item.description}
-              <div class="card-desc">{item.description}</div>
+              <div class="card-leverage">{item.description}</div>
             {/if}
             {#if eid && onvoice}
               <div class="card-voice">
@@ -180,7 +192,11 @@
           <div class="card">
             <div class="card-title">
               <span class="outcome-icon {outcomeClass(outcome.outcome)}">{outcomeIcon(outcome.outcome)}</span>
-              {outcome.title}
+              {#if isLegislative && outcome.official_url}
+                <a href={outcome.official_url} target="_blank" rel="noopener" class="card-link">{outcome.title}</a>
+              {:else}
+                {outcome.title}
+              {/if}
             </div>
             <div class="card-meta">
               <span class="meta-date">{formatRelativeDate(outcome.date)}</span>
@@ -192,6 +208,9 @@
                 <span class="voice-count-badge">{counts.total} voice{counts.total !== 1 ? 's' : ''}</span>
               {/if}
             </div>
+            {#if isLegislative && outcome.summary}
+              <div class="card-summary">{outcome.summary}</div>
+            {/if}
             {#if eid && onvoice && outcome.is_upcoming}
               <div class="card-voice">
                 <CivicVoiceButtons
@@ -298,6 +317,40 @@
     border-radius: 3px;
     background: #374151;
     color: #9ca3af;
+  }
+  .status-tag {
+    font-size: 10px;
+    padding: 1px 6px;
+    border-radius: 3px;
+    background: rgba(59, 130, 246, 0.12);
+    color: #60a5fa;
+    font-weight: 500;
+  }
+  .card-link {
+    color: inherit;
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+    transition: border-color 0.15s ease;
+  }
+  .card-link:hover {
+    border-bottom-color: #60a5fa;
+    color: #93c5fd;
+  }
+  .card-summary {
+    color: #d1d5db;
+    font-size: 12px;
+    line-height: 1.4;
+    margin-top: 6px;
+  }
+  .card-leverage {
+    color: #60a5fa;
+    font-size: 11px;
+    line-height: 1.4;
+    margin-top: 4px;
+    padding: 4px 8px;
+    background: rgba(59, 130, 246, 0.06);
+    border-left: 2px solid #3b82f6;
+    border-radius: 0 4px 4px 0;
   }
   .outcome-icon {
     flex-shrink: 0;
