@@ -1,4 +1,4 @@
-# Recommended: Civic Web Components — Phase 4 (Comment Thread)
+# Recommended: Civic Web Components — Phase 6 (Decision View)
 
 **Priority:** P0 (`civic_web_components`)
 **Area:** edge_intelligence > browser_extension
@@ -8,87 +8,70 @@
 
 ## Context
 
-Phase 3 is complete (commit `5bfb189`). The `@civicos/components` package now has 5 components:
-- `<civic-voice-buttons>` — Support/Oppose/Watch (Phase 1)
-- `<civic-synthesis-bar>` — stacked bar chart (Phase 1)
-- `<civic-agenda-item-card>` — agenda item with tags, voice counts (Phase 2)
-- `<civic-decision-card>` — expandable decision with testimony, council, AI callbacks (Phase 2)
-- `<civic-initiative-card>` — initiative with actions, progress, commit/complete buttons (Phase 3)
+Phase 5 introduced the first **smart view component** — `CivicAgendaView` (593 lines) — which owns comment thread, AI draft, and AI response state internally while receiving shared data as props. SidePanel dropped from 4,933 → 4,508 lines (-425). Phase 6 follows the same pattern for the **Decisions section**.
 
-SidePanel is at **5261 lines** (down from ~5540). Standalone bundle is 146KB. Both packages build clean.
+### Current component inventory (2,566 lines total, 7 components):
+- `<civic-voice-buttons>` (96 lines) — Phase 1
+- `<civic-synthesis-bar>` (58 lines) — Phase 1
+- `<civic-agenda-item-card>` (159 lines) — Phase 2
+- `<civic-decision-card>` (629 lines) — Phase 2
+- `<civic-initiative-card>` (542 lines) — Phase 3
+- `<civic-comment-thread>` (489 lines) — Phase 4
+- **`CivicAgendaView`** (593 lines) — Phase 5 (smart view, no customElement)
 
-## Recommended Task — Phase 4
+### SidePanel: 4,508 lines
 
-Extract the comment thread from SidePanel into `<CivicCommentThread>`. This is the highest-complexity extraction — the thread section (lines 2051-2187, ~135 lines of template) includes AI drafting, enrichment, synthesis, and compose state.
+## Recommended Task — Phase 6
 
-### `<civic-comment-thread>` (recommended scope)
-- Toggle button with comment count + attested count + email clerk link
-- Thread container: loading state, comment list with stance coloring, synthesis bar
-- AI features: summarize thread button + AI response display
-- Compose area: textarea with AI draft/enrich buttons, char counter, submit/update
-- Already composes `<CivicSynthesisBar>` internally
+Extract the **Decisions section** from SidePanel into a `CivicDecisionView` smart component, following the same pattern as CivicAgendaView.
 
-### What to EXCLUDE (keep in parent):
-- `toggleCommentThread()` function (lines 411-447) — fetches comments, manages state
-- `handleSubmitComment()` function (lines 449+) — submits via session
-- `handleDraftWithAI()` / `handleEnrichDraft()` — AI orchestration
-- `composeThreadSummary()` — builds AI prompt
-- All these stay in parent as callbacks; the component fires events
+### What moves INTO the component:
 
-### Props
-```typescript
-{
-  entityId: string;
-  comments?: Comment[];
-  commentCount?: number;
-  attestedCount?: number;
-  synthesis?: { support: number; oppose: number; neutral: number } | null;
-  expanded?: boolean;
-  loading?: boolean;
-  error?: string;
-  draft?: string;
-  userPublicKey?: string;
-  isUnlocked?: boolean;
-  hasIdentity?: boolean;
-  aiAvailable?: boolean;
-  activeProviderName?: string;
-  draftLoading?: boolean;
-  enrichLoading?: boolean;
-  summarizeLoading?: boolean;
-  summaryHtml?: string;
-  clerkEmail?: string;
-  itemTitle?: string;  // for mailto link
-  showEmailClerk?: boolean;
-  commentEligible?: boolean;
-  ontoggle?: () => void;
-  onsubmit?: (detail: { text: string }) => void;
-  ondraftchange?: (detail: { text: string }) => void;
-  ondraft?: () => void;
-  onenrich?: () => void;
-  onsummarize?: () => void;
-}
+**State (lines 49-53):**
+- `expandedDecisions`, `decisionDetails`, `decisionLoading` — decision expansion & detail loading
+- `expandedTestimony`, `expandedCouncil` — sub-section toggles
+
+**Handler functions:**
+- `toggleDecisionDetail()` (lines 396-420) — fetches decision details on expand
+- `composeDecisionContext()` (lines 830-862) — AI context for decisions
+- `composeTestimonySummary()` (lines 864-883) — AI context for testimony
+- `composeSentimentBlock()` (lines 816-828) — shared, already duplicated in CivicAgendaView
+
+**Template (lines 1817-1867, ~51 lines):**
+- The `<!-- Recent Decisions -->` section with `{#each pulseData.recent_outcomes}`
+- CivicDecisionCard usage with all its props
+
+**CSS:** `.decision-card`, `.expanded-card` styles (check around line 3700+)
+
+### What stays in SidePanel (passed as props):
+- `voiceCounts`, `userStances`, `votingInProgress` (shared)
+- `aiResponses`, `aiResponseLoading` (shared — or component can own its own)
+- `identity`, `aiAvailable`, `activeProviderName` (shared)
+- `session`, `api`, `renderMarkdown` (dependencies)
+- Callbacks: `onvoice`, `onopenexternalai`, `ontoast`
+
+### Architecture (same as Phase 5):
+```
+SidePanel → CivicDecisionView (owns detail/AI state, calls session)
+  └→ CivicDecisionCard (leaf — already extracted in Phase 2)
 ```
 
 ## Key Files
 
-- `packages/civicos-components/src/components/CivicInitiativeCard.svelte` — Phase 3 pattern (most recent)
-- `apps/civicos-extension/src/side-panel/SidePanel.svelte:2051-2187` — comment thread template to extract
-- `apps/civicos-extension/src/side-panel/SidePanel.svelte:411-447` — `toggleCommentThread()` (stays in parent)
-- `apps/civicos-extension/src/side-panel/SidePanel.svelte:449-500` — `handleSubmitComment()` (stays in parent)
-- `apps/civicos-extension/src/side-panel/SidePanel.svelte:4218-4420` — comment thread CSS (approx range)
-- `packages/civicos-components/src/components/CivicSynthesisBar.svelte` — already a component, compose internally
+- `apps/civicos-extension/src/side-panel/SidePanel.svelte:1817-1867` — decisions template section
+- `apps/civicos-extension/src/side-panel/SidePanel.svelte:396-420` — toggleDecisionDetail handler
+- `apps/civicos-extension/src/side-panel/SidePanel.svelte:830-883` — decision context composition
+- `apps/civicos-extension/src/side-panel/SidePanel.svelte:49-53` — decision state declarations
+- `packages/civicos-components/src/components/CivicAgendaView.svelte` — reference pattern for smart component
+- `packages/civicos-components/src/components/CivicDecisionCard.svelte` — leaf component to compose
 - `packages/civicos-components/src/index.ts` — register new component
-- `packages/civicos-client/src/types.ts` — `Comment`, `CommentCounts`, `CommentSynthesis` types
 
-## Technical Notes
+## Design Decisions (already resolved by Phase 5)
 
-- Component renders the full comment section (toggle + thread + compose) — parent provides no wrapper
-- The compose textarea has two-way binding via `ondraftchange` callback (parent stores draft in Map)
-- `getUserComment()` logic (check if user has existing comment) can be a `$derived` inside the component
-- Thread already uses `<CivicSynthesisBar>` — import as sibling component
-- AI draft/enrich/summarize: fire callbacks, parent handles orchestration
-- The `getMailtoLink(item)` function stays in parent — pass computed mailto href as prop, or pass email + title
-- `renderMarkdown()` used for AI summary — pass pre-rendered HTML (same pattern as DecisionCard)
+1. **Session/API access:** Pass as props (dependency injection)
+2. **Where it lives:** `packages/civicos-components/` alongside other components
+3. **AI responses:** Component owns its own `aiResponses`/`aiResponseLoading` maps (separate from parent's)
+4. **No customElement:** Smart views are regular Svelte components (complex props)
 
 ## Tests
 
@@ -99,12 +82,10 @@ cd apps/civicos-extension && npm run build         # Extension still works
 
 ## Success Criteria
 
-- [ ] `<civic-comment-thread>` renders toggle with comment count
-- [ ] Expanded shows comment list with stance coloring and attested badges
-- [ ] Synthesis bar renders when data available (composes CivicSynthesisBar)
-- [ ] Compose area with textarea, char counter, submit button
-- [ ] AI draft/enrich/summarize buttons fire callbacks
-- [ ] Email clerk link works
-- [ ] Extension SidePanel uses the comment thread component
+- [ ] `CivicDecisionView` renders the full decisions section
+- [ ] Decision detail expansion works (toggle, lazy load)
+- [ ] Testimony/council sub-section toggles work
+- [ ] AI action buttons work (ask decision, ask testimony, external AI)
+- [ ] Voice buttons work (delegated to parent via onvoice)
+- [ ] SidePanel reduced by ~100+ lines (smaller extraction than Phase 5)
 - [ ] Both packages build clean
-- [ ] Standalone demo updated with comment thread example
