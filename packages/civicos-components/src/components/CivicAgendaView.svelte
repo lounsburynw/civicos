@@ -294,6 +294,26 @@
     enrichingInProgress = new Set(enrichingInProgress);
   }
 
+  // --- Drag-to-AI ---
+
+  function escapeHtml(text: string): string {
+    return text.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+  }
+
+  let draggingItem = $state<string | null>(null);
+
+  function handleDragStart(e: DragEvent, item: PulseAgendaItem) {
+    const markdown = composeAgendaContext(item);
+    e.dataTransfer!.effectAllowed = 'all';
+    e.dataTransfer!.setData('text/html', '<pre>' + escapeHtml(markdown) + '</pre>');
+    e.dataTransfer!.setData('text/plain', markdown);
+    draggingItem = item.id;
+  }
+
+  function handleDragEnd() {
+    draggingItem = null;
+  }
+
   // --- Context Composition ---
 
   function composeSentimentBlock(entityId: string): string[] {
@@ -375,7 +395,10 @@
 </script>
 
 {#each items as item}
-  <div class="card item-card">
+  <div class="card item-card" class:dragging={draggingItem === item.id}
+       draggable="true"
+       ondragstart={(e: DragEvent) => handleDragStart(e, item)}
+       ondragend={handleDragEnd}>
     <CivicAgendaItemCard
       {item}
       voiceCounts={voiceCounts.get(`agenda-item:${item.id}`) ?? null}
@@ -457,11 +480,17 @@
     padding: 12px 14px;
     margin-bottom: 6px;
     border: 1px solid #374151;
-    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
+    cursor: grab;
   }
   .card:hover {
     border-color: #3b82f6;
     box-shadow: 0 2px 8px rgba(59,130,246,0.1);
+  }
+  .card:active { cursor: grabbing; }
+  .card.dragging {
+    opacity: 0.4;
+    border-color: #3b82f6;
   }
 
   .draft-btn {
