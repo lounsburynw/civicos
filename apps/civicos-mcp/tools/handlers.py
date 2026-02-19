@@ -570,13 +570,19 @@ def _legislation_pulse(
                         close_dt = close_date
                     days_remaining = (close_dt - now.date()).days
 
+                agency_names = rule.get("agency_names") or []
+                if isinstance(agency_names, str):
+                    agency_names = [agency_names]
+
                 comment_periods.append({
                     "document_number": rule.get("document_number", ""),
                     "title": rule.get("title", ""),
-                    "agency": (rule.get("agency_names") or [""])[0] if isinstance(rule.get("agency_names"), list) else rule.get("agency_names", ""),
+                    "abstract": rule.get("abstract", ""),
+                    "agency_names": agency_names,
                     "comments_close_on": str(close_date) if close_date else None,
                     "days_remaining": days_remaining,
-                    "federal_register_url": rule.get("federal_register_url", ""),
+                    "comment_url": rule.get("comment_url", ""),
+                    "html_url": rule.get("html_url", ""),
                 })
             result["comment_periods"] = comment_periods
     except Exception as e:
@@ -624,10 +630,8 @@ def _legislation_pulse(
                 governors_desk.append({
                     "bill_id": bill.get("bill_id", ""),
                     "bill_number": bill.get("bill_number", ""),
-                    "title": bill.get("bill_name", bill.get("title", "")),
-                    "status": bill.get("status", "Enrolled"),
-                    "last_action": bill.get("last_action", ""),
-                    "official_url": bill.get("official_url", ""),
+                    "bill_name": bill.get("bill_name", bill.get("title", "")),
+                    "summary": bill.get("summary", ""),
                 })
             result["governors_desk"] = governors_desk
     except Exception as e:
