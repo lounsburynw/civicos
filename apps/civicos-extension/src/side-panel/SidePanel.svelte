@@ -182,6 +182,8 @@
         .then(data => {
           parentPulseData.set(id, data);
           parentPulseData = new Map(parentPulseData);
+          // Load voice counts for this parent's legislation
+          loadParentVoiceCounts(id, data);
         })
         .catch(() => {
           parentPulseErrors.set(id, 'Server unavailable');
@@ -191,6 +193,35 @@
           parentPulseLoading.delete(id);
           parentPulseLoading = new Set(parentPulseLoading);
         });
+    }
+  }
+
+  function extractBillEntityIds(pulse: CityPulseData): string[] {
+    const ids: string[] = [];
+    if (pulse.upcoming_items) {
+      for (const item of pulse.upcoming_items) {
+        if (item.id) ids.push(`bill:${item.id}`);
+      }
+    }
+    if (pulse.recent_outcomes) {
+      for (const outcome of pulse.recent_outcomes) {
+        if (outcome.id) ids.push(`bill:${outcome.id}`);
+      }
+    }
+    return ids;
+  }
+
+  async function loadParentVoiceCounts(jurisdictionId: string, pulse: CityPulseData) {
+    const ids = extractBillEntityIds(pulse);
+    if (ids.length === 0) return;
+    try {
+      const counts = await api.getVoiceCountsBatch(ids, jurisdictionId);
+      for (const [id, c] of counts) {
+        voiceCounts.set(id, c);
+      }
+      voiceCounts = new Map(voiceCounts);
+    } catch {
+      // Voice counts are non-critical — silently ignore
     }
   }
 
@@ -387,7 +418,7 @@
     }
   }
 
-  async function handleVoice(entityId: string, stance: Stance) {
+  async function handleVoice(entityId: string, stance: Stance, overrideJurisdiction?: string) {
     if (votingInProgress.has(entityId)) return;
     if (!identity?.isUnlocked) return;
 
@@ -437,7 +468,7 @@
 
     // Sign and submit
     try {
-      const jurisdiction = pulseData?.jurisdiction || activeJurisdiction;
+      const jurisdiction = overrideJurisdiction || pulseData?.jurisdiction || activeJurisdiction;
       const ok = await api.castVoice(entityId, stance, jurisdiction);
       if (!ok) {
         throw new Error('Relay submission failed');
@@ -806,7 +837,15 @@
         }}>Retry</button>
       </div>
     {:else if tabData}
-      <CivicReadOnlyPulse data={tabData} level={tabServer?.level || 'city'}>
+      <CivicReadOnlyPulse
+        data={tabData}
+        level={tabServer?.level || 'city'}
+        {voiceCounts}
+        {userStances}
+        {votingInProgress}
+        {identity}
+        onvoice={({ entityId, stance }) => handleVoice(entityId, stance, activeTab)}
+      >
         <CivicInitiativeView
           {api}
           {session}

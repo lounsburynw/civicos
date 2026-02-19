@@ -52,6 +52,9 @@ CROSS_LEVEL_TOOLS = frozenset([
     "prepare_initiative",             # Create initiative (jurisdiction-agnostic)
     "broadcast_initiative",           # Broadcast initiative to relay
     "list_initiatives",              # List initiatives for jurisdiction
+    "get_voice_counts",               # Voice counts (jurisdiction-agnostic)
+    "prepare_voice",                  # Prepare voice event
+    "broadcast_voice",                # Submit voice to relay
 ])
 
 CITY_TOOLS = frozenset([
@@ -98,11 +101,8 @@ CITY_TOOLS = frozenset([
 ])
 
 COORDINATION_TOOLS = frozenset([
-    # Relay-based coordination (city-only — voice, subscriptions)
-    "get_voice_counts",
+    # Relay-based coordination (city-only — subscriptions, relay management)
     "subscribe_to_topic",
-    "prepare_voice",
-    "broadcast_voice",
     "list_relays",
 ])
 
