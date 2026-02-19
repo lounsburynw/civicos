@@ -1,3 +1,34 @@
+## Session — 2026-02-19: Engagement Ladder UX — Focal Points + Voice
+
+**Item:** engagement_ladder_ux (P0) — Promote focal points, add drag-to-AI, wire voices
+**Status:** Partial. UX promoted and voice-enabled. Data enrichment and disclaimer still needed.
+
+### What was done
+- Promoted Comment Periods, Upcoming Hearings, Governor's Desk to top of CivicReadOnlyPulse under "Take Action" group with amber accent styling
+- Added drag-to-AI context composers: composeCommentPeriodContext(), composeHearingContext(), composeGovernorsDeskContext()
+- Wired voice buttons (support/oppose/watching) to all 3 focal point card types
+- Comment periods use `rule:{document_number}` entity prefix; hearings/governor use `bill:{bill_id}`
+- Simulated 5-person user panel for UX feedback
+
+### Commits
+- 0c5fa7a feat: Promote focal points to top of pulse and add drag-to-AI
+- efa6436 feat: Add voice buttons to focal point cards
+
+### User Panel Feedback (actionable)
+1. Hearing cards show raw bill_id — need JOIN to legislation table for bill_number/bill_name
+2. Voice disclaimer essential — "not official votes or public testimony"
+3. Comment periods lack document_type and topics (data in DB, not passed through)
+4. "Governor's Desk" unclear to general public — rephrase
+5. LegiScan calendar API exists but unused — would provide real hearing locations/descriptions
+6. Coordination after signaling is the missing engagement step (post-pilot)
+
+### Next session recommendation
+1. Enrich hearings via JOIN (bill_number, bill_name, official_url)
+2. Add voice disclaimer
+3. Pass through comment period document_type/topics
+4. Governor's Desk label clarity
+5. Wire LegiScan calendar API if time permits
+
 ## Session — 2026-02-18 (State/Federal Tab UX Iteration)
 
 **Item:** engagement_ladder_ux (P0) — State/Federal tab UX quality
@@ -20365,3 +20396,34 @@ Created `CivicSession` class in `packages/civicos-client/src/session.ts` (220 li
 - Iterate on state/federal tab UX quality
 - Enable state/federal-level initiatives
 - Design attestation origin display
+
+## Session — 2026-02-19: Federal Rules Ingestion + Pulse Enrichment
+
+### What was done
+- Added fetch_federal_rules() Modal function — fetches proposed rules, final rules, notices from Federal Register API (free, no key)
+- Added extract_legislative_events() Modal function — parses hearing dates from existing CA bill last_action text
+- Wired both into main() CLI (--federal-rules, --legislative-events) and scheduled_low_velocity_refresh()
+- Enriched _legislation_pulse() with 3 new sections: comment_periods, upcoming_hearings, governors_desk
+- Fixed SQLiteBackend protocol compliance (9 stub methods)
+- Discovered and fixed: get_legislation() wasn't surfacing last_action from metadata JSONB
+- Discovered and fixed: governor's desk used wrong LegiScan status ID (5=Vetoed, 3=Enrolled)
+- Fixed pulse handler output shape to match CivicReadOnlyPulse.svelte props (agency_names, abstract, comment_url, html_url, bill_name, summary)
+- Fixed Modal deploy: added fastapi dep, renamed deprecated @modal.web_endpoint
+- Deployed all 3 MCP servers (san-rafael, california, federal) + ingestion script
+- Ingested: 1,552 federal rules (20 open comment periods), 171 hearing events (20 upcoming), 5 governor's desk bills
+
+### Commits
+- 2849c72 feat: Wire up federal rules ingestion and enrich legislation pulse
+- 9f2a3de fix: Surface last_action from metadata and correct governor's desk status
+- 5940709 fix: Add fastapi dep and update deprecated Modal decorator for deploy
+- 6065188 fix: Align pulse handler output with Svelte component expected shape
+
+### Key discovery
+- LegiScan status codes: 1=Introduced, 2=Engrossed, 3=Enrolled, 4=Passed, 5=Vetoed, 6=Failed
+- last_action, last_action_date, status_date stored in metadata JSONB, promoted to top-level in get_legislation()
+- Modal MCP deploy must run from project root: `modal deploy apps/civicos-mcp/modal_mcp.py`
+
+### Next session recommendation
+1. Feature state/federal focal points (comment periods, hearings, governor's desk) prominently at top of dashboard
+2. Make focal points draggable for inject into Claude.ai/ChatGPT input boxes
+3. Explore push notification capabilities for time-sensitive comment periods and hearings
