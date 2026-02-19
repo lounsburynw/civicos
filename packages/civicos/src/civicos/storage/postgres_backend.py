@@ -5075,6 +5075,53 @@ class PostgresBackend:
 
         return updated_count
 
+    def update_legislation_leverage_points(
+        self,
+        state: str,
+        updates: List[Dict[str, Any]],
+    ) -> int:
+        """
+        Update leverage_point field for legislation bills.
+
+        Performs direct UPDATE without temporal versioning - leverage points are
+        metadata that don't warrant a new version of the bill record.
+
+        Args:
+            state: State code (e.g., "CA", "US")
+            updates: List of dicts with 'bill_id' and 'leverage_point'
+
+        Returns:
+            Number of bills updated
+        """
+        if not updates:
+            return 0
+
+        conn = self._get_connection()
+        self._ensure_schema(conn)
+        cursor = conn.cursor()
+
+        updated_count = 0
+        for update in updates:
+            bill_id = update.get("bill_id")
+            leverage_point = update.get("leverage_point")
+
+            if not bill_id or not leverage_point:
+                continue
+
+            cursor.execute("""
+                UPDATE legislation
+                SET leverage_point = %s
+                WHERE bill_id = %s AND state = %s AND valid_to IS NULL
+            """, (leverage_point, bill_id, state))
+
+            if cursor.rowcount > 0:
+                updated_count += 1
+
+        conn.commit()
+        conn.close()
+
+        return updated_count
+
     # ========== Codified Law Methods (SESSION 428) ==========
 
     def store_codified_law(

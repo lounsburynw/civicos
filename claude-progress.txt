@@ -1,3 +1,27 @@
+## Session — 2026-02-18 (Leverage Point Enrichment)
+
+**Item:** Leverage point enrichment for legislation bills
+**Status:** Complete. Built AI batch enrichment pipeline using Claude Haiku, enriched 9,609/15,585 bills (61.7% coverage).
+
+**What was done:**
+- Prototyped AI leverage point generation on 5 bills, validated approach
+- Added `update_legislation_leverage_points()` to LegislationStorage protocol, PostgresBackend, and SQLiteBackend
+- Created `enrich_leverage_points.py` CLI command with --state, --limit, --batch-size, --dry-run, --stats flags
+- Ran CA enrichment: 1,383/3,230 bills (42.8%) — ~18 min
+- Ran US enrichment: 8,226/12,355 bills (66.6%) — ~89 min
+- Integrated `--enrich` flag into `legislative` CLI for pipeline-integrated enrichment
+- Updated `/ingest` docs with legislation pipeline section
+- Total: 9,609 leverage points generated from 36 pre-existing → massive improvement for what_applies() UX
+
+**Files modified:**
+- packages/civicos/src/civicos/storage/protocols/legislation.py (protocol method)
+- packages/civicos/src/civicos/storage/postgres_backend.py (implementation)
+- packages/civicos/src/civicos/storage/sqlite_backend.py (stub)
+- packages/civicos-extraction/src/civicos_extraction/cli/enrich_leverage_points.py (NEW)
+- packages/civicos-extraction/src/civicos_extraction/cli/__init__.py (wired up)
+- packages/civicos-extraction/src/civicos_extraction/cli/legislative.py (--enrich flag)
+- .claude/commands/ingest.md (docs)
+
 ## Session — 2026-02-18 (Web Components Phase 9: SidePanel Lean-out)
 
 **Item:** civic_web_components (P0) — Phase 9
@@ -20260,3 +20284,24 @@ Created `CivicSession` class in `packages/civicos-client/src/session.ts` (220 li
 - Parent Jurisdiction tab (~130 lines, duplicate rendering)
 - Toast notifications (~10 lines)
 - Core orchestration: data loading, voice handling, stance persistence, AI integration, health monitoring
+
+## Session — 2026-02-18: State/Federal MCP Tools
+
+### What was done
+- Added 5 new MCP tools for state/federal legislation and executive orders
+- Tools: search_legislation, get_bill_detail, get_leverage_points, search_executive_orders, get_recent_executive_orders
+- All handlers use existing StorageBackend protocol methods (no raw SQL)
+- Federal level: 3 → 8 tools, State level: 4 → 9 tools
+- Tested against live PostgreSQL: 19K bills (14.8K US, 4.2K CA), 1,520 EOs, 36 leverage points
+- Created LEGISLATION_TOOLS frozenset in loader.py for clean level mapping
+- Updated handler_map in both server.py and modal_mcp.py
+- Commit: eb8625f
+
+### Data finding
+- Only 36 of 19K bills have leverage_point tagged (<0.2%)
+- US legislation has no topic column values — keyword fallback search implemented
+- Executive order text_preview can contain raw HTML — added tag stripping
+
+### Next session recommendation
+- Enrich leverage points via AI batch job (user-directed)
+- This would make get_leverage_points tool genuinely useful at scale
