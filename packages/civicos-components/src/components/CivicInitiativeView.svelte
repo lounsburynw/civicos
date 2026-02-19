@@ -36,6 +36,7 @@
     session = null as any,
     identity = null as { publicKey: string; isUnlocked?: boolean } | null,
     jurisdiction = '',
+    level = 'city' as 'city' | 'state' | 'federal',
     // Callbacks to parent
     ontoast = undefined as ((message: string) => void) | undefined,
     onunlock = undefined as ((password: string) => Promise<boolean>) | undefined,
@@ -77,7 +78,9 @@
   let newInitiative = $state({ topic: '', title: '', description: '', coordination_url: '' });
   let creatingInitiative = $state(false);
   let customTopic = $state('');
-  const INITIATIVE_TOPICS = ['Traffic Safety', 'Housing', 'Parks', 'Budget', 'Environment', 'Public Safety', 'Infrastructure', 'Education'];
+  const CITY_TOPICS = ['Traffic Safety', 'Housing', 'Parks', 'Budget', 'Environment', 'Public Safety', 'Infrastructure', 'Education'];
+  const PARENT_TOPICS = ['Healthcare', 'Housing', 'Education', 'Environment', 'Budget', 'Public Safety', 'Transportation', 'Labor'];
+  let INITIATIVE_TOPICS = $derived(level === 'city' ? CITY_TOPICS : PARENT_TOPICS);
 
   function selectTopic(t: string) {
     if (newInitiative.topic === t) {
