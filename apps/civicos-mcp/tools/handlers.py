@@ -340,6 +340,81 @@ def compose_public_comment(
     return "\n".join(result_parts)
 
 
+def _legislation_pulse(
+    civic: CivicClient,
+    jurisdiction: str,
+    logger: Logger,
+) -> dict:
+    """Generate pulse data from legislation for state/federal servers."""
+    now = datetime.now()
+    storage = civic._storage
+
+    # Determine state code from jurisdiction
+    if jurisdiction.startswith("country-"):
+        state = "US"
+    elif jurisdiction.startswith("state-"):
+        state = "CA"
+    else:
+        state = "CA"
+
+    result = {
+        "jurisdiction": jurisdiction,
+        "generated_at": now.isoformat(),
+        "decisions_this_week": [],
+        "upcoming_items": [],
+        "recent_outcomes": [],
+        "community_pulse": {},
+    }
+
+    try:
+        bills = storage.get_legislation(state=state, limit=200)
+        actionable = [b for b in bills if b.get("leverage_point")]
+
+        for bill in actionable[:10]:
+            result["upcoming_items"].append({
+                "id": bill.get("bill_id", ""),
+                "meeting_id": "",
+                "item_number": bill.get("bill_number", ""),
+                "title": bill.get("bill_name", "Untitled Bill"),
+                "project_type": bill.get("status", ""),
+                "stance_eligible": False,
+                "comment_eligible": False,
+                "description": bill.get("leverage_point", ""),
+                "why_it_matters": bill.get("summary", "")[:200] if bill.get("summary") else "",
+                "meeting_title": f"{bill.get('bill_number', '')} ({state})",
+                "meeting_date": "",
+            })
+
+        for bill in bills[:10]:
+            status = bill.get("status", "")
+            outcome = "on_agenda"
+            if isinstance(status, str):
+                sl = status.lower()
+                if "passed" in sl or "signed" in sl or "enacted" in sl:
+                    outcome = "passed"
+                elif "failed" in sl or "dead" in sl or "vetoed" in sl:
+                    outcome = "failed"
+
+            result["recent_outcomes"].append({
+                "id": bill.get("bill_id", ""),
+                "title": f"{bill.get('bill_number', '')} — {bill.get('bill_name', 'Bill')}",
+                "outcome": outcome,
+                "is_upcoming": outcome == "on_agenda",
+                "date": bill.get("last_action_date", "Recent") or "Recent",
+            })
+
+        total_with_lp = len(actionable)
+        result["community_pulse"] = {
+            "total_issues": len(bills),
+            "top_types": {"Actionable bills": total_with_lp, "Total tracked": len(bills)},
+        }
+    except Exception as e:
+        logger.error(f"Error in legislation_pulse: {e}")
+        result["error"] = str(e)
+
+    return result
+
+
 def city_pulse(
     civic: CivicClient,
     jurisdiction: str,
@@ -347,7 +422,12 @@ def city_pulse(
     logger: Logger,
     args: dict,
 ) -> dict:
-    """Get comprehensive city activity snapshot."""
+    """Get comprehensive civic activity snapshot. Returns meetings/decisions for
+    city-level servers, legislation/bills for state/federal servers."""
+    # State/federal: return legislation pulse instead of meeting-centric data
+    if jurisdiction.startswith("state-") or jurisdiction.startswith("country-"):
+        return _legislation_pulse(civic, jurisdiction, logger)
+
     days_ahead = args.get("days_ahead", 7)
     days_back = args.get("days_back", 30)
 
