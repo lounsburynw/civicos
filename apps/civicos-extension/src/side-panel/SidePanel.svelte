@@ -15,6 +15,7 @@
   import CivicSynthesisBar from '@civicos/components/src/components/CivicSynthesisBar.svelte';
   import CivicAgendaItemCard from '@civicos/components/src/components/CivicAgendaItemCard.svelte';
   import CivicDecisionCard from '@civicos/components/src/components/CivicDecisionCard.svelte';
+  import CivicInitiativeCard from '@civicos/components/src/components/CivicInitiativeCard.svelte';
 
   Chart.register(DoughnutController, ArcElement, Tooltip, Legend);
 
@@ -2368,198 +2369,112 @@
           {:else}
             {#each initiatives as initiative}
               <div class="ini-card" class:ini-card-expanded={expandedInitiatives.has(initiative.id)}>
-                <button class="ini-card-toggle" onclick={() => toggleInitiativeDetail(initiative.id)}>
-                  <div class="ini-card-top">
-                    <span class="ini-topic-pill">{initiative.topic}</span>
-                    <div class="ini-card-badges">
-                      {#if initiative.voice_count > 0}
-                        <span class="ini-voice-inline" title="{initiative.attested_voice_count != null && initiative.attested_voice_count > 0 ? `${initiative.attested_voice_count} attested` : ''}">
-                          <svg class="ini-voice-icon" viewBox="0 0 16 16" fill="currentColor"><path d="M6.956 1.745C7.021.81 7.908.087 8.864.325l.261.066c.463.116.874.456 1.012.965.22.816.533 2.511.062 4.51a10 10 0 0 1 .443-.051c.713-.065 1.669-.072 2.516.21.518.173.994.681 1.2 1.273.184.532.16 1.162-.234 1.733q.086.18.138.363c.077.27.113.567.113.856s-.036.586-.113.856c-.039.135-.09.273-.16.404.169.387.107.82-.003 1.149a3.2 3.2 0 0 1-.488.901c.054.152.076.312.076.465 0 .305-.089.625-.253.912C13.1 15.522 12.437 16 11.5 16H8c-.605 0-1.07-.081-1.466-.218a4.8 4.8 0 0 1-.97-.484l-.048-.03c-.504-.307-.999-.609-2.068-.722C2.682 14.464 2 13.846 2 13V9c0-.85.685-1.432 1.357-1.615.849-.232 1.574-.787 2.132-1.41.56-.627.914-1.28 1.039-1.639.199-.575.356-1.539.428-2.59z"/></svg>
-                          <span class="ini-voice-num">{initiative.voice_count}{#if initiative.attested_voice_count != null && initiative.attested_voice_count > 0} <span class="ini-voice-attested">({initiative.attested_voice_count} attested)</span>{/if}</span>
-                        </span>
-                      {/if}
-                      {#if initiative.coordination_url}
-                        <svg class="ini-coord-icon" viewBox="0 0 16 16" fill="none"><path d="M6 3H3v10h10v-3M9 2h5v5M14 2L7 9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                      {/if}
-                      <svg class="ini-expand-chevron" class:expanded={expandedInitiatives.has(initiative.id)} viewBox="0 0 16 16" fill="currentColor"><path fill-rule="evenodd" d="M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z"/></svg>
-                    </div>
-                  </div>
-                  <div class="ini-card-title">{initiative.title}</div>
-                  <div class="ini-card-desc">{initiative.description}</div>
-                  {#if initiative.creator_attested || initiativeStats(initiative.id).committed > 0 || initiativeStats(initiative.id).completed > 0}
-                    {@const stats = initiativeStats(initiative.id)}
-                    <div class="ini-card-stats">
-                      {#if initiative.creator_attested}<span class="ini-stat ini-stat-attested" title="Initiative creator is in-person verified">Attested</span>{/if}
-                      {#if stats.committed > 0}<span class="ini-stat">{stats.committed} committed</span>{/if}
-                      {#if stats.completed > 0}<span class="ini-stat ini-stat-done">{stats.completed} done</span>{/if}
-                    </div>
-                  {/if}
-                </button>
-
-                {#if expandedInitiatives.has(initiative.id)}
-                  <div class="ini-detail">
-                    {#if initiative.coordination_url}
-                      <a href={initiative.coordination_url} target="_blank" rel="noopener" class="ini-coord-link">
-                        <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M6 3H3v10h10v-3M9 2h5v5M14 2L7 9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                        Join coordination channel
-                      </a>
+                <CivicInitiativeCard
+                  {initiative}
+                  expanded={expandedInitiatives.has(initiative.id)}
+                  actions={initiativeActions.get(initiative.id) ?? []}
+                  actionsLoading={actionsLoading.has(initiative.id)}
+                  actionProgress={Object.fromEntries(actionProgress)}
+                  committedActionIds={[...committedActions]}
+                  completedActionIds={[...completedActions]}
+                  actionInProgressIds={[...actionInProgress]}
+                  isUnlocked={identity?.isUnlocked ?? false}
+                  hasIdentity={!!identity}
+                  showAddAction={showCreateAction !== initiative.id}
+                  ontoggle={() => toggleInitiativeDetail(initiative.id)}
+                  oncommit={({ actionId }) => {
+                    const action = (initiativeActions.get(initiative.id) ?? []).find(a => a.id === actionId);
+                    if (action) handleCommit(action);
+                  }}
+                  oncomplete={({ actionId }) => {
+                    const action = (initiativeActions.get(initiative.id) ?? []).find(a => a.id === actionId);
+                    if (action) handleComplete(action);
+                  }}
+                  onwithdraw={({ actionId }) => {
+                    const action = (initiativeActions.get(initiative.id) ?? []).find(a => a.id === actionId);
+                    if (action) handleWithdraw(action);
+                  }}
+                  oncopytemplate={async ({ template }) => {
+                    await navigator.clipboard.writeText(template);
+                    showToast('Copied to clipboard');
+                  }}
+                  onaddaction={() => { showCreateAction = initiative.id; }}
+                />
+                {#if expandedInitiatives.has(initiative.id) && showCreateAction === initiative.id}
+                  {@const actionConfig = ACTION_TYPE_CONFIG[newAction.action_type] || DEFAULT_ACTION_CONFIG}
+                  <div class="ini-form ini-action-form" class:ini-drafting={formDraftLoading}>
+                    {#if identity && !identity.isUnlocked}
+                      <div class="unlock-inline">
+                        <form class="unlock-row" onsubmit={(e: Event) => { e.preventDefault(); handleUnlock(); }}>
+                          <input type="password" class="ini-input" placeholder="Password to unlock" bind:value={unlockPassword} autocomplete="off" />
+                          <button type="submit" class="ini-btn-primary ini-btn-sm" disabled={unlocking || !unlockPassword}>{unlocking ? 'Unlocking...' : 'Unlock'}</button>
+                        </form>
+                        {#if unlockError}
+                          <div class="ini-error">{unlockError}</div>
+                        {/if}
+                      </div>
                     {/if}
-
-                    {#if actionsLoading.has(initiative.id)}
-                      <div class="ini-detail-msg">Loading actions...</div>
-                    {:else if initiativeActions.has(initiative.id)}
-                      {@const actions = initiativeActions.get(initiative.id)!}
-                      {#if actions.length === 0 && showCreateAction !== initiative.id}
-                        <div class="ini-detail-msg">No civic actions defined yet</div>
-                      {/if}
-                      {#if actions.length > 0}
-                        <div class="ini-detail-label">Civic Actions</div>
-                        {#each actions as action}
-                          <div class="ini-action">
-                            <div class="ini-action-top">
-                              <span class="ini-action-type">{actionTypeLabel(action.action_type)}</span>
-                              {#if action.deadline}
-                                <span class="ini-deadline {deadlineClass(action.deadline)}">
-                                  {deadlineLabel(action.deadline)}
-                                </span>
-                              {/if}
-                            </div>
-                            <div class="ini-action-desc">{action.description}</div>
-                            {#if action.target}
-                              <div class="ini-action-target">Target: {action.target}</div>
-                            {/if}
-
-                            {#if actionProgress.has(action.id)}
-                              {@const progress = actionProgress.get(action.id)!}
-                              <div class="ini-progress">
-                                <div class="ini-progress-bar">
-                                  <div class="ini-progress-fill" style="width: {progress.progress_percent ?? 0}%"></div>
-                                </div>
-                                <span class="ini-progress-text">
-                                  {progress.completion_count}/{progress.target_count ?? '?'}
-                                  {#if progress.commitment_count > 0}
-                                    ({progress.commitment_count} committed)
-                                  {/if}
-                                </span>
-                              </div>
-                            {/if}
-
-                            <div class="ini-action-btns">
-                              {#if identity?.isUnlocked}
-                                {#if completedActions.has(action.id)}
-                                  <span class="ini-completed-label">
-                                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 8.5l3.5 3.5L13 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                                    Done
-                                  </span>
-                                {:else if committedActions.has(action.id)}
-                                  <button class="ini-btn-primary ini-btn-sm" disabled={actionInProgress.has(action.id)} onclick={() => handleComplete(action)}>Mark Done</button>
-                                  <button class="ini-btn-cancel ini-btn-sm" disabled={actionInProgress.has(action.id)} onclick={() => handleWithdraw(action)}>Withdraw</button>
-                                {:else}
-                                  <button class="ini-btn-primary ini-btn-sm" disabled={actionInProgress.has(action.id)} onclick={() => handleCommit(action)}>Commit</button>
-                                {/if}
-                              {:else if identity}
-                                <span class="ini-locked-hint">Unlock to participate</span>
-                              {/if}
-                            </div>
-
-                            {#if action.template}
-                              <div class="ini-draft">
-                                <textarea class="ini-draft-text" readonly>{action.template}</textarea>
-                                <div class="ini-draft-actions">
-                                  <button class="ini-btn-sm ini-btn-copy" onclick={async () => {
-                                    await navigator.clipboard.writeText(action.template!);
-                                    showToast('Copied to clipboard');
-                                  }}>Copy</button>
-                                </div>
-                              </div>
-                            {/if}
-                          </div>
-                        {/each}
-                      {/if}
-                      <!-- Add Action -->
-                      {#if showCreateAction === initiative.id}
-                        {@const actionConfig = ACTION_TYPE_CONFIG[newAction.action_type] || DEFAULT_ACTION_CONFIG}
-                        <div class="ini-form ini-action-form" class:ini-drafting={formDraftLoading}>
-                          {#if identity && !identity.isUnlocked}
-                            <div class="unlock-inline">
-                              <form class="unlock-row" onsubmit={(e: Event) => { e.preventDefault(); handleUnlock(); }}>
-                                <input type="password" class="ini-input" placeholder="Password to unlock" bind:value={unlockPassword} autocomplete="off" />
-                                <button type="submit" class="ini-btn-primary ini-btn-sm" disabled={unlocking || !unlockPassword}>{unlocking ? 'Unlocking...' : 'Unlock'}</button>
-                              </form>
-                              {#if unlockError}
-                                <div class="ini-error">{unlockError}</div>
-                              {/if}
-                            </div>
-                          {/if}
-                          <select class="ini-input" bind:value={newAction.action_type}>
-                            <option value="written_comment">Write Comment</option>
-                            <option value="attend_meeting">Attend Meeting</option>
-                            <option value="public_comment">Public Comment</option>
-                            <option value="contact_official">Contact Official</option>
-                            <option value="signature">Sign Petition</option>
-                            <option value="share">Share</option>
-                            <option value="custom">Custom</option>
-                          </select>
-                          <label class="ini-field-label">Description
-                            <div class="ini-field">
-                              <textarea class="ini-input ini-textarea" placeholder={actionConfig.descPlaceholder} maxlength={500} rows={2} bind:value={newAction.description}></textarea>
-                              <span class="ini-char-count" class:near-limit={newAction.description.length > 400}>{newAction.description.length}/500</span>
-                            </div>
-                          </label>
-                          <label class="ini-field-label">{actionConfig.targetLabel}
-                            <div class="ini-field">
-                              <input class="ini-input" type="text" placeholder={actionConfig.targetPlaceholder} bind:value={newAction.target} />
-                            </div>
-                          </label>
-                          {#if actionConfig.showTemplate}
-                            <label class="ini-field-label">{actionConfig.templateLabel}
-                              <div class="ini-field">
-                                <textarea class="ini-input ini-textarea" placeholder={actionConfig.templatePlaceholder} maxlength={2000} rows={3} bind:value={newAction.template}></textarea>
-                                <span class="ini-char-count" class:near-limit={newAction.template.length > 1600}>{newAction.template.length}/2000</span>
-                              </div>
-                            </label>
-                            {#if DRAFTABLE_TYPES.has(newAction.action_type)}
-                              <button class="ini-btn-sm ini-btn-draft"
-                                      disabled={formDraftLoading}
-                                      onclick={() => handleFormDraft(initiative)}>
-                                {formDraftLoading ? 'Drafting...' : 'Draft with AI'}
-                              </button>
-                            {/if}
-                          {/if}
-                          <label class="ini-field-label">{actionConfig.deadlineLabel}
-                            <div class="ini-field">
-                              <input class="ini-input" type="date" bind:value={newAction.deadline} />
-                            </div>
-                          </label>
-                          {#if newAction.deadline}
-                            <label class="ini-field-label">Context
-                              <div class="ini-field">
-                                <input class="ini-input" type="text" placeholder={actionConfig.deadlineContextPlaceholder} maxlength={200} bind:value={newAction.deadlineContext} />
-                                <span class="ini-char-count" class:near-limit={newAction.deadlineContext.length > 160}>{newAction.deadlineContext.length}/200</span>
-                              </div>
-                            </label>
-                          {/if}
-                          {#if newAction.action_type === 'signature'}
-                            <div class="ini-field">
-                              <label class="ini-field-label">Signature goal
-                                <input class="ini-input" type="number" placeholder="e.g., 500" min={1} bind:value={newAction.targetCount} />
-                              </label>
-                            </div>
-                          {/if}
-                          <div class="ini-form-actions">
-                            <button class="ini-btn-cancel ini-btn-sm" onclick={() => { showCreateAction = null; }}>Cancel</button>
-                            <button class="ini-btn-primary ini-btn-sm" disabled={!identity?.isUnlocked || creatingAction || !newAction.description.trim()} onclick={() => handleCreateAction(initiative.id)}>
-                              {creatingAction ? 'Adding...' : 'Add Action'}
-                            </button>
-                          </div>
+                    <select class="ini-input" bind:value={newAction.action_type}>
+                      <option value="written_comment">Write Comment</option>
+                      <option value="attend_meeting">Attend Meeting</option>
+                      <option value="public_comment">Public Comment</option>
+                      <option value="contact_official">Contact Official</option>
+                      <option value="signature">Sign Petition</option>
+                      <option value="share">Share</option>
+                      <option value="custom">Custom</option>
+                    </select>
+                    <label class="ini-field-label">Description
+                      <div class="ini-field">
+                        <textarea class="ini-input ini-textarea" placeholder={actionConfig.descPlaceholder} maxlength={500} rows={2} bind:value={newAction.description}></textarea>
+                        <span class="ini-char-count" class:near-limit={newAction.description.length > 400}>{newAction.description.length}/500</span>
+                      </div>
+                    </label>
+                    <label class="ini-field-label">{actionConfig.targetLabel}
+                      <div class="ini-field">
+                        <input class="ini-input" type="text" placeholder={actionConfig.targetPlaceholder} bind:value={newAction.target} />
+                      </div>
+                    </label>
+                    {#if actionConfig.showTemplate}
+                      <label class="ini-field-label">{actionConfig.templateLabel}
+                        <div class="ini-field">
+                          <textarea class="ini-input ini-textarea" placeholder={actionConfig.templatePlaceholder} maxlength={2000} rows={3} bind:value={newAction.template}></textarea>
+                          <span class="ini-char-count" class:near-limit={newAction.template.length > 1600}>{newAction.template.length}/2000</span>
                         </div>
-                      {:else}
-                        <button class="ini-add-action" onclick={() => { showCreateAction = initiative.id; }}>
-                          <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-                          Add Action
+                      </label>
+                      {#if DRAFTABLE_TYPES.has(newAction.action_type)}
+                        <button class="ini-btn-sm ini-btn-draft"
+                                disabled={formDraftLoading}
+                                onclick={() => handleFormDraft(initiative)}>
+                          {formDraftLoading ? 'Drafting...' : 'Draft with AI'}
                         </button>
                       {/if}
                     {/if}
+                    <label class="ini-field-label">{actionConfig.deadlineLabel}
+                      <div class="ini-field">
+                        <input class="ini-input" type="date" bind:value={newAction.deadline} />
+                      </div>
+                    </label>
+                    {#if newAction.deadline}
+                      <label class="ini-field-label">Context
+                        <div class="ini-field">
+                          <input class="ini-input" type="text" placeholder={actionConfig.deadlineContextPlaceholder} maxlength={200} bind:value={newAction.deadlineContext} />
+                          <span class="ini-char-count" class:near-limit={newAction.deadlineContext.length > 160}>{newAction.deadlineContext.length}/200</span>
+                        </div>
+                      </label>
+                    {/if}
+                    {#if newAction.action_type === 'signature'}
+                      <div class="ini-field">
+                        <label class="ini-field-label">Signature goal
+                          <input class="ini-input" type="number" placeholder="e.g., 500" min={1} bind:value={newAction.targetCount} />
+                        </label>
+                      </div>
+                    {/if}
+                    <div class="ini-form-actions">
+                      <button class="ini-btn-cancel ini-btn-sm" onclick={() => { showCreateAction = null; }}>Cancel</button>
+                      <button class="ini-btn-primary ini-btn-sm" disabled={!identity?.isUnlocked || creatingAction || !newAction.description.trim()} onclick={() => handleCreateAction(initiative.id)}>
+                        {creatingAction ? 'Adding...' : 'Add Action'}
+                      </button>
+                    </div>
                   </div>
                 {/if}
               </div>
@@ -5062,7 +4977,6 @@
     font-weight: 500;
     line-height: 1.3;
   }
-  .ini-card-toggle:hover .ini-card-title { color: #60a5fa; }
   .ini-card-desc {
     color: #9ca3af;
     font-size: 13px;
@@ -5073,8 +4987,6 @@
     overflow: hidden;
     line-height: 1.4;
   }
-  .ini-card-toggle:hover .ini-expand-chevron { color: #60a5fa; }
-  .ini-card-toggle:hover .ini-coord-icon { color: #60a5fa; }
 
   /* === Initiative Detail (expanded) === */
   .ini-detail {
