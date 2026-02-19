@@ -102,6 +102,23 @@
     <civic-initiative-card id="ini2"></civic-initiative-card>
   </div>
 
+  <h2>civic-comment-thread</h2>
+
+  <div class="card">
+    <div class="card-title">Zoning Amendment — Active Thread (3 comments, expanded)</div>
+    <civic-comment-thread id="thread1"></civic-comment-thread>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Water Rate Increase — Collapsed (1 comment)</div>
+    <civic-comment-thread id="thread2"></civic-comment-thread>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Locked User — No compose area</div>
+    <civic-comment-thread id="thread3"></civic-comment-thread>
+  </div>
+
   <h2>Event Log</h2>
   <div class="event-log" id="log">Waiting for interactions...</div>
 
@@ -320,6 +337,93 @@
       logEvent(`Initiative ${ini2.expanded ? 'expanded' : 'collapsed'}: ${ini2.initiative.title}`);
     };
     ini2.onaddaction = () => logEvent('Add action clicked for ini-002');
+
+    // Configure comment threads
+    const thread1 = document.getElementById('thread1');
+    thread1.entityId = 'agenda-item:zoning-001';
+    thread1.commentCount = 3;
+    thread1.attestedCount = 2;
+    thread1.expanded = true;
+    thread1.comments = [
+      { entity: 'agenda-item:zoning-001', comment_text: 'Mixed-use is exactly what 4th Street needs. More housing above retail will revitalize the area.', public_key: 'abc12345deadbeef', signature: '', timestamp: '2026-02-17T10:30:00Z', stance: 'support', deleted: false, attested: true },
+      { entity: 'agenda-item:zoning-001', comment_text: 'Parking is already terrible. Adding residential without parking requirements will make it worse.', public_key: 'def67890cafebabe', signature: '', timestamp: '2026-02-17T11:15:00Z', stance: 'oppose', deleted: false, attested: true },
+      { entity: 'agenda-item:zoning-001', comment_text: 'I want to learn more about the traffic impact study before taking a position.', public_key: 'user1234pubkey00', signature: '', timestamp: '2026-02-17T14:00:00Z', deleted: false, attested: false },
+    ];
+    thread1.synthesis = { support: 2, oppose: 1, neutral: 1 };
+    thread1.isUnlocked = true;
+    thread1.hasIdentity = true;
+    thread1.userPublicKey = 'user1234pubkey00';
+    thread1.aiAvailable = true;
+    thread1.activeProviderName = 'Claude';
+    thread1.clerkEmail = 'clerk@example.gov';
+    thread1.mailtoHref = 'mailto:clerk@example.gov?subject=Public%20Comment%20-%20Zoning%20Amendment';
+    thread1.ontoggle = () => {
+      thread1.expanded = !thread1.expanded;
+      logEvent(`Thread ${thread1.expanded ? 'expanded' : 'collapsed'}`);
+    };
+    thread1.onsubmit = ({ entityId, text }) => logEvent(`Submit comment on ${entityId}: "${text.slice(0, 40)}..."`);
+    thread1.ondraftchange = ({ text }) => { thread1.draft = text; };
+    thread1.ondraft = ({ entityId }) => {
+      thread1.draftLoading = true;
+      logEvent(`AI drafting for ${entityId}...`);
+      setTimeout(() => {
+        thread1.draft = 'I support the proposed MX-3 zoning change for 4th Street. Mixed-use development near transit is smart growth that benefits our community.';
+        thread1.draftLoading = false;
+        logEvent('AI draft complete');
+      }, 1500);
+    };
+    thread1.onenrich = ({ entityId }) => {
+      thread1.enrichLoading = true;
+      logEvent(`Enriching draft for ${entityId}...`);
+      setTimeout(() => {
+        thread1.draft += '\n\nThe General Plan 2040 specifically calls for mixed-use corridors along transit routes (Policy LU-4.2).';
+        thread1.enrichLoading = false;
+        logEvent('Enrichment complete');
+      }, 1000);
+    };
+    thread1.onsummarize = ({ entityId }) => {
+      thread1.summarizeLoading = true;
+      logEvent(`Summarizing thread for ${entityId}...`);
+      setTimeout(() => {
+        thread1.summaryHtml = '<p><strong>Summary:</strong> Residents are split on the zoning change. Supporters cite housing needs and transit-oriented development. Opposition centers on parking concerns.</p>';
+        thread1.showSummary = true;
+        thread1.summarizeLoading = false;
+        logEvent('Summary complete');
+      }, 1200);
+    };
+
+    const thread2 = document.getElementById('thread2');
+    thread2.entityId = 'agenda-item:water-rate-001';
+    thread2.commentCount = 1;
+    thread2.attestedCount = 0;
+    thread2.ontoggle = () => {
+      thread2.expanded = !thread2.expanded;
+      if (thread2.expanded && !thread2.comments?.length) {
+        thread2.loading = true;
+        setTimeout(() => {
+          thread2.comments = [
+            { entity: 'agenda-item:water-rate-001', comment_text: 'A 12% increase is too much for fixed-income residents. Please consider a tiered approach.', public_key: 'aaa11111bbbb2222', signature: '', timestamp: '2026-02-16T09:00:00Z', stance: 'oppose', deleted: false },
+          ];
+          thread2.loading = false;
+        }, 800);
+      }
+      logEvent(`Thread2 ${thread2.expanded ? 'expanded' : 'collapsed'}`);
+    };
+
+    const thread3 = document.getElementById('thread3');
+    thread3.entityId = 'agenda-item:budget-001';
+    thread3.commentCount = 5;
+    thread3.attestedCount = 3;
+    thread3.expanded = true;
+    thread3.comments = [
+      { entity: 'agenda-item:budget-001', comment_text: 'We need more funding for parks and recreation.', public_key: 'parkfan123456789', signature: '', timestamp: '2026-02-15T08:00:00Z', stance: 'support', deleted: false, attested: true },
+    ];
+    thread3.hasIdentity = true;
+    thread3.isUnlocked = false;
+    thread3.ontoggle = () => {
+      thread3.expanded = !thread3.expanded;
+      logEvent(`Thread3 ${thread3.expanded ? 'expanded' : 'collapsed'}`);
+    };
 
     // Event logging
     const logEl = document.getElementById('log');
