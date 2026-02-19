@@ -11,14 +11,18 @@
 
   type JurisdictionLevel = 'federal' | 'state' | 'city' | string;
 
+  import type { Snippet } from 'svelte';
+
   let {
     data,
     showCalendar = false,
     level = 'city',
+    children,
   }: {
     data: PulseData;
     showCalendar?: boolean;
     level?: JurisdictionLevel;
+    children?: Snippet;
   } = $props();
 
   const isLegislative = $derived(level === 'state' || level === 'federal');
@@ -148,6 +152,10 @@
     </div>
   {/if}
 </section>
+
+{#if children}
+  {@render children()}
+{/if}
 
 <footer class="pulse-footer">
   <span class="footer-ts">Updated {new Date(data.generated_at).toLocaleTimeString()}</span>
