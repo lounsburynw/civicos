@@ -39,8 +39,6 @@ import {
   createInitiativeTags,
   createCivicActionContent,
   createCivicActionTags,
-  createAttestationContent,
-  createAttestationTags,
 } from './events.js';
 
 export class ApiClient {
@@ -218,6 +216,7 @@ export class ApiClient {
     publicKey: string,
     signature: string,
     createdAt: number,
+    attestationProof?: Record<string, unknown>,
   ): Promise<boolean> {
     try {
       const relayUrl = await this.registry.getRelayUrl();
@@ -231,6 +230,7 @@ export class ApiClient {
           signature,
           created_at: createdAt,
           jurisdiction,
+          attestation_proof: attestationProof ?? null,
         }),
       });
       return response.ok;
@@ -542,6 +542,7 @@ export class ApiClient {
     createdAt: number,
     jurisdiction: string,
     stance?: string,
+    attestationProof?: Record<string, unknown>,
   ): Promise<boolean> {
     try {
       const relayUrl = await this.registry.getRelayUrl();
@@ -556,6 +557,7 @@ export class ApiClient {
           created_at: createdAt,
           jurisdiction,
           stance: stance || null,
+          attestation_proof: attestationProof ?? null,
         }),
       });
       return response.ok;
@@ -620,6 +622,7 @@ export class ApiClient {
     entityId: string,
     stance: 'support' | 'oppose' | 'watching',
     jurisdiction: string,
+    attestationProof?: Record<string, unknown>,
   ): Promise<boolean> {
     const signer = this.requireSigner();
     const createdAt = Math.floor(Date.now() / 1000);
@@ -629,7 +632,7 @@ export class ApiClient {
       content: createVoiceContent(entityId, stance, createdAt),
       created_at: createdAt,
     });
-    return this.submitVoice(entityId, stance, jurisdiction, signed.pubkey, signed.sig, createdAt);
+    return this.submitVoice(entityId, stance, jurisdiction, signed.pubkey, signed.sig, createdAt, attestationProof);
   }
 
   async castRevokeVoice(entityId: string): Promise<boolean> {
@@ -649,6 +652,7 @@ export class ApiClient {
     commentText: string,
     jurisdiction: string,
     stance?: string,
+    attestationProof?: Record<string, unknown>,
   ): Promise<boolean> {
     const signer = this.requireSigner();
     const createdAt = Math.floor(Date.now() / 1000);
@@ -658,7 +662,7 @@ export class ApiClient {
       content: commentText,
       created_at: createdAt,
     });
-    return this.submitComment(entityId, commentText, signed.pubkey, signed.sig, createdAt, jurisdiction, stance);
+    return this.submitComment(entityId, commentText, signed.pubkey, signed.sig, createdAt, jurisdiction, stance, attestationProof);
   }
 
   async castCommitment(actionId: string, jurisdiction: string): Promise<boolean> {
@@ -749,20 +753,6 @@ export class ApiClient {
       options?.target, options?.deadline, options?.targetCount,
       options?.template, options?.deadlineContext,
     );
-  }
-
-  async castRedeemAttestation(
-    code: string,
-  ): Promise<{ success: boolean; attestation_event?: Record<string, unknown>; error?: string }> {
-    const signer = this.requireSigner();
-    const createdAt = Math.floor(Date.now() / 1000);
-    const signed = await signer.signEvent({
-      kind: CivicEventKinds.ATTESTATION,
-      tags: createAttestationTags(code),
-      content: createAttestationContent(code, createdAt),
-      created_at: createdAt,
-    });
-    return this.redeemAttestationCode(code, signed.pubkey, signed.sig, createdAt);
   }
 
   // === Internal ===

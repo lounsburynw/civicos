@@ -4,7 +4,13 @@ import pytest
 from datetime import datetime, timedelta
 
 from civicos_relay.voice.models import Voice, Stance, VoiceCount
-from civicos_relay.voice.crypto import KeyPair, sign_voice, verify_voice
+from civicos_relay.voice.crypto import (
+    KeyPair,
+    sign_voice,
+    verify_voice,
+    sign_attestation_event,
+    verify_attestation_proof,
+)
 
 
 class TestKeyPair:
@@ -84,6 +90,106 @@ class TestVoiceSigning:
         )
 
         assert verify_voice(tampered) is False
+
+
+class TestAttestationProof:
+    """Tests for verify_attestation_proof()."""
+
+    def test_valid_proof(self):
+        """Valid attestation proof verifies."""
+        issuer = KeyPair.generate()
+        subject = KeyPair.generate()
+        jurisdiction = "city-san-rafael"
+
+        proof = sign_attestation_event(issuer, subject.public_key_hex, jurisdiction)
+
+        assert verify_attestation_proof(
+            proof, subject.public_key_hex, jurisdiction, issuer.public_key_hex
+        ) is True
+
+    def test_wrong_issuer_pubkey(self):
+        """Proof signed by different issuer fails."""
+        issuer = KeyPair.generate()
+        wrong_issuer = KeyPair.generate()
+        subject = KeyPair.generate()
+        jurisdiction = "city-san-rafael"
+
+        proof = sign_attestation_event(issuer, subject.public_key_hex, jurisdiction)
+
+        assert verify_attestation_proof(
+            proof, subject.public_key_hex, jurisdiction, wrong_issuer.public_key_hex
+        ) is False
+
+    def test_wrong_subject(self):
+        """Proof for different subject fails d-tag and p-tag checks."""
+        issuer = KeyPair.generate()
+        subject = KeyPair.generate()
+        other_subject = KeyPair.generate()
+        jurisdiction = "city-san-rafael"
+
+        proof = sign_attestation_event(issuer, subject.public_key_hex, jurisdiction)
+
+        assert verify_attestation_proof(
+            proof, other_subject.public_key_hex, jurisdiction, issuer.public_key_hex
+        ) is False
+
+    def test_wrong_jurisdiction(self):
+        """Proof for different jurisdiction fails d-tag and j-tag checks."""
+        issuer = KeyPair.generate()
+        subject = KeyPair.generate()
+
+        proof = sign_attestation_event(issuer, subject.public_key_hex, "city-san-rafael")
+
+        assert verify_attestation_proof(
+            proof, subject.public_key_hex, "city-berkeley", issuer.public_key_hex
+        ) is False
+
+    def test_tampered_signature(self):
+        """Tampered signature fails verification."""
+        issuer = KeyPair.generate()
+        subject = KeyPair.generate()
+        jurisdiction = "city-san-rafael"
+
+        proof = sign_attestation_event(issuer, subject.public_key_hex, jurisdiction)
+        proof["sig"] = "00" * 64  # Tampered
+
+        assert verify_attestation_proof(
+            proof, subject.public_key_hex, jurisdiction, issuer.public_key_hex
+        ) is False
+
+    def test_tampered_event_id(self):
+        """Tampered event ID fails recomputation check."""
+        issuer = KeyPair.generate()
+        subject = KeyPair.generate()
+        jurisdiction = "city-san-rafael"
+
+        proof = sign_attestation_event(issuer, subject.public_key_hex, jurisdiction)
+        proof["id"] = "00" * 32  # Tampered
+
+        assert verify_attestation_proof(
+            proof, subject.public_key_hex, jurisdiction, issuer.public_key_hex
+        ) is False
+
+    def test_wrong_kind(self):
+        """Non-30850 kind fails."""
+        issuer = KeyPair.generate()
+        subject = KeyPair.generate()
+        jurisdiction = "city-san-rafael"
+
+        proof = sign_attestation_event(issuer, subject.public_key_hex, jurisdiction)
+        proof["kind"] = 30800  # Wrong kind
+
+        assert verify_attestation_proof(
+            proof, subject.public_key_hex, jurisdiction, issuer.public_key_hex
+        ) is False
+
+    def test_none_proof(self):
+        """None proof returns False."""
+        assert verify_attestation_proof(None, "abc", "j", "def") is False
+
+    def test_empty_dict(self):
+        """Empty dict returns False."""
+        assert verify_attestation_proof({}, "abc", "j", "def") is False
 
 
 class TestVoiceCount:

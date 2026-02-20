@@ -45,6 +45,10 @@ class Voice(BaseModel):
         default=None,
         description="Unix timestamp from the signed Nostr event (for signature verification)"
     )
+    attestation_proof: Optional[dict] = Field(
+        default=None,
+        description="Full kind-30850 Nostr event signed by the jurisdiction issuer"
+    )
     revoked: bool = Field(default=False)
 
     model_config = {"frozen": True}
@@ -83,6 +87,10 @@ class Comment(BaseModel):
     created_at: Optional[int] = Field(
         default=None,
         description="Unix timestamp from the signed Nostr event"
+    )
+    attestation_proof: Optional[dict] = Field(
+        default=None,
+        description="Full kind-30850 Nostr event signed by the jurisdiction issuer"
     )
     deleted: bool = Field(default=False)
 

@@ -42,6 +42,7 @@ class CastVoiceRequest(BaseModel):
     signature: str = Field(description="Signature of entity+stance (hex-encoded)")
     created_at: Optional[int] = Field(default=None, description="Unix timestamp from the signed Nostr event")
     jurisdiction: Optional[str] = Field(default=None, description="Jurisdiction code for Nostr event reconstruction")
+    attestation_proof: Optional[dict] = Field(default=None, description="Full kind-30850 Nostr event signed by jurisdiction issuer")
 
 
 class VoiceResponse(BaseModel):
@@ -300,6 +301,7 @@ class SubmitCommentRequest(BaseModel):
     created_at: int = Field(description="Unix timestamp from the signed Nostr event")
     jurisdiction: Optional[str] = None
     stance: Optional[str] = None
+    attestation_proof: Optional[dict] = Field(default=None, description="Full kind-30850 Nostr event signed by jurisdiction issuer")
 
 
 class CommentResponse(BaseModel):
@@ -655,6 +657,7 @@ async def cast_voice(request: CastVoiceRequest):
             timestamp=datetime.utcnow(),
             created_at=request.created_at,
             jurisdiction=request.jurisdiction,
+            attestation_proof=request.attestation_proof,
         )
 
         # Verify signature
@@ -662,6 +665,28 @@ async def cast_voice(request: CastVoiceRequest):
             raise HTTPException(
                 status_code=400,
                 detail="Invalid voice signature"
+            )
+
+        # Hard gate: attestation_proof required
+        if not request.attestation_proof:
+            raise HTTPException(
+                status_code=403,
+                detail="attestation_proof required"
+            )
+
+        from civicos_relay.voice.crypto import verify_attestation_proof
+        issuer_keypair = _get_attestation_issuer_keypair()
+        if not issuer_keypair:
+            raise HTTPException(status_code=503, detail="Attestation issuer not configured")
+        if not verify_attestation_proof(
+            request.attestation_proof,
+            subject_pubkey=request.public_key,
+            jurisdiction=request.jurisdiction or "",
+            issuer_pubkey=issuer_keypair.public_key_hex,
+        ):
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid attestation_proof"
             )
 
         # Check for existing voice and revoke if present
@@ -772,17 +797,16 @@ async def get_voice_counts(entity: str, jurisdiction: Optional[str] = None):
         service = VoiceService(storage)
         counts = service.get_counts(entity)
 
+        # Count attested voices from embedded attestation_proof (no JOIN needed)
         attested = None
         unattested = None
         if jurisdiction:
-            att_storage = _get_attestation_storage()
-            if att_storage:
-                try:
-                    att_counts = att_storage.count_attested_voices(entity, jurisdiction)
-                    attested = att_counts["attested"]
-                    unattested = att_counts["unattested"]
-                except Exception as e:
-                    logger.debug(f"Attestation counts unavailable: {e}")
+            try:
+                voices = storage.get_voices_for_entity(entity)
+                attested = sum(1 for v in voices if v.attestation_proof is not None)
+                unattested = len(voices) - attested
+            except Exception as e:
+                logger.debug(f"Attestation counts unavailable: {e}")
 
         return VoiceCountResponse(
             entity=counts.entity,
@@ -2503,10 +2527,33 @@ async def submit_comment(request: SubmitCommentRequest):
             created_at=request.created_at,
             jurisdiction=request.jurisdiction,
             stance=request.stance,
+            attestation_proof=request.attestation_proof,
         )
 
         if not verify_comment(comment):
             raise HTTPException(status_code=400, detail="Invalid comment signature")
+
+        # Hard gate: attestation_proof required
+        if not request.attestation_proof:
+            raise HTTPException(
+                status_code=403,
+                detail="attestation_proof required"
+            )
+
+        from civicos_relay.voice.crypto import verify_attestation_proof
+        issuer_keypair = _get_attestation_issuer_keypair()
+        if not issuer_keypair:
+            raise HTTPException(status_code=503, detail="Attestation issuer not configured")
+        if not verify_attestation_proof(
+            request.attestation_proof,
+            subject_pubkey=request.public_key,
+            jurisdiction=request.jurisdiction or "",
+            issuer_pubkey=issuer_keypair.public_key_hex,
+        ):
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid attestation_proof"
+            )
 
         storage.save_comment(comment)
 
@@ -2543,20 +2590,6 @@ async def list_comments(entity: str, jurisdiction: Optional[str] = None):
     try:
         comments = storage.get_comments_for_entity(entity)
 
-        # Batch-check attestation status for all unique commenters
-        attested_keys: set[str] | None = None
-        if jurisdiction:
-            att_storage = _get_attestation_storage()
-            if att_storage:
-                try:
-                    unique_keys = {c.public_key for c in comments}
-                    attested_keys = {
-                        pk for pk in unique_keys
-                        if att_storage.is_attested(pk, jurisdiction)
-                    }
-                except Exception as e:
-                    logger.debug(f"Comment attestation lookup unavailable: {e}")
-
         return [
             CommentResponse(
                 entity=c.entity,
@@ -2567,7 +2600,7 @@ async def list_comments(entity: str, jurisdiction: Optional[str] = None):
                 jurisdiction=c.jurisdiction,
                 stance=c.stance,
                 deleted=c.deleted,
-                attested=c.public_key in attested_keys if attested_keys is not None else None,
+                attested=c.attestation_proof is not None if jurisdiction else None,
             )
             for c in comments
         ]
@@ -2591,17 +2624,16 @@ async def get_comment_counts(entity: str, jurisdiction: Optional[str] = None):
     try:
         count = storage.get_comment_count(entity)
 
+        # Count attested comments from embedded attestation_proof (no JOIN needed)
         attested = None
         unattested = None
         if jurisdiction:
-            att_storage = _get_attestation_storage()
-            if att_storage:
-                try:
-                    att_counts = att_storage.count_attested_comments(entity, jurisdiction)
-                    attested = att_counts["attested"]
-                    unattested = att_counts["unattested"]
-                except Exception as e:
-                    logger.debug(f"Comment attestation counts unavailable: {e}")
+            try:
+                comments = storage.get_comments_for_entity(entity)
+                attested = sum(1 for c in comments if c.attestation_proof is not None)
+                unattested = len(comments) - attested
+            except Exception as e:
+                logger.debug(f"Comment attestation counts unavailable: {e}")
 
         return CommentCountResponse(
             entity=entity, count=count, attested=attested, unattested=unattested
@@ -2662,6 +2694,11 @@ async def redeem_attestation(request: RedeemAttestationRequest):
         raise HTTPException(status_code=404, detail="Invalid attestation code")
     if code_record.get("redeemed_by"):
         raise HTTPException(status_code=409, detail="Code already redeemed")
+
+    # Check expiry
+    from datetime import timezone
+    if code_record.get("expires_at") and code_record["expires_at"] < datetime.now(timezone.utc):
+        raise HTTPException(status_code=410, detail="Attestation code has expired")
 
     jurisdiction = code_record["jurisdiction"]
 

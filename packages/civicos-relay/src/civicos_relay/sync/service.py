@@ -10,7 +10,7 @@ import httpx
 
 from civicos_relay.identity import RelayIdentity, PeerConfig
 from civicos_relay.voice.models import Voice
-from civicos_relay.voice.crypto import verify_voice
+from civicos_relay.voice.crypto import verify_voice, verify_attestation_proof
 from civicos_relay.relay.models import Event
 from civicos_relay.sync.protocol import (
     SyncRequest,
@@ -77,6 +77,8 @@ class SyncService:
         peers: list[PeerConfig],
         health_check_timeout: int = DEFAULT_HEALTH_CHECK_TIMEOUT,
         max_consecutive_failures: int = DEFAULT_MAX_CONSECUTIVE_FAILURES,
+        issuer_pubkeys: Optional[dict[str, str]] = None,
+        require_attestation: bool = False,
     ):
         self._identity = identity
         self._storage = storage
@@ -85,6 +87,8 @@ class SyncService:
         self._health_client = httpx.AsyncClient(timeout=float(health_check_timeout))
         self._running = False
         self._max_consecutive_failures = max_consecutive_failures
+        self._issuer_pubkeys = issuer_pubkeys or {}
+        self._require_attestation = require_attestation
 
     async def start(self) -> None:
         """Start background sync tasks."""
@@ -178,6 +182,18 @@ class SyncService:
         # Verify voice signature
         if not verify_voice(voice):
             logger.warning(f"Rejected voice with invalid signature: {voice.public_key[:16]}...")
+            return "rejected"
+
+        # Verify attestation proof if present
+        if voice.attestation_proof:
+            issuer_pubkey = self._issuer_pubkeys.get(voice.jurisdiction or "")
+            if issuer_pubkey and not verify_attestation_proof(
+                voice.attestation_proof, voice.public_key, voice.jurisdiction or "", issuer_pubkey
+            ):
+                logger.warning(f"Rejected voice with invalid attestation_proof: {voice.public_key[:16]}...")
+                return "rejected"
+        elif self._require_attestation:
+            logger.warning(f"Rejected voice without attestation_proof: {voice.public_key[:16]}...")
             return "rejected"
 
         return self._storage.import_voice(voice)

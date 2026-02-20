@@ -53,13 +53,16 @@ class PostgresVoiceStorage:
         conn = self._get_connection()
         try:
             with conn.cursor() as cur:
+                proof_json = json.dumps(voice.attestation_proof) if voice.attestation_proof else None
                 cur.execute(
                     """
                     INSERT INTO coordination_voices
-                    (entity, stance, public_key, signature, timestamp, revoked)
-                    VALUES (%s, %s, %s, %s, %s, %s)
+                    (entity, stance, public_key, signature, timestamp, jurisdiction,
+                     created_at, attestation_proof, revoked)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
                     ON CONFLICT (public_key, entity)
-                    DO UPDATE SET stance = %s, signature = %s, timestamp = %s, revoked = %s
+                    DO UPDATE SET stance = %s, signature = %s, timestamp = %s,
+                    jurisdiction = %s, created_at = %s, attestation_proof = %s, revoked = %s
                     """,
                     (
                         voice.entity,
@@ -67,10 +70,16 @@ class PostgresVoiceStorage:
                         voice.public_key,
                         voice.signature,
                         voice.timestamp,
+                        voice.jurisdiction,
+                        voice.created_at,
+                        proof_json,
                         voice.revoked,
                         voice.stance.value,
                         voice.signature,
                         voice.timestamp,
+                        voice.jurisdiction,
+                        voice.created_at,
+                        proof_json,
                         voice.revoked,
                     ),
                 )
@@ -85,7 +94,8 @@ class PostgresVoiceStorage:
             with conn.cursor() as cur:
                 cur.execute(
                     """
-                    SELECT entity, stance, public_key, signature, timestamp, revoked
+                    SELECT entity, stance, public_key, signature, timestamp,
+                           jurisdiction, created_at, attestation_proof, revoked
                     FROM coordination_voices
                     WHERE public_key = %s AND entity = %s
                     """,
@@ -99,7 +109,10 @@ class PostgresVoiceStorage:
                         public_key=row[2],
                         signature=row[3],
                         timestamp=row[4],
-                        revoked=row[5],
+                        jurisdiction=row[5],
+                        created_at=row[6],
+                        attestation_proof=_parse_jsonb(row[7]),
+                        revoked=row[8],
                     )
                 return None
         finally:
@@ -112,7 +125,8 @@ class PostgresVoiceStorage:
             with conn.cursor() as cur:
                 cur.execute(
                     """
-                    SELECT entity, stance, public_key, signature, timestamp, revoked
+                    SELECT entity, stance, public_key, signature, timestamp,
+                           jurisdiction, created_at, attestation_proof, revoked
                     FROM coordination_voices
                     WHERE entity = %s AND revoked = FALSE
                     """,
@@ -125,7 +139,10 @@ class PostgresVoiceStorage:
                         public_key=row[2],
                         signature=row[3],
                         timestamp=row[4],
-                        revoked=row[5],
+                        jurisdiction=row[5],
+                        created_at=row[6],
+                        attestation_proof=_parse_jsonb(row[7]),
+                        revoked=row[8],
                     )
                     for row in cur.fetchall()
                 ]
@@ -642,11 +659,11 @@ class PostgresSyncStorage:
         try:
             with conn.cursor() as cur:
                 if namespace:
-                    # Filter by namespace prefix (e.g., "city-san-rafael:*" matches "city-san-rafael:decision:123")
                     namespace_prefix = namespace.rstrip("*")
                     cur.execute(
                         """
-                        SELECT entity, stance, public_key, signature, timestamp, revoked
+                        SELECT entity, stance, public_key, signature, timestamp,
+                               jurisdiction, created_at, attestation_proof, revoked
                         FROM coordination_voices
                         WHERE timestamp > %s AND entity LIKE %s
                         ORDER BY timestamp ASC
@@ -657,7 +674,8 @@ class PostgresSyncStorage:
                 else:
                     cur.execute(
                         """
-                        SELECT entity, stance, public_key, signature, timestamp, revoked
+                        SELECT entity, stance, public_key, signature, timestamp,
+                               jurisdiction, created_at, attestation_proof, revoked
                         FROM coordination_voices
                         WHERE timestamp > %s
                         ORDER BY timestamp ASC
@@ -674,12 +692,14 @@ class PostgresSyncStorage:
                         public_key=row[2],
                         signature=row[3],
                         timestamp=row[4],
-                        revoked=row[5],
+                        jurisdiction=row[5],
+                        created_at=row[6],
+                        attestation_proof=_parse_jsonb(row[7]),
+                        revoked=row[8],
                     )
                     for row in rows[:limit]
                 ]
 
-                # If we got more than limit, there's a next page
                 if len(rows) > limit:
                     next_cursor = voices[-1].timestamp.isoformat()
                     return voices, next_cursor
@@ -707,14 +727,16 @@ class PostgresSyncStorage:
                     if existing_ts >= voice.timestamp:
                         return "duplicate"
 
-                # Insert or update voice
+                proof_json = json.dumps(voice.attestation_proof) if voice.attestation_proof else None
                 cur.execute(
                     """
                     INSERT INTO coordination_voices
-                    (entity, stance, public_key, signature, timestamp, revoked)
-                    VALUES (%s, %s, %s, %s, %s, %s)
+                    (entity, stance, public_key, signature, timestamp,
+                     jurisdiction, created_at, attestation_proof, revoked)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
                     ON CONFLICT (public_key, entity)
-                    DO UPDATE SET stance = %s, signature = %s, timestamp = %s, revoked = %s
+                    DO UPDATE SET stance = %s, signature = %s, timestamp = %s,
+                    jurisdiction = %s, created_at = %s, attestation_proof = %s, revoked = %s
                     """,
                     (
                         voice.entity,
@@ -722,10 +744,16 @@ class PostgresSyncStorage:
                         voice.public_key,
                         voice.signature,
                         voice.timestamp,
+                        voice.jurisdiction,
+                        voice.created_at,
+                        proof_json,
                         voice.revoked,
                         voice.stance.value,
                         voice.signature,
                         voice.timestamp,
+                        voice.jurisdiction,
+                        voice.created_at,
+                        proof_json,
                         voice.revoked,
                     ),
                 )
@@ -1502,15 +1530,16 @@ class PostgresCommentStorage:
         conn = self._get_connection()
         try:
             with conn.cursor() as cur:
+                proof_json = json.dumps(comment.attestation_proof) if comment.attestation_proof else None
                 cur.execute(
                     """
                     INSERT INTO coordination_comments
                     (entity, comment_text, public_key, signature, timestamp,
-                     jurisdiction, stance, created_at, deleted)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                     jurisdiction, stance, created_at, attestation_proof, deleted)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                     ON CONFLICT (public_key, entity)
                     DO UPDATE SET comment_text = %s, signature = %s, timestamp = %s,
-                    stance = %s, created_at = %s, deleted = %s
+                    stance = %s, created_at = %s, attestation_proof = %s, deleted = %s
                     """,
                     (
                         comment.entity,
@@ -1521,12 +1550,14 @@ class PostgresCommentStorage:
                         comment.jurisdiction,
                         comment.stance,
                         comment.created_at,
+                        proof_json,
                         comment.deleted,
                         comment.comment_text,
                         comment.signature,
                         comment.timestamp,
                         comment.stance,
                         comment.created_at,
+                        proof_json,
                         comment.deleted,
                     ),
                 )
@@ -1543,7 +1574,7 @@ class PostgresCommentStorage:
                 cur.execute(
                     """
                     SELECT entity, comment_text, public_key, signature, timestamp,
-                           jurisdiction, stance, created_at, deleted
+                           jurisdiction, stance, created_at, attestation_proof, deleted
                     FROM coordination_comments
                     WHERE entity = %s AND deleted = FALSE
                     ORDER BY timestamp DESC
@@ -1560,7 +1591,8 @@ class PostgresCommentStorage:
                         jurisdiction=row[5],
                         stance=row[6],
                         created_at=row[7],
-                        deleted=row[8],
+                        attestation_proof=_parse_jsonb(row[8]),
+                        deleted=row[9],
                     )
                     for row in cur.fetchall()
                 ]

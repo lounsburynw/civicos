@@ -1,77 +1,88 @@
-# Recommended: engagement_ladder_ux — Phase 4 (State/Federal Polish + Topic Tagging)
+# Recommended: Attestation Migration + Deploy, then engagement_ladder_ux
 
-**Priority:** P0 (engagement_ladder_ux)
-**Area:** frontend_refinement > city_status_dashboard
-**Date:** 2026-02-19
+**Priority:** P0 is `engagement_ladder_ux`, but **attestation migration must run first** (5 min blocking task)
+**Area:** data_architecture (migration) + frontend_refinement > city_status_dashboard (P0)
+**Date:** 2026-02-20
 
 > This is recommended context from the previous session. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
 
 ## Context
 
-Phase 3 (UX polish) is complete across 12 commits. The city tab now has: attention bar with official + initiative items, Official/Public section hierarchy, draft-to-route workflow (AI draft → official mailto or community comment), cached AI summaries, collapsible Issue Map and Budget sections, and all "attested" text replaced with checkmark icons. Several Svelte 5 reactivity bugs were fixed (TDZ errors, state mutation, tick timing).
+The **attestation restructure** is code-complete but the SQL migration hasn't been run yet. All code changes are committed to working tree (unstaged). The restructure embeds kind-30850 attestation events directly on voice/comment records so any relay can independently verify attestation without JOINs. This is a prerequisite for open-sourcing.
 
-The ultimate goal is organizing read-MCP and public-relay items like a library — tagged by topic, actionable items at top — to enable a chat router that triggers tool calls. Phase 4 brings state/federal tabs to the same polish standard, and lays the topic tagging foundation.
+## BLOCKING: Run the SQL Migration
 
-## What Was Done (Session 8 — Phase 3)
-
-- Attention bar: city-only + initiatives with voices/recent, scrollable, "Upcoming actionable items" title
-- Official/Public group headers for information hierarchy
-- Issue Map and Budget restored as collapsible sections under Official
-- Draft-to-route workflow: "Draft with AI" on cards → editable draft → route to official (mailto) or community comment
-- AI summary toggle: cached responses collapse/expand, regenerate option
-- Initiatives surfaced in attention bar (voices > 0 or created within 7 days) with scroll-to-card
-- All "attested" text → green checkmark icons (AgendaItemCard, DecisionCard, CommentThread, InitiativeCard)
-- My Commitments section removed
-- Monochrome palette applied to initiatives
-- Past meetings filtered out (today or future only)
-- Fixed: Svelte 5 `$state` Record mutation (spread reassign), `tick()` for lazy component load timing, TDZ error in CivicIssueMap (ISSUE_COLORS declared after `$state` that referenced it)
-
-## Phase 4 Tasks
-
-### 4a: State/federal tab polish (CivicReadOnlyPulse)
-Apply the same UX patterns from the city tab to `CivicReadOnlyPulse.svelte`:
-- Attention bar with comment periods, hearings, governor's desk items
-- Official/Public section grouping
-- Monochrome palette consistency (some blue accents may remain)
-- Collapsible sections with chevrons
-- Current code: `packages/civicos-components/src/components/CivicReadOnlyPulse.svelte`
-
-### 4b: Topic tagging foundation
-This bridges the gap from time-sorted feed to topic-organized library:
-- Agenda items and decisions don't currently have topic tags (initiatives do)
-- Need topic classification on all entity types — either from MCP data or derived client-side
-- This enables "browse by topic" and powers the future chat router ("show me housing items")
-- Consider: lightweight client-side topic extraction from titles, or add topic field to pulse API
-
-### 4c: Svelte 5 reactivity audit
-Several Svelte 5 bugs were hit this session. Key patterns to watch:
-- `$state` with `Record<string, boolean>` — must spread-reassign, not mutate properties
-- `const` declarations must come before `$state()` that references them (TDZ)
-- Lazy components in `{#if}` blocks need `await tick()` before `bind:this` ref is available
-- `$effect` calling functions that modify tracked `$state` → use `untrack()` or avoid
-
-## Key Files
-
-- `apps/civicos-extension/src/side-panel/SidePanel.svelte` — Main panel layout, attention bar (~line 786), sections, toggle logic
-- `packages/civicos-components/src/components/CivicReadOnlyPulse.svelte` — State/federal tab renderer (Phase 4a target)
-- `packages/civicos-components/src/components/CivicAgendaView.svelte` — Agenda cards with draft workflow
-- `packages/civicos-components/src/components/CivicInitiativeView.svelte` — Initiative section with `expandAndScrollTo()` export
-- `packages/civicos-components/src/components/CivicIssueMap.svelte` — Leaflet map (ISSUE_COLORS must be before $state)
-- `packages/civicos-components/src/components/CivicBudgetBreakdown.svelte` — Chart.js budget viz
-- `packages/civicos-components/src/utils/civic-helpers.ts` — Shared utilities (urgency, calendar, focal meetings)
-
-## Build & Test
+The migration must run before deploying, otherwise the new columns won't exist and voice/comment submission will fail.
 
 ```bash
-cd apps/civicos-extension && npm run build   # Verify compilation
-cd apps/civicos-extension && npm run dev     # Live reload for iteration
+# Connect to relay DB and run migration
+source civicos-env/bin/activate
+python3 -c "
+from dotenv import load_dotenv; load_dotenv()
+import os, psycopg2
+conn = psycopg2.connect(os.environ['RELAY_DATABASE_URL'])
+cur = conn.cursor()
+with open('scripts/sql/add_attestation_proof_to_voices.sql') as f:
+    cur.execute(f.read())
+conn.commit()
+print('Migration complete')
+# Verify backfill
+cur.execute('SELECT COUNT(*) FROM coordination_voices WHERE attestation_proof IS NOT NULL')
+print(f'Voices with attestation_proof: {cur.fetchone()[0]}')
+cur.execute('SELECT COUNT(*) FROM coordination_voices')
+print(f'Total voices: {cur.fetchone()[0]}')
+conn.close()
+"
+```
+
+## Unstaged Changes to Commit
+
+All attestation restructure changes are unstaged. Commit them:
+
+### Files changed (13 modified + 1 new):
+- `packages/civicos-relay/src/civicos_relay/voice/crypto.py` — `verify_attestation_proof()`
+- `packages/civicos-relay/src/civicos_relay/voice/models.py` — `attestation_proof` on Voice, Comment
+- `packages/civicos-relay/src/civicos_relay/storage/postgres.py` — CRUD includes attestation_proof
+- `packages/civicos-relay/src/civicos_relay/sync/service.py` — Verify attestation on import
+- `packages/civicos-relay/tests/test_voice.py` — 9 new attestation proof tests (all pass)
+- `packages/civicos-services/src/civicos_services/servers/routers/coordination.py` — Hard gate (403/400), expiry fix, simplified read-time checks
+- `packages/civicos-client/src/api.ts` — Thread attestation_proof through cast/submit
+- `packages/civicos-client/src/events.ts` — Removed dead attestation helpers
+- `packages/civicos-client/src/index.ts` — Removed dead re-exports
+- `packages/civicos-client/src/registry.ts` — `attestation_issuer_pubkey` on RegistryServer
+- `apps/civicos-registry/src/registry.ts` — `attestation_issuer_pubkey` on ServerInfo
+- `apps/civicos-extension/src/side-panel/SidePanel.svelte` — Reads stored attestation, blocks unattested
+- `config/registry.json` — Issuer pubkey for city-san-rafael
+- `scripts/sql/add_attestation_proof_to_voices.sql` — **NEW** migration
+
+Also unstaged from a previous session (unrelated):
+- `packages/civicos-client/src/ai/manager.ts` — Chat routing fix (linter/formatter change)
+
+## After Migration: P0 Work
+
+The P0 item is `engagement_ladder_ux` — Phase 4b topic tagging foundation. See previous handoff context:
+- Create `topicClassifier(title, summary?)` utility with keyword->topic map
+- Tag agenda items, decisions, legislation by topic
+- Add topic filter UI (pills) on at least one tab
+- Key files: `CivicReadOnlyPulse.svelte`, `CivicAgendaView.svelte`, `civic-helpers.ts`, `SidePanel.svelte`
+
+## Tests
+
+```bash
+# Relay tests (272 pass, includes 9 new attestation tests)
+pytest packages/civicos-relay/tests/ -v --override-ini="addopts="
+
+# Extension build
+cd apps/civicos-extension && npm run build
+
+# Client type check
+cd packages/civicos-client && npx tsc --noEmit
 ```
 
 ## Success Criteria
 
-- [ ] State/federal tabs have attention bar for actionable items
-- [ ] State/federal tabs use Official/Public section grouping
-- [ ] Monochrome palette consistent across all tabs
-- [ ] Topic tagging prototype on at least one entity type
-- [ ] No Svelte 5 TDZ or reactivity errors
-- [ ] Extension builds and works with live data
+- [ ] SQL migration runs successfully against relay DB
+- [ ] Backfill shows existing attested voices now have `attestation_proof IS NOT NULL`
+- [ ] All changes committed
+- [ ] Deploy to Modal (if time permits)
+- [ ] Topic tagging MVP (P0 work)

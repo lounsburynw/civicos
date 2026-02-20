@@ -374,6 +374,60 @@ def sign_attestation_event(
     }
 
 
+def verify_attestation_proof(
+    proof: dict, subject_pubkey: str, jurisdiction: str, issuer_pubkey: str
+) -> bool:
+    """
+    Verify a kind-30850 attestation proof embedded on a voice/comment event.
+
+    Checks:
+    1. Kind is 30850
+    2. Signed by the jurisdiction's issuer (not the subject)
+    3. d-tag matches attest:{jurisdiction}:{subject_pubkey}
+    4. Has required ["p", subject_pubkey] and ["j", jurisdiction] tags
+    5. Event ID matches recomputed hash
+    6. Schnorr signature is valid
+    """
+    try:
+        if not isinstance(proof, dict):
+            return False
+
+        # 1. Kind check
+        if proof.get("kind") != 30850:
+            return False
+
+        # 2. Issuer check — must be signed by jurisdiction issuer, not subject
+        if proof.get("pubkey") != issuer_pubkey:
+            return False
+
+        # 3. d-tag check
+        tags = proof.get("tags", [])
+        expected_d = f"attest:{jurisdiction}:{subject_pubkey}"
+        d_tag_ok = any(
+            t[0] == "d" and t[1] == expected_d for t in tags if len(t) >= 2
+        )
+        if not d_tag_ok:
+            return False
+
+        # 4. Required tags
+        has_p = any(t[0] == "p" and t[1] == subject_pubkey for t in tags if len(t) >= 2)
+        has_j = any(t[0] == "j" and t[1] == jurisdiction for t in tags if len(t) >= 2)
+        if not has_p or not has_j:
+            return False
+
+        # 5. Recompute event ID
+        computed_id = _compute_nostr_event_id(
+            proof["pubkey"], proof["created_at"], 30850, tags, proof.get("content", "")
+        )
+        if computed_id != proof.get("id"):
+            return False
+
+        # 6. Verify Schnorr signature
+        return _schnorr_verify(proof["pubkey"], proof["sig"], proof["id"])
+    except (KeyError, TypeError, ValueError):
+        return False
+
+
 def verify_signature(public_key_hex: str, signature_hex: str, message: str) -> bool:
     """Verify an arbitrary Schnorr signature over a message."""
     try:

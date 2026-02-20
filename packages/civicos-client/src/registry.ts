@@ -31,6 +31,7 @@ export interface RegistryServer {
   relay_endpoint?: string;
   relay_ws_endpoint?: string;
   parent_jurisdictions?: string[];
+  attestation_issuer_pubkey?: string;
 }
 
 interface RegistryCache {
