@@ -97,9 +97,9 @@
       <span class="chevron-sm" class:open={expanded}></span>
     </button>
     {#if clerkEmail && mailtoHref}
-      <a class="email-clerk-btn" href={mailtoHref} title="Email your comment to the City Clerk">
+      <a class="email-clerk-btn" href={mailtoHref} title="Opens email to the City Clerk with your comment">
         <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M2 4l6 4 6-4M2 4v8h12V4H2z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>
-        Email Clerk
+        Submit Official Comment
       </a>
     {/if}
   </div>
@@ -235,19 +235,21 @@
     align-items: center;
     gap: 4px;
     font-size: 11px;
-    color: #9ca3af;
+    font-weight: 500;
+    color: #4ade80;
     text-decoration: none;
-    padding: 4px 8px;
-    border-radius: 6px;
-    border: 1px solid transparent;
+    padding: 3px 8px;
+    border-radius: 4px;
+    background: rgba(74, 222, 128, 0.08);
+    border: 1px solid rgba(74, 222, 128, 0.2);
     transition: all 0.15s ease;
   }
   .email-clerk-btn:hover {
-    color: #d1d5db;
-    background: rgba(59,130,246,0.08);
-    border-color: rgba(59,130,246,0.2);
+    background: rgba(74, 222, 128, 0.16);
+    border-color: #4ade80;
+    color: #86efac;
   }
-  .email-clerk-btn svg { opacity: 0.6; }
+  .email-clerk-btn svg { opacity: 0.7; }
   .comment-toggle {
     display: flex;
     align-items: center;

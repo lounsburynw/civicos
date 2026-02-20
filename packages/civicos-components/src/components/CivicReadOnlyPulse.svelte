@@ -505,7 +505,7 @@
                 {/if}
                 <div class="card-actions">
                   {#if period.comment_url && period.days_remaining >= 0}
-                    <a href={period.comment_url} target="_blank" rel="noopener" class="action-link comment-link">Submit Comment</a>
+                    <a href={period.comment_url} target="_blank" rel="noopener" class="action-link comment-link">Submit Official Comment</a>
                   {/if}
                   {#if period.html_url}
                     <a href={period.html_url} target="_blank" rel="noopener" class="action-link">Read Rule</a>
