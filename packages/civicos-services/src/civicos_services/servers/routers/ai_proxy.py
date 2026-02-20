@@ -254,13 +254,13 @@ async def ai_chat(request: AIChatRequest):
     if not _chat_registry:
         raise HTTPException(status_code=503, detail="Chat tools not configured")
 
-    tools = _build_chat_tools()
-    if not tools:
-        raise HTTPException(status_code=503, detail="No chat tools available")
-
-    jurisdiction = request.jurisdiction or _chat_jurisdiction
-
     try:
+        tools = _build_chat_tools()
+        if not tools:
+            return AIChatResponse(success=False, error="No chat tools available")
+
+        jurisdiction = request.jurisdiction or _chat_jurisdiction
+
         import anthropic
 
         client = anthropic.Anthropic(api_key=api_key)
@@ -312,6 +312,19 @@ async def ai_chat(request: AIChatRequest):
             tool_result = json.dumps({"error": f"Tool failed: {str(e)[:200]}"})
 
         # Second call: Claude summarizes the tool result
+        # Serialize assistant content blocks for the messages API
+        assistant_content = []
+        for block in response.content:
+            if block.type == "text":
+                assistant_content.append({"type": "text", "text": block.text})
+            elif block.type == "tool_use":
+                assistant_content.append({
+                    "type": "tool_use",
+                    "id": block.id,
+                    "name": block.name,
+                    "input": block.input,
+                })
+
         response2 = client.messages.create(
             model="claude-sonnet-4-5-20250929",
             max_tokens=1024,
@@ -319,7 +332,7 @@ async def ai_chat(request: AIChatRequest):
             tools=tools,
             messages=[
                 {"role": "user", "content": request.question},
-                {"role": "assistant", "content": response.content},
+                {"role": "assistant", "content": assistant_content},
                 {
                     "role": "user",
                     "content": [
@@ -349,8 +362,6 @@ async def ai_chat(request: AIChatRequest):
         logger.info("ai_chat_success", extra={"npub_prefix": request.public_key[:8], "tool": tool_name})
         return AIChatResponse(success=True, text=final_text, tool_used=tool_name)
 
-    except anthropic.RateLimitError:
-        return AIChatResponse(success=False, error="AI service is busy — please try again in a moment")
     except Exception as e:
         logger.exception("AI chat error")
         return AIChatResponse(success=False, error=f"AI service error: {str(e)[:200]}")

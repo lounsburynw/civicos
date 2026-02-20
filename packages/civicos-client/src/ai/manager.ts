@@ -93,6 +93,7 @@ export class AIManager {
     return this.activeProvider !== null;
   }
 
+
   /**
    * Run a completion against the active provider.
    */
@@ -111,28 +112,24 @@ export class AIManager {
   }
 
   /**
-   * Run a tool-backed civic search against the active provider.
+   * Run a tool-backed civic search. Always routes through the CivicOS proxy
+   * (server-side tool execution) regardless of which provider is active for drafting.
    */
   async chat(question: string, jurisdiction?: string): Promise<AIChatResult> {
     if (!this.initialized) await this.initialize();
 
-    if (!this.activeProvider) {
-      return {
-        success: false,
-        error: 'No AI provider configured. Open extension options to set one up.',
-        provider: 'none',
-      };
+    // Chat uses the server's API key — find any provider that supports it
+    for (const provider of this.providers.values()) {
+      if (typeof provider.chat === 'function') {
+        return provider.chat(question, jurisdiction);
+      }
     }
 
-    if (!this.activeProvider.chat) {
-      return {
-        success: false,
-        error: 'Active provider does not support tool-backed chat.',
-        provider: this.activeProvider.id,
-      };
-    }
-
-    return this.activeProvider.chat(question, jurisdiction);
+    return {
+      success: false,
+      error: 'No chat-capable provider registered.',
+      provider: 'none',
+    };
   }
 
   /**
