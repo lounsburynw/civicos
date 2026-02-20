@@ -19,8 +19,10 @@
   // Props
   let {
     api,
+    autoload = false,
   }: {
     api: ApiClient;
+    autoload?: boolean;
   } = $props();
 
   // === State ===
@@ -208,6 +210,9 @@
       requestAnimationFrame(() => renderMap());
     }
   });
+
+  // Auto-load when prop is set
+  if (autoload) load();
 </script>
 
 {#if loading}

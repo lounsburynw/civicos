@@ -927,26 +927,26 @@
 
     <!-- Issue Map -->
     <section class="feed-section">
-      <button class="section-header" onclick={() => { toggle('issueMap'); issueMapRef?.load(); }}>
+      <button class="section-header" onclick={() => toggle('issueMap')}>
         <span class="section-title">Issue Map</span>
         <span class="chevron" class:open={expanded.issueMap}></span>
       </button>
       {#if expanded.issueMap}
         <div class="section-body">
-          <CivicIssueMap bind:this={issueMapRef} {api} />
+          <CivicIssueMap bind:this={issueMapRef} {api} autoload />
         </div>
       {/if}
     </section>
 
     <!-- Budget -->
     <section class="feed-section">
-      <button class="section-header" onclick={() => { toggle('budget'); budgetRef?.load(); }}>
+      <button class="section-header" onclick={() => toggle('budget')}>
         <span class="section-title">Budget</span>
         <span class="chevron" class:open={expanded.budget}></span>
       </button>
       {#if expanded.budget}
         <div class="section-body">
-          <CivicBudgetBreakdown bind:this={budgetRef} {api} />
+          <CivicBudgetBreakdown bind:this={budgetRef} {api} autoload />
         </div>
       {/if}
     </section>
