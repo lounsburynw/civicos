@@ -378,35 +378,57 @@ def extract_agenda_items_from_meeting(
         # Initialize integrator with injected provider
         integrator = AgendaIntegrator(provider=provider)
 
-        # The meeting's agenda_url is typically the meeting PAGE, not the PDF.
-        # We need to discover the actual PDF URL first.
-        # Create event dict with source_url pointing to meeting page
-        event_for_discovery = meeting.copy()
-        event_for_discovery['source_url'] = meeting_page_url
-        event_for_discovery.pop('agenda_url', None)  # Clear so discovery runs
+        # Determine if the agenda_url is already a content URL (HTML agenda or PDF)
+        # vs a meeting page that requires discovery of the actual agenda
+        content_url = None
+        if meeting_page_url:
+            url_lower = meeting_page_url.lower()
+            is_content_url = (
+                url_lower.endswith('.pdf')
+                or 'agendaviewer' in url_lower  # Granicus AgendaViewer HTML
+                or 'api.civicclerk.com' in url_lower  # CivicClerk API
+            )
+            if is_content_url:
+                content_url = meeting_page_url
+                logger.info(f"  Agenda URL is content (skipping discovery): {content_url[:80]}...")
 
-        # Discover the actual PDF URL
-        pdf_url, pdf_available = integrator.discover_agenda_url(event_for_discovery)
+        if not content_url:
+            # agenda_url is a meeting page — discover the actual PDF/content URL
+            event_for_discovery = meeting.copy()
+            event_for_discovery['source_url'] = meeting_page_url
 
-        if not pdf_available or not pdf_url:
-            # Fallback: if the meeting_page_url is already a PDF, use it directly
-            if meeting_page_url.lower().endswith('.pdf'):
-                pdf_url = meeting_page_url
-            else:
-                logger.info(f"  No PDF agenda found at {meeting_page_url[:60]}...")
+            # Promote _granicus_metadata from full_data if not at top level
+            if '_granicus_metadata' not in event_for_discovery:
+                full_data = event_for_discovery.get('full_data')
+                if full_data:
+                    if isinstance(full_data, str):
+                        try:
+                            full_data = json.loads(full_data)
+                        except (json.JSONDecodeError, TypeError):
+                            full_data = {}
+                    for meta_key in ('_granicus_metadata', '_legistar_metadata', '_civicclerk_metadata'):
+                        if meta_key in full_data and meta_key not in event_for_discovery:
+                            event_for_discovery[meta_key] = full_data[meta_key]
+
+            event_for_discovery.pop('agenda_url', None)  # Clear so discovery runs
+
+            content_url, content_available = integrator.discover_agenda_url(event_for_discovery)
+
+            if not content_available or not content_url:
+                logger.info(f"  No agenda content found at {meeting_page_url[:60]}...")
                 return AgendaResult(
                     meeting_id=meeting_id,
                     meeting_date=meeting_date,
                     meeting_title=meeting_title,
                     meeting_page_url=meeting_page_url,
                     status="no_items",
-                    parse_failure_reason="No PDF agenda discovered from meeting page",
+                    parse_failure_reason="No agenda content discovered from meeting page",
                 )
 
-        logger.info(f"  Found PDF: {pdf_url[:80]}...")
+        logger.info(f"  Agenda content: {content_url[:80]}...")
 
-        # Extract agenda items from the PDF
-        agenda_items = integrator.parse_agenda_content(pdf_url, meeting)
+        # Extract agenda items from content (PDF or HTML)
+        agenda_items = integrator.parse_agenda_content(content_url, meeting)
 
         if not agenda_items:
             # Get parse failure reason from integrator if available
@@ -487,7 +509,7 @@ def extract_agenda_items_from_meeting(
             meeting_date=meeting_date,
             meeting_title=meeting_title,
             meeting_page_url=meeting_page_url,
-            pdf_url=pdf_url,
+            pdf_url=content_url,
             status="success",
             items_count=len(items_data),
             actionable_count=actionable_count,
@@ -500,7 +522,7 @@ def extract_agenda_items_from_meeting(
             meeting_date=meeting_date,
             meeting_title=meeting_title,
             meeting_page_url=meeting_page_url,
-            pdf_url=pdf_url if 'pdf_url' in dir() else None,
+            pdf_url=content_url if 'content_url' in dir() else None,
             status="error",
             error=str(e),
         )
