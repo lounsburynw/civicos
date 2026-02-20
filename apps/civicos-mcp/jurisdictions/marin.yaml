@@ -1,0 +1,110 @@
+# Marin County Configuration
+#
+# Jurisdiction configuration for County of Marin, California.
+# Used by civicos-mcp tools for contact info, data sources, etc.
+
+jurisdiction_id: county-marin
+level: county
+display_name: Marin County
+
+# Hierarchy
+parent_jurisdictions:
+  - state-california
+  - country-united-states
+
+# Contact Information
+contact_info:
+  clerk_email: BOS@marincounty.gov
+  city_hall_address: "3501 Civic Center Drive, Suite 329, San Rafael CA 94903"
+  phone: "(415) 473-7331"
+  website: "https://www.marincounty.gov"
+  public_comment_deadline: "Noon the Monday before the Tuesday Board meeting"
+  in_person_time_limit: "3 minutes"
+  public_comment_subject: "Public Comment - [Agenda Item Title]"
+
+# Governing Body
+governing_body:
+  name: Marin County Board of Supervisors
+  members_title: Supervisors
+  meeting_schedule: "Tuesdays, 9:00 AM"
+  meeting_location: "Board of Supervisors Chambers, 3501 Civic Center Drive, San Rafael"
+
+# Data Sources
+data_sources:
+  meetings: granicus
+  issues: seeclickfix              # TBD - verify county 311 system
+  budget: county_portal
+  municipal_code: municode         # Marin County Code
+  transcripts: youtube             # TBD - verify recording source
+
+# All zip codes in Marin County
+zip_codes:
+  - "94901"   # San Rafael
+  - "94903"   # San Rafael
+  - "94904"   # Greenbrae / Kentfield
+  - "94912"   # San Rafael
+  - "94913"   # San Rafael
+  - "94914"   # Kentfield
+  - "94915"   # San Rafael
+  - "94920"   # Belvedere / Tiburon
+  - "94924"   # Bolinas
+  - "94925"   # Corte Madera
+  - "94929"   # Dillon Beach
+  - "94930"   # Fairfax
+  - "94933"   # Forest Knolls
+  - "94937"   # Inverness
+  - "94938"   # Lagunitas
+  - "94939"   # Larkspur
+  - "94940"   # Marshall
+  - "94941"   # Mill Valley
+  - "94942"   # Mill Valley
+  - "94945"   # Novato
+  - "94947"   # Novato
+  - "94949"   # Novato
+  - "94950"   # Olema
+  - "94956"   # Point Reyes Station
+  - "94957"   # Ross
+  - "94960"   # San Anselmo
+  - "94963"   # San Geronimo
+  - "94964"   # San Quentin
+  - "94965"   # Sausalito
+  - "94966"   # Sausalito
+  - "94970"   # Stinson Beach
+  - "94971"   # Tomales
+  - "94973"   # Woodacre
+  - "94974"   # San Quentin
+  - "94976"   # Corte Madera
+  - "94977"   # Larkspur
+  - "94978"   # Fairfax
+  - "94979"   # San Anselmo
+
+# Unincorporated communities (county jurisdiction)
+# Census-designated places + unincorporated areas
+neighborhoods:
+  # Census-designated places
+  - Alto
+  - Black Point-Green Point
+  - Bolinas
+  - Dillon Beach
+  - Inverness
+  - Kentfield
+  - Lagunitas-Forest Knolls
+  - Lucas Valley-Marinwood
+  - Marin City
+  - Muir Beach
+  - Nicasio
+  - Point Reyes Station
+  - San Geronimo
+  - Santa Venetia
+  - Sleepy Hollow
+  - Stinson Beach
+  - Strawberry
+  - Tamalpais-Homestead Valley
+  - Tomales
+  - Woodacre
+  # Other unincorporated areas
+  - Bel Marin Keys
+  - Greenbrae
+  - Ignacio
+  - Los Ranchitos
+  - Paradise Cay
