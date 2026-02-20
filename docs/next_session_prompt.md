@@ -1,102 +1,104 @@
-# Recommended: Browser Extension UX Alignment & Clarity
+# Recommended: Browser Extension UX Audit — Cross-Level Consistency & Information Density
 
-**Priority:** P0 (engagement_ladder_ux — refinement)
-**Area:** frontend_refinement > browser_extension
+**Priority:** P0 (engagement_ladder_ux)
+**Area:** frontend_refinement > city_status_dashboard
 **Date:** 2026-02-19
 
-> This is a UX-focused session. The browser extension has grown feature-rich across city, state, and federal tabs — but inconsistencies between levels and information density need attention. The goal: make every level feel like the same product while keeping information rich but not cluttered.
+> This is recommended context from the previous session. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
 
-## Guiding Principle
+## Context
 
-CivicOS exists as the **antidote to doomscrolling** — seamlessly fostering constructive action. Every design decision should ask: *does this help a resident move from awareness to action without feeling overwhelmed?*
+The browser extension now has a **visual testing harness** with Playwright screenshots at all 3 jurisdiction levels (city, state, federal). This session should use `/visual-review` to take screenshots, simulate user reactions, audit cross-level consistency, and reduce information density without losing richness. The overarching goal: **CivicOS as the antidote to doomscrolling** — seamlessly guiding people from awareness to action.
+
+Previous sessions (1-5) built the engagement ladder: focal points, comment threads, AI integration, voice buttons, and the visual harness. This session focuses on **polish and coherence**.
 
 ## Three Focus Areas
 
-### 1. Cross-Level Consistency ("Follow Suit")
+### 1. Simulated User Opinions
 
-City, state, and federal tabs should feel like the same product at different scales. Current inconsistencies:
+Use `/visual-review` to take fresh screenshots, then simulate 3-4 user personas reviewing them:
 
-| Feature | City | State/Federal | Action Needed |
-|---------|------|---------------|---------------|
-| **"Take Action" focal group** | Missing | Amber-trimmed section at top | Add city focal points (public hearing deadlines, comment periods on zoning/planning items) |
-| **Calendar links** | Google Cal + .ics on meetings | Missing on hearings | Add calendar buttons to state/federal hearing cards |
-| **Meeting cards** | Full cards (CivicMeetingCard) | 2-column topic grid | Harmonize — either elevate state topics to cards or create a shared "event card" |
-| **Section hints** | None | "Your comment directly shapes..." | Add city hints ("Public comment is open — attend or email the clerk") |
-| **Urgency badges** | None | Days-remaining countdown | Add urgency to city items approaching meeting dates |
-| **Outcome icons** | Passed/Failed/Upcoming icons | None on bill activity | Add outcome icons to legislative bill status |
-| **Official comment path** | "Submit Official Comment" (mailto clerk) | "Submit Official Comment" (regulations.gov) | Consistent now! Consider adding "Contact Representative" for state bills |
+- **Busy parent** (2 minutes max, wants "what do I need to know?")
+- **Engaged retiree** (reads everything, wants depth)
+- **First-time user** (opened extension for the first time, no civic background)
+- **Policy wonk** (wants data density, official links, bill numbers)
 
-**Key files:**
-- `packages/civicos-components/src/components/CivicReadOnlyPulse.svelte` — State/federal pulse (focal points, legislation, outcomes)
-- `packages/civicos-components/src/components/CivicAgendaView.svelte` — City agenda items
+For each persona, read the screenshots and write a brief reaction: what works, what confuses, what they'd click first, what they'd skip.
+
+### 2. Cross-Level Consistency
+
+Current inconsistencies to address:
+
+| Feature | City | State/Federal | Fix |
+|---------|------|---------------|-----|
+| "Take Action" focal group | Missing | Yellow-trimmed section at top | Add city focal points for items with upcoming deadlines |
+| Urgency badges | None | Days-remaining countdown | Add urgency to city items near meeting dates |
+| Section hints | None | "Your comment directly shapes..." | Add city hints |
+| Outcome icons | Pass/fail icons on decisions | None on bill activity | Add to legislative outcomes |
+| Calendar buttons | On meeting cards | Missing on hearing cards | Already in hearings — verify consistent |
+
+### 3. Reducing Clutter (Without Losing Richness)
+
+The extension packs a lot of info. Potential approaches:
+
+- **Progressive disclosure**: Cards show headline + 1 key action; tap to expand for full detail
+- **Visual hierarchy**: Primary actions large/colored; metadata smaller/subdued
+- **Collapse-by-default**: Less-urgent sections collapsed, showing only header + count badge
+- **Action-first ordering**: Items you can act on NOW sorted to top of each section
+- **Summary strips**: Replace verbose card metadata with compact icon+label strips
+
+Key question: which sections feel most cluttered? The state tab with legislation + focal points + topic grid + bill activity is the densest.
+
+## Key Files
+
+- `packages/civicos-components/src/components/CivicReadOnlyPulse.svelte` — State/federal pulse (focal points, legislation, outcomes) — 1634 lines
+- `apps/civicos-extension/src/side-panel/SidePanel.svelte:601-951` — City pulse rendering, panel chrome, breadcrumb nav
 - `packages/civicos-components/src/components/CivicMeetingCard.svelte` — City meeting cards
+- `packages/civicos-components/src/components/CivicAgendaView.svelte` — City agenda items (has AI integration pattern)
 - `packages/civicos-components/src/components/CivicDecisionView.svelte` — City decisions/outcomes
+- `apps/civicos-extension/tests/visual/mock-data.ts` — Mock data for visual harness
+- `apps/civicos-extension/tests/visual/HarnessApp.svelte` — Harness wrapper
+- `apps/civicos-extension/playwright.config.ts` — Playwright config (380x900 viewport)
 
-### 2. Information Density vs. Clarity ("Have Our Cake and Eat It Too")
+## Visual Testing Harness (New This Session)
 
-The extension packs a lot of information, which is starting to feel cluttered. We need to maintain richness while creating visual breathing room and clear action hierarchy.
+```bash
+cd apps/civicos-extension
 
-**Potential approaches (explore and recommend):**
-- **Progressive disclosure**: Cards show headline + 1 key action by default; expand for full detail
-- **Visual hierarchy**: Primary actions (Submit Comment, Vote) prominent; secondary info (topics, dates, metadata) more subdued
-- **Grouping**: Cluster related cards under clear section headers with counts, collapsible by default for less-urgent sections
-- **Whitespace**: Increase card padding/margins slightly — dense ≠ cluttered if spacing is right
-- **Action-first ordering**: Within each section, sort by "actionability" (items you can act on NOW at top)
-- **Summary strips**: Replace verbose card metadata with compact icon+label strips (date icon, location icon, committee icon)
+# Manual inspection (opens in browser)
+npm run harness
+# → http://localhost:5199/?level=city
+# → http://localhost:5199/?level=state
+# → http://localhost:5199/?level=federal
 
-**Key question**: Which sections feel most cluttered? Audit each tab with fresh eyes and propose specific changes.
+# Generate baseline screenshots
+npm run test:visual:update
 
-**Reference files for current card density:**
-- `packages/civicos-components/src/components/CivicReadOnlyPulse.svelte` — Focal point cards (comment periods, hearings, governor's desk all show: title, meta row, topics, abstract, action links, voice buttons, comment thread)
-- `packages/civicos-components/src/components/CivicAgendaView.svelte` — Agenda items (title, type badge, description, AI buttons, voice, comments, clerk email)
+# Compare against baselines
+npm run test:visual
+```
 
-### 3. AI Integration for State/Federal Sections
-
-City tab has mature AI integration (Ask AI, Draft with AI, Enrich with context, Summarize threads). State/federal tabs need equivalent treatment.
-
-**What exists now:**
-- Drag-to-AI context composers for all focal point types (comment periods, hearings, governor's desk)
-- Comment thread "Summarize" on focal point cards
-- Voice buttons on all focal point and legislation cards
-
-**What's missing:**
-- No "Ask AI" button on individual state/federal cards (city agenda items have this)
-- No "Draft with AI" for composing official comments on federal rules
-- No "What does this bill mean for me?" AI prompt on hearing/governor's desk cards
-- No plain-language bill summary generation
-
-**Suggested AI integration points:**
-1. **"Explain This" button** on legislation cards — generates plain-language summary of bill impact
-2. **"Draft Comment" button** on federal comment period cards — AI drafts a public comment based on user's stance
-3. **"Prepare for Hearing" button** on hearing cards — generates talking points, key questions, background
-4. **"What Does This Mean?" tooltip** on governor's desk — explains bill impact in plain language
-5. **Consistent "Ask AI" placement** across all card types at all levels
-
-**Key files:**
-- `apps/civicos-extension/src/side-panel/SidePanel.svelte` — AI provider integration, askQuestion handler
-- `packages/civicos-components/src/components/CivicAgendaView.svelte:350-389` — City AI integration pattern to mirror
-
-## Architecture Notes
-
-- All components are Svelte 5 with `$state()` reactivity
-- AI integration goes through `session.askQuestion()` → configured AI provider (Claude, OpenAI, etc.)
-- Voice/comments go through relay at `{domain}/relay/coordination/*`
-- State/federal data comes from `_legislation_pulse()` handler in `apps/civicos-mcp/tools/handlers.py`
-- City data comes from `city_pulse` tool handler
+The `/visual-review` skill automates: take screenshots → Claude reads PNGs → UX review + baseline comparison.
 
 ## Suggested Session Plan
 
-1. **Audit** (15 min): Open extension, screenshot each tab, annotate inconsistencies
-2. **Harmonize** (30 min): Add missing features to bring levels into alignment (calendar on hearings, focal points for city, section hints)
-3. **Declutter** (30 min): Pick 2-3 highest-impact density improvements, implement
-4. **AI** (30 min): Add AI buttons to state/federal cards, mirroring city pattern
-5. **Polish** (15 min): Test all three tabs end-to-end, verify consistency
+1. **Run `/visual-review`** — Get fresh screenshots and initial UX assessment
+2. **Simulate user personas** — Read screenshots through 4 different lens, write reactions
+3. **Prioritize fixes** — Based on persona feedback, pick the 3-5 highest-impact changes
+4. **Implement consistency fixes** — Cross-level alignment (focal points, hints, badges)
+5. **Implement density reduction** — Progressive disclosure or visual hierarchy (pick 1-2 approaches)
+6. **Run `/visual-review` again** — Before/after comparison to verify improvements
+7. **Update baselines** — `npm run test:visual:update` if changes are intentional
+
+## Design Principle
+
+> Every element should either **inform** (what's happening), **orient** (why it matters to me), or **activate** (what I can do right now). If it does none of these, question whether it belongs on the default view.
 
 ## Success Criteria
 
-- [ ] All three tabs feel like the same product at different scales
-- [ ] "Take Action" focal points visible at city level (if applicable city data exists)
-- [ ] Calendar buttons on state/federal hearings
-- [ ] At least 1 density improvement implemented (progressive disclosure or visual hierarchy)
-- [ ] "Ask AI" or equivalent on state/federal legislation cards
-- [ ] No visual clutter regression — extension feels cleaner, not busier
+- [ ] Simulated user personas documented with specific, actionable feedback
+- [ ] At least 2 cross-level consistency improvements implemented
+- [ ] At least 1 information density reduction implemented
+- [ ] All 3 tabs feel like the same product at different scales
+- [ ] `/visual-review` shows no regressions — extension feels cleaner, not busier
+- [ ] Before/after screenshots reviewed and baselines updated

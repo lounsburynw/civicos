@@ -7,12 +7,14 @@
   "scripts": {
     "dev": "vite build --watch && cp manifest.json dist/ && cp -r icons dist/",
     "build": "vite build && cp manifest.json dist/ && cp -r icons dist/",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test:visual": "npx playwright test",
+    "test:visual:update": "npx playwright test --update-snapshots",
+    "harness": "npx vite --config vite.harness.config.ts"
   },
   "dependencies": {
     "@civicos/client": "file:../../packages/civicos-client",
     "@civicos/components": "file:../../packages/civicos-components",
-    "loom-core": "file:../../packages/loom-core",
     "@noble/curves": "^1.4.0",
     "@noble/hashes": "^1.4.0",
     "@scure/bip32": "^1.4.0",
@@ -20,9 +22,11 @@
     "chart.js": "^4.5.1",
     "dompurify": "^3.3.1",
     "leaflet": "^1.9.4",
+    "loom-core": "file:../../packages/loom-core",
     "marked": "^17.0.2"
   },
   "devDependencies": {
+    "@playwright/test": "^1.58.2",
     "@sveltejs/vite-plugin-svelte": "^5.0.0",
     "@tsconfig/svelte": "^5.0.0",
     "@types/leaflet": "^1.9.21",
