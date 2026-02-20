@@ -1,5 +1,6 @@
 <script lang="ts">
   import CivicDecisionCard from './CivicDecisionCard.svelte';
+  import CivicProcessBar from './CivicProcessBar.svelte';
 
   // Local type declarations (mirrors @civicos/client types)
   interface PulseOutcome {
@@ -257,6 +258,7 @@
          draggable="true"
          ondragstart={(e: DragEvent) => handleDragStart(e, decision)}
          ondragend={handleDragEnd}>
+      <CivicProcessBar level="city" stage="vote" />
       <CivicDecisionCard
         {decision}
         expanded={expandedDecisions.has(decision.title)}

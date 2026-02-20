@@ -1,6 +1,7 @@
 <script lang="ts">
   import CivicAgendaItemCard from './CivicAgendaItemCard.svelte';
   import CivicCommentThread from './CivicCommentThread.svelte';
+  import CivicProcessBar from './CivicProcessBar.svelte';
   import { meetingDaysUntil } from '../utils/civic-helpers.js';
 
   // Local type declarations (mirrors @civicos/client types)
@@ -89,6 +90,13 @@
   function getItemDaysUntil(meetingTitle: string): number | null {
     if (!meetings.length) return null;
     return meetingDaysUntil(meetingTitle, meetings, referenceTime);
+  }
+
+  function getItemStage(item: PulseAgendaItem): 'posted' | 'comment' | 'vote' {
+    const days = getItemDaysUntil(item.meeting_title);
+    if (days !== null && days <= 0) return 'vote';
+    if (item.comment_eligible) return 'comment';
+    return 'posted';
   }
 
   // --- Internal state (owned by this component) ---
@@ -495,6 +503,7 @@
        draggable="true"
        ondragstart={(e: DragEvent) => handleDragStart(e, item)}
        ondragend={handleDragEnd}>
+    <CivicProcessBar level="city" stage={getItemStage(item)} />
     <CivicAgendaItemCard
       {item}
       voiceCounts={voiceCounts.get(`agenda-item:${item.id}`) ?? null}
