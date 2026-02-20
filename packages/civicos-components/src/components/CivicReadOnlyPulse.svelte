@@ -3,7 +3,7 @@
   import CivicProcessBar from './CivicProcessBar.svelte';
   import CivicVoiceButtons from './CivicVoiceButtons.svelte';
   import CivicCommentThread from './CivicCommentThread.svelte';
-  import { outcomeIcon, outcomeClass, formatRelativeDate, googleCalendarUrl, downloadIcs, computeCityFocalMeetings, urgencyClass as urgencyClassFn, meetingDaysUntil as meetingDaysUntilFn } from '../utils/civic-helpers.js';
+  import { outcomeIcon, outcomeClass, formatRelativeDate, googleCalendarUrl, downloadIcs, computeCityFocalMeetings, urgencyClass as urgencyClassFn, meetingDaysUntil as meetingDaysUntilFn, classifyTopics } from '../utils/civic-helpers.js';
 
   type Stance = 'support' | 'oppose' | 'watching';
 
@@ -223,6 +223,68 @@
   );
   const hasCityFocal = $derived(cityFocalMeetings.length > 0);
   const hasFocalPoints = $derived(hasCommentPeriods || hasHearings || hasGovernorsDesk || hasCityFocal);
+
+  // --- Topic Classification & Filtering ---
+
+  // Classify topics for each item type. Comment periods use API-provided topics; all others are auto-classified.
+  type TopicEntry = { id: string; topics: string[] };
+
+  let allItemTopics = $derived.by(() => {
+    const entries: TopicEntry[] = [];
+    for (const p of data.comment_periods ?? []) {
+      entries.push({ id: p.document_number, topics: p.topics ?? classifyTopics(p.title, p.abstract) });
+    }
+    for (const h of data.upcoming_hearings ?? []) {
+      entries.push({ id: h.bill_id, topics: classifyTopics(h.bill_name || h.bill_number || '', h.summary || h.description) });
+    }
+    for (const b of data.governors_desk ?? []) {
+      entries.push({ id: b.bill_id, topics: classifyTopics(b.bill_name || b.bill_number || '', b.summary) });
+    }
+    for (const i of data.upcoming_items ?? []) {
+      entries.push({ id: i.id || i.title, topics: classifyTopics(i.title, i.summary || i.description) });
+    }
+    for (const o of data.recent_outcomes) {
+      entries.push({ id: o.id || o.title, topics: classifyTopics(o.title, o.summary) });
+    }
+    return new Map(entries.map(e => [e.id, e.topics]));
+  });
+
+  let availableTopics = $derived.by(() => {
+    const counts = new Map<string, number>();
+    for (const topics of allItemTopics.values()) {
+      for (const t of topics) {
+        counts.set(t, (counts.get(t) || 0) + 1);
+      }
+    }
+    return [...counts.entries()].sort((a, b) => b[1] - a[1]).map(([t]) => t);
+  });
+
+  let selectedTopics = $state(new Set<string>());
+
+  function toggleTopic(topic: string) {
+    if (selectedTopics.has(topic)) {
+      selectedTopics.delete(topic);
+    } else {
+      selectedTopics.add(topic);
+    }
+    selectedTopics = new Set(selectedTopics);
+  }
+
+  function topicsMatch(id: string): boolean {
+    if (selectedTopics.size === 0) return true;
+    const topics = allItemTopics.get(id) || [];
+    return topics.some(t => selectedTopics.has(t));
+  }
+
+  function getTopics(id: string): string[] {
+    return allItemTopics.get(id) || [];
+  }
+
+  let filteredCommentPeriods = $derived((data.comment_periods ?? []).filter(p => topicsMatch(p.document_number)));
+  let filteredHearings = $derived((data.upcoming_hearings ?? []).filter(h => topicsMatch(h.bill_id)));
+  let filteredGovernorsDesk = $derived((data.governors_desk ?? []).filter(b => topicsMatch(b.bill_id)));
+  let filteredItems = $derived((data.upcoming_items ?? []).filter(i => topicsMatch(i.id || i.title)));
+  let filteredOutcomes = $derived(data.recent_outcomes.filter(o => topicsMatch(o.id || o.title)));
 
   // --- Focal Point Context Composers (Drag-to-AI) ---
 
@@ -733,6 +795,22 @@ Keep it substantive but accessible (150-300 words). Reference the docket number.
   </div>
 {/if}
 
+<!-- Topic Filter -->
+{#if availableTopics.length > 0}
+  <div class="topic-filters">
+    {#each availableTopics as topic}
+      <button
+        class="topic-filter-pill"
+        class:active={selectedTopics.has(topic)}
+        onclick={() => toggleTopic(topic)}
+      >{topic}</button>
+    {/each}
+    {#if selectedTopics.size > 0}
+      <button class="topic-filter-clear" onclick={() => { selectedTopics = new Set(); }}>Clear</button>
+    {/if}
+  </div>
+{/if}
+
 <!-- Official data sections -->
 {#if isLegislative}
   <div class="group-header">Official</div>
@@ -745,14 +823,14 @@ Keep it substantive but accessible (150-300 words). Reference the docket number.
         <button class="section-header" onclick={() => toggle('commentPeriods')}>
           <span class="section-title">
             Comment Periods
-            <span class="count-badge">{data.comment_periods!.length}</span>
+            <span class="count-badge">{filteredCommentPeriods.length}</span>
           </span>
           <span class="chevron" class:open={expanded.commentPeriods}></span>
         </button>
         {#if expanded.commentPeriods}
           <div class="section-body">
             <div class="section-hint">Your comment directly shapes federal policy — the agency must read and respond</div>
-            {#each data.comment_periods! as period}
+            {#each filteredCommentPeriods as period}
               {@const eid = `rule:${period.document_number}`}
               {@const counts = voiceCounts.get(eid)}
               <div class="card" class:dragging={draggingId === period.document_number}
@@ -942,14 +1020,14 @@ Keep it substantive but accessible (150-300 words). Reference the docket number.
         <button class="section-header" onclick={() => toggle('hearings')}>
           <span class="section-title">
             Upcoming Hearings
-            <span class="count-badge">{data.upcoming_hearings!.length}</span>
+            <span class="count-badge">{filteredHearings.length}</span>
           </span>
           <span class="chevron" class:open={expanded.hearings}></span>
         </button>
         {#if expanded.hearings}
           <div class="section-body">
             <div class="section-hint">Hearings are open to public testimony — attend or submit written comments</div>
-            {#each data.upcoming_hearings! as hearing}
+            {#each filteredHearings as hearing}
               {@const eid = billEntityId(hearing.bill_id)}
               {@const counts = voiceCounts.get(eid)}
               <div class="card" class:dragging={draggingId === hearing.bill_id}
@@ -998,6 +1076,13 @@ Keep it substantive but accessible (150-300 words). Reference the docket number.
                   <div class="card-summary">{hearing.summary}</div>
                 {:else if hearing.description}
                   <div class="card-summary">{hearing.description}</div>
+                {/if}
+                {#if getTopics(hearing.bill_id).length > 0}
+                  <div class="card-topics">
+                    {#each getTopics(hearing.bill_id).slice(0, 3) as topic}
+                      <span class="topic-tag">{topic}</span>
+                    {/each}
+                  </div>
                 {/if}
                 {#if onvoice}
                   <div class="card-voice">
@@ -1100,14 +1185,14 @@ Keep it substantive but accessible (150-300 words). Reference the docket number.
         <button class="section-header" onclick={() => toggle('governorsDesk')}>
           <span class="section-title">
             Awaiting Governor's Signature
-            <span class="count-badge">{data.governors_desk!.length}</span>
+            <span class="count-badge">{filteredGovernorsDesk.length}</span>
           </span>
           <span class="chevron" class:open={expanded.governorsDesk}></span>
         </button>
         {#if expanded.governorsDesk}
           <div class="section-body">
             <div class="section-hint">Bills awaiting governor's signature — call now to influence the outcome</div>
-            {#each data.governors_desk! as bill}
+            {#each filteredGovernorsDesk as bill}
               {@const eid = billEntityId(bill.bill_id)}
               {@const counts = voiceCounts.get(eid)}
               <div class="card" class:dragging={draggingId === bill.bill_id}
@@ -1122,6 +1207,13 @@ Keep it substantive but accessible (150-300 words). Reference the docket number.
                 {/if}
                 {#if bill.summary}
                   <div class="card-summary">{bill.summary}</div>
+                {/if}
+                {#if getTopics(bill.bill_id).length > 0}
+                  <div class="card-topics">
+                    {#each getTopics(bill.bill_id).slice(0, 3) as topic}
+                      <span class="topic-tag">{topic}</span>
+                    {/each}
+                  </div>
                 {/if}
                 {#if onvoice}
                   <div class="card-voice">
@@ -1361,8 +1453,8 @@ Keep it substantive but accessible (150-300 words). Reference the docket number.
   <button class="section-header" onclick={() => toggle('items')}>
     <span class="section-title">
       {itemsLabel}
-      {#if data.upcoming_items && data.upcoming_items.length > 0}
-        <span class="count-badge">{data.upcoming_items.length}</span>
+      {#if filteredItems.length > 0}
+        <span class="count-badge">{filteredItems.length}</span>
       {/if}
     </span>
     <span class="chevron" class:open={expanded.items}></span>
@@ -1372,10 +1464,10 @@ Keep it substantive but accessible (150-300 words). Reference the docket number.
       {#if itemsHint}
         <div class="section-hint">{itemsHint}</div>
       {/if}
-      {#if !data.upcoming_items || data.upcoming_items.length === 0}
+      {#if filteredItems.length === 0}
         <div class="empty-section">{emptyItems}</div>
       {:else}
-        {#each data.upcoming_items as item}
+        {#each filteredItems as item}
           {@const eid = item.id ? billEntityId(item.id) : ''}
           {@const counts = eid ? voiceCounts.get(eid) : undefined}
           {@const itemDaysUntil = item.meeting_title ? meetingDaysUntil(item.meeting_title) : null}
@@ -1431,6 +1523,13 @@ Keep it substantive but accessible (150-300 words). Reference the docket number.
             {/if}
             {#if isLegislative && item.description}
               <div class="card-leverage">{item.description}</div>
+            {/if}
+            {#if getTopics(item.id || item.title).length > 0}
+              <div class="card-topics">
+                {#each getTopics(item.id || item.title).slice(0, 3) as topic}
+                  <span class="topic-tag">{topic}</span>
+                {/each}
+              </div>
             {/if}
             {#if eid && onvoice}
               <div class="card-voice">
@@ -1531,8 +1630,8 @@ Keep it substantive but accessible (150-300 words). Reference the docket number.
   <button class="section-header" onclick={() => toggle('outcomes')}>
     <span class="section-title">
       {outcomesLabel}
-      {#if data.recent_outcomes.length > 0}
-        <span class="count-badge">{data.recent_outcomes.length}</span>
+      {#if filteredOutcomes.length > 0}
+        <span class="count-badge">{filteredOutcomes.length}</span>
       {/if}
     </span>
     <span class="chevron" class:open={expanded.outcomes}></span>
@@ -1542,10 +1641,10 @@ Keep it substantive but accessible (150-300 words). Reference the docket number.
       {#if outcomesHint}
         <div class="section-hint">{outcomesHint}</div>
       {/if}
-      {#if data.recent_outcomes.length === 0}
+      {#if filteredOutcomes.length === 0}
         <div class="empty-section">{emptyOutcomes}</div>
       {:else}
-        {#each data.recent_outcomes as outcome}
+        {#each filteredOutcomes as outcome}
           {@const eid = outcome.id ? billEntityId(outcome.id) : ''}
           {@const counts = eid ? voiceCounts.get(eid) : undefined}
           <div class="card" class:dragging={draggingId === (outcome.id || outcome.title)}
@@ -1583,6 +1682,13 @@ Keep it substantive but accessible (150-300 words). Reference the docket number.
                 {/if}
               </div>
             {/if}
+            {#if getTopics(outcome.id || outcome.title).length > 0}
+              <div class="card-topics">
+                {#each getTopics(outcome.id || outcome.title).slice(0, 3) as topic}
+                  <span class="topic-tag">{topic}</span>
+                {/each}
+              </div>
+            {/if}
             {#if eid && onvoice && outcome.is_upcoming}
               <div class="card-voice">
                 <CivicVoiceButtons
@@ -1611,6 +1717,46 @@ Keep it substantive but accessible (150-300 words). Reference the docket number.
 </footer>
 
 <style>
+  /* --- Topic Filter Pills --- */
+  .topic-filters {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+    padding: 4px 0 8px;
+  }
+  .topic-filter-pill {
+    padding: 3px 8px;
+    border-radius: 10px;
+    border: 1px solid #333;
+    background: transparent;
+    color: #6b7280;
+    font-size: 10px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 150ms;
+    font-family: inherit;
+  }
+  .topic-filter-pill:hover {
+    color: #9ca3af;
+    border-color: #4b5563;
+  }
+  .topic-filter-pill.active {
+    background: rgba(96, 165, 250, 0.1);
+    border-color: rgba(96, 165, 250, 0.3);
+    color: #60a5fa;
+  }
+  .topic-filter-clear {
+    padding: 3px 8px;
+    border-radius: 10px;
+    border: none;
+    background: none;
+    color: #4b5563;
+    font-size: 10px;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .topic-filter-clear:hover { color: #6b7280; }
+
   .feed-section { margin-bottom: 4px; }
   .section-header {
     display: flex;

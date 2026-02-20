@@ -66,6 +66,39 @@
   const COMPLETIONS_STORAGE_KEY = 'civicos_user_completions';
   const COMMITMENT_META_STORAGE_KEY = 'civicos_commitment_meta';
 
+  // --- Topic filtering ---
+
+  let availableTopics = $derived.by(() => {
+    const counts = new Map<string, number>();
+    for (const ini of initiatives) {
+      if (ini.topic) {
+        const t = ini.topic.charAt(0).toUpperCase() + ini.topic.slice(1);
+        counts.set(t, (counts.get(t) || 0) + 1);
+      }
+    }
+    return [...counts.entries()].sort((a, b) => b[1] - a[1]).map(([t]) => t);
+  });
+
+  let selectedTopics = $state(new Set<string>());
+
+  function toggleTopicFilter(topic: string) {
+    if (selectedTopics.has(topic)) {
+      selectedTopics.delete(topic);
+    } else {
+      selectedTopics.add(topic);
+    }
+    selectedTopics = new Set(selectedTopics);
+  }
+
+  let filteredInitiatives = $derived.by(() => {
+    if (selectedTopics.size === 0) return initiatives;
+    return initiatives.filter(i => {
+      if (!i.topic) return false;
+      const normalized = i.topic.charAt(0).toUpperCase() + i.topic.slice(1);
+      return selectedTopics.has(normalized);
+    });
+  });
+
   // Section expand state (owned)
   let initiativesExpanded = $state(true);
 
@@ -745,7 +778,21 @@
           <button class="ini-start-link" onclick={() => { showCreateInitiative = true; }}>Start one</button>
         </div>
       {:else}
-        {#each initiatives as initiative}
+        {#if availableTopics.length > 0}
+          <div class="topic-filters">
+            {#each availableTopics as topic}
+              <button
+                class="topic-filter-pill"
+                class:active={selectedTopics.has(topic)}
+                onclick={() => toggleTopicFilter(topic)}
+              >{topic}</button>
+            {/each}
+            {#if selectedTopics.size > 0}
+              <button class="topic-filter-clear" onclick={() => { selectedTopics = new Set(); }}>Clear</button>
+            {/if}
+          </div>
+        {/if}
+        {#each filteredInitiatives as initiative}
           <div class="ini-card" id="ini-{initiative.id}"
                class:ini-card-expanded={expandedInitiatives.has(initiative.id)}
                class:dragging={draggingId === initiative.id}
@@ -869,6 +916,46 @@
 
 
 <style>
+  /* --- Topic Filter Pills --- */
+  .topic-filters {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+    padding: 4px 0 8px;
+  }
+  .topic-filter-pill {
+    padding: 3px 8px;
+    border-radius: 10px;
+    border: 1px solid #333;
+    background: transparent;
+    color: #6b7280;
+    font-size: 10px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 150ms;
+    font-family: inherit;
+  }
+  .topic-filter-pill:hover {
+    color: #9ca3af;
+    border-color: #4b5563;
+  }
+  .topic-filter-pill.active {
+    background: rgba(96, 165, 250, 0.1);
+    border-color: rgba(96, 165, 250, 0.3);
+    color: #60a5fa;
+  }
+  .topic-filter-clear {
+    padding: 3px 8px;
+    border-radius: 10px;
+    border: none;
+    background: none;
+    color: #4b5563;
+    font-size: 10px;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .topic-filter-clear:hover { color: #6b7280; }
+
   /* === Section Layout (matches SidePanel patterns) === */
   .feed-section {
     margin-bottom: 2px;

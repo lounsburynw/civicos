@@ -39,6 +39,7 @@
 
   let {
     decision,
+    topics = [] as string[],
     expanded = false,
     detail = null as DecisionDetail | null,
     detailLoading = false,
@@ -73,6 +74,7 @@
       vote_tally?: string;
       date: string;
     };
+    topics?: string[];
     expanded?: boolean;
     detail?: DecisionDetail | null;
     detailLoading?: boolean;
@@ -125,6 +127,9 @@
           <span class="meta-sep">&middot;</span>
           <span class="voice-inline">{voiceCounts.total} voices{#if voiceCounts.attested != null && voiceCounts.attested > 0} <svg width="10" height="10" viewBox="0 0 16 16" fill="#4ade80" style="vertical-align: -1px;"><path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.75.75 0 0 1 1.06-1.06L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0z"/></svg>{voiceCounts.attested}{/if}</span>
         {/if}
+        {#each topics as topic}
+          <span class="topic-pill">{topic}</span>
+        {/each}
       </div>
     </div>
     <span class="expand-chevron" class:open={expanded}></span>
@@ -368,6 +373,14 @@
   .voice-inline {
     color: #60a5fa;
     font-size: 10px;
+  }
+  .topic-pill {
+    font-size: 9px;
+    padding: 1px 6px;
+    border-radius: 3px;
+    background: rgba(96, 165, 250, 0.08);
+    color: #60a5fa;
+    font-weight: 500;
   }
 
   /* === Detail section === */

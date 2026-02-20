@@ -116,6 +116,35 @@ export function googleCalendarUrl(meeting: { title: string; date: string; time: 
   return `https://www.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(meeting.title)}&dates=${fmt(start)}/${fmt(end)}&location=${encodeURIComponent(meeting.location || '')}`;
 }
 
+// --- Topic Classification ---
+
+const TOPIC_KEYWORDS: Record<string, string[]> = {
+  'Housing': ['housing', 'affordable', 'apartment', 'rental', 'tenant', 'eviction', 'residential', 'units', 'dwelling', 'accessory dwelling', 'adu'],
+  'Transportation': ['transit', 'bicycle', 'pedestrian', 'traffic', 'highway', 'parking', 'road', 'sidewalk', 'bike', 'commute', 'transportation'],
+  'Public Safety': ['police', 'fire', 'safety', 'emergency', 'crime', 'enforcement', 'ambulance', '911', 'hazard'],
+  'Environment': ['environmental', 'climate', 'sustainability', 'green', 'pollution', 'water quality', 'creek', 'wetland', 'sea level', 'emissions', 'solar'],
+  'Budget': ['budget', 'fiscal', 'financial', 'appropriation', 'funding', 'tax', 'revenue', 'expenditure', 'fee', 'assessment'],
+  'Land Use': ['zoning', 'planning', 'land use', 'general plan', 'permit', 'development', 'rezoning', 'annexation', 'subdivision', 'setback', 'variance'],
+  'Parks': ['park', 'recreation', 'trail', 'open space', 'playground', 'sports field', 'community center'],
+  'Infrastructure': ['sewer', 'water main', 'utility', 'bridge', 'storm drain', 'infrastructure', 'construction', 'capital improvement'],
+  'Education': ['school', 'education', 'library', 'student', 'youth'],
+  'Homelessness': ['homeless', 'unsheltered', 'encampment', 'shelter', 'unhoused'],
+  'Healthcare': ['health', 'healthcare', 'hospital', 'medical', 'mental health', 'substance'],
+};
+
+export function classifyTopics(title: string, description?: string): string[] {
+  const text = ((title || '') + ' ' + (description || '')).toLowerCase();
+  const matched: string[] = [];
+  for (const [topic, keywords] of Object.entries(TOPIC_KEYWORDS)) {
+    if (keywords.some(kw => text.includes(kw))) {
+      matched.push(topic);
+    }
+  }
+  return matched;
+}
+
+export const ALL_TOPICS = Object.keys(TOPIC_KEYWORDS);
+
 export function downloadIcs(meeting: { title: string; location: string; meeting_datetime: string }): void {
   const start = new Date(meeting.meeting_datetime);
   const end = new Date(start.getTime() + 2 * 60 * 60 * 1000);
