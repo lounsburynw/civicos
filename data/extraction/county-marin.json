@@ -6,7 +6,8 @@
   "state": "CA",
   "metadata": {
     "created": "2026-01-11",
-    "notes": "Marin County financial data sources. Provides county-level budget context for San Rafael and other incorporated cities.",
+    "updated": "2026-02-20",
+    "notes": "Marin County data sources: meetings (Granicus) and financial. Provides county-level governance and budget context for San Rafael and other incorporated cities.",
     "population_2024": 260000,
     "county_seat": "San Rafael",
     "incorporated_cities": [
@@ -22,6 +23,99 @@
       "Sausalito",
       "Tiburon"
     ]
+  },
+  "meetings": {
+    "platform": "granicus",
+    "granicus_domain": "marin.granicus.com",
+    "view_ids": {
+      "all_meetings": {
+        "id": 36,
+        "url": "https://marin.granicus.com/ViewPublisher.php?view_id=36",
+        "notes": "All meeting bodies combined. 1622 historical + upcoming."
+      },
+      "board_of_supervisors": {
+        "id": 33,
+        "url": "https://marin.granicus.com/ViewPublisher.php?view_id=33",
+        "notes": "BOS-only view. 901 historical meetings."
+      }
+    },
+    "discovery_date": "2026-02-20",
+    "total_historical": 1622,
+    "total_upcoming": 12,
+    "date_range": {
+      "oldest": "2012-02-14",
+      "newest": "2025-07-08"
+    },
+    "meeting_bodies": {
+      "board_of_supervisors": {
+        "count": 536,
+        "name_patterns": ["BOS Meeting", "BOS Special Meeting", "Board of Supervisors"],
+        "notes": "Primary governance body. Meets Tuesdays at 9 AM."
+      },
+      "flood_control": {
+        "count": 228,
+        "name_patterns": ["Flood Control"],
+        "notes": "Marin County Flood Control & Water Conservation District. Same board as BOS."
+      },
+      "open_space_district": {
+        "count": 211,
+        "name_patterns": ["OSD Meeting"],
+        "notes": "Marin County Parks / Open Space District. Same board as BOS."
+      },
+      "planning_commission": {
+        "count": 183,
+        "name_patterns": ["Planning Commission Meeting", "Marin County Planning Commission Meeting"],
+        "notes": "Land use and development review."
+      },
+      "housing_authority": {
+        "count": 172,
+        "name_patterns": ["Housing Authority Meeting", "Special Housing Authority Meeting"],
+        "notes": "Marin Housing Authority board meetings."
+      },
+      "marin_transit": {
+        "count": 61,
+        "name_patterns": ["Marin Transit Board"],
+        "notes": "Transit authority board."
+      },
+      "budget_hearings": {
+        "count": 54,
+        "name_patterns": ["Budget Hearing", "Budget Hearings", "Budget Workshop", "Budget Planning Workshop", "SPECIAL BUDGET MEETING"],
+        "notes": "Annual/biennial budget process."
+      },
+      "rda_successor": {
+        "count": 27,
+        "name_patterns": ["RDA Successor Agency Meeting"],
+        "notes": "Redevelopment agency wind-down. Historical only."
+      },
+      "other": {
+        "bodies": ["Gateway Improvement Authority", "Gateway Refinancing Authority", "Capital Improvements"],
+        "notes": "Smaller boards, mostly historical."
+      }
+    },
+    "media_coverage": {
+      "agendas": {"count": 1505, "total": 1622, "pct": 93},
+      "mp4_video": {"count": 1615, "total": 1622, "pct": 99},
+      "mp3_audio": {"count": 1578, "total": 1622, "pct": 97},
+      "captions_transcripts": {"count": 354, "total": 1622, "pct": 22},
+      "notes": "Video/audio available for nearly all meetings. Granicus captions available for ~22% (primarily recent BOS). Audio transcription via AssemblyAI is an option for the rest."
+    },
+    "url_patterns": {
+      "agenda": "https://marin.granicus.com/AgendaViewer.php?view_id={view_id}&event_id={event_id}",
+      "transcript": "https://marin.granicus.com/TranscriptViewer.php?view_id={view_id}&clip_id={clip_id}",
+      "mp3": "https://archive-video.granicus.com/marin/marin_{uuid}.mp3",
+      "mp4": "https://archive-video.granicus.com/marin/marin_{uuid}.mp4",
+      "video_player": "https://marin.granicus.com/ASX.php?view_id={view_id}&clip_id={clip_id}&sn=marin.granicus.com"
+    },
+    "public_comment": {
+      "email": "BOS@marincounty.gov",
+      "deadline": "Noon the Monday before the Tuesday Board meeting",
+      "ecomment": "Granicus eComment available on some upcoming meetings (data-event-id attribute)"
+    },
+    "ingestion_plan": {
+      "phase_1": "BOS meetings, last 6 months (~25 meetings). Agenda + captions where available.",
+      "phase_2": "Expand to Planning Commission + OSD + Flood Control.",
+      "phase_3": "Full historical BOS back to 2012. Audio transcription for meetings without captions."
+    }
   },
   "financial": {
     "sco": {
@@ -84,6 +178,12 @@
     "notes": "County provides services to unincorporated areas and some contracted services to cities."
   },
   "data_sources_summary": {
+    "granicus_meetings": {
+      "url": "https://marin.granicus.com/ViewPublisher.php?view_id=36",
+      "type": "HTML scrape (Playwright)",
+      "update_frequency": "weekly",
+      "coverage": "2012-present, 1622 meetings across 8+ bodies"
+    },
     "sco_counties": {
       "url": "https://bythenumbers.sco.ca.gov/resource/emxv-k8xv.json",
       "type": "API",
