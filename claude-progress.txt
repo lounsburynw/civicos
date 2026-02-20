@@ -1,3 +1,79 @@
+## Session — 2026-02-20 (15): Chat UX + Ollama Provider
+
+**Item:** engagement_ladder_ux (Phase 5: Chat discoverability + local AI)
+**Status:** Shipped. Query pills, navigation actions, Ollama provider.
+
+### What was built
+1. **Suggested query pills** — 4 preset queries below empty chat input ("Upcoming meetings", "Housing updates", "Budget for parks", "Recent public testimony"). Click auto-submits.
+2. **Navigation actions** — Tool results show "View in [Section]" button that expands + scrolls to relevant panel section (Meetings, Outcomes, Budget, Issue Map, Legislation tab). Lazy-loads Issue Map/Budget on navigate.
+3. **Ollama provider** — Device-tier AI provider (`packages/civicos-client/src/ai/providers/ollama.ts`). Connects to localhost:11434, default model llama3.1:8b. Fully private drafting — no queries leave the machine.
+
+### Architecture review
+- Traced full AI compute architecture: Draft/Summary use `complete()` (prompt built client-side, inference server-side or local). Chat uses `chat()` (server-side tool loop, locked to Modal → Anthropic).
+- Identified privacy gap: chat is only feature that leaks user queries to server.
+- Read Edge Intelligence doc: confirmed server-side inference is fine for pilot, local models are the post-pilot direction.
+
+### Next session: Local tool routing via Ollama
+- Move chat tool loop to client so Ollama can handle tool-backed search locally
+- CivicOS server sees only anonymous data requests (no npub)
+- Dual path: Ollama when available, fall back to CivicOS Proxy
+
+### Future: Personal MCP + local memory
+- Proactive relevance via Two-MCP architecture (Jurisdiction MCP for public data + Personal MCP for user context)
+- Personal MCP uses local files (~/.civicos/preferences.md, voice-history.md) — interest profiles never leave device
+
+### Commits
+- e319bc2 feat: Add suggested query pills and navigation actions to AI chat bar
+- e5753eb feat: Add Ollama local model provider — fully on-device AI drafting
+
+## Session — 2026-02-20 (14): AI Chat with Tool Routing
+
+**Item:** engagement_ladder_ux (Phase 5: AI-powered civic search)
+**Status:** Shipped. In-panel search bar with server-side tool loop (6 MVP tools). Deployed to Modal.
+
+### What was done
+- Added POST /api/ai/chat endpoint to ai_proxy.py — server-side tool loop (Claude selects tool, server executes, Claude summarizes)
+- 6 MVP tools: search_meeting_history, get_upcoming_meetings, search_budget, get_public_testimony, search_legislation, find_similar_issues
+- Added AIChatResult type, chat() methods to AIManager/CivicSession/CivicosProxyProvider
+- Built CivicChatBar.svelte component (search input, loading state, tool badge, markdown response, clear)
+- Mounted in SidePanel between identity chip and attention bar
+- Fixed: anthropic SDK missing from Modal image, error handling (unhandled 500s), provider routing (chat always uses civicos proxy)
+- Chat() routes through CivicOS proxy regardless of active draft provider (server-side API key, not user's)
+
+### Commits
+- d3be226 feat: Add AI chat with tool routing — in-panel civic search
+- 089a549 fix: AI chat — add anthropic SDK to Modal image, fix error handling
+
+### Design decisions
+- Single-turn search (not multi-turn chat) — one question, one answer, clear button
+- Server-side tool loop keeps cost low (~$0.02/query, 2 API calls max)
+- Chat bar visible when any AI provider is ready (aiAvailable), routes through civicos proxy
+- Nostr auth reused from draft endpoint (same SIGN_MESSAGE flow)
+
+### Open questions for next session (from user)
+1. Chat UX evolution: Should tool results link to actual items (snap-to-card like attention bar)? Clickable topic filter pills as suggested queries? Or keep as one-off Q&A?
+2. AI compute location: Currently on MCP server — consider Edge Intelligence paradigm (docs/critical/EDGE_INTELLIGENCE_ARCHITECTURE.md) for where AI inference should live long-term
+
+## Session — 2026-02-20 (13): Phase 4a State/Federal Tab Polish
+
+**Item:** engagement_ladder_ux (Phase 4a: State/Federal Polish)
+**Status:** Phase 4a complete (1 commit). All state/federal card types now match city tab UX. Phase 4b remaining: topic tagging foundation.
+
+### Commit
+- 07d6093 feat: Polish state/federal tabs — action button rows, process bars, attention bar
+
+### What changed (CivicReadOnlyPulse.svelte)
+- Action button row on all 4 card types: Draft with AI, Submit Official Comment (comment periods only), Unofficial Comment toggle
+- CivicProcessBar on all cards (federal comment/state hearings/governor's desk)
+- Attention bar: "Upcoming Actionable Items" with scroll-to-section
+- Official/Public section grouping
+- AI label fixed: "Summary" instead of provider name
+- Read Rule/PDF/View Bill demoted to secondary links
+- Voice buttons and drag-to-Claude on all cards
+- Full CSS for action-btn-row, secondary-link styles (copied from CivicAgendaView for consistency)
+
+---
+
 ## Session — 2026-02-19 (12): Phase 3 UX Polish & Information Architecture
 
 **Item:** engagement_ladder_ux (Phase 3: UX Polish)
