@@ -11,73 +11,85 @@
       "name": "SPECIAL BUDGET MEETING 260223",
       "date": "02/23/26 - 09:00\u00a0AM",
       "agenda_url": "https://marin.granicus.com/AgendaViewer.php?view_id=36&event_id=4157",
-      "event_id": "4157"
+      "event_id": "4157",
+      "agenda": "https://marin.granicus.com/AgendaViewer.php?view_id=36&event_id=4157"
     },
     {
       "name": "BOS MEETING 260224",
       "date": "02/24/26 - 09:00\u00a0AM",
       "agenda_url": "https://marin.granicus.com/AgendaViewer.php?view_id=36&event_id=4152",
-      "event_id": "4152"
+      "event_id": "4152",
+      "agenda": "https://marin.granicus.com/AgendaViewer.php?view_id=36&event_id=4152"
     },
     {
       "name": "OSD MEETING 260224",
       "date": "02/24/26 - 09:00\u00a0AM",
       "agenda_url": "https://marin.granicus.com/AgendaViewer.php?view_id=36&event_id=4159",
-      "event_id": "4159"
+      "event_id": "4159",
+      "agenda": "https://marin.granicus.com/AgendaViewer.php?view_id=36&event_id=4159"
     },
     {
       "name": "FLOOD MEETING 260224",
       "date": "02/24/26 - 09:00\u00a0AM",
       "agenda_url": "https://marin.granicus.com/AgendaViewer.php?view_id=36&event_id=4160",
-      "event_id": "4160"
+      "event_id": "4160",
+      "agenda": "https://marin.granicus.com/AgendaViewer.php?view_id=36&event_id=4160"
     },
     {
       "name": "SPECIAL BUDGET MEETING 260224",
       "date": "02/24/26 - 01:30\u00a0PM",
       "agenda_url": "https://marin.granicus.com/AgendaViewer.php?view_id=36&event_id=4162",
-      "event_id": "4162"
+      "event_id": "4162",
+      "agenda": "https://marin.granicus.com/AgendaViewer.php?view_id=36&event_id=4162"
     },
     {
       "name": "SPECIAL BUDGET MEETING 260225",
       "date": "02/25/26 - 01:30\u00a0PM",
       "agenda_url": "https://marin.granicus.com/AgendaViewer.php?view_id=36&event_id=4163",
-      "event_id": "4163"
+      "event_id": "4163",
+      "agenda": "https://marin.granicus.com/AgendaViewer.php?view_id=36&event_id=4163"
     },
     {
       "name": "TAM Board of Commissioners Meeting",
       "date": "02/26/26 - 06:00\u00a0PM",
       "agenda_url": null,
-      "event_id": "4145"
+      "event_id": "4145",
+      "agenda": "https://marin.granicus.com/AgendaViewer.php?view_id=36&event_id=4145"
     },
     {
       "name": "Planning Commission Meeting",
       "date": "03/02/26 - 01:00\u00a0PM",
       "agenda_url": "https://marin.granicus.com/AgendaViewer.php?view_id=36&event_id=3601",
-      "event_id": "3601"
+      "event_id": "3601",
+      "agenda": "https://marin.granicus.com/AgendaViewer.php?view_id=36&event_id=3601"
     },
     {
       "name": "Marin County Deputy Zoning Administrator - CANCELLED",
       "date": "03/05/26 - 10:00\u00a0AM",
       "agenda_url": "https://marin.granicus.com/AgendaViewer.php?view_id=36&event_id=2549",
-      "event_id": "2549"
+      "event_id": "2549",
+      "agenda": "https://marin.granicus.com/AgendaViewer.php?view_id=36&event_id=2549"
     },
     {
       "name": "TRUTH ACT MEETING 260310 - Notice of Hearing",
       "date": "03/10/26 - 05:00\u00a0PM",
       "agenda_url": "https://marin.granicus.com/AgendaViewer.php?view_id=36&event_id=4150",
-      "event_id": "4150"
+      "event_id": "4150",
+      "agenda": "https://marin.granicus.com/AgendaViewer.php?view_id=36&event_id=4150"
     },
     {
       "name": "TRUTH ACT MEETING 260310 - Notice of Hearing (Spanish)",
       "date": "03/10/26 - 05:00\u00a0PM",
       "agenda_url": "https://marin.granicus.com/AgendaViewer.php?view_id=36&event_id=4151",
-      "event_id": "4151"
+      "event_id": "4151",
+      "agenda": "https://marin.granicus.com/AgendaViewer.php?view_id=36&event_id=4151"
     },
     {
       "name": "TAM Community Oversight Committee",
       "date": "03/16/26 - 05:00\u00a0PM",
       "agenda_url": null,
-      "event_id": "4144"
+      "event_id": "4144",
+      "agenda": "https://marin.granicus.com/AgendaViewer.php?view_id=36&event_id=4144"
     }
   ],
   "historical": [
