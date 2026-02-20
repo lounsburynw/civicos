@@ -1,6 +1,7 @@
 <script lang="ts">
   import CivicDecisionCard from './CivicDecisionCard.svelte';
   import CivicProcessBar from './CivicProcessBar.svelte';
+  import { classifyTopics } from '../utils/civic-helpers.js';
 
   // Local type declarations (mirrors @civicos/client types)
   interface PulseOutcome {
@@ -82,6 +83,39 @@
     onopenexternalai = undefined as ((detail: { context: string; event: MouseEvent }) => void) | undefined,
     ontoast = undefined as ((message: string) => void) | undefined,
   } = $props();
+
+  // --- Topic classification & filtering ---
+
+  let decisionTopics = $derived(new Map(decisions.map(d => [d.id, classifyTopics(d.title, d.outcome_description)])));
+
+  let availableTopics = $derived.by(() => {
+    const counts = new Map<string, number>();
+    for (const topics of decisionTopics.values()) {
+      for (const t of topics) {
+        counts.set(t, (counts.get(t) || 0) + 1);
+      }
+    }
+    return [...counts.entries()].sort((a, b) => b[1] - a[1]).map(([t]) => t);
+  });
+
+  let selectedTopics = $state(new Set<string>());
+
+  function toggleTopic(topic: string) {
+    if (selectedTopics.has(topic)) {
+      selectedTopics.delete(topic);
+    } else {
+      selectedTopics.add(topic);
+    }
+    selectedTopics = new Set(selectedTopics);
+  }
+
+  let filteredDecisions = $derived.by(() => {
+    if (selectedTopics.size === 0) return decisions;
+    return decisions.filter(d => {
+      const topics = decisionTopics.get(d.id) || [];
+      return topics.some(t => selectedTopics.has(t));
+    });
+  });
 
   // --- Internal state (owned by this component) ---
 
@@ -252,7 +286,21 @@
 {#if decisions.length === 0}
   <div class="empty-section">No recent decisions</div>
 {:else}
-  {#each decisions as decision}
+  {#if availableTopics.length > 0}
+    <div class="topic-filters">
+      {#each availableTopics as topic}
+        <button
+          class="topic-filter-pill"
+          class:active={selectedTopics.has(topic)}
+          onclick={() => toggleTopic(topic)}
+        >{topic}</button>
+      {/each}
+      {#if selectedTopics.size > 0}
+        <button class="topic-filter-clear" onclick={() => { selectedTopics = new Set(); }}>Clear</button>
+      {/if}
+    </div>
+  {/if}
+  {#each filteredDecisions as decision}
     <div class="card decision-card" class:expanded-card={expandedDecisions.has(decision.title)}
          class:dragging={draggingDecision === decision.id}
          draggable="true"
@@ -261,6 +309,7 @@
       <CivicProcessBar level="city" stage="vote" />
       <CivicDecisionCard
         {decision}
+        topics={decisionTopics.get(decision.id) || []}
         expanded={expandedDecisions.has(decision.title)}
         detail={decisionDetails.get(decision.title) ?? null}
         detailLoading={decisionLoading.has(decision.title)}
@@ -291,6 +340,46 @@
 {/if}
 
 <style>
+  /* --- Topic Filter Pills --- */
+  .topic-filters {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+    padding: 4px 0 8px;
+  }
+  .topic-filter-pill {
+    padding: 3px 8px;
+    border-radius: 10px;
+    border: 1px solid #333;
+    background: transparent;
+    color: #6b7280;
+    font-size: 10px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 150ms;
+    font-family: inherit;
+  }
+  .topic-filter-pill:hover {
+    color: #9ca3af;
+    border-color: #4b5563;
+  }
+  .topic-filter-pill.active {
+    background: rgba(96, 165, 250, 0.1);
+    border-color: rgba(96, 165, 250, 0.3);
+    color: #60a5fa;
+  }
+  .topic-filter-clear {
+    padding: 3px 8px;
+    border-radius: 10px;
+    border: none;
+    background: none;
+    color: #4b5563;
+    font-size: 10px;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .topic-filter-clear:hover { color: #6b7280; }
+
   .card {
     background: #1e1e1e;
     border-radius: 8px;

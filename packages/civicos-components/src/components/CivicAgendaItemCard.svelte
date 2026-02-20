@@ -8,6 +8,7 @@
 
   let {
     item,
+    topics = [] as string[],
     voiceCounts = null,
     userStance = null as Stance | null,
     votingDisabled = false,
@@ -28,6 +29,7 @@
       stance_eligible: boolean;
       comment_eligible: boolean;
     };
+    topics?: string[];
     voiceCounts?: {
       support: number;
       oppose: number;
@@ -75,6 +77,9 @@
     {#if item.project_type}
       <span class="tag">{item.project_type}</span>
     {/if}
+    {#each topics as topic}
+      <span class="tag tag-topic">{topic}</span>
+    {/each}
   </div>
   {#if voiceCounts}
     <div class="voice-counts">
@@ -152,6 +157,7 @@
   }
   .tag-voice { background: rgba(255, 255, 255, 0.08); color: #d1d5db; }
   .tag-comment { background: rgba(255, 255, 255, 0.08); color: #d1d5db; }
+  .tag-topic { background: rgba(96, 165, 250, 0.08); color: #60a5fa; }
   .voice-counts {
     display: flex;
     gap: 6px;
