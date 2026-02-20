@@ -1,6 +1,7 @@
 <script lang="ts">
   import CivicAgendaItemCard from './CivicAgendaItemCard.svelte';
   import CivicCommentThread from './CivicCommentThread.svelte';
+  import { meetingDaysUntil } from '../utils/civic-helpers.js';
 
   // Local type declarations (mirrors @civicos/client types)
   interface PulseAgendaItem {
@@ -72,12 +73,22 @@
     session = null as any,
     api = null as any,
     renderMarkdown = (text: string) => text,
+    // Meeting data for urgency badges
+    meetings = [] as Array<{ title: string; meeting_datetime: string }>,
+    generatedAt = '',
     // Callbacks to parent
     onvoice = undefined as ((detail: { entityId: string; stance: Stance }) => void) | undefined,
     onopenexternalai = undefined as ((detail: { context: string; event: MouseEvent }) => void) | undefined,
     ontoast = undefined as ((message: string) => void) | undefined,
     oncommentcountchange = undefined as ((entityId: string, counts: CommentCounts) => void) | undefined,
   } = $props();
+
+  const referenceTime = $derived(generatedAt ? new Date(generatedAt) : new Date());
+
+  function getItemDaysUntil(meetingTitle: string): number | null {
+    if (!meetings.length) return null;
+    return meetingDaysUntil(meetingTitle, meetings, referenceTime);
+  }
 
   // --- Internal state (owned by this component) ---
 
@@ -410,6 +421,7 @@
       votingDisabled={votingInProgress.has(`agenda-item:${item.id}`)}
       locked={identity ? !identity.isUnlocked : true}
       showVoice={item.stance_eligible && !!identity}
+      daysUntil={getItemDaysUntil(item.meeting_title)}
       onvoice={({ entityId, stance }: { entityId: string; stance: Stance }) => onvoice?.({ entityId, stance })}
     />
     <!-- Comment Thread -->

@@ -2,6 +2,7 @@
 
 <script lang="ts">
   import CivicVoiceButtons from './CivicVoiceButtons.svelte';
+  import { urgencyClass } from '../utils/civic-helpers.js';
 
   type Stance = 'support' | 'oppose' | 'watching';
 
@@ -12,6 +13,7 @@
     votingDisabled = false,
     locked = false,
     showVoice = false,
+    daysUntil = null as number | null,
     onvoice,
   }: {
     item: {
@@ -37,6 +39,7 @@
     votingDisabled?: boolean;
     locked?: boolean;
     showVoice?: boolean;
+    daysUntil?: number | null;
     onvoice?: (detail: { entityId: string; stance: Stance }) => void;
   } = $props();
 
@@ -49,6 +52,11 @@
       <span class="item-number">#{item.item_number}</span>
     {/if}
     <span class="item-meeting">{item.meeting_title} &middot; {item.meeting_date}</span>
+    {#if daysUntil !== null}
+      <span class="deadline-tag {urgencyClass(daysUntil)}">
+        {#if daysUntil === 0}Meeting today{:else if daysUntil === 1}Tomorrow{:else}In {daysUntil} days{/if}
+      </span>
+    {/if}
   </div>
   <div class="card-title">{item.title}</div>
   {#if item.description}
@@ -156,4 +164,9 @@
   .vc-oppose { background: #7f1d1d; color: #f87171; }
   .vc-watch { background: #374151; color: #9ca3af; }
   .vc-attested { background: rgba(34, 197, 94, 0.12); color: #22c55e; }
+  .deadline-tag { font-size: 10px; font-weight: 600; padding: 1px 6px; border-radius: 3px; }
+  .deadline-tag.urgent-critical { background: rgba(239, 68, 68, 0.15); color: #f87171; }
+  .deadline-tag.urgent-soon { background: rgba(245, 158, 11, 0.15); color: #fbbf24; }
+  .deadline-tag.urgent-normal { background: rgba(59, 130, 246, 0.12); color: #60a5fa; }
+  .deadline-tag.urgent-closed { background: rgba(107, 114, 128, 0.15); color: #6b7280; }
 </style>

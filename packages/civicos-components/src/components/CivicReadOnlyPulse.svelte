@@ -2,7 +2,7 @@
   import CivicMeetingCard from './CivicMeetingCard.svelte';
   import CivicVoiceButtons from './CivicVoiceButtons.svelte';
   import CivicCommentThread from './CivicCommentThread.svelte';
-  import { outcomeIcon, outcomeClass, formatRelativeDate, googleCalendarUrl, downloadIcs } from '../utils/civic-helpers.js';
+  import { outcomeIcon, outcomeClass, formatRelativeDate, googleCalendarUrl, downloadIcs, computeCityFocalMeetings, urgencyClass as urgencyClassFn, meetingDaysUntil as meetingDaysUntilFn } from '../utils/civic-helpers.js';
 
   type Stance = 'support' | 'oppose' | 'watching';
 
@@ -213,22 +213,10 @@
   // Reference time for relative date calculations (uses data timestamp for consistency with mock data)
   const referenceTime = $derived(data.generated_at ? new Date(data.generated_at) : new Date());
 
-  // City focal points: meetings happening within 7 days
+  // City focal points: meetings happening within 7 days (uses shared utility)
   const cityFocalMeetings = $derived(
     !isLegislative
-      ? data.decisions_this_week.filter(m => {
-          if (!m.meeting_datetime) return false;
-          const meetingDate = new Date(m.meeting_datetime);
-          const diffMs = meetingDate.getTime() - referenceTime.getTime();
-          const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
-          return diffDays >= 0 && diffDays <= 7;
-        }).map(m => {
-          const meetingDate = new Date(m.meeting_datetime);
-          const diffMs = meetingDate.getTime() - referenceTime.getTime();
-          const daysUntil = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
-          const agendaItems = (data.upcoming_items || []).filter(i => i.meeting_title === m.title);
-          return { ...m, days_until: daysUntil, agendaItems };
-        })
+      ? computeCityFocalMeetings(data.decisions_this_week, data.upcoming_items || [], referenceTime)
       : []
   );
   const hasCityFocal = $derived(cityFocalMeetings.length > 0);
@@ -317,22 +305,14 @@
     return lines.join('\n');
   }
 
+  // Delegate to shared utilities
   function urgencyClass(days: number): string {
-    if (days <= 0) return 'urgent-closed';
-    if (days <= 3) return 'urgent-critical';
-    if (days <= 7) return 'urgent-soon';
-    return 'urgent-normal';
+    return urgencyClassFn(days);
   }
 
-  // Look up meeting days_until for a city agenda item
   function meetingDaysUntil(meetingTitle: string): number | null {
     if (isLegislative) return null;
-    const meeting = data.decisions_this_week.find(m => m.title === meetingTitle);
-    if (!meeting?.meeting_datetime) return null;
-    const meetingDate = new Date(meeting.meeting_datetime);
-    const diffMs = meetingDate.getTime() - referenceTime.getTime();
-    const days = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
-    return days >= 0 ? days : null;
+    return meetingDaysUntilFn(meetingTitle, data.decisions_this_week, referenceTime);
   }
 
   let expanded: Record<string, boolean> = $state({

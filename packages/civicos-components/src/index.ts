@@ -8,7 +8,11 @@ export {
   outcomeClass,
   googleCalendarUrl,
   downloadIcs,
+  computeCityFocalMeetings,
+  urgencyClass,
+  meetingDaysUntil,
 } from './utils/civic-helpers.js';
+export type { FocalMeeting } from './utils/civic-helpers.js';
 
 // Import components to register custom elements
 import './components/CivicVoiceButtons.svelte';
