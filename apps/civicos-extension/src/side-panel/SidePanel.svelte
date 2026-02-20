@@ -922,6 +922,7 @@
         {activeProviderName}
         {renderMarkdown}
         onvoice={({ entityId, stance }) => handleVoice(entityId, stance, activeTab)}
+        onopenexternalai={({ context, event }) => openExternalAI('claude', context, event)}
         ontoast={(message) => showToast(message)}
         oncommentcountchange={(entityId, counts) => { commentCounts.set(entityId, counts); commentCounts = new Map(commentCounts); }}
       >

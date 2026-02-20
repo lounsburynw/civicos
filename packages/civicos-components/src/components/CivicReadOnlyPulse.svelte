@@ -2,7 +2,7 @@
   import CivicMeetingCard from './CivicMeetingCard.svelte';
   import CivicVoiceButtons from './CivicVoiceButtons.svelte';
   import CivicCommentThread from './CivicCommentThread.svelte';
-  import { outcomeIcon, outcomeClass, formatRelativeDate } from '../utils/civic-helpers.js';
+  import { outcomeIcon, outcomeClass, formatRelativeDate, googleCalendarUrl, downloadIcs } from '../utils/civic-helpers.js';
 
   type Stance = 'support' | 'oppose' | 'watching';
 
@@ -74,6 +74,7 @@
     onvoice,
     ontoast,
     oncommentcountchange,
+    onopenexternalai,
     children,
   }: {
     data: PulseData;
@@ -94,6 +95,7 @@
     onvoice?: (detail: { entityId: string; stance: Stance }) => void;
     ontoast?: (message: string) => void;
     oncommentcountchange?: (entityId: string, counts: CommentCounts) => void;
+    onopenexternalai?: (detail: { context: string; event: MouseEvent }) => void;
     children?: Snippet;
   } = $props();
 
@@ -277,7 +279,7 @@
   let expanded: Record<string, boolean> = $state({
     meetings: true,
     items: true,
-    outcomes: true,
+    outcomes: !isLegislative,
     commentPeriods: true,
     hearings: true,
     governorsDesk: true,
@@ -298,6 +300,9 @@
   let localSynthData = $state(new Map<string, CommentSynthesis>());
   let aiResponseLoading = $state(new Set<string>());
   let aiResponses = $state(new Map<string, string>());
+  let draftingInProgress = $state(new Set<string>());
+  let enrichingInProgress = $state(new Set<string>());
+  let hearingCalendarOpen = $state(new Set<string>());
 
   function getSynthesis(entityId: string): CommentSynthesis | null {
     return localSynthData.get(entityId) ?? parentSynthData.get(entityId) ?? null;
@@ -438,6 +443,134 @@
     aiResponseLoading.delete(key);
     aiResponseLoading = new Set(aiResponseLoading);
   }
+
+  // --- Ask AI for focal point items ---
+
+  async function askFocalAI(key: string, context: string) {
+    if (aiResponses.has(key)) {
+      aiResponses.delete(key);
+      aiResponses = new Map(aiResponses);
+      return;
+    }
+    if (!session?.askQuestion) return;
+
+    aiResponseLoading.add(key);
+    aiResponseLoading = new Set(aiResponseLoading);
+
+    try {
+      const answer = await session.askQuestion(context);
+      if (answer) {
+        aiResponses.set(key, answer);
+        aiResponses = new Map(aiResponses);
+      } else {
+        ontoast?.('AI request failed');
+      }
+    } catch {
+      ontoast?.('AI request failed');
+    }
+
+    aiResponseLoading.delete(key);
+    aiResponseLoading = new Set(aiResponseLoading);
+  }
+
+  // --- Draft/Enrich for focal point comment threads ---
+
+  async function handleDraftFocal(entityId: string, title: string, context: string) {
+    if (!session?.askQuestion) return;
+
+    draftingInProgress.add(entityId);
+    draftingInProgress = new Set(draftingInProgress);
+
+    try {
+      const stance = userStances.get(entityId);
+      const stanceText = stance ? ` My stance: ${stance}.` : '';
+      const prompt = `Draft a concise, thoughtful public comment (under 500 characters) about: ${title}.${stanceText}\n\n${context}\n\nWrite as a concerned resident. Be specific and constructive. Output only the comment text.`;
+      const draft = await session.askQuestion(prompt);
+
+      if (draft) {
+        threadDrafts.set(entityId, draft.slice(0, 500));
+        threadDrafts = new Map(threadDrafts);
+
+        if (!openThreads.has(entityId)) {
+          openThreads.add(entityId);
+          openThreads = new Set(openThreads);
+          if (!threadComments.has(entityId)) {
+            threadLoading.add(entityId);
+            threadLoading = new Set(threadLoading);
+            try {
+              const thread = await session.loadCommentThread(entityId);
+              threadComments.set(entityId, thread.comments);
+              threadComments = new Map(threadComments);
+              if (thread.synthesis) {
+                localSynthData.set(entityId, thread.synthesis);
+                localSynthData = new Map(localSynthData);
+              }
+            } catch { /* Non-critical */ }
+            threadLoading.delete(entityId);
+            threadLoading = new Set(threadLoading);
+          }
+        }
+      } else {
+        ontoast?.('AI drafting failed');
+      }
+    } catch {
+      ontoast?.('AI drafting failed');
+    }
+
+    draftingInProgress.delete(entityId);
+    draftingInProgress = new Set(draftingInProgress);
+  }
+
+  async function handleEnrichFocal(entityId: string, title: string) {
+    const draft = (threadDrafts.get(entityId) || '').trim();
+    if (!draft || !session?.askQuestion) return;
+
+    enrichingInProgress.add(entityId);
+    enrichingInProgress = new Set(enrichingInProgress);
+
+    try {
+      const prompt = `Improve this public comment about "${title}" by adding specific facts, policy references, or civic context. Keep it under 500 characters. Preserve the author's voice and stance.\n\nOriginal comment: ${draft}\n\nOutput only the enriched comment text.`;
+      const enriched = await session.askQuestion(prompt);
+      if (enriched) {
+        threadDrafts.set(entityId, enriched.slice(0, 500));
+        threadDrafts = new Map(threadDrafts);
+      } else {
+        ontoast?.('Enrichment failed');
+      }
+    } catch {
+      ontoast?.('Enrichment failed');
+    }
+
+    enrichingInProgress.delete(entityId);
+    enrichingInProgress = new Set(enrichingInProgress);
+  }
+
+  // --- Calendar helpers for hearings ---
+
+  function hearingToMeeting(hearing: { bill_id: string; bill_number?: string; bill_name?: string; event_date: string; committee?: string; location?: string }): { title: string; date: string; time: string; location: string; meeting_datetime: string } {
+    const title = hearing.bill_name
+      ? `${hearing.bill_number || hearing.bill_id}: ${hearing.bill_name}`
+      : `Hearing: ${hearing.bill_number || hearing.bill_id}`;
+    return {
+      title,
+      date: hearing.event_date,
+      time: '',
+      location: hearing.location || hearing.committee || '',
+      meeting_datetime: new Date(hearing.event_date).toISOString(),
+    };
+  }
+
+  // --- Section hints by level ---
+
+  const meetingsHint = $derived(
+    isLegislative ? '' : 'Attend public meetings or submit written comments to shape local decisions'
+  );
+  const itemsHint = $derived(
+    isLegislative ? 'Track key bills and express your stance' : ''
+  );
+  const outcomesHint = $derived(
+    isLegislative ? '' : 'View recent decisions and how the community weighed in'
+  );
 </script>
 
 <!-- Focal Points: Time-sensitive participation opportunities (shown first) -->
@@ -546,14 +679,42 @@
                     hasIdentity={!!identity}
                     {aiAvailable}
                     {activeProviderName}
+                    draftLoading={draftingInProgress.has(eid)}
+                    enrichLoading={enrichingInProgress.has(eid)}
                     summarizeLoading={aiResponseLoading.has(`summarize-thread:${eid}`)}
                     summaryHtml={renderMarkdown(aiResponses.get(`summarize-thread:${eid}`) ?? '')}
                     showSummary={aiResponses.has(`summarize-thread:${eid}`)}
                     ontoggle={() => toggleCommentThread(eid)}
                     onsubmit={() => handleSubmitComment(eid)}
                     ondraftchange={({ text }: { text: string }) => { threadDrafts.set(eid, text); threadDrafts = new Map(threadDrafts); }}
+                    ondraft={() => handleDraftFocal(eid, period.title, composeCommentPeriodContext(period))}
+                    onenrich={() => handleEnrichFocal(eid, period.title)}
                     onsummarize={() => handleSummarize(eid, period.title)}
                   />
+                {/if}
+                <!-- AI action row -->
+                <div class="ai-action-row">
+                  {#if aiAvailable}
+                    <button
+                      class="ai-action-btn ai-action-ask"
+                      class:active={aiResponses.has(`ask-focal:${period.document_number}`)}
+                      disabled={aiResponseLoading.has(`ask-focal:${period.document_number}`)}
+                      onclick={() => askFocalAI(`ask-focal:${period.document_number}`, composeCommentPeriodContext(period))}
+                    >
+                      <span class="sparkle">&#x2726;</span> {aiResponseLoading.has(`ask-focal:${period.document_number}`) ? 'Thinking...' : aiResponses.has(`ask-focal:${period.document_number}`) ? 'Hide' : activeProviderName || 'Ask AI'}
+                    </button>
+                  {/if}
+                  {#if onopenexternalai}
+                    <button class="ai-action-btn ai-action-claude" class:solo={!aiAvailable} onclick={(e: MouseEvent) => onopenexternalai?.({ context: composeCommentPeriodContext(period), event: e })}>
+                      Claude <span class="ext-icon">&#x2197;</span>
+                    </button>
+                  {/if}
+                </div>
+                {#if aiResponses.has(`ask-focal:${period.document_number}`)}
+                  <div class="ai-response">
+                    <div class="ai-response-text prose">{@html renderMarkdown(aiResponses.get(`ask-focal:${period.document_number}`) ?? '')}</div>
+                    {#if activeProviderName}<span class="ai-response-provider">via {activeProviderName}</span>{/if}
+                  </div>
                 {/if}
               </div>
             {/each}
@@ -582,9 +743,23 @@
                    draggable="true"
                    ondragstart={(e: DragEvent) => handleDragStart(e, composeHearingContext(hearing), hearing.bill_id)}
                    ondragend={handleDragEnd}>
-                <div class="card-title">{hearing.bill_number || hearing.bill_id}</div>
+                <div class="meeting-top-row">
+                  <div class="card-title">{hearing.bill_number || hearing.bill_id}</div>
+                  <button class="cal-btn" onclick={() => { hearingCalendarOpen.has(hearing.bill_id) ? hearingCalendarOpen.delete(hearing.bill_id) : hearingCalendarOpen.add(hearing.bill_id); hearingCalendarOpen = new Set(hearingCalendarOpen); }} title="Add to calendar">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" />
+                    </svg>
+                  </button>
+                </div>
                 {#if hearing.bill_name}
                   <div class="card-subtitle">{hearing.bill_name}</div>
+                {/if}
+                {#if hearingCalendarOpen.has(hearing.bill_id)}
+                  {@const meetingData = hearingToMeeting(hearing)}
+                  <div class="cal-dropdown">
+                    <a href={googleCalendarUrl(meetingData)} target="_blank" rel="noopener" class="cal-option">Google Calendar</a>
+                    <button class="cal-option" onclick={() => downloadIcs(hearingToMeeting(hearing))}>Download .ics</button>
+                  </div>
                 {/if}
                 <div class="card-meta">
                   <span class="meta-date">{hearing.event_date}</span>
@@ -642,14 +817,42 @@
                     hasIdentity={!!identity}
                     {aiAvailable}
                     {activeProviderName}
+                    draftLoading={draftingInProgress.has(eid)}
+                    enrichLoading={enrichingInProgress.has(eid)}
                     summarizeLoading={aiResponseLoading.has(`summarize-thread:${eid}`)}
                     summaryHtml={renderMarkdown(aiResponses.get(`summarize-thread:${eid}`) ?? '')}
                     showSummary={aiResponses.has(`summarize-thread:${eid}`)}
                     ontoggle={() => toggleCommentThread(eid)}
                     onsubmit={() => handleSubmitComment(eid)}
                     ondraftchange={({ text }: { text: string }) => { threadDrafts.set(eid, text); threadDrafts = new Map(threadDrafts); }}
+                    ondraft={() => handleDraftFocal(eid, hearing.bill_name || hearing.bill_number || hearing.bill_id, composeHearingContext(hearing))}
+                    onenrich={() => handleEnrichFocal(eid, hearing.bill_name || hearing.bill_number || hearing.bill_id)}
                     onsummarize={() => handleSummarize(eid, hearing.bill_number || hearing.bill_id)}
                   />
+                {/if}
+                <!-- AI action row -->
+                <div class="ai-action-row">
+                  {#if aiAvailable}
+                    <button
+                      class="ai-action-btn ai-action-ask"
+                      class:active={aiResponses.has(`ask-focal:${hearing.bill_id}`)}
+                      disabled={aiResponseLoading.has(`ask-focal:${hearing.bill_id}`)}
+                      onclick={() => askFocalAI(`ask-focal:${hearing.bill_id}`, composeHearingContext(hearing))}
+                    >
+                      <span class="sparkle">&#x2726;</span> {aiResponseLoading.has(`ask-focal:${hearing.bill_id}`) ? 'Thinking...' : aiResponses.has(`ask-focal:${hearing.bill_id}`) ? 'Hide' : activeProviderName || 'Ask AI'}
+                    </button>
+                  {/if}
+                  {#if onopenexternalai}
+                    <button class="ai-action-btn ai-action-claude" class:solo={!aiAvailable} onclick={(e: MouseEvent) => onopenexternalai?.({ context: composeHearingContext(hearing), event: e })}>
+                      Claude <span class="ext-icon">&#x2197;</span>
+                    </button>
+                  {/if}
+                </div>
+                {#if aiResponses.has(`ask-focal:${hearing.bill_id}`)}
+                  <div class="ai-response">
+                    <div class="ai-response-text prose">{@html renderMarkdown(aiResponses.get(`ask-focal:${hearing.bill_id}`) ?? '')}</div>
+                    {#if activeProviderName}<span class="ai-response-provider">via {activeProviderName}</span>{/if}
+                  </div>
                 {/if}
               </div>
             {/each}
@@ -719,14 +922,42 @@
                     hasIdentity={!!identity}
                     {aiAvailable}
                     {activeProviderName}
+                    draftLoading={draftingInProgress.has(eid)}
+                    enrichLoading={enrichingInProgress.has(eid)}
                     summarizeLoading={aiResponseLoading.has(`summarize-thread:${eid}`)}
                     summaryHtml={renderMarkdown(aiResponses.get(`summarize-thread:${eid}`) ?? '')}
                     showSummary={aiResponses.has(`summarize-thread:${eid}`)}
                     ontoggle={() => toggleCommentThread(eid)}
                     onsubmit={() => handleSubmitComment(eid)}
                     ondraftchange={({ text }: { text: string }) => { threadDrafts.set(eid, text); threadDrafts = new Map(threadDrafts); }}
+                    ondraft={() => handleDraftFocal(eid, bill.bill_name || bill.bill_number || bill.bill_id, composeGovernorsDeskContext(bill))}
+                    onenrich={() => handleEnrichFocal(eid, bill.bill_name || bill.bill_number || bill.bill_id)}
                     onsummarize={() => handleSummarize(eid, bill.bill_number || bill.bill_id)}
                   />
+                {/if}
+                <!-- AI action row -->
+                <div class="ai-action-row">
+                  {#if aiAvailable}
+                    <button
+                      class="ai-action-btn ai-action-ask"
+                      class:active={aiResponses.has(`ask-focal:${bill.bill_id}`)}
+                      disabled={aiResponseLoading.has(`ask-focal:${bill.bill_id}`)}
+                      onclick={() => askFocalAI(`ask-focal:${bill.bill_id}`, composeGovernorsDeskContext(bill))}
+                    >
+                      <span class="sparkle">&#x2726;</span> {aiResponseLoading.has(`ask-focal:${bill.bill_id}`) ? 'Thinking...' : aiResponses.has(`ask-focal:${bill.bill_id}`) ? 'Hide' : activeProviderName || 'Ask AI'}
+                    </button>
+                  {/if}
+                  {#if onopenexternalai}
+                    <button class="ai-action-btn ai-action-claude" class:solo={!aiAvailable} onclick={(e: MouseEvent) => onopenexternalai?.({ context: composeGovernorsDeskContext(bill), event: e })}>
+                      Claude <span class="ext-icon">&#x2197;</span>
+                    </button>
+                  {/if}
+                </div>
+                {#if aiResponses.has(`ask-focal:${bill.bill_id}`)}
+                  <div class="ai-response">
+                    <div class="ai-response-text prose">{@html renderMarkdown(aiResponses.get(`ask-focal:${bill.bill_id}`) ?? '')}</div>
+                    {#if activeProviderName}<span class="ai-response-provider">via {activeProviderName}</span>{/if}
+                  </div>
                 {/if}
               </div>
             {/each}
@@ -750,6 +981,9 @@
   </button>
   {#if expanded.meetings}
     <div class="section-body">
+      {#if meetingsHint}
+        <div class="section-hint">{meetingsHint}</div>
+      {/if}
       {#if data.decisions_this_week.length === 0}
         <div class="empty-section">{emptyMeetings}</div>
       {:else if isLegislative}
@@ -787,6 +1021,9 @@
   </button>
   {#if expanded.items}
     <div class="section-body">
+      {#if itemsHint}
+        <div class="section-hint">{itemsHint}</div>
+      {/if}
       {#if !data.upcoming_items || data.upcoming_items.length === 0}
         <div class="empty-section">{emptyItems}</div>
       {:else}
@@ -819,7 +1056,14 @@
               {/if}
             </div>
             {#if isLegislative && item.summary}
-              <div class="card-summary">{item.summary}</div>
+              <div class="card-summary">
+                {#if item.summary.length > 150 && !expandedAbstracts.has(`leg:${item.id || item.title}`)}
+                  {truncate(item.summary, 150)}
+                  <button class="expand-btn" onclick={() => { expandedAbstracts.add(`leg:${item.id || item.title}`); expandedAbstracts = new Set(expandedAbstracts); }}>more</button>
+                {:else}
+                  {item.summary}
+                {/if}
+              </div>
             {/if}
             {#if isLegislative && item.description}
               <div class="card-leverage">{item.description}</div>
@@ -834,6 +1078,31 @@
                   {onvoice}
                 />
               </div>
+            {/if}
+            {#if isLegislative}
+              <div class="ai-action-row">
+                {#if aiAvailable}
+                  <button
+                    class="ai-action-btn ai-action-ask"
+                    class:active={aiResponses.has(`ask-leg:${item.id || item.title}`)}
+                    disabled={aiResponseLoading.has(`ask-leg:${item.id || item.title}`)}
+                    onclick={() => askFocalAI(`ask-leg:${item.id || item.title}`, composeLegislationContext(item))}
+                  >
+                    <span class="sparkle">&#x2726;</span> {aiResponseLoading.has(`ask-leg:${item.id || item.title}`) ? 'Thinking...' : aiResponses.has(`ask-leg:${item.id || item.title}`) ? 'Hide' : activeProviderName || 'Ask AI'}
+                  </button>
+                {/if}
+                {#if onopenexternalai}
+                  <button class="ai-action-btn ai-action-claude" class:solo={!aiAvailable} onclick={(e: MouseEvent) => onopenexternalai?.({ context: composeLegislationContext(item), event: e })}>
+                    Claude <span class="ext-icon">&#x2197;</span>
+                  </button>
+                {/if}
+              </div>
+              {#if aiResponses.has(`ask-leg:${item.id || item.title}`)}
+                <div class="ai-response">
+                  <div class="ai-response-text prose">{@html renderMarkdown(aiResponses.get(`ask-leg:${item.id || item.title}`) ?? '')}</div>
+                  {#if activeProviderName}<span class="ai-response-provider">via {activeProviderName}</span>{/if}
+                </div>
+              {/if}
             {/if}
           </div>
         {/each}
@@ -855,6 +1124,9 @@
   </button>
   {#if expanded.outcomes}
     <div class="section-body">
+      {#if outcomesHint}
+        <div class="section-hint">{outcomesHint}</div>
+      {/if}
       {#if data.recent_outcomes.length === 0}
         <div class="empty-section">{emptyOutcomes}</div>
       {:else}
@@ -884,7 +1156,14 @@
               {/if}
             </div>
             {#if isLegislative && outcome.summary}
-              <div class="card-summary">{outcome.summary}</div>
+              <div class="card-summary">
+                {#if outcome.summary.length > 150 && !expandedAbstracts.has(`out:${outcome.id || outcome.title}`)}
+                  {truncate(outcome.summary, 150)}
+                  <button class="expand-btn" onclick={() => { expandedAbstracts.add(`out:${outcome.id || outcome.title}`); expandedAbstracts = new Set(expandedAbstracts); }}>more</button>
+                {:else}
+                  {outcome.summary}
+                {/if}
+              </div>
             {/if}
             {#if eid && onvoice && outcome.is_upcoming}
               <div class="card-voice">
@@ -1235,6 +1514,111 @@
     color: #9ca3af;
     padding: 2px 8px 6px;
     font-style: italic;
+  }
+  /* Calendar button (hearings) */
+  .meeting-top-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 6px;
+  }
+  .cal-btn {
+    flex-shrink: 0;
+    background: none;
+    border: none;
+    color: #6b7280;
+    cursor: pointer;
+    padding: 2px;
+    border-radius: 3px;
+  }
+  .cal-btn:hover { color: #60a5fa; background: #374151; }
+  .cal-dropdown {
+    display: flex;
+    gap: 8px;
+    margin-top: 6px;
+    padding-top: 6px;
+    border-top: 1px solid #374151;
+  }
+  .cal-option {
+    font-size: 11px;
+    color: #3b82f6;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    text-decoration: none;
+  }
+  .cal-option:hover { color: #60a5fa; text-decoration: underline; }
+  /* AI action row */
+  .ai-action-row {
+    display: flex;
+    gap: 6px;
+    margin-top: 8px;
+  }
+  .ai-action-btn {
+    flex: 1;
+    padding: 5px 0;
+    font-size: 11px;
+    font-weight: 500;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    text-align: center;
+  }
+  .ai-action-ask {
+    color: #60a5fa;
+    background: rgba(59,130,246,0.06);
+    border: 1px solid #3b82f630;
+  }
+  .ai-action-ask:hover:not(:disabled) {
+    background: rgba(59,130,246,0.14);
+    border-color: #3b82f6;
+    color: #93c5fd;
+  }
+  .ai-action-ask:disabled { opacity: 0.6; cursor: default; }
+  .ai-action-ask.active {
+    background: rgba(59,130,246,0.12);
+    border-color: #3b82f6;
+  }
+  .ai-action-claude {
+    color: #d4a574;
+    background: rgba(212,165,116,0.06);
+    border: 1px solid #d4a57430;
+  }
+  .ai-action-claude:hover {
+    background: rgba(212,165,116,0.14);
+    border-color: #d4a574;
+    color: #e8c9a0;
+  }
+  .ai-action-claude.solo { flex: 1; }
+  .sparkle { font-size: 10px; opacity: 0.7; }
+  .ext-icon { font-size: 9px; }
+  /* AI response */
+  .ai-response {
+    margin-top: 8px;
+    padding: 10px 12px;
+    background: rgba(139, 92, 246, 0.06);
+    border: 1px solid rgba(139, 92, 246, 0.15);
+    border-radius: 8px;
+  }
+  .ai-response-text {
+    font-size: 12px;
+    color: #d1d5db;
+    line-height: 1.5;
+  }
+  .ai-response-text.prose :global(p) { margin: 0 0 8px; }
+  .ai-response-text.prose :global(p:last-child) { margin-bottom: 0; }
+  .ai-response-text.prose :global(strong) { color: #e5e7eb; font-weight: 600; }
+  .ai-response-text.prose :global(ul), .ai-response-text.prose :global(ol) {
+    margin: 4px 0 8px;
+    padding-left: 18px;
+  }
+  .ai-response-text.prose :global(li) { margin-bottom: 2px; }
+  .ai-response-provider {
+    display: block;
+    margin-top: 6px;
+    font-size: 10px;
+    color: #64748b;
   }
   .pulse-footer {
     display: flex;
