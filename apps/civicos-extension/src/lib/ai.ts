@@ -10,7 +10,7 @@ export { composeDraftPrompt, composeEnrichPrompt, SYSTEM_PROMPT, QA_SYSTEM_PROMP
 export { AIManager } from '@civicos/client';
 export type { AIProvider, AITier, AICompletionResult, AIProviderConfig } from '@civicos/client';
 
-import { AIManager, ClaudeProvider, OpenAIProvider, GeminiProvider } from '@civicos/client';
+import { AIManager, ClaudeProvider, OpenAIProvider, GeminiProvider, OllamaProvider } from '@civicos/client';
 import { ChromeAICredentialStorage } from './adapters/chrome-ai-storage.js';
 import { CivicosProxyProvider } from './ai/providers/civicos-proxy.js';
 import { ChromeNanoProvider } from './ai/providers/chrome-nano.js';
@@ -27,6 +27,7 @@ export function createExtensionAIManager(): AIManager {
   manager.register(new ClaudeProvider(storage));
   manager.register(new OpenAIProvider(storage));
   manager.register(new GeminiProvider(storage));
+  manager.register(new OllamaProvider(storage));
   manager.register(new ChromeNanoProvider());
 
   return manager;

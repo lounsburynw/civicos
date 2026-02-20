@@ -79,4 +79,5 @@ export { MemoryAICredentialStorage } from './ai/storage.js';
 export { ClaudeProvider } from './ai/providers/claude.js';
 export { OpenAIProvider } from './ai/providers/openai.js';
 export { GeminiProvider } from './ai/providers/gemini.js';
+export { OllamaProvider } from './ai/providers/ollama.js';
 export { composeDraftPrompt, composeEnrichPrompt, SYSTEM_PROMPT, QA_SYSTEM_PROMPT } from './ai/prompts.js';
