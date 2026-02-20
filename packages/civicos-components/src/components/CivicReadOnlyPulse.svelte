@@ -209,7 +209,30 @@
   const hasCommentPeriods = $derived((data.comment_periods ?? []).length > 0);
   const hasHearings = $derived((data.upcoming_hearings ?? []).length > 0);
   const hasGovernorsDesk = $derived((data.governors_desk ?? []).length > 0);
-  const hasFocalPoints = $derived(hasCommentPeriods || hasHearings || hasGovernorsDesk);
+
+  // Reference time for relative date calculations (uses data timestamp for consistency with mock data)
+  const referenceTime = $derived(data.generated_at ? new Date(data.generated_at) : new Date());
+
+  // City focal points: meetings happening within 7 days
+  const cityFocalMeetings = $derived(
+    !isLegislative
+      ? data.decisions_this_week.filter(m => {
+          if (!m.meeting_datetime) return false;
+          const meetingDate = new Date(m.meeting_datetime);
+          const diffMs = meetingDate.getTime() - referenceTime.getTime();
+          const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+          return diffDays >= 0 && diffDays <= 7;
+        }).map(m => {
+          const meetingDate = new Date(m.meeting_datetime);
+          const diffMs = meetingDate.getTime() - referenceTime.getTime();
+          const daysUntil = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+          const agendaItems = (data.upcoming_items || []).filter(i => i.meeting_title === m.title);
+          return { ...m, days_until: daysUntil, agendaItems };
+        })
+      : []
+  );
+  const hasCityFocal = $derived(cityFocalMeetings.length > 0);
+  const hasFocalPoints = $derived(hasCommentPeriods || hasHearings || hasGovernorsDesk || hasCityFocal);
 
   // --- Focal Point Context Composers (Drag-to-AI) ---
 
@@ -269,6 +292,31 @@
     return lines.join('\n');
   }
 
+  function composeCityMeetingFocalContext(meeting: { title: string; date: string; time: string; location: string; days_until: number; agendaItems: Array<{ title: string; project_type?: string }> }): string {
+    const today = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    const source = jurisdiction || 'my city';
+    const urgency = meeting.days_until === 0 ? 'TODAY' : meeting.days_until === 1 ? 'TOMORROW' : `in ${meeting.days_until} days`;
+    const lines = [
+      `--- CivicOS Context: Upcoming City Meeting (${urgency}) ---`,
+      `Source: CivicOS (${source}) | ${today}`,
+      '',
+      `**${meeting.title}**`,
+      `Date: ${meeting.date} at ${meeting.time}`,
+    ];
+    if (meeting.location) lines.push(`Location: ${meeting.location}`);
+    if (meeting.agendaItems.length > 0) {
+      lines.push('', `Agenda items (${meeting.agendaItems.length}):`);
+      for (const item of meeting.agendaItems) {
+        let line = `- ${item.title}`;
+        if (item.project_type) line += ` [${item.project_type}]`;
+        lines.push(line);
+      }
+    }
+    lines.push('', '--- End Context ---');
+    lines.push('', 'Suggested question: What should I know about this meeting? How can I participate or submit comments?');
+    return lines.join('\n');
+  }
+
   function urgencyClass(days: number): string {
     if (days <= 0) return 'urgent-closed';
     if (days <= 3) return 'urgent-critical';
@@ -276,13 +324,25 @@
     return 'urgent-normal';
   }
 
+  // Look up meeting days_until for a city agenda item
+  function meetingDaysUntil(meetingTitle: string): number | null {
+    if (isLegislative) return null;
+    const meeting = data.decisions_this_week.find(m => m.title === meetingTitle);
+    if (!meeting?.meeting_datetime) return null;
+    const meetingDate = new Date(meeting.meeting_datetime);
+    const diffMs = meetingDate.getTime() - referenceTime.getTime();
+    const days = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+    return days >= 0 ? days : null;
+  }
+
   let expanded: Record<string, boolean> = $state({
     meetings: true,
     items: true,
-    outcomes: !isLegislative,
+    outcomes: false,
     commentPeriods: true,
     hearings: true,
     governorsDesk: true,
+    cityFocal: true,
   });
 
   function toggle(section: string) {
@@ -566,7 +626,7 @@
     isLegislative ? '' : 'Attend public meetings or submit written comments to shape local decisions'
   );
   const itemsHint = $derived(
-    isLegislative ? 'Track key bills and express your stance' : ''
+    isLegislative ? 'Track key bills and express your stance' : 'Review agenda items and share your perspective before the meeting'
   );
   const outcomesHint = $derived(
     isLegislative ? '' : 'View recent decisions and how the community weighed in'
@@ -965,6 +1025,100 @@
         {/if}
       </section>
     {/if}
+
+    <!-- Upcoming City Meetings (City) -->
+    {#if hasCityFocal}
+      <section class="feed-section">
+        <button class="section-header" onclick={() => toggle('cityFocal')}>
+          <span class="section-title">
+            Upcoming Meetings
+            <span class="count-badge focal-badge">{cityFocalMeetings.length}</span>
+          </span>
+          <span class="chevron" class:open={expanded.cityFocal}></span>
+        </button>
+        {#if expanded.cityFocal}
+          <div class="section-body">
+            <div class="section-hint">Your voice shapes local decisions — attend or submit written comments</div>
+            {#each cityFocalMeetings as meeting}
+              {@const meetingId = `meeting:${meeting.title.toLowerCase().replace(/\s+/g, '-')}`}
+              {@const focalContext = composeCityMeetingFocalContext(meeting)}
+              <div class="card focal-card" class:dragging={draggingId === meetingId}
+                   draggable="true"
+                   ondragstart={(e: DragEvent) => handleDragStart(e, focalContext, meetingId)}
+                   ondragend={handleDragEnd}>
+                <div class="meeting-top-row">
+                  <div class="card-title">{meeting.title}</div>
+                  <button class="cal-btn" onclick={() => { hearingCalendarOpen.has(meetingId) ? hearingCalendarOpen.delete(meetingId) : hearingCalendarOpen.add(meetingId); hearingCalendarOpen = new Set(hearingCalendarOpen); }} title="Add to calendar">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" />
+                    </svg>
+                  </button>
+                </div>
+                {#if hearingCalendarOpen.has(meetingId)}
+                  <div class="cal-dropdown">
+                    <a href={googleCalendarUrl(meeting)} target="_blank" rel="noopener" class="cal-option">Google Calendar</a>
+                    <button class="cal-option" onclick={() => downloadIcs(meeting)}>Download .ics</button>
+                  </div>
+                {/if}
+                <div class="card-meta">
+                  <span class="meta-date">{meeting.date} · {meeting.time}</span>
+                  <span class="deadline-tag {urgencyClass(meeting.days_until)}">
+                    {#if meeting.days_until === 0}
+                      Today
+                    {:else if meeting.days_until === 1}
+                      Tomorrow
+                    {:else}
+                      In {meeting.days_until} days
+                    {/if}
+                  </span>
+                </div>
+                {#if meeting.location}
+                  <div class="card-meta"><span>{meeting.location}</span></div>
+                {/if}
+                {#if meeting.agendaItems.length > 0}
+                  <div class="focal-agenda-preview">
+                    <div class="focal-agenda-label">{meeting.agendaItems.length} agenda item{meeting.agendaItems.length !== 1 ? 's' : ''}:</div>
+                    {#each meeting.agendaItems as item}
+                      <div class="focal-agenda-item">
+                        <span class="focal-agenda-bullet">·</span>
+                        {item.title}
+                        {#if item.project_type}
+                          <span class="item-type">{item.project_type}</span>
+                        {/if}
+                      </div>
+                    {/each}
+                  </div>
+                {/if}
+                <!-- AI action row -->
+                <div class="ai-action-row">
+                  {#if aiAvailable}
+                    <button
+                      class="ai-action-btn ai-action-ask"
+                      class:active={aiResponses.has(`ask-focal:${meetingId}`)}
+                      disabled={aiResponseLoading.has(`ask-focal:${meetingId}`)}
+                      onclick={() => askFocalAI(`ask-focal:${meetingId}`, focalContext)}
+                    >
+                      <span class="sparkle">&#x2726;</span> {aiResponseLoading.has(`ask-focal:${meetingId}`) ? 'Thinking...' : aiResponses.has(`ask-focal:${meetingId}`) ? 'Hide' : activeProviderName || 'Ask AI'}
+                    </button>
+                  {/if}
+                  {#if onopenexternalai}
+                    <button class="ai-action-btn ai-action-claude" class:solo={!aiAvailable} onclick={(e: MouseEvent) => onopenexternalai?.({ context: focalContext, event: e })}>
+                      Claude <span class="ext-icon">&#x2197;</span>
+                    </button>
+                  {/if}
+                </div>
+                {#if aiResponses.has(`ask-focal:${meetingId}`)}
+                  <div class="ai-response">
+                    <div class="ai-response-text prose">{@html renderMarkdown(aiResponses.get(`ask-focal:${meetingId}`) ?? '')}</div>
+                    {#if activeProviderName}<span class="ai-response-provider">via {activeProviderName}</span>{/if}
+                  </div>
+                {/if}
+              </div>
+            {/each}
+          </div>
+        {/if}
+      </section>
+    {/if}
   </div>
 {/if}
 
@@ -1030,6 +1184,7 @@
         {#each data.upcoming_items as item}
           {@const eid = item.id ? billEntityId(item.id) : ''}
           {@const counts = eid ? voiceCounts.get(eid) : undefined}
+          {@const itemDaysUntil = item.meeting_title ? meetingDaysUntil(item.meeting_title) : null}
           <div class="card" class:dragging={draggingId === (item.id || item.title)}
                draggable="true"
                ondragstart={(e: DragEvent) => handleDragStart(e, composeLegislationContext(item), item.id || item.title)}
@@ -1050,6 +1205,17 @@
               {/if}
               {#if item.project_type}
                 <span class="item-type">{item.project_type}</span>
+              {/if}
+              {#if itemDaysUntil !== null}
+                <span class="deadline-tag {urgencyClass(itemDaysUntil)}">
+                  {#if itemDaysUntil === 0}
+                    Meeting today
+                  {:else if itemDaysUntil === 1}
+                    Meeting tomorrow
+                  {:else}
+                    In {itemDaysUntil} days
+                  {/if}
+                </span>
               {/if}
               {#if counts && counts.total > 0}
                 <span class="voice-count-badge">{counts.total} voice{counts.total !== 1 ? 's' : ''}</span>
@@ -1514,6 +1680,30 @@
     color: #9ca3af;
     padding: 2px 8px 6px;
     font-style: italic;
+  }
+  .focal-agenda-preview {
+    margin-top: 8px;
+    padding-top: 6px;
+    border-top: 1px solid #374151;
+  }
+  .focal-agenda-label {
+    font-size: 10px;
+    font-weight: 600;
+    color: #9ca3af;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    margin-bottom: 4px;
+  }
+  .focal-agenda-item {
+    font-size: 12px;
+    color: #d1d5db;
+    line-height: 1.4;
+    padding: 2px 0;
+  }
+  .focal-agenda-bullet {
+    color: #f59e0b;
+    margin-right: 4px;
+    font-weight: 700;
   }
   /* Calendar button (hearings) */
   .meeting-top-row {

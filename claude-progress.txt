@@ -1,3 +1,34 @@
+## Session — 2026-02-19 (8): Cross-Level UX Consistency — City Focal Points & Urgency
+
+**Item:** engagement_ladder_ux (cross-level consistency, information density)
+**Status:** Complete
+
+### Changes
+- Added "Take Action" focal points to city tab — upcoming meetings within 7 days surface as amber focal cards (matching state/federal pattern)
+- Each focal card shows: title, date/time/location, urgency badge ("In 7 days" / "Tomorrow" / "Today"), calendar button, agenda items preview, AI action row
+- Added urgency deadline badges to city agenda items (derived from parent meeting datetime)
+- Added section hint to city Agenda Items: "Review agenda items and share your perspective before the meeting"
+- Collapsed Recent Outcomes / Bill Activity by default across all tabs (progressive disclosure)
+- Fixed `outcomes: !isLegislative` Svelte warning (was capturing initial value of derived)
+- Used `data.generated_at` as reference time for date calculations (works with both live and mock data)
+
+### Cross-Level Consistency Achieved
+| Feature | City (now) | State | Federal |
+|---------|-----------|-------|---------|
+| "Take Action" header | Amber | Amber | Amber |
+| Urgency badges | "In 7 days" | "In 8 days" | "3 days left" |
+| Focal cards | Amber-bordered | Amber-bordered | Amber-bordered |
+| Section hints | All 3 sections | Yes | Yes |
+| Outcomes collapsed | Default | Default | Default |
+
+### Files Changed
+- `packages/civicos-components/src/components/CivicReadOnlyPulse.svelte` (+193 lines)
+
+### Commits
+- (pending commit)
+
+---
+
 ## Session — 2026-02-19 (7): Playwright Visual Testing Harness + /visual-review Skill
 
 **Item:** engagement_ladder_ux (visual testing infrastructure)
