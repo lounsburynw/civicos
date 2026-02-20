@@ -27,6 +27,14 @@
   let aiSaving = $state(false);
   let aiTesting = $state(false);
 
+  // Ollama state
+  let ollamaModel = $state('llama3.1:8b');
+  let ollamaBaseUrl = $state('http://localhost:11434');
+  let ollamaConnected = $state(false);
+  let ollamaModels: string[] = $state([]);
+  let ollamaSaving = $state(false);
+  let ollamaTesting = $state(false);
+
   // Create flow
   let password = $state('');
   let confirmPassword = $state('');
@@ -244,6 +252,75 @@
     }
   }
 
+  async function loadOllamaStatus() {
+    // Load saved config
+    const storage = aiManager.getStorage();
+    const config = await storage.getConfig('ollama');
+    if (config.apiKey) ollamaBaseUrl = config.apiKey; // apiKey field stores base URL
+    if (config.model) ollamaModel = config.model;
+
+    // Check connection and list models
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 2000);
+      const resp = await fetch(`${ollamaBaseUrl}/api/tags`, { signal: controller.signal });
+      clearTimeout(timeout);
+      if (resp.ok) {
+        const data = await resp.json();
+        ollamaConnected = true;
+        ollamaModels = (data.models || []).map((m: { name: string }) => m.name);
+      } else {
+        ollamaConnected = false;
+        ollamaModels = [];
+      }
+    } catch {
+      ollamaConnected = false;
+      ollamaModels = [];
+    }
+  }
+
+  async function saveOllama() {
+    ollamaSaving = true;
+    try {
+      const provider = aiManager.getProvider('ollama');
+      if (provider) {
+        await provider.configure({
+          apiKey: ollamaBaseUrl, // apiKey field stores base URL
+          model: ollamaModel,
+        });
+        aiProviderStatuses = await aiManager.checkStatus();
+        setStatus(`Ollama configured: ${ollamaModel}`, 'success');
+      }
+    } catch (err) {
+      setStatus(`Failed to save: ${err instanceof Error ? err.message : 'unknown'}`, 'error');
+    }
+    ollamaSaving = false;
+  }
+
+  async function testOllama() {
+    ollamaTesting = true;
+    try {
+      // Save config first so the provider picks it up
+      const provider = aiManager.getProvider('ollama');
+      if (provider) {
+        await provider.configure({ apiKey: ollamaBaseUrl, model: ollamaModel });
+      }
+      const result = await aiManager.complete('Say "hello" in one word.', 'You are a test assistant.');
+      // Check if Ollama actually handled it
+      if (result.provider === 'ollama' && result.success) {
+        setStatus(`Ollama test passed: "${result.text?.slice(0, 50)}"`, 'success');
+      } else if (result.success) {
+        // A different provider handled it — Ollama may not be ready
+        setStatus(`Test used ${result.provider} instead of Ollama — check model name`, 'error');
+      } else {
+        setStatus(`Ollama test failed: ${result.error}`, 'error');
+      }
+    } catch (err) {
+      setStatus(`Ollama test error: ${err instanceof Error ? err.message : 'unknown'}`, 'error');
+    }
+    ollamaTesting = false;
+  }
+
   // Attestation state
   let attestationCode = $state('');
   let attestationVerifying = $state(false);
@@ -352,6 +429,7 @@
 
   loadIdentity();
   loadAIStatus();
+  loadOllamaStatus();
   loadJurisdiction();
 
   // Load attestation after identity loads
@@ -612,6 +690,64 @@
       {@const active = aiProviderStatuses.find(p => p.active)}
       <div class="active-provider-badge">
         Active: {active?.name}
+      </div>
+    {/if}
+
+    <hr class="subsection-divider" />
+
+    <h3 class="subsection-label">On-Device AI (Ollama)</h3>
+    <p class="section-desc">
+      Run AI locally for private chat. Requires <a href="https://ollama.com" target="_blank" rel="noopener">Ollama</a> installed.
+    </p>
+
+    <div class="ollama-status" class:connected={ollamaConnected}>
+      <span class="ollama-dot"></span>
+      {ollamaConnected ? `Connected — ${ollamaModels.length} model${ollamaModels.length === 1 ? '' : 's'}` : 'Not connected'}
+      <button class="ollama-refresh" onclick={loadOllamaStatus} title="Refresh">&#8635;</button>
+    </div>
+
+    {#if ollamaConnected}
+      <div class="form-group">
+        <label for="ollama-model">Model</label>
+        {#if ollamaModels.length > 0}
+          <select id="ollama-model" bind:value={ollamaModel}>
+            {#each ollamaModels as model}
+              <option value={model}>{model}</option>
+            {/each}
+          </select>
+        {:else}
+          <input id="ollama-model" type="text" placeholder="llama3.1:8b" bind:value={ollamaModel} />
+        {/if}
+        <span class="form-hint">
+          Recommended: llama3.1:8b for tool-backed search
+        </span>
+      </div>
+
+      <div class="form-group">
+        <label for="ollama-url">Server URL</label>
+        <input id="ollama-url" type="text" placeholder="http://localhost:11434" bind:value={ollamaBaseUrl} />
+      </div>
+
+      <div class="ai-action-buttons">
+        <button class="btn-primary" onclick={saveOllama} disabled={ollamaSaving}>
+          {ollamaSaving ? 'Saving...' : 'Save'}
+        </button>
+        <button class="btn-secondary" onclick={testOllama} disabled={ollamaTesting}>
+          {ollamaTesting ? 'Testing...' : 'Test'}
+        </button>
+      </div>
+
+      <div class="ollama-privacy-note">
+        When Ollama is running, chat queries stay on your device. The server only sees anonymous data requests.
+      </div>
+    {:else}
+      <div class="ollama-setup-hint">
+        <p>To enable on-device AI:</p>
+        <ol>
+          <li>Install Ollama from <a href="https://ollama.com" target="_blank" rel="noopener">ollama.com</a></li>
+          <li>Run: <code>ollama pull llama3.1:8b</code></li>
+          <li>Click refresh above</li>
+        </ol>
       </div>
     {/if}
   </section>
@@ -1017,4 +1153,93 @@
     border-radius: 4px;
     border-left: 2px solid #6366f1;
   }
+
+  /* Ollama section */
+  .ollama-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: #ef4444;
+    padding: 8px 12px;
+    background: rgba(239, 68, 68, 0.06);
+    border-radius: 6px;
+    margin-bottom: 12px;
+  }
+  .ollama-status.connected {
+    color: #22c55e;
+    background: rgba(34, 197, 94, 0.06);
+  }
+  .ollama-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #ef4444;
+    flex-shrink: 0;
+  }
+  .ollama-status.connected .ollama-dot {
+    background: #22c55e;
+  }
+  .ollama-refresh {
+    margin-left: auto;
+    background: none;
+    border: none;
+    color: inherit;
+    font-size: 16px;
+    cursor: pointer;
+    padding: 0 4px;
+    opacity: 0.7;
+  }
+  .ollama-refresh:hover { opacity: 1; }
+
+  .ollama-privacy-note {
+    font-size: 11px;
+    color: #22c55e;
+    background: rgba(34, 197, 94, 0.06);
+    padding: 8px 12px;
+    border-radius: 6px;
+    margin-top: 12px;
+    line-height: 1.5;
+  }
+
+  .ollama-setup-hint {
+    font-size: 12px;
+    color: #94a3b8;
+    line-height: 1.6;
+  }
+  .ollama-setup-hint ol {
+    margin: 6px 0 0;
+    padding-left: 18px;
+  }
+  .ollama-setup-hint li {
+    margin-bottom: 4px;
+  }
+  .ollama-setup-hint code {
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 11px;
+    background: #0f172a;
+    padding: 2px 6px;
+    border-radius: 3px;
+    color: #e2e8f0;
+  }
+  .ollama-setup-hint a {
+    color: #818cf8;
+    text-decoration: none;
+  }
+  .ollama-setup-hint a:hover {
+    text-decoration: underline;
+  }
+
+  select {
+    width: 100%;
+    padding: 10px 12px;
+    background: #0f172a;
+    border: 1px solid #334155;
+    border-radius: 6px;
+    color: #e2e8f0;
+    font-size: 13px;
+    outline: none;
+    appearance: auto;
+  }
+  select:focus { border-color: #6366f1; }
 </style>
