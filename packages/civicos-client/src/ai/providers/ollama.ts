@@ -5,8 +5,10 @@
  * Fully on-device — no queries leave the machine.
  */
 
-import type { AIProvider, AITier, AIProviderConfig, AICompletionResult } from '../types.js';
+import type { AIProvider, AITier, AIProviderConfig, AICompletionResult, AIChatResult } from '../types.js';
 import type { AICredentialStorage } from '../storage.js';
+import type { ChatToolExecutor } from '../tools/chat-tools.js';
+import { CHAT_TOOL_DEFS } from '../tools/chat-tools.js';
 
 const DEFAULT_BASE_URL = 'http://localhost:11434';
 const DEFAULT_MODEL = 'llama3.1:8b';
@@ -20,8 +22,14 @@ export class OllamaProvider implements AIProvider {
 
   private baseUrl = DEFAULT_BASE_URL;
   private model = DEFAULT_MODEL;
+  private toolExecutor?: ChatToolExecutor;
 
   constructor(private storage: AICredentialStorage) {}
+
+  /** Inject a tool executor to enable local chat with tool-backed search. */
+  setToolExecutor(executor: ChatToolExecutor): void {
+    this.toolExecutor = executor;
+  }
 
   async isAvailable(): Promise<boolean> {
     try {
@@ -105,6 +113,121 @@ export class OllamaProvider implements AIProvider {
       const msg = err instanceof Error
         ? (err.name === 'AbortError' ? 'Request timed out — model may still be loading' : err.message)
         : 'Ollama request failed';
+      return { success: false, error: msg, provider: this.id };
+    }
+  }
+
+  async chat(question: string, jurisdiction?: string): Promise<AIChatResult> {
+    if (!this.toolExecutor) {
+      return { success: false, error: 'No tool executor configured for local chat', provider: this.id };
+    }
+
+    await this.loadConfig();
+
+    const systemPrompt =
+      `You are a civic assistant for ${jurisdiction || 'the local community'}. ` +
+      'Answer the user\'s question using the available tools to search real civic data. ' +
+      'Be concise and factual. Cite specific dates, amounts, or meeting names when available. ' +
+      'If no tool is relevant, answer based on your general knowledge and note the limitation.';
+
+    try {
+      // 1. First call: let Ollama select a tool
+      const controller1 = new AbortController();
+      const timeout1 = setTimeout(() => controller1.abort(), TIMEOUT_MS);
+
+      const resp1 = await fetch(`${this.baseUrl}/api/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: this.model,
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: question },
+          ],
+          tools: CHAT_TOOL_DEFS,
+          stream: false,
+        }),
+        signal: controller1.signal,
+      });
+      clearTimeout(timeout1);
+
+      if (!resp1.ok) {
+        const errBody = await resp1.text();
+        return { success: false, error: `Ollama ${resp1.status}: ${errBody.slice(0, 200)}`, provider: this.id };
+      }
+
+      const data1 = await resp1.json() as {
+        message?: {
+          role: string;
+          content: string;
+          tool_calls?: Array<{ function: { name: string; arguments: Record<string, unknown> } }>;
+        };
+      };
+
+      const msg1 = data1.message;
+      if (!msg1) {
+        return { success: false, error: 'Ollama returned empty message', provider: this.id };
+      }
+
+      // If no tool call, return the direct answer
+      if (!msg1.tool_calls || msg1.tool_calls.length === 0) {
+        return {
+          success: true,
+          text: msg1.content || 'No answer available.',
+          provider: this.id,
+        };
+      }
+
+      // 2. Execute the selected tool via MCP REST API (anonymous)
+      const toolCall = msg1.tool_calls[0];
+      const toolName = toolCall.function.name;
+      const toolArgs = toolCall.function.arguments;
+
+      const toolResult = await this.toolExecutor(toolName, toolArgs);
+
+      // 3. Second call: feed tool result back to Ollama for synthesis
+      const controller2 = new AbortController();
+      const timeout2 = setTimeout(() => controller2.abort(), TIMEOUT_MS);
+
+      const resp2 = await fetch(`${this.baseUrl}/api/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: this.model,
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: question },
+            { role: 'assistant', content: '', tool_calls: msg1.tool_calls },
+            { role: 'tool', content: toolResult },
+          ],
+          stream: false,
+        }),
+        signal: controller2.signal,
+      });
+      clearTimeout(timeout2);
+
+      if (!resp2.ok) {
+        const errBody = await resp2.text();
+        return { success: false, error: `Ollama synthesis ${resp2.status}: ${errBody.slice(0, 200)}`, provider: this.id };
+      }
+
+      const data2 = await resp2.json() as { message?: { content: string } };
+      const finalText = data2.message?.content;
+
+      if (!finalText) {
+        return { success: false, error: 'Ollama returned empty synthesis', provider: this.id };
+      }
+
+      return {
+        success: true,
+        text: finalText,
+        toolUsed: toolName,
+        provider: this.id,
+      };
+    } catch (err) {
+      const msg = err instanceof Error
+        ? (err.name === 'AbortError' ? 'Request timed out — model may still be loading' : err.message)
+        : 'Ollama chat request failed';
       return { success: false, error: msg, provider: this.id };
     }
   }

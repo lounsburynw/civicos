@@ -73,6 +73,14 @@ class SearchBudgetRequest(BaseModel):
     fiscal_year: Optional[str] = Field(default=None, description="Filter by fiscal year (e.g., 'FY25-26')")
 
 
+class SearchLegislationRequest(BaseModel):
+    """Request for search_legislation tool."""
+    query: str = Field(..., description="Search topic or keyword (e.g., 'housing', 'climate')")
+    state: Optional[str] = Field(default=None, description="State code: 'CA' for California, 'US' for federal")
+    status: Optional[str] = Field(default=None, description="Filter by bill status")
+    limit: int = Field(default=10, description="Maximum results")
+
+
 class GeoSearchIssuesRequest(BaseModel):
     """Request for geo_search_issues tool."""
     area: str = Field(..., description="Street name, corridor, or neighborhood")
@@ -228,6 +236,13 @@ def create_rest_router(registry, civic, jurisdiction, validate_input, logger):
                  description="Search city budget data by department or category.")
     async def search_budget(request: SearchBudgetRequest):
         data = call_tool_safe("search_budget", request.model_dump(exclude_none=True))
+        return ToolResponse(data=data)
+
+    @router.post("/search-legislation", response_model=ToolResponse,
+                 summary="Search legislation",
+                 description="Search state or federal legislation by topic, keyword, or status.")
+    async def search_legislation(request: SearchLegislationRequest):
+        data = call_tool_safe("search_legislation", request.model_dump(exclude_none=True))
         return ToolResponse(data=data)
 
     @router.post("/geo-search-issues", response_model=ToolResponse,

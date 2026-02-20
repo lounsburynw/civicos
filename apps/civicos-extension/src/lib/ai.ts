@@ -10,10 +10,11 @@ export { composeDraftPrompt, composeEnrichPrompt, SYSTEM_PROMPT, QA_SYSTEM_PROMP
 export { AIManager } from '@civicos/client';
 export type { AIProvider, AITier, AICompletionResult, AIProviderConfig } from '@civicos/client';
 
-import { AIManager, ClaudeProvider, OpenAIProvider, GeminiProvider, OllamaProvider } from '@civicos/client';
+import { AIManager, ClaudeProvider, OpenAIProvider, GeminiProvider, OllamaProvider, createMcpToolExecutor } from '@civicos/client';
 import { ChromeAICredentialStorage } from './adapters/chrome-ai-storage.js';
 import { CivicosProxyProvider } from './ai/providers/civicos-proxy.js';
 import { ChromeNanoProvider } from './ai/providers/chrome-nano.js';
+import { registry } from './client.js';
 
 /**
  * Create an AIManager with Chrome storage and all extension-available providers.
@@ -27,7 +28,12 @@ export function createExtensionAIManager(): AIManager {
   manager.register(new ClaudeProvider(storage));
   manager.register(new OpenAIProvider(storage));
   manager.register(new GeminiProvider(storage));
-  manager.register(new OllamaProvider(storage));
+
+  // Ollama with local tool executor for private chat
+  const ollama = new OllamaProvider(storage);
+  ollama.setToolExecutor(createMcpToolExecutor(() => registry.getMcpUrl()));
+  manager.register(ollama);
+
   manager.register(new ChromeNanoProvider());
 
   return manager;
