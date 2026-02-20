@@ -173,7 +173,7 @@
 
 
   function toggle(section: string) {
-    expanded[section] = !expanded[section];
+    expanded = { ...expanded, [section]: !expanded[section] };
   }
 
   async function loadIdentity() {
