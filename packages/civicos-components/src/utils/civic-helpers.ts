@@ -46,6 +46,69 @@ export function outcomeClass(outcome: string): string {
   return 'other';
 }
 
+// --- Urgency & Focal Point Utilities ---
+
+export type FocalMeeting = {
+  title: string;
+  date: string;
+  time: string;
+  location: string;
+  meeting_datetime: string;
+  days_until: number;
+  agendaItems: Array<{ id?: string; title: string; project_type?: string }>;
+};
+
+/**
+ * Compute city meetings happening within `withinDays` days of `referenceTime`.
+ * Returns enriched meeting objects with `days_until` and linked agenda items.
+ */
+export function computeCityFocalMeetings(
+  meetings: Array<{ title: string; date: string; time: string; location: string; meeting_datetime: string }>,
+  upcomingItems: Array<{ id?: string; title: string; meeting_title?: string; project_type?: string }>,
+  referenceTime: Date,
+  withinDays = 7,
+): FocalMeeting[] {
+  return meetings
+    .filter(m => {
+      if (!m.meeting_datetime) return false;
+      const diffMs = new Date(m.meeting_datetime).getTime() - referenceTime.getTime();
+      const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+      return diffDays >= 0 && diffDays <= withinDays;
+    })
+    .map(m => {
+      const diffMs = new Date(m.meeting_datetime).getTime() - referenceTime.getTime();
+      const daysUntil = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+      const agendaItems = upcomingItems.filter(i => i.meeting_title === m.title);
+      return { ...m, days_until: daysUntil, agendaItems };
+    });
+}
+
+/**
+ * Returns a CSS class name for urgency-based coloring.
+ */
+export function urgencyClass(days: number): string {
+  if (days <= 0) return 'urgent-closed';
+  if (days <= 3) return 'urgent-critical';
+  if (days <= 7) return 'urgent-soon';
+  return 'urgent-normal';
+}
+
+/**
+ * Look up how many days until a city meeting (by title).
+ * Returns null if meeting not found or already past.
+ */
+export function meetingDaysUntil(
+  meetingTitle: string,
+  meetings: Array<{ title: string; meeting_datetime: string }>,
+  referenceTime: Date,
+): number | null {
+  const meeting = meetings.find(m => m.title === meetingTitle);
+  if (!meeting?.meeting_datetime) return null;
+  const diffMs = new Date(meeting.meeting_datetime).getTime() - referenceTime.getTime();
+  const days = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+  return days >= 0 ? days : null;
+}
+
 export function googleCalendarUrl(meeting: { title: string; date: string; time: string; location: string; meeting_datetime: string }): string {
   const start = new Date(meeting.meeting_datetime);
   const end = new Date(start.getTime() + 2 * 60 * 60 * 1000);

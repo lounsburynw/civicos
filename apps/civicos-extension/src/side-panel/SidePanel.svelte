@@ -17,6 +17,7 @@
   import CivicProvenancePanel from '@civicos/components/src/components/CivicProvenancePanel.svelte';
   import CivicIdentityChip from '@civicos/components/src/components/CivicIdentityChip.svelte';
   import CivicReadOnlyPulse from '@civicos/components/src/components/CivicReadOnlyPulse.svelte';
+  import CivicCityFocal from '@civicos/components/src/components/CivicCityFocal.svelte';
 
   // High-level orchestration session (stateless — recreated when AI config changes)
   let session = new CivicSession(api, registry, getAIManager());
@@ -39,7 +40,7 @@
   let expanded: Record<string, boolean> = $state({
     meetings: true,
     items: true,
-    outcomes: true,
+    outcomes: false,
     issueMap: false,
     budget: false,
   });
@@ -735,6 +736,18 @@
       <button class="btn-retry" onclick={loadCityPulse}>Retry</button>
     </div>
   {:else if pulseData}
+    <!-- City Focal Points (upcoming meetings within 7 days) -->
+    <CivicCityFocal
+      meetings={pulseData.decisions_this_week}
+      upcomingItems={pulseData.upcoming_items}
+      generatedAt={pulseData.generated_at}
+      jurisdiction={activeJurisdiction}
+      {aiAvailable}
+      {activeProviderName}
+      {renderMarkdown}
+      onopenexternalai={({ context, event }) => openExternalAI('claude', context, event)}
+    />
+
     <!-- Upcoming Meetings -->
     <section class="feed-section">
       <button class="section-header" onclick={() => toggle('meetings')}>
@@ -771,8 +784,11 @@
         </button>
         {#if expanded.items}
           <div class="section-body">
+            <div class="section-hint">Review agenda items and share your perspective before the meeting</div>
             <CivicAgendaView
               items={pulseData.upcoming_items}
+              meetings={pulseData.decisions_this_week}
+              generatedAt={pulseData.generated_at}
               {voiceCounts}
               {userStances}
               {votingInProgress}
@@ -1195,6 +1211,13 @@
 
   .section-body {
     padding: 4px 0 8px;
+  }
+
+  .section-hint {
+    font-size: 11px;
+    color: #9ca3af;
+    padding: 2px 8px 6px;
+    font-style: italic;
   }
 
   .empty-section {
