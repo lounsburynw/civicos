@@ -1,4 +1,4 @@
-# Recommended: Engagement Ladder UX — Radical Simplification
+# Recommended: engagement_ladder_ux — Phase 3 (UX Polish & Information Architecture)
 
 **Priority:** P0 (engagement_ladder_ux)
 **Area:** frontend_refinement > city_status_dashboard
@@ -8,72 +8,81 @@
 
 ## Context
 
-8 sessions have built the engagement ladder for the browser extension. Cross-level consistency is structurally complete (city/state/federal all have "Take Action" focal points, urgency badges, section hints, collapsed outcomes). But **the user tested the extension and gave critical feedback:**
+Phase 2 (Interactive Overlay) is complete: scroll-to-card, highlighted card state, cross-level attention bar, section pips. Phase 3 addresses user feedback on information architecture and visual polish. The attention bar now merges city/state/federal items but needs refinement — it shows "39 items need attention" with only 5 visible, lacks category tags, and needs scrollability. Several other UX issues were identified.
 
-1. **Meetings aren't actionable — agenda items are.** The city "Take Action" section surfaces upcoming meetings, but meetings are informational, not actionable. What's actionable: individual agenda items you can comment on, initiatives you can join, comment periods you can respond to. Rethink what qualifies as a "focal point."
+## What Was Done (Phase 2 — complete, uncommitted)
 
-2. **Information overload.** Despite progressive disclosure (collapsed outcomes, section hints), the dashboard is still overwhelming. The user said *"even my brain immediately shuts off from overload."* The next session needs a more radical approach to simplification — not just hiding sections, but fundamentally reducing default visual density.
+- Card IDs: `id="card-{item.id}"` on each agenda card (`CivicAgendaView.svelte:414`)
+- Highlighted card: `.highlighted` CSS with white inset glow, 2s auto-clear
+- Scroll-to-card: `scrollToCard()` in SidePanel.svelte expands section + smooth scroll + highlight
+- Cross-level attention bar: merges city items + state hearings + federal comment periods + governor's desk, sorted by urgency
+- Section pips: 6px white dots on Agenda Items header when actionable items exist
+- Extension builds cleanly
 
-## What's Built (Working)
+## Phase 3 Tasks (from user feedback, in suggested priority order)
 
-- `CivicCityFocal.svelte` — Reusable "Take Action" component for city meetings (needs redesign)
-- `CivicReadOnlyPulse.svelte` — State/federal rendering with focal points (working well for those levels)
-- `CivicAgendaItemCard.svelte` — Now has `daysUntil` prop + urgency badge
-- `civic-helpers.ts` — Shared utilities: `computeCityFocalMeetings()`, `urgencyClass()`, `meetingDaysUntil()`
-- Visual testing harness: `npm run harness` at `localhost:5199` (city/state/federal)
-- Playwright screenshots: `npx playwright screenshot --viewport-size="380,900" "http://localhost:5199/?level=city" screenshot.png`
+### 3a: Attention bar overhaul
+The attention bar shows "39 items need attention" but only 5 are visible. Needs:
+- **Rename title** to "Upcoming actionable items" (not "X items need attention")
+- **Make scrollable** or paginated — show all items, not just `.slice(0, 5)`
+- **Add category tags** — visual distinction for city vs state vs federal items (small pill/label)
+- **Consider partitioning** — should this be per-tab (city/state/federal) or unified? User unsure; make a recommendation
+- **Visual distinction** — the bar should look distinct from the rest of the feed (currently same card style)
+- Current code: `SidePanel.svelte:783-821` (attention bar template), `:1326-1380` (CSS)
 
-## Two Problems to Solve
+### 3b: Section headers — Official vs Public
+Add two major section headers to organize content:
+- **"Official"** (or "Government") — contains Meetings, Agenda Items, Recent Decisions
+- **"Public"** — contains Community Initiatives
+- This creates clearer information hierarchy
 
-### Problem 1: What is "actionable"?
+### 3c: Summary button rename + caching
+The `<diamond> Claude ↗` button on agenda cards should:
+- Rename to just **"Summary"** (remove Claude branding and external link icon)
+- Cache the AI response so re-clicking collapses/expands (not re-fetches)
+- Add a "Regenerate" option when cached summary is shown
+- Current code: `CivicAgendaView.svelte:479-481` (Claude button), `:468-482` (AI action row)
 
-Current focal points by level:
-- **City**: Upcoming meetings (wrong — meetings are informational, agenda items are actionable)
-- **State**: Hearings + Governor's desk (good — these have clear actions: testify, call governor)
-- **Federal**: Comment periods (great — "Submit Official Comment" is a clear CTA)
+### 3d: Remove "My Commitments" section
+Remove for now — confusing and not useful yet. The CivicInitiativeView component currently includes commitments.
+- Current code: `SidePanel.svelte:925-940` (CivicInitiativeView rendering)
 
-**Redesign idea**: City focal points should surface **agenda items with upcoming deadlines** where the user can comment or voice support/oppose. The meeting is context, not the action. Consider:
-- Show agenda items that are `comment_eligible` or `stance_eligible` with their meeting's urgency
-- Group by meeting if needed, but the card is the agenda item, not the meeting
-- Initiatives with active participation could also be focal points
+### 3e: Initiative section visual parity
+Initiatives should have same font size as official items and take up less wasted real estate. Remove "attested" badge/indicator — going forward, all push capabilities should be attested by default.
+- See `CivicInitiativeView.svelte` for current styling
 
-More broadly: define a **universal "actionability" signal** — an item is focal if the user can DO something (comment, vote, attend, sign) and there's a DEADLINE.
+### 3f: Count badge visual refinement
+Section item counts (e.g., "Agenda Items 12") are nice but could be slightly more visually distinct. Subtle improvement, not drastic.
+- Current CSS: `SidePanel.svelte` `.count-badge` styles
 
-### Problem 2: Visual density
+### 3g: Section pip explanation (UX clarity)
+The white dot next to "Agenda Items" (section pip) needs to either be self-explanatory or have a tooltip. User asked "what does the white dot represent?" — it indicates actionable items exist in that section.
 
-The extension shows too much at once. Potential radical simplifications:
-
-- **"One thing" mode**: Show only the single most urgent actionable item as a hero card. Everything else behind a "See more" expansion.
-- **Summary strip**: Replace the current multi-section layout with a single summary line per section ("2 meetings this week · 3 items to review · 1 decision made") that expands on tap.
-- **Progressive revelation by engagement level**: New users see only focal points + a teaser count. Returning users see expanded sections. Power users see everything.
-- **Remove visual chrome**: Less borders, less badges, less uppercase headers. Let whitespace and hierarchy do the work instead of colors and boxes.
-- **Card consolidation**: Instead of separate Meetings → Agenda Items → Decisions sections, show a single **timeline** view: "This week in San Rafael" with items sorted by urgency.
-
-**Design principle from the handoff**: *"Every element should either inform (what's happening), orient (why it matters to me), or activate (what I can do right now). If it does none of these, question whether it belongs on the default view."*
+### 3h: Identity unlock UX (longer-term)
+The constant "unlock identity" requirement is foreign to users accustomed to centralized auth. Needs a longer-term solution (auto-unlock with session, biometric, etc.). Not Phase 3 scope but should be tracked.
 
 ## Key Files
 
-- `packages/civicos-components/src/components/CivicCityFocal.svelte` — City focal component (needs redesign for agenda items)
-- `packages/civicos-components/src/components/CivicReadOnlyPulse.svelte:1025-1110` — City focal rendering in harness
-- `packages/civicos-components/src/components/CivicAgendaItemCard.svelte` — Agenda item card (has urgency badge)
-- `packages/civicos-components/src/components/CivicAgendaView.svelte:400-425` — Where items render
-- `apps/civicos-extension/src/side-panel/SidePanel.svelte:738-860` — City tab rendering (wires components)
-- `packages/civicos-components/src/utils/civic-helpers.ts` — Shared urgency utilities
-- `apps/civicos-extension/tests/visual/mock-data.ts` — Mock data (adjust for new design)
-- `apps/civicos-extension/tests/visual/HarnessApp.svelte` — Visual harness
+- `apps/civicos-extension/src/side-panel/SidePanel.svelte:783-821` — Attention bar template
+- `apps/civicos-extension/src/side-panel/SidePanel.svelte:163-178` — scrollToCard function
+- `apps/civicos-extension/src/side-panel/SidePanel.svelte:925-940` — CivicInitiativeView (My Commitments)
+- `packages/civicos-components/src/components/CivicAgendaView.svelte:468-482` — AI action row (Claude button)
+- `packages/civicos-components/src/components/CivicInitiativeView.svelte` — Initiative section
+- `apps/civicos-extension/tests/visual/mockup-overlay-highlight.html` — Design reference
 
-## Suggested Approach
+## Build & Test
 
-1. **Start with screenshots** — `npm run harness` + Playwright screenshots of current state
-2. **Sketch the "one thing" layout** — What does the extension look like if it shows ONE hero actionable item + counts for everything else?
-3. **Redefine city focal points** — Surface `comment_eligible` agenda items instead of meetings. The meeting is metadata on the agenda item card, not a standalone section.
-4. **Implement minimal viable simplification** — Pick ONE density reduction approach and ship it
-5. **Get user feedback** — The user is engaged and testing actively. Ship early, iterate.
+```bash
+cd apps/civicos-extension && npm run build   # Verify compilation
+cd apps/civicos-extension && npm run dev     # Live reload for iteration
+```
 
 ## Success Criteria
 
-- [ ] City "Take Action" surfaces actionable agenda items, not meetings
-- [ ] Default view is noticeably simpler (user doesn't feel overloaded)
-- [ ] All 3 tabs still feel like the same product at different scales
-- [ ] `/visual-review` shows cleaner, calmer aesthetic
+- [ ] Attention bar renamed to "Upcoming actionable items" and is scrollable
+- [ ] Items in attention bar have category tags (city/state/federal)
+- [ ] Official vs Public section headers organize the feed
+- [ ] Summary button (not "Claude") with cached/collapsible responses
+- [ ] My Commitments section removed
+- [ ] Initiatives match official item font size, no attested badge
 - [ ] Extension builds and works with live data
