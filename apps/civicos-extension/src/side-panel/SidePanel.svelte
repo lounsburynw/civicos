@@ -149,6 +149,24 @@
     toastTimeout = setTimeout(() => { toastMessage = null; }, durationMs);
   }
 
+  // Scroll-to-card highlight state
+  let highlightedCardId: string | null = $state(null);
+  let highlightTimeout: ReturnType<typeof setTimeout> | null = null;
+
+  function scrollToCard(itemId: string) {
+    // Expand the items section if collapsed
+    expanded.items = true;
+    // Wait a tick for the section to render, then scroll
+    requestAnimationFrame(() => {
+      const card = document.getElementById('card-' + itemId);
+      if (!card) return;
+      card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      highlightedCardId = itemId;
+      if (highlightTimeout) clearTimeout(highlightTimeout);
+      highlightTimeout = setTimeout(() => { highlightedCardId = null; }, 2000);
+    });
+  }
+
 
   function toggle(section: string) {
     expanded[section] = !expanded[section];
@@ -762,17 +780,41 @@
       <button class="btn-retry" onclick={loadCityPulse}>Retry</button>
     </div>
   {:else if pulseData}
-    <!-- Attention Bar: actionable items across city data -->
-    {@const actionableItems = (pulseData.upcoming_items || []).filter(item => item.stance_eligible || item.comment_eligible)}
-    {#if actionableItems.length > 0}
+    <!-- Attention Bar: actionable items across all jurisdiction levels -->
+    {@const cityItems = (pulseData.upcoming_items || []).filter(i => i.stance_eligible || i.comment_eligible).map(i => ({
+      id: i.id, title: i.title, when: i.meeting_date || '', daysUntil: null as number | null, type: 'city' as const,
+      action: () => scrollToCard(i.id),
+    }))}
+    {@const crossLevelItems = (() => {
+      const items: Array<{ id: string; title: string; when: string; daysUntil: number | null; type: 'state' | 'federal'; action: () => void }> = [];
+      for (const [jid, data] of parentPulseData) {
+        const level = jid.startsWith('federal-') ? 'federal' as const : 'state' as const;
+        for (const cp of data.comment_periods || []) {
+          if (cp.days_remaining > 0) {
+            items.push({ id: `cp-${cp.document_number}`, title: cp.title, when: `${cp.days_remaining}d left`, daysUntil: cp.days_remaining, type: level, action: () => { activeTab = jid; } });
+          }
+        }
+        for (const h of data.upcoming_hearings || []) {
+          if (h.days_until >= 0) {
+            items.push({ id: `hearing-${h.bill_id}`, title: h.bill_name || h.bill_number || 'Hearing', when: `${h.days_until}d`, daysUntil: h.days_until, type: level, action: () => { activeTab = jid; } });
+          }
+        }
+        for (const g of data.governors_desk || []) {
+          items.push({ id: `gov-${g.bill_id}`, title: g.bill_name || g.bill_number || 'Bill', when: "Gov's desk", daysUntil: 7, type: level, action: () => { activeTab = jid; } });
+        }
+      }
+      return items.sort((a, b) => (a.daysUntil ?? 99) - (b.daysUntil ?? 99));
+    })()}
+    {@const allAttentionItems = [...cityItems, ...crossLevelItems]}
+    {#if allAttentionItems.length > 0}
       <div class="attention-bar">
-        <div class="attention-title">{actionableItems.length} item{actionableItems.length !== 1 ? 's' : ''} need attention</div>
+        <div class="attention-title">{allAttentionItems.length} item{allAttentionItems.length !== 1 ? 's' : ''} need attention</div>
         <div class="attention-items">
-          {#each actionableItems.slice(0, 4) as item}
-            <button class="attention-item" onclick={() => { expanded.items = true; }}>
-              <span class="attention-pip"></span>
+          {#each allAttentionItems.slice(0, 5) as item}
+            <button class="attention-item" onclick={item.action}>
+              <span class="attention-pip" class:attention-pip-state={item.type === 'state'} class:attention-pip-federal={item.type === 'federal'}></span>
               <span class="attention-item-title">{item.title}</span>
-              <span class="attention-when">{item.meeting_date || ''}</span>
+              <span class="attention-when">{item.when}</span>
             </button>
           {/each}
         </div>
@@ -810,6 +852,9 @@
           <span class="section-title">
             Agenda Items
             <span class="count-badge">{pulseData.upcoming_items.length}</span>
+            {#if pulseData.upcoming_items.some(i => i.stance_eligible || i.comment_eligible)}
+              <span class="section-pip"></span>
+            {/if}
           </span>
           <span class="chevron" class:open={expanded.items}></span>
         </button>
@@ -833,6 +878,7 @@
               {session}
               {api}
               {renderMarkdown}
+              {highlightedCardId}
               onvoice={({ entityId, stance }) => handleVoice(entityId, stance)}
               onopenexternalai={({ context, event }) => openExternalAI('claude', context, event)}
               ontoast={(message) => showToast(message)}
@@ -1205,6 +1251,13 @@
     align-items: center;
     gap: 6px;
   }
+  .section-pip {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #e5e7eb;
+    flex-shrink: 0;
+  }
 
   .count-badge {
     background: rgba(255, 255, 255, 0.04);
@@ -1310,6 +1363,12 @@
     border-radius: 50%;
     background: #e5e7eb;
     flex-shrink: 0;
+  }
+  .attention-pip-state {
+    background: #9ca3af;
+  }
+  .attention-pip-federal {
+    background: #6b7280;
   }
   .attention-item-title {
     flex: 1;

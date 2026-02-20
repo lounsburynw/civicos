@@ -81,6 +81,7 @@
     onopenexternalai = undefined as ((detail: { context: string; event: MouseEvent }) => void) | undefined,
     ontoast = undefined as ((message: string) => void) | undefined,
     oncommentcountchange = undefined as ((entityId: string, counts: CommentCounts) => void) | undefined,
+    highlightedCardId = null as string | null,
   } = $props();
 
   const referenceTime = $derived(generatedAt ? new Date(generatedAt) : new Date());
@@ -410,7 +411,9 @@
 </script>
 
 {#each items as item}
-  <div class="card item-card" class:dragging={draggingItem === item.id}
+  <div class="card item-card" id="card-{item.id}"
+       class:dragging={draggingItem === item.id}
+       class:highlighted={highlightedCardId === item.id}
        draggable="true"
        ondragstart={(e: DragEvent) => handleDragStart(e, item)}
        ondragend={handleDragEnd}>
@@ -506,6 +509,11 @@
   .card.dragging {
     opacity: 0.4;
     border-color: #4b5563;
+  }
+  .card.highlighted {
+    border-color: #4b5563;
+    box-shadow: inset 3px 0 0 #fff, 0 0 12px rgba(255,255,255,0.06);
+    transition: border-color 0.15s ease, box-shadow 0.3s ease, opacity 0.15s ease;
   }
 
   .draft-btn {

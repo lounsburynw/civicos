@@ -1,3 +1,59 @@
+## Session — 2026-02-19 (11): Phase 2 Interactive Overlay
+
+**Item:** engagement_ladder_ux (Phase 2: Interactive Overlay)
+**Status:** Phase 2 complete (uncommitted). Phase 3 handoff prepared with 8 UX improvement items from user review.
+
+### What was done
+- Added `id="card-{item.id}"` to agenda item cards (CivicAgendaView.svelte)
+- Implemented highlighted card state with `.highlighted` CSS (white inset glow, 2s auto-clear)
+- Built `scrollToCard()` in SidePanel.svelte — expands section + requestAnimationFrame + smooth scroll + highlight
+- Merged cross-level attention items: city items + state hearings + federal comment periods + governor's desk bills, sorted by urgency
+- Added section pips (6px white dots) on Agenda Items header when actionable items exist
+- Added subtle pip color variants for state (gray) vs federal (dark gray) items
+- Extension builds cleanly
+
+### User feedback (captured in Phase 3 handoff)
+1. Attention bar: shows 39 items but only 5 visible — needs scrollability, category tags, rename to "Upcoming actionable items"
+2. Identity unlock UX: too foreign for typical users (longer-term item)
+3. Section pip needs explanation/tooltip
+4. Count badges could be more visually distinct
+5. Need "Official" and "Public" section headers for information architecture
+6. Claude summary button → rename to "Summary", cache/collapse, add regenerate
+7. Remove "My Commitments" section (confusing, not useful yet)
+8. Initiatives should match official item font size, remove attested badge
+
+## Session — 2026-02-19 (10): Monochrome Palette + Attention Bar
+
+**Item:** engagement_ladder_ux (Phase 1: dashboard polish)
+**Status:** One commit. Phase 1 complete, Phase 2 next.
+
+### What was done
+- Applied monochrome palette from mockup-overlay-highlight.html across 7 components
+- Replaced CivicCityFocal with compact attention bar (filters stance/comment eligible items)
+- Collapsed meetings section by default
+- Converted Issue Map/Budget from full collapsible sections to browse pills
+- Updated card styling: darker backgrounds (#1e1e1e), subtler borders (#262626), no blue hover glow
+- Neutralized tags, count badges, urgency indicators (white/gray hierarchy)
+- Updated CivicReadOnlyPulse section headers and cards for state/federal tab consistency
+- Kept CivicCityFocal component (unused but preserved for potential overlay use)
+
+### Commits
+- 54a5b41 feat: Apply monochrome palette and attention bar to browser extension UX
+
+### Key decisions
+- Color reserved for: health dots, functional action elements only
+- Tags use opacity (rgba white) instead of hue for action vs info differentiation
+- Attention bar shows up to 4 actionable items, click expands Agenda Items section
+- Browse pills replace full sections — Issue Map and Budget accessible but compact
+
+### What's next (Phase 2: interactive overlay)
+1. Scroll-to-specific-card from attention bar (needs item IDs in CivicAgendaView)
+2. Highlighted card state (inset 3px left-border glow from mockup)
+3. Cross-level attention items (CA hearings, federal comment periods from parentPulseData)
+4. Section pips (white dots on section headers with actionable content)
+
+---
+
 ## Session — 2026-02-19 (8): Cross-Level UX Consistency & Component Extraction
 
 **Item:** engagement_ladder_ux (cross-level consistency, information density, component architecture)
