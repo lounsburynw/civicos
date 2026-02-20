@@ -382,9 +382,10 @@ class MCPServer:
         )
         app.include_router(rest_router)
 
-        # AI proxy endpoint (zero-config AI drafting for extension)
-        from civicos_services.servers.routers.ai_proxy import router as ai_proxy_router
+        # AI proxy endpoint (zero-config AI drafting + tool-backed chat for extension)
+        from civicos_services.servers.routers.ai_proxy import router as ai_proxy_router, configure_chat_tools
         app.include_router(ai_proxy_router, prefix="/api", tags=["AI Proxy"])
+        configure_chat_tools(self.registry, self.jurisdiction)
 
         # FastMCP Streamable HTTP at /mcp
         app.mount("/mcp", mcp_app, name="mcp")

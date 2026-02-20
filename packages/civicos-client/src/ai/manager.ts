@@ -6,7 +6,7 @@
  * Priority: stored preference -> first ready provider in registration order
  */
 
-import type { AIProvider, AICompletionResult } from './types.js';
+import type { AIProvider, AICompletionResult, AIChatResult } from './types.js';
 import type { AICredentialStorage } from './storage.js';
 
 export class AIManager {
@@ -108,6 +108,31 @@ export class AIManager {
     }
 
     return this.activeProvider.complete(prompt, systemPrompt);
+  }
+
+  /**
+   * Run a tool-backed civic search against the active provider.
+   */
+  async chat(question: string, jurisdiction?: string): Promise<AIChatResult> {
+    if (!this.initialized) await this.initialize();
+
+    if (!this.activeProvider) {
+      return {
+        success: false,
+        error: 'No AI provider configured. Open extension options to set one up.',
+        provider: 'none',
+      };
+    }
+
+    if (!this.activeProvider.chat) {
+      return {
+        success: false,
+        error: 'Active provider does not support tool-backed chat.',
+        provider: this.activeProvider.id,
+      };
+    }
+
+    return this.activeProvider.chat(question, jurisdiction);
   }
 
   /**

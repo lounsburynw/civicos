@@ -6,7 +6,7 @@
  * No API key needed — works out of the box.
  */
 
-import type { AIProvider, AITier, AIProviderConfig, AICompletionResult } from '@civicos/client';
+import type { AIProvider, AITier, AIProviderConfig, AICompletionResult, AIChatResult } from '@civicos/client';
 import { registry } from '../../client.js';
 
 const TIMEOUT_MS = 20_000;
@@ -121,6 +121,99 @@ export class CivicosProxyProvider implements AIProvider {
         err instanceof Error
           ? err.name === 'AbortError'
             ? 'Request timed out'
+            : err.message
+          : 'Request failed';
+      return { success: false, error: msg, provider: this.id };
+    }
+  }
+
+  async chat(question: string, jurisdiction?: string): Promise<AIChatResult> {
+    // 1. Get signature from service worker
+    let sigData: { public_key: string; signature: string; created_at: number };
+    try {
+      const response = await chrome.runtime.sendMessage({
+        type: 'SIGN_MESSAGE',
+        message: 'ai_draft',
+      });
+      if (!response?.success) {
+        return {
+          success: false,
+          error: response?.error || 'Failed to sign request — is your identity unlocked?',
+          provider: this.id,
+        };
+      }
+      sigData = response.data;
+    } catch {
+      return {
+        success: false,
+        error: 'Could not sign request — is your identity unlocked?',
+        provider: this.id,
+      };
+    }
+
+    // 2. POST to CivicOS AI chat endpoint
+    try {
+      const baseUrl = await registry.getMcpUrl();
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 30_000);
+
+      const resp = await fetch(`${baseUrl}/api/ai/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          question,
+          jurisdiction: jurisdiction || null,
+          public_key: sigData.public_key,
+          signature: sigData.signature,
+          created_at: sigData.created_at,
+        }),
+        signal: controller.signal,
+      });
+      clearTimeout(timeout);
+
+      if (resp.status === 429) {
+        const detail = await resp.json().catch(() => ({}));
+        return {
+          success: false,
+          error: detail?.detail || 'Rate limit exceeded — try again later',
+          provider: this.id,
+        };
+      }
+
+      if (resp.status === 401) {
+        return {
+          success: false,
+          error: 'Authentication failed — try unlocking your identity again',
+          provider: this.id,
+        };
+      }
+
+      if (!resp.ok) {
+        const detail = await resp.json().catch(() => ({}));
+        return {
+          success: false,
+          error: detail?.detail || `Server error (${resp.status})`,
+          provider: this.id,
+        };
+      }
+
+      const data: { success: boolean; text?: string; tool_used?: string; error?: string } = await resp.json();
+
+      if (!data.success) {
+        return { success: false, error: data.error || 'AI returned an error', provider: this.id };
+      }
+
+      return {
+        success: true,
+        text: data.text,
+        toolUsed: data.tool_used,
+        provider: this.id,
+      };
+    } catch (err) {
+      const msg =
+        err instanceof Error
+          ? err.name === 'AbortError'
+            ? 'Request timed out — tool search takes up to 30s'
             : err.message
           : 'Request failed';
       return { success: false, error: msg, provider: this.id };
