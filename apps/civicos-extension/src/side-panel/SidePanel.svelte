@@ -178,6 +178,29 @@
     expanded = { ...expanded, [section]: !expanded[section] };
   }
 
+  async function handleChatNavigate(tool: string) {
+    const NAV_MAP: Record<string, { section?: string; tab?: string }> = {
+      search_meeting_history: { section: 'outcomes' },
+      get_upcoming_meetings: { section: 'meetings' },
+      search_budget: { section: 'budget' },
+      get_public_testimony: { section: 'meetings' },
+      search_legislation: { tab: parentServers.find(s => s.jurisdiction_id.startsWith('state-'))?.jurisdiction_id },
+      find_similar_issues: { section: 'issueMap' },
+    };
+    const nav = NAV_MAP[tool];
+    if (!nav) return;
+    if (nav.tab) switchTab(nav.tab);
+    if (nav.section) {
+      expanded = { ...expanded, [nav.section]: true };
+      await tick();
+      // Trigger lazy-load for components that need it
+      if (nav.section === 'issueMap') issueMapRef?.load();
+      if (nav.section === 'budget') budgetRef?.load();
+      const el = document.querySelector(`[data-section="${nav.section}"]`);
+      el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }
+
   async function loadIdentity() {
     loading = true;
     const response = await sendMessage<(IdentityInfo & { isUnlocked?: boolean }) | null>({
@@ -787,6 +810,7 @@
     {aiAvailable}
     {renderMarkdown}
     ontoast={(message) => showToast(message)}
+    onnavigate={handleChatNavigate}
   />
 
   <!-- City Pulse content -->
@@ -844,7 +868,7 @@
     <!-- Upcoming Meetings (today or future only) -->
     {@const todayStr = new Date().toISOString().slice(0, 10)}
     {@const upcomingMeetings = (pulseData.decisions_this_week || []).filter(m => m.meeting_datetime.slice(0, 10) >= todayStr)}
-    <section class="feed-section">
+    <section class="feed-section" data-section="meetings">
       <button class="section-header" onclick={() => toggle('meetings')}>
         <span class="section-title">
           Meetings
@@ -912,7 +936,7 @@
     {/if}
 
     <!-- Recent Decisions -->
-    <section class="feed-section">
+    <section class="feed-section" data-section="outcomes">
       <button class="section-header" onclick={() => toggle('outcomes')}>
         <span class="section-title">
           Recent Decisions
@@ -945,7 +969,7 @@
     </section>
 
     <!-- Issue Map -->
-    <section class="feed-section">
+    <section class="feed-section" data-section="issueMap">
       <button class="section-header" onclick={async () => { toggle('issueMap'); await tick(); issueMapRef?.load(); }}>
         <span class="section-title">Issue Map</span>
         <span class="chevron" class:open={expanded.issueMap}></span>
@@ -958,7 +982,7 @@
     </section>
 
     <!-- Budget -->
-    <section class="feed-section">
+    <section class="feed-section" data-section="budget">
       <button class="section-header" onclick={async () => { toggle('budget'); await tick(); budgetRef?.load(); }}>
         <span class="section-title">Budget</span>
         <span class="chevron" class:open={expanded.budget}></span>
