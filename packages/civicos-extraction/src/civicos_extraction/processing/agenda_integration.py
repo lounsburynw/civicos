@@ -930,9 +930,22 @@ Be conservative - only return URLs that clearly contain agenda content."""
                 text_content = self._extract_pdf_text(content_bytes)
             else:
                 try:
-                    text_content = content_bytes.decode('utf-8', errors='ignore')[:12000]
+                    raw_html = content_bytes.decode('utf-8', errors='ignore')
                 except Exception:
-                    text_content = str(content_bytes)[:12000]
+                    raw_html = str(content_bytes)
+
+                # Extract clean text from HTML using BeautifulSoup (strips tags, scripts, styles)
+                if BEAUTIFULSOUP_AVAILABLE and '<html' in raw_html[:1000].lower():
+                    soup = BeautifulSoup(raw_html, 'html.parser')
+                    # Remove script and style elements
+                    for element in soup(['script', 'style', 'nav', 'footer', 'header']):
+                        element.decompose()
+                    text_content = soup.get_text(separator='\n', strip=True)
+                else:
+                    text_content = raw_html
+
+                # HTML agendas can be large; allow 200K chars (same as PDF path)
+                text_content = text_content[:200000]
 
             # Check for meeting cancellations FIRST (highest priority)
             is_cancelled, cancellation_reason = self._detect_cancellation(text_content, event)
@@ -1031,9 +1044,9 @@ Include consent calendar items related to:
 
 Skip only purely procedural items (meeting minutes approval, internal appointments)."""
 
-            # Use higher token limit for agendas with many items (Gemini 1.5 Pro max: 8192)
-            # 6000 tokens handles ~50+ agenda items with room for JSON overhead
-            response_text = self._call_llm(prompt, max_tokens=6000)
+            # Use max output tokens for agendas (Gemini 1.5 Pro max: 8192)
+            # Large agendas (50+ items) need full capacity to avoid JSON truncation
+            response_text = self._call_llm(prompt, max_tokens=8192)
             result = self._safe_json_parse(response_text)
             if not result:
                 print(f"⚠️ No agenda items: JSON parsing failed")
