@@ -213,19 +213,19 @@ Council members often receive written comments before the meeting and review the
 
 ### What is attestation?
 
-Attestation proves you're a real person in a specific community. You get a single-use code from a volunteer at a local event, enter it in the CivicOS extension, and your participation is marked as "attested" from that point on.
+Attestation proves you're a real person in a specific community. You get a single-use code from a volunteer at a local event, enter it in the CivicOS extension, and a cryptographic proof is generated that accompanies every voice and comment you submit. This prevents spam from bots and automated agents.
 
 ### Do I need attestation to use CivicOS?
 
-No. You can browse, vote, comment, and create initiatives without attestation. Your participation just shows as "unattested." Attestation adds credibility, not permission.
+You need attestation to voice or comment on civic items. You can still browse all civic data — meetings, decisions, agendas, legislation, budget — and subscribe to notifications without attestation. To get attested, attend any community event where codes are being distributed.
 
 ### How do I get an attestation code?
 
 Attend a CivicOS distribution event in your city. A volunteer will hand you a card with a unique code. No government ID is required — just show up.
 
-### What do attested vs. unattested counts mean?
+### Why is attestation required?
 
-When you see "23 voices (18 attested, 5 unattested)" it means 18 of those voices came from people who proved their physical presence at a community event. This helps the council and public judge the quality of participation signals.
+In an era of autonomous AI agents capable of generating unlimited synthetic identities, gated participation is the only credible defense for a coordination system whose value depends on genuine human signal. Physical presence at a community event makes automated spam uneconomical.
 
 ### I lost my identity key. Is my attestation gone?
 

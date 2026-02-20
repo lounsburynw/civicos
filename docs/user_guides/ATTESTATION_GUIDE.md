@@ -1,8 +1,8 @@
 # Attestation Guide
 
-Attestation proves you're a real person in a specific community. It's how CivicOS distinguishes genuine participation from bots or sockpuppets.
+Attestation proves you're a real person in a specific community. It's required to voice or comment on civic items — this is how CivicOS prevents spam from bots and automated agents while keeping participation inclusive.
 
-**How it works:** A volunteer distributes single-use codes at an in-person event (community meeting, farmer's market, library pop-up). You enter the code in the CivicOS extension. The code binds permanently to your identity. Your participation is now marked as "attested."
+**How it works:** A volunteer distributes single-use codes at an in-person event (community meeting, farmer's market, library pop-up). You enter the code in the CivicOS extension. The code binds permanently to your identity, producing a cryptographic proof that accompanies every voice and comment you submit.
 
 No government ID required. Physical presence + a volunteer's judgment is sufficient.
 
@@ -23,15 +23,15 @@ Your attestation is permanent as long as you keep the same identity. If you rese
 
 ### What Attestation Means
 
-- Your voices, comments, and initiatives are marked as **attested**
-- Others can see the breakdown: "23 voices (18 attested, 5 unattested)"
-- Attested participation carries more weight because each code required showing up in person
-- **Unattested users can still participate** — attestation adds credibility, it doesn't gate access
+- Attestation is **required** to voice or comment on civic items
+- Without attestation, you can still browse civic data, read meeting info, and subscribe to notifications
+- Each code required showing up in person — this makes automated spam uneconomical
+- The attestation proof is embedded on every voice and comment you submit, so any relay can verify it independently
 
 ### FAQ
 
 **Do I need attestation to use CivicOS?**
-No. You can browse, vote, comment, and create initiatives without attestation. Your participation just shows as "unattested."
+You need attestation to voice or comment. You can still browse all civic data (meetings, decisions, agendas, legislation) and subscribe to notifications without attestation. To get attested, attend any community event where codes are being distributed.
 
 **Can I get multiple codes?**
 Each code can only be used once, and each identity can only be attested once per city. If a volunteer has already given you a code, they'll recognize you.
@@ -40,7 +40,7 @@ Each code can only be used once, and each identity can only be attested once per
 If you reset your identity, your attestation is lost. You'll need to attend another event to get a new code. This prevents people from creating many attested identities.
 
 **Does attestation expire?**
-Not currently. Codes can optionally have expiration dates, but once redeemed, your attestation persists.
+Codes can have expiration dates (they return a 410 error if redeemed after expiry). Once redeemed, your attestation persists.
 
 ---
 
@@ -181,8 +181,10 @@ LIMIT 10;
 ### Security Model
 
 **What attestation prevents:**
-- One person creating 50 fake identities to flood participation (sybil attack)
-- Automated bots submitting voices or comments
+- Autonomous agents generating unlimited synthetic identities to flood participation
+- One person creating 50 fake identities to game voice counts (Sybil attack)
+- Automated bots submitting voices or comments (hard-rejected by relay with 403)
+- Forged or tampered attestation proofs (cryptographically verified, rejected with 400)
 
 **What attestation does NOT prevent:**
 - A motivated person getting 3-4 codes across multiple events (noise, not manipulation)
@@ -191,7 +193,7 @@ LIMIT 10;
 **Design trade-offs:**
 - No ID check = inclusive (undocumented residents can participate)
 - Physical presence = friction that scales poorly for attackers
-- Weighted display = council judges signal quality themselves
+- Hard gate = no unattested voices means cleaner signal for council and public
 
 ---
 
