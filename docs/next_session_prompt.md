@@ -1,4 +1,4 @@
-# Recommended: Browser Extension UX Audit — Cross-Level Consistency & Information Density
+# Recommended: Engagement Ladder UX — Radical Simplification
 
 **Priority:** P0 (engagement_ladder_ux)
 **Area:** frontend_refinement > city_status_dashboard
@@ -8,97 +8,72 @@
 
 ## Context
 
-The browser extension now has a **visual testing harness** with Playwright screenshots at all 3 jurisdiction levels (city, state, federal). This session should use `/visual-review` to take screenshots, simulate user reactions, audit cross-level consistency, and reduce information density without losing richness. The overarching goal: **CivicOS as the antidote to doomscrolling** — seamlessly guiding people from awareness to action.
+8 sessions have built the engagement ladder for the browser extension. Cross-level consistency is structurally complete (city/state/federal all have "Take Action" focal points, urgency badges, section hints, collapsed outcomes). But **the user tested the extension and gave critical feedback:**
 
-Previous sessions (1-5) built the engagement ladder: focal points, comment threads, AI integration, voice buttons, and the visual harness. This session focuses on **polish and coherence**.
+1. **Meetings aren't actionable — agenda items are.** The city "Take Action" section surfaces upcoming meetings, but meetings are informational, not actionable. What's actionable: individual agenda items you can comment on, initiatives you can join, comment periods you can respond to. Rethink what qualifies as a "focal point."
 
-## Three Focus Areas
+2. **Information overload.** Despite progressive disclosure (collapsed outcomes, section hints), the dashboard is still overwhelming. The user said *"even my brain immediately shuts off from overload."* The next session needs a more radical approach to simplification — not just hiding sections, but fundamentally reducing default visual density.
 
-### 1. Simulated User Opinions
+## What's Built (Working)
 
-Use `/visual-review` to take fresh screenshots, then simulate 3-4 user personas reviewing them:
+- `CivicCityFocal.svelte` — Reusable "Take Action" component for city meetings (needs redesign)
+- `CivicReadOnlyPulse.svelte` — State/federal rendering with focal points (working well for those levels)
+- `CivicAgendaItemCard.svelte` — Now has `daysUntil` prop + urgency badge
+- `civic-helpers.ts` — Shared utilities: `computeCityFocalMeetings()`, `urgencyClass()`, `meetingDaysUntil()`
+- Visual testing harness: `npm run harness` at `localhost:5199` (city/state/federal)
+- Playwright screenshots: `npx playwright screenshot --viewport-size="380,900" "http://localhost:5199/?level=city" screenshot.png`
 
-- **Busy parent** (2 minutes max, wants "what do I need to know?")
-- **Engaged retiree** (reads everything, wants depth)
-- **First-time user** (opened extension for the first time, no civic background)
-- **Policy wonk** (wants data density, official links, bill numbers)
+## Two Problems to Solve
 
-For each persona, read the screenshots and write a brief reaction: what works, what confuses, what they'd click first, what they'd skip.
+### Problem 1: What is "actionable"?
 
-### 2. Cross-Level Consistency
+Current focal points by level:
+- **City**: Upcoming meetings (wrong — meetings are informational, agenda items are actionable)
+- **State**: Hearings + Governor's desk (good — these have clear actions: testify, call governor)
+- **Federal**: Comment periods (great — "Submit Official Comment" is a clear CTA)
 
-Current inconsistencies to address:
+**Redesign idea**: City focal points should surface **agenda items with upcoming deadlines** where the user can comment or voice support/oppose. The meeting is context, not the action. Consider:
+- Show agenda items that are `comment_eligible` or `stance_eligible` with their meeting's urgency
+- Group by meeting if needed, but the card is the agenda item, not the meeting
+- Initiatives with active participation could also be focal points
 
-| Feature | City | State/Federal | Fix |
-|---------|------|---------------|-----|
-| "Take Action" focal group | Missing | Yellow-trimmed section at top | Add city focal points for items with upcoming deadlines |
-| Urgency badges | None | Days-remaining countdown | Add urgency to city items near meeting dates |
-| Section hints | None | "Your comment directly shapes..." | Add city hints |
-| Outcome icons | Pass/fail icons on decisions | None on bill activity | Add to legislative outcomes |
-| Calendar buttons | On meeting cards | Missing on hearing cards | Already in hearings — verify consistent |
+More broadly: define a **universal "actionability" signal** — an item is focal if the user can DO something (comment, vote, attend, sign) and there's a DEADLINE.
 
-### 3. Reducing Clutter (Without Losing Richness)
+### Problem 2: Visual density
 
-The extension packs a lot of info. Potential approaches:
+The extension shows too much at once. Potential radical simplifications:
 
-- **Progressive disclosure**: Cards show headline + 1 key action; tap to expand for full detail
-- **Visual hierarchy**: Primary actions large/colored; metadata smaller/subdued
-- **Collapse-by-default**: Less-urgent sections collapsed, showing only header + count badge
-- **Action-first ordering**: Items you can act on NOW sorted to top of each section
-- **Summary strips**: Replace verbose card metadata with compact icon+label strips
+- **"One thing" mode**: Show only the single most urgent actionable item as a hero card. Everything else behind a "See more" expansion.
+- **Summary strip**: Replace the current multi-section layout with a single summary line per section ("2 meetings this week · 3 items to review · 1 decision made") that expands on tap.
+- **Progressive revelation by engagement level**: New users see only focal points + a teaser count. Returning users see expanded sections. Power users see everything.
+- **Remove visual chrome**: Less borders, less badges, less uppercase headers. Let whitespace and hierarchy do the work instead of colors and boxes.
+- **Card consolidation**: Instead of separate Meetings → Agenda Items → Decisions sections, show a single **timeline** view: "This week in San Rafael" with items sorted by urgency.
 
-Key question: which sections feel most cluttered? The state tab with legislation + focal points + topic grid + bill activity is the densest.
+**Design principle from the handoff**: *"Every element should either inform (what's happening), orient (why it matters to me), or activate (what I can do right now). If it does none of these, question whether it belongs on the default view."*
 
 ## Key Files
 
-- `packages/civicos-components/src/components/CivicReadOnlyPulse.svelte` — State/federal pulse (focal points, legislation, outcomes) — 1634 lines
-- `apps/civicos-extension/src/side-panel/SidePanel.svelte:601-951` — City pulse rendering, panel chrome, breadcrumb nav
-- `packages/civicos-components/src/components/CivicMeetingCard.svelte` — City meeting cards
-- `packages/civicos-components/src/components/CivicAgendaView.svelte` — City agenda items (has AI integration pattern)
-- `packages/civicos-components/src/components/CivicDecisionView.svelte` — City decisions/outcomes
-- `apps/civicos-extension/tests/visual/mock-data.ts` — Mock data for visual harness
-- `apps/civicos-extension/tests/visual/HarnessApp.svelte` — Harness wrapper
-- `apps/civicos-extension/playwright.config.ts` — Playwright config (380x900 viewport)
+- `packages/civicos-components/src/components/CivicCityFocal.svelte` — City focal component (needs redesign for agenda items)
+- `packages/civicos-components/src/components/CivicReadOnlyPulse.svelte:1025-1110` — City focal rendering in harness
+- `packages/civicos-components/src/components/CivicAgendaItemCard.svelte` — Agenda item card (has urgency badge)
+- `packages/civicos-components/src/components/CivicAgendaView.svelte:400-425` — Where items render
+- `apps/civicos-extension/src/side-panel/SidePanel.svelte:738-860` — City tab rendering (wires components)
+- `packages/civicos-components/src/utils/civic-helpers.ts` — Shared urgency utilities
+- `apps/civicos-extension/tests/visual/mock-data.ts` — Mock data (adjust for new design)
+- `apps/civicos-extension/tests/visual/HarnessApp.svelte` — Visual harness
 
-## Visual Testing Harness (New This Session)
+## Suggested Approach
 
-```bash
-cd apps/civicos-extension
-
-# Manual inspection (opens in browser)
-npm run harness
-# → http://localhost:5199/?level=city
-# → http://localhost:5199/?level=state
-# → http://localhost:5199/?level=federal
-
-# Generate baseline screenshots
-npm run test:visual:update
-
-# Compare against baselines
-npm run test:visual
-```
-
-The `/visual-review` skill automates: take screenshots → Claude reads PNGs → UX review + baseline comparison.
-
-## Suggested Session Plan
-
-1. **Run `/visual-review`** — Get fresh screenshots and initial UX assessment
-2. **Simulate user personas** — Read screenshots through 4 different lens, write reactions
-3. **Prioritize fixes** — Based on persona feedback, pick the 3-5 highest-impact changes
-4. **Implement consistency fixes** — Cross-level alignment (focal points, hints, badges)
-5. **Implement density reduction** — Progressive disclosure or visual hierarchy (pick 1-2 approaches)
-6. **Run `/visual-review` again** — Before/after comparison to verify improvements
-7. **Update baselines** — `npm run test:visual:update` if changes are intentional
-
-## Design Principle
-
-> Every element should either **inform** (what's happening), **orient** (why it matters to me), or **activate** (what I can do right now). If it does none of these, question whether it belongs on the default view.
+1. **Start with screenshots** — `npm run harness` + Playwright screenshots of current state
+2. **Sketch the "one thing" layout** — What does the extension look like if it shows ONE hero actionable item + counts for everything else?
+3. **Redefine city focal points** — Surface `comment_eligible` agenda items instead of meetings. The meeting is metadata on the agenda item card, not a standalone section.
+4. **Implement minimal viable simplification** — Pick ONE density reduction approach and ship it
+5. **Get user feedback** — The user is engaged and testing actively. Ship early, iterate.
 
 ## Success Criteria
 
-- [ ] Simulated user personas documented with specific, actionable feedback
-- [ ] At least 2 cross-level consistency improvements implemented
-- [ ] At least 1 information density reduction implemented
-- [ ] All 3 tabs feel like the same product at different scales
-- [ ] `/visual-review` shows no regressions — extension feels cleaner, not busier
-- [ ] Before/after screenshots reviewed and baselines updated
+- [ ] City "Take Action" surfaces actionable agenda items, not meetings
+- [ ] Default view is noticeably simpler (user doesn't feel overloaded)
+- [ ] All 3 tabs still feel like the same product at different scales
+- [ ] `/visual-review` shows cleaner, calmer aesthetic
+- [ ] Extension builds and works with live data

@@ -1,31 +1,29 @@
-## Session — 2026-02-19 (8): Cross-Level UX Consistency — City Focal Points & Urgency
+## Session — 2026-02-19 (8): Cross-Level UX Consistency & Component Extraction
 
-**Item:** engagement_ladder_ux (cross-level consistency, information density)
-**Status:** Complete
+**Item:** engagement_ladder_ux (cross-level consistency, information density, component architecture)
+**Status:** Two commits. Critical user feedback received — NOT ready to mark complete.
 
-### Changes
-- Added "Take Action" focal points to city tab — upcoming meetings within 7 days surface as amber focal cards (matching state/federal pattern)
-- Each focal card shows: title, date/time/location, urgency badge ("In 7 days" / "Tomorrow" / "Today"), calendar button, agenda items preview, AI action row
-- Added urgency deadline badges to city agenda items (derived from parent meeting datetime)
-- Added section hint to city Agenda Items: "Review agenda items and share your perspective before the meeting"
-- Collapsed Recent Outcomes / Bill Activity by default across all tabs (progressive disclosure)
-- Fixed `outcomes: !isLegislative` Svelte warning (was capturing initial value of derived)
-- Used `data.generated_at` as reference time for date calculations (works with both live and mock data)
+### Changes (Commit 1: b2e1190)
+- Added "Take Action" focal points to city tab in CivicReadOnlyPulse (harness only)
+- Urgency badges, calendar buttons, agenda previews, section hints
+- Collapsed outcomes by default, fixed Svelte reactive warning
 
-### Cross-Level Consistency Achieved
-| Feature | City (now) | State | Federal |
-|---------|-----------|-------|---------|
-| "Take Action" header | Amber | Amber | Amber |
-| Urgency badges | "In 7 days" | "In 8 days" | "3 days left" |
-| Focal cards | Amber-bordered | Amber-bordered | Amber-bordered |
-| Section hints | All 3 sections | Yes | Yes |
-| Outcomes collapsed | Default | Default | Default |
+### Changes (Commit 2: 0bf198d)
+- Extracted shared utilities to civic-helpers.ts: computeCityFocalMeetings(), urgencyClass(), meetingDaysUntil()
+- Created CivicCityFocal.svelte — standalone reusable component in civicos-components
+- Added daysUntil prop to CivicAgendaItemCard for urgency badges
+- CivicAgendaView accepts meetings prop, passes urgency to item cards
+- SidePanel.svelte wires CivicCityFocal + urgency data for real extension
+- All abstractable logic lives in civicos-components (user requirement)
 
-### Files Changed
-- `packages/civicos-components/src/components/CivicReadOnlyPulse.svelte` (+193 lines)
+### CRITICAL USER FEEDBACK (end of session)
+User tested the extension and provided two key insights:
+1. **Meetings are NOT actionable — agenda items are.** The "Take Action" section currently surfaces meetings, but the user pointed out that meetings themselves aren't what you act on. Agenda items, initiatives, and comment periods are the actionable objects. Need to rethink what qualifies as a focal point.
+2. **Still too much visual information.** Despite progressive disclosure, the dashboard is overwhelming. User said "even my brain immediately shuts off from overload." Need a more radical simplification — not just collapsing sections, but fundamentally reducing what's shown by default.
 
 ### Commits
-- (pending commit)
+- b2e1190 feat: Add city focal points and urgency badges for cross-level UX consistency
+- 0bf198d refactor: Extract city focal points into reusable CivicCityFocal component
 
 ---
 
