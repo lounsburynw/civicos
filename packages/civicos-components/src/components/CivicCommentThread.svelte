@@ -130,7 +130,7 @@
               <div class="thread-comment" class:stance-support={comment.stance === 'support'} class:stance-oppose={comment.stance === 'oppose'}>
                 <div class="thread-comment-meta">
                   <span class="thread-author">{userPublicKey && comment.public_key === userPublicKey ? 'You' : comment.public_key.slice(0, 8) + '...'}</span>
-                  {#if comment.attested}<span class="thread-attested">Attested</span>{/if}
+                  {#if comment.attested}<span class="thread-attested" title="Verified"><svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor"><path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.75.75 0 0 1 1.06-1.06L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0z"/></svg></span>{/if}
                   {#if comment.stance}
                     <span class="thread-stance" class:support={comment.stance === 'support'} class:oppose={comment.stance === 'oppose'}>{comment.stance}</span>
                   {/if}
@@ -344,14 +344,9 @@
     color: #d1d5db;
   }
   .thread-attested {
-    font-size: 8px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.3px;
-    padding: 1px 5px;
-    border-radius: 8px;
-    background: rgba(34, 197, 94, 0.12);
-    color: #22c55e;
+    display: inline-flex;
+    align-items: center;
+    color: #4ade80;
   }
   .thread-stance {
     font-size: 9px;

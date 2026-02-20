@@ -82,8 +82,9 @@
       {#if voiceCounts.oppose > 0}<span class="vc vc-oppose">{voiceCounts.oppose} oppose</span>{/if}
       {#if voiceCounts.watching > 0}<span class="vc vc-watch">{voiceCounts.watching} watching</span>{/if}
       {#if voiceCounts.attested != null && voiceCounts.attested > 0}
-        <span class="vc vc-attested" title="{voiceCounts.attested} attested, {voiceCounts.unattested ?? 0} unattested">
-          {voiceCounts.attested} attested
+        <span class="vc vc-attested" title="{voiceCounts.attested} verified, {voiceCounts.unattested ?? 0} unverified">
+          <svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor"><path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.75.75 0 0 1 1.06-1.06L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0z"/></svg>
+          {voiceCounts.attested}
         </span>
       {/if}
     </div>
@@ -164,7 +165,7 @@
   .vc-support { background: #14532d; color: #4ade80; }
   .vc-oppose { background: #7f1d1d; color: #f87171; }
   .vc-watch { background: #374151; color: #9ca3af; }
-  .vc-attested { background: rgba(34, 197, 94, 0.12); color: #22c55e; }
+  .vc-attested { display: inline-flex; align-items: center; gap: 2px; background: rgba(34, 197, 94, 0.12); color: #22c55e; }
   .deadline-tag { font-size: 10px; font-weight: 600; padding: 1px 6px; border-radius: 3px; }
   .deadline-tag.urgent-critical { background: rgba(255, 255, 255, 0.06); color: #e5e7eb; }
   .deadline-tag.urgent-soon { background: rgba(255, 255, 255, 0.04); color: #d1d5db; }
