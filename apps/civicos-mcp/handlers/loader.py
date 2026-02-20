@@ -104,6 +104,34 @@ CITY_TOOLS = frozenset([
     "get_item_context",
 ])
 
+COUNTY_TOOLS = frozenset([
+    # Meetings and decisions — county boards have these
+    "search_meeting_history",
+    "get_upcoming_meetings",
+    "get_decision_context",
+    "decision_detail",
+    "get_voting_record",
+
+    # Budget
+    "search_budget",
+
+    # Transcripts and documents
+    "get_public_testimony",
+    "search_agenda_packets",
+
+    # Engagement (use jurisdiction config for contact info)
+    "compose_public_comment",
+    "get_comment_guidelines",
+    "get_comment_template",
+    "prepare_for_meeting",
+
+    # Overview
+    "get_started",
+
+    # Context assembly
+    "get_item_context",
+])
+
 COORDINATION_TOOLS = frozenset([
     # Relay-based coordination (city-only — subscriptions, relay management)
     "subscribe_to_topic",
@@ -114,7 +142,7 @@ COORDINATION_TOOLS = frozenset([
 TOOL_LEVELS = {
     "federal": FEDERAL_TOOLS | LEGISLATION_TOOLS | CROSS_LEVEL_TOOLS,
     "state": FEDERAL_TOOLS | STATE_TOOLS | LEGISLATION_TOOLS | CROSS_LEVEL_TOOLS,
-    "county": FEDERAL_TOOLS | STATE_TOOLS | LEGISLATION_TOOLS | CROSS_LEVEL_TOOLS,
+    "county": FEDERAL_TOOLS | STATE_TOOLS | COUNTY_TOOLS | LEGISLATION_TOOLS | CROSS_LEVEL_TOOLS,
     "city": FEDERAL_TOOLS | STATE_TOOLS | CITY_TOOLS | LEGISLATION_TOOLS | CROSS_LEVEL_TOOLS | COORDINATION_TOOLS,
 }
 

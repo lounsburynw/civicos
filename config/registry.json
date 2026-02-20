@@ -25,6 +25,12 @@
       "modal_app_name": "civicos-federal",
       "parent_jurisdictions": []
     },
+    "county-marin": {
+      "domain": "marin-county.civicosproject.org",
+      "display_name": "Marin County",
+      "modal_app_name": "civicos-marin-county",
+      "parent_jurisdictions": ["state-california", "country-united-states"]
+    },
     "city-berkeley": {
       "domain": "berkeley.civicosproject.org",
       "display_name": "Berkeley",
