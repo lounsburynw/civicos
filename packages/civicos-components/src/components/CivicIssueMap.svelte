@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from 'svelte';
   import 'leaflet/dist/leaflet.css';
   import L from 'leaflet';
 
@@ -211,9 +212,9 @@
     }
   });
 
-  // Auto-load when prop is set (deferred to after mount)
+  // Auto-load when prop is set (untrack prevents circular dependency)
   $effect(() => {
-    if (autoload && !loaded && !loading) load();
+    if (autoload) untrack(() => load());
   });
 </script>
 
