@@ -57,4 +57,6 @@ export interface AIProvider {
 
 export interface AIPreferences {
   activeProviderId?: string;
+  /** When true (default), chat queries use Ollama locally for privacy. When false, use cloud provider. */
+  useOllamaForChat?: boolean;
 }
