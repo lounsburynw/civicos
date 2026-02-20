@@ -133,10 +133,16 @@ export class AIManager {
       }
     }
 
-    // Try device providers first (local, fully private)
-    for (const provider of deviceProviders) {
-      if (await provider.isReady()) {
-        return provider.chat!(question, jurisdiction);
+    // Check if user wants local chat (default: true for privacy)
+    const prefs = await this.storage.getPreferences();
+    const useLocal = prefs.useOllamaForChat !== false;
+
+    // Try device providers first (local, fully private) — unless user opted out
+    if (useLocal) {
+      for (const provider of deviceProviders) {
+        if (await provider.isReady()) {
+          return provider.chat!(question, jurisdiction);
+        }
       }
     }
 

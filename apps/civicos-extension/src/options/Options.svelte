@@ -34,6 +34,7 @@
   let ollamaModels: string[] = $state([]);
   let ollamaSaving = $state(false);
   let ollamaTesting = $state(false);
+  let ollamaForChat = $state(true);
 
   // Create flow
   let password = $state('');
@@ -259,6 +260,10 @@
     if (config.apiKey) ollamaBaseUrl = config.apiKey; // apiKey field stores base URL
     if (config.model) ollamaModel = config.model;
 
+    // Load chat preference (default: true)
+    const prefs = await storage.getPreferences();
+    ollamaForChat = prefs.useOllamaForChat !== false;
+
     // Check connection and list models
     try {
       const controller = new AbortController();
@@ -288,8 +293,12 @@
           apiKey: ollamaBaseUrl, // apiKey field stores base URL
           model: ollamaModel,
         });
+        // Save chat preference
+        const storage = aiManager.getStorage();
+        const prefs = await storage.getPreferences();
+        await storage.savePreferences({ ...prefs, useOllamaForChat: ollamaForChat });
         aiProviderStatuses = await aiManager.checkStatus();
-        setStatus(`Ollama configured: ${ollamaModel}`, 'success');
+        setStatus(`Ollama configured: ${ollamaModel}${ollamaForChat ? ' (chat enabled)' : ''}`, 'success');
       }
     } catch (err) {
       setStatus(`Failed to save: ${err instanceof Error ? err.message : 'unknown'}`, 'error');
@@ -728,6 +737,16 @@
         <input id="ollama-url" type="text" placeholder="http://localhost:11434" bind:value={ollamaBaseUrl} />
       </div>
 
+      <label class="toggle-label">
+        <input type="checkbox" bind:checked={ollamaForChat} />
+        <span class="toggle-text">Use for private chat search</span>
+        <span class="toggle-hint">
+          {ollamaForChat
+            ? 'Chat queries stay on your device'
+            : 'Chat uses CivicOS (Claude) for higher quality'}
+        </span>
+      </label>
+
       <div class="ai-action-buttons">
         <button class="btn-primary" onclick={saveOllama} disabled={ollamaSaving}>
           {ollamaSaving ? 'Saving...' : 'Save'}
@@ -738,7 +757,9 @@
       </div>
 
       <div class="ollama-privacy-note">
-        When Ollama is running, chat queries stay on your device. The server only sees anonymous data requests.
+        {ollamaForChat
+          ? 'Chat queries stay on your device. The server only sees anonymous data requests.'
+          : 'Chat uses CivicOS cloud for higher-quality answers. Ollama is still used for drafting.'}
       </div>
     {:else}
       <div class="ollama-setup-hint">
@@ -1191,6 +1212,34 @@
     opacity: 0.7;
   }
   .ollama-refresh:hover { opacity: 1; }
+
+  .toggle-label {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+    background: #0f172a;
+    border: 1px solid #334155;
+    border-radius: 6px;
+    margin-bottom: 12px;
+    cursor: pointer;
+  }
+  .toggle-label input[type="checkbox"] {
+    width: auto;
+    accent-color: #6366f1;
+  }
+  .toggle-text {
+    font-size: 13px;
+    color: #e2e8f0;
+    font-weight: 500;
+  }
+  .toggle-hint {
+    width: 100%;
+    font-size: 11px;
+    color: #64748b;
+    padding-left: 24px;
+  }
 
   .ollama-privacy-note {
     font-size: 11px;
