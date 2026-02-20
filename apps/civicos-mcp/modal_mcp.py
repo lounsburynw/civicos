@@ -97,6 +97,8 @@ mcp_image = (
         "httpx>=0.24.0",
         "uvicorn>=0.30.0",
         "starlette>=0.38.0",
+        # AI proxy (for /api/ai/chat and /api/ai/draft)
+        "anthropic>=0.39.0",
         # Utils
         "python-dotenv>=1.0.0",
         "pydantic>=2.0.0",
