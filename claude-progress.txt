@@ -1,3 +1,24 @@
+## Session — 2026-02-19 (5): Relay URL Fix + Aesthetic Polish
+
+**Item:** engagement_ladder_ux (P0) — Fix relay URL, aesthetic alignment
+**Status:** Complete. Committed and deployed.
+
+### What was done
+- Fixed stale relay URL (`api.civicosproject.org` → domain-derived `{domain}/relay`) in both `registry.py` and `rest_api.py`
+- Deployed fix to Modal — comment-synthesis endpoint now works (was returning 502)
+- Renamed "Submit Comment" → "Submit Official Comment" on federal comment period cards
+- Renamed "Email Clerk" → "Submit Official Comment" on city agenda items
+- Matched city comment button style to federal green pill style
+- Extension rebuilt and deployed
+
+### Next session
+UX alignment session for browser extension:
+1. Cross-level consistency (city vs state/federal features)
+2. Information density vs clarity (antidote to doomscrolling)
+3. AI integration for state/federal sections
+
+---
+
 ## Session — 2026-02-19 (4): Fix Blank UX + Finalize Engagement Ladder
 
 **Item:** engagement_ladder_ux (P0) — Fix blank UX bug, add section hints, commit all engagement work
