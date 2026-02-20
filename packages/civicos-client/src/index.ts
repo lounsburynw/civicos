@@ -65,8 +65,6 @@ export {
   createInitiativeTags,
   createCivicActionContent,
   createCivicActionTags,
-  createAttestationContent,
-  createAttestationTags,
 } from './events.js';
 
 // Session — high-level orchestration

@@ -547,6 +547,14 @@
     if (votingInProgress.has(entityId)) return;
     if (!identity?.isUnlocked) return;
 
+    // Read stored attestation proof
+    const stored = await chrome.storage.local.get('civicos_attestation');
+    const attestationProof = stored.civicos_attestation;
+    if (!attestationProof) {
+      showToast('Verification required to voice — visit Settings to redeem your code.');
+      return;
+    }
+
     votingInProgress.add(entityId);
     votingInProgress = new Set(votingInProgress);
 
@@ -602,7 +610,7 @@
 
     // Sign and submit (fire-and-forget — stance is persisted locally regardless)
     const jurisdiction = overrideJurisdiction || pulseData?.jurisdiction || activeJurisdiction;
-    api.castVoice(entityId, stance, jurisdiction).catch(() => {
+    api.castVoice(entityId, stance, jurisdiction, attestationProof).catch(() => {
       // Relay submission failed — local stance persists, will sync on next load
     });
 

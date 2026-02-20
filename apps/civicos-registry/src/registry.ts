@@ -15,6 +15,8 @@ export interface ServerInfo {
   relay_endpoint: string;
   /** Relay WebSocket endpoint for real-time updates */
   relay_ws_endpoint: string;
+  /** Public key of the attestation issuer for this jurisdiction */
+  attestation_issuer_pubkey?: string;
 }
 
 const LEVEL_ORDER: Record<string, number> = {
@@ -38,7 +40,7 @@ function inferLevel(jurisdictionId: string): string {
 export function getServers(): ServerInfo[] {
   const jurisdictions = registryData.jurisdictions as Record<
     string,
-    { domain: string; display_name: string; modal_app_name: string; parent_jurisdictions?: string[]; level?: string; relay_endpoint?: string; relay_ws_endpoint?: string }
+    { domain: string; display_name: string; modal_app_name: string; parent_jurisdictions?: string[]; level?: string; relay_endpoint?: string; relay_ws_endpoint?: string; attestation_issuer_pubkey?: string }
   >;
 
   const workspace = registryData.modal_workspace;
@@ -55,6 +57,7 @@ export function getServers(): ServerInfo[] {
       parent_jurisdictions: config.parent_jurisdictions || [],
       relay_endpoint: config.relay_endpoint || `https://${config.domain}/relay`,
       relay_ws_endpoint: config.relay_ws_endpoint || `wss://${config.domain}/relay`,
+      ...(config.attestation_issuer_pubkey && { attestation_issuer_pubkey: config.attestation_issuer_pubkey }),
     })
   );
 

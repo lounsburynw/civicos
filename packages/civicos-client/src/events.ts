@@ -143,15 +143,3 @@ export function createCivicActionTags(
   ];
 }
 
-// === Attestation events ===
-
-export function createAttestationContent(code: string, timestamp: number): string {
-  return `civicos:attestation:v1:${code}:${timestamp}`;
-}
-
-export function createAttestationTags(code: string): string[][] {
-  return [
-    ['d', `attestation:${code}`],
-    ['action', 'redeem'],
-  ];
-}
