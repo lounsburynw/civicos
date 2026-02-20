@@ -438,8 +438,15 @@ def create_rest_router(registry, civic, jurisdiction, validate_input, logger):
         import httpx
         import os
 
-        from civicos.registry import get_relay_url
-        relay_url = os.environ.get("CIVICOS_RELAY_URL") or os.environ.get("CIVICOS_API_URL") or get_relay_url()
+        from civicos.registry import get_jurisdiction_domain
+        # Derive relay URL from jurisdiction domain (Cloudflare routes /relay to Modal relay origin)
+        relay_url = os.environ.get("CIVICOS_RELAY_URL")
+        if not relay_url:
+            domain = get_jurisdiction_domain(jurisdiction)
+            if domain:
+                relay_url = f"https://{domain}/relay"
+            else:
+                relay_url = "https://san-rafael.civicosproject.org/relay"
         relay_url = relay_url.rstrip("/")
         entity_id = request.entity_id
 

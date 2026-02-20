@@ -17,7 +17,7 @@ Usage:
     # -> "https://san-rafael.civicosproject.org"
 
     relay = get_relay_url()
-    # -> "https://api.civicosproject.org"
+    # -> "https://san-rafael.civicosproject.org/relay"
 
 Environment variable overrides (highest priority):
     JURISDICTION_MCP_URL  — overrides jurisdiction URL lookup
@@ -75,7 +75,7 @@ def _load_registry() -> dict:
         _registry = {
             "modal_workspace": "civicos",
             "jurisdictions": {},
-            "relay": {"url": "https://api.civicosproject.org"},
+            "relay": {},
         }
         return _registry
 
@@ -141,20 +141,32 @@ def get_jurisdiction_domain(jurisdiction: str) -> Optional[str]:
     return None
 
 
-def get_relay_url() -> str:
+def get_relay_url(jurisdiction: Optional[str] = None) -> str:
     """Get the relay/coordination service URL.
 
     Priority:
         1. CIVICOS_RELAY_URL env var
         2. CIVICOS_API_URL env var (legacy)
-        3. Registry default
+        3. Derived from jurisdiction domain ({domain}/relay)
+        4. Default relay URL
     """
     env_url = os.environ.get("CIVICOS_RELAY_URL") or os.environ.get("CIVICOS_API_URL")
     if env_url:
         return env_url.rstrip("/")
 
-    reg = _load_registry()
-    return reg.get("relay", {}).get("url", "https://api.civicosproject.org")
+    # Derive from jurisdiction domain if available
+    if jurisdiction:
+        domain = get_jurisdiction_domain(jurisdiction)
+        if domain:
+            return f"https://{domain}/relay"
+
+    # Try default jurisdiction
+    default_jur = get_default_jurisdiction()
+    domain = get_jurisdiction_domain(default_jur)
+    if domain:
+        return f"https://{domain}/relay"
+
+    return "https://san-rafael.civicosproject.org/relay"
 
 
 def get_modal_workspace() -> str:
