@@ -19,6 +19,14 @@ export interface AICompletionResult {
   provider: string;
 }
 
+export interface AIChatResult {
+  success: boolean;
+  text?: string;
+  toolUsed?: string;
+  error?: string;
+  provider: string;
+}
+
 export interface AIProvider {
   readonly tier: AITier;
   readonly name: string;
@@ -39,6 +47,9 @@ export interface AIProvider {
 
   /** Run a completion */
   complete(prompt: string, systemPrompt?: string): Promise<AICompletionResult>;
+
+  /** Run a tool-backed civic search (optional — only proxy providers support this) */
+  chat?(question: string, jurisdiction?: string): Promise<AIChatResult>;
 
   /** Clean up resources */
   destroy(): void;

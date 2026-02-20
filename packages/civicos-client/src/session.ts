@@ -22,6 +22,7 @@ import type {
   CivicActionProgress,
   Comment,
 } from './types.js';
+import type { AIChatResult } from './ai/types.js';
 import { composeDraftPrompt, composeEnrichPrompt, SYSTEM_PROMPT, QA_SYSTEM_PROMPT } from './ai/prompts.js';
 
 type Stance = 'support' | 'oppose' | 'watching';
@@ -196,6 +197,12 @@ export class CivicSession {
     if (!this.ai) return null;
     const result = await this.ai.complete(question, QA_SYSTEM_PROMPT);
     return result.success ? result.text! : null;
+  }
+
+  /** Ask a civic question with tool-backed search (uses server-side tool execution). */
+  async chat(question: string, jurisdiction?: string): Promise<AIChatResult | null> {
+    if (!this.ai) return null;
+    return this.ai.chat(question, jurisdiction);
   }
 
   // === Entity ID extraction (static helpers) ===
