@@ -290,25 +290,24 @@
 
 <style>
   .card {
-    background: #262626;
-    border-radius: 10px;
-    padding: 12px 14px;
-    margin-bottom: 6px;
-    border: 1px solid #374151;
+    background: #1e1e1e;
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin-bottom: 4px;
+    border: 1px solid #262626;
     transition: border-color 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
     cursor: grab;
   }
   .card:hover {
-    border-color: #3b82f6;
-    box-shadow: 0 2px 8px rgba(59,130,246,0.1);
+    border-color: #374151;
   }
   .card:active { cursor: grabbing; }
   .card.dragging {
     opacity: 0.4;
-    border-color: #3b82f6;
+    border-color: #4b5563;
   }
   .expanded-card {
-    border: 1px solid #374151;
+    border: 1px solid #262626;
   }
   .empty-section {
     color: #6b7280;

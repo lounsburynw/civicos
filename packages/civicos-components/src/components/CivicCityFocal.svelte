@@ -186,23 +186,23 @@
     width: 100%;
     background: none;
     border: none;
-    color: #eee;
+    color: #9ca3af;
     padding: 8px 4px;
     cursor: pointer;
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 0.05em;
-    border-bottom: 1px solid #374151;
+    letter-spacing: 0.04em;
+    border-bottom: 1px solid #262626;
   }
   .section-title { display: flex; align-items: center; gap: 6px; }
   .count-badge {
-    background: rgba(59, 130, 246, 0.15);
-    color: #60a5fa;
-    font-size: 10px;
+    background: rgba(255, 255, 255, 0.04);
+    color: #6b7280;
+    font-size: 9px;
     font-weight: 600;
     padding: 1px 5px;
-    border-radius: 8px;
+    border-radius: 6px;
     text-transform: none;
     letter-spacing: 0;
   }
@@ -223,17 +223,16 @@
     font-style: italic;
   }
   .card {
-    background: #262626;
+    background: #1e1e1e;
     border-radius: 10px;
     padding: 12px 14px;
     margin-bottom: 6px;
-    border: 1px solid #374151;
+    border: 1px solid #262626;
     transition: border-color 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
     cursor: grab;
   }
   .card:hover {
-    border-color: #3b82f6;
-    box-shadow: 0 2px 8px rgba(59,130,246,0.1);
+    border-color: #374151;
   }
   .card:active { cursor: grabbing; }
   .card.dragging { opacity: 0.4; border-color: #3b82f6; }
@@ -255,7 +254,7 @@
   .focal-points-group {
     margin-bottom: 12px;
     padding-bottom: 8px;
-    border-bottom: 1px solid #374151;
+    border-bottom: 1px solid #262626;
   }
   .focal-points-label {
     font-size: 10px;
