@@ -8,12 +8,14 @@
     aiAvailable = false,
     renderMarkdown,
     ontoast,
+    onnavigate,
   }: {
     session: CivicSession;
     jurisdiction?: string;
     aiAvailable?: boolean;
     renderMarkdown?: (text: string) => string;
     ontoast?: (message: string) => void;
+    onnavigate?: (tool: string) => void;
   } = $props();
 
   let question = $state('');
@@ -28,6 +30,24 @@
     get_public_testimony: 'Testimony',
     search_legislation: 'Legislation',
     find_similar_issues: 'Issues',
+  };
+
+  // Suggested queries for discoverability (shown when input is empty)
+  const SUGGESTED_QUERIES = [
+    'Upcoming meetings',
+    'Housing updates',
+    'Budget for parks',
+    'Recent public testimony',
+  ];
+
+  // Tools that can navigate to panel sections
+  const NAVIGABLE_TOOLS: Record<string, string> = {
+    search_meeting_history: 'View in Outcomes',
+    get_upcoming_meetings: 'View in Meetings',
+    search_budget: 'View Budget',
+    get_public_testimony: 'View in Meetings',
+    search_legislation: 'View Legislation',
+    find_similar_issues: 'View Issue Map',
   };
 
   async function handleSubmit() {
@@ -52,6 +72,11 @@
     } finally {
       loading = false;
     }
+  }
+
+  function submitSuggestion(query: string) {
+    question = query;
+    handleSubmit();
   }
 
   function handleKeydown(e: KeyboardEvent) {
@@ -96,6 +121,16 @@
       </button>
     </div>
 
+    {#if !loading && !result && !error && !question.trim()}
+      <div class="chat-suggestions">
+        {#each SUGGESTED_QUERIES as query}
+          <button class="chat-pill" onclick={() => submitSuggestion(query)}>
+            {query}
+          </button>
+        {/each}
+      </div>
+    {/if}
+
     {#if loading}
       <div class="chat-status">Searching civic data...</div>
     {/if}
@@ -116,7 +151,17 @@
             {result.text}
           {/if}
         </div>
-        <button class="chat-clear" onclick={clear} title="Clear">Clear</button>
+        <div class="chat-actions">
+          {#if result.toolUsed && onnavigate && NAVIGABLE_TOOLS[result.toolUsed]}
+            <button class="chat-navigate" onclick={() => onnavigate?.(result!.toolUsed!)}>
+              {NAVIGABLE_TOOLS[result.toolUsed!]}
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <path d="M7 17l9.2-9.2M17 17V7H7" />
+              </svg>
+            </button>
+          {/if}
+          <button class="chat-clear" onclick={clear} title="Clear">Clear</button>
+        </div>
       </div>
     {/if}
   </div>
@@ -243,9 +288,57 @@
     color: #e5e7eb;
   }
 
-  .chat-clear {
-    display: block;
+  .chat-suggestions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    padding: 6px 0 0;
+  }
+
+  .chat-pill {
+    background: #1e1e1e;
+    border: 1px solid #333;
+    border-radius: 12px;
+    color: #9ca3af;
+    font-size: 10px;
+    padding: 3px 10px;
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .chat-pill:hover {
+    border-color: #60a5fa;
+    color: #e5e7eb;
+    background: rgba(96, 165, 250, 0.08);
+  }
+
+  .chat-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
     margin-top: 8px;
+  }
+
+  .chat-navigate {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: rgba(96, 165, 250, 0.08);
+    border: 1px solid rgba(96, 165, 250, 0.2);
+    border-radius: 6px;
+    color: #60a5fa;
+    font-size: 10px;
+    font-weight: 500;
+    padding: 3px 8px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .chat-navigate:hover {
+    background: rgba(96, 165, 250, 0.15);
+    border-color: rgba(96, 165, 250, 0.4);
+  }
+
+  .chat-clear {
     background: none;
     border: none;
     color: #6b7280;
