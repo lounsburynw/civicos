@@ -49,6 +49,8 @@ def get_secrets(jurisdiction: str) -> list[str]:
         secrets.append("civicos-federal-env")
     elif jurisdiction == "state-california":
         secrets.append("civicos-california-env")
+    elif jurisdiction == "county-marin":
+        secrets.append("civicos-marin-county-env")
     else:
         # Default: use civicos-env (shared secret for cities)
         secrets.append("civicos-env")
