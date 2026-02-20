@@ -12,6 +12,7 @@ Provides the same endpoints with:
 Run with: uvicorn civicos_services.servers.api:app --port 8001
 """
 
+import asyncio
 import time
 import uuid
 import logging
@@ -57,6 +58,7 @@ from .routers import (
     context_router,
     ai_proxy_router,
 )
+from .routers.billing import router as billing_router
 
 
 # === Pydantic Models ===
@@ -127,6 +129,7 @@ def create_app() -> FastAPI:
     app.include_router(registry_router, prefix="/api", tags=["Registry"])
     app.include_router(context_router, prefix="/api", tags=["Context"])
     app.include_router(ai_proxy_router, prefix="/api", tags=["AI Proxy"])
+    app.include_router(billing_router, prefix="/api", tags=["Billing"])
 
     return app
 
@@ -336,12 +339,52 @@ async def log_request(request: Request, call_next):
     return response
 
 
+async def usage_logging_middleware(request: Request, call_next):
+    """Log API usage to Platform DB (fire-and-forget, never blocks response)."""
+    start = time.time()
+    response = await call_next(request)
+    duration_ms = int((time.time() - start) * 1000)
+
+    # Skip logging for health checks, docs, and static assets
+    if request.url.path in ("/health", "/docs", "/redoc", "/openapi.json", "/.well-known/nostr.json"):
+        return response
+
+    # Extract auth context (set by verify_auth / optional_auth)
+    auth_context = getattr(request.state, "auth_context", None)
+    key_id = auth_context.key_id if auth_context and hasattr(auth_context, "key_id") else None
+
+    # Extract jurisdiction from path if present (e.g. /api/events?jurisdiction=city-san-rafael)
+    jurisdiction = request.query_params.get("jurisdiction")
+
+    # Fire-and-forget usage log
+    try:
+        from .routers.dependencies import AuthContext
+        from ..core.api_keys import get_api_key_store
+
+        store = get_api_key_store()
+        if store.available:
+            asyncio.get_event_loop().call_soon(
+                store.log_usage,
+                key_id,
+                request.url.path,
+                request.method,
+                response.status_code,
+                duration_ms,
+                jurisdiction,
+            )
+    except Exception:
+        pass  # Never block response for usage logging
+
+    return response
+
+
 # === Create App ===
 
 app = create_app()
 
-# Add middleware (order matters: rate limiting runs before logging)
-# This means rate-limited requests are still logged
+# Add middleware (order matters: outermost runs first)
+# Chain: rate_limit -> log_request -> usage_logging -> route handler
+app.middleware("http")(usage_logging_middleware)
 app.middleware("http")(log_request)
 app.middleware("http")(rate_limit_middleware)
 

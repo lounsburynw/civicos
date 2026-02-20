@@ -12,6 +12,7 @@ license = {text = "PolyForm Noncommercial 1.0.0"}
 # Minimal dependencies - most come from civicos package and requirements.txt
 dependencies = [
     "civicos-config",       # Shared jurisdiction configuration
+    "stripe>=8.0.0",        # Stripe billing integration
 ]
 
 [tool.setuptools.packages.find]

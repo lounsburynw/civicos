@@ -204,6 +204,21 @@ class CivicConfig:
             
         return origins if origins else ['https://civic.example.com']
     
+    def get_platform_database_url(self) -> Optional[str]:
+        """Get Platform DB URL for billing/usage data."""
+        return os.getenv('PLATFORM_DATABASE_URL')
+
+    def get_stripe_config(self) -> dict:
+        """Get Stripe configuration from environment."""
+        return {
+            'secret_key': os.getenv('STRIPE_SECRET_KEY'),
+            'webhook_secret': os.getenv('STRIPE_WEBHOOK_SECRET'),
+            'price_journalist': os.getenv('STRIPE_PRICE_JOURNALIST'),
+            'price_organization': os.getenv('STRIPE_PRICE_ORGANIZATION'),
+            'price_city': os.getenv('STRIPE_PRICE_CITY'),
+            'price_api': os.getenv('STRIPE_PRICE_API'),
+        }
+
     def get_rate_limit_config(self) -> dict:
         """Get rate limiting configuration.
 

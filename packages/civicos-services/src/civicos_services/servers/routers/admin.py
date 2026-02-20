@@ -1,5 +1,5 @@
 """
-Admin router: cache stats, operations, provider stats, monitoring.
+Admin router: cache stats, operations, provider stats, monitoring, key management.
 
 Endpoints:
 - GET /cache-stats - Cache statistics
@@ -14,6 +14,10 @@ Endpoints:
 - GET /api-key-status - External API key validation status
 - GET /assemblyai-usage - AssemblyAI transcription usage and cost tracking
 - POST /trigger - Trigger admin actions
+- POST /keys - Create an API key
+- GET /keys - List all API keys
+- DELETE /keys/{key_id} - Revoke an API key
+- GET /usage - Usage dashboard data
 """
 
 from datetime import datetime, timedelta
@@ -1067,3 +1071,150 @@ async def get_admin_status(token: str = Depends(verify_auth)):
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Server error: {str(e)}")
+
+
+# =============================================================================
+# API Key Management Endpoints
+# =============================================================================
+
+class CreateKeyRequest(BaseModel):
+    """Request to create a new API key."""
+    name: str
+    email: str
+    tier: str = "free"
+    jurisdictions: Optional[List[str]] = None
+
+
+class CreateKeyResponse(BaseModel):
+    """Response with the newly created key (shown once)."""
+    key_id: str
+    raw_key: str
+    tier: str
+    message: str = "Save this key securely. It will not be shown again."
+
+
+@router.post("/keys", response_model=CreateKeyResponse)
+async def create_api_key(
+    request: CreateKeyRequest,
+    token: str = Depends(verify_auth),
+):
+    """Create a new database-backed API key.
+
+    For early customers before Stripe is live. Returns the raw key once.
+    Requires admin authentication.
+    """
+    valid_tiers = ("free", "journalist", "organization", "city", "api")
+    if request.tier not in valid_tiers:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid tier '{request.tier}'. Must be one of: {', '.join(valid_tiers)}",
+        )
+
+    try:
+        from civicos_services.core.api_keys import get_api_key_store
+
+        store = get_api_key_store()
+        if not store.available:
+            raise HTTPException(
+                status_code=503,
+                detail="Platform DB not configured. Set PLATFORM_DATABASE_URL.",
+            )
+
+        result = store.create_key(
+            name=request.name,
+            email=request.email,
+            tier=request.tier,
+            jurisdictions=request.jurisdictions,
+        )
+
+        if result is None:
+            raise HTTPException(status_code=500, detail="Failed to create API key")
+
+        key_id, raw_key = result
+        return CreateKeyResponse(key_id=key_id, raw_key=raw_key, tier=request.tier)
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Key creation error: {str(e)}")
+
+
+@router.get("/keys")
+async def list_api_keys(token: str = Depends(verify_auth)):
+    """List all database-backed API keys with basic info.
+
+    Requires admin authentication.
+    """
+    try:
+        from civicos_services.core.api_keys import get_api_key_store
+
+        store = get_api_key_store()
+        if not store.available:
+            return {"keys": [], "message": "Platform DB not configured"}
+
+        keys = store.list_keys()
+        return {
+            "keys": keys,
+            "count": len(keys),
+            "timestamp": datetime.utcnow().isoformat() + "Z",
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Key listing error: {str(e)}")
+
+
+@router.delete("/keys/{key_id}")
+async def revoke_api_key(key_id: str, token: str = Depends(verify_auth)):
+    """Revoke a database-backed API key (permanent).
+
+    Requires admin authentication.
+    """
+    try:
+        from civicos_services.core.api_keys import get_api_key_store
+
+        store = get_api_key_store()
+        if not store.available:
+            raise HTTPException(status_code=503, detail="Platform DB not configured")
+
+        success = store.revoke_key(key_id)
+        if not success:
+            raise HTTPException(status_code=404, detail=f"Key not found: {key_id}")
+
+        return {"status": "revoked", "key_id": key_id}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Key revocation error: {str(e)}")
+
+
+@router.get("/usage")
+async def get_usage_dashboard(
+    since: Optional[str] = Query(None, description="ISO date (e.g. 2026-01-01). Default: last 30 days."),
+    key_id: Optional[str] = Query(None, description="Filter by specific key ID"),
+    token: str = Depends(verify_auth),
+):
+    """Usage dashboard: requests by key, endpoint, and time.
+
+    Requires admin authentication.
+    """
+    try:
+        from civicos_services.core.api_keys import get_api_key_store
+
+        store = get_api_key_store()
+        if not store.available:
+            return {"usage": [], "message": "Platform DB not configured"}
+
+        if key_id:
+            stats = store.get_usage_stats(key_id, since=since)
+            return {
+                "key_usage": stats.__dict__ if stats else {},
+                "timestamp": datetime.utcnow().isoformat() + "Z",
+            }
+        else:
+            summary = store.get_all_usage_summary(since=since)
+            return {
+                "usage": summary,
+                "count": len(summary),
+                "timestamp": datetime.utcnow().isoformat() + "Z",
+            }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Usage dashboard error: {str(e)}")

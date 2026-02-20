@@ -20,6 +20,7 @@ fastembed>=0.3.0
 fastapi>=0.109.0      # Modern async API framework
 uvicorn[standard]>=0.27.0  # ASGI server with auto-reload
 python-multipart>=0.0.6    # Form/file upload support
+stripe>=8.0.0              # Stripe billing integration
 
 # WebSocket Server
 eventlet>=0.33.0
