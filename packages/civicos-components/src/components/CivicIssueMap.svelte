@@ -211,8 +211,10 @@
     }
   });
 
-  // Auto-load when prop is set
-  if (autoload) load();
+  // Auto-load when prop is set (deferred to after mount)
+  $effect(() => {
+    if (autoload && !loaded && !loading) load();
+  });
 </script>
 
 {#if loading}
