@@ -925,21 +925,31 @@
       {/if}
     </section>
 
-    <!-- Browse (Issue Map, Budget) — under Official -->
-    <div class="browse-row">
-      <button class="browse-pill" onclick={() => { toggle('issueMap'); issueMapRef?.load(); }}>Issue Map</button>
-      <button class="browse-pill" onclick={() => { toggle('budget'); budgetRef?.load(); }}>Budget</button>
-    </div>
-    {#if expanded.issueMap}
-      <div class="browse-expanded">
-        <CivicIssueMap bind:this={issueMapRef} {api} />
-      </div>
-    {/if}
-    {#if expanded.budget}
-      <div class="browse-expanded">
-        <CivicBudgetBreakdown bind:this={budgetRef} {api} />
-      </div>
-    {/if}
+    <!-- Issue Map -->
+    <section class="feed-section">
+      <button class="section-header" onclick={() => { toggle('issueMap'); issueMapRef?.load(); }}>
+        <span class="section-title">Issue Map</span>
+        <span class="chevron" class:open={expanded.issueMap}></span>
+      </button>
+      {#if expanded.issueMap}
+        <div class="section-body">
+          <CivicIssueMap bind:this={issueMapRef} {api} />
+        </div>
+      {/if}
+    </section>
+
+    <!-- Budget -->
+    <section class="feed-section">
+      <button class="section-header" onclick={() => { toggle('budget'); budgetRef?.load(); }}>
+        <span class="section-title">Budget</span>
+        <span class="chevron" class:open={expanded.budget}></span>
+      </button>
+      {#if expanded.budget}
+        <div class="section-body">
+          <CivicBudgetBreakdown bind:this={budgetRef} {api} />
+        </div>
+      {/if}
+    </section>
 
     <!-- Public Section -->
     <div class="group-header">Public</div>
