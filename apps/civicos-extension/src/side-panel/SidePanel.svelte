@@ -111,7 +111,8 @@
   let activeProviderName = $state('');
 
   // Initiatives loaded from CivicInitiativeView (for attention bar)
-  let loadedInitiatives: Array<{ id: string; title: string; topic: string; voice_count: number; creator_attested?: boolean }> = $state([]);
+  let loadedInitiatives: Array<{ id: string; title: string; topic: string; voice_count: number; creator_attested?: boolean; timestamp?: string }> = $state([]);
+  let initiativeViewRef: { expandAndScrollTo: (id: string) => void } | undefined = $state();
 
   // Jurisdiction state
   let activeJurisdiction = $state('city-san-rafael');
@@ -788,10 +789,20 @@
       id: i.id, title: i.title, tag: 'agenda' as const, when: i.meeting_date || '',
       action: () => scrollToCard(i.id),
     }))}
-    {@const initiativeActionable = loadedInitiatives.filter(i => i.voice_count > 0).slice(0, 3).map(i => ({
-      id: i.id, title: i.title, tag: 'initiative' as const, when: `${i.voice_count} voice${i.voice_count !== 1 ? 's' : ''}`,
-      action: () => { /* scroll handled by initiative section */ },
-    }))}
+    {@const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000}
+    {@const initiativeActionable = loadedInitiatives
+      .filter(i => i.voice_count > 0 || (i.timestamp && new Date(i.timestamp).getTime() > sevenDaysAgo))
+      .slice(0, 5)
+      .map(i => {
+        const isRecent = i.timestamp && new Date(i.timestamp).getTime() > sevenDaysAgo;
+        const label = i.voice_count > 0
+          ? `${i.voice_count} voice${i.voice_count !== 1 ? 's' : ''}${isRecent ? ' · new' : ''}`
+          : 'new';
+        return {
+          id: i.id, title: i.title, tag: 'initiative' as const, when: label,
+          action: () => initiativeViewRef?.expandAndScrollTo(i.id),
+        };
+      })}
     {@const allActionable = [...officialActionable, ...initiativeActionable]}
     {#if allActionable.length > 0}
       <div class="attention-bar">
@@ -933,6 +944,7 @@
 
     <!-- Community Initiatives (CivicInitiativeView) -->
     <CivicInitiativeView
+      bind:this={initiativeViewRef}
       {api}
       {session}
       {identity}
