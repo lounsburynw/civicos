@@ -1,4 +1,4 @@
-# Recommended: engagement_ladder_ux — Phase 3 (UX Polish & Information Architecture)
+# Recommended: engagement_ladder_ux — Phase 4 (State/Federal Polish + Topic Tagging)
 
 **Priority:** P0 (engagement_ladder_ux)
 **Area:** frontend_refinement > city_status_dashboard
@@ -8,67 +8,57 @@
 
 ## Context
 
-Phase 2 (Interactive Overlay) is complete: scroll-to-card, highlighted card state, cross-level attention bar, section pips. Phase 3 addresses user feedback on information architecture and visual polish. The attention bar now merges city/state/federal items but needs refinement — it shows "39 items need attention" with only 5 visible, lacks category tags, and needs scrollability. Several other UX issues were identified.
+Phase 3 (UX polish) is complete across 12 commits. The city tab now has: attention bar with official + initiative items, Official/Public section hierarchy, draft-to-route workflow (AI draft → official mailto or community comment), cached AI summaries, collapsible Issue Map and Budget sections, and all "attested" text replaced with checkmark icons. Several Svelte 5 reactivity bugs were fixed (TDZ errors, state mutation, tick timing).
 
-## What Was Done (Phase 2 — complete, uncommitted)
+The ultimate goal is organizing read-MCP and public-relay items like a library — tagged by topic, actionable items at top — to enable a chat router that triggers tool calls. Phase 4 brings state/federal tabs to the same polish standard, and lays the topic tagging foundation.
 
-- Card IDs: `id="card-{item.id}"` on each agenda card (`CivicAgendaView.svelte:414`)
-- Highlighted card: `.highlighted` CSS with white inset glow, 2s auto-clear
-- Scroll-to-card: `scrollToCard()` in SidePanel.svelte expands section + smooth scroll + highlight
-- Cross-level attention bar: merges city items + state hearings + federal comment periods + governor's desk, sorted by urgency
-- Section pips: 6px white dots on Agenda Items header when actionable items exist
-- Extension builds cleanly
+## What Was Done (Session 8 — Phase 3)
 
-## Phase 3 Tasks (from user feedback, in suggested priority order)
+- Attention bar: city-only + initiatives with voices/recent, scrollable, "Upcoming actionable items" title
+- Official/Public group headers for information hierarchy
+- Issue Map and Budget restored as collapsible sections under Official
+- Draft-to-route workflow: "Draft with AI" on cards → editable draft → route to official (mailto) or community comment
+- AI summary toggle: cached responses collapse/expand, regenerate option
+- Initiatives surfaced in attention bar (voices > 0 or created within 7 days) with scroll-to-card
+- All "attested" text → green checkmark icons (AgendaItemCard, DecisionCard, CommentThread, InitiativeCard)
+- My Commitments section removed
+- Monochrome palette applied to initiatives
+- Past meetings filtered out (today or future only)
+- Fixed: Svelte 5 `$state` Record mutation (spread reassign), `tick()` for lazy component load timing, TDZ error in CivicIssueMap (ISSUE_COLORS declared after `$state` that referenced it)
 
-### 3a: Attention bar overhaul
-The attention bar shows "39 items need attention" but only 5 are visible. Needs:
-- **Rename title** to "Upcoming actionable items" (not "X items need attention")
-- **Make scrollable** or paginated — show all items, not just `.slice(0, 5)`
-- **Add category tags** — visual distinction for city vs state vs federal items (small pill/label)
-- **Consider partitioning** — should this be per-tab (city/state/federal) or unified? User unsure; make a recommendation
-- **Visual distinction** — the bar should look distinct from the rest of the feed (currently same card style)
-- Current code: `SidePanel.svelte:783-821` (attention bar template), `:1326-1380` (CSS)
+## Phase 4 Tasks
 
-### 3b: Section headers — Official vs Public
-Add two major section headers to organize content:
-- **"Official"** (or "Government") — contains Meetings, Agenda Items, Recent Decisions
-- **"Public"** — contains Community Initiatives
-- This creates clearer information hierarchy
+### 4a: State/federal tab polish (CivicReadOnlyPulse)
+Apply the same UX patterns from the city tab to `CivicReadOnlyPulse.svelte`:
+- Attention bar with comment periods, hearings, governor's desk items
+- Official/Public section grouping
+- Monochrome palette consistency (some blue accents may remain)
+- Collapsible sections with chevrons
+- Current code: `packages/civicos-components/src/components/CivicReadOnlyPulse.svelte`
 
-### 3c: Summary button rename + caching
-The `<diamond> Claude ↗` button on agenda cards should:
-- Rename to just **"Summary"** (remove Claude branding and external link icon)
-- Cache the AI response so re-clicking collapses/expands (not re-fetches)
-- Add a "Regenerate" option when cached summary is shown
-- Current code: `CivicAgendaView.svelte:479-481` (Claude button), `:468-482` (AI action row)
+### 4b: Topic tagging foundation
+This bridges the gap from time-sorted feed to topic-organized library:
+- Agenda items and decisions don't currently have topic tags (initiatives do)
+- Need topic classification on all entity types — either from MCP data or derived client-side
+- This enables "browse by topic" and powers the future chat router ("show me housing items")
+- Consider: lightweight client-side topic extraction from titles, or add topic field to pulse API
 
-### 3d: Remove "My Commitments" section
-Remove for now — confusing and not useful yet. The CivicInitiativeView component currently includes commitments.
-- Current code: `SidePanel.svelte:925-940` (CivicInitiativeView rendering)
-
-### 3e: Initiative section visual parity
-Initiatives should have same font size as official items and take up less wasted real estate. Remove "attested" badge/indicator — going forward, all push capabilities should be attested by default.
-- See `CivicInitiativeView.svelte` for current styling
-
-### 3f: Count badge visual refinement
-Section item counts (e.g., "Agenda Items 12") are nice but could be slightly more visually distinct. Subtle improvement, not drastic.
-- Current CSS: `SidePanel.svelte` `.count-badge` styles
-
-### 3g: Section pip explanation (UX clarity)
-The white dot next to "Agenda Items" (section pip) needs to either be self-explanatory or have a tooltip. User asked "what does the white dot represent?" — it indicates actionable items exist in that section.
-
-### 3h: Identity unlock UX (longer-term)
-The constant "unlock identity" requirement is foreign to users accustomed to centralized auth. Needs a longer-term solution (auto-unlock with session, biometric, etc.). Not Phase 3 scope but should be tracked.
+### 4c: Svelte 5 reactivity audit
+Several Svelte 5 bugs were hit this session. Key patterns to watch:
+- `$state` with `Record<string, boolean>` — must spread-reassign, not mutate properties
+- `const` declarations must come before `$state()` that references them (TDZ)
+- Lazy components in `{#if}` blocks need `await tick()` before `bind:this` ref is available
+- `$effect` calling functions that modify tracked `$state` → use `untrack()` or avoid
 
 ## Key Files
 
-- `apps/civicos-extension/src/side-panel/SidePanel.svelte:783-821` — Attention bar template
-- `apps/civicos-extension/src/side-panel/SidePanel.svelte:163-178` — scrollToCard function
-- `apps/civicos-extension/src/side-panel/SidePanel.svelte:925-940` — CivicInitiativeView (My Commitments)
-- `packages/civicos-components/src/components/CivicAgendaView.svelte:468-482` — AI action row (Claude button)
-- `packages/civicos-components/src/components/CivicInitiativeView.svelte` — Initiative section
-- `apps/civicos-extension/tests/visual/mockup-overlay-highlight.html` — Design reference
+- `apps/civicos-extension/src/side-panel/SidePanel.svelte` — Main panel layout, attention bar (~line 786), sections, toggle logic
+- `packages/civicos-components/src/components/CivicReadOnlyPulse.svelte` — State/federal tab renderer (Phase 4a target)
+- `packages/civicos-components/src/components/CivicAgendaView.svelte` — Agenda cards with draft workflow
+- `packages/civicos-components/src/components/CivicInitiativeView.svelte` — Initiative section with `expandAndScrollTo()` export
+- `packages/civicos-components/src/components/CivicIssueMap.svelte` — Leaflet map (ISSUE_COLORS must be before $state)
+- `packages/civicos-components/src/components/CivicBudgetBreakdown.svelte` — Chart.js budget viz
+- `packages/civicos-components/src/utils/civic-helpers.ts` — Shared utilities (urgency, calendar, focal meetings)
 
 ## Build & Test
 
@@ -79,10 +69,9 @@ cd apps/civicos-extension && npm run dev     # Live reload for iteration
 
 ## Success Criteria
 
-- [ ] Attention bar renamed to "Upcoming actionable items" and is scrollable
-- [ ] Items in attention bar have category tags (city/state/federal)
-- [ ] Official vs Public section headers organize the feed
-- [ ] Summary button (not "Claude") with cached/collapsible responses
-- [ ] My Commitments section removed
-- [ ] Initiatives match official item font size, no attested badge
+- [ ] State/federal tabs have attention bar for actionable items
+- [ ] State/federal tabs use Official/Public section grouping
+- [ ] Monochrome palette consistent across all tabs
+- [ ] Topic tagging prototype on at least one entity type
+- [ ] No Svelte 5 TDZ or reactivity errors
 - [ ] Extension builds and works with live data

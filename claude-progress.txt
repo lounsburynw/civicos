@@ -1,3 +1,38 @@
+## Session — 2026-02-19 (12): Phase 3 UX Polish & Information Architecture
+
+**Item:** engagement_ladder_ux (Phase 3: UX Polish)
+**Status:** Phase 3 complete (12 commits). City tab fully polished. Phase 4 handoff: state/federal polish + topic tagging.
+
+### Commits (12)
+- 1e2e514 feat: Phase 3 UX polish — draft workflow, attention bar, section hierarchy
+- 406a781 feat: Reorganize city tab — Issue Map/Budget under Official, initiatives in attention bar
+- af62e62 style: Replace all "attested" text labels with checkmark icons
+- 67d127c feat: Make initiatives actionable in attention bar — scroll-to-card, recency filter
+- d8baea2 style: Rename attention bar title, filter out past meetings
+- de06f82 style: Restore Issue Map and Budget as collapsible sections
+- c91efcd, 05f3287, beeebf2 fix: Issue Map/Budget autoload timing (multiple attempts)
+- acc8dc4 fix: Section expand/collapse — Svelte 5 $state Record mutation
+- 34d4f92 fix: Use tick() for lazy component load timing
+- 37de750 fix: Move ISSUE_COLORS before $state (TDZ error)
+
+### Svelte 5 lessons learned
+- `$state` Record: must spread-reassign (`expanded = { ...expanded, [k]: v }`), not mutate
+- `const` before `$state()` that references it (TDZ in compiled output)
+- `{#if}` lazy components: `await tick()` before `bind:this` ref available
+- `$effect` + `$state` writes → circular dependency → use `untrack()` or avoid
+
+### Architecture (city tab layout)
+```
+[Attention Bar] — agenda items (circle pip) + initiatives (square pip)
+[Official]
+  Meetings (today/future only) | Agenda Items | Decisions
+  Issue Map (collapsible) | Budget (collapsible)
+[Public]
+  Community Initiatives
+```
+
+---
+
 ## Session — 2026-02-19 (11): Phase 2 Interactive Overlay
 
 **Item:** engagement_ladder_ux (Phase 2: Interactive Overlay)
