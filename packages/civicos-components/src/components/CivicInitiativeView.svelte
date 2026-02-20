@@ -40,6 +40,7 @@
     // Callbacks to parent
     ontoast = undefined as ((message: string) => void) | undefined,
     onunlock = undefined as ((password: string) => Promise<boolean>) | undefined,
+    oninitiativesloaded = undefined as ((items: Initiative[]) => void) | undefined,
   } = $props();
 
   // --- Internal state ---
@@ -247,6 +248,7 @@
     initiativesLoading = true;
     try {
       initiatives = await api.getInitiatives(jurisdiction);
+      oninitiativesloaded?.(initiatives);
       loadAllActionStats();
     } catch {
       initiatives = [];
