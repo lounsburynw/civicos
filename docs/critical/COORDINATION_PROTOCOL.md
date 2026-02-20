@@ -190,16 +190,20 @@ Different subscribers, different thresholds, same entity. The relay evaluates ea
 
 A voice is a public expression of civic interest. It is the coordination primitive — the mechanism by which residents discover shared concerns without a platform orchestrating the discovery.
 
+**Voices are gated by attestation.** To voice or comment, a user must present a valid attestation proof — a kind-30850 Nostr event signed by the jurisdiction's issuer. This proof is embedded on each voice/comment at write time, enabling any relay to independently verify it via Schnorr signature check without querying the issuer's database.
+
+This is a deliberate design choice. In an era of autonomous agents capable of generating unlimited synthetic identities at near-zero cost, gated participation is the only credible spam defense for a coordination primitive whose value depends on genuine human signal. The alternative — weighted provenance where anyone can voice and quality is evaluated at the edge — breaks down when attackers can cheaply simulate organic engagement histories.
+
 ### Voice vs. Subscription
 
 | | Subscription | Voice |
 |---|---|---|
 | **Visibility** | Private (only you and relay) | Public (anyone can see) |
 | **Purpose** | "Notify me about this" | "I stand behind this" |
-| **Sybil resistance** | Not needed | Needed |
+| **Requires attestation** | No | Yes |
 | **Counts toward thresholds** | No | Yes |
 
-This mirrors civic life: watching a council meeting is private. Standing up to speak is public.
+This mirrors civic life: watching a council meeting is private and open to anyone. Standing up to speak is public and requires showing up.
 
 ### Voice Structure
 
@@ -217,80 +221,64 @@ This mirrors civic life: watching a council meeting is private. Standing up to s
 
 A voice is signed by the user's keypair. One key, one voice per entity. Voices are immutable once cast (but can be revoked by the same key).
 
-### Provenance-Based Trust
+### Gated Attestation
 
-Instead of gatekeeping who can voice, the protocol makes voice quality transparent and lets trust evaluation happen at the edge.
+Voices and comments require a valid attestation proof. The relay rejects submissions without one (403) or with a forged/invalid one (400).
 
-**Key provenance record** (maintained by relay, publicly queryable):
+**How it works:** Each voice and comment embeds the full kind-30850 attestation event — a Nostr event signed by the jurisdiction's issuer keypair. The relay verifies six properties before accepting a voice:
 
-```json
-{
-  "key": "did:key:z6Mkf5r...",
-  "provenance": {
-    "created": "2025-08-14",
-    "total_voices": 23,
-    "initiatives_touched": 12,
-    "first_voice": "2025-09-01",
-    "jurisdictions": ["city-san-rafael"],
-    "vouched_by": ["did:key:z7Nka3...", "did:key:z8Plb9..."],
-    "attestations": [
-      {
-        "issuer": "city-san-rafael",
-        "type": "physical",
-        "issued": "2026-01-15",
-        "expires": "2026-02-15"
-      }
-    ]
-  }
-}
-```
+1. **Kind check** — Event is kind 30850
+2. **Issuer check** — Signed by the jurisdiction's issuer keypair, not the subject
+3. **d-tag check** — Matches `attest:{jurisdiction}:{subject_pubkey}`
+4. **Required tags** — Has `["p", subject_pubkey]` and `["j", jurisdiction]`
+5. **Event ID** — Recomputed hash matches the claimed ID
+6. **Schnorr signature** — Valid BIP-340 signature over the event
 
-**Provenance signals:**
+This is a write-time check. Once a voice is stored, determining attestation status is trivial (`attestation_proof IS NOT NULL`) — no JOINs, no cross-table lookups, no external queries.
 
-| Signal | What It Means | Sybil Cost |
-|--------|---------------|------------|
-| **Key age** | Key created months/years ago | Time (can't fast-forward) |
-| **Voice history** | Diverse engagement across initiatives | Sustained effort per fake identity |
-| **Vouching** | Existing voices attest to this key | Social capital |
-| **Physical attestation** | Presented key at civic center | Physical presence |
-| **Device attestation** | Key bound to hardware device | Device acquisition (~$25-500) |
-| **Pattern** | Organic engagement vs. burst creation | Behavioral consistency |
+**Why embed the proof rather than JOIN against an attestation table:**
 
-No single signal is definitive. The user's agent weighs them in combination:
+| Approach | Read complexity | Federation | Verification |
+|----------|----------------|------------|--------------|
+| JOIN at read time | O(n) per query, cross-table | Requires shared attestation DB | Only issuer relay can verify |
+| Embed at write time | O(1) — field presence check | Self-contained, portable | Any relay can verify independently |
 
-```
-Agent receives: "Initiative X reached 40 voices"
+Embedding makes voices **self-verifying artifacts**. A voice received via federation carries its own proof of attestation. The receiving relay verifies the Schnorr signature and accepts or rejects — no trust relationship with the originating relay required.
 
-Agent evaluates provenance:
-  28 keys older than 90 days, diverse history    → high quality
-  8 keys created this week, no prior voices      → low quality
-  4 keys with physical attestation               → high quality
-  6 keys with device attestation                 → medium-high quality
-  No burst patterns detected                     → organic growth
+### Provenance (Complementary Signals)
 
-Agent decides: "This is real momentum, notify user"
-```
+Attestation is the gate. Provenance provides additional context for agents and users evaluating voice quality. Key provenance records (kind 10800) are still maintained by the relay:
 
-### Physical Attestation (Optional)
+| Signal | What It Means |
+|--------|---------------|
+| **Key age** | How long the key has existed |
+| **Voice history** | Diversity of engagement across entities |
+| **Vouching** | Other attested keys vouch for this key |
+| **Attestation type** | Physical, device, or both |
 
-Cities can offer physical attestation as an optional trust signal. This is not required for voicing — it's an additional provenance indicator.
+These signals are informational — they don't affect the gate. An attested key with one day of history passes the same gate as an attested key with a year of history. But agents and organizers may weigh them differently when evaluating momentum quality.
+
+### Physical Attestation
+
+Physical attestation is the primary mechanism for the pilot. A volunteer distributes single-use codes at in-person events. The code is redeemed in the browser extension, producing a kind-30850 Nostr event signed by the jurisdiction's issuer keypair and stored locally. This event is the attestation proof that accompanies every subsequent voice and comment.
 
 **Flow:**
 
-1. User generates keypair locally (phone, agent)
-2. User presents public key at civic center (QR code, NFC, kiosk)
-3. City signs the public key: "This key was presented at San Rafael Civic Center, Jan 2026"
-4. Attestation stored in provenance, expires monthly
-5. City never sees what the key voices on; relay never sees who got attested
+1. User generates keypair locally (browser extension)
+2. Volunteer gives user a single-use code at a community event
+3. User redeems code in the extension — relay signs a kind-30850 event binding the user's pubkey to the jurisdiction
+4. Extension stores the signed attestation event locally
+5. Every voice/comment includes this event as `attestation_proof`
+6. City never sees what the key voices on; relay never sees who got attested at the event
 
 **Design requirements:**
-- Kiosk must be deliberately amnesiac (sign and forget, no logging)
-- Multiple attestation venues (civic center, libraries, community events) to avoid equity barriers
-- Attestation is one signal among many, not a gatekeeper
+- One code per person, distributed via human judgment (no ID required)
+- Multiple distribution venues (council meetings, farmer's markets, libraries, community events) to avoid equity barriers
+- Codes are physical-presence-only — never distributed electronically
 
-### Device Attestation (Optional)
+### Device Attestation (Future)
 
-Device attestation binds a keypair to hardware, making Sybil attacks require additional physical devices rather than just generating more keys.
+Device attestation binds a keypair to hardware, making Sybil attacks require additional physical devices rather than just generating more keys. This would be an additional attestation method alongside physical attestation — both produce kind-30850 events that satisfy the gate.
 
 **Concept:** One attested device → one keypair (or limited keypairs per device)
 
@@ -329,7 +317,7 @@ Device attestation binds a keypair to hardware, making Sybil attacks require add
 
 **Design requirements:**
 
-- Device attestation is optional — keys without it still work, just with lower provenance weight
+- Device attestation produces a valid kind-30850 event, same as physical attestation
 - Device identity must be opaque (hashed or anonymized) — relay cannot track devices across keys
 - Support multiple methods to avoid single-platform gatekeeping
 - Shared device handling: libraries and community centers may need "kiosk mode" with limited attestation weight
@@ -357,7 +345,7 @@ Key with both attestations:
 Sybil cost: (device cost) × (travel cost) × (time cost)
 ```
 
-**Status:** Future consideration (post-pilot). Physical attestation is simpler to implement and sufficient for pilot-scale validation. Device attestation becomes valuable at scale where physical venue capacity becomes a bottleneck.
+**Status:** Future consideration (post-pilot). Physical attestation is implemented and sufficient for pilot-scale validation. Device attestation becomes valuable at scale where physical venue capacity becomes a bottleneck.
 
 ### Entity Namespaces
 
@@ -698,13 +686,12 @@ Web chat interface with user-controlled filtering.
 
 **Implementation items tracked in:** `pilot.json` under `edge_intelligence`
 
-### Phase 4: Full Provenance (Post-Pilot)
+### Phase 4: Expanded Attestation Methods (Post-Pilot)
 
-Expanded trust signals if pilot validates.
+Additional attestation methods if pilot validates.
 
 **Scope:**
-- Physical attestation at civic centers
-- Device attestation via WebAuthn/platform APIs
+- Device attestation via WebAuthn/platform APIs (complements physical attestation)
 - Vouching system (kind 1800)
 - Key linking for migration (kind 1802)
 
@@ -713,13 +700,16 @@ Expanded trust signals if pilot validates.
 The relay uses PostgreSQL with the following tables (see `packages/civicos-relay/schema.sql`):
 
 ```sql
--- Voices: signed expressions of civic interest
+-- Voices: signed expressions of civic interest (attestation-gated)
 coordination_voices (
     entity VARCHAR(255),           -- "agenda:2026-02-03:item-6a"
     stance VARCHAR(20),            -- support | oppose | watching
-    public_key VARCHAR(255),       -- ECDSA public key (hex)
-    signature TEXT,                -- Signature of entity+stance
+    public_key VARCHAR(255),       -- secp256k1 public key (hex)
+    signature TEXT,                -- Schnorr signature of entity+stance
+    attestation_proof JSONB,       -- Full kind-30850 event (required)
+    jurisdiction TEXT,             -- Jurisdiction code
     timestamp TIMESTAMPTZ,
+    created_at INTEGER,            -- Unix timestamp from signed Nostr event
     revoked BOOLEAN,
     UNIQUE (public_key, entity)    -- One voice per key per entity
 )
@@ -1038,14 +1028,13 @@ If pilot validates coordination hypothesis, expand relay:
 - Subscription management API
 - Rate limiting and abuse prevention
 
-### Phase 3: Full Voice + Provenance (Post-Pilot)
+### Phase 3: Expanded Voice + Provenance (Post-Pilot)
 
 If coordination shows value, expand voice system:
 
 - DID:key migration for standards compliance
 - Vouching system (existing keys vouch for new keys)
-- Physical attestation infrastructure (optional, city-provided)
-- Device attestation via WebAuthn/platform APIs (optional, complements physical)
+- Device attestation via WebAuthn/platform APIs (complements physical attestation)
 - Threshold event triggers
 
 ### Phase 4: Edge Intelligence (Future)
@@ -1266,7 +1255,7 @@ What happened behind the scenes:
 | "What's happening" | Agent queried Jurisdiction MCP (`get_upcoming_meetings()`) |
 | "I care about this" | Agent generated keypair, stored locally |
 | "Yes, notify me" | Agent subscribed to city relay (topic + geography filter) |
-| "I support it" | Agent signed and cast voice on relay entity |
+| "I support it" | Agent signed voice + attached attestation proof, cast on relay |
 
 The user made zero protocol decisions. No relay selection, no key management, no understanding of federation.
 
@@ -1402,9 +1391,9 @@ Each question goes one layer deeper. The default experience never requires going
 
 2. **Intelligence at the edges.** The relay routes. The agent reasons. Users control the intelligence.
 
-3. **Transparency over gatekeeping.** Don't prevent low-quality voices — make voice quality legible. Trust evaluation happens at the edge.
+3. **Gated voice, open observation.** Subscribing to events and reading civic data is permissionless. Voicing and commenting — the actions that produce coordination signals — require attestation. This prevents autonomous agents from flooding the system with synthetic participation while keeping civic awareness open to everyone.
 
-4. **Permissionless with optional attestation.** Anyone can subscribe and voice from day one. Physical attestation adds signal but isn't required.
+4. **Attestation as spam defense, not identity verification.** Attestation proves physical presence at a community event, not legal identity. No government ID required. The gate is set at a level that makes automated spam uneconomical (physical presence per identity) while remaining inclusive (undocumented residents, minors, anyone who shows up).
 
 5. **Collaborative signals, individual reasoning.** The relay provides what other people are doing (public). The agent provides why it matters to you (private). Neither alone is sufficient.
 
@@ -1427,8 +1416,8 @@ Journalist agent monitors 20 Bay Area city relays
 
 Detects:
   "initiative:san-rafael:affordable-housing crossed 45 voices
-   but 30 appeared in a 2-hour window, all first-time keys,
-   no attestations"
+   in a 2-hour window — all attested, but provenance shows
+   30 keys created this week with no prior voice history"
 
 Agent calls Jurisdiction MCP:
   search_meeting_history("affordable housing")
@@ -1571,4 +1560,4 @@ The protocol is the novel contribution. Civic data extraction is valuable but no
 
 - **Commercial agent ethics.** Should lobbyist or corporate agents be allowed to voice? They can subscribe (public data), but voicing implies civic standing. Provenance transparency helps — a corporate key is identifiable — but the protocol may need norms or guidance on commercial participation beyond transparency.
 
-- **Sybil resistance at scale.** The protocol chooses "transparency over gatekeeping" — anyone can generate unlimited keys, and provenance signals make voice quality visible rather than preventing low-quality voices. This works when Sybil attacks are unsophisticated (burst patterns, new keys). But a motivated attacker can generate keys months in advance, build fake engagement history, and obtain physical/device attestations for each. At what scale does this become a real threat? Is provenance transparency sufficient, or does the protocol eventually need stronger identity binding? The bet is that local civic issues rarely attract adversarial investment, but state/federal issues or well-funded astroturfing campaigns may require additional defenses.
+- **Sybil resistance at scale.** Gated attestation raises the cost of Sybil attacks from near-zero (generate keys) to physical presence per identity. This is sufficient for local civic issues where adversarial investment is low. But a motivated attacker can attend multiple distribution events across venues to accumulate codes. At state/federal scale or for well-funded astroturfing campaigns, physical attestation alone may be insufficient. Device attestation (post-pilot) adds a complementary hardware constraint. The open question is whether the combination of physical + device attestation provides sufficient Sybil resistance at scale, or whether additional mechanisms (rate limiting, anomaly detection, social graph analysis) are needed.

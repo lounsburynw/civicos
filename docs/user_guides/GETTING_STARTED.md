@@ -121,9 +121,9 @@ Your comments become part of the public record.
 
 ---
 
-## Verify Your Identity (Optional)
+## Verify Your Identity (Required for Voicing/Commenting)
 
-If you receive an attestation code at a local event, you can enter it in the CivicOS extension settings. This marks your participation as "attested" — proving you're a real community member who showed up in person. No ID required, and unattested users can still fully participate. See the [Attestation Guide](ATTESTATION_GUIDE.md) for details.
+To voice or comment on civic items, you need an attestation code from a local event. Enter the code in the CivicOS extension settings (Options > Attestation). This produces a cryptographic proof that you're a real community member — the extension embeds this proof on every voice and comment you submit. No government ID required; physical presence at a distribution event is sufficient. You can browse all civic data without attestation. See the [Attestation Guide](ATTESTATION_GUIDE.md) for details.
 
 ---
 

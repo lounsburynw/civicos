@@ -39,6 +39,7 @@ CivicOS implements a full NIP-01 compliant relay with civic extensions. Users ma
 | 30810 | Addressable | Civic Action (defined tasks) | 🚧 In Progress |
 | 30811 | Addressable | Civic Commitment (intent to act) | 🚧 In Progress |
 | 30812 | Addressable | Civic Completion (evidence) | 🚧 In Progress |
+| 30850 | Addressable | Civic Attestation (jurisdiction-signed proof) | ✅ Complete |
 | 10800 | Replaceable | Civic Provenance (reputation) | ✅ Complete |
 | 1800 | Regular | Civic Vouch (social attestation) | ✅ Complete |
 | 1801 | Regular | Civic Event Notification | ✅ Complete |
@@ -74,6 +75,8 @@ A citizen's stance on a civic entity. Addressable by `kind:pubkey:d-tag`.
 
 **Behavior:**
 - One voice per pubkey per entity (addressable)
+- **Requires `attestation_proof`** — a valid kind-30850 event signed by the jurisdiction's issuer (see Kind 30850 below)
+- Relay rejects voices without attestation_proof (403) or with invalid/forged proof (400)
 - Revocation: publish with `content: "revoked"`
 - Newer events replace older ones
 
@@ -343,6 +346,49 @@ Evidence that an action was completed. Addressable by `kind:pubkey:d-tag`.
 - Completion updates the corresponding commitment status to `completed`
 - Multiple completions by same pubkey for same action are ignored (idempotent)
 
+### Kind 30850: Civic Attestation
+
+Jurisdiction-signed proof that a pubkey belongs to a verified community member. Produced when a user redeems a single-use attestation code. The event is signed by the jurisdiction's issuer keypair (not the subject). Addressable by `kind:pubkey:d-tag`.
+
+```json
+{
+  "kind": 30850,
+  "pubkey": "<jurisdiction issuer pubkey>",
+  "created_at": 1739520000,
+  "tags": [
+    ["d", "attest:city-san-rafael:<subject_pubkey>"],
+    ["p", "<subject_pubkey>"],
+    ["j", "city-san-rafael"],
+    ["type", "physical"]
+  ],
+  "content": "civicos:attestation:v1:city-san-rafael:physical:1739520000",
+  "sig": "<64-byte schnorr signature>"
+}
+```
+
+**Required Tags:**
+- `d`: Attestation identifier (`attest:{jurisdiction}:{subject_pubkey}`)
+- `p`: Subject's public key (the user being attested)
+- `j`: Jurisdiction code
+- `type`: Attestation method (`physical`, `device`)
+
+**Behavior:**
+- Signed by the **jurisdiction issuer**, not the subject — this is what makes it an authority-issued credential
+- One attestation per pubkey per jurisdiction (addressable by d-tag)
+- Embedded on every voice (kind 30800) and comment as `attestation_proof`
+- Any relay can verify independently: recompute event ID, check Schnorr signature against issuer pubkey
+- The issuer pubkey for each jurisdiction is published in the CivicOS registry
+
+**Verification (6 checks):**
+1. Kind is 30850
+2. Signed by the jurisdiction's issuer (not the subject)
+3. d-tag matches `attest:{jurisdiction}:{subject_pubkey}`
+4. Has required `["p", subject_pubkey]` and `["j", jurisdiction]` tags
+5. Recomputed event ID matches claimed ID
+6. Schnorr signature is valid
+
+---
+
 ### Action Accounting
 
 Relays maintain derived views showing progress toward targets:
@@ -523,6 +569,7 @@ Response:
 | Event Models (Voice/Entity/Sub) | ✅ Complete | Kinds 30800-30802 |
 | Event Models (Provenance/Vouch) | ✅ Complete | Kinds 10800, 1800-1802 |
 | Event Models (Action Primitives) | 🚧 In Progress | Kinds 30810-30812 |
+| Attestation (Kind 30850) | ✅ Complete | Gated voice/comment, embedded proof |
 | Storage Layer | ✅ Complete | PostgreSQL + indexes |
 | WebSocket Relay | ✅ Complete | NIP-01 compliant |
 | Key Link Attestation | ✅ Complete | Dual-sig validation |

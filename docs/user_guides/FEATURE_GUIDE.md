@@ -349,11 +349,11 @@ Each transcript excerpt shows:
 
 ### Verify Your Identity
 
-**Purpose:** Prove you're a real community member to add weight to your participation.
+**Purpose:** Required to voice or comment on civic items. Proves you're a real community member.
 
 **When to use:**
+- Before you can voice or comment for the first time
 - You received an attestation code at a local event
-- You want your voices and comments to carry more credibility
 
 **How it works:**
 
@@ -363,14 +363,14 @@ Each transcript excerpt shows:
 4. **Click "Verify Code"** — you'll see a green badge confirming attestation
 
 **What changes:**
-- Your voices, comments, and initiatives are marked as "attested"
-- Participation displays show attested vs. unattested counts (e.g., "18 attested, 5 unattested")
-- Unattested users can still fully participate — attestation adds credibility, not permission
+- You can now voice and comment on civic items (the extension blocks these actions without attestation)
+- Your proof is embedded on every voice and comment, verifiable by any relay
 
 **Tips:**
 - Each code works once — don't share it
 - Attestation binds to your identity key — if you reset your key, you'll need a new code
 - No government ID is required. Physical presence at an event is sufficient.
+- You can still browse all civic data (meetings, decisions, agendas) without attestation
 
 For detailed information, see the [Attestation Guide](ATTESTATION_GUIDE.md).
 

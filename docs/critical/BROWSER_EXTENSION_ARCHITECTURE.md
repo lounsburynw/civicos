@@ -323,19 +323,27 @@ window.nostr = {
 }
 ```
 
-### City Attestation Flow
+### Attestation Flow
 
-When a jurisdiction supports attestation (city SSO → npub linking):
+Attestation is **required** to voice or comment. The relay rejects submissions without a valid attestation proof (403) or with a forged one (400). Unattested users can still browse civic data and subscribe to notifications.
+
+**Current (pilot — physical attestation via single-use codes):**
+
+1. User gets a single-use code from a volunteer at a community event
+2. User enters code in extension Options > Attestation
+3. Relay signs a kind-30850 Nostr event binding the user's npub to the jurisdiction
+4. Extension stores the full attestation event locally
+5. Side panel shows attestation status: "Attested for San Rafael"
+6. Every voice and comment embeds this event as `attestation_proof`
+7. Relay verifies the proof (Schnorr signature, issuer check, tag validation) before accepting
+
+**Future (city SSO attestation):**
 
 1. User visits `civic.sanrafael.gov/verify` (or similar city-hosted page)
-2. City page authenticates user via LDAP/SSO (proves residency)
+2. City page authenticates user via LDAP/SSO
 3. Extension presents its npub to the city page (via content script or NIP-07)
-4. City backend signs a Nostr event (kind `30850`): "npub1q7k... is a verified San Rafael resident"
-5. Extension stores the attestation event ID
-6. Side panel shows attestation status: "Verified San Rafael resident"
-7. Voices cast by this npub carry the attestation signal on the relay
-
-The attestation is **additive** (trust signal), not **gate-keeping** (the relay is permissionless). Unattested voices are still accepted — they simply carry less provenance weight.
+4. City backend signs a kind-30850 event: "npub1q7k... is a verified San Rafael resident"
+5. Extension stores the attestation event, same flow as physical attestation from there
 
 ## MCP Connection Management
 
