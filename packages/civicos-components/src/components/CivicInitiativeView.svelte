@@ -11,6 +11,7 @@
     voice_count: number;
     creator_attested?: boolean;
     attested_voice_count?: number;
+    timestamp?: string;
   }
 
   interface CivicAction {
@@ -629,6 +630,20 @@
     URL.revokeObjectURL(url);
   }
 
+  // --- Public API ---
+
+  export function expandAndScrollTo(initiativeId: string) {
+    initiativesExpanded = true;
+    requestAnimationFrame(() => {
+      const el = document.getElementById(`ini-${initiativeId}`);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        el.classList.add('ini-highlighted');
+        setTimeout(() => el.classList.remove('ini-highlighted'), 2000);
+      }
+    });
+  }
+
   // --- Load on mount ---
   loadInitiatives();
   loadCommitments();
@@ -731,7 +746,8 @@
         </div>
       {:else}
         {#each initiatives as initiative}
-          <div class="ini-card" class:ini-card-expanded={expandedInitiatives.has(initiative.id)}
+          <div class="ini-card" id="ini-{initiative.id}"
+               class:ini-card-expanded={expandedInitiatives.has(initiative.id)}
                class:dragging={draggingId === initiative.id}
                draggable="true"
                ondragstart={(e: DragEvent) => handleDragStart(e, initiative)}
@@ -957,6 +973,10 @@
   .ini-card:active { cursor: grabbing; }
   .ini-card.dragging { opacity: 0.4; border-color: #4b5563; }
   .ini-card-expanded { border-color: #374151; }
+  :global(.ini-highlighted) {
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.15);
+    transition: box-shadow 0.3s ease;
+  }
 
   .ini-empty {
     font-size: 12px;
