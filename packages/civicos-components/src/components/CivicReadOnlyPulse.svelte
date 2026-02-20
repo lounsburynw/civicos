@@ -1,5 +1,6 @@
 <script lang="ts">
   import CivicMeetingCard from './CivicMeetingCard.svelte';
+  import CivicProcessBar from './CivicProcessBar.svelte';
   import CivicVoiceButtons from './CivicVoiceButtons.svelte';
   import CivicCommentThread from './CivicCommentThread.svelte';
   import { outcomeIcon, outcomeClass, formatRelativeDate, googleCalendarUrl, downloadIcs, computeCityFocalMeetings, urgencyClass as urgencyClassFn, meetingDaysUntil as meetingDaysUntilFn } from '../utils/civic-helpers.js';
@@ -118,6 +119,7 @@
   }
 
   let draggingId = $state<string | null>(null);
+  let shakingCardId = $state<string | null>(null);
   let expandedAbstracts = $state(new Set<string>());
 
   function truncate(text: string, max: number): string {
@@ -343,6 +345,38 @@
   let draftingInProgress = $state(new Set<string>());
   let enrichingInProgress = $state(new Set<string>());
   let hearingCalendarOpen = $state(new Set<string>());
+
+  // --- Official Comment Drafting (Federal Comment Periods) ---
+  let officialDrafts = $state(new Map<string, string>());
+  let officialDraftLoading = $state(new Set<string>());
+  let officialDraftCopied = $state(new Set<string>());
+
+  // --- Attention bar: time-sensitive items ---
+  type AttentionItem = { title: string; when: string; section: string };
+  const attentionItems = $derived.by(() => {
+    const items: AttentionItem[] = [];
+    for (const p of data.comment_periods ?? []) {
+      if (p.days_remaining >= 0) {
+        items.push({ title: p.title, when: p.days_remaining === 0 ? 'Closes today' : p.days_remaining === 1 ? '1 day left' : `${p.days_remaining} days left`, section: 'commentPeriods' });
+      }
+    }
+    for (const h of data.upcoming_hearings ?? []) {
+      items.push({ title: h.bill_name || h.bill_number || h.bill_id, when: h.days_until === 0 ? 'Today' : h.days_until === 1 ? 'Tomorrow' : `In ${h.days_until} days`, section: 'hearings' });
+    }
+    for (const b of data.governors_desk ?? []) {
+      items.push({ title: b.bill_name || b.bill_number || b.bill_id, when: 'Awaiting signature', section: 'governorsDesk' });
+    }
+    return items;
+  });
+  const hasAttention = $derived(attentionItems.length > 0);
+
+  function scrollToSection(section: string) {
+    expanded[section] = true;
+    requestAnimationFrame(() => {
+      const el = document.querySelector(`[data-section="${section}"]`);
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  }
 
   function getSynthesis(entityId: string): CommentSynthesis | null {
     return localSynthData.get(entityId) ?? parentSynthData.get(entityId) ?? null;
@@ -585,6 +619,67 @@
     enrichingInProgress = new Set(enrichingInProgress);
   }
 
+  // --- Official Comment Drafting ---
+
+  async function handleDraftOfficialComment(period: { document_number: string; title: string; abstract?: string; agency_names: string[]; comments_close_on: string; comment_url?: string; days_remaining: number }) {
+    const key = period.document_number;
+    if (officialDrafts.has(key)) return; // already drafted
+    if (!session?.askQuestion) return;
+
+    officialDraftLoading.add(key);
+    officialDraftLoading = new Set(officialDraftLoading);
+
+    const stance = userStances.get(`rule:${key}`);
+    const stanceText = stance ? ` The commenter's stance: ${stance}.` : '';
+    const abstractText = period.abstract ? `\n\nRule summary: ${period.abstract}` : '';
+
+    const prompt = `Draft a formal public comment for this federal rulemaking:
+
+Title: ${period.title}
+Agency: ${period.agency_names.join(', ')}
+Docket: ${period.document_number}
+Comment deadline: ${period.comments_close_on}${abstractText}${stanceText}
+
+Write as a concerned member of the public. Structure the comment:
+1. Opening — state your position on the proposed rule
+2. Specific concerns — address provisions in the rule, cite impacts
+3. Personal/community impact — how this affects real people
+4. Recommendation — what the agency should do
+
+Keep it substantive but accessible (150-300 words). Reference the docket number. Be respectful and specific — agencies must respond to substantive comments. Output only the comment text.`;
+
+    try {
+      const draft = await session.askQuestion(prompt);
+      if (draft) {
+        officialDrafts.set(key, draft);
+        officialDrafts = new Map(officialDrafts);
+      } else {
+        ontoast?.('Failed to draft comment');
+      }
+    } catch {
+      ontoast?.('Failed to draft comment');
+    }
+
+    officialDraftLoading.delete(key);
+    officialDraftLoading = new Set(officialDraftLoading);
+  }
+
+  async function handleCopyOfficialDraft(key: string) {
+    const draft = officialDrafts.get(key);
+    if (!draft) return;
+    try {
+      await navigator.clipboard.writeText(draft);
+      officialDraftCopied.add(key);
+      officialDraftCopied = new Set(officialDraftCopied);
+      setTimeout(() => {
+        officialDraftCopied.delete(key);
+        officialDraftCopied = new Set(officialDraftCopied);
+      }, 2000);
+    } catch {
+      ontoast?.('Failed to copy — try selecting the text manually');
+    }
+  }
+
   // --- Calendar helpers for hearings ---
 
   function hearingToMeeting(hearing: { bill_id: string; bill_number?: string; bill_name?: string; event_date: string; committee?: string; location?: string }): { title: string; date: string; time: string; location: string; meeting_datetime: string } {
@@ -602,6 +697,15 @@
 
   // --- Section hints by level ---
 
+  // Map outcome strings to process stage for the process bar
+  function outcomeToStage(outcome: string): string {
+    const lower = outcome.toLowerCase();
+    if (lower.includes('signed') || lower.includes('enacted')) return 'governor';
+    if (lower.includes('passed') || lower.includes('approved') || lower.includes('adopted') || lower.includes('enrolled')) return 'vote';
+    if (lower === 'on_agenda' || lower.includes('upcoming')) return 'committee';
+    return 'vote'; // default for completed items
+  }
+
   const meetingsHint = $derived(
     isLegislative ? '' : 'Attend public meetings or submit written comments to shape local decisions'
   );
@@ -613,18 +717,35 @@
   );
 </script>
 
-<!-- Focal Points: Time-sensitive participation opportunities (shown first) -->
-{#if hasFocalPoints}
-  <div class="focal-points-group">
-    <div class="focal-points-label">Take Action</div>
+<!-- Attention Bar: time-sensitive items (compact links) -->
+{#if hasAttention}
+  <div class="attention-bar">
+    <div class="attention-title">Upcoming Actionable Items</div>
+    <div class="attention-items">
+      {#each attentionItems as item}
+        <button class="attention-item" onclick={() => scrollToSection(item.section)}>
+          <span class="attention-pip"></span>
+          <span class="attention-item-title">{item.title}</span>
+          <span class="attention-when">{item.when}</span>
+        </button>
+      {/each}
+    </div>
+  </div>
+{/if}
 
+<!-- Official data sections -->
+{#if isLegislative}
+  <div class="group-header">Official</div>
+{/if}
+
+{#if hasFocalPoints}
     <!-- Comment Periods (Federal) -->
     {#if hasCommentPeriods}
-      <section class="feed-section">
+      <section class="feed-section" data-section="commentPeriods">
         <button class="section-header" onclick={() => toggle('commentPeriods')}>
           <span class="section-title">
             Comment Periods
-            <span class="count-badge focal-badge">{data.comment_periods!.length}</span>
+            <span class="count-badge">{data.comment_periods!.length}</span>
           </span>
           <span class="chevron" class:open={expanded.commentPeriods}></span>
         </button>
@@ -634,10 +755,12 @@
             {#each data.comment_periods! as period}
               {@const eid = `rule:${period.document_number}`}
               {@const counts = voiceCounts.get(eid)}
-              <div class="card focal-card" class:dragging={draggingId === period.document_number}
+              <div class="card" class:dragging={draggingId === period.document_number}
+                   class:shaking={shakingCardId === period.document_number}
                    draggable="true"
                    ondragstart={(e: DragEvent) => handleDragStart(e, composeCommentPeriodContext(period), period.document_number)}
                    ondragend={handleDragEnd}>
+                <CivicProcessBar level="federal" stage="comment" />
                 <div class="card-title">{period.title}</div>
                 <div class="card-meta">
                   <span>{period.agency_names.join(', ')}</span>
@@ -676,17 +799,6 @@
                     {/if}
                   </div>
                 {/if}
-                <div class="card-actions">
-                  {#if period.comment_url && period.days_remaining >= 0}
-                    <a href={period.comment_url} target="_blank" rel="noopener" class="action-link comment-link">Submit Official Comment</a>
-                  {/if}
-                  {#if period.html_url}
-                    <a href={period.html_url} target="_blank" rel="noopener" class="action-link">Read Rule</a>
-                  {/if}
-                  {#if period.pdf_url}
-                    <a href={period.pdf_url} target="_blank" rel="noopener" class="action-link">PDF</a>
-                  {/if}
-                </div>
                 {#if onvoice && period.days_remaining >= 0}
                   <div class="card-voice">
                     <CivicVoiceButtons
@@ -702,6 +814,61 @@
                     <span class="voice-count-badge">{counts.total} voice{counts.total !== 1 ? 's' : ''} recorded</span>
                   </div>
                 {/if}
+                <!-- Action button row (matches city tab) -->
+                {#if period.days_remaining >= 0}
+                  <div class="action-btn-row">
+                    {#if aiAvailable && !officialDrafts.has(period.document_number)}
+                      <button class="action-btn action-btn-draft" disabled={officialDraftLoading.has(period.document_number)} onclick={() => handleDraftOfficialComment(period)}>
+                        <span class="sparkle">&#x2726;</span> {officialDraftLoading.has(period.document_number) ? 'Drafting...' : 'Draft with AI'}
+                      </button>
+                    {/if}
+                    {#if period.comment_url}
+                      <a href={period.comment_url} target="_blank" rel="noopener" class="action-btn action-btn-official">
+                        <svg class="action-btn-icon" width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M14 4.5L8 9 2 4.5M2 4v8h12V4H2z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>
+                        Submit Official Comment
+                      </a>
+                    {/if}
+                    <button class="action-btn action-btn-unofficial" class:active={openThreads.has(eid)} onclick={() => toggleCommentThread(eid)}>
+                      <svg class="action-btn-icon" width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M2 3h12v7H5l-3 3V3z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>
+                      Unofficial Comment
+                      {#if (parentCommentCounts.get(eid)?.count || 0) > 0}<span class="action-btn-count">{parentCommentCounts.get(eid)?.count}</span>{/if}
+                      <span class="action-btn-chevron" class:open={openThreads.has(eid)}></span>
+                    </button>
+                  </div>
+                {/if}
+                {#if officialDrafts.has(period.document_number)}
+                  <div class="official-draft">
+                    <div class="official-draft-header">
+                      <span class="official-draft-label">Draft Official Comment</span>
+                      <div class="official-draft-actions">
+                        <button class="official-draft-copy" onclick={() => handleCopyOfficialDraft(period.document_number)}>
+                          {officialDraftCopied.has(period.document_number) ? 'Copied!' : 'Copy'}
+                        </button>
+                        <button class="official-draft-discard" onclick={() => { officialDrafts.delete(period.document_number); officialDrafts = new Map(officialDrafts); }}>Discard</button>
+                      </div>
+                    </div>
+                    <textarea class="official-draft-text" rows="8"
+                      oninput={(e: Event) => { officialDrafts.set(period.document_number, (e.target as HTMLTextAreaElement).value); officialDrafts = new Map(officialDrafts); }}
+                    >{officialDrafts.get(period.document_number)}</textarea>
+                    {#if period.comment_url}
+                      <div class="official-draft-submit">
+                        <span class="official-draft-hint">Edit above, copy, then paste into the official form:</span>
+                        <a href={period.comment_url} target="_blank" rel="noopener" class="action-btn action-btn-official" style="flex: none; padding: 5px 12px;">Submit on regulations.gov</a>
+                      </div>
+                    {/if}
+                  </div>
+                {/if}
+                {#if (period.html_url || period.pdf_url)}
+                  <div class="card-secondary-links">
+                    {#if period.html_url}
+                      <a href={period.html_url} target="_blank" rel="noopener" class="secondary-link">Read Rule</a>
+                    {/if}
+                    {#if period.pdf_url}
+                      <a href={period.pdf_url} target="_blank" rel="noopener" class="secondary-link">PDF</a>
+                    {/if}
+                  </div>
+                {/if}
+                <!-- Comment Thread (unofficial) -->
                 {#if session}
                   <CivicCommentThread
                     entityId={eid}
@@ -741,15 +908,21 @@
                       disabled={aiResponseLoading.has(`ask-focal:${period.document_number}`)}
                       onclick={() => askFocalAI(`ask-focal:${period.document_number}`, composeCommentPeriodContext(period))}
                     >
-                      <span class="sparkle">&#x2726;</span> {aiResponseLoading.has(`ask-focal:${period.document_number}`) ? 'Thinking...' : aiResponses.has(`ask-focal:${period.document_number}`) ? 'Hide' : activeProviderName || 'Ask AI'}
+                      <span class="sparkle">&#x2726;</span> {aiResponseLoading.has(`ask-focal:${period.document_number}`) ? 'Thinking...' : aiResponses.has(`ask-focal:${period.document_number}`) ? 'Hide' : 'Summary'}
                     </button>
                   {/if}
                   {#if onopenexternalai}
-                    <button class="ai-action-btn ai-action-claude" class:solo={!aiAvailable} onclick={(e: MouseEvent) => onopenexternalai?.({ context: composeCommentPeriodContext(period), event: e })}>
+                    <button class="ai-action-btn ai-action-claude" class:solo={!aiAvailable} onclick={(e: MouseEvent) => { onopenexternalai?.({ context: composeCommentPeriodContext(period), event: e }); shakingCardId = period.document_number; setTimeout(() => { shakingCardId = null; }, 2500); }}>
                       Claude <span class="ext-icon">&#x2197;</span>
                     </button>
                   {/if}
                 </div>
+                {#if shakingCardId === period.document_number}
+                  <div class="drag-hint">
+                    <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M8 2v12M8 2L5 5M8 2l3 3M2 8h12M2 8l3-3M2 8l3 3M14 8l-3-3M14 8l-3 3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    Drag this card into Claude's input
+                  </div>
+                {/if}
                 {#if aiResponses.has(`ask-focal:${period.document_number}`)}
                   <div class="ai-response">
                     <div class="ai-response-text prose">{@html renderMarkdown(aiResponses.get(`ask-focal:${period.document_number}`) ?? '')}</div>
@@ -765,11 +938,11 @@
 
     <!-- Upcoming Hearings (State) -->
     {#if hasHearings}
-      <section class="feed-section">
+      <section class="feed-section" data-section="hearings">
         <button class="section-header" onclick={() => toggle('hearings')}>
           <span class="section-title">
             Upcoming Hearings
-            <span class="count-badge focal-badge">{data.upcoming_hearings!.length}</span>
+            <span class="count-badge">{data.upcoming_hearings!.length}</span>
           </span>
           <span class="chevron" class:open={expanded.hearings}></span>
         </button>
@@ -779,10 +952,12 @@
             {#each data.upcoming_hearings! as hearing}
               {@const eid = billEntityId(hearing.bill_id)}
               {@const counts = voiceCounts.get(eid)}
-              <div class="card focal-card" class:dragging={draggingId === hearing.bill_id}
+              <div class="card" class:dragging={draggingId === hearing.bill_id}
+                   class:shaking={shakingCardId === hearing.bill_id}
                    draggable="true"
                    ondragstart={(e: DragEvent) => handleDragStart(e, composeHearingContext(hearing), hearing.bill_id)}
                    ondragend={handleDragEnd}>
+                <CivicProcessBar level="state" stage="hearing" />
                 <div class="meeting-top-row">
                   <div class="card-title">{hearing.bill_number || hearing.bill_id}</div>
                   <button class="cal-btn" onclick={() => { hearingCalendarOpen.has(hearing.bill_id) ? hearingCalendarOpen.delete(hearing.bill_id) : hearingCalendarOpen.add(hearing.bill_id); hearingCalendarOpen = new Set(hearingCalendarOpen); }} title="Add to calendar">
@@ -824,11 +999,6 @@
                 {:else if hearing.description}
                   <div class="card-summary">{hearing.description}</div>
                 {/if}
-                {#if hearing.official_url}
-                  <div class="card-actions">
-                    <a href={hearing.official_url} target="_blank" rel="noopener" class="action-link">View Bill</a>
-                  </div>
-                {/if}
                 {#if onvoice}
                   <div class="card-voice">
                     <CivicVoiceButtons
@@ -838,6 +1008,24 @@
                       locked={!identity?.isUnlocked}
                       {onvoice}
                     />
+                  </div>
+                {/if}
+                <div class="action-btn-row">
+                  {#if aiAvailable}
+                    <button class="action-btn action-btn-draft" onclick={() => handleDraftFocal(eid, hearing.bill_name || hearing.bill_number || hearing.bill_id, composeHearingContext(hearing))} disabled={draftingInProgress.has(eid)}>
+                      <span class="sparkle">&#x2726;</span> {draftingInProgress.has(eid) ? 'Drafting...' : 'Draft with AI'}
+                    </button>
+                  {/if}
+                  <button class="action-btn action-btn-unofficial" class:active={openThreads.has(eid)} onclick={() => toggleCommentThread(eid)}>
+                    <svg class="action-btn-icon" width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M2 3h12v7H5l-3 3V3z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>
+                    Unofficial Comment
+                    {#if (parentCommentCounts.get(eid)?.count || 0) > 0}<span class="action-btn-count">{parentCommentCounts.get(eid)?.count}</span>{/if}
+                    <span class="action-btn-chevron" class:open={openThreads.has(eid)}></span>
+                  </button>
+                </div>
+                {#if hearing.official_url}
+                  <div class="card-secondary-links">
+                    <a href={hearing.official_url} target="_blank" rel="noopener" class="secondary-link">View Bill</a>
                   </div>
                 {/if}
                 {#if session}
@@ -870,7 +1058,6 @@
                     onsummarize={() => handleSummarize(eid, hearing.bill_number || hearing.bill_id)}
                   />
                 {/if}
-                <!-- AI action row -->
                 <div class="ai-action-row">
                   {#if aiAvailable}
                     <button
@@ -879,15 +1066,21 @@
                       disabled={aiResponseLoading.has(`ask-focal:${hearing.bill_id}`)}
                       onclick={() => askFocalAI(`ask-focal:${hearing.bill_id}`, composeHearingContext(hearing))}
                     >
-                      <span class="sparkle">&#x2726;</span> {aiResponseLoading.has(`ask-focal:${hearing.bill_id}`) ? 'Thinking...' : aiResponses.has(`ask-focal:${hearing.bill_id}`) ? 'Hide' : activeProviderName || 'Ask AI'}
+                      <span class="sparkle">&#x2726;</span> {aiResponseLoading.has(`ask-focal:${hearing.bill_id}`) ? 'Thinking...' : aiResponses.has(`ask-focal:${hearing.bill_id}`) ? 'Hide' : 'Summary'}
                     </button>
                   {/if}
                   {#if onopenexternalai}
-                    <button class="ai-action-btn ai-action-claude" class:solo={!aiAvailable} onclick={(e: MouseEvent) => onopenexternalai?.({ context: composeHearingContext(hearing), event: e })}>
+                    <button class="ai-action-btn ai-action-claude" class:solo={!aiAvailable} onclick={(e: MouseEvent) => { onopenexternalai?.({ context: composeHearingContext(hearing), event: e }); shakingCardId = hearing.bill_id; setTimeout(() => { shakingCardId = null; }, 2500); }}>
                       Claude <span class="ext-icon">&#x2197;</span>
                     </button>
                   {/if}
                 </div>
+                {#if shakingCardId === hearing.bill_id}
+                  <div class="drag-hint">
+                    <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M8 2v12M8 2L5 5M8 2l3 3M2 8h12M2 8l3-3M2 8l3 3M14 8l-3-3M14 8l-3 3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    Drag this card into Claude's input
+                  </div>
+                {/if}
                 {#if aiResponses.has(`ask-focal:${hearing.bill_id}`)}
                   <div class="ai-response">
                     <div class="ai-response-text prose">{@html renderMarkdown(aiResponses.get(`ask-focal:${hearing.bill_id}`) ?? '')}</div>
@@ -903,11 +1096,11 @@
 
     <!-- Governor's Desk (State) -->
     {#if hasGovernorsDesk}
-      <section class="feed-section">
+      <section class="feed-section" data-section="governorsDesk">
         <button class="section-header" onclick={() => toggle('governorsDesk')}>
           <span class="section-title">
             Awaiting Governor's Signature
-            <span class="count-badge action-badge">{data.governors_desk!.length}</span>
+            <span class="count-badge">{data.governors_desk!.length}</span>
           </span>
           <span class="chevron" class:open={expanded.governorsDesk}></span>
         </button>
@@ -917,22 +1110,18 @@
             {#each data.governors_desk! as bill}
               {@const eid = billEntityId(bill.bill_id)}
               {@const counts = voiceCounts.get(eid)}
-              <div class="card focal-card" class:dragging={draggingId === bill.bill_id}
+              <div class="card" class:dragging={draggingId === bill.bill_id}
+                   class:shaking={shakingCardId === bill.bill_id}
                    draggable="true"
                    ondragstart={(e: DragEvent) => handleDragStart(e, composeGovernorsDeskContext(bill), bill.bill_id)}
                    ondragend={handleDragEnd}>
+                <CivicProcessBar level="state" stage="governor" />
                 <div class="card-title">{bill.bill_number || bill.bill_id}</div>
                 {#if bill.bill_name}
                   <div class="card-subtitle">{bill.bill_name}</div>
                 {/if}
                 {#if bill.summary}
                   <div class="card-summary">{bill.summary}</div>
-                {/if}
-                <div class="card-leverage">Call the Governor's office to express support or opposition</div>
-                {#if counts && counts.total > 0}
-                  <div class="card-meta">
-                    <span class="voice-count-badge">{counts.total} voice{counts.total !== 1 ? 's' : ''}</span>
-                  </div>
                 {/if}
                 {#if onvoice}
                   <div class="card-voice">
@@ -945,6 +1134,19 @@
                     />
                   </div>
                 {/if}
+                <div class="action-btn-row">
+                  {#if aiAvailable}
+                    <button class="action-btn action-btn-draft" onclick={() => handleDraftFocal(eid, bill.bill_name || bill.bill_number || bill.bill_id, composeGovernorsDeskContext(bill))} disabled={draftingInProgress.has(eid)}>
+                      <span class="sparkle">&#x2726;</span> {draftingInProgress.has(eid) ? 'Drafting...' : 'Draft with AI'}
+                    </button>
+                  {/if}
+                  <button class="action-btn action-btn-unofficial" class:active={openThreads.has(eid)} onclick={() => toggleCommentThread(eid)}>
+                    <svg class="action-btn-icon" width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M2 3h12v7H5l-3 3V3z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>
+                    Unofficial Comment
+                    {#if (parentCommentCounts.get(eid)?.count || 0) > 0}<span class="action-btn-count">{parentCommentCounts.get(eid)?.count}</span>{/if}
+                    <span class="action-btn-chevron" class:open={openThreads.has(eid)}></span>
+                  </button>
+                </div>
                 {#if session}
                   <CivicCommentThread
                     entityId={eid}
@@ -975,7 +1177,6 @@
                     onsummarize={() => handleSummarize(eid, bill.bill_number || bill.bill_id)}
                   />
                 {/if}
-                <!-- AI action row -->
                 <div class="ai-action-row">
                   {#if aiAvailable}
                     <button
@@ -984,15 +1185,21 @@
                       disabled={aiResponseLoading.has(`ask-focal:${bill.bill_id}`)}
                       onclick={() => askFocalAI(`ask-focal:${bill.bill_id}`, composeGovernorsDeskContext(bill))}
                     >
-                      <span class="sparkle">&#x2726;</span> {aiResponseLoading.has(`ask-focal:${bill.bill_id}`) ? 'Thinking...' : aiResponses.has(`ask-focal:${bill.bill_id}`) ? 'Hide' : activeProviderName || 'Ask AI'}
+                      <span class="sparkle">&#x2726;</span> {aiResponseLoading.has(`ask-focal:${bill.bill_id}`) ? 'Thinking...' : aiResponses.has(`ask-focal:${bill.bill_id}`) ? 'Hide' : 'Summary'}
                     </button>
                   {/if}
                   {#if onopenexternalai}
-                    <button class="ai-action-btn ai-action-claude" class:solo={!aiAvailable} onclick={(e: MouseEvent) => onopenexternalai?.({ context: composeGovernorsDeskContext(bill), event: e })}>
+                    <button class="ai-action-btn ai-action-claude" class:solo={!aiAvailable} onclick={(e: MouseEvent) => { onopenexternalai?.({ context: composeGovernorsDeskContext(bill), event: e }); shakingCardId = bill.bill_id; setTimeout(() => { shakingCardId = null; }, 2500); }}>
                       Claude <span class="ext-icon">&#x2197;</span>
                     </button>
                   {/if}
                 </div>
+                {#if shakingCardId === bill.bill_id}
+                  <div class="drag-hint">
+                    <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M8 2v12M8 2L5 5M8 2l3 3M2 8h12M2 8l3-3M2 8l3 3M14 8l-3-3M14 8l-3 3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    Drag this card into Claude's input
+                  </div>
+                {/if}
                 {#if aiResponses.has(`ask-focal:${bill.bill_id}`)}
                   <div class="ai-response">
                     <div class="ai-response-text prose">{@html renderMarkdown(aiResponses.get(`ask-focal:${bill.bill_id}`) ?? '')}</div>
@@ -1012,7 +1219,7 @@
         <button class="section-header" onclick={() => toggle('cityFocal')}>
           <span class="section-title">
             Upcoming Meetings
-            <span class="count-badge focal-badge">{cityFocalMeetings.length}</span>
+            <span class="count-badge">{cityFocalMeetings.length}</span>
           </span>
           <span class="chevron" class:open={expanded.cityFocal}></span>
         </button>
@@ -1022,10 +1229,12 @@
             {#each cityFocalMeetings as meeting}
               {@const meetingId = `meeting:${meeting.title.toLowerCase().replace(/\s+/g, '-')}`}
               {@const focalContext = composeCityMeetingFocalContext(meeting)}
-              <div class="card focal-card" class:dragging={draggingId === meetingId}
+              <div class="card" class:dragging={draggingId === meetingId}
+                   class:shaking={shakingCardId === meetingId}
                    draggable="true"
                    ondragstart={(e: DragEvent) => handleDragStart(e, focalContext, meetingId)}
                    ondragend={handleDragEnd}>
+                <CivicProcessBar level="city" stage={meeting.days_until <= 0 ? 'vote' : 'comment'} />
                 <div class="meeting-top-row">
                   <div class="card-title">{meeting.title}</div>
                   <button class="cal-btn" onclick={() => { hearingCalendarOpen.has(meetingId) ? hearingCalendarOpen.delete(meetingId) : hearingCalendarOpen.add(meetingId); hearingCalendarOpen = new Set(hearingCalendarOpen); }} title="Add to calendar">
@@ -1078,15 +1287,21 @@
                       disabled={aiResponseLoading.has(`ask-focal:${meetingId}`)}
                       onclick={() => askFocalAI(`ask-focal:${meetingId}`, focalContext)}
                     >
-                      <span class="sparkle">&#x2726;</span> {aiResponseLoading.has(`ask-focal:${meetingId}`) ? 'Thinking...' : aiResponses.has(`ask-focal:${meetingId}`) ? 'Hide' : activeProviderName || 'Ask AI'}
+                      <span class="sparkle">&#x2726;</span> {aiResponseLoading.has(`ask-focal:${meetingId}`) ? 'Thinking...' : aiResponses.has(`ask-focal:${meetingId}`) ? 'Hide' : 'Summary'}
                     </button>
                   {/if}
                   {#if onopenexternalai}
-                    <button class="ai-action-btn ai-action-claude" class:solo={!aiAvailable} onclick={(e: MouseEvent) => onopenexternalai?.({ context: focalContext, event: e })}>
+                    <button class="ai-action-btn ai-action-claude" class:solo={!aiAvailable} onclick={(e: MouseEvent) => { onopenexternalai?.({ context: focalContext, event: e }); shakingCardId = meetingId; setTimeout(() => { shakingCardId = null; }, 2500); }}>
                       Claude <span class="ext-icon">&#x2197;</span>
                     </button>
                   {/if}
                 </div>
+                {#if shakingCardId === meetingId}
+                  <div class="drag-hint">
+                    <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M8 2v12M8 2L5 5M8 2l3 3M2 8h12M2 8l3-3M2 8l3 3M14 8l-3-3M14 8l-3 3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    Drag this card into Claude's input
+                  </div>
+                {/if}
                 {#if aiResponses.has(`ask-focal:${meetingId}`)}
                   <div class="ai-response">
                     <div class="ai-response-text prose">{@html renderMarkdown(aiResponses.get(`ask-focal:${meetingId}`) ?? '')}</div>
@@ -1099,7 +1314,6 @@
         {/if}
       </section>
     {/if}
-  </div>
 {/if}
 
 <!-- Meetings / Hearings -->
@@ -1166,9 +1380,13 @@
           {@const counts = eid ? voiceCounts.get(eid) : undefined}
           {@const itemDaysUntil = item.meeting_title ? meetingDaysUntil(item.meeting_title) : null}
           <div class="card" class:dragging={draggingId === (item.id || item.title)}
+               class:shaking={shakingCardId === (item.id || item.title)}
                draggable="true"
                ondragstart={(e: DragEvent) => handleDragStart(e, composeLegislationContext(item), item.id || item.title)}
                ondragend={handleDragEnd}>
+            {#if isLegislative}
+              <CivicProcessBar level={level as 'state' | 'federal'} stage="committee" />
+            {/if}
             <div class="card-title">
               {#if isLegislative && item.official_url}
                 <a href={item.official_url} target="_blank" rel="noopener" class="card-link">{item.title}</a>
@@ -1225,6 +1443,51 @@
                 />
               </div>
             {/if}
+            {#if isLegislative && eid}
+              <div class="action-btn-row">
+                {#if aiAvailable}
+                  <button class="action-btn action-btn-draft" onclick={() => handleDraftFocal(eid, item.title, composeLegislationContext(item))} disabled={draftingInProgress.has(eid)}>
+                    <span class="sparkle">&#x2726;</span> {draftingInProgress.has(eid) ? 'Drafting...' : 'Draft with AI'}
+                  </button>
+                {/if}
+                <button class="action-btn action-btn-unofficial" class:active={openThreads.has(eid)} onclick={() => toggleCommentThread(eid)}>
+                  <svg class="action-btn-icon" width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M2 3h12v7H5l-3 3V3z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>
+                  Unofficial Comment
+                  {#if (parentCommentCounts.get(eid)?.count || 0) > 0}<span class="action-btn-count">{parentCommentCounts.get(eid)?.count}</span>{/if}
+                  <span class="action-btn-chevron" class:open={openThreads.has(eid)}></span>
+                </button>
+              </div>
+            {/if}
+            {#if isLegislative && eid && session}
+              <CivicCommentThread
+                entityId={eid}
+                commentCount={parentCommentCounts.get(eid)?.count || 0}
+                attestedCount={parentCommentCounts.get(eid)?.attested ?? 0}
+                comments={threadComments.get(eid) || []}
+                synthesis={getSynthesis(eid)}
+                expanded={openThreads.has(eid)}
+                loading={threadLoading.has(eid)}
+                submitting={threadSubmitting.has(eid)}
+                error={threadErrors.get(eid) || ''}
+                draft={threadDrafts.get(eid) || ''}
+                userPublicKey={identity?.publicKey || ''}
+                isUnlocked={identity?.isUnlocked ?? false}
+                hasIdentity={!!identity}
+                {aiAvailable}
+                {activeProviderName}
+                draftLoading={draftingInProgress.has(eid)}
+                enrichLoading={enrichingInProgress.has(eid)}
+                summarizeLoading={aiResponseLoading.has(`summarize-thread:${eid}`)}
+                summaryHtml={renderMarkdown(aiResponses.get(`summarize-thread:${eid}`) ?? '')}
+                showSummary={aiResponses.has(`summarize-thread:${eid}`)}
+                ontoggle={() => toggleCommentThread(eid)}
+                onsubmit={() => handleSubmitComment(eid)}
+                ondraftchange={({ text }: { text: string }) => { threadDrafts.set(eid, text); threadDrafts = new Map(threadDrafts); }}
+                ondraft={() => handleDraftFocal(eid, item.title, composeLegislationContext(item))}
+                onenrich={() => handleEnrichFocal(eid, item.title)}
+                onsummarize={() => handleSummarize(eid, item.title)}
+              />
+            {/if}
             {#if isLegislative}
               <div class="ai-action-row">
                 {#if aiAvailable}
@@ -1234,15 +1497,21 @@
                     disabled={aiResponseLoading.has(`ask-leg:${item.id || item.title}`)}
                     onclick={() => askFocalAI(`ask-leg:${item.id || item.title}`, composeLegislationContext(item))}
                   >
-                    <span class="sparkle">&#x2726;</span> {aiResponseLoading.has(`ask-leg:${item.id || item.title}`) ? 'Thinking...' : aiResponses.has(`ask-leg:${item.id || item.title}`) ? 'Hide' : activeProviderName || 'Ask AI'}
+                    <span class="sparkle">&#x2726;</span> {aiResponseLoading.has(`ask-leg:${item.id || item.title}`) ? 'Thinking...' : aiResponses.has(`ask-leg:${item.id || item.title}`) ? 'Hide' : 'Summary'}
                   </button>
                 {/if}
                 {#if onopenexternalai}
-                  <button class="ai-action-btn ai-action-claude" class:solo={!aiAvailable} onclick={(e: MouseEvent) => onopenexternalai?.({ context: composeLegislationContext(item), event: e })}>
+                  <button class="ai-action-btn ai-action-claude" class:solo={!aiAvailable} onclick={(e: MouseEvent) => { onopenexternalai?.({ context: composeLegislationContext(item), event: e }); shakingCardId = item.id || item.title; setTimeout(() => { shakingCardId = null; }, 2500); }}>
                     Claude <span class="ext-icon">&#x2197;</span>
                   </button>
                 {/if}
               </div>
+              {#if shakingCardId === (item.id || item.title)}
+                <div class="drag-hint">
+                  <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M8 2v12M8 2L5 5M8 2l3 3M2 8h12M2 8l3-3M2 8l3 3M14 8l-3-3M14 8l-3 3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  Drag this card into Claude's input
+                </div>
+              {/if}
               {#if aiResponses.has(`ask-leg:${item.id || item.title}`)}
                 <div class="ai-response">
                   <div class="ai-response-text prose">{@html renderMarkdown(aiResponses.get(`ask-leg:${item.id || item.title}`) ?? '')}</div>
@@ -1283,6 +1552,9 @@
                draggable="true"
                ondragstart={(e: DragEvent) => handleDragStart(e, composeOutcomeContext(outcome), outcome.id || outcome.title)}
                ondragend={handleDragEnd}>
+            {#if isLegislative}
+              <CivicProcessBar level={level as 'state' | 'federal'} stage={outcomeToStage(outcome.outcome)} />
+            {/if}
             <div class="card-title">
               <span class="outcome-icon {outcomeClass(outcome.outcome)}">{outcomeIcon(outcome.outcome)}</span>
               {#if isLegislative && outcome.official_url}
@@ -1330,6 +1602,7 @@
 </section>
 
 {#if children}
+  <div class="group-header">Public</div>
   {@render children()}
 {/if}
 
@@ -1399,6 +1672,36 @@
   .card.dragging {
     opacity: 0.4;
     border-color: #4b5563;
+  }
+  .card.shaking {
+    animation: card-shake 0.5s ease-in-out;
+  }
+  @keyframes card-shake {
+    0%, 100% { transform: translateX(0); }
+    15% { transform: translateX(-3px); }
+    30% { transform: translateX(3px); }
+    45% { transform: translateX(-2px); }
+    60% { transform: translateX(2px); }
+    75% { transform: translateX(-1px); }
+    90% { transform: translateX(1px); }
+  }
+  .drag-hint {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 10px;
+    color: #9ca3af;
+    padding: 6px 10px;
+    background: rgba(255, 255, 255, 0.04);
+    border-radius: 6px;
+    margin-top: 4px;
+    animation: hint-fade 2.5s ease-out forwards;
+  }
+  @keyframes hint-fade {
+    0% { opacity: 0; transform: translateY(-4px); }
+    10% { opacity: 1; transform: translateY(0); }
+    70% { opacity: 1; }
+    100% { opacity: 0; }
   }
   .card-title {
     color: #e5e7eb;
@@ -1617,42 +1920,262 @@
     border-color: #4ade80;
     color: #86efac;
   }
-  .action-badge {
-    background: rgba(245, 158, 11, 0.15) !important;
-    color: #fbbf24 !important;
+  /* === Action button row (matches city tab CivicAgendaView) === */
+  .action-btn-row {
+    display: flex;
+    gap: 6px;
+    margin-top: 8px;
   }
-  .focal-points-group {
-    margin-bottom: 12px;
-    padding-bottom: 8px;
-    border-bottom: 1px solid #374151;
+  .action-btn {
+    flex: 1;
+    padding: 5px 0;
+    font-size: 11px;
+    font-weight: 500;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    text-align: center;
+    text-decoration: none;
+    font-family: inherit;
   }
-  .focal-points-label {
+  .action-btn-draft {
+    color: #a78bfa;
+    background: rgba(139,92,246,0.06);
+    border: 1px solid rgba(139,92,246,0.2);
+  }
+  .action-btn-draft:hover:not(:disabled) {
+    background: rgba(139,92,246,0.14);
+    border-color: #a78bfa;
+    color: #c4b5fd;
+  }
+  .action-btn-draft:disabled { opacity: 0.6; cursor: default; }
+  .action-btn-official {
+    color: #4ade80;
+    background: rgba(74,222,128,0.06);
+    border: 1px solid rgba(74,222,128,0.2);
+  }
+  .action-btn-official:hover {
+    background: rgba(74,222,128,0.14);
+    border-color: #4ade80;
+    color: #86efac;
+  }
+  .action-btn-unofficial {
+    color: #9ca3af;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+  }
+  .action-btn-unofficial:hover {
+    background: rgba(255,255,255,0.08);
+    border-color: rgba(255,255,255,0.15);
+    color: #d1d5db;
+  }
+  .action-btn-unofficial.active {
+    background: rgba(255,255,255,0.08);
+    border-color: rgba(255,255,255,0.15);
+    color: #e5e7eb;
+  }
+  .action-btn .sparkle { font-size: 10px; opacity: 0.7; }
+  .action-btn-icon { opacity: 0.6; flex-shrink: 0; vertical-align: -2.5px; }
+  .action-btn-count {
+    font-size: 10px;
+    font-weight: 600;
+    background: rgba(255, 255, 255, 0.08);
+    padding: 0 5px;
+    border-radius: 8px;
+    margin-left: 2px;
+    font-variant-numeric: tabular-nums;
+  }
+  .action-btn-chevron {
+    display: inline-block;
+    width: 0;
+    height: 0;
+    border-left: 3px solid transparent;
+    border-right: 3px solid transparent;
+    border-top: 4px solid currentColor;
+    opacity: 0.5;
+    margin-left: 2px;
+    transition: transform 0.15s ease;
+    flex-shrink: 0;
+  }
+  .action-btn-chevron.open { transform: rotate(180deg); }
+  /* Secondary links (Read Rule, PDF, View Bill) */
+  .card-secondary-links {
+    display: flex;
+    gap: 12px;
+    margin-top: 6px;
+    padding-left: 2px;
+  }
+  .secondary-link {
+    font-size: 10px;
+    color: #6b7280;
+    text-decoration: none;
+    transition: color 0.15s ease;
+  }
+  .secondary-link:hover {
+    color: #9ca3af;
+    text-decoration: underline;
+  }
+  /* Group headers (Official / Public) */
+  .group-header {
     font-size: 10px;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.08em;
-    color: #f59e0b;
-    padding: 4px 4px 2px;
+    color: #4b5563;
+    padding: 14px 4px 4px;
   }
-  .voice-disclaimer {
+  /* Attention bar */
+  .attention-bar {
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    border: 1px solid #2a2a4a;
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin-bottom: 14px;
+    transition: border-color 0.15s;
+  }
+  .attention-bar:hover { border-color: #4b5563; }
+  .attention-title {
+    font-size: 11px;
+    font-weight: 600;
+    color: #9ca3af;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .attention-items {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    max-height: 200px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: #374151 transparent;
+  }
+  .attention-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
     font-size: 11px;
     color: #9ca3af;
-    font-style: italic;
-    padding: 8px 8px 4px;
-    margin-top: 4px;
-    line-height: 1.4;
-    border-top: 1px solid rgba(107, 114, 128, 0.2);
+    cursor: pointer;
+    padding: 3px 0;
+    background: none;
+    border: none;
+    text-align: left;
+    width: 100%;
   }
-  .focal-badge {
-    background: rgba(245, 158, 11, 0.15) !important;
-    color: #fbbf24 !important;
+  .attention-item:hover { color: #e5e7eb; }
+  .attention-pip {
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: #e5e7eb;
+    flex-shrink: 0;
   }
-  .focal-card {
-    border-color: rgba(245, 158, 11, 0.2);
+  .attention-item-title {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
-  .focal-card:hover {
-    border-color: #f59e0b;
-    box-shadow: 0 2px 8px rgba(245, 158, 11, 0.1);
+  .attention-when {
+    margin-left: auto;
+    color: #6b7280;
+    font-size: 10px;
+    flex-shrink: 0;
+  }
+  /* Thread clarifier */
+  .thread-clarifier {
+    font-size: 9px;
+    color: #6b7280;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 6px 0 0;
+  }
+  /* Official comment drafting */
+  .draft-official-btn {
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .draft-official-btn:disabled {
+    opacity: 0.6;
+    cursor: default;
+  }
+  .official-draft {
+    margin-top: 8px;
+    padding: 10px 12px;
+    background: rgba(74, 222, 128, 0.04);
+    border: 1px solid rgba(74, 222, 128, 0.15);
+    border-radius: 8px;
+  }
+  .official-draft-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+  }
+  .official-draft-label {
+    font-size: 10px;
+    font-weight: 600;
+    color: #4ade80;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .official-draft-actions {
+    display: flex;
+    gap: 8px;
+  }
+  .official-draft-copy {
+    font-size: 11px;
+    font-weight: 500;
+    color: #4ade80;
+    background: rgba(74, 222, 128, 0.1);
+    border: 1px solid rgba(74, 222, 128, 0.25);
+    border-radius: 4px;
+    padding: 2px 10px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .official-draft-copy:hover {
+    background: rgba(74, 222, 128, 0.2);
+    border-color: #4ade80;
+  }
+  .official-draft-discard {
+    font-size: 11px;
+    color: #6b7280;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 2px 4px;
+  }
+  .official-draft-discard:hover { color: #9ca3af; }
+  .official-draft-text {
+    width: 100%;
+    min-height: 100px;
+    font-size: 12px;
+    line-height: 1.5;
+    color: #e5e7eb;
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid #374151;
+    border-radius: 6px;
+    padding: 8px 10px;
+    resize: vertical;
+    font-family: inherit;
+  }
+  .official-draft-text:focus {
+    outline: none;
+    border-color: #4ade80;
+  }
+  .official-draft-submit {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 8px;
+    flex-wrap: wrap;
+  }
+  .official-draft-hint {
+    font-size: 11px;
+    color: #9ca3af;
   }
   .section-hint {
     font-size: 11px;
@@ -1680,7 +2203,7 @@
     padding: 2px 0;
   }
   .focal-agenda-bullet {
-    color: #f59e0b;
+    color: #6b7280;
     margin-right: 4px;
     font-weight: 700;
   }

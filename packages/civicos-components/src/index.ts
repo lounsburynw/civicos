@@ -27,6 +27,7 @@ import './components/CivicDecisionView.svelte';
 import './components/CivicInitiativeView.svelte';
 // Presentation components (self-contained, composable)
 import './components/CivicMeetingCard.svelte';
+import './components/CivicProcessBar.svelte';
 import './components/CivicProvenancePanel.svelte';
 import './components/CivicIdentityChip.svelte';
 import './components/CivicReadOnlyPulse.svelte';
