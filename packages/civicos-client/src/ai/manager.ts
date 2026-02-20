@@ -112,17 +112,37 @@ export class AIManager {
   }
 
   /**
-   * Run a tool-backed civic search. Always routes through the CivicOS proxy
-   * (server-side tool execution) regardless of which provider is active for drafting.
+   * Run a tool-backed civic search. Prefers local (device-tier) providers
+   * for privacy, falling back to cloud providers (CivicOS proxy).
    */
   async chat(question: string, jurisdiction?: string): Promise<AIChatResult> {
     if (!this.initialized) await this.initialize();
 
-    // Chat uses the server's API key — find any provider that supports it
+    // Prefer device-tier providers first (Ollama) for privacy,
+    // then fall back to cloud providers (CivicOS proxy).
+    const deviceProviders: AIProvider[] = [];
+    const cloudProviders: AIProvider[] = [];
+
     for (const provider of this.providers.values()) {
       if (typeof provider.chat === 'function') {
-        return provider.chat(question, jurisdiction);
+        if (provider.tier === 'device') {
+          deviceProviders.push(provider);
+        } else {
+          cloudProviders.push(provider);
+        }
       }
+    }
+
+    // Try device providers first (local, fully private)
+    for (const provider of deviceProviders) {
+      if (await provider.isReady()) {
+        return provider.chat!(question, jurisdiction);
+      }
+    }
+
+    // Fall back to cloud providers
+    for (const provider of cloudProviders) {
+      return provider.chat!(question, jurisdiction);
     }
 
     return {
