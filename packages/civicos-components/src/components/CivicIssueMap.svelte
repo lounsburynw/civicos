@@ -23,18 +23,7 @@
     api: ApiClient;
   } = $props();
 
-  // === State ===
-  let issuePoints: IssuePoint[] = $state([]);
-  let loading = $state(false);
-  let loaded = $state(false);
-  let leafletMap: L.Map | null = null;
-  let mapContainer: HTMLDivElement | undefined = $state(undefined);
-  let mapExpanded = $state(false);
-  let mapDaysFilter: number | null = $state(null);
-  let activeIssueFilters = $state(new Set(Object.keys(ISSUE_COLORS)));
-  let issueLayerGroups = new Map<string, L.LayerGroup>();
-
-  // === Constants ===
+  // === Constants (must be before state that references them) ===
   const ISSUE_COLORS: Record<string, string> = {
     'Pothole': '#ef4444',
     'Graffiti': '#f59e0b',
@@ -52,6 +41,17 @@
     { label: '90d', value: 90 },
     { label: 'All', value: null },
   ];
+
+  // === State ===
+  let issuePoints: IssuePoint[] = $state([]);
+  let loading = $state(false);
+  let loaded = $state(false);
+  let leafletMap: L.Map | null = null;
+  let mapContainer: HTMLDivElement | undefined = $state(undefined);
+  let mapExpanded = $state(false);
+  let mapDaysFilter: number | null = $state(null);
+  let activeIssueFilters = $state(new Set(Object.keys(ISSUE_COLORS)));
+  let issueLayerGroups = new Map<string, L.LayerGroup>();
 
   // === Helpers ===
   function getIssueColor(type: string): string {
