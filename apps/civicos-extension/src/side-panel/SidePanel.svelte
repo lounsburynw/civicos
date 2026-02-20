@@ -780,39 +780,18 @@
       <button class="btn-retry" onclick={loadCityPulse}>Retry</button>
     </div>
   {:else if pulseData}
-    <!-- Attention Bar: actionable items across all jurisdiction levels -->
-    {@const cityItems = (pulseData.upcoming_items || []).filter(i => i.stance_eligible || i.comment_eligible).map(i => ({
-      id: i.id, title: i.title, when: i.meeting_date || '', daysUntil: null as number | null, type: 'city' as const,
+    <!-- Actionable items for city tab -->
+    {@const cityActionableItems = (pulseData.upcoming_items || []).filter(i => i.stance_eligible || i.comment_eligible).map(i => ({
+      id: i.id, title: i.title, when: i.meeting_date || '',
       action: () => scrollToCard(i.id),
     }))}
-    {@const crossLevelItems = (() => {
-      const items: Array<{ id: string; title: string; when: string; daysUntil: number | null; type: 'state' | 'federal'; action: () => void }> = [];
-      for (const [jid, data] of parentPulseData) {
-        const level = jid.startsWith('federal-') ? 'federal' as const : 'state' as const;
-        for (const cp of data.comment_periods || []) {
-          if (cp.days_remaining > 0) {
-            items.push({ id: `cp-${cp.document_number}`, title: cp.title, when: `${cp.days_remaining}d left`, daysUntil: cp.days_remaining, type: level, action: () => { activeTab = jid; } });
-          }
-        }
-        for (const h of data.upcoming_hearings || []) {
-          if (h.days_until >= 0) {
-            items.push({ id: `hearing-${h.bill_id}`, title: h.bill_name || h.bill_number || 'Hearing', when: `${h.days_until}d`, daysUntil: h.days_until, type: level, action: () => { activeTab = jid; } });
-          }
-        }
-        for (const g of data.governors_desk || []) {
-          items.push({ id: `gov-${g.bill_id}`, title: g.bill_name || g.bill_number || 'Bill', when: "Gov's desk", daysUntil: 7, type: level, action: () => { activeTab = jid; } });
-        }
-      }
-      return items.sort((a, b) => (a.daysUntil ?? 99) - (b.daysUntil ?? 99));
-    })()}
-    {@const allAttentionItems = [...cityItems, ...crossLevelItems]}
-    {#if allAttentionItems.length > 0}
+    {#if cityActionableItems.length > 0}
       <div class="attention-bar">
-        <div class="attention-title">{allAttentionItems.length} item{allAttentionItems.length !== 1 ? 's' : ''} need attention</div>
+        <div class="attention-title">Actionable items</div>
         <div class="attention-items">
-          {#each allAttentionItems.slice(0, 5) as item}
+          {#each cityActionableItems as item}
             <button class="attention-item" onclick={item.action}>
-              <span class="attention-pip" class:attention-pip-state={item.type === 'state'} class:attention-pip-federal={item.type === 'federal'}></span>
+              <span class="attention-pip"></span>
               <span class="attention-item-title">{item.title}</span>
               <span class="attention-when">{item.when}</span>
             </button>
@@ -820,6 +799,9 @@
         </div>
       </div>
     {/if}
+
+    <!-- Official Section -->
+    <div class="group-header">Official</div>
 
     <!-- Upcoming Meetings -->
     <section class="feed-section">
@@ -853,7 +835,7 @@
             Agenda Items
             <span class="count-badge">{pulseData.upcoming_items.length}</span>
             {#if pulseData.upcoming_items.some(i => i.stance_eligible || i.comment_eligible)}
-              <span class="section-pip"></span>
+              <span class="section-pip" title="Has actionable items"></span>
             {/if}
           </span>
           <span class="chevron" class:open={expanded.items}></span>
@@ -922,7 +904,10 @@
       {/if}
     </section>
 
-    <!-- Community Initiatives + My Commitments (CivicInitiativeView) -->
+    <!-- Public Section -->
+    <div class="group-header">Public</div>
+
+    <!-- Community Initiatives (CivicInitiativeView) -->
     <CivicInitiativeView
       {api}
       {session}
@@ -1246,6 +1231,15 @@
   }
   .section-header:hover { color: #d1d5db; }
 
+  .group-header {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #4b5563;
+    padding: 14px 4px 4px;
+  }
+
   .section-title {
     display: flex;
     align-items: center;
@@ -1324,8 +1318,8 @@
 
   /* === Attention Bar === */
   .attention-bar {
-    background: #1e1e1e;
-    border: 1px solid #333;
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    border: 1px solid #2a2a4a;
     border-radius: 10px;
     padding: 12px 14px;
     margin-bottom: 14px;
@@ -1333,15 +1327,21 @@
   }
   .attention-bar:hover { border-color: #4b5563; }
   .attention-title {
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 600;
-    color: #e5e7eb;
-    margin-bottom: 6px;
+    color: #9ca3af;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
   }
   .attention-items {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 3px;
+    max-height: 200px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: #374151 transparent;
   }
   .attention-item {
     display: flex;
@@ -1350,7 +1350,7 @@
     font-size: 11px;
     color: #9ca3af;
     cursor: pointer;
-    padding: 2px 0;
+    padding: 3px 0;
     background: none;
     border: none;
     text-align: left;
@@ -1363,12 +1363,6 @@
     border-radius: 50%;
     background: #e5e7eb;
     flex-shrink: 0;
-  }
-  .attention-pip-state {
-    background: #9ca3af;
-  }
-  .attention-pip-federal {
-    background: #6b7280;
   }
   .attention-item-title {
     flex: 1;

@@ -104,6 +104,9 @@
   let enrichingInProgress = $state(new Set<string>());
   let aiResponses = $state(new Map<string, string>());
   let aiResponseLoading = $state(new Set<string>());
+  let aiResponseHidden = $state(new Set<string>());
+  let cardDrafts = $state(new Map<string, string>());
+  let shakingCardId: string | null = $state(null);
 
   // Merge parent synth data with locally-loaded synth data (local wins)
   function getSynthesis(entityId: string): CommentSynthesis | null {
@@ -205,9 +208,14 @@
   // --- AI Handlers ---
 
   async function askAI(key: string, context: string) {
+    // Toggle visibility if already cached
     if (aiResponses.has(key)) {
-      aiResponses.delete(key);
-      aiResponses = new Map(aiResponses);
+      if (aiResponseHidden.has(key)) {
+        aiResponseHidden.delete(key);
+      } else {
+        aiResponseHidden.add(key);
+      }
+      aiResponseHidden = new Set(aiResponseHidden);
       return;
     }
 
@@ -221,6 +229,8 @@
       if (answer) {
         aiResponses.set(key, answer);
         aiResponses = new Map(aiResponses);
+        aiResponseHidden.delete(key);
+        aiResponseHidden = new Set(aiResponseHidden);
       } else {
         ontoast?.('AI request failed');
       }
@@ -230,6 +240,14 @@
 
     aiResponseLoading.delete(key);
     aiResponseLoading = new Set(aiResponseLoading);
+  }
+
+  async function regenerateAI(key: string, context: string) {
+    aiResponses.delete(key);
+    aiResponses = new Map(aiResponses);
+    aiResponseHidden.delete(key);
+    aiResponseHidden = new Set(aiResponseHidden);
+    await askAI(key, context);
   }
 
   async function handleDraftWithAI(entityId: string, item: PulseAgendaItem) {
@@ -402,11 +420,70 @@
     return lines.join('\n');
   }
 
-  function getMailtoLink(item: PulseAgendaItem): string {
+  function getMailtoLink(item: PulseAgendaItem, draft?: string): string {
     if (!clerkEmail) return '';
     const subject = `Public Comment - Item ${item.item_number}: ${item.title} - ${item.meeting_title} ${item.meeting_date}`;
-    const body = `[Paste your drafted comment here]\n\nRegarding: ${item.title}\nMeeting: ${item.meeting_title}, ${item.meeting_date}\nItem: ${item.item_number}`;
+    const body = draft
+      ? `${draft}\n\n---\nRegarding: ${item.title}\nMeeting: ${item.meeting_title}, ${item.meeting_date}\nItem: ${item.item_number}`
+      : `[Your comment here]\n\nRegarding: ${item.title}\nMeeting: ${item.meeting_title}, ${item.meeting_date}\nItem: ${item.item_number}`;
     return `mailto:${encodeURIComponent(clerkEmail)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  }
+
+  async function handleCardDraft(entityId: string, item: PulseAgendaItem) {
+    draftingInProgress.add(entityId);
+    draftingInProgress = new Set(draftingInProgress);
+
+    try {
+      const stance = userStances.get(entityId);
+      const counts = voiceCounts.get(entityId);
+      const draft = await session.draftComment(item, stance, counts);
+
+      if (draft) {
+        cardDrafts.set(entityId, draft);
+        cardDrafts = new Map(cardDrafts);
+      } else {
+        ontoast?.('AI drafting failed');
+      }
+    } catch {
+      ontoast?.('AI drafting failed — try again');
+    }
+
+    draftingInProgress.delete(entityId);
+    draftingInProgress = new Set(draftingInProgress);
+  }
+
+  function routeDraftToThread(entityId: string) {
+    const draft = cardDrafts.get(entityId);
+    if (!draft) return;
+
+    threadDrafts.set(entityId, draft);
+    threadDrafts = new Map(threadDrafts);
+
+    cardDrafts.delete(entityId);
+    cardDrafts = new Map(cardDrafts);
+
+    if (!openThreads.has(entityId)) {
+      openThreads.add(entityId);
+      openThreads = new Set(openThreads);
+      if (!threadComments.has(entityId)) {
+        threadLoading.add(entityId);
+        threadLoading = new Set(threadLoading);
+        session.loadCommentThread(entityId)
+          .then((thread: { comments: Comment[]; synthesis?: CommentSynthesis }) => {
+            threadComments.set(entityId, thread.comments);
+            threadComments = new Map(threadComments);
+            if (thread.synthesis) {
+              localSynthData.set(entityId, thread.synthesis);
+              localSynthData = new Map(localSynthData);
+            }
+          })
+          .catch(() => {})
+          .finally(() => {
+            threadLoading.delete(entityId);
+            threadLoading = new Set(threadLoading);
+          });
+      }
+    }
   }
 </script>
 
@@ -414,6 +491,7 @@
   <div class="card item-card" id="card-{item.id}"
        class:dragging={draggingItem === item.id}
        class:highlighted={highlightedCardId === item.id}
+       class:shaking={shakingCardId === item.id}
        draggable="true"
        ondragstart={(e: DragEvent) => handleDragStart(e, item)}
        ondragend={handleDragEnd}>
@@ -427,9 +505,48 @@
       daysUntil={getItemDaysUntil(item.meeting_title)}
       onvoice={({ entityId, stance }: { entityId: string; stance: Stance }) => onvoice?.({ entityId, stance })}
     />
-    <!-- Comment Thread -->
+    <!-- Draft with AI + Official Comment row -->
     {#if item.comment_eligible}
       {@const commentEntityId = `agenda-item:${item.id}`}
+      {#if !cardDrafts.has(commentEntityId)}
+        <div class="action-btn-row">
+          {#if aiAvailable}
+            <button class="action-btn action-btn-draft" onclick={() => handleCardDraft(commentEntityId, item)} disabled={draftingInProgress.has(commentEntityId)}>
+              <span class="sparkle">&#x2726;</span> {draftingInProgress.has(commentEntityId) ? 'Drafting...' : 'Draft with AI'}
+            </button>
+          {/if}
+          {#if clerkEmail}
+            <a class="action-btn action-btn-official" href={getMailtoLink(item)}>
+              <svg class="action-btn-icon" width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M2 4l6 4 6-4M2 4v8h12V4H2z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>
+              Submit Official Comment
+            </a>
+          {/if}
+          <button class="action-btn action-btn-unofficial" class:active={openThreads.has(commentEntityId)} onclick={() => toggleCommentThread(commentEntityId)}>
+            <svg class="action-btn-icon" width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M2 3h12v7H5l-3 3V3z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>
+            Unofficial Comment
+            {#if (commentCounts.get(commentEntityId)?.count || 0) > 0}<span class="action-btn-count">{commentCounts.get(commentEntityId)?.count}</span>{/if}
+            <span class="action-btn-chevron" class:open={openThreads.has(commentEntityId)}></span>
+          </button>
+        </div>
+      {/if}
+      {#if cardDrafts.has(commentEntityId)}
+        <div class="card-draft">
+          <textarea class="card-draft-text" rows={4} value={cardDrafts.get(commentEntityId)} oninput={(e: Event) => { cardDrafts.set(commentEntityId, (e.target as HTMLTextAreaElement).value); cardDrafts = new Map(cardDrafts); }}></textarea>
+          <div class="card-draft-actions">
+            {#if clerkEmail}
+              <a class="card-draft-btn card-draft-official" href={getMailtoLink(item, cardDrafts.get(commentEntityId))} onclick={() => { cardDrafts.delete(commentEntityId); cardDrafts = new Map(cardDrafts); }}>
+                Submit as Official Comment
+              </a>
+            {/if}
+            <button class="card-draft-btn card-draft-community" onclick={() => routeDraftToThread(commentEntityId)}>
+              Post as Community Comment
+            </button>
+            <button class="card-draft-btn card-draft-discard" onclick={() => { cardDrafts.delete(commentEntityId); cardDrafts = new Map(cardDrafts); }}>Discard</button>
+          </div>
+        </div>
+      {/if}
+
+      <!-- Comment Thread -->
       <CivicCommentThread
         entityId={commentEntityId}
         commentCount={commentCounts.get(commentEntityId)?.count || 0}
@@ -462,31 +579,30 @@
       />
     {/if}
 
-    {#if aiAvailable && identity?.isUnlocked && item.comment_eligible && !openThreads.has(`agenda-item:${item.id}`)}
-      <button class="draft-btn draft-btn-standalone" onclick={() => handleDraftWithAI(`agenda-item:${item.id}`, item)} disabled={draftingInProgress.has(`agenda-item:${item.id}`)} title={activeProviderName ? `via ${activeProviderName}` : ''}>
-        {draftingInProgress.has(`agenda-item:${item.id}`) ? 'Drafting...' : 'Draft with AI'}
-      </button>
-    {/if}
-
     <div class="ai-action-row">
       {#if aiAvailable}
         <button
           class="ai-action-btn ai-action-ask"
-          class:active={aiResponses.has(`ask-agenda:${item.id}`)}
+          class:active={aiResponses.has(`ask-agenda:${item.id}`) && !aiResponseHidden.has(`ask-agenda:${item.id}`)}
           disabled={aiResponseLoading.has(`ask-agenda:${item.id}`)}
           onclick={() => askAI(`ask-agenda:${item.id}`, composeAgendaContext(item))}
         >
-          <span class="sparkle">&#x2726;</span> {aiResponseLoading.has(`ask-agenda:${item.id}`) ? 'Thinking...' : aiResponses.has(`ask-agenda:${item.id}`) ? 'Hide' : activeProviderName}
+          <span class="sparkle">&#x2726;</span> {aiResponseLoading.has(`ask-agenda:${item.id}`) ? 'Thinking...' : aiResponses.has(`ask-agenda:${item.id}`) && !aiResponseHidden.has(`ask-agenda:${item.id}`) ? 'Hide' : 'Summary'}
         </button>
       {/if}
-      <button class="ai-action-btn ai-action-claude" class:solo={!aiAvailable} onclick={(e: MouseEvent) => onopenexternalai?.({ context: composeAgendaContext(item), event: e })}>
+      <button class="ai-action-btn ai-action-claude" class:solo={!aiAvailable} onclick={(e: MouseEvent) => { onopenexternalai?.({ context: composeAgendaContext(item), event: e }); shakingCardId = item.id; setTimeout(() => { shakingCardId = null; }, 600); }}>
         Claude <span class="ext-icon">&#x2197;</span>
       </button>
     </div>
-    {#if aiResponses.has(`ask-agenda:${item.id}`)}
+    {#if aiResponses.has(`ask-agenda:${item.id}`) && !aiResponseHidden.has(`ask-agenda:${item.id}`)}
       <div class="ai-response">
         <div class="ai-response-text prose">{@html renderMarkdown(aiResponses.get(`ask-agenda:${item.id}`) ?? '')}</div>
-        {#if activeProviderName}<span class="ai-response-provider">via {activeProviderName}</span>{/if}
+        <div class="ai-response-footer">
+          {#if activeProviderName}<span class="ai-response-provider">via {activeProviderName}</span>{/if}
+          <button class="ai-regenerate-btn" onclick={() => regenerateAI(`ask-agenda:${item.id}`, composeAgendaContext(item))} disabled={aiResponseLoading.has(`ask-agenda:${item.id}`)}>
+            Regenerate
+          </button>
+        </div>
       </div>
     {/if}
   </div>
@@ -511,34 +627,177 @@
     border-color: #4b5563;
   }
   .card.highlighted {
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.2);
+    border-color: #4b5563;
+    animation: highlight-fade 2s ease-out forwards;
+  }
+  .card.shaking {
+    animation: card-shake 0.5s ease-in-out;
+  }
+  @keyframes card-shake {
+    0%, 100% { transform: translateX(0); }
+    15% { transform: translateX(-3px); }
+    30% { transform: translateX(3px); }
+    45% { transform: translateX(-2px); }
+    60% { transform: translateX(2px); }
+    75% { transform: translateX(-1px); }
+    90% { transform: translateX(1px); }
+  }
+  @keyframes highlight-fade {
+    0% { box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.3); }
+    100% { box-shadow: none; border-color: #262626; }
+  }
+  .card.highlighted {
     border-color: #4b5563;
     box-shadow: inset 3px 0 0 #fff, 0 0 12px rgba(255,255,255,0.06);
     transition: border-color 0.15s ease, box-shadow 0.3s ease, opacity 0.15s ease;
   }
 
-  .draft-btn {
+  /* === Draft / Official Comment row (matches ai-action-row) === */
+  .action-btn-row {
+    display: flex;
+    gap: 6px;
+    margin-top: 8px;
+  }
+  .action-btn {
+    flex: 1;
+    padding: 5px 0;
     font-size: 11px;
     font-weight: 500;
-    padding: 4px 10px;
-    background: rgba(139, 92, 246, 0.1);
-    color: #a78bfa;
-    border: 1px solid rgba(139, 92, 246, 0.25);
     border-radius: 6px;
     cursor: pointer;
     transition: all 0.15s ease;
-  }
-  .draft-btn:hover:not(:disabled) {
-    background: rgba(139, 92, 246, 0.2);
-    border-color: #a78bfa;
-  }
-  .draft-btn:disabled { opacity: 0.5; cursor: default; }
-  .draft-btn-standalone {
-    display: block;
-    width: 100%;
-    margin-top: 6px;
-    padding: 5px 0;
     text-align: center;
+    text-decoration: none;
+    font-family: inherit;
   }
+  .action-btn-draft {
+    color: #a78bfa;
+    background: rgba(139,92,246,0.06);
+    border: 1px solid rgba(139,92,246,0.2);
+  }
+  .action-btn-draft:hover:not(:disabled) {
+    background: rgba(139,92,246,0.14);
+    border-color: #a78bfa;
+    color: #c4b5fd;
+  }
+  .action-btn-draft:disabled { opacity: 0.6; cursor: default; }
+  .action-btn-official {
+    color: #4ade80;
+    background: rgba(74,222,128,0.06);
+    border: 1px solid rgba(74,222,128,0.2);
+  }
+  .action-btn-official:hover {
+    background: rgba(74,222,128,0.14);
+    border-color: #4ade80;
+    color: #86efac;
+  }
+  .action-btn-unofficial {
+    color: #9ca3af;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+  }
+  .action-btn-unofficial:hover {
+    background: rgba(255,255,255,0.08);
+    border-color: rgba(255,255,255,0.15);
+    color: #d1d5db;
+  }
+  .action-btn-unofficial.active {
+    background: rgba(255,255,255,0.08);
+    border-color: rgba(255,255,255,0.15);
+    color: #e5e7eb;
+  }
+  .action-btn .sparkle { font-size: 10px; opacity: 0.7; }
+  .action-btn-icon { opacity: 0.6; flex-shrink: 0; vertical-align: -2.5px; }
+  .action-btn-count {
+    font-size: 10px;
+    font-weight: 600;
+    background: rgba(255, 255, 255, 0.08);
+    padding: 0 5px;
+    border-radius: 8px;
+    margin-left: 2px;
+    font-variant-numeric: tabular-nums;
+  }
+  .action-btn-chevron {
+    display: inline-block;
+    width: 0;
+    height: 0;
+    border-left: 3px solid transparent;
+    border-right: 3px solid transparent;
+    border-top: 4px solid currentColor;
+    opacity: 0.5;
+    margin-left: 2px;
+    transition: transform 0.15s ease;
+    flex-shrink: 0;
+  }
+  .action-btn-chevron.open { transform: rotate(180deg); }
+
+  /* === Card-level draft area === */
+  .card-draft {
+    margin-top: 8px;
+    border: 1px solid rgba(139, 92, 246, 0.15);
+    border-radius: 8px;
+    padding: 8px;
+    background: rgba(139, 92, 246, 0.04);
+  }
+  .card-draft-text {
+    width: 100%;
+    background: transparent;
+    border: none;
+    color: #d1d5db;
+    font-size: 12px;
+    line-height: 1.5;
+    resize: vertical;
+    font-family: inherit;
+    outline: none;
+    box-sizing: border-box;
+  }
+  .card-draft-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 8px;
+  }
+  .card-draft-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    font-weight: 500;
+    padding: 5px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    text-decoration: none;
+    font-family: inherit;
+  }
+  .card-draft-official {
+    color: #4ade80;
+    background: rgba(74, 222, 128, 0.08);
+    border: 1px solid rgba(74, 222, 128, 0.2);
+  }
+  .card-draft-official:hover {
+    background: rgba(74, 222, 128, 0.16);
+    border-color: #4ade80;
+  }
+  .card-draft-community {
+    color: #9ca3af;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+  .card-draft-community:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.15);
+    color: #d1d5db;
+  }
+  .card-draft-discard {
+    color: #6b7280;
+    background: none;
+    border: none;
+    margin-left: auto;
+  }
+  .card-draft-discard:hover { color: #9ca3af; }
+  .card-draft-btn svg { opacity: 0.7; }
 
   .ai-action-row {
     display: flex;
@@ -636,10 +895,29 @@
     text-decoration: none;
   }
   .ai-response-text.prose :global(a:hover) { text-decoration: underline; }
-  .ai-response-provider {
-    display: block;
+  .ai-response-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
     margin-top: 6px;
+  }
+  .ai-response-provider {
     font-size: 10px;
     color: #64748b;
   }
+  .ai-regenerate-btn {
+    font-size: 10px;
+    color: #6b7280;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 4px;
+    transition: color 0.15s, background 0.15s;
+  }
+  .ai-regenerate-btn:hover:not(:disabled) {
+    color: #9ca3af;
+    background: rgba(255,255,255,0.06);
+  }
+  .ai-regenerate-btn:disabled { opacity: 0.5; cursor: default; }
 </style>

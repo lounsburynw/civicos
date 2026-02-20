@@ -66,7 +66,6 @@
 
   // Section expand state (owned)
   let initiativesExpanded = $state(true);
-  let commitmentsExpanded = $state(true);
 
   // Inline unlock (within create forms)
   let unlockPassword = $state('');
@@ -850,45 +849,6 @@
   {/if}
 </section>
 
-<!-- My Commitments (personal tracker) -->
-{#if committedActionMeta.size > 0}
-  <section class="feed-section my-commitments-section">
-    <button class="section-header" onclick={() => { commitmentsExpanded = !commitmentsExpanded; }}>
-      <span class="section-title">
-        My Commitments
-        <span class="count-badge">{committedActionMeta.size}</span>
-      </span>
-      <span class="chevron" class:open={commitmentsExpanded}></span>
-    </button>
-    {#if commitmentsExpanded}
-      <div class="section-body">
-        {#each [...committedActionMeta.entries()] as [actionId, meta]}
-          <div class="card commitment-card" class:completed-commitment={completedActions.has(actionId)}>
-            <div class="action-header">
-              <span class="action-type-badge">{actionTypeLabel(meta.action_type)}</span>
-              {#if completedActions.has(actionId)}
-                <span class="commitment-status done">Done</span>
-              {:else if meta.deadline}
-                <span class="deadline-badge {deadlineClass(meta.deadline)}">
-                  {deadlineLabel(meta.deadline)}
-                </span>
-              {:else}
-                <span class="commitment-status active">Active</span>
-              {/if}
-            </div>
-            <div class="action-desc">{meta.description}</div>
-            {#if meta.deadline && !completedActions.has(actionId)}
-              <div class="commitment-cal-row">
-                <a href={actionGoogleCalendarUrl(meta)} target="_blank" rel="noopener" class="commitment-cal-btn">Google Calendar</a>
-                <button class="commitment-cal-btn" onclick={() => downloadActionIcs(meta)}>Download .ics</button>
-              </div>
-            {/if}
-          </div>
-        {/each}
-      </div>
-    {/if}
-  </section>
-{/if}
 
 <style>
   /* === Section Layout (matches SidePanel patterns) === */
@@ -903,10 +863,15 @@
     padding: 8px 4px;
     background: none;
     border: none;
-    border-bottom: 1px solid #374151;
-    color: #eee;
+    border-bottom: 1px solid #262626;
+    color: #9ca3af;
     cursor: pointer;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
   }
+  .section-header:hover { color: #d1d5db; }
   .section-title {
     font-size: 12px;
     font-weight: 600;
@@ -918,35 +883,27 @@
   }
   .chevron {
     display: inline-block;
-    width: 8px;
-    height: 8px;
-    border-right: 2px solid #9ca3af;
-    border-bottom: 2px solid #9ca3af;
-    transform: rotate(-45deg);
+    width: 0;
+    height: 0;
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+    border-top: 5px solid #4b5563;
     transition: transform 0.15s ease;
     flex-shrink: 0;
   }
   .chevron.open {
-    transform: rotate(45deg);
+    transform: rotate(180deg);
   }
   .section-body {
     padding: 6px 0;
   }
   .ini-count {
-    font-size: 10px;
-    background: #374151;
-    color: #9ca3af;
-    padding: 1px 6px;
-    border-radius: 8px;
-    font-weight: 500;
-  }
-  .count-badge {
-    font-size: 10px;
-    background: #374151;
-    color: #9ca3af;
-    padding: 1px 6px;
-    border-radius: 8px;
-    font-weight: 500;
+    background: rgba(255, 255, 255, 0.04);
+    color: #6b7280;
+    font-size: 9px;
+    font-weight: 600;
+    padding: 1px 5px;
+    border-radius: 6px;
   }
 
   /* === Initiative Toolbar === */
@@ -962,18 +919,18 @@
     gap: 4px;
     font-size: 11px;
     font-weight: 500;
-    color: #3b82f6;
+    color: #9ca3af;
     background: none;
-    border: 1px solid #3b82f640;
+    border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: 6px;
     padding: 4px 10px;
     cursor: pointer;
     transition: all 0.15s ease;
   }
   .ini-new-btn:hover {
-    background: rgba(59, 130, 246, 0.08);
-    border-color: #3b82f6;
-    color: #60a5fa;
+    background: rgba(255, 255, 255, 0.04);
+    border-color: rgba(255, 255, 255, 0.15);
+    color: #d1d5db;
   }
   .ini-aggregate-stats {
     display: flex;
@@ -986,18 +943,18 @@
 
   /* === Initiative Cards (wrapper) === */
   .ini-card {
-    background: #262626;
-    border-radius: 10px;
-    padding: 12px 14px;
-    margin-bottom: 6px;
-    border: 1px solid #374151;
+    background: #1e1e1e;
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin-bottom: 4px;
+    border: 1px solid #262626;
     transition: border-color 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
     cursor: grab;
   }
-  .ini-card:hover { border-color: #3b82f6; box-shadow: 0 2px 8px rgba(59, 130, 246, 0.1); }
+  .ini-card:hover { border-color: #374151; }
   .ini-card:active { cursor: grabbing; }
-  .ini-card.dragging { opacity: 0.4; border-color: #3b82f6; }
-  .ini-card-expanded { border-color: #3b82f6; }
+  .ini-card.dragging { opacity: 0.4; border-color: #4b5563; }
+  .ini-card-expanded { border-color: #374151; }
 
   .ini-empty {
     font-size: 12px;
@@ -1008,18 +965,18 @@
   .ini-start-link {
     background: none;
     border: none;
-    color: #3b82f6;
+    color: #9ca3af;
     cursor: pointer;
     font-size: 12px;
     padding: 0;
     text-decoration: underline;
   }
-  .ini-start-link:hover { color: #60a5fa; }
+  .ini-start-link:hover { color: #d1d5db; }
 
   /* === Create Forms === */
   .ini-form {
-    background: #1a1a2e;
-    border: 1px solid #374151;
+    background: #161616;
+    border: 1px solid #262626;
     border-radius: 8px;
     padding: 12px;
     margin-bottom: 8px;
@@ -1088,7 +1045,7 @@
     font-family: inherit;
     box-sizing: border-box;
   }
-  .ini-input:focus, .ini-textarea:focus { border-color: #60a5fa; outline: none; }
+  .ini-input:focus, .ini-textarea:focus { border-color: #6b7280; outline: none; }
   .ini-textarea { resize: vertical; min-height: 48px; }
   select.ini-input { appearance: auto; cursor: pointer; }
 
@@ -1123,7 +1080,7 @@
     transition: all 0.15s ease;
   }
   .ini-chip:hover { border-color: #4b5563; color: #d1d5db; }
-  .ini-chip.active { background: #2563eb; border-color: #2563eb; color: white; }
+  .ini-chip.active { background: rgba(255, 255, 255, 0.1); border-color: #9ca3af; color: #e5e7eb; }
 
   /* === Form Actions === */
   .ini-form-actions {
@@ -1137,13 +1094,13 @@
     font-weight: 500;
     padding: 6px 16px;
     border-radius: 6px;
-    background: #1d4ed8;
-    color: white;
-    border: none;
+    background: rgba(255, 255, 255, 0.1);
+    color: #e5e7eb;
+    border: 1px solid rgba(255, 255, 255, 0.15);
     cursor: pointer;
-    transition: background 0.15s ease;
+    transition: all 0.15s ease;
   }
-  .ini-btn-primary:hover:not(:disabled) { background: #2563eb; }
+  .ini-btn-primary:hover:not(:disabled) { background: rgba(255, 255, 255, 0.15); border-color: rgba(255, 255, 255, 0.25); }
   .ini-btn-primary:disabled { opacity: 0.4; cursor: default; }
   .ini-btn-cancel {
     font-size: 13px;
@@ -1205,85 +1162,4 @@
     align-items: center;
   }
 
-  /* === My Commitments Section === */
-  .my-commitments-section {
-    border-top: 2px solid #374151;
-    margin-top: 4px;
-    padding-top: 4px;
-  }
-
-  .card {
-    background: #262626;
-    border-radius: 10px;
-    padding: 12px 14px;
-    margin-bottom: 6px;
-    border: 1px solid #374151;
-    transition: border-color 0.15s ease, box-shadow 0.15s ease;
-  }
-
-  .commitment-card {
-    border-left: 2px solid #3b82f6;
-  }
-  .completed-commitment {
-    border-left-color: #22c55e;
-    opacity: 0.7;
-  }
-
-  .action-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 4px;
-  }
-  .action-type-badge {
-    font-size: 10px;
-    font-weight: 600;
-    padding: 1px 6px;
-    border-radius: 3px;
-    background: #1e3a5f;
-    color: #60a5fa;
-  }
-  .action-desc {
-    font-size: 12px;
-    color: #d1d5db;
-    line-height: 1.3;
-    margin-bottom: 4px;
-  }
-
-  .commitment-status {
-    font-size: 10px;
-    font-weight: 500;
-    padding: 1px 6px;
-    border-radius: 3px;
-  }
-  .commitment-status.active { background: rgba(59,130,246,0.12); color: #60a5fa; }
-  .commitment-status.done { background: #14532d; color: #4ade80; }
-
-  .deadline-badge {
-    font-size: 10px;
-    font-weight: 500;
-    padding: 1px 6px;
-    border-radius: 3px;
-  }
-  .deadline-badge.normal { background: #374151; color: #9ca3af; }
-  .deadline-badge.urgent { background: #78350f; color: #fbbf24; }
-  .deadline-badge.overdue { background: #7f1d1d; color: #f87171; }
-
-  .commitment-cal-row {
-    display: flex;
-    gap: 6px;
-    margin-top: 6px;
-  }
-  .commitment-cal-btn {
-    font-size: 10px;
-    color: #9ca3af;
-    background: none;
-    border: 1px solid #374151;
-    border-radius: 4px;
-    padding: 2px 8px;
-    cursor: pointer;
-    text-decoration: none;
-    transition: all 0.15s;
-  }
-  .commitment-cal-btn:hover { color: #60a5fa; border-color: #60a5fa; }
 </style>
