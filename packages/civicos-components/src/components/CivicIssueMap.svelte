@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { untrack } from 'svelte';
   import 'leaflet/dist/leaflet.css';
   import L from 'leaflet';
 
@@ -20,10 +19,8 @@
   // Props
   let {
     api,
-    autoload = false,
   }: {
     api: ApiClient;
-    autoload?: boolean;
   } = $props();
 
   // === State ===
@@ -212,10 +209,6 @@
     }
   });
 
-  // Auto-load when prop is set (untrack prevents circular dependency)
-  $effect(() => {
-    if (autoload) untrack(() => load());
-  });
 </script>
 
 {#if loading}

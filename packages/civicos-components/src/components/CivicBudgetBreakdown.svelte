@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { untrack } from 'svelte';
   import { Chart, DoughnutController, ArcElement, Tooltip, Legend } from 'chart.js';
 
   Chart.register(DoughnutController, ArcElement, Tooltip, Legend);
@@ -23,10 +22,8 @@
   // Props
   let {
     api,
-    autoload = false,
   }: {
     api: ApiClient;
-    autoload?: boolean;
   } = $props();
 
   // === State ===
@@ -108,10 +105,6 @@
     }
   });
 
-  // Auto-load when prop is set (untrack prevents circular dependency)
-  $effect(() => {
-    if (autoload) untrack(() => load());
-  });
 </script>
 
 {#if loading}
