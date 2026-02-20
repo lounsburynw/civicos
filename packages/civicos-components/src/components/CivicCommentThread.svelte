@@ -90,20 +90,6 @@
 </script>
 
 <div class="comment-section">
-  <div class="comment-actions-row">
-    <button class="comment-toggle" onclick={() => ontoggle?.()}>
-      <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M2 3h12v7H5l-3 3V3z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>
-      {commentCount} {commentCount === 1 ? 'comment' : 'comments'}{#if attestedCount > 0}&nbsp;({attestedCount} attested){/if}
-      <span class="chevron-sm" class:open={expanded}></span>
-    </button>
-    {#if clerkEmail && mailtoHref}
-      <a class="email-clerk-btn" href={mailtoHref} title="Opens email to the City Clerk with your comment">
-        <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M2 4l6 4 6-4M2 4v8h12V4H2z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>
-        Submit Official Comment
-      </a>
-    {/if}
-  </div>
-
   {#if expanded}
     <div class="comment-thread">
       {#if loading}
@@ -231,18 +217,20 @@
     gap: 8px;
   }
   .email-clerk-btn {
-    display: inline-flex;
+    display: flex;
     align-items: center;
-    gap: 4px;
+    justify-content: center;
+    gap: 5px;
     font-size: 11px;
     font-weight: 500;
     color: #4ade80;
     text-decoration: none;
-    padding: 3px 8px;
-    border-radius: 4px;
+    padding: 6px 10px;
+    border-radius: 6px;
     background: rgba(74, 222, 128, 0.08);
     border: 1px solid rgba(74, 222, 128, 0.2);
     transition: all 0.15s ease;
+    margin-bottom: 6px;
   }
   .email-clerk-btn:hover {
     background: rgba(74, 222, 128, 0.16);

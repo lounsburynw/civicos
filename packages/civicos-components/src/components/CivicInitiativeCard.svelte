@@ -123,9 +123,9 @@
       <span class="ini-topic-pill">{initiative.topic}</span>
       <div class="ini-card-badges">
         {#if initiative.voice_count > 0}
-          <span class="ini-voice-inline" title={initiative.attested_voice_count != null && initiative.attested_voice_count > 0 ? `${initiative.attested_voice_count} attested` : ''}>
+          <span class="ini-voice-inline">
             <svg class="ini-voice-icon" viewBox="0 0 16 16" fill="currentColor"><path d="M6.956 1.745C7.021.81 7.908.087 8.864.325l.261.066c.463.116.874.456 1.012.965.22.816.533 2.511.062 4.51a10 10 0 0 1 .443-.051c.713-.065 1.669-.072 2.516.21.518.173.994.681 1.2 1.273.184.532.16 1.162-.234 1.733q.086.18.138.363c.077.27.113.567.113.856s-.036.586-.113.856c-.039.135-.09.273-.16.404.169.387.107.82-.003 1.149a3.2 3.2 0 0 1-.488.901c.054.152.076.312.076.465 0 .305-.089.625-.253.912C13.1 15.522 12.437 16 11.5 16H8c-.605 0-1.07-.081-1.466-.218a4.8 4.8 0 0 1-.97-.484l-.048-.03c-.504-.307-.999-.609-2.068-.722C2.682 14.464 2 13.846 2 13V9c0-.85.685-1.432 1.357-1.615.849-.232 1.574-.787 2.132-1.41.56-.627.914-1.28 1.039-1.639.199-.575.356-1.539.428-2.59z"/></svg>
-            <span class="ini-voice-num">{initiative.voice_count}{#if initiative.attested_voice_count != null && initiative.attested_voice_count > 0} <span class="ini-voice-attested">({initiative.attested_voice_count} attested)</span>{/if}</span>
+            <span class="ini-voice-num">{initiative.voice_count}</span>
           </span>
         {/if}
         {#if initiative.coordination_url}
@@ -136,9 +136,8 @@
     </div>
     <div class="ini-card-title">{initiative.title}</div>
     <div class="ini-card-desc">{initiative.description}</div>
-    {#if initiative.creator_attested || stats.committed > 0 || stats.completed > 0}
+    {#if stats.committed > 0 || stats.completed > 0}
       <div class="ini-card-stats">
-        {#if initiative.creator_attested}<span class="ini-stat ini-stat-attested" title="Initiative creator is in-person verified">Attested</span>{/if}
         {#if stats.committed > 0}<span class="ini-stat">{stats.committed} committed</span>{/if}
         {#if stats.completed > 0}<span class="ini-stat ini-stat-done">{stats.completed} done</span>{/if}
       </div>
@@ -256,12 +255,13 @@
   .ini-topic-pill {
     display: inline-block;
     padding: 2px 8px;
-    background: rgba(59, 130, 246, 0.12);
-    color: #60a5fa;
-    font-size: 11px;
+    background: rgba(255, 255, 255, 0.06);
+    color: #9ca3af;
+    font-size: 10px;
     font-weight: 600;
     border-radius: 10px;
     text-transform: capitalize;
+    letter-spacing: 0.02em;
   }
   .ini-card-badges {
     display: flex;
@@ -278,18 +278,13 @@
   .ini-voice-icon {
     width: 13px;
     height: 13px;
-    color: #60a5fa;
+    color: #6b7280;
   }
   .ini-voice-num {
     font-size: 11px;
     font-weight: 600;
     font-variant-numeric: tabular-nums;
     color: #9ca3af;
-  }
-  .ini-voice-attested {
-    font-size: 9px;
-    font-weight: 500;
-    color: #22c55e;
   }
   .ini-coord-icon {
     width: 13px;
@@ -309,17 +304,17 @@
   }
   .ini-card-title {
     color: #eee;
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 500;
     line-height: 1.3;
   }
-  .ini-card-toggle:hover .ini-card-title { color: #60a5fa; }
-  .ini-card-toggle:hover .ini-expand-chevron { color: #60a5fa; }
-  .ini-card-toggle:hover .ini-coord-icon { color: #60a5fa; }
+  .ini-card-toggle:hover .ini-card-title { color: #e5e7eb; }
+  .ini-card-toggle:hover .ini-expand-chevron { color: #9ca3af; }
+  .ini-card-toggle:hover .ini-coord-icon { color: #9ca3af; }
   .ini-card-desc {
-    color: #9ca3af;
-    font-size: 13px;
-    margin-top: 4px;
+    color: #6b7280;
+    font-size: 12px;
+    margin-top: 3px;
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
@@ -336,20 +331,10 @@
   }
   .ini-stat { color: #9ca3af; }
   .ini-stat.ini-stat-done { color: #4ade80; }
-  .ini-stat.ini-stat-attested {
-    color: #22c55e;
-    background: rgba(34, 197, 94, 0.12);
-    padding: 0 5px;
-    border-radius: 8px;
-    font-weight: 600;
-    font-size: 9px;
-    text-transform: uppercase;
-    letter-spacing: 0.3px;
-  }
 
   /* === Expanded detail === */
   .ini-detail {
-    border-top: 1px solid #374151;
+    border-top: 1px solid #262626;
     padding-top: 10px;
     margin-top: 10px;
     display: flex;
@@ -360,12 +345,12 @@
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    font-size: 13px;
-    color: #3b82f6;
+    font-size: 12px;
+    color: #9ca3af;
     text-decoration: none;
     transition: color 0.15s;
   }
-  .ini-coord-link:hover { color: #60a5fa; text-decoration: underline; }
+  .ini-coord-link:hover { color: #d1d5db; text-decoration: underline; }
   .ini-detail-msg { font-size: 12px; color: #6b7280; font-style: italic; }
   .ini-detail-label {
     font-size: 11px;
@@ -394,8 +379,8 @@
     font-weight: 600;
     padding: 2px 8px;
     border-radius: 6px;
-    background: rgba(59, 130, 246, 0.12);
-    color: #60a5fa;
+    background: rgba(255, 255, 255, 0.06);
+    color: #9ca3af;
   }
   .ini-deadline {
     font-size: 11px;
@@ -425,7 +410,7 @@
   }
   .ini-progress-fill {
     height: 100%;
-    background: #3b82f6;
+    background: #6b7280;
     border-radius: 2px;
     transition: width 0.3s ease;
   }
@@ -440,17 +425,17 @@
   }
   .ini-btn-primary {
     padding: 8px 16px;
-    border: none;
+    border: 1px solid rgba(255, 255, 255, 0.15);
     border-radius: 8px;
-    background: #3b82f6;
-    color: white;
+    background: rgba(255, 255, 255, 0.1);
+    color: #e5e7eb;
     font-size: 13px;
     font-weight: 500;
     cursor: pointer;
     transition: all 0.15s;
     font-family: inherit;
   }
-  .ini-btn-primary:hover:not(:disabled) { background: #2563eb; }
+  .ini-btn-primary:hover:not(:disabled) { background: rgba(255, 255, 255, 0.15); border-color: rgba(255, 255, 255, 0.25); }
   .ini-btn-primary:disabled { opacity: 0.4; cursor: default; }
   .ini-btn-cancel {
     padding: 8px 14px;
