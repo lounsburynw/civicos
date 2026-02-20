@@ -2582,7 +2582,7 @@
         "priority": 0,
         "artifact": "Progressive engagement UX from awareness to coordination",
         "description": "UX flow that guides users through engagement ladder: Awareness (what's happening) \u2192 Relevance (what affects me) \u2192 Participation (where I can act) \u2192 Coordination (who's with me). Each dashboard view surfaces the 'next step' without forcing it.",
-        "note": "Sessions 1-5: Engagement ladder complete. Session 6: Visual testing harness. Session 7: Cross-level consistency \u2014 city focal points, urgency badges, section hints, progressive disclosure. All 3 tabs now follow same Take Action pattern."
+        "note": "Sessions 1-7: Engagement ladder + visual testing + cross-level consistency. Session 8: Phase 3 UX polish \u2014 draft workflow, attention bar, Official/Public sections, attested checkmarks, Issue Map/Budget collapsible sections, initiative attention bar. Session 9 TODO: State/federal polish to same standard, topic tagging foundation."
       },
       "civic_dashboard_mvp": {
         "status": "ready",
