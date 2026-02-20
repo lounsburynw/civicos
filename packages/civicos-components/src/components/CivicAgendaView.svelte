@@ -590,10 +590,16 @@
           <span class="sparkle">&#x2726;</span> {aiResponseLoading.has(`ask-agenda:${item.id}`) ? 'Thinking...' : aiResponses.has(`ask-agenda:${item.id}`) && !aiResponseHidden.has(`ask-agenda:${item.id}`) ? 'Hide' : 'Summary'}
         </button>
       {/if}
-      <button class="ai-action-btn ai-action-claude" class:solo={!aiAvailable} onclick={(e: MouseEvent) => { onopenexternalai?.({ context: composeAgendaContext(item), event: e }); shakingCardId = item.id; setTimeout(() => { shakingCardId = null; }, 600); }}>
+      <button class="ai-action-btn ai-action-claude" class:solo={!aiAvailable} onclick={(e: MouseEvent) => { onopenexternalai?.({ context: composeAgendaContext(item), event: e }); shakingCardId = item.id; setTimeout(() => { shakingCardId = null; }, 2500); }}>
         Claude <span class="ext-icon">&#x2197;</span>
       </button>
     </div>
+    {#if shakingCardId === item.id}
+      <div class="drag-hint">
+        <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M8 2v12M8 2L5 5M8 2l3 3M2 8h12M2 8l3-3M2 8l3 3M14 8l-3-3M14 8l-3 3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Drag this card into Claude's input
+      </div>
+    {/if}
     {#if aiResponses.has(`ask-agenda:${item.id}`) && !aiResponseHidden.has(`ask-agenda:${item.id}`)}
       <div class="ai-response">
         <div class="ai-response-text prose">{@html renderMarkdown(aiResponses.get(`ask-agenda:${item.id}`) ?? '')}</div>
@@ -642,6 +648,24 @@
     60% { transform: translateX(2px); }
     75% { transform: translateX(-1px); }
     90% { transform: translateX(1px); }
+  }
+  .drag-hint {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 10px;
+    color: #9ca3af;
+    padding: 6px 10px;
+    background: rgba(255, 255, 255, 0.04);
+    border-radius: 6px;
+    margin-top: 4px;
+    animation: hint-fade 2.5s ease-out forwards;
+  }
+  @keyframes hint-fade {
+    0% { opacity: 0; transform: translateY(-4px); }
+    10% { opacity: 1; transform: translateY(0); }
+    70% { opacity: 1; }
+    100% { opacity: 0; }
   }
   @keyframes highlight-fade {
     0% { box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.3); }
