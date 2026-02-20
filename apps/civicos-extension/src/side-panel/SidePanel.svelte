@@ -806,7 +806,7 @@
     {@const allActionable = [...officialActionable, ...initiativeActionable]}
     {#if allActionable.length > 0}
       <div class="attention-bar">
-        <div class="attention-title">Actionable items</div>
+        <div class="attention-title">Upcoming actionable items</div>
         <div class="attention-items">
           {#each allActionable as item}
             <button class="attention-item" onclick={item.action}>
@@ -822,23 +822,25 @@
     <!-- Official Section -->
     <div class="group-header">Official</div>
 
-    <!-- Upcoming Meetings -->
+    <!-- Upcoming Meetings (today or future only) -->
+    {@const todayStr = new Date().toISOString().slice(0, 10)}
+    {@const upcomingMeetings = (pulseData.decisions_this_week || []).filter(m => m.meeting_datetime.slice(0, 10) >= todayStr)}
     <section class="feed-section">
       <button class="section-header" onclick={() => toggle('meetings')}>
         <span class="section-title">
           Meetings
-          {#if pulseData.decisions_this_week.length > 0}
-            <span class="count-badge">{pulseData.decisions_this_week.length}</span>
+          {#if upcomingMeetings.length > 0}
+            <span class="count-badge">{upcomingMeetings.length}</span>
           {/if}
         </span>
         <span class="chevron" class:open={expanded.meetings}></span>
       </button>
       {#if expanded.meetings}
         <div class="section-body">
-          {#if pulseData.decisions_this_week.length === 0}
+          {#if upcomingMeetings.length === 0}
             <div class="empty-section">No upcoming meetings</div>
           {:else}
-            {#each pulseData.decisions_this_week as meeting}
+            {#each upcomingMeetings as meeting}
               <CivicMeetingCard {meeting} />
             {/each}
           {/if}
