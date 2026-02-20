@@ -253,6 +253,7 @@ Historical docs from completed phases. Recoverable if needed.
 | `/test [mode]` | Run tests (smoke/targeted/full/profile) | No |
 | `/critic [type]` | Run codebase critics on staged changes | No |
 | `/review [scope]` | Run pr-review-toolkit agents (code quality) | Yes (agents) |
+| `/visual-review [mode]` | Screenshot extension UX + review (review/diff/both) | No |
 | `/commit` | Run critics on staged changes, then commit | No |
 | `/nextsesh` | Prepare handoff notes (requires P0 set) | No |
 | `/ingest-audio [jurisdiction] [limit]` | Download YouTube audio locally, upload to R2 | No |

@@ -1,3 +1,60 @@
+## Session — 2026-02-19 (7): Playwright Visual Testing Harness + /visual-review Skill
+
+**Item:** engagement_ladder_ux (visual testing infrastructure)
+**Status:** Complete. Not yet committed.
+
+### What was done
+- Created Playwright visual testing harness for browser extension (7 new files)
+- Standalone Vite dev server (`vite.harness.config.ts`) renders CivicReadOnlyPulse with mock data at 380px
+- HarnessApp.svelte reproduces SidePanel chrome (breadcrumb nav, panel styles) without Chrome APIs
+- Mock data fixtures for city (meetings, agenda, outcomes), state (hearings, governor's desk, topic grid, legislation), federal (comment periods with urgency badges)
+- Fixed timestamps in mock data prevent screenshot drift
+- 6 Playwright screenshot tests: city-pulse, state-pulse, federal-pulse, state-take-action, federal-urgency-badges, city-sections
+- All 6 tests pass with baseline screenshots generated
+- Created `/visual-review` skill — takes screenshots, Claude reads PNGs as images, reviews UX quality + baseline comparison
+- Registered skill in CLAUDE.md slash commands table
+
+### New files
+- `apps/civicos-extension/playwright.config.ts`
+- `apps/civicos-extension/vite.harness.config.ts`
+- `apps/civicos-extension/tests/visual/index.html`
+- `apps/civicos-extension/tests/visual/harness.ts`
+- `apps/civicos-extension/tests/visual/HarnessApp.svelte`
+- `apps/civicos-extension/tests/visual/mock-data.ts`
+- `apps/civicos-extension/tests/visual/visual.spec.ts`
+- `.claude/commands/visual-review.md`
+
+### P0 for next session
+- engagement_ladder_ux — UX audit: cross-level consistency, information density, simulated user personas, using /visual-review skill
+
+---
+
+## Session — 2026-02-19 (6): Browser Extension UX Harmonization
+
+**Item:** Browser Extension UX Alignment (from handoff)
+**Status:** Complete. Committed.
+
+### What was done
+- **AI integration for state/federal focal points**: Added Ask AI + Claude buttons to all focal point cards (comment periods, hearings, governor's desk) and legislation cards. Added Draft with AI + Enrich with context to focal point comment threads.
+- **Calendar on hearing cards**: Hearing cards now have Google Calendar + .ics download (matching city meeting cards)
+- **Section hints**: Added contextual guidance hints to city meetings ("Attend public meetings...") and legislative items ("Track key bills...")
+- **Progressive disclosure**: Legislation and outcome summaries now truncate at 150 chars with "more" expand button
+- **Default-collapse Bill Activity**: Legislative tabs start with outcomes section collapsed to reduce visual clutter
+- **External AI wiring**: Connected CivicReadOnlyPulse's new onopenexternalai prop to SidePanel's existing Claude handler
+
+### Files changed
+- `packages/civicos-components/src/components/CivicReadOnlyPulse.svelte` — Main pulse component (+390 lines)
+- `apps/civicos-extension/src/side-panel/SidePanel.svelte` — Wire onopenexternalai prop
+
+### Commits
+- 348b9de feat: Harmonize browser extension UX across city, state, and federal tabs
+
+### What remains (from handoff)
+- Contact Representative button for state bills (vs Submit Official Comment)
+- More aggressive density improvements (card padding, whitespace audit)
+- AI "Prepare for Hearing" button with talking points generation
+- Plain-language bill summary generation on demand
+
 ## Session — 2026-02-19 (5): Relay URL Fix + Aesthetic Polish
 
 **Item:** engagement_ladder_ux (P0) — Fix relay URL, aesthetic alignment
