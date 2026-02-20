@@ -120,7 +120,12 @@
 <div class="initiative-content">
   <button class="ini-card-toggle" onclick={() => ontoggle?.()}>
     <div class="ini-card-top">
-      <span class="ini-topic-pill">{initiative.topic}</span>
+      <span class="ini-topic-pill">
+        {initiative.topic}
+        {#if initiative.creator_attested}
+          <svg class="ini-attested-check" viewBox="0 0 16 16" fill="currentColor" title="Verified creator"><path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.75.75 0 0 1 1.06-1.06L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0z"/></svg>
+        {/if}
+      </span>
       <div class="ini-card-badges">
         {#if initiative.voice_count > 0}
           <span class="ini-voice-inline">
@@ -253,7 +258,9 @@
     gap: 8px;
   }
   .ini-topic-pill {
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
     padding: 2px 8px;
     background: rgba(255, 255, 255, 0.06);
     color: #9ca3af;
@@ -262,6 +269,12 @@
     border-radius: 10px;
     text-transform: capitalize;
     letter-spacing: 0.02em;
+  }
+  .ini-attested-check {
+    width: 10px;
+    height: 10px;
+    color: #4ade80;
+    flex-shrink: 0;
   }
   .ini-card-badges {
     display: flex;

@@ -110,6 +110,9 @@
   let aiAvailable = $state(false);
   let activeProviderName = $state('');
 
+  // Initiatives loaded from CivicInitiativeView (for attention bar)
+  let loadedInitiatives: Array<{ id: string; title: string; topic: string; voice_count: number; creator_attested?: boolean }> = $state([]);
+
   // Jurisdiction state
   let activeJurisdiction = $state('city-san-rafael');
   let availableServers: RegistryServer[] = $state([]);
@@ -780,18 +783,23 @@
       <button class="btn-retry" onclick={loadCityPulse}>Retry</button>
     </div>
   {:else if pulseData}
-    <!-- Actionable items for city tab -->
-    {@const cityActionableItems = (pulseData.upcoming_items || []).filter(i => i.stance_eligible || i.comment_eligible).map(i => ({
-      id: i.id, title: i.title, when: i.meeting_date || '',
+    <!-- Actionable items for city tab (official + public initiatives) -->
+    {@const officialActionable = (pulseData.upcoming_items || []).filter(i => i.stance_eligible || i.comment_eligible).map(i => ({
+      id: i.id, title: i.title, tag: 'agenda' as const, when: i.meeting_date || '',
       action: () => scrollToCard(i.id),
     }))}
-    {#if cityActionableItems.length > 0}
+    {@const initiativeActionable = loadedInitiatives.filter(i => i.voice_count > 0).slice(0, 3).map(i => ({
+      id: i.id, title: i.title, tag: 'initiative' as const, when: `${i.voice_count} voice${i.voice_count !== 1 ? 's' : ''}`,
+      action: () => { /* scroll handled by initiative section */ },
+    }))}
+    {@const allActionable = [...officialActionable, ...initiativeActionable]}
+    {#if allActionable.length > 0}
       <div class="attention-bar">
         <div class="attention-title">Actionable items</div>
         <div class="attention-items">
-          {#each cityActionableItems as item}
+          {#each allActionable as item}
             <button class="attention-item" onclick={item.action}>
-              <span class="attention-pip"></span>
+              <span class="attention-pip" class:attention-pip-initiative={item.tag === 'initiative'}></span>
               <span class="attention-item-title">{item.title}</span>
               <span class="attention-when">{item.when}</span>
             </button>
@@ -904,27 +912,7 @@
       {/if}
     </section>
 
-    <!-- Public Section -->
-    <div class="group-header">Public</div>
-
-    <!-- Community Initiatives (CivicInitiativeView) -->
-    <CivicInitiativeView
-      {api}
-      {session}
-      {identity}
-      jurisdiction={pulseData?.jurisdiction || activeJurisdiction}
-      ontoast={(message) => showToast(message)}
-      onunlock={async (password) => {
-        const response = await sendMessage({ type: 'UNLOCK', password });
-        if (response.success && response.data) {
-          identity = identity ? { ...identity, isUnlocked: true } : identity;
-          return true;
-        }
-        return false;
-      }}
-    />
-
-    <!-- Browse tools (Issue Map, Budget, Initiatives expand inline) -->
+    <!-- Browse (Issue Map, Budget) — under Official -->
     <div class="browse-row">
       <button class="browse-pill" onclick={() => { toggle('issueMap'); issueMapRef?.load(); }}>Issue Map</button>
       <button class="browse-pill" onclick={() => { toggle('budget'); budgetRef?.load(); }}>Budget</button>
@@ -939,6 +927,27 @@
         <CivicBudgetBreakdown bind:this={budgetRef} {api} />
       </div>
     {/if}
+
+    <!-- Public Section -->
+    <div class="group-header">Public</div>
+
+    <!-- Community Initiatives (CivicInitiativeView) -->
+    <CivicInitiativeView
+      {api}
+      {session}
+      {identity}
+      jurisdiction={pulseData?.jurisdiction || activeJurisdiction}
+      ontoast={(message) => showToast(message)}
+      oninitiativesloaded={(items) => { loadedInitiatives = items; }}
+      onunlock={async (password) => {
+        const response = await sendMessage({ type: 'UNLOCK', password });
+        if (response.success && response.data) {
+          identity = identity ? { ...identity, isUnlocked: true } : identity;
+          return true;
+        }
+        return false;
+      }}
+    />
 
     <!-- Footer -->
     <footer class="pulse-footer">
@@ -1363,6 +1372,10 @@
     border-radius: 50%;
     background: #e5e7eb;
     flex-shrink: 0;
+  }
+  .attention-pip-initiative {
+    background: #6b7280;
+    border-radius: 1px;
   }
   .attention-item-title {
     flex: 1;
