@@ -99,22 +99,21 @@
 
 <style>
   .card {
-    background: #262626;
-    border-radius: 10px;
-    padding: 12px 14px;
-    margin-bottom: 6px;
-    border: 1px solid #374151;
+    background: #1e1e1e;
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin-bottom: 4px;
+    border: 1px solid #262626;
     transition: border-color 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
     cursor: grab;
   }
   .card:hover {
-    border-color: #3b82f6;
-    box-shadow: 0 2px 8px rgba(59,130,246,0.1);
+    border-color: #374151;
   }
   .card:active { cursor: grabbing; }
   .card.dragging {
     opacity: 0.4;
-    border-color: #3b82f6;
+    border-color: #4b5563;
   }
   .past-meeting { opacity: 0.65; }
   .past-icon { font-size: 12px; margin-right: 4px; }
@@ -125,8 +124,8 @@
     gap: 6px;
   }
   .card-title {
-    color: #eee;
-    font-size: 14px;
+    color: #e5e7eb;
+    font-size: 13px;
     font-weight: 500;
     line-height: 1.3;
   }
@@ -149,23 +148,23 @@
     padding: 2px;
     border-radius: 3px;
   }
-  .cal-btn:hover:not(:disabled) { color: #60a5fa; background: #374151; }
+  .cal-btn:hover:not(:disabled) { color: #d1d5db; background: #262626; }
   .cal-btn:disabled { opacity: 0.3; cursor: default; }
   .cal-dropdown {
     display: flex;
     gap: 8px;
     margin-top: 6px;
     padding-top: 6px;
-    border-top: 1px solid #374151;
+    border-top: 1px solid #262626;
   }
   .cal-option {
     font-size: 11px;
-    color: #3b82f6;
+    color: #9ca3af;
     background: none;
     border: none;
     cursor: pointer;
     padding: 0;
     text-decoration: none;
   }
-  .cal-option:hover { color: #60a5fa; text-decoration: underline; }
+  .cal-option:hover { color: #d1d5db; text-decoration: underline; }
 </style>

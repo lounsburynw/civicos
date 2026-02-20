@@ -1346,24 +1346,24 @@
     width: 100%;
     background: none;
     border: none;
-    color: #eee;
+    color: #9ca3af;
     padding: 8px 4px;
     cursor: pointer;
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 0.05em;
-    border-bottom: 1px solid #374151;
+    letter-spacing: 0.04em;
+    border-bottom: 1px solid #262626;
   }
-  .section-header:hover { color: #eee; }
+  .section-header:hover { color: #d1d5db; }
   .section-title { display: flex; align-items: center; gap: 6px; }
   .count-badge {
-    background: rgba(59, 130, 246, 0.15);
-    color: #60a5fa;
-    font-size: 10px;
+    background: rgba(255, 255, 255, 0.04);
+    color: #6b7280;
+    font-size: 9px;
     font-weight: 600;
     padding: 1px 5px;
-    border-radius: 8px;
+    border-radius: 6px;
     text-transform: none;
     letter-spacing: 0;
   }
@@ -1372,7 +1372,7 @@
     width: 0; height: 0;
     border-left: 4px solid transparent;
     border-right: 4px solid transparent;
-    border-top: 5px solid #6b7280;
+    border-top: 5px solid #4b5563;
     transition: transform 0.15s ease;
   }
   .chevron.open { transform: rotate(180deg); }
@@ -1384,26 +1384,25 @@
     font-style: italic;
   }
   .card {
-    background: #262626;
-    border-radius: 10px;
-    padding: 12px 14px;
-    margin-bottom: 6px;
-    border: 1px solid #374151;
+    background: #1e1e1e;
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin-bottom: 4px;
+    border: 1px solid #262626;
     transition: border-color 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
     cursor: grab;
   }
   .card:hover {
-    border-color: #3b82f6;
-    box-shadow: 0 2px 8px rgba(59,130,246,0.1);
+    border-color: #374151;
   }
   .card:active { cursor: grabbing; }
   .card.dragging {
     opacity: 0.4;
-    border-color: #3b82f6;
+    border-color: #4b5563;
   }
   .card-title {
-    color: #eee;
-    font-size: 14px;
+    color: #e5e7eb;
+    font-size: 13px;
     font-weight: 500;
     line-height: 1.3;
   }

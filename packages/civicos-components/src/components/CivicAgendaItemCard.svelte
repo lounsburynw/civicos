@@ -110,12 +110,12 @@
     color: #6b7280;
   }
   .item-number {
-    color: #60a5fa;
+    color: #9ca3af;
     font-weight: 600;
   }
   .card-title {
-    color: #eee;
-    font-size: 14px;
+    color: #e5e7eb;
+    font-size: 13px;
     font-weight: 500;
     line-height: 1.3;
   }
@@ -142,14 +142,15 @@
     flex-wrap: wrap;
   }
   .tag {
-    font-size: 10px;
+    font-size: 9px;
     padding: 1px 6px;
     border-radius: 3px;
-    background: #374151;
-    color: #9ca3af;
+    background: rgba(255, 255, 255, 0.04);
+    color: #6b7280;
+    font-weight: 500;
   }
-  .tag-voice { background: #1e3a5f; color: #60a5fa; }
-  .tag-comment { background: #1a332e; color: #34d399; }
+  .tag-voice { background: rgba(255, 255, 255, 0.08); color: #d1d5db; }
+  .tag-comment { background: rgba(255, 255, 255, 0.08); color: #d1d5db; }
   .voice-counts {
     display: flex;
     gap: 6px;
@@ -165,8 +166,8 @@
   .vc-watch { background: #374151; color: #9ca3af; }
   .vc-attested { background: rgba(34, 197, 94, 0.12); color: #22c55e; }
   .deadline-tag { font-size: 10px; font-weight: 600; padding: 1px 6px; border-radius: 3px; }
-  .deadline-tag.urgent-critical { background: rgba(239, 68, 68, 0.15); color: #f87171; }
-  .deadline-tag.urgent-soon { background: rgba(245, 158, 11, 0.15); color: #fbbf24; }
-  .deadline-tag.urgent-normal { background: rgba(59, 130, 246, 0.12); color: #60a5fa; }
-  .deadline-tag.urgent-closed { background: rgba(107, 114, 128, 0.15); color: #6b7280; }
+  .deadline-tag.urgent-critical { background: rgba(255, 255, 255, 0.06); color: #e5e7eb; }
+  .deadline-tag.urgent-soon { background: rgba(255, 255, 255, 0.04); color: #d1d5db; }
+  .deadline-tag.urgent-normal { background: rgba(255, 255, 255, 0.03); color: #9ca3af; font-weight: 500; }
+  .deadline-tag.urgent-closed { background: rgba(255, 255, 255, 0.02); color: #6b7280; font-weight: 500; }
 </style>

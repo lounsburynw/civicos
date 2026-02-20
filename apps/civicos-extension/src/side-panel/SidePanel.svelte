@@ -17,7 +17,7 @@
   import CivicProvenancePanel from '@civicos/components/src/components/CivicProvenancePanel.svelte';
   import CivicIdentityChip from '@civicos/components/src/components/CivicIdentityChip.svelte';
   import CivicReadOnlyPulse from '@civicos/components/src/components/CivicReadOnlyPulse.svelte';
-  import CivicCityFocal from '@civicos/components/src/components/CivicCityFocal.svelte';
+
 
   // High-level orchestration session (stateless — recreated when AI config changes)
   let session = new CivicSession(api, registry, getAIManager());
@@ -38,7 +38,7 @@
 
   // Collapsible section state
   let expanded: Record<string, boolean> = $state({
-    meetings: true,
+    meetings: false,
     items: true,
     outcomes: false,
     issueMap: false,
@@ -502,6 +502,23 @@
     }
   }
 
+  function lookupItemTitle(entityId: string): string | null {
+    if (!pulseData) return null;
+    const rawId = entityId.replace(/^agenda:/, '').replace(/^bill:/, '');
+    const item = pulseData.upcoming_items?.find(i => i.id === rawId);
+    if (item) return item.title;
+    const outcome = pulseData.recent_outcomes?.find(o => o.id === rawId);
+    if (outcome) return outcome.title;
+    // Check parent pulse data
+    for (const [, pd] of parentPulseData) {
+      const pi = pd.upcoming_items?.find(i => i.id === rawId);
+      if (pi) return pi.title;
+      const po = pd.recent_outcomes?.find(o => o.id === rawId);
+      if (po) return po.title;
+    }
+    return null;
+  }
+
   async function handleVoice(entityId: string, stance: Stance, overrideJurisdiction?: string) {
     if (votingInProgress.has(entityId)) return;
     if (!identity?.isUnlocked) return;
@@ -549,6 +566,15 @@
     userStances.set(entityId, stance);
     userStances = new Map(userStances);
     persistStances();
+
+    // Contextual confirmation toast
+    const itemTitle = lookupItemTitle(entityId);
+    const othersCount = newCounts.total - 1;
+    if (itemTitle) {
+      const truncTitle = itemTitle.length > 50 ? itemTitle.slice(0, 47) + '...' : itemTitle;
+      const others = othersCount > 0 ? ` ${othersCount} other${othersCount !== 1 ? 's' : ''} have also weighed in.` : '';
+      showToast(`You voiced ${stance} on ${truncTitle}.${others}`);
+    }
 
     // Sign and submit (fire-and-forget — stance is persisted locally regardless)
     const jurisdiction = overrideJurisdiction || pulseData?.jurisdiction || activeJurisdiction;
@@ -736,17 +762,22 @@
       <button class="btn-retry" onclick={loadCityPulse}>Retry</button>
     </div>
   {:else if pulseData}
-    <!-- City Focal Points (upcoming meetings within 7 days) -->
-    <CivicCityFocal
-      meetings={pulseData.decisions_this_week}
-      upcomingItems={pulseData.upcoming_items}
-      generatedAt={pulseData.generated_at}
-      jurisdiction={activeJurisdiction}
-      {aiAvailable}
-      {activeProviderName}
-      {renderMarkdown}
-      onopenexternalai={({ context, event }) => openExternalAI('claude', context, event)}
-    />
+    <!-- Attention Bar: actionable items across city data -->
+    {@const actionableItems = (pulseData.upcoming_items || []).filter(item => item.stance_eligible || item.comment_eligible)}
+    {#if actionableItems.length > 0}
+      <div class="attention-bar">
+        <div class="attention-title">{actionableItems.length} item{actionableItems.length !== 1 ? 's' : ''} need attention</div>
+        <div class="attention-items">
+          {#each actionableItems.slice(0, 4) as item}
+            <button class="attention-item" onclick={() => { expanded.items = true; }}>
+              <span class="attention-pip"></span>
+              <span class="attention-item-title">{item.title}</span>
+              <span class="attention-when">{item.meeting_date || ''}</span>
+            </button>
+          {/each}
+        </div>
+      </div>
+    {/if}
 
     <!-- Upcoming Meetings -->
     <section class="feed-section">
@@ -862,31 +893,21 @@
       }}
     />
 
-    <!-- Issue Map -->
-    <section class="feed-section">
-      <button class="section-header" onclick={() => { toggle('issueMap'); issueMapRef?.load(); }}>
-        <span class="section-title">Issue Map</span>
-        <span class="chevron" class:open={expanded.issueMap}></span>
-      </button>
-      {#if expanded.issueMap}
-        <div class="section-body">
-          <CivicIssueMap bind:this={issueMapRef} {api} />
-        </div>
-      {/if}
-    </section>
-
-    <!-- Budget Breakdown -->
-    <section class="feed-section">
-      <button class="section-header" onclick={() => { toggle('budget'); budgetRef?.load(); }}>
-        <span class="section-title">Budget</span>
-        <span class="chevron" class:open={expanded.budget}></span>
-      </button>
-      {#if expanded.budget}
-        <div class="section-body">
-          <CivicBudgetBreakdown bind:this={budgetRef} {api} />
-        </div>
-      {/if}
-    </section>
+    <!-- Browse tools (Issue Map, Budget, Initiatives expand inline) -->
+    <div class="browse-row">
+      <button class="browse-pill" onclick={() => { toggle('issueMap'); issueMapRef?.load(); }}>Issue Map</button>
+      <button class="browse-pill" onclick={() => { toggle('budget'); budgetRef?.load(); }}>Budget</button>
+    </div>
+    {#if expanded.issueMap}
+      <div class="browse-expanded">
+        <CivicIssueMap bind:this={issueMapRef} {api} />
+      </div>
+    {/if}
+    {#if expanded.budget}
+      <div class="browse-expanded">
+        <CivicBudgetBreakdown bind:this={budgetRef} {api} />
+      </div>
+    {/if}
 
     <!-- Footer -->
     <footer class="pulse-footer">
@@ -996,7 +1017,7 @@
     align-items: center;
     margin-bottom: 12px;
     padding-bottom: 10px;
-    border-bottom: 1px solid #374151;
+    border-bottom: 1px solid #262626;
   }
 
   .breadcrumb {
@@ -1023,17 +1044,15 @@
   }
   .breadcrumb-segment:first-child {
     font-weight: 600;
-    color: #d1d5db;
+    color: #9ca3af;
   }
   .breadcrumb-segment:hover {
     color: #eee;
     background: #333;
   }
   .breadcrumb-segment.active {
-    color: #60a5fa;
-    background: rgba(59, 130, 246, 0.1);
-    border-bottom: 2px solid #60a5fa;
-    padding-bottom: 2px;
+    color: #d1d5db;
+    background: rgba(255, 255, 255, 0.04);
   }
 
   .breadcrumb-sep {
@@ -1085,14 +1104,14 @@
   .icon-btn {
     background: none;
     border: none;
-    color: #9ca3af;
+    color: #4b5563;
     cursor: pointer;
     padding: 4px;
     border-radius: 4px;
     display: flex;
     align-items: center;
   }
-  .icon-btn:hover { color: #eee; background: #333; }
+  .icon-btn:hover { color: #9ca3af; }
   .icon-btn:disabled { opacity: 0.5; cursor: default; }
 
   .spinning {
@@ -1170,16 +1189,16 @@
     width: 100%;
     background: none;
     border: none;
-    color: #eee;
+    color: #9ca3af;
     padding: 8px 4px;
     cursor: pointer;
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 0.05em;
-    border-bottom: 1px solid #374151;
+    letter-spacing: 0.04em;
+    border-bottom: 1px solid #262626;
   }
-  .section-header:hover { color: #eee; }
+  .section-header:hover { color: #d1d5db; }
 
   .section-title {
     display: flex;
@@ -1188,12 +1207,12 @@
   }
 
   .count-badge {
-    background: rgba(59, 130, 246, 0.15);
-    color: #60a5fa;
-    font-size: 10px;
+    background: rgba(255, 255, 255, 0.04);
+    color: #6b7280;
+    font-size: 9px;
     font-weight: 600;
     padding: 1px 5px;
-    border-radius: 8px;
+    border-radius: 6px;
     text-transform: none;
     letter-spacing: 0;
   }
@@ -1204,7 +1223,7 @@
     height: 0;
     border-left: 4px solid transparent;
     border-right: 4px solid transparent;
-    border-top: 5px solid #6b7280;
+    border-top: 5px solid #4b5563;
     transition: transform 0.15s ease;
   }
   .chevron.open { transform: rotate(180deg); }
@@ -1229,6 +1248,90 @@
 
   /* === Cards === */
 
+  /* === Browse Pills === */
+  .browse-row {
+    display: flex;
+    gap: 6px;
+    padding: 10px 0 4px;
+  }
+  .browse-pill {
+    font-size: 11px;
+    padding: 6px 12px;
+    border-radius: 8px;
+    background: #1e1e1e;
+    border: 1px solid #262626;
+    color: #6b7280;
+    cursor: pointer;
+    transition: border-color 0.15s, color 0.15s;
+  }
+  .browse-pill:hover { border-color: #4b5563; color: #9ca3af; }
+  .browse-expanded {
+    padding: 4px 0 8px;
+  }
+
+  /* === Attention Bar === */
+  .attention-bar {
+    background: #1e1e1e;
+    border: 1px solid #333;
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin-bottom: 14px;
+    transition: border-color 0.15s;
+  }
+  .attention-bar:hover { border-color: #4b5563; }
+  .attention-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: #e5e7eb;
+    margin-bottom: 6px;
+  }
+  .attention-items {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .attention-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: #9ca3af;
+    cursor: pointer;
+    padding: 2px 0;
+    background: none;
+    border: none;
+    text-align: left;
+    width: 100%;
+  }
+  .attention-item:hover { color: #e5e7eb; }
+  .attention-pip {
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: #e5e7eb;
+    flex-shrink: 0;
+  }
+  .attention-item-title {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .attention-when {
+    margin-left: auto;
+    color: #6b7280;
+    font-size: 10px;
+    flex-shrink: 0;
+  }
+
+  /* === Caught-up state === */
+  .caught-up {
+    text-align: center;
+    padding: 16px 12px 8px;
+    font-size: 12px;
+    color: #6b7280;
+  }
+
   /* === Footer === */
   .pulse-footer {
     display: flex;
@@ -1236,12 +1339,12 @@
     align-items: center;
     padding: 12px 4px 4px;
     margin-top: 8px;
-    border-top: 1px solid #374151;
+    border-top: 1px solid #262626;
     font-size: 10px;
-    color: #4b5563;
+    color: #374151;
   }
 
-  .icon-btn.active { color: #60a5fa; background: #333; }
+  .icon-btn.active { color: #d1d5db; }
 
   /* === Breadcrumb Detail Popover === */
   .health-dot {
