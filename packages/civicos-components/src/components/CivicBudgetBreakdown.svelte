@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from 'svelte';
   import { Chart, DoughnutController, ArcElement, Tooltip, Legend } from 'chart.js';
 
   Chart.register(DoughnutController, ArcElement, Tooltip, Legend);
@@ -107,9 +108,9 @@
     }
   });
 
-  // Auto-load when prop is set (deferred to after mount)
+  // Auto-load when prop is set (untrack prevents circular dependency)
   $effect(() => {
-    if (autoload && !loaded && !loading) load();
+    if (autoload) untrack(() => load());
   });
 </script>
 
