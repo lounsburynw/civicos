@@ -691,8 +691,8 @@ def city_pulse(
             limit=20
         )
 
-        # Sort by date and take most recent/upcoming
-        meetings = sorted(meetings, key=lambda m: m.get('meeting_datetime') or now, reverse=True)
+        # Sort by date ascending (soonest meetings first so their items take priority)
+        meetings = sorted(meetings, key=lambda m: m.get('meeting_datetime') or now)
 
         # Collect upcoming agenda items from future meetings
         upcoming_items = []
@@ -719,7 +719,9 @@ def city_pulse(
                         "meeting_title": m.get('title') or m.get('body') or 'Meeting',
                         "meeting_date": meeting_dt.strftime("%b %d"),
                     })
-        result["upcoming_items"] = upcoming_items[:10]
+        # Prioritize actionable items (stance/comment eligible first), then chronological
+        upcoming_items.sort(key=lambda i: (not i['stance_eligible'] and not i['comment_eligible'],))
+        result["upcoming_items"] = upcoming_items[:20]
 
         for m in meetings[:10]:  # Limit to 10 most recent/upcoming
             meeting_dt = m.get('meeting_datetime')
