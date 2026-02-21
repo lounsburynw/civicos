@@ -4,6 +4,7 @@
   import { createExtensionAIManager } from '../lib/ai.js';
   import { registry } from '../lib/client.js';
   import type { RegistryServer } from '@civicos/client';
+  import { personalMCP, type UserProfile } from '../lib/personal-mcp-client.js';
 
   // State
   let identity: (IdentityInfo & { isUnlocked?: boolean }) | null = $state(null);
@@ -35,6 +36,15 @@
   let ollamaSaving = $state(false);
   let ollamaTesting = $state(false);
   let ollamaForChat = $state(true);
+
+  // Personal Hub state
+  let hubConnected = $state(false);
+  let hubLoading = $state(true);
+  let hubProfile: UserProfile | null = $state(null);
+  let hubName = $state('');
+  let hubNeighborhood = $state('');
+  let hubInterests = $state('');
+  let hubSaving = $state(false);
 
   // Create flow
   let password = $state('');
@@ -330,6 +340,47 @@
     ollamaTesting = false;
   }
 
+  // Personal Hub functions
+  async function loadPersonalHub() {
+    hubLoading = true;
+    hubConnected = await personalMCP.isAvailable();
+    if (hubConnected) {
+      try {
+        hubProfile = await personalMCP.getProfile();
+        hubName = hubProfile.name || '';
+        hubNeighborhood = hubProfile.neighborhood || '';
+        hubInterests = (hubProfile.interests || []).join(', ');
+      } catch {
+        hubProfile = null;
+      }
+    }
+    hubLoading = false;
+  }
+
+  async function savePersonalProfile() {
+    hubSaving = true;
+    try {
+      const interests = hubInterests
+        .split(',')
+        .map(s => s.trim())
+        .filter(Boolean);
+      hubProfile = await personalMCP.setProfile({
+        name: hubName || undefined,
+        neighborhood: hubNeighborhood || undefined,
+        interests,
+      });
+      setStatus('Profile saved to Personal Hub', 'success');
+    } catch (err) {
+      setStatus(err instanceof Error ? err.message : 'Failed to save profile', 'error');
+    }
+    hubSaving = false;
+  }
+
+  async function refreshPersonalHub() {
+    personalMCP.invalidateCache();
+    await loadPersonalHub();
+  }
+
   // Attestation state
   let attestationCode = $state('');
   let attestationVerifying = $state(false);
@@ -440,6 +491,7 @@
   loadAIStatus();
   loadOllamaStatus();
   loadJurisdiction();
+  loadPersonalHub();
 
   // Load attestation after identity loads
   $effect(() => {
@@ -625,6 +677,46 @@
       {/if}
     </section>
   {/if}
+
+  <!-- Personal Hub -->
+  <section class="card hub-section">
+    <div class="hub-header">
+      <h2>Personal Hub</h2>
+      <div class="hub-status" class:connected={hubConnected}>
+        <span class="hub-dot"></span>
+        {hubConnected ? 'Connected' : 'Offline'}
+        <button class="hub-refresh" onclick={refreshPersonalHub} title="Refresh">&#8635;</button>
+      </div>
+    </div>
+    {#if hubLoading}
+      <div class="hub-loading">Checking Personal Hub...</div>
+    {:else if hubConnected}
+      <p class="section-desc">Your civic profile syncs across CivicOS surfaces via <code>~/.civicos/</code></p>
+      <div class="form-group">
+        <label for="hub-name">Name</label>
+        <input id="hub-name" type="text" placeholder="Display name" bind:value={hubName} />
+      </div>
+      <div class="form-group">
+        <label for="hub-neighborhood">Neighborhood</label>
+        <input id="hub-neighborhood" type="text" placeholder="e.g. Terra Linda" bind:value={hubNeighborhood} />
+      </div>
+      <div class="form-group">
+        <label for="hub-interests">Interests</label>
+        <input id="hub-interests" type="text" placeholder="housing, transportation, parks" bind:value={hubInterests} />
+        <span class="form-hint">Comma-separated topics for personalized civic updates</span>
+      </div>
+      <button class="btn-primary" onclick={savePersonalProfile} disabled={hubSaving}>
+        {hubSaving ? 'Saving...' : 'Save Profile'}
+      </button>
+    {:else}
+      <div class="hub-offline-hint">
+        <p>The Personal Hub server provides shared profile, preferences, and jurisdiction ordering across all CivicOS surfaces.</p>
+        <p>Start it with:</p>
+        <code class="hub-command">npx civicos-personal-mcp</code>
+        <p class="hub-fallback-note">Without it, settings are stored locally in this browser.</p>
+      </div>
+    {/if}
+  </section>
 
   <!-- Preferences -->
   <section class="card preferences-section">
@@ -1291,4 +1383,68 @@
     appearance: auto;
   }
   select:focus { border-color: #6366f1; }
+
+  /* Personal Hub */
+  .hub-section {
+    margin-top: 24px;
+  }
+  .hub-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+  }
+  .hub-header h2 { margin-bottom: 0; }
+  .hub-status {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: #ef4444;
+  }
+  .hub-status.connected { color: #22c55e; }
+  .hub-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #ef4444;
+  }
+  .hub-status.connected .hub-dot { background: #22c55e; }
+  .hub-refresh {
+    background: none;
+    border: none;
+    color: inherit;
+    font-size: 14px;
+    cursor: pointer;
+    padding: 0 2px;
+    opacity: 0.7;
+  }
+  .hub-refresh:hover { opacity: 1; }
+  .hub-loading {
+    font-size: 12px;
+    color: #64748b;
+    text-align: center;
+    padding: 12px;
+  }
+  .hub-offline-hint {
+    font-size: 12px;
+    color: #94a3b8;
+    line-height: 1.6;
+  }
+  .hub-offline-hint p { margin: 0 0 8px; }
+  .hub-command {
+    display: block;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 12px;
+    background: #0f172a;
+    padding: 8px 12px;
+    border-radius: 6px;
+    color: #e2e8f0;
+    margin-bottom: 8px;
+  }
+  .hub-fallback-note {
+    font-size: 11px;
+    color: #64748b;
+    font-style: italic;
+  }
 </style>

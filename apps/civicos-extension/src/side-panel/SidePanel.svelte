@@ -6,6 +6,7 @@
   import type { CityPulseData, DataProvenance, VoiceCounts, CommentCounts, CommentSynthesis, RegistryServer } from '@civicos/client';
   import { isAIAvailable, getAIManager, onAIConfigChanged } from '../lib/ai.js';
   import type { IdentityInfo } from '../lib/providers/types.js';
+  import { personalMCP } from '../lib/personal-mcp-client.js';
   import { marked } from 'marked';
   import DOMPurify from 'dompurify';
   // Reusable components and utilities from @civicos/components
@@ -136,6 +137,10 @@
   let serverHealth = $state(new Map<string, ServerHealthStatus>());
   let relayHealth: ServerHealthStatus | null = $state(null);
 
+  // Personal Hub state
+  let personalInterests: string[] = $state([]);
+  let hubConnected = $state(false);
+
   // Connector setup state
   let connectorSetupDismissed = $state(false);
   let connectorSetupLoaded = $state(false);
@@ -226,6 +231,38 @@
       availableServers = await registry.getRegistryServers();
     } catch {
       availableServers = [];
+    }
+  }
+
+  /** Load profile + jurisdiction ordering from Personal Hub (best-effort). */
+  async function loadPersonalHub() {
+    hubConnected = await personalMCP.isAvailable();
+    if (!hubConnected) return;
+
+    // Load profile interests (for personalized filtering)
+    try {
+      const profile = await personalMCP.getProfile();
+      personalInterests = profile.interests || [];
+    } catch {
+      personalInterests = [];
+    }
+
+    // Load jurisdiction ordering (overrides registry default if set)
+    try {
+      const ordered = await personalMCP.getJurisdictions();
+      if (ordered.length > 0) {
+        // Use the first jurisdiction as active if it's in the registry
+        const firstMatch = ordered.find(j =>
+          availableServers.some(s => s.jurisdiction_id === j)
+        );
+        if (firstMatch && firstMatch !== activeJurisdiction) {
+          activeJurisdiction = firstMatch;
+          activeTab = firstMatch;
+          await registry.setActiveJurisdiction(firstMatch);
+        }
+      }
+    } catch {
+      // Fall back to registry-based jurisdiction
     }
   }
 
@@ -647,7 +684,7 @@
 
 
   // Load on mount
-  initJurisdiction();
+  initJurisdiction().then(() => loadPersonalHub());
   loadIdentity();
   loadCityPulse();
   loadStances();
@@ -803,6 +840,18 @@
     onopenoptions={openOptions}
   />
 
+  <!-- Personal interests bar -->
+  {#if hubConnected && personalInterests.length > 0}
+    <div class="interests-bar">
+      <span class="interests-label">Your interests</span>
+      <div class="interests-chips">
+        {#each personalInterests as interest}
+          <span class="interest-chip">{interest}</span>
+        {/each}
+      </div>
+    </div>
+  {/if}
+
   <!-- AI Chat Bar (tool-backed search) -->
   <CivicChatBar
     {session}
@@ -847,13 +896,25 @@
         };
       })}
     {@const allActionable = [...officialActionable, ...initiativeActionable]}
-    {#if allActionable.length > 0}
+    {@const interestLower = personalInterests.map(i => i.toLowerCase())}
+    {@const matchesInterest = (title: string) => interestLower.length > 0 && interestLower.some(i => title.toLowerCase().includes(i))}
+    {@const sortedActionable = allActionable.toSorted((a, b) => {
+      const aMatch = matchesInterest(a.title) ? 0 : 1;
+      const bMatch = matchesInterest(b.title) ? 0 : 1;
+      return aMatch - bMatch;
+    })}
+    {#if sortedActionable.length > 0}
       <div class="attention-bar">
-        <div class="attention-title">Upcoming actionable items</div>
+        <div class="attention-title">
+          Upcoming actionable items
+          {#if hubConnected && interestLower.length > 0}
+            <span class="attention-personalized" title="Sorted by your interests">personalized</span>
+          {/if}
+        </div>
         <div class="attention-items">
-          {#each allActionable as item}
+          {#each sortedActionable as item}
             <button class="attention-item" onclick={item.action}>
-              <span class="attention-pip" class:attention-pip-initiative={item.tag === 'initiative'}></span>
+              <span class="attention-pip" class:attention-pip-initiative={item.tag === 'initiative'} class:attention-pip-relevant={matchesInterest(item.title)}></span>
               <span class="attention-item-title">{item.title}</span>
               <span class="attention-when">{item.when}</span>
             </button>
@@ -1444,6 +1505,18 @@
     background: #6b7280;
     border-radius: 1px;
   }
+  .attention-pip-relevant {
+    background: #6366f1;
+    box-shadow: 0 0 4px rgba(99, 102, 241, 0.5);
+  }
+  .attention-personalized {
+    font-size: 9px;
+    font-weight: 400;
+    text-transform: none;
+    letter-spacing: 0;
+    color: #6366f1;
+    margin-left: 6px;
+  }
   .attention-item-title {
     flex: 1;
     overflow: hidden;
@@ -1455,6 +1528,40 @@
     color: #6b7280;
     font-size: 10px;
     flex-shrink: 0;
+  }
+
+  /* === Interests Bar === */
+  .interests-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px;
+    margin-bottom: 8px;
+    background: rgba(99, 102, 241, 0.06);
+    border: 1px solid rgba(99, 102, 241, 0.12);
+    border-radius: 8px;
+  }
+  .interests-label {
+    font-size: 9px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    color: #6366f1;
+    flex-shrink: 0;
+  }
+  .interests-chips {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+    min-width: 0;
+  }
+  .interest-chip {
+    font-size: 10px;
+    color: #a5b4fc;
+    background: rgba(99, 102, 241, 0.1);
+    padding: 2px 8px;
+    border-radius: 10px;
+    white-space: nowrap;
   }
 
   /* === Caught-up state === */
