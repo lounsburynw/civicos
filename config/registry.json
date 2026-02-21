@@ -10,7 +10,7 @@
       "domain": "san-rafael.civicosproject.org",
       "display_name": "San Rafael",
       "modal_app_name": "civicos-san-rafael",
-      "parent_jurisdictions": ["state-california", "country-united-states"],
+      "parent_jurisdictions": ["county-marin", "state-california", "country-united-states"],
       "attestation_issuer_pubkey": "a8a87b73897489b99954ad97ac6a32b16cbc3c9969f97c9821ea812463fb0848"
     },
     "state-california": {
