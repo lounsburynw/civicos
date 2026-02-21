@@ -323,7 +323,7 @@ describe('Personalized Query Tools', () => {
         .send({ jsonrpc: '2.0', method: 'tools/list', params: {}, id: 1 });
 
       const tools = response.body.result.tools;
-      expect(tools).toHaveLength(21);
+      expect(tools).toHaveLength(27);
 
       const toolNames = tools.map((t: { name: string }) => t.name);
       expect(toolNames).toContain('get_relevant_now');
@@ -335,7 +335,7 @@ describe('Personalized Query Tools', () => {
   describe('health check shows updated tool count', () => {
     it('reports 20 tools', async () => {
       const response = await request(server.getApp()).get('/health');
-      expect(response.body.tools).toBe(21);
+      expect(response.body.tools).toBe(27);
     });
   });
 });
