@@ -22,6 +22,8 @@ import {
 } from '@modelcontextprotocol/sdk/types.js';
 import { IdentityManager } from './identity.js';
 import type { SigningProvider, NostrEvent, IdentityTier } from '../lib/providers/index.js';
+import type { PersonalStorage } from '../lib/storage/index.js';
+import { createPersonalStorage } from '../lib/storage/index.js';
 import {
   LocalWalletProvider,
   IndexedDBStorage,
@@ -58,6 +60,8 @@ interface PersonalMCPConfig {
   jurisdictionMcpUrl?: string;
   /** Default jurisdiction for queries */
   defaultJurisdiction?: string;
+  /** Optional PersonalStorage instance (creates default if not provided) */
+  storage?: PersonalStorage;
 }
 
 /**
@@ -78,11 +82,16 @@ interface PersonalMCPConfig {
 export class PersonalMCPServer {
   private server: Server;
   private identityManager: IdentityManager;
+  private personalStorage: PersonalStorage;
   private config: PersonalMCPConfig;
 
   constructor(config: PersonalMCPConfig = {}) {
     this.config = config;
-    this.identityManager = new IdentityManager();
+    this.personalStorage = config.storage ?? createPersonalStorage();
+    this.identityManager = new IdentityManager({
+      storage: this.personalStorage.wallet,
+      passkeyStorage: this.personalStorage.passkey,
+    });
 
     this.server = new Server(
       {
@@ -941,6 +950,12 @@ export class PersonalMCPServer {
   }
 
   async run(): Promise<void> {
+    // Initialize persistent storage
+    await this.personalStorage.initialize();
+
+    // Auto-unlock from env var if available
+    await this.identityManager.autoUnlockFromEnv();
+
     const transport = new StdioServerTransport();
     await this.server.connect(transport);
     console.error('Personal MCP Server running on stdio');

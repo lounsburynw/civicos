@@ -17,3 +17,6 @@ export { IdentityManager, type IdentityManagerConfig } from './identity.js';
 
 // Export server (for programmatic use)
 export { PersonalMCPServer } from './server.js';
+
+// Export storage module
+export * from '../lib/storage/index.js';

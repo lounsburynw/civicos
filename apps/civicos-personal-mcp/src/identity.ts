@@ -26,6 +26,8 @@ import {
   PasskeyProvider,
   MemoryPasskeyStorage,
 } from '../lib/providers/index.js';
+import { FileSystemWalletStorage, FileSystemPasskeyStorage, getDefaultBaseDir } from '../lib/storage/index.js';
+import { join } from 'node:path';
 
 /**
  * Configuration for the IdentityManager.
@@ -62,17 +64,40 @@ export class IdentityManager {
 
   private createDefaultStorage(): WalletStorage {
     // In browser environment, use IndexedDB
-    // In Node.js, fall back to MemoryStorage (or filesystem in future)
     if (typeof indexedDB !== 'undefined') {
       return new IndexedDBStorage();
     }
-    // For Node.js/testing, use memory storage
-    return new MemoryStorage();
+    // In Node.js, use filesystem storage for persistence across restarts
+    return new FileSystemWalletStorage(join(getDefaultBaseDir(), 'identity'));
   }
 
   private createDefaultPasskeyStorage(): PasskeyStorage {
-    // For Node.js/testing, use memory storage (WebAuthn not available)
-    return new MemoryPasskeyStorage();
+    // In browser environment, use localStorage (handled by PasskeyProvider default)
+    // In Node.js, use filesystem storage for persistence
+    if (typeof localStorage !== 'undefined') {
+      return new MemoryPasskeyStorage(); // PasskeyProvider uses LocalStoragePasskeyStorage by default
+    }
+    return new FileSystemPasskeyStorage(join(getDefaultBaseDir(), 'identity'));
+  }
+
+  /**
+   * Auto-unlock from CIVICOS_WALLET_PASSWORD env var.
+   * Used by Claude Desktop / CLI for non-interactive startup.
+   */
+  async autoUnlockFromEnv(): Promise<boolean> {
+    const password = process.env.CIVICOS_WALLET_PASSWORD;
+    if (!password) return false;
+
+    try {
+      // Ensure we have an identity to unlock
+      const identity = await this.getIdentity();
+      if (!identity) return false;
+      if (identity.tier !== 'private') return false;
+
+      return await this.unlock(password);
+    } catch {
+      return false;
+    }
   }
 
   /**
