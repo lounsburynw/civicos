@@ -2246,6 +2246,7 @@ export class PersonalMCPHttpServer {
 // Main entry point for HTTP mode
 if (process.argv[1]?.endsWith('http-server.js') || process.argv[1]?.endsWith('http-server.ts')) {
   const port = parseInt(process.env.PORT ?? '8081', 10);
-  const server = new PersonalMCPHttpServer({ port });
+  const personalStorage = createPersonalStorage();
+  const server = new PersonalMCPHttpServer({ port, personalStorage });
   server.run().catch(console.error);
 }
