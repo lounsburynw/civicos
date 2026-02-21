@@ -15,6 +15,8 @@ import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import { IdentityManager, type IdentityManagerConfig } from './identity.js';
 import type { IdentityTier, NostrEvent, ContextStorage, StoredUserContext, FollowableEntityType } from '../lib/providers/index.js';
+import type { PersonalStorage } from '../lib/storage/index.js';
+import { createPersonalStorage } from '../lib/storage/index.js';
 import {
   CivicEventKinds,
   createVoiceContent,
@@ -93,6 +95,8 @@ export interface HttpServerConfig {
   corsOrigins?: string[];
   identityConfig?: IdentityManagerConfig;
   contextStorage?: ContextStorage;
+  /** Optional PersonalStorage instance (creates default if not provided) */
+  personalStorage?: PersonalStorage;
   jurisdictionMCPConfig?: JurisdictionMCPClientConfig;
   jurisdictionMCPClient?: JurisdictionMCPClient;
 }
@@ -106,6 +110,7 @@ export class PersonalMCPHttpServer {
   private app: express.Application;
   private identityManager: IdentityManager;
   private contextStorage: ContextStorage;
+  private personalStorage: PersonalStorage | null;
   private jurisdictionClient: JurisdictionMCPClient;
   private config: HttpServerConfig;
 
@@ -116,8 +121,21 @@ export class PersonalMCPHttpServer {
       ...config,
     };
 
-    this.identityManager = new IdentityManager(config.identityConfig);
-    this.contextStorage = config.contextStorage ?? new LocalStorageContextStorage();
+    // If PersonalStorage is provided, use its delegates for identity and context
+    this.personalStorage = config.personalStorage ?? null;
+
+    if (this.personalStorage) {
+      this.identityManager = new IdentityManager({
+        ...config.identityConfig,
+        storage: this.personalStorage.wallet,
+        passkeyStorage: this.personalStorage.passkey,
+      });
+      this.contextStorage = config.contextStorage ?? this.personalStorage.context;
+    } else {
+      this.identityManager = new IdentityManager(config.identityConfig);
+      this.contextStorage = config.contextStorage ?? new LocalStorageContextStorage();
+    }
+
     this.jurisdictionClient = config.jurisdictionMCPClient ?? new JurisdictionMCPClient(config.jurisdictionMCPConfig);
     this.app = express();
     this.setupMiddleware();
@@ -944,6 +962,16 @@ export class PersonalMCPHttpServer {
           required: ['jurisdiction', 'item_id'],
         },
       },
+      {
+        name: 'get_storage_info',
+        description:
+          'Get information about the storage backend: type (filesystem/memory), location, version.',
+        inputSchema: {
+          type: 'object',
+          properties: {},
+          required: [],
+        },
+      },
     ];
   }
 
@@ -1098,6 +1126,9 @@ export class PersonalMCPHttpServer {
           args.item_title as string | undefined,
           args.item_topics as string[] | undefined
         );
+
+      case 'get_storage_info':
+        return this.handleGetStorageInfo();
 
       default:
         throw new Error(`Unknown tool: ${name}`);
@@ -1571,7 +1602,32 @@ export class PersonalMCPHttpServer {
   private async handleGetContext(jurisdiction: string): Promise<unknown> {
     const context = await this.contextStorage.load(jurisdiction);
 
+    // Merge profile.md data if PersonalStorage is available
+    let profileDefaults: { neighborhood?: string; interests?: string[] } = {};
+    if (this.personalStorage) {
+      const profile = await this.personalStorage.getProfile();
+      if (profile.neighborhood || profile.interests.length > 0) {
+        profileDefaults = {
+          neighborhood: profile.neighborhood,
+          interests: profile.interests,
+        };
+      }
+    }
+
     if (!context) {
+      // If we have profile data but no context, return profile defaults
+      if (profileDefaults.interests?.length || profileDefaults.neighborhood) {
+        return {
+          jurisdiction,
+          hasContext: true,
+          source: 'profile.md',
+          neighborhood: profileDefaults.neighborhood ? { neighborhood: profileDefaults.neighborhood } : undefined,
+          interests: profileDefaults.interests ?? [],
+          following_items: [],
+          message: 'Context loaded from profile.md. Use set_interests to override per jurisdiction.',
+        };
+      }
+
       return {
         jurisdiction,
         hasContext: false,
@@ -1579,11 +1635,20 @@ export class PersonalMCPHttpServer {
       };
     }
 
+    // Context overrides profile — profile provides defaults
+    const mergedInterests = context.interests.length > 0
+      ? context.interests
+      : (profileDefaults.interests ?? []);
+
+    const mergedNeighborhood = context.neighborhood ?? (profileDefaults.neighborhood
+      ? { neighborhood: profileDefaults.neighborhood }
+      : undefined);
+
     return {
       jurisdiction,
       hasContext: true,
-      neighborhood: context.neighborhood,
-      interests: context.interests,
+      neighborhood: mergedNeighborhood,
+      interests: mergedInterests,
       following_items: context.following_items,
       created_at: new Date(context.created_at).toISOString(),
       updated_at: new Date(context.updated_at).toISOString(),
@@ -1595,7 +1660,17 @@ export class PersonalMCPHttpServer {
   private async handleGetRelevantNow(jurisdiction: string): Promise<unknown> {
     // Load user context
     const context = await this.contextStorage.load(jurisdiction);
-    const hasContext = context && (context.interests.length > 0 || context.neighborhood);
+
+    // Merge profile defaults if context is empty
+    let effectiveInterests = context?.interests ?? [];
+    let effectiveNeighborhood = context?.neighborhood?.neighborhood;
+    if (this.personalStorage && effectiveInterests.length === 0 && !effectiveNeighborhood) {
+      const profile = await this.personalStorage.getProfile();
+      if (profile.interests.length > 0) effectiveInterests = profile.interests;
+      if (profile.neighborhood) effectiveNeighborhood = profile.neighborhood;
+    }
+
+    const hasContext = effectiveInterests.length > 0 || effectiveNeighborhood;
 
     // Fetch city pulse from Jurisdiction MCP
     const pulse = await this.jurisdictionClient.getCityPulse(7, 30);
@@ -1621,8 +1696,8 @@ export class PersonalMCPHttpServer {
     }
 
     // Apply personalization filters
-    const interests = context.interests.map((i) => i.toLowerCase());
-    const neighborhood = context.neighborhood?.neighborhood?.toLowerCase();
+    const interests = effectiveInterests.map((i: string) => i.toLowerCase());
+    const neighborhood = effectiveNeighborhood?.toLowerCase();
 
     // Filter meetings by agenda items matching interests
     const relevantMeetings = (pulse.upcoming_meetings ?? []).filter((meeting) => {
@@ -1658,8 +1733,8 @@ export class PersonalMCPHttpServer {
       success: true,
       personalized: true,
       context_used: {
-        interests: context.interests,
-        neighborhood: context.neighborhood?.neighborhood,
+        interests: effectiveInterests,
+        neighborhood: effectiveNeighborhood,
       },
       upcoming_meetings: relevantMeetings,
       recent_decisions: relevantDecisions,
@@ -1676,7 +1751,16 @@ export class PersonalMCPHttpServer {
     // Load user context
     const context = await this.contextStorage.load(jurisdiction);
 
-    if (!context || (context.interests.length === 0 && context.following_items.length === 0)) {
+    // Merge profile defaults if context is empty
+    let effectiveInterests = context?.interests ?? [];
+    if (this.personalStorage && effectiveInterests.length === 0) {
+      const profile = await this.personalStorage.getProfile();
+      if (profile.interests.length > 0) effectiveInterests = profile.interests;
+    }
+
+    const followingItems = context?.following_items ?? [];
+
+    if (effectiveInterests.length === 0 && followingItems.length === 0) {
       return {
         success: true,
         suggestions: [],
@@ -1694,7 +1778,7 @@ export class PersonalMCPHttpServer {
     }> = [];
 
     // Generate suggestions based on interests
-    for (const interest of context.interests.slice(0, 3)) {
+    for (const interest of effectiveInterests.slice(0, 3)) {
       // Search for related meetings/decisions
       const history = await this.jurisdictionClient.searchMeetingHistory(interest, 3);
 
@@ -1726,7 +1810,7 @@ export class PersonalMCPHttpServer {
     }
 
     // Generate follow-up suggestions for followed items
-    for (const followedItem of context.following_items.slice(0, 3)) {
+    for (const followedItem of followingItems.slice(0, 3)) {
       suggestions.push({
         type: 'follow_up',
         title: `Update on ${followedItem.label ?? followedItem.entity_id}`,
@@ -1739,7 +1823,7 @@ export class PersonalMCPHttpServer {
     // Check for upcoming meetings matching interests
     const meetings = await this.jurisdictionClient.getUpcomingMeetings(14);
     if (meetings && meetings.length > 0) {
-      const interestKeywords = context.interests.map((i) => i.toLowerCase());
+      const interestKeywords = effectiveInterests.map((i: string) => i.toLowerCase());
       for (const meeting of meetings.slice(0, 2)) {
         const agendaMatches = meeting.agenda_items?.some((item) =>
           interestKeywords.some((kw) => item.toLowerCase().includes(kw))
@@ -1759,8 +1843,8 @@ export class PersonalMCPHttpServer {
       success: true,
       suggestions: suggestions.slice(0, 5), // Limit to top 5 suggestions
       context_used: {
-        interests: context.interests,
-        following_count: context.following_items.length,
+        interests: effectiveInterests,
+        following_count: followingItems.length,
       },
     };
   }
@@ -1866,10 +1950,28 @@ export class PersonalMCPHttpServer {
     };
   }
 
+  private async handleGetStorageInfo(): Promise<unknown> {
+    if (!this.personalStorage) {
+      return {
+        type: 'legacy',
+        message: 'No PersonalStorage configured. Using legacy ContextStorage/IdentityManager defaults.',
+      };
+    }
+
+    return this.personalStorage.getStorageInfo();
+  }
+
   /**
    * Start the HTTP server.
    */
   async run(): Promise<void> {
+    // Initialize persistent storage if available
+    if (this.personalStorage) {
+      await this.personalStorage.initialize();
+      // Auto-unlock from env var if available
+      await this.identityManager.autoUnlockFromEnv();
+    }
+
     const port = this.config.port;
     this.app.listen(port, () => {
       console.error(`Personal MCP HTTP Server running on http://localhost:${port}`);
