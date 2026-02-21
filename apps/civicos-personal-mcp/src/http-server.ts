@@ -972,6 +972,110 @@ export class PersonalMCPHttpServer {
           required: [],
         },
       },
+      // ================================================================
+      // Profile, Preferences, and Jurisdictions Management Tools
+      // ================================================================
+      {
+        name: 'get_profile',
+        description:
+          'Get the user\'s civic profile (name, email, neighborhood, coordinates, interests). In filesystem mode, reads from ~/.civicos/profile.md.',
+        inputSchema: {
+          type: 'object',
+          properties: {},
+          required: [],
+        },
+      },
+      {
+        name: 'set_profile',
+        description:
+          'Update the user\'s civic profile. Only provided fields are updated — omitted fields keep their current values. In filesystem mode, writes human-readable ~/.civicos/profile.md.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            name: {
+              type: 'string',
+              description: 'Display name',
+            },
+            email: {
+              type: 'string',
+              description: 'Email address',
+            },
+            neighborhood: {
+              type: 'string',
+              description: 'Neighborhood name (e.g., "Terra Linda")',
+            },
+            latitude: {
+              type: 'number',
+              description: 'Latitude coordinate',
+            },
+            longitude: {
+              type: 'number',
+              description: 'Longitude coordinate',
+            },
+            interests: {
+              type: 'array',
+              items: { type: 'string' },
+              description: 'Civic interest topics (e.g., ["Housing", "Transportation"]). Replaces existing interests.',
+            },
+          },
+          required: [],
+        },
+      },
+      {
+        name: 'get_preferences',
+        description:
+          'Get the user\'s notification and display preferences. In filesystem mode, reads from ~/.civicos/preferences.md.',
+        inputSchema: {
+          type: 'object',
+          properties: {},
+          required: [],
+        },
+      },
+      {
+        name: 'set_preferences',
+        description:
+          'Update the user\'s preferences. Merges with existing — only provided keys are updated. In filesystem mode, writes human-readable ~/.civicos/preferences.md.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            notifications: {
+              type: 'object',
+              description: 'Notification preferences (e.g., {"Email Digest": "weekly", "Meeting Reminders": "true"})',
+            },
+            display: {
+              type: 'object',
+              description: 'Display preferences (e.g., {"Theme": "dark", "Language": "en"})',
+            },
+          },
+          required: [],
+        },
+      },
+      {
+        name: 'get_jurisdictions',
+        description:
+          'Get the user\'s ordered list of jurisdictions. In filesystem mode, reads from ~/.civicos/jurisdictions.md.',
+        inputSchema: {
+          type: 'object',
+          properties: {},
+          required: [],
+        },
+      },
+      {
+        name: 'set_jurisdictions',
+        description:
+          'Set the user\'s ordered list of jurisdictions. Replaces the existing list. In filesystem mode, writes human-readable ~/.civicos/jurisdictions.md.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            jurisdictions: {
+              type: 'array',
+              items: { type: 'string' },
+              description: 'Ordered list of jurisdiction IDs (e.g., ["city-san-rafael", "county-marin"])',
+            },
+          },
+          required: ['jurisdictions'],
+        },
+      },
     ];
   }
 
@@ -1129,6 +1233,28 @@ export class PersonalMCPHttpServer {
 
       case 'get_storage_info':
         return this.handleGetStorageInfo();
+
+      // Profile, preferences, jurisdictions
+      case 'get_profile':
+        return this.handleGetProfile();
+
+      case 'set_profile':
+        return this.handleSetProfile(args as Record<string, unknown>);
+
+      case 'get_preferences':
+        return this.handleGetPreferences();
+
+      case 'set_preferences':
+        return this.handleSetPreferences(
+          args.notifications as Record<string, string> | undefined,
+          args.display as Record<string, string> | undefined
+        );
+
+      case 'get_jurisdictions':
+        return this.handleGetJurisdictions();
+
+      case 'set_jurisdictions':
+        return this.handleSetJurisdictions(args.jurisdictions as string[]);
 
       default:
         throw new Error(`Unknown tool: ${name}`);
@@ -1947,6 +2073,135 @@ export class PersonalMCPHttpServer {
           : score >= 0.2
             ? 'Somewhat relevant to your interests'
             : 'May not directly match your stated interests',
+    };
+  }
+
+  // ================================================================
+  // Profile, Preferences, and Jurisdictions Handlers
+  // ================================================================
+
+  private async handleGetProfile(): Promise<unknown> {
+    if (!this.personalStorage) {
+      return {
+        success: false,
+        error: 'No PersonalStorage configured. Profile management requires file-based or memory storage.',
+      };
+    }
+
+    const profile = await this.personalStorage.getProfile();
+    return {
+      success: true,
+      profile,
+    };
+  }
+
+  private async handleSetProfile(args: Record<string, unknown>): Promise<unknown> {
+    if (!this.personalStorage) {
+      return {
+        success: false,
+        error: 'No PersonalStorage configured. Profile management requires file-based or memory storage.',
+      };
+    }
+
+    // Merge with existing profile — only update provided fields
+    const existing = await this.personalStorage.getProfile();
+
+    if (args.name !== undefined) existing.name = args.name as string;
+    if (args.email !== undefined) existing.email = args.email as string;
+    if (args.neighborhood !== undefined) existing.neighborhood = args.neighborhood as string;
+    if (args.latitude !== undefined) existing.latitude = args.latitude as number;
+    if (args.longitude !== undefined) existing.longitude = args.longitude as number;
+    if (args.interests !== undefined) existing.interests = args.interests as string[];
+
+    await this.personalStorage.saveProfile(existing);
+
+    return {
+      success: true,
+      profile: existing,
+      message: 'Profile updated.',
+    };
+  }
+
+  private async handleGetPreferences(): Promise<unknown> {
+    if (!this.personalStorage) {
+      return {
+        success: false,
+        error: 'No PersonalStorage configured. Preferences management requires file-based or memory storage.',
+      };
+    }
+
+    const prefs = await this.personalStorage.getPreferences();
+    return {
+      success: true,
+      preferences: prefs,
+    };
+  }
+
+  private async handleSetPreferences(
+    notifications?: Record<string, string>,
+    display?: Record<string, string>
+  ): Promise<unknown> {
+    if (!this.personalStorage) {
+      return {
+        success: false,
+        error: 'No PersonalStorage configured. Preferences management requires file-based or memory storage.',
+      };
+    }
+
+    // Merge with existing preferences
+    const existing = await this.personalStorage.getPreferences();
+
+    if (notifications) {
+      existing.notifications = { ...existing.notifications, ...notifications };
+    }
+    if (display) {
+      existing.display = { ...existing.display, ...display };
+    }
+
+    await this.personalStorage.savePreferences(existing);
+
+    return {
+      success: true,
+      preferences: existing,
+      message: 'Preferences updated.',
+    };
+  }
+
+  private async handleGetJurisdictions(): Promise<unknown> {
+    if (!this.personalStorage) {
+      return {
+        success: false,
+        error: 'No PersonalStorage configured. Jurisdiction management requires file-based or memory storage.',
+      };
+    }
+
+    const jurisdictions = await this.personalStorage.getJurisdictions();
+    return {
+      success: true,
+      jurisdictions,
+      count: jurisdictions.length,
+    };
+  }
+
+  private async handleSetJurisdictions(jurisdictions: string[]): Promise<unknown> {
+    if (!this.personalStorage) {
+      return {
+        success: false,
+        error: 'No PersonalStorage configured. Jurisdiction management requires file-based or memory storage.',
+      };
+    }
+
+    if (!Array.isArray(jurisdictions)) {
+      throw new Error('jurisdictions must be an array of strings');
+    }
+
+    await this.personalStorage.saveJurisdictions(jurisdictions);
+
+    return {
+      success: true,
+      jurisdictions,
+      count: jurisdictions.length,
+      message: 'Jurisdictions updated.',
     };
   }
 

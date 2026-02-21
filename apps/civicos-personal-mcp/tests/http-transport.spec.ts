@@ -24,7 +24,7 @@ describe('PersonalMCPHttpServer', () => {
       expect(response.body.status).toBe('healthy');
       expect(response.body.server).toBe('civicos-personal-mcp');
       expect(response.body.transport).toBe('http');
-      expect(response.body.tools).toBe(21);
+      expect(response.body.tools).toBe(27);
     });
   });
 
@@ -47,7 +47,7 @@ describe('PersonalMCPHttpServer', () => {
         .send({ jsonrpc: '2.0', method: 'tools/list', params: {}, id: 1 })
         .expect(200);
 
-      expect(response.body.result.tools).toHaveLength(21);
+      expect(response.body.result.tools).toHaveLength(27);
 
       const toolNames = response.body.result.tools.map((t: { name: string }) => t.name);
       // Identity tools
