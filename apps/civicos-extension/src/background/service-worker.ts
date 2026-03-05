@@ -29,6 +29,7 @@ async function handleMessage(message: ExtensionRequest): Promise<ExtensionRespon
   try {
     switch (message.type) {
       case 'GET_IDENTITY': {
+        await identityManager.ensureRestored();
         const identity = await identityManager.getIdentity();
         return {
           success: true,

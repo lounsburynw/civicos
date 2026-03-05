@@ -42,11 +42,10 @@
 {:else if identity}
   <div class="identity-chip">
     <div class="chip-row">
-      <span class="tier-badge private">private</span>
       {#if identity.isUnlocked}
-        <span class="lock-status unlocked">unlocked</span>
+        <span class="sign-in-status signed-in">Signed in</span>
       {:else}
-        <span class="lock-status">locked</span>
+        <span class="sign-in-status">Signed out</span>
       {/if}
       {#if attestationLabels.length > 0}
         <span class="attested-chips">
@@ -59,7 +58,7 @@
     {#if !identity.isUnlocked}
       <form class="chip-unlock-form" onsubmit={(e: Event) => { e.preventDefault(); handleUnlock(); }}>
         <input type="password" class="chip-unlock-input" placeholder="Password" bind:value={unlockPassword} autocomplete="off" />
-        <button type="submit" class="chip-unlock-btn" disabled={unlocking || !unlockPassword}>{unlocking ? '...' : 'Unlock'}</button>
+        <button type="submit" class="chip-unlock-btn" disabled={unlocking || !unlockPassword}>{unlocking ? '...' : 'Sign in'}</button>
       </form>
       {#if unlockError}
         <div class="chip-unlock-error">{unlockError}</div>
@@ -103,18 +102,8 @@
     align-items: center;
     margin-bottom: 4px;
   }
-  .tier-badge {
-    font-size: 10px;
-    font-weight: 600;
-    text-transform: uppercase;
-    padding: 1px 6px;
-    border-radius: 3px;
-    background: #374151;
-    color: #9ca3af;
-  }
-  .tier-badge.private { background: #3b1f4b; color: #c084fc; }
-  .lock-status { font-size: 10px; color: #ef4444; }
-  .lock-status.unlocked { color: #22c55e; }
+  .sign-in-status { font-size: 10px; font-weight: 500; color: #ef4444; }
+  .sign-in-status.signed-in { color: #22c55e; }
   .attested-chips {
     display: flex;
     gap: 4px;

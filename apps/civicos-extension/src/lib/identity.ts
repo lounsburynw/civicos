@@ -198,6 +198,15 @@ export class IdentityManager {
     return this.activeProvider?.isUnlocked() ?? false;
   }
 
+  async ensureRestored(): Promise<void> {
+    if (!this.activeProvider) {
+      await this.getIdentity();
+    }
+    if (this.activeProvider && !this.activeProvider.isUnlocked()) {
+      await this.restoreFromSession();
+    }
+  }
+
   lock(): void {
     this.activeProvider?.lock();
     this.clearSession();
