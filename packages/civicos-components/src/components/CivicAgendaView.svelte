@@ -83,7 +83,7 @@
     ontoast = undefined as ((message: string) => void) | undefined,
     oncommentcountchange = undefined as ((entityId: string, counts: CommentCounts) => void) | undefined,
     highlightedCardId = null as string | null,
-    userContext = undefined as { neighborhood?: string; interests?: string[] } | undefined,
+    userContext = undefined as { journalNotes?: string } | undefined,
   } = $props();
 
   const referenceTime = $derived(generatedAt ? new Date(generatedAt) : new Date());

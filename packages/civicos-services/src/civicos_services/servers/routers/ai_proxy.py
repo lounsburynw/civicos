@@ -17,7 +17,7 @@ from datetime import datetime, timezone
 from typing import Any, Optional
 
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
 
@@ -75,12 +75,9 @@ class AIDraftResponse(BaseModel):
 
 
 class ChatUserContext(BaseModel):
-    neighborhood: Optional[str] = None
-    district: Optional[str] = None
-    interests: Optional[list[str]] = None
-    stakes: Optional[list[str]] = None
-    expertise: Optional[str] = None
-    years_in_area: Optional[int] = None
+    model_config = {"populate_by_name": True}
+
+    journal_notes: Optional[str] = Field(None, alias="journalNotes")
 
 
 class AIChatRequest(BaseModel):
@@ -306,22 +303,8 @@ async def ai_chat(request: AIChatRequest):
         )
 
         # Personalize system prompt with user context
-        if request.user_context:
-            ctx_parts = []
-            if request.user_context.neighborhood:
-                ctx_parts.append(f"lives in {request.user_context.neighborhood}")
-            if request.user_context.district:
-                ctx_parts.append(f"is in {request.user_context.district}")
-            if request.user_context.years_in_area:
-                ctx_parts.append(f"has lived in the area for {request.user_context.years_in_area} years")
-            if request.user_context.stakes:
-                ctx_parts.append(f"is a {', '.join(request.user_context.stakes)}")
-            if request.user_context.expertise:
-                ctx_parts.append(f"has expertise in {request.user_context.expertise}")
-            if request.user_context.interests:
-                ctx_parts.append(f"cares about {', '.join(request.user_context.interests)}")
-            if ctx_parts:
-                system_prompt += f" The user {', '.join(ctx_parts)}. Prioritize information relevant to their context when possible."
+        if request.user_context and request.user_context.journal_notes:
+            system_prompt += f" The user's civic journal: {request.user_context.journal_notes}"
 
         # First call: let Claude decide which tool to use
         response = client.messages.create(

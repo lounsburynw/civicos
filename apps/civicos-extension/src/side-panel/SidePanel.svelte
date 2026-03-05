@@ -139,20 +139,16 @@
   // Profile state (from chrome.storage.local)
   const PROFILE_KEY = 'civicos_profile';
   let personalProfile: Record<string, unknown> = $state({});
-  let personalInterests: string[] = $state([]);
-  let personalNeighborhood: string = $state('');
 
-  /** Build ChatUserContext from full profile — used by CivicChatBar and CivicAgendaView. */
+  // Civic Journal state (from chrome.storage.local)
+  const JOURNAL_KEY = 'civicos_journal';
+  let journalText: string = $state('');
+
+  /** Build ChatUserContext from journal — used by CivicChatBar and CivicAgendaView. */
   function buildUserContext(): ChatUserContext | undefined {
-    const p = personalProfile;
-    const ctx: ChatUserContext = {};
-    if (p.neighborhood) ctx.neighborhood = p.neighborhood as string;
-    if (p.district) ctx.district = p.district as string;
-    if (p.yearsInArea) ctx.yearsInArea = p.yearsInArea as number;
-    if ((p.stakes as string[])?.length > 0) ctx.stakes = p.stakes as string[];
-    if (p.expertise) ctx.expertise = p.expertise as string;
-    if ((p.interests as string[])?.length > 0) ctx.interests = p.interests as string[];
-    return Object.keys(ctx).length > 0 ? ctx : undefined;
+    const notes = journalText.trim();
+    if (!notes) return undefined;
+    return { journalNotes: notes.length > 2000 ? notes.slice(0, 2000) : notes };
   }
 
   // Connector setup state
@@ -253,14 +249,21 @@
     try {
       const stored = await chrome.storage.local.get(PROFILE_KEY);
       personalProfile = stored[PROFILE_KEY] || {};
-      personalInterests = (personalProfile.interests as string[]) || [];
-      personalNeighborhood = (personalProfile.neighborhood as string) || '';
     } catch {
       personalProfile = {};
-      personalInterests = [];
-      personalNeighborhood = '';
     }
   }
+
+  /** Load civic journal from chrome.storage.local. */
+  async function loadJournal() {
+    try {
+      const stored = await chrome.storage.local.get(JOURNAL_KEY);
+      journalText = stored[JOURNAL_KEY]?.text || '';
+    } catch {
+      journalText = '';
+    }
+  }
+
 
   const PULSE_CACHE_KEY = 'civicos_pulse_cache';
 
@@ -708,6 +711,7 @@
   // Load on mount — parallelize independent init paths
   initJurisdiction();
   loadProfile();
+  loadJournal();
   loadIdentity();
   loadCityPulse();
   loadStances();
@@ -743,8 +747,9 @@
     }
     if (changes[PROFILE_KEY]) {
       personalProfile = changes[PROFILE_KEY].newValue || {};
-      personalInterests = (personalProfile.interests as string[]) || [];
-      personalNeighborhood = (personalProfile.neighborhood as string) || '';
+    }
+    if (changes[JOURNAL_KEY]) {
+      journalText = changes[JOURNAL_KEY].newValue?.text || '';
     }
   });
 </script>
@@ -873,18 +878,6 @@
     onopenoptions={openOptions}
   />
 
-  <!-- Personal interests bar -->
-  {#if personalInterests.length > 0}
-    <div class="interests-bar">
-      <span class="interests-label">Your interests</span>
-      <div class="interests-chips">
-        {#each personalInterests as interest}
-          <span class="interest-chip">{interest}</span>
-        {/each}
-      </div>
-    </div>
-  {/if}
-
   <!-- AI Chat Bar (tool-backed search) -->
   <CivicChatBar
     {session}
@@ -930,25 +923,13 @@
         };
       })}
     {@const allActionable = [...officialActionable, ...initiativeActionable]}
-    {@const interestLower = personalInterests.map(i => i.toLowerCase())}
-    {@const matchesInterest = (title: string) => interestLower.length > 0 && interestLower.some(i => title.toLowerCase().includes(i))}
-    {@const sortedActionable = allActionable.toSorted((a, b) => {
-      const aMatch = matchesInterest(a.title) ? 0 : 1;
-      const bMatch = matchesInterest(b.title) ? 0 : 1;
-      return aMatch - bMatch;
-    })}
-    {#if sortedActionable.length > 0}
+    {#if allActionable.length > 0}
       <div class="attention-bar">
-        <div class="attention-title">
-          Upcoming actionable items
-          {#if interestLower.length > 0}
-            <span class="attention-personalized" title="Sorted by your interests">personalized</span>
-          {/if}
-        </div>
+        <div class="attention-title">Upcoming actionable items</div>
         <div class="attention-items">
-          {#each sortedActionable as item}
+          {#each allActionable as item}
             <button class="attention-item" onclick={item.action}>
-              <span class="attention-pip" class:attention-pip-initiative={item.tag === 'initiative'} class:attention-pip-relevant={matchesInterest(item.title)}></span>
+              <span class="attention-pip" class:attention-pip-initiative={item.tag === 'initiative'}></span>
               <span class="attention-item-title">{item.title}</span>
               <span class="attention-when">{item.when}</span>
             </button>
@@ -1540,18 +1521,6 @@
     background: #6b7280;
     border-radius: 1px;
   }
-  .attention-pip-relevant {
-    background: #6366f1;
-    box-shadow: 0 0 4px rgba(99, 102, 241, 0.5);
-  }
-  .attention-personalized {
-    font-size: 9px;
-    font-weight: 400;
-    text-transform: none;
-    letter-spacing: 0;
-    color: #6366f1;
-    margin-left: 6px;
-  }
   .attention-item-title {
     flex: 1;
     overflow: hidden;
@@ -1563,40 +1532,6 @@
     color: #6b7280;
     font-size: 10px;
     flex-shrink: 0;
-  }
-
-  /* === Interests Bar === */
-  .interests-bar {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 6px 8px;
-    margin-bottom: 8px;
-    background: rgba(99, 102, 241, 0.06);
-    border: 1px solid rgba(99, 102, 241, 0.12);
-    border-radius: 8px;
-  }
-  .interests-label {
-    font-size: 9px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.4px;
-    color: #6366f1;
-    flex-shrink: 0;
-  }
-  .interests-chips {
-    display: flex;
-    gap: 4px;
-    flex-wrap: wrap;
-    min-width: 0;
-  }
-  .interest-chip {
-    font-size: 10px;
-    color: #a5b4fc;
-    background: rgba(99, 102, 241, 0.1);
-    padding: 2px 8px;
-    border-radius: 10px;
-    white-space: nowrap;
   }
 
   /* === Caught-up state === */

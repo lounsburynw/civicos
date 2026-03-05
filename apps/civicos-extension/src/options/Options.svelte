@@ -4,6 +4,9 @@
   import { createExtensionAIManager } from '../lib/ai.js';
   import { registry } from '../lib/client.js';
   import type { RegistryServer } from '@civicos/client';
+  import { marked } from 'marked';
+
+  marked.setOptions({ breaks: true, gfm: true });
 
   // State
   let identity: (IdentityInfo & { isUnlocked?: boolean }) | null = $state(null);
@@ -39,15 +42,13 @@
   // Profile state (chrome.storage.local — never leaves device)
   const PROFILE_KEY = 'civicos_profile';
   let profileName = $state('');
-  let profileNeighborhood = $state('');
-  let profileDistrict = $state('');
-  let profileYearsInArea: number | null = $state(null);
-  let profileStakes: string[] = $state([]);
-  let profileStakeInput = $state('');
-  let profileExpertise = $state('');
-  let profileInterests: string[] = $state([]);
-  let profileInterestInput = $state('');
   let profileSaving = $state(false);
+
+  // Civic Journal state (chrome.storage.local)
+  const JOURNAL_KEY = 'civicos_journal';
+  let journalText = $state('');
+  let journalSaving = $state(false);
+  let journalMode: 'edit' | 'preview' = $state('edit');
 
   // Create flow
   let password = $state('');
@@ -386,12 +387,6 @@
       const stored = await chrome.storage.local.get(PROFILE_KEY);
       const profile = stored[PROFILE_KEY] || {};
       profileName = profile.name || '';
-      profileNeighborhood = profile.neighborhood || '';
-      profileDistrict = profile.district || '';
-      profileYearsInArea = profile.yearsInArea ?? null;
-      profileStakes = profile.stakes || [];
-      profileExpertise = profile.expertise || '';
-      profileInterests = profile.interests || [];
     } catch {
       // Ignore — defaults are fine
     }
@@ -403,12 +398,6 @@
       await chrome.storage.local.set({
         [PROFILE_KEY]: {
           name: profileName || undefined,
-          neighborhood: profileNeighborhood || undefined,
-          district: profileDistrict || undefined,
-          yearsInArea: profileYearsInArea || undefined,
-          stakes: profileStakes,
-          expertise: profileExpertise || undefined,
-          interests: profileInterests,
         },
       });
       setStatus('Profile saved', 'success');
@@ -418,43 +407,109 @@
     profileSaving = false;
   }
 
-  function addPill(value: string, list: string[], setter: (v: string[]) => void) {
-    const trimmed = value.trim().toLowerCase();
-    if (trimmed && !list.includes(trimmed)) {
-      setter([...list, trimmed]);
+  async function loadJournal() {
+    try {
+      const stored = await chrome.storage.local.get(JOURNAL_KEY);
+      const text = stored[JOURNAL_KEY]?.text;
+      if (text) {
+        journalText = text;
+      } else {
+        journalText = JOURNAL_TEMPLATE;
+        await chrome.storage.local.set({ [JOURNAL_KEY]: { text: JOURNAL_TEMPLATE } });
+      }
+    } catch {
+      journalText = JOURNAL_TEMPLATE;
     }
   }
 
-  function removePill(value: string, list: string[], setter: (v: string[]) => void) {
-    setter(list.filter(i => i !== value));
-  }
-
-  function addInterest(value: string) {
-    addPill(value, profileInterests, v => profileInterests = v);
-    profileInterestInput = '';
-  }
-
-  function removeInterest(interest: string) {
-    removePill(interest, profileInterests, v => profileInterests = v);
-  }
-
-  function addStake(value: string) {
-    addPill(value, profileStakes, v => profileStakes = v);
-    profileStakeInput = '';
-  }
-
-  function removeStake(stake: string) {
-    removePill(stake, profileStakes, v => profileStakes = v);
-  }
-
-  function handleInterestKeydown(e: KeyboardEvent) {
-    if (e.key === 'Enter' || e.key === ',') {
-      e.preventDefault();
-      addInterest(profileInterestInput);
-    } else if (e.key === 'Backspace' && profileInterestInput === '' && profileInterests.length > 0) {
-      profileInterests = profileInterests.slice(0, -1);
+  async function saveJournal() {
+    journalSaving = true;
+    try {
+      await chrome.storage.local.set({ [JOURNAL_KEY]: { text: journalText } });
+      setStatus('Journal saved', 'success');
+    } catch (err) {
+      setStatus(err instanceof Error ? err.message : 'Failed to save journal', 'error');
     }
+    journalSaving = false;
   }
+
+  const JOURNAL_TEMPLATE = `# What I care about
+- Housing affordability and preventing displacement
+- Safe streets and bike infrastructure
+- Public school funding and quality
+
+# What I support
+- Love the new parklet program on C Street — want to see more
+- The library expansion has strong community backing, I'm in favor
+- Marin Clean Energy's community solar initiative
+
+# What frustrates me
+- Encampment near Pickleweed Park — kids can't use the playground after school
+- Construction on 4th Street stalled for weeks with no signage or timeline
+- Water bill up 18% with no clear explanation of the rate structure
+
+# What I'm following
+- 2nd St bike lane proposal — support the concept but worried about small business parking
+- Downtown precise plan update — concerned about 5-story buildings changing neighborhood character
+- AB 1234 on ADU permitting — could affect my neighborhood directly
+- Proposed FEMA flood map changes for Marin County
+
+# My vision for the city
+- San Rafael should be the most bikeable city in Marin
+- Climate resilience should drive all infrastructure decisions
+- We need more community spaces, not more luxury development
+
+# My civic history
+- Spoke at the 2024 housing element hearing
+- Served on the bicycle/pedestrian advisory committee 2023-2024
+- Regular at council meetings when housing or transit is on the agenda
+
+# People and organizations I trust
+- Councilmember Llorens on transit issues
+- Marin Conservation League on environmental policy
+- San Rafael Coalition for Better Housing
+
+# How I want to engage
+- I prefer written comments over speaking at meetings
+- Notify me about relevant items — I'll decide when to act
+- Draft comments in my voice: direct, specific, solution-oriented
+
+# My perspective
+- Parent and homeowner in Terra Linda
+- Lived in San Rafael for 8 years
+- Background in civil engineering — I understand infrastructure tradeoffs
+- Active in school PTA
+`;
+
+  function applyJournalTemplate() {
+    if (journalText.trim() && !confirm('Replace your current journal with the starter template?')) return;
+    journalText = JOURNAL_TEMPLATE;
+  }
+
+  function exportJournal() {
+    const blob = new Blob([journalText], { type: 'text/markdown' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'civic-journal.md';
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function importJournal() {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.md,.txt';
+    input.onchange = async () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      const text = await file.text();
+      journalText = text;
+      setStatus(`Imported ${file.name}`, 'success');
+    };
+    input.click();
+  }
+
 
   // Attestation state
   let attestationCode = $state('');
@@ -587,6 +642,7 @@
   loadAIStatus();  // also loads Ollama status internally
   loadJurisdiction();
   loadProfile();
+  loadJournal();
 
   // Sync sign-in state when changed from side panel or other pages
   chrome.storage.onChanged.addListener((changes, areaName) => {
@@ -692,73 +748,44 @@
           <span class="field-desc">Shown when you comment on agenda items</span>
           <input id="profile-name" type="text" placeholder="Display name" bind:value={profileName} />
         </div>
-        <div class="form-group">
-          <label for="profile-neighborhood">Neighborhood</label>
-          <span class="field-desc">We'll prioritize issues near you</span>
-          <input id="profile-neighborhood" type="text" placeholder="e.g. Terra Linda" bind:value={profileNeighborhood} />
-        </div>
-        <div class="form-group">
-          <label for="profile-district">District</label>
-          <span class="field-desc">Your council district — filters to your representative's items</span>
-          <input id="profile-district" type="text" placeholder="e.g. District 1" bind:value={profileDistrict} />
-        </div>
-        <div class="form-group">
-          <label for="profile-years">Years in area</label>
-          <span class="field-desc">How long you've been part of this community</span>
-          <input id="profile-years" type="number" min="0" max="99" placeholder="e.g. 5" bind:value={profileYearsInArea} />
-        </div>
-        <div class="form-group">
-          <label>Stakes</label>
-          <span class="field-desc">Your situation — helps AI draft from your perspective</span>
-          <div class="interest-pills-input">
-            {#each profileStakes as stake}
-              <span class="interest-pill">
-                {stake}
-                <button class="pill-remove" onclick={() => removeStake(stake)} aria-label="Remove {stake}">&times;</button>
-              </span>
-            {/each}
-            <input
-              class="pill-text-input"
-              type="text"
-              placeholder={profileStakes.length === 0 ? 'e.g. homeowner, parent, renter' : 'Add more...'}
-              bind:value={profileStakeInput}
-              onkeydown={(e) => {
-                if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); addStake(profileStakeInput); }
-                else if (e.key === 'Backspace' && profileStakeInput === '' && profileStakes.length > 0) { profileStakes = profileStakes.slice(0, -1); }
-              }}
-              onblur={() => { if (profileStakeInput.trim()) addStake(profileStakeInput); }}
-            />
-          </div>
-        </div>
-        <div class="form-group">
-          <label for="profile-expertise">Expertise</label>
-          <span class="field-desc">Professional or domain knowledge — adds depth to your comments</span>
-          <input id="profile-expertise" type="text" placeholder="e.g. urban planning, civil engineering" bind:value={profileExpertise} />
-        </div>
-        <div class="form-group">
-          <label>Interests</label>
-          <span class="field-desc">Topics you care about — matching items get highlighted</span>
-          <div class="interest-pills-input">
-            {#each profileInterests as interest}
-              <span class="interest-pill">
-                {interest}
-                <button class="pill-remove" onclick={() => removeInterest(interest)} aria-label="Remove {interest}">&times;</button>
-              </span>
-            {/each}
-            <input
-              class="pill-text-input"
-              type="text"
-              placeholder={profileInterests.length === 0 ? 'Type a topic and press Enter' : 'Add more...'}
-              bind:value={profileInterestInput}
-              onkeydown={handleInterestKeydown}
-              onblur={() => { if (profileInterestInput.trim()) addInterest(profileInterestInput); }}
-            />
-          </div>
-        </div>
         <button class="btn-primary" onclick={saveProfile} disabled={profileSaving}>
           {profileSaving ? 'Saving...' : 'Save'}
         </button>
-        <span class="privacy-note">Stored in your browser only — never sent to a server.</span>
+
+        <hr class="subsection-divider" />
+
+        <!-- Civic Journal -->
+        <div class="form-group">
+          <label>Civic Journal</label>
+          <span class="field-desc">A living document about what you care about, are frustrated by, or following. The AI reads this to personalize every interaction.</span>
+          <div class="journal-mode-tabs">
+            <button class="journal-tab" class:active={journalMode === 'edit'} onclick={() => journalMode = 'edit'}>Edit</button>
+            <button class="journal-tab" class:active={journalMode === 'preview'} onclick={() => journalMode = 'preview'}>Preview</button>
+          </div>
+          {#if journalMode === 'edit'}
+            <textarea
+              class="journal-textarea"
+              bind:value={journalText}
+              rows="14"
+            ></textarea>
+          {:else}
+            <div class="journal-preview">
+              {@html marked.parse(journalText || '*Empty journal*', { async: false })}
+            </div>
+          {/if}
+          <div class="journal-actions">
+            <button class="btn-primary" onclick={saveJournal} disabled={journalSaving}>
+              {journalSaving ? 'Saving...' : 'Save journal'}
+            </button>
+            <div class="journal-secondary-actions">
+              <button class="btn-subtle" onclick={applyJournalTemplate}>Reset to template</button>
+              <button class="btn-subtle" onclick={importJournal}>Import .md</button>
+              {#if journalText.trim()}
+                <button class="btn-subtle" onclick={exportJournal}>Export .md</button>
+              {/if}
+            </div>
+          </div>
+        </div>
       {/if}
 
       <!-- Account management (within profile section) -->
@@ -1143,6 +1170,106 @@
     margin-top: 8px;
   }
 
+  /* Civic Journal */
+  .journal-mode-tabs {
+    display: flex;
+    gap: 0;
+    margin-bottom: 0;
+  }
+  .journal-tab {
+    padding: 5px 14px;
+    font-size: 11px;
+    font-weight: 600;
+    color: #6b7280;
+    background: rgba(0, 0, 0, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-bottom: none;
+    cursor: pointer;
+  }
+  .journal-tab:first-child { border-radius: 6px 0 0 0; }
+  .journal-tab:last-child { border-radius: 0 6px 0 0; }
+  .journal-tab.active {
+    color: #d1d5db;
+    background: rgba(0, 0, 0, 0.2);
+    border-color: rgba(255, 255, 255, 0.1);
+  }
+  .journal-textarea {
+    width: 100%;
+    padding: 10px;
+    font-size: 12px;
+    line-height: 1.6;
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 0 6px 6px 6px;
+    color: #e5e7eb;
+    resize: vertical;
+    font-family: monospace;
+    outline: none;
+    margin-bottom: 8px;
+  }
+  .journal-textarea:focus {
+    border-color: rgba(16, 185, 129, 0.4);
+  }
+  .journal-preview {
+    padding: 10px;
+    font-size: 12px;
+    line-height: 1.6;
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 0 6px 6px 6px;
+    color: #d1d5db;
+    margin-bottom: 8px;
+    min-height: 200px;
+    max-height: 400px;
+    overflow-y: auto;
+  }
+  .journal-preview :global(h1) {
+    font-size: 15px;
+    font-weight: 700;
+    color: #f3f4f6;
+    margin: 0 0 6px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    padding-bottom: 4px;
+  }
+  .journal-preview :global(h2) {
+    font-size: 13px;
+    font-weight: 600;
+    color: #e5e7eb;
+    margin: 12px 0 4px 0;
+  }
+  .journal-preview :global(ul), .journal-preview :global(ol) {
+    margin: 4px 0;
+    padding-left: 20px;
+  }
+  .journal-preview :global(li) {
+    margin: 2px 0;
+  }
+  .journal-preview :global(p) {
+    margin: 6px 0;
+  }
+  .journal-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .journal-secondary-actions {
+    display: flex;
+    gap: 8px;
+  }
+  .btn-subtle {
+    padding: 4px 10px;
+    font-size: 11px;
+    color: #9ca3af;
+    background: none;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 4px;
+    cursor: pointer;
+  }
+  .btn-subtle:hover {
+    color: #d1d5db;
+    border-color: rgba(255, 255, 255, 0.15);
+  }
+
   .info-grid {
     display: flex;
     flex-direction: column;
@@ -1483,70 +1610,5 @@
   }
   select:focus { border-color: rgba(99, 102, 241, 0.6); }
 
-  /* Interest pills */
-  .interest-pills-input {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    padding: 8px 10px;
-    background: rgba(15, 23, 42, 0.6);
-    border: 1px solid rgba(51, 65, 85, 0.6);
-    border-radius: 8px;
-    min-height: 40px;
-    align-items: center;
-    cursor: text;
-    transition: border-color 0.15s;
-  }
-  .interest-pills-input:focus-within {
-    border-color: rgba(99, 102, 241, 0.6);
-  }
-  .interest-pill {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    padding: 3px 8px 3px 10px;
-    background: rgba(99, 102, 241, 0.15);
-    color: #a5b4fc;
-    border-radius: 12px;
-    font-size: 12px;
-    white-space: nowrap;
-    animation: pill-in 0.15s ease-out;
-  }
-  @keyframes pill-in {
-    from { transform: scale(0.8); opacity: 0; }
-    to { transform: scale(1); opacity: 1; }
-  }
-  .pill-remove {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 16px;
-    height: 16px;
-    background: none;
-    border: none;
-    color: #818cf8;
-    font-size: 14px;
-    cursor: pointer;
-    padding: 0;
-    border-radius: 50%;
-    line-height: 1;
-  }
-  .pill-remove:hover {
-    background: rgba(99, 102, 241, 0.3);
-    color: #e0e7ff;
-  }
-  .pill-text-input {
-    flex: 1;
-    min-width: 80px;
-    background: none;
-    border: none;
-    color: #e2e8f0;
-    font-size: 13px;
-    outline: none;
-    padding: 2px 0;
-  }
-  .pill-text-input::placeholder {
-    color: #475569;
-  }
 
 </style>

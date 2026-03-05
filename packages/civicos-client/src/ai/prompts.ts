@@ -42,15 +42,8 @@ export function composeDraftPrompt(
     );
   }
 
-  if (userContext) {
-    const parts: string[] = [];
-    if (userContext.neighborhood) parts.push(`lives in ${userContext.neighborhood}`);
-    if (userContext.district) parts.push(`is in ${userContext.district}`);
-    if (userContext.yearsInArea) parts.push(`has lived here ${userContext.yearsInArea} years`);
-    if (userContext.stakes && userContext.stakes.length > 0) parts.push(`is a ${userContext.stakes.join(', ')}`);
-    if (userContext.expertise) parts.push(`has expertise in ${userContext.expertise}`);
-    if (userContext.interests && userContext.interests.length > 0) parts.push(`cares about ${userContext.interests.join(', ')}`);
-    if (parts.length > 0) lines.push(`The commenter ${parts.join(', ')}.`);
+  if (userContext?.journalNotes) {
+    lines.push(`Civic journal notes: ${userContext.journalNotes}`);
   }
 
   if (stance) {
