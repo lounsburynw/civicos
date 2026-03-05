@@ -644,10 +644,13 @@
   loadProfile();
   loadJournal();
 
-  // Sync sign-in state when changed from side panel or other pages
+  // Sync sign-in state and journal when changed from side panel or other pages
   chrome.storage.onChanged.addListener((changes, areaName) => {
     if (areaName === 'session' && changes['civicos_session_key']) {
       loadIdentity();
+    }
+    if (areaName === 'local' && changes[JOURNAL_KEY]) {
+      journalText = changes[JOURNAL_KEY].newValue?.text || '';
     }
   });
 

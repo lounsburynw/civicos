@@ -315,16 +315,16 @@ async def ai_chat(request: AIChatRequest):
             messages=[{"role": "user", "content": request.question}],
         )
 
-        # Check if Claude wants to use a tool
-        tool_use_block = None
+        # Check if Claude wants to use tools
+        tool_use_blocks = []
         text_blocks = []
         for block in response.content:
             if block.type == "tool_use":
-                tool_use_block = block
+                tool_use_blocks.append(block)
             elif block.type == "text":
                 text_blocks.append(block.text)
 
-        if not tool_use_block:
+        if not tool_use_blocks:
             # No tool needed — return Claude's direct answer
             text = "\n".join(text_blocks) if text_blocks else None
             if not text:
@@ -332,20 +332,20 @@ async def ai_chat(request: AIChatRequest):
             _record_usage(request.public_key)
             return AIChatResponse(success=True, text=text)
 
-        # Execute the tool
-        tool_name = tool_use_block.name
-        tool_args = tool_use_block.input
+        # Execute all requested tools
+        tool_results = []
+        tool_name = tool_use_blocks[0].name  # Report primary tool used
+        for tool_block in tool_use_blocks:
+            try:
+                result = _chat_registry.call_tool(tool_block.name, tool_block.input)
+                if isinstance(result, str) and len(result) > MAX_TOOL_RESULT_CHARS:
+                    result = result[:MAX_TOOL_RESULT_CHARS] + "\n... (truncated)"
+            except Exception as e:
+                logger.warning("Tool execution failed: %s(%s): %s", tool_block.name, tool_block.input, e)
+                result = json.dumps({"error": f"Tool failed: {str(e)[:200]}"})
+            tool_results.append((tool_block.id, result))
 
-        try:
-            tool_result = _chat_registry.call_tool(tool_name, tool_args)
-            # Truncate large results
-            if isinstance(tool_result, str) and len(tool_result) > MAX_TOOL_RESULT_CHARS:
-                tool_result = tool_result[:MAX_TOOL_RESULT_CHARS] + "\n... (truncated)"
-        except Exception as e:
-            logger.warning("Tool execution failed: %s(%s): %s", tool_name, tool_args, e)
-            tool_result = json.dumps({"error": f"Tool failed: {str(e)[:200]}"})
-
-        # Second call: Claude summarizes the tool result
+        # Second call: Claude summarizes the tool results
         # Serialize assistant content blocks for the messages API
         assistant_content = []
         for block in response.content:
@@ -359,6 +359,15 @@ async def ai_chat(request: AIChatRequest):
                     "input": block.input,
                 })
 
+        # Build tool_result blocks for every tool_use
+        tool_result_content = []
+        for tool_id, result in tool_results:
+            tool_result_content.append({
+                "type": "tool_result",
+                "tool_use_id": tool_id,
+                "content": result if isinstance(result, str) else json.dumps(result),
+            })
+
         response2 = client.messages.create(
             model="claude-sonnet-4-5-20250929",
             max_tokens=1024,
@@ -367,16 +376,7 @@ async def ai_chat(request: AIChatRequest):
             messages=[
                 {"role": "user", "content": request.question},
                 {"role": "assistant", "content": assistant_content},
-                {
-                    "role": "user",
-                    "content": [
-                        {
-                            "type": "tool_result",
-                            "tool_use_id": tool_use_block.id,
-                            "content": tool_result if isinstance(tool_result, str) else json.dumps(tool_result),
-                        }
-                    ],
-                },
+                {"role": "user", "content": tool_result_content},
             ],
         )
 

@@ -1,3 +1,30 @@
+## Session 23 — 2026-03-05: Civic Journal Phase 2 + Bug Fixes
+
+**Item:** Civic Journal Phase 2 — AI-suggested updates (feedback loop)
+**Status:** Shipped.
+
+**Built:**
+- Journal suggestions module (`journal-suggestions.ts`): tracks chat interactions in `chrome.storage.session`, generates AI suggestions after every 5 interactions
+- Suggestion banner UI in SidePanel: purple-themed, per-suggestion accept/dismiss, dismiss-all
+- Accept flow: parses journal markdown, inserts bullet under correct section header, saves to `chrome.storage.local`
+- Dismissed topics persisted to avoid re-suggesting
+- Options page live-reloads journal via `chrome.storage.onChanged` listener
+
+**Bug fixes (found during testing):**
+- **Identity locked on rapid searches**: Service worker's `SIGN_MESSAGE` handler didn't call `ensureRestored()` before checking `isUnlocked()`. After service worker restart, in-memory key was lost. Fixed by restoring from session storage first.
+- **Multi-tool_use 400 error**: AI chat endpoint only handled one `tool_use` block but serialized all of them. When Claude returned multiple tool calls, orphaned IDs caused Anthropic API 400. Fixed by executing all tool_use blocks and returning all tool_results.
+
+**Files changed:**
+- `apps/civicos-extension/src/lib/journal-suggestions.ts` (NEW)
+- `packages/civicos-components/src/components/CivicChatBar.svelte` (oninteraction callback)
+- `apps/civicos-extension/src/side-panel/SidePanel.svelte` (suggestion banner, accept/dismiss, interaction tracking)
+- `apps/civicos-extension/src/options/Options.svelte` (live journal reload)
+- `apps/civicos-extension/src/background/service-worker.ts` (ensureRestored fix)
+- `packages/civicos-services/.../routers/ai_proxy.py` (multi-tool_use fix)
+
+**P0 remains**: turnkey_city_deployment (deferred)
+**Recommended next**: Refactor chat endpoint to use FastMCP Code Mode
+
 ## Session — 2026-02-20 (15): Chat UX + Ollama Provider
 
 **Item:** engagement_ladder_ux (Phase 5: Chat discoverability + local AI)
