@@ -20997,3 +20997,13 @@ Created `CivicSession` class in `packages/civicos-client/src/session.ts` (220 li
 - packages/civicos-services/src/civicos_services/servers/routers/ai_proxy.py (personalized system prompt)
 
 **P0 set to**: turnkey_city_deployment
+
+**Additional Session 21 work:**
+- Moved profile storage from Personal MCP (localhost:8081) to chrome.storage.local
+- Removed personalMCP dependency from Options.svelte and SidePanel.svelte
+- Added full profile parity: stakes, expertise, district, years_in_area
+- Display name shows in identity chip when signed in
+- Privacy note: "Stored in your browser only — never sent to a server."
+- Profile fields gated behind sign-in state
+- Identified major gap: personalization is flat form fields, not a living context document
+- Next session should explore civic context journal / CLAUDE.md-like paradigm for edge intelligence
