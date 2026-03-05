@@ -76,7 +76,11 @@ class AIDraftResponse(BaseModel):
 
 class ChatUserContext(BaseModel):
     neighborhood: Optional[str] = None
+    district: Optional[str] = None
     interests: Optional[list[str]] = None
+    stakes: Optional[list[str]] = None
+    expertise: Optional[str] = None
+    years_in_area: Optional[int] = None
 
 
 class AIChatRequest(BaseModel):
@@ -306,10 +310,18 @@ async def ai_chat(request: AIChatRequest):
             ctx_parts = []
             if request.user_context.neighborhood:
                 ctx_parts.append(f"lives in {request.user_context.neighborhood}")
+            if request.user_context.district:
+                ctx_parts.append(f"is in {request.user_context.district}")
+            if request.user_context.years_in_area:
+                ctx_parts.append(f"has lived in the area for {request.user_context.years_in_area} years")
+            if request.user_context.stakes:
+                ctx_parts.append(f"is a {', '.join(request.user_context.stakes)}")
+            if request.user_context.expertise:
+                ctx_parts.append(f"has expertise in {request.user_context.expertise}")
             if request.user_context.interests:
                 ctx_parts.append(f"cares about {', '.join(request.user_context.interests)}")
             if ctx_parts:
-                system_prompt += f" The user {' and '.join(ctx_parts)}. Prioritize information relevant to their neighborhood and interests when possible."
+                system_prompt += f" The user {', '.join(ctx_parts)}. Prioritize information relevant to their context when possible."
 
         # First call: let Claude decide which tool to use
         response = client.messages.create(

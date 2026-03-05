@@ -40,6 +40,11 @@
   const PROFILE_KEY = 'civicos_profile';
   let profileName = $state('');
   let profileNeighborhood = $state('');
+  let profileDistrict = $state('');
+  let profileYearsInArea: number | null = $state(null);
+  let profileStakes: string[] = $state([]);
+  let profileStakeInput = $state('');
+  let profileExpertise = $state('');
   let profileInterests: string[] = $state([]);
   let profileInterestInput = $state('');
   let profileSaving = $state(false);
@@ -382,6 +387,10 @@
       const profile = stored[PROFILE_KEY] || {};
       profileName = profile.name || '';
       profileNeighborhood = profile.neighborhood || '';
+      profileDistrict = profile.district || '';
+      profileYearsInArea = profile.yearsInArea ?? null;
+      profileStakes = profile.stakes || [];
+      profileExpertise = profile.expertise || '';
       profileInterests = profile.interests || [];
     } catch {
       // Ignore — defaults are fine
@@ -395,6 +404,10 @@
         [PROFILE_KEY]: {
           name: profileName || undefined,
           neighborhood: profileNeighborhood || undefined,
+          district: profileDistrict || undefined,
+          yearsInArea: profileYearsInArea || undefined,
+          stakes: profileStakes,
+          expertise: profileExpertise || undefined,
           interests: profileInterests,
         },
       });
@@ -405,16 +418,33 @@
     profileSaving = false;
   }
 
-  function addInterest(value: string) {
+  function addPill(value: string, list: string[], setter: (v: string[]) => void) {
     const trimmed = value.trim().toLowerCase();
-    if (trimmed && !profileInterests.includes(trimmed)) {
-      profileInterests = [...profileInterests, trimmed];
+    if (trimmed && !list.includes(trimmed)) {
+      setter([...list, trimmed]);
     }
+  }
+
+  function removePill(value: string, list: string[], setter: (v: string[]) => void) {
+    setter(list.filter(i => i !== value));
+  }
+
+  function addInterest(value: string) {
+    addPill(value, profileInterests, v => profileInterests = v);
     profileInterestInput = '';
   }
 
   function removeInterest(interest: string) {
-    profileInterests = profileInterests.filter(i => i !== interest);
+    removePill(interest, profileInterests, v => profileInterests = v);
+  }
+
+  function addStake(value: string) {
+    addPill(value, profileStakes, v => profileStakes = v);
+    profileStakeInput = '';
+  }
+
+  function removeStake(stake: string) {
+    removePill(stake, profileStakes, v => profileStakes = v);
   }
 
   function handleInterestKeydown(e: KeyboardEvent) {
@@ -665,6 +695,44 @@
         <label for="profile-neighborhood">Neighborhood</label>
         <span class="field-desc">We'll prioritize issues near you</span>
         <input id="profile-neighborhood" type="text" placeholder="e.g. Terra Linda" bind:value={profileNeighborhood} />
+      </div>
+      <div class="form-group">
+        <label for="profile-district">District</label>
+        <span class="field-desc">Your council district — filters to your representative's items</span>
+        <input id="profile-district" type="text" placeholder="e.g. District 1" bind:value={profileDistrict} />
+      </div>
+      <div class="form-group">
+        <label for="profile-years">Years in area</label>
+        <span class="field-desc">How long you've been part of this community</span>
+        <input id="profile-years" type="number" min="0" max="99" placeholder="e.g. 5" bind:value={profileYearsInArea} />
+      </div>
+      <div class="form-group">
+        <label>Stakes</label>
+        <span class="field-desc">Your situation — helps AI draft from your perspective</span>
+        <div class="interest-pills-input">
+          {#each profileStakes as stake}
+            <span class="interest-pill">
+              {stake}
+              <button class="pill-remove" onclick={() => removeStake(stake)} aria-label="Remove {stake}">&times;</button>
+            </span>
+          {/each}
+          <input
+            class="pill-text-input"
+            type="text"
+            placeholder={profileStakes.length === 0 ? 'e.g. homeowner, parent, renter' : 'Add more...'}
+            bind:value={profileStakeInput}
+            onkeydown={(e) => {
+              if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); addStake(profileStakeInput); }
+              else if (e.key === 'Backspace' && profileStakeInput === '' && profileStakes.length > 0) { profileStakes = profileStakes.slice(0, -1); }
+            }}
+            onblur={() => { if (profileStakeInput.trim()) addStake(profileStakeInput); }}
+          />
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="profile-expertise">Expertise</label>
+        <span class="field-desc">Professional or domain knowledge — adds depth to your comments</span>
+        <input id="profile-expertise" type="text" placeholder="e.g. urban planning, civil engineering" bind:value={profileExpertise} />
       </div>
       <div class="form-group">
         <label>Interests</label>

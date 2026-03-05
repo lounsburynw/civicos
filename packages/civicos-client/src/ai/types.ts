@@ -21,7 +21,11 @@ export interface AICompletionResult {
 
 export interface ChatUserContext {
   neighborhood?: string;
+  district?: string;
   interests?: string[];
+  stakes?: string[];
+  expertise?: string;
+  yearsInArea?: number;
 }
 
 export interface AIChatResult {

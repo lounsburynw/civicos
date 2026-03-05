@@ -3,7 +3,7 @@
   import { sendMessage } from '../lib/messaging.js';
   import { api, registry } from '../lib/client.js';
   import { CivicSession } from '@civicos/client';
-  import type { CityPulseData, DataProvenance, VoiceCounts, CommentCounts, CommentSynthesis, RegistryServer } from '@civicos/client';
+  import type { CityPulseData, DataProvenance, VoiceCounts, CommentCounts, CommentSynthesis, RegistryServer, ChatUserContext } from '@civicos/client';
   import { isAIAvailable, getAIManager, onAIConfigChanged } from '../lib/ai.js';
   import type { IdentityInfo } from '../lib/providers/types.js';
   import { marked } from 'marked';
@@ -138,8 +138,22 @@
 
   // Profile state (from chrome.storage.local)
   const PROFILE_KEY = 'civicos_profile';
+  let personalProfile: Record<string, unknown> = $state({});
   let personalInterests: string[] = $state([]);
   let personalNeighborhood: string = $state('');
+
+  /** Build ChatUserContext from full profile — used by CivicChatBar and CivicAgendaView. */
+  function buildUserContext(): ChatUserContext | undefined {
+    const p = personalProfile;
+    const ctx: ChatUserContext = {};
+    if (p.neighborhood) ctx.neighborhood = p.neighborhood as string;
+    if (p.district) ctx.district = p.district as string;
+    if (p.yearsInArea) ctx.yearsInArea = p.yearsInArea as number;
+    if ((p.stakes as string[])?.length > 0) ctx.stakes = p.stakes as string[];
+    if (p.expertise) ctx.expertise = p.expertise as string;
+    if ((p.interests as string[])?.length > 0) ctx.interests = p.interests as string[];
+    return Object.keys(ctx).length > 0 ? ctx : undefined;
+  }
 
   // Connector setup state
   let connectorSetupDismissed = $state(false);
@@ -238,10 +252,11 @@
   async function loadProfile() {
     try {
       const stored = await chrome.storage.local.get(PROFILE_KEY);
-      const profile = stored[PROFILE_KEY] || {};
-      personalInterests = profile.interests || [];
-      personalNeighborhood = profile.neighborhood || '';
+      personalProfile = stored[PROFILE_KEY] || {};
+      personalInterests = (personalProfile.interests as string[]) || [];
+      personalNeighborhood = (personalProfile.neighborhood as string) || '';
     } catch {
+      personalProfile = {};
       personalInterests = [];
       personalNeighborhood = '';
     }
@@ -727,9 +742,9 @@
       connectorSetupDismissed = changes[CONNECTOR_SETUP_KEY].newValue ?? false;
     }
     if (changes[PROFILE_KEY]) {
-      const profile = changes[PROFILE_KEY].newValue || {};
-      personalInterests = profile.interests || [];
-      personalNeighborhood = profile.neighborhood || '';
+      personalProfile = changes[PROFILE_KEY].newValue || {};
+      personalInterests = (personalProfile.interests as string[]) || [];
+      personalNeighborhood = (personalProfile.neighborhood as string) || '';
     }
   });
 </script>
@@ -874,7 +889,7 @@
     {session}
     jurisdiction={activeJurisdiction}
     {aiAvailable}
-    userContext={personalInterests.length > 0 || personalNeighborhood ? { neighborhood: personalNeighborhood || undefined, interests: personalInterests.length > 0 ? personalInterests : undefined } : undefined}
+    userContext={buildUserContext()}
     {renderMarkdown}
     ontoast={(message) => showToast(message)}
     onnavigate={handleChatNavigate}
@@ -1004,7 +1019,7 @@
               {api}
               {renderMarkdown}
               {highlightedCardId}
-              userContext={personalInterests.length > 0 || personalNeighborhood ? { neighborhood: personalNeighborhood || undefined, interests: personalInterests.length > 0 ? personalInterests : undefined } : undefined}
+              userContext={buildUserContext()}
               onvoice={({ entityId, stance }) => handleVoice(entityId, stance)}
               onopenexternalai={({ context, event }) => openExternalAI('claude', context, event)}
               ontoast={(message) => showToast(message)}
