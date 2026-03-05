@@ -860,6 +860,7 @@
   <CivicIdentityChip
     {identity}
     {loading}
+    displayName={(personalProfile.name as string) || ''}
     {attestationLabels}
     onunlock={async (password) => {
       const response = await sendMessage<boolean>({ type: 'UNLOCK', password });
