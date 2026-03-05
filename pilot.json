@@ -1555,7 +1555,7 @@
     "scaling": {
       "turnkey_city_deployment": {
         "status": "not_ready",
-        "priority": 0,
+        "priority": 1,
         "description": "Make unified config system actually reduce new city deployment effort. Currently config is ~20% of work; extractors, HUD mapping, and elections are ~80%.",
         "rationale": "Session 545 audit found: core infrastructure 70-75% generalizable, but election data (1/5), HUD grantee mapping (manual), and platform-specific extractors still require significant per-city work.",
         "audit_reference": "docs/critical/CITY_DEPLOYMENT_AUDIT.md",
@@ -2578,11 +2578,11 @@
         ]
       },
       "engagement_ladder_ux": {
-        "status": "ready",
-        "priority": 1,
+        "status": "not_ready",
+        "priority": 0,
         "artifact": "Progressive engagement UX from awareness to coordination",
         "description": "UX flow that guides users through engagement ladder: Awareness (what's happening) \u2192 Relevance (what affects me) \u2192 Participation (where I can act) \u2192 Coordination (who's with me). Each dashboard view surfaces the 'next step' without forcing it.",
-        "note": "Complete: Pulse feed (awareness), interest-based sorting with personalized badge (relevance), personalized comment drafting with neighborhood/interests (participation), initiatives with voice counts (coordination). Settings: unified profile card with pill-based interest editing, Sign in/Sign out flow, collapsible Advanced section."
+        "note": "Session 19: Core engagement ladder done (pulse, interest sorting, personalized drafts, initiatives). Settings UX partially redesigned — merged AI into Advanced, added field descriptions, softer aesthetic. REMAINING: Redesign to iOS-style flat grouped list (no cards). See docs/next_session_prompt.md for full design spec."
       },
       "civic_dashboard_mvp": {
         "status": "ready",
@@ -4615,6 +4615,61 @@
       ],
       "depends_on": [
         "browser_extension"
+      ]
+    },
+    "tiered_inference_routing": {
+      "status": "not_ready",
+      "priority": 2,
+      "description": "Tiered local inference with automated setup. Users get private, on-device AI without manual configuration. Three tiers: Cloud API (zero setup, default), WebLLM/WebGPU (zero install, in-browser), Ollama (auto-detected, power users). Extension auto-detects available tiers and routes to the best option. Mobile surfaces use cloud default with OS-provided AI (Gemini Nano, CoreML) as future Tier 2.",
+      "_doc": "Architecture brainstorm 2026-03-05. The edge agent doesn't need to be smart, it needs to be private. Heavy lifting (RAG, legislation search) happens server-side. Local model handles: personalizing drafts to user's voice, classifying content against preferences without sending them to server, summarizing server responses with user context. A 1-3B parameter model suffices.",
+      "tiers": {
+        "tier_1_cloud": {
+          "description": "Cloud API (CivicOS proxy or BYOK). Zero setup, works immediately.",
+          "setup": "None - default provider",
+          "privacy": "Contractual (no training, short retention)",
+          "platforms": ["desktop", "mobile", "web"]
+        },
+        "tier_2_browser": {
+          "description": "WebLLM via WebGPU. Zero install, runs entirely in browser tab/service worker.",
+          "setup": "One-click enable in extension settings. Model downloaded on first use (~1-2GB).",
+          "privacy": "Maximum - queries never leave device",
+          "models": ["Llama 3.2 1B", "Phi-3 Mini", "Qwen2 1.5B"],
+          "requirements": "WebGPU-capable browser (Chrome 113+, Edge 113+). 4GB+ RAM.",
+          "platforms": ["desktop"],
+          "note": "Mobile WebGPU support exists but performance is poor. Not recommended for mobile."
+        },
+        "tier_3_ollama": {
+          "description": "Local Ollama instance. Auto-detected when running, guided setup if user opts in.",
+          "setup": "Extension detects Ollama on localhost:11434. If not found, shows guided install flow: download link + polls for availability + auto-pulls recommended model.",
+          "privacy": "Maximum - queries never leave device",
+          "models": ["Llama 3.2 3B", "Phi-3 Mini", "Mistral 7B"],
+          "platforms": ["desktop"]
+        }
+      },
+      "mobile_strategy": {
+        "pilot": "Cloud API only (Tier 1). Sufficient for launch.",
+        "future_tier_2": "OS-provided on-device AI (Gemini Nano via Android AICore, Apple CoreML/Apple Intelligence APIs). Zero install if OS exposes inference API.",
+        "future_tier_3": "Native app with embedded llama.cpp model. Requires shipping a native app.",
+        "note": "Mobile users are cloud-accustomed. Privacy upgrade comes when OS APIs mature or native app ships."
+      },
+      "architecture": {
+        "interface": "InferenceProvider with swap-in implementations: CloudProvider, WebLLMProvider, OllamaProvider, NativeProvider (future)",
+        "routing": "Extension probes available tiers on startup, uses best available. User can override in settings.",
+        "settings_ui": "Intelligence section in Options: [Cloud (default)] [Browser (private)] [Local Ollama (advanced)] with status indicators",
+        "fallback": "If selected tier fails, graceful fallback to next available tier"
+      },
+      "subtasks": [
+        "InferenceProvider interface in @civicos/client (sign, route, fallback)",
+        "CloudProvider implementation (existing ai_proxy)",
+        "WebLLM integration: load model in service worker or offscreen document, expose via InferenceProvider",
+        "Ollama detection: probe localhost:11434/api/tags on extension startup",
+        "Ollama guided setup: install link + polling + auto-pull model via POST /api/pull",
+        "Settings UI: tier selection with capability detection and status indicators",
+        "Fallback chain: selected tier -> next available tier -> cloud default"
+      ],
+      "depends_on": [
+        "ai_proxy",
+        "client_sdk_extraction"
       ]
     }
   },

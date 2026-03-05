@@ -20916,3 +20916,24 @@ Created `CivicSession` class in `packages/civicos-client/src/session.ts` (220 li
 - packages/civicos-components/src/components/CivicAgendaView.svelte (userContext prop)
 - apps/civicos-extension/src/side-panel/SidePanel.svelte (personalNeighborhood, pass userContext)
 - apps/civicos-extension/src/options/Options.svelte (complete UX restructure)
+
+### Session 19 continued: Settings UX Redesign (iterative with user feedback)
+
+**Iteration 1**: Split into Account + Profile + AI Settings (collapsed) + Advanced
+- Separated jurisdiction into Account card with auto-save
+- Profile card only shows when hub connected (no confusing npx command)
+- AI Settings collapsed with status summary ("Claude · Ollama connected")
+
+**Iteration 2**: User feedback — still overwhelming, AI should be in Advanced
+- Merged AI Settings into Advanced section
+- Added field-desc helper text under each field ("Determines what meetings you see")
+- Softened aesthetic: rgba borders, transitions, smaller type, no ALL-CAPS headers
+
+**Iteration 3**: User feedback — still not great. Designed iOS-style flat grouped list approach:
+- Drop cards entirely, use flat list with group headers
+- Top: YOUR CITY + YOUR PROFILE (essentials)
+- Bottom: "AI & Privacy >" and "Account & Security >" expandable rows
+- User approved design, deferred to next session
+
+**P0 reassigned**: engagement_ladder_ux (Settings redesign remaining)
+- turnkey_city_deployment back to P1
