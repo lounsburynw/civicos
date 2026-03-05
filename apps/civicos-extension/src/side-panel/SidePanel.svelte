@@ -254,9 +254,12 @@
     try {
       const ordered = await personalMCP.getJurisdictions();
       if (ordered.length > 0) {
-        // Use the first jurisdiction as active if it's in the registry
+        // Ensure registry servers are loaded (may race with initJurisdiction)
+        const servers = availableServers.length > 0
+          ? availableServers
+          : await registry.getRegistryServers();
         const firstMatch = ordered.find(j =>
-          availableServers.some(s => s.jurisdiction_id === j)
+          servers.some(s => s.jurisdiction_id === j)
         );
         if (firstMatch && firstMatch !== activeJurisdiction) {
           activeJurisdiction = firstMatch;
@@ -269,21 +272,47 @@
     }
   }
 
+  const PULSE_CACHE_KEY = 'civicos_pulse_cache';
+
+  function applyPulseData(pulse: CityPulseData) {
+    pulseData = pulse;
+    loadVoiceCounts();
+    loadCommentCounts();
+    loadParentPulse();
+    checkAllHealth();
+  }
+
   async function loadCityPulse() {
     pulseLoading = true;
     pulseError = null;
+
+    // Show cached pulse immediately (stale-while-revalidate)
     try {
-      pulseData = await session.loadPulse();
+      const cached = await chrome.storage.local.get(PULSE_CACHE_KEY);
+      const entry = cached[PULSE_CACHE_KEY];
+      if (entry?.data && !pulseData) {
+        pulseData = entry.data;
+        pulseLoading = false; // stop spinner early
+        // Kick off enrichment with stale data
+        loadVoiceCounts();
+        loadCommentCounts();
+        loadParentPulse();
+        checkAllHealth();
+      }
+    } catch { /* no cache, continue */ }
+
+    // Always fetch fresh data in background
+    try {
+      const fresh = await session.loadPulse();
       // Update available servers for UI (registry was already refreshed by session)
       try { availableServers = await registry.getRegistryServers(); } catch {}
-      // Load voice counts and comment counts in background (initiatives loaded by CivicInitiativeView)
-      loadVoiceCounts();
-      loadCommentCounts();
-      // Load parent jurisdiction data and health checks in background
-      loadParentPulse();
-      checkAllHealth();
+      applyPulseData(fresh);
+      // Persist for next open
+      chrome.storage.local.set({ [PULSE_CACHE_KEY]: { data: fresh, cached_at: Date.now() } }).catch(() => {});
     } catch (err) {
-      pulseError = err instanceof Error ? err.message : 'Failed to load civic data';
+      if (!pulseData) {
+        pulseError = err instanceof Error ? err.message : 'Failed to load civic data';
+      }
     }
     pulseLoading = false;
   }
@@ -686,8 +715,9 @@
   }
 
 
-  // Load on mount
-  initJurisdiction().then(() => loadPersonalHub());
+  // Load on mount — parallelize independent init paths
+  initJurisdiction();
+  loadPersonalHub();
   loadIdentity();
   loadCityPulse();
   loadStances();
