@@ -5,14 +5,12 @@
  */
 
 import type { PulseAgendaItem, VoiceCounts, ContextBundle } from '../types.js';
+import type { ChatUserContext } from './types.js';
 
 type Stance = 'support' | 'oppose' | 'watching';
 
-/** Optional user context for personalized drafts. */
-export interface DraftUserContext {
-  neighborhood?: string;
-  interests?: string[];
-}
+/** @deprecated Use ChatUserContext instead */
+export type DraftUserContext = ChatUserContext;
 
 export const SYSTEM_PROMPT =
   'You are a civic engagement assistant. Draft concise, respectful public comments for local government agenda items. Focus on community impact and specific concerns. Keep comments under 400 characters. Write in first person as a concerned resident. Do not use hashtags or emojis.';
@@ -44,11 +42,15 @@ export function composeDraftPrompt(
     );
   }
 
-  if (userContext?.neighborhood || (userContext?.interests && userContext.interests.length > 0)) {
+  if (userContext) {
     const parts: string[] = [];
     if (userContext.neighborhood) parts.push(`lives in ${userContext.neighborhood}`);
+    if (userContext.district) parts.push(`is in ${userContext.district}`);
+    if (userContext.yearsInArea) parts.push(`has lived here ${userContext.yearsInArea} years`);
+    if (userContext.stakes && userContext.stakes.length > 0) parts.push(`is a ${userContext.stakes.join(', ')}`);
+    if (userContext.expertise) parts.push(`has expertise in ${userContext.expertise}`);
     if (userContext.interests && userContext.interests.length > 0) parts.push(`cares about ${userContext.interests.join(', ')}`);
-    lines.push(`The commenter ${parts.join(' and ')}.`);
+    if (parts.length > 0) lines.push(`The commenter ${parts.join(', ')}.`);
   }
 
   if (stance) {
