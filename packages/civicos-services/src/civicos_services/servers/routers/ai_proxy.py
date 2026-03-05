@@ -154,12 +154,27 @@ def _verify_ai_signature(public_key: str, signature: str, created_at: int) -> bo
         return False
 
 
+def _check_attestation(public_key: str) -> bool:
+    """Check if pubkey has a valid residency attestation."""
+    try:
+        from .coordination import _get_attestation_storage
+
+        storage = _get_attestation_storage()
+        if not storage:
+            return False
+        attestation = storage.get_attestation(public_key, "city-san-rafael")
+        return attestation is not None
+    except Exception:
+        logger.exception("Attestation check error")
+        return False
+
+
 @router.post("/ai/draft", response_model=AIDraftResponse)
 async def ai_draft(request: AIDraftRequest):
     """Generate an AI draft using the CivicOS proxy.
 
-    Authenticates via Nostr signature, rate-limits per npub,
-    and forwards to Anthropic's Claude API.
+    Authenticates via Nostr signature, verifies attestation,
+    rate-limits per npub, and forwards to Anthropic's Claude API.
     """
     # 1. Replay protection — reject stale timestamps
     now = int(time.time())
@@ -170,7 +185,11 @@ async def ai_draft(request: AIDraftRequest):
     if not _verify_ai_signature(request.public_key, request.signature, request.created_at):
         raise HTTPException(status_code=401, detail="Invalid signature")
 
-    # 3. Rate limits
+    # 3. Verify residency attestation
+    if not _check_attestation(request.public_key):
+        raise HTTPException(status_code=403, detail="Residency verification required — verify in Settings to use CivicOS AI")
+
+    # 4. Rate limits
     allowed, error_msg = _check_rate_limit(request.public_key)
     if not allowed:
         raise HTTPException(status_code=429, detail=error_msg)
@@ -241,7 +260,11 @@ async def ai_chat(request: AIChatRequest):
     if not _verify_ai_signature(request.public_key, request.signature, request.created_at):
         raise HTTPException(status_code=401, detail="Invalid signature")
 
-    # 3. Rate limits (shared pool, but chat costs 2x)
+    # 3. Verify residency attestation
+    if not _check_attestation(request.public_key):
+        raise HTTPException(status_code=403, detail="Residency verification required — verify in Settings to use CivicOS AI")
+
+    # 4. Rate limits (shared pool, but chat costs 2x)
     allowed, error_msg = _check_rate_limit(request.public_key)
     if not allowed:
         raise HTTPException(status_code=429, detail=error_msg)

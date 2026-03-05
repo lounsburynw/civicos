@@ -61,7 +61,6 @@ export interface CreateIdentityOptions {
  */
 export interface UnlockOptions {
   password?: string; // Required for 'private' tier
-  timeout?: number; // Auto-lock after N milliseconds (default: 5 minutes)
 }
 
 /**

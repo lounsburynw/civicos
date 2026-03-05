@@ -46,17 +46,13 @@
   {:else if identity}
     <div class="identity-info">
       <div class="row">
-        <span class="label">Tier</span>
-        <span class="tier-badge private">private</span>
-      </div>
-      <div class="row">
         <span class="label">Status</span>
-        <span class="lock-status" class:unlocked={identity.isUnlocked}>
-          {identity.isUnlocked ? 'Unlocked' : 'Locked'}
+        <span class="sign-in-status" class:signed-in={identity.isUnlocked}>
+          {identity.isUnlocked ? 'Signed in' : 'Signed out'}
         </span>
       </div>
       <div class="row">
-        <span class="label">npub</span>
+        <span class="label">ID</span>
         <span class="npub">{truncateNpub(identity.npub)}</span>
       </div>
     </div>
@@ -116,23 +112,12 @@
     font-weight: 500;
   }
 
-  .tier-badge {
-    font-size: 11px;
-    font-weight: 600;
-    text-transform: uppercase;
-    padding: 2px 8px;
-    border-radius: 4px;
-    background: #374151;
-    color: #9ca3af;
-  }
-  .tier-badge.private { background: #3b1f4b; color: #c084fc; }
-
-  .lock-status {
+  .sign-in-status {
     font-size: 12px;
     color: #ef4444;
     font-weight: 500;
   }
-  .lock-status.unlocked { color: #22c55e; }
+  .sign-in-status.signed-in { color: #22c55e; }
 
   .npub {
     font-family: 'SF Mono', 'Fira Code', monospace;
