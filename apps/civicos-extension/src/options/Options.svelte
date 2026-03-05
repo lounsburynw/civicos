@@ -58,9 +58,12 @@
   let importMnemonic = $state('');
   let importing = $state(false);
 
-  // Unlock
+  // Unlock (Sign in)
   let unlockPassword = $state('');
   let unlocking = $state(false);
+
+  // Advanced section collapse
+  let showAdvanced = $state(false);
 
   // Status timer handle — clear old timer before setting new one
   let statusTimer: ReturnType<typeof setTimeout> | null = null;
@@ -511,32 +514,37 @@
   {#if loading}
     <div class="loading">Loading...</div>
   {:else if identity}
-    <!-- Your Profile -->
+    <!-- Profile -->
     <section class="card profile-section">
-      <h2>Your Profile</h2>
+      <h2>Profile</h2>
 
-      <h3 class="subsection-label">Identity</h3>
-      <div class="info-grid">
-        <div class="info-row">
-          <span class="info-label">Status</span>
-          <span class="lock-status" class:unlocked={identity.isUnlocked}>
-            {identity.isUnlocked ? 'Unlocked' : 'Locked'}
-          </span>
+      <!-- Sign in / Sign out -->
+      {#if identity.isUnlocked}
+        <div class="signed-in-bar">
+          <span class="signed-in-dot"></span>
+          <span class="signed-in-label">Signed in</span>
+          <button class="btn-link" onclick={lock}>Sign out</button>
         </div>
-        <div class="info-row">
-          <span class="info-label">npub</span>
-          <span class="npub" title={identity.npub}>{truncateNpub(identity.npub)}</span>
-        </div>
-        <div class="info-row">
-          <span class="info-label">Created</span>
-          <span>{formatDate(identity.createdAt)}</span>
-        </div>
-      </div>
+      {:else}
+        <form class="sign-in-form" autocomplete="off" onsubmit={(e: Event) => { e.preventDefault(); unlock(); }}>
+          <input
+            id="unlock-password"
+            name="unlock-password"
+            type="password"
+            autocomplete="off"
+            placeholder="Password"
+            bind:value={unlockPassword}
+          />
+          <button type="submit" class="btn-primary btn-compact" disabled={unlocking}>
+            {unlocking ? 'Signing in...' : 'Sign in'}
+          </button>
+        </form>
+      {/if}
 
       {#if showMnemonic}
         <div class="mnemonic-warning">
-          <h3>Recovery Phrase - SAVE THIS NOW</h3>
-          <p>Write down these 12 words in order. You will need them to recover your identity.</p>
+          <h3>Recovery Phrase — Save This Now</h3>
+          <p>Write down these 12 words in order. You'll need them to recover your account.</p>
           <div class="mnemonic-words">{showMnemonic}</div>
           <button class="btn-secondary" onclick={() => { showMnemonic = ''; }}>
             I've saved my recovery phrase
@@ -544,26 +552,39 @@
         </div>
       {/if}
 
-      <div class="action-buttons">
-        <button class="btn-secondary" style:display={identity.isUnlocked ? '' : 'none'} onclick={lock}>Lock</button>
+      <hr class="subsection-divider" />
 
-        <form class="unlock-form" style:display={!identity.isUnlocked ? 'flex' : 'none'} autocomplete="off" onsubmit={(e: Event) => { e.preventDefault(); unlock(); }}>
-          <input
-            id="unlock-password"
-            name="unlock-password"
-            type="password"
-            autocomplete="off"
-            placeholder="Enter password"
-            bind:value={unlockPassword}
-          />
-          <button type="submit" class="btn-primary" disabled={unlocking}>
-            {unlocking ? 'Unlocking...' : 'Unlock'}
-          </button>
-        </form>
-      </div>
+      <!-- Profile fields (from Personal Hub) -->
+      {#if hubLoading}
+        <div class="hub-loading">Loading profile...</div>
+      {:else if hubConnected}
+        <div class="form-group">
+          <label for="hub-name">Name</label>
+          <input id="hub-name" type="text" placeholder="Display name" bind:value={hubName} />
+        </div>
+        <div class="form-group">
+          <label for="hub-neighborhood">Neighborhood</label>
+          <input id="hub-neighborhood" type="text" placeholder="e.g. Terra Linda" bind:value={hubNeighborhood} />
+        </div>
+        <div class="form-group">
+          <label for="hub-interests">Interests</label>
+          <input id="hub-interests" type="text" placeholder="housing, transportation, parks" bind:value={hubInterests} />
+          <span class="form-hint">Comma-separated topics — used to personalize AI-drafted comments</span>
+        </div>
+        <button class="btn-primary" onclick={savePersonalProfile} disabled={hubSaving}>
+          {hubSaving ? 'Saving...' : 'Save Profile'}
+        </button>
+      {:else}
+        <div class="hub-offline-hint">
+          <p>Start the Personal Hub to edit your profile:</p>
+          <code class="hub-command">npx civicos-personal-mcp</code>
+          <button class="btn-link" onclick={refreshPersonalHub}>Retry connection</button>
+        </div>
+      {/if}
 
       <hr class="subsection-divider" />
 
+      <!-- Jurisdiction -->
       <h3 class="subsection-label">Jurisdiction</h3>
       {#if availableServers.length > 0}
         <div class="form-group">
@@ -594,7 +615,7 @@
 
       <hr class="subsection-divider" />
 
-      <h3 class="subsection-label">Residency</h3>
+      <h3 class="subsection-label">Residency Verification</h3>
       {#if attestationEvent}
         {@const attestedServer = availableServers.find(s => s.jurisdiction_id === attestationJurisdiction)}
         <div class="attested-badge">
@@ -625,18 +646,14 @@
           </button>
         </form>
       {:else}
-        <p class="section-desc">Unlock your identity to verify your residency.</p>
+        <p class="section-desc">Sign in to verify your residency.</p>
       {/if}
-
-      <hr class="subsection-divider" />
-
-      <button class="btn-danger" onclick={deleteIdentity}>Delete Identity</button>
     </section>
   {:else}
-    <!-- Create new identity -->
+    <!-- Create Account -->
     <section class="card">
-      <h2>Create Identity</h2>
-      <p class="section-desc">Password + 12-word recovery phrase. Local only, you control the keys.</p>
+      <h2>Create Account</h2>
+      <p class="section-desc">Set a password to create your CivicOS identity. Your data stays on your device.</p>
 
       <div class="form-group">
         <label for="password">Password</label>
@@ -648,7 +665,7 @@
       </div>
 
       <button class="btn-primary" onclick={createIdentity} disabled={creating}>
-        {creating ? 'Creating...' : 'Create Identity'}
+        {creating ? 'Creating...' : 'Create Account'}
       </button>
 
       <div class="divider">
@@ -656,7 +673,7 @@
       </div>
 
       <button class="btn-secondary" onclick={() => { showImport = !showImport; }}>
-        {showImport ? 'Cancel Import' : 'Import Existing Identity'}
+        {showImport ? 'Cancel' : 'Recover Existing Account'}
       </button>
 
       {#if showImport}
@@ -678,49 +695,9 @@
     </section>
   {/if}
 
-  <!-- Personal Hub -->
-  <section class="card hub-section">
-    <div class="hub-header">
-      <h2>Personal Hub</h2>
-      <div class="hub-status" class:connected={hubConnected}>
-        <span class="hub-dot"></span>
-        {hubConnected ? 'Connected' : 'Offline'}
-        <button class="hub-refresh" onclick={refreshPersonalHub} title="Refresh">&#8635;</button>
-      </div>
-    </div>
-    {#if hubLoading}
-      <div class="hub-loading">Checking Personal Hub...</div>
-    {:else if hubConnected}
-      <p class="section-desc">Your civic profile syncs across CivicOS surfaces via <code>~/.civicos/</code></p>
-      <div class="form-group">
-        <label for="hub-name">Name</label>
-        <input id="hub-name" type="text" placeholder="Display name" bind:value={hubName} />
-      </div>
-      <div class="form-group">
-        <label for="hub-neighborhood">Neighborhood</label>
-        <input id="hub-neighborhood" type="text" placeholder="e.g. Terra Linda" bind:value={hubNeighborhood} />
-      </div>
-      <div class="form-group">
-        <label for="hub-interests">Interests</label>
-        <input id="hub-interests" type="text" placeholder="housing, transportation, parks" bind:value={hubInterests} />
-        <span class="form-hint">Comma-separated topics for personalized civic updates</span>
-      </div>
-      <button class="btn-primary" onclick={savePersonalProfile} disabled={hubSaving}>
-        {hubSaving ? 'Saving...' : 'Save Profile'}
-      </button>
-    {:else}
-      <div class="hub-offline-hint">
-        <p>The Personal Hub server provides shared profile, preferences, and jurisdiction ordering across all CivicOS surfaces.</p>
-        <p>Start it with:</p>
-        <code class="hub-command">npx civicos-personal-mcp</code>
-        <p class="hub-fallback-note">Without it, settings are stored locally in this browser.</p>
-      </div>
-    {/if}
-  </section>
-
-  <!-- Preferences -->
+  <!-- AI & Privacy -->
   <section class="card preferences-section">
-    <h2>Preferences</h2>
+    <h2>AI &amp; Privacy</h2>
     <h3 class="subsection-label">AI Drafting Provider</h3>
     <p class="section-desc">Choose an AI provider for comment drafting.</p>
 
@@ -755,7 +732,7 @@
       <div class="civicos-provider-note">
         No API key needed — uses your CivicOS identity for authentication.
         {#if !identity?.isUnlocked}
-          <span class="civicos-unlock-hint">Unlock your identity above to enable AI drafting.</span>
+          <span class="civicos-unlock-hint">Sign in above to enable AI drafting.</span>
         {/if}
       </div>
     {:else}
@@ -865,6 +842,62 @@
     {/if}
   </section>
 
+  <!-- Advanced (collapsed, only when signed in) -->
+  {#if identity}
+    <section class="card advanced-section">
+      <button class="advanced-toggle" onclick={() => { showAdvanced = !showAdvanced; }}>
+        <span class="advanced-label">Advanced</span>
+        <span class="chevron-small" class:open={showAdvanced}></span>
+      </button>
+
+      {#if showAdvanced}
+        <div class="advanced-body">
+          <h3 class="subsection-label">Identity Details</h3>
+          <div class="info-grid">
+            <div class="info-row">
+              <span class="info-label">npub</span>
+              <span class="npub" title={identity.npub}>{truncateNpub(identity.npub)}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Created</span>
+              <span>{formatDate(identity.createdAt)}</span>
+            </div>
+          </div>
+
+          <hr class="subsection-divider" />
+
+          <h3 class="subsection-label">Recovery</h3>
+          <p class="section-desc">Import an existing account using your 12-word recovery phrase.</p>
+          <button class="btn-secondary" onclick={() => { showImport = !showImport; }}>
+            {showImport ? 'Cancel' : 'Recover Existing Account'}
+          </button>
+
+          {#if showImport}
+            <div class="import-form">
+              <div class="form-group">
+                <label for="importPassword">New Password</label>
+                <input id="importPassword" type="password" placeholder="Password to encrypt" bind:value={importPassword} />
+              </div>
+              <div class="form-group">
+                <label for="importMnemonic">Recovery Phrase (12 words)</label>
+                <textarea id="importMnemonic" rows="3" placeholder="word1 word2 word3 ..." bind:value={importMnemonic}></textarea>
+              </div>
+              <button class="btn-primary" onclick={handleImport} disabled={importing}>
+                {importing ? 'Recovering...' : 'Recover Account'}
+              </button>
+            </div>
+          {/if}
+
+          <hr class="subsection-divider" />
+
+          <h3 class="subsection-label">Danger Zone</h3>
+          <button class="btn-danger" onclick={deleteIdentity}>Delete Account</button>
+          <span class="form-hint">This cannot be undone. Make sure you have your recovery phrase backed up.</span>
+        </div>
+      {/if}
+    </section>
+  {/if}
+
 </div>
 
 <style>
@@ -937,12 +970,49 @@
     font-weight: 500;
   }
 
-  .lock-status {
-    font-size: 12px;
-    color: #ef4444;
+  /* Sign in / Sign out bar */
+  .signed-in-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+    background: rgba(34, 197, 94, 0.06);
+    border-radius: 6px;
+    font-size: 13px;
+    color: #22c55e;
+  }
+  .signed-in-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #22c55e;
+    flex-shrink: 0;
+  }
+  .signed-in-label {
     font-weight: 500;
   }
-  .lock-status.unlocked { color: #22c55e; }
+  .sign-in-form {
+    display: flex;
+    gap: 8px;
+  }
+  .sign-in-form input {
+    flex: 1;
+    min-width: 0;
+  }
+  .btn-link {
+    background: none;
+    border: none;
+    color: #818cf8;
+    font-size: 12px;
+    cursor: pointer;
+    padding: 0;
+    margin-left: auto;
+  }
+  .btn-link:hover { text-decoration: underline; }
+  .btn-compact {
+    width: auto;
+    flex-shrink: 0;
+  }
 
   .npub {
     font-family: 'SF Mono', 'Fira Code', monospace;
@@ -977,25 +1047,6 @@
     margin-bottom: 12px;
     word-spacing: 6px;
     line-height: 1.8;
-  }
-
-  .action-buttons {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
-
-  .unlock-form {
-    display: flex;
-    gap: 8px;
-  }
-  .unlock-form input {
-    flex: 1;
-    min-width: 0;
-  }
-  .unlock-form button {
-    width: auto;
-    flex-shrink: 0;
   }
 
   .form-group {
@@ -1384,42 +1435,7 @@
   }
   select:focus { border-color: #6366f1; }
 
-  /* Personal Hub */
-  .hub-section {
-    margin-top: 24px;
-  }
-  .hub-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 12px;
-  }
-  .hub-header h2 { margin-bottom: 0; }
-  .hub-status {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 11px;
-    color: #ef4444;
-  }
-  .hub-status.connected { color: #22c55e; }
-  .hub-dot {
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    background: #ef4444;
-  }
-  .hub-status.connected .hub-dot { background: #22c55e; }
-  .hub-refresh {
-    background: none;
-    border: none;
-    color: inherit;
-    font-size: 14px;
-    cursor: pointer;
-    padding: 0 2px;
-    opacity: 0.7;
-  }
-  .hub-refresh:hover { opacity: 1; }
+  /* Personal Hub (inline in Profile) */
   .hub-loading {
     font-size: 12px;
     color: #64748b;
@@ -1442,9 +1458,42 @@
     color: #e2e8f0;
     margin-bottom: 8px;
   }
-  .hub-fallback-note {
-    font-size: 11px;
+
+  /* Advanced section */
+  .advanced-section {
+    margin-top: 24px;
+  }
+  .advanced-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    background: none;
+    border: none;
     color: #64748b;
-    font-style: italic;
+    font-size: 13px;
+    cursor: pointer;
+    padding: 0;
+  }
+  .advanced-toggle:hover { color: #94a3b8; }
+  .advanced-label {
+    font-weight: 500;
+  }
+  .chevron-small {
+    display: inline-block;
+    width: 0;
+    height: 0;
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-top: 5px solid currentColor;
+    transition: transform 0.15s;
+  }
+  .chevron-small.open {
+    transform: rotate(180deg);
+  }
+  .advanced-body {
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid #334155;
   }
 </style>

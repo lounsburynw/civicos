@@ -8,6 +8,12 @@ import type { PulseAgendaItem, VoiceCounts, ContextBundle } from '../types.js';
 
 type Stance = 'support' | 'oppose' | 'watching';
 
+/** Optional user context for personalized drafts. */
+export interface DraftUserContext {
+  neighborhood?: string;
+  interests?: string[];
+}
+
 export const SYSTEM_PROMPT =
   'You are a civic engagement assistant. Draft concise, respectful public comments for local government agenda items. Focus on community impact and specific concerns. Keep comments under 400 characters. Write in first person as a concerned resident. Do not use hashtags or emojis.';
 
@@ -18,6 +24,7 @@ export function composeDraftPrompt(
   item: PulseAgendaItem,
   stance?: Stance,
   counts?: VoiceCounts,
+  userContext?: DraftUserContext,
 ): string {
   const lines: string[] = [
     `Draft a public comment for this agenda item:`,
@@ -35,6 +42,13 @@ export function composeDraftPrompt(
     lines.push(
       `Community sentiment: ${counts.support} support, ${counts.oppose} oppose, ${counts.watching} watching`,
     );
+  }
+
+  if (userContext?.neighborhood || (userContext?.interests && userContext.interests.length > 0)) {
+    const parts: string[] = [];
+    if (userContext.neighborhood) parts.push(`lives in ${userContext.neighborhood}`);
+    if (userContext.interests && userContext.interests.length > 0) parts.push(`cares about ${userContext.interests.join(', ')}`);
+    lines.push(`The commenter ${parts.join(' and ')}.`);
   }
 
   if (stance) {

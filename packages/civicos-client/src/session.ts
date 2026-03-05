@@ -23,7 +23,7 @@ import type {
   Comment,
 } from './types.js';
 import type { AIChatResult } from './ai/types.js';
-import { composeDraftPrompt, composeEnrichPrompt, SYSTEM_PROMPT, QA_SYSTEM_PROMPT } from './ai/prompts.js';
+import { composeDraftPrompt, composeEnrichPrompt, SYSTEM_PROMPT, QA_SYSTEM_PROMPT, type DraftUserContext } from './ai/prompts.js';
 
 type Stance = 'support' | 'oppose' | 'watching';
 
@@ -176,9 +176,10 @@ export class CivicSession {
     item: PulseAgendaItem,
     stance?: Stance,
     counts?: VoiceCounts,
+    userContext?: DraftUserContext,
   ): Promise<string | null> {
     if (!this.ai) return null;
-    const prompt = composeDraftPrompt(item, stance, counts);
+    const prompt = composeDraftPrompt(item, stance, counts, userContext);
     const result = await this.ai.complete(prompt, SYSTEM_PROMPT);
     return result.success ? result.text! : null;
   }
