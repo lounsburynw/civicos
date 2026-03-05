@@ -4,7 +4,6 @@
   import { createExtensionAIManager } from '../lib/ai.js';
   import { registry } from '../lib/client.js';
   import type { RegistryServer } from '@civicos/client';
-  import { personalMCP, type UserProfile } from '../lib/personal-mcp-client.js';
 
   // State
   let identity: (IdentityInfo & { isUnlocked?: boolean }) | null = $state(null);
@@ -37,15 +36,13 @@
   let ollamaTesting = $state(false);
   let ollamaForChat = $state(true);
 
-  // Personal Hub state
-  let hubConnected = $state(false);
-  let hubLoading = $state(true);
-  let hubProfile: UserProfile | null = $state(null);
-  let hubName = $state('');
-  let hubNeighborhood = $state('');
-  let hubInterestsList: string[] = $state([]);
-  let hubInterestInput = $state('');
-  let hubSaving = $state(false);
+  // Profile state (chrome.storage.local — never leaves device)
+  const PROFILE_KEY = 'civicos_profile';
+  let profileName = $state('');
+  let profileNeighborhood = $state('');
+  let profileInterests: string[] = $state([]);
+  let profileInterestInput = $state('');
+  let profileSaving = $state(false);
 
   // Create flow
   let password = $state('');
@@ -378,61 +375,54 @@
     ollamaTesting = false;
   }
 
-  // Personal Hub functions
-  async function loadPersonalHub() {
-    hubLoading = true;
-    hubConnected = await personalMCP.isAvailable();
-    if (hubConnected) {
-      try {
-        hubProfile = await personalMCP.getProfile();
-        hubName = hubProfile.name || '';
-        hubNeighborhood = hubProfile.neighborhood || '';
-        hubInterestsList = hubProfile.interests || [];
-      } catch {
-        hubProfile = null;
-      }
+  // Profile functions (chrome.storage.local)
+  async function loadProfile() {
+    try {
+      const stored = await chrome.storage.local.get(PROFILE_KEY);
+      const profile = stored[PROFILE_KEY] || {};
+      profileName = profile.name || '';
+      profileNeighborhood = profile.neighborhood || '';
+      profileInterests = profile.interests || [];
+    } catch {
+      // Ignore — defaults are fine
     }
-    hubLoading = false;
   }
 
-  async function savePersonalProfile() {
-    hubSaving = true;
+  async function saveProfile() {
+    profileSaving = true;
     try {
-      hubProfile = await personalMCP.setProfile({
-        name: hubName || undefined,
-        neighborhood: hubNeighborhood || undefined,
-        interests: hubInterestsList,
+      await chrome.storage.local.set({
+        [PROFILE_KEY]: {
+          name: profileName || undefined,
+          neighborhood: profileNeighborhood || undefined,
+          interests: profileInterests,
+        },
       });
-      setStatus('Profile saved to Personal Hub', 'success');
+      setStatus('Profile saved', 'success');
     } catch (err) {
       setStatus(err instanceof Error ? err.message : 'Failed to save profile', 'error');
     }
-    hubSaving = false;
-  }
-
-  async function refreshPersonalHub() {
-    personalMCP.invalidateCache();
-    await loadPersonalHub();
+    profileSaving = false;
   }
 
   function addInterest(value: string) {
     const trimmed = value.trim().toLowerCase();
-    if (trimmed && !hubInterestsList.includes(trimmed)) {
-      hubInterestsList = [...hubInterestsList, trimmed];
+    if (trimmed && !profileInterests.includes(trimmed)) {
+      profileInterests = [...profileInterests, trimmed];
     }
-    hubInterestInput = '';
+    profileInterestInput = '';
   }
 
   function removeInterest(interest: string) {
-    hubInterestsList = hubInterestsList.filter(i => i !== interest);
+    profileInterests = profileInterests.filter(i => i !== interest);
   }
 
   function handleInterestKeydown(e: KeyboardEvent) {
     if (e.key === 'Enter' || e.key === ',') {
       e.preventDefault();
-      addInterest(hubInterestInput);
-    } else if (e.key === 'Backspace' && hubInterestInput === '' && hubInterestsList.length > 0) {
-      hubInterestsList = hubInterestsList.slice(0, -1);
+      addInterest(profileInterestInput);
+    } else if (e.key === 'Backspace' && profileInterestInput === '' && profileInterests.length > 0) {
+      profileInterests = profileInterests.slice(0, -1);
     }
   }
 
@@ -566,7 +556,14 @@
   loadIdentity();
   loadAIStatus();  // also loads Ollama status internally
   loadJurisdiction();
-  loadPersonalHub();
+  loadProfile();
+
+  // Sync sign-in state when changed from side panel or other pages
+  chrome.storage.onChanged.addListener((changes, areaName) => {
+    if (areaName === 'session' && changes['civicos_session_key']) {
+      loadIdentity();
+    }
+  });
 
   // Load attestation after identity loads
   $effect(() => {
@@ -659,41 +656,39 @@
         </div>
       {/if}
 
-      {#if hubConnected}
-        <div class="form-group">
-          <label for="hub-name">Name</label>
-          <span class="field-desc">Shown when you comment on agenda items</span>
-          <input id="hub-name" type="text" placeholder="Display name" bind:value={hubName} />
+      <div class="form-group">
+        <label for="profile-name">Name</label>
+        <span class="field-desc">Shown when you comment on agenda items</span>
+        <input id="profile-name" type="text" placeholder="Display name" bind:value={profileName} />
+      </div>
+      <div class="form-group">
+        <label for="profile-neighborhood">Neighborhood</label>
+        <span class="field-desc">We'll prioritize issues near you</span>
+        <input id="profile-neighborhood" type="text" placeholder="e.g. Terra Linda" bind:value={profileNeighborhood} />
+      </div>
+      <div class="form-group">
+        <label>Interests</label>
+        <span class="field-desc">Topics you care about — matching items get highlighted</span>
+        <div class="interest-pills-input">
+          {#each profileInterests as interest}
+            <span class="interest-pill">
+              {interest}
+              <button class="pill-remove" onclick={() => removeInterest(interest)} aria-label="Remove {interest}">&times;</button>
+            </span>
+          {/each}
+          <input
+            class="pill-text-input"
+            type="text"
+            placeholder={profileInterests.length === 0 ? 'Type a topic and press Enter' : 'Add more...'}
+            bind:value={profileInterestInput}
+            onkeydown={handleInterestKeydown}
+            onblur={() => { if (profileInterestInput.trim()) addInterest(profileInterestInput); }}
+          />
         </div>
-        <div class="form-group">
-          <label for="hub-neighborhood">Neighborhood</label>
-          <span class="field-desc">We'll prioritize issues near you</span>
-          <input id="hub-neighborhood" type="text" placeholder="e.g. Terra Linda" bind:value={hubNeighborhood} />
-        </div>
-        <div class="form-group">
-          <label>Interests</label>
-          <span class="field-desc">Topics you care about — matching items get highlighted</span>
-          <div class="interest-pills-input">
-            {#each hubInterestsList as interest}
-              <span class="interest-pill">
-                {interest}
-                <button class="pill-remove" onclick={() => removeInterest(interest)} aria-label="Remove {interest}">&times;</button>
-              </span>
-            {/each}
-            <input
-              class="pill-text-input"
-              type="text"
-              placeholder={hubInterestsList.length === 0 ? 'Type a topic and press Enter' : 'Add more...'}
-              bind:value={hubInterestInput}
-              onkeydown={handleInterestKeydown}
-              onblur={() => { if (hubInterestInput.trim()) addInterest(hubInterestInput); }}
-            />
-          </div>
-        </div>
-        <button class="btn-primary" onclick={savePersonalProfile} disabled={hubSaving}>
-          {hubSaving ? 'Saving...' : 'Save'}
-        </button>
-      {/if}
+      </div>
+      <button class="btn-primary" onclick={saveProfile} disabled={profileSaving}>
+        {profileSaving ? 'Saving...' : 'Save'}
+      </button>
 
       <!-- Account management (within profile section) -->
       {#if identity.isUnlocked}

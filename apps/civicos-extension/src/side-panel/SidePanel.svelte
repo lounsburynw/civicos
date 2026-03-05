@@ -6,7 +6,6 @@
   import type { CityPulseData, DataProvenance, VoiceCounts, CommentCounts, CommentSynthesis, RegistryServer } from '@civicos/client';
   import { isAIAvailable, getAIManager, onAIConfigChanged } from '../lib/ai.js';
   import type { IdentityInfo } from '../lib/providers/types.js';
-  import { personalMCP } from '../lib/personal-mcp-client.js';
   import { marked } from 'marked';
   import DOMPurify from 'dompurify';
   // Reusable components and utilities from @civicos/components
@@ -137,10 +136,10 @@
   let serverHealth = $state(new Map<string, ServerHealthStatus>());
   let relayHealth: ServerHealthStatus | null = $state(null);
 
-  // Personal Hub state
+  // Profile state (from chrome.storage.local)
+  const PROFILE_KEY = 'civicos_profile';
   let personalInterests: string[] = $state([]);
   let personalNeighborhood: string = $state('');
-  let hubConnected = $state(false);
 
   // Connector setup state
   let connectorSetupDismissed = $state(false);
@@ -235,40 +234,16 @@
     }
   }
 
-  /** Load profile + jurisdiction ordering from Personal Hub (best-effort). */
-  async function loadPersonalHub() {
-    hubConnected = await personalMCP.isAvailable();
-    if (!hubConnected) return;
-
-    // Load profile (interests + neighborhood for personalized filtering & drafting)
+  /** Load profile from chrome.storage.local (always available, no server needed). */
+  async function loadProfile() {
     try {
-      const profile = await personalMCP.getProfile();
+      const stored = await chrome.storage.local.get(PROFILE_KEY);
+      const profile = stored[PROFILE_KEY] || {};
       personalInterests = profile.interests || [];
       personalNeighborhood = profile.neighborhood || '';
     } catch {
       personalInterests = [];
       personalNeighborhood = '';
-    }
-
-    // Load jurisdiction ordering (overrides registry default if set)
-    try {
-      const ordered = await personalMCP.getJurisdictions();
-      if (ordered.length > 0) {
-        // Ensure registry servers are loaded (may race with initJurisdiction)
-        const servers = availableServers.length > 0
-          ? availableServers
-          : await registry.getRegistryServers();
-        const firstMatch = ordered.find(j =>
-          servers.some(s => s.jurisdiction_id === j)
-        );
-        if (firstMatch && firstMatch !== activeJurisdiction) {
-          activeJurisdiction = firstMatch;
-          activeTab = firstMatch;
-          await registry.setActiveJurisdiction(firstMatch);
-        }
-      }
-    } catch {
-      // Fall back to registry-based jurisdiction
     }
   }
 
@@ -717,7 +692,7 @@
 
   // Load on mount — parallelize independent init paths
   initJurisdiction();
-  loadPersonalHub();
+  loadProfile();
   loadIdentity();
   loadCityPulse();
   loadStances();
@@ -737,6 +712,10 @@
 
   // Refresh identity and connector state when chrome.storage changes
   chrome.storage.onChanged.addListener((changes, areaName) => {
+    if (areaName === 'session' && changes['civicos_session_key']) {
+      loadIdentity();
+      return;
+    }
     if (areaName !== 'local') return;
     if (changes['civicos-passkey-identity'] || changes['civicos-wallet-identity']) {
       loadIdentity();
@@ -746,6 +725,11 @@
     }
     if (changes[CONNECTOR_SETUP_KEY]) {
       connectorSetupDismissed = changes[CONNECTOR_SETUP_KEY].newValue ?? false;
+    }
+    if (changes[PROFILE_KEY]) {
+      const profile = changes[PROFILE_KEY].newValue || {};
+      personalInterests = profile.interests || [];
+      personalNeighborhood = profile.neighborhood || '';
     }
   });
 </script>
@@ -874,7 +858,7 @@
   />
 
   <!-- Personal interests bar -->
-  {#if hubConnected && personalInterests.length > 0}
+  {#if personalInterests.length > 0}
     <div class="interests-bar">
       <span class="interests-label">Your interests</span>
       <div class="interests-chips">
@@ -941,7 +925,7 @@
       <div class="attention-bar">
         <div class="attention-title">
           Upcoming actionable items
-          {#if hubConnected && interestLower.length > 0}
+          {#if interestLower.length > 0}
             <span class="attention-personalized" title="Sorted by your interests">personalized</span>
           {/if}
         </div>
