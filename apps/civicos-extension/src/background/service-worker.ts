@@ -116,6 +116,7 @@ async function handleMessage(message: ExtensionRequest): Promise<ExtensionRespon
       case 'SIGN_MESSAGE': {
         // Sign a canonical message for AI proxy authentication.
         // Creates a Nostr event (kind 24242) and signs it.
+        await identityManager.ensureRestored();
         const pubkey = await identityManager.getPublicKey();
         if (!pubkey) {
           return { success: false, error: 'No identity configured' };

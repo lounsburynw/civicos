@@ -10,6 +10,7 @@
     renderMarkdown,
     ontoast,
     onnavigate,
+    oninteraction,
   }: {
     session: CivicSession;
     jurisdiction?: string;
@@ -18,6 +19,7 @@
     renderMarkdown?: (text: string) => string;
     ontoast?: (message: string) => void;
     onnavigate?: (tool: string) => void;
+    oninteraction?: (question: string, toolUsed?: string) => void;
   } = $props();
 
   let question = $state('');
@@ -68,6 +70,7 @@
         error = chatResult.error || 'Search failed';
       } else {
         result = chatResult;
+        oninteraction?.(q, chatResult.toolUsed);
       }
     } catch (err) {
       error = err instanceof Error ? err.message : 'Search failed';

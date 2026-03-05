@@ -5,6 +5,8 @@
   import { CivicSession } from '@civicos/client';
   import type { CityPulseData, DataProvenance, VoiceCounts, CommentCounts, CommentSynthesis, RegistryServer, ChatUserContext } from '@civicos/client';
   import { isAIAvailable, getAIManager, onAIConfigChanged } from '../lib/ai.js';
+  import { trackInteraction, generateSuggestions, dismissTopic } from '../lib/journal-suggestions.js';
+  import type { JournalSuggestion } from '../lib/journal-suggestions.js';
   import type { IdentityInfo } from '../lib/providers/types.js';
   import { marked } from 'marked';
   import DOMPurify from 'dompurify';
@@ -168,6 +170,60 @@
     toastMessage = message;
     if (toastTimeout) clearTimeout(toastTimeout);
     toastTimeout = setTimeout(() => { toastMessage = null; }, durationMs);
+  }
+
+  // Journal suggestions state
+  let journalSuggestions: JournalSuggestion[] = $state([]);
+  let suggestionsLoading = $state(false);
+
+  async function handleChatInteraction(question: string, toolUsed?: string) {
+    const thresholdReached = await trackInteraction(question, toolUsed);
+    if (thresholdReached && !suggestionsLoading && journalSuggestions.length === 0) {
+      suggestionsLoading = true;
+      try {
+        const askAI = async (prompt: string) => session.askQuestion(prompt);
+        journalSuggestions = await generateSuggestions(askAI, journalText);
+      } catch {
+        // Silently fail — suggestions are non-critical
+      } finally {
+        suggestionsLoading = false;
+      }
+    }
+  }
+
+  async function acceptSuggestion(suggestion: JournalSuggestion) {
+    // Find the section header in the journal (# format from template)
+    const lines = journalText.split('\n');
+    const sectionIdx = lines.findIndex(l => {
+      const trimmed = l.trim().replace(/^#+\s*/, '');
+      return trimmed.toLowerCase() === suggestion.section.toLowerCase();
+    });
+
+    if (sectionIdx >= 0) {
+      // Find next section or end of file
+      const nextIdx = lines.findIndex((l, i) => i > sectionIdx && /^#+\s/.test(l));
+      const insertIdx = nextIdx >= 0 ? nextIdx : lines.length;
+      lines.splice(insertIdx, 0, `- ${suggestion.text}`);
+    } else {
+      // Section not found — append at end
+      lines.push('', `# ${suggestion.section}`, `- ${suggestion.text}`);
+    }
+
+    journalText = lines.join('\n');
+    // Save to chrome.storage.local
+    await chrome.storage.local.set({ [JOURNAL_KEY]: { text: journalText } });
+    // Remove from suggestions
+    journalSuggestions = journalSuggestions.filter(s => s !== suggestion);
+    showToast(`Added to "${suggestion.section}"`);
+  }
+
+  async function dismissSuggestion(suggestion: JournalSuggestion) {
+    await dismissTopic(suggestion.text);
+    journalSuggestions = journalSuggestions.filter(s => s !== suggestion);
+  }
+
+  function dismissAllSuggestions() {
+    journalSuggestions = [];
   }
 
   // Scroll-to-card highlight state
@@ -887,7 +943,32 @@
     {renderMarkdown}
     ontoast={(message) => showToast(message)}
     onnavigate={handleChatNavigate}
+    oninteraction={handleChatInteraction}
   />
+
+  <!-- Journal suggestions banner -->
+  {#if journalSuggestions.length > 0}
+    <div class="suggestions-banner">
+      <div class="suggestions-header">
+        <span class="suggestions-title">Journal suggestions</span>
+        <button class="suggestions-dismiss-all" onclick={dismissAllSuggestions} title="Dismiss all">&times;</button>
+      </div>
+      <div class="suggestions-list">
+        {#each journalSuggestions as suggestion}
+          <div class="suggestion-item">
+            <div class="suggestion-content">
+              <span class="suggestion-section">{suggestion.section}</span>
+              <span class="suggestion-text">{suggestion.text}</span>
+            </div>
+            <div class="suggestion-actions">
+              <button class="suggestion-accept" onclick={() => acceptSuggestion(suggestion)} title="Add to journal">+</button>
+              <button class="suggestion-dismiss" onclick={() => dismissSuggestion(suggestion)} title="Dismiss">&times;</button>
+            </div>
+          </div>
+        {/each}
+      </div>
+    </div>
+  {/if}
 
   <!-- City Pulse content -->
   {#if activeTab === activeJurisdiction}
@@ -1622,6 +1703,118 @@
     align-self: flex-start;
   }
   .connector-banner-close:hover { color: #d1d5db; }
+
+  /* === Journal Suggestions Banner === */
+  .suggestions-banner {
+    background: #1a1a2e;
+    border: 1px solid #2a2a4a;
+    border-radius: 8px;
+    padding: 8px 10px;
+    margin-bottom: 12px;
+    animation: fadeInUp 0.3s ease-out;
+  }
+  .suggestions-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+  }
+  .suggestions-title {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #a78bfa;
+  }
+  .suggestions-dismiss-all {
+    background: none;
+    border: none;
+    color: #6b7280;
+    cursor: pointer;
+    font-size: 14px;
+    padding: 0 2px;
+    line-height: 1;
+  }
+  .suggestions-dismiss-all:hover { color: #d1d5db; }
+  .suggestions-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .suggestion-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 6px;
+    border-radius: 6px;
+    background: rgba(167, 139, 250, 0.05);
+    border: 1px solid transparent;
+    transition: border-color 0.15s;
+  }
+  .suggestion-item:hover {
+    border-color: rgba(167, 139, 250, 0.2);
+  }
+  .suggestion-content {
+    flex: 1;
+    min-width: 0;
+  }
+  .suggestion-section {
+    display: block;
+    font-size: 9px;
+    color: #6b7280;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+  }
+  .suggestion-text {
+    display: block;
+    font-size: 11px;
+    color: #d1d5db;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .suggestion-actions {
+    display: flex;
+    gap: 2px;
+    flex-shrink: 0;
+  }
+  .suggestion-accept {
+    background: rgba(167, 139, 250, 0.1);
+    border: 1px solid rgba(167, 139, 250, 0.3);
+    border-radius: 4px;
+    color: #a78bfa;
+    font-size: 12px;
+    font-weight: 600;
+    width: 22px;
+    height: 22px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+  }
+  .suggestion-accept:hover {
+    background: rgba(167, 139, 250, 0.2);
+    border-color: #a78bfa;
+  }
+  .suggestion-dismiss {
+    background: none;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    color: #4b5563;
+    font-size: 12px;
+    width: 22px;
+    height: 22px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+  }
+  .suggestion-dismiss:hover {
+    color: #9ca3af;
+    border-color: #374151;
+  }
 
   /* === Clipboard Toast (positioned near click) === */
   .clipboard-toast {
