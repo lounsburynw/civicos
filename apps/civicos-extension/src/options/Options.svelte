@@ -43,7 +43,8 @@
   let hubProfile: UserProfile | null = $state(null);
   let hubName = $state('');
   let hubNeighborhood = $state('');
-  let hubInterests = $state('');
+  let hubInterestsList: string[] = $state([]);
+  let hubInterestInput = $state('');
   let hubSaving = $state(false);
 
   // Create flow
@@ -352,7 +353,7 @@
         hubProfile = await personalMCP.getProfile();
         hubName = hubProfile.name || '';
         hubNeighborhood = hubProfile.neighborhood || '';
-        hubInterests = (hubProfile.interests || []).join(', ');
+        hubInterestsList = hubProfile.interests || [];
       } catch {
         hubProfile = null;
       }
@@ -363,14 +364,10 @@
   async function savePersonalProfile() {
     hubSaving = true;
     try {
-      const interests = hubInterests
-        .split(',')
-        .map(s => s.trim())
-        .filter(Boolean);
       hubProfile = await personalMCP.setProfile({
         name: hubName || undefined,
         neighborhood: hubNeighborhood || undefined,
-        interests,
+        interests: hubInterestsList,
       });
       setStatus('Profile saved to Personal Hub', 'success');
     } catch (err) {
@@ -382,6 +379,27 @@
   async function refreshPersonalHub() {
     personalMCP.invalidateCache();
     await loadPersonalHub();
+  }
+
+  function addInterest(value: string) {
+    const trimmed = value.trim().toLowerCase();
+    if (trimmed && !hubInterestsList.includes(trimmed)) {
+      hubInterestsList = [...hubInterestsList, trimmed];
+    }
+    hubInterestInput = '';
+  }
+
+  function removeInterest(interest: string) {
+    hubInterestsList = hubInterestsList.filter(i => i !== interest);
+  }
+
+  function handleInterestKeydown(e: KeyboardEvent) {
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault();
+      addInterest(hubInterestInput);
+    } else if (e.key === 'Backspace' && hubInterestInput === '' && hubInterestsList.length > 0) {
+      hubInterestsList = hubInterestsList.slice(0, -1);
+    }
   }
 
   // Attestation state
@@ -567,9 +585,24 @@
           <input id="hub-neighborhood" type="text" placeholder="e.g. Terra Linda" bind:value={hubNeighborhood} />
         </div>
         <div class="form-group">
-          <label for="hub-interests">Interests</label>
-          <input id="hub-interests" type="text" placeholder="housing, transportation, parks" bind:value={hubInterests} />
-          <span class="form-hint">Comma-separated topics — used to personalize AI-drafted comments</span>
+          <label>Interests</label>
+          <div class="interest-pills-input">
+            {#each hubInterestsList as interest}
+              <span class="interest-pill">
+                {interest}
+                <button class="pill-remove" onclick={() => removeInterest(interest)} aria-label="Remove {interest}">&times;</button>
+              </span>
+            {/each}
+            <input
+              class="pill-text-input"
+              type="text"
+              placeholder={hubInterestsList.length === 0 ? 'Type a topic and press Enter' : 'Add more...'}
+              bind:value={hubInterestInput}
+              onkeydown={handleInterestKeydown}
+              onblur={() => { if (hubInterestInput.trim()) addInterest(hubInterestInput); }}
+            />
+          </div>
+          <span class="form-hint">Topics that personalize your AI-drafted comments</span>
         </div>
         <button class="btn-primary" onclick={savePersonalProfile} disabled={hubSaving}>
           {hubSaving ? 'Saving...' : 'Save Profile'}
@@ -1457,6 +1490,71 @@
     border-radius: 6px;
     color: #e2e8f0;
     margin-bottom: 8px;
+  }
+
+  /* Interest pills */
+  .interest-pills-input {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 8px 10px;
+    background: #0f172a;
+    border: 1px solid #334155;
+    border-radius: 6px;
+    min-height: 40px;
+    align-items: center;
+    cursor: text;
+  }
+  .interest-pills-input:focus-within {
+    border-color: #6366f1;
+  }
+  .interest-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 8px 3px 10px;
+    background: rgba(99, 102, 241, 0.15);
+    color: #a5b4fc;
+    border-radius: 12px;
+    font-size: 12px;
+    white-space: nowrap;
+    animation: pill-in 0.15s ease-out;
+  }
+  @keyframes pill-in {
+    from { transform: scale(0.8); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+  }
+  .pill-remove {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    background: none;
+    border: none;
+    color: #818cf8;
+    font-size: 14px;
+    cursor: pointer;
+    padding: 0;
+    border-radius: 50%;
+    line-height: 1;
+  }
+  .pill-remove:hover {
+    background: rgba(99, 102, 241, 0.3);
+    color: #e0e7ff;
+  }
+  .pill-text-input {
+    flex: 1;
+    min-width: 80px;
+    background: none;
+    border: none;
+    color: #e2e8f0;
+    font-size: 13px;
+    outline: none;
+    padding: 2px 0;
+  }
+  .pill-text-input::placeholder {
+    color: #475569;
   }
 
   /* Advanced section */

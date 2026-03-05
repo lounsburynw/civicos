@@ -1555,7 +1555,7 @@
     "scaling": {
       "turnkey_city_deployment": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "description": "Make unified config system actually reduce new city deployment effort. Currently config is ~20% of work; extractors, HUD mapping, and elections are ~80%.",
         "rationale": "Session 545 audit found: core infrastructure 70-75% generalizable, but election data (1/5), HUD grantee mapping (manual), and platform-specific extractors still require significant per-city work.",
         "audit_reference": "docs/critical/CITY_DEPLOYMENT_AUDIT.md",
@@ -2578,11 +2578,11 @@
         ]
       },
       "engagement_ladder_ux": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 1,
         "artifact": "Progressive engagement UX from awareness to coordination",
         "description": "UX flow that guides users through engagement ladder: Awareness (what's happening) \u2192 Relevance (what affects me) \u2192 Participation (where I can act) \u2192 Coordination (who's with me). Each dashboard view surfaces the 'next step' without forcing it.",
-        "note": "Session 15: Added suggested query pills + navigation actions (chat results link to panel sections). Added Ollama provider for fully private local AI drafting. Next: Local tool routing via Ollama for private chat (Edge Intelligence #1), then Personal MCP + local memory for proactive relevance (#2)."
+        "note": "Complete: Pulse feed (awareness), interest-based sorting with personalized badge (relevance), personalized comment drafting with neighborhood/interests (participation), initiatives with voice counts (coordination). Settings: unified profile card with pill-based interest editing, Sign in/Sign out flow, collapsible Advanced section."
       },
       "civic_dashboard_mvp": {
         "status": "ready",
