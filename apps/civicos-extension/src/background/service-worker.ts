@@ -11,10 +11,6 @@ import { api } from '../lib/client.js';
 import type { ExtensionRequest, ExtensionResponse } from '../lib/messaging.js';
 import type { NostrEvent } from '../lib/providers/types.js';
 
-// Auto-lock alarm name
-const AUTO_LOCK_ALARM = 'civicos-auto-lock';
-const AUTO_LOCK_MINUTES = 5;
-
 // Explicitly use Chrome storage — don't rely on auto-detection in bundled context
 let identityManager = new IdentityManager({
   storage: new ChromeStorageWalletStorage(),
@@ -52,7 +48,6 @@ async function handleMessage(message: ExtensionRequest): Promise<ExtensionRespon
           message.tier,
           message.passwordOrEmail
         );
-        resetAutoLock();
         return { success: true, data: result };
       }
 
@@ -62,34 +57,27 @@ async function handleMessage(message: ExtensionRequest): Promise<ExtensionRespon
           message.passwordOrEmail,
           message.mnemonic
         );
-        resetAutoLock();
         return { success: true, data: identity };
       }
 
       case 'UNLOCK': {
         const unlocked = await identityManager.unlock(message.password);
-        if (unlocked) {
-          resetAutoLock();
-        }
         return { success: true, data: unlocked };
       }
 
       case 'LOCK': {
         identityManager.lock();
-        clearAutoLock();
         return { success: true, data: undefined };
       }
 
       case 'DELETE_IDENTITY': {
         await identityManager.deleteIdentity();
-        clearAutoLock();
         return { success: true, data: undefined };
       }
 
       case 'SIGN_EVENT': {
         const result = await identityManager.signEvent(message.event);
         if (result.success && result.event) {
-          resetAutoLock();
           return { success: true, data: result.event };
         }
         return { success: false, error: result.error ?? 'Signing failed' };
@@ -110,7 +98,6 @@ async function handleMessage(message: ExtensionRequest): Promise<ExtensionRespon
         }
         const signResult = await identityManager.signEvent(message.event);
         if (signResult.success && signResult.event) {
-          resetAutoLock();
           return { success: true, data: signResult.event };
         }
         return { success: false, error: signResult.error ?? 'Signing failed' };
@@ -149,7 +136,6 @@ async function handleMessage(message: ExtensionRequest): Promise<ExtensionRespon
           return { success: false, error: signResult.error ?? 'Signing failed' };
         }
 
-        resetAutoLock();
         return {
           success: true,
           data: {
@@ -197,7 +183,6 @@ async function handleMessage(message: ExtensionRequest): Promise<ExtensionRespon
           await chrome.storage.local.set({
             civicos_attestation: redeemResult.attestation_event,
           });
-          resetAutoLock();
           return { success: true, data: redeemResult.attestation_event };
         }
 
@@ -222,17 +207,3 @@ chrome.action.onClicked.addListener(async (tab) => {
   }
 });
 
-// Auto-lock via alarms (survives service worker restarts)
-chrome.alarms.onAlarm.addListener((alarm) => {
-  if (alarm.name === AUTO_LOCK_ALARM) {
-    identityManager.lock();
-  }
-});
-
-function resetAutoLock(): void {
-  chrome.alarms.create(AUTO_LOCK_ALARM, { delayInMinutes: AUTO_LOCK_MINUTES });
-}
-
-function clearAutoLock(): void {
-  chrome.alarms.clear(AUTO_LOCK_ALARM);
-}

@@ -22,10 +22,13 @@ export class CivicosProxyProvider implements AIProvider {
   }
 
   async isReady(): Promise<boolean> {
-    // Ready if user has an identity and it's unlocked (can sign)
+    // Ready if user has an identity, is unlocked, and is attested
     try {
       const response = await chrome.runtime.sendMessage({ type: 'GET_IDENTITY' });
-      return response?.success && response.data?.isUnlocked === true;
+      if (!response?.success || !response.data?.isUnlocked) return false;
+
+      const stored = await chrome.storage.local.get('civicos_attestation');
+      return !!stored.civicos_attestation;
     } catch {
       return false;
     }
@@ -96,6 +99,15 @@ export class CivicosProxyProvider implements AIProvider {
         return {
           success: false,
           error: 'Authentication failed — try unlocking your identity again',
+          provider: this.id,
+        };
+      }
+
+      if (resp.status === 403) {
+        const detail = await resp.json().catch(() => ({}));
+        return {
+          success: false,
+          error: detail?.detail || 'Residency verification required — verify in Settings',
           provider: this.id,
         };
       }
@@ -184,6 +196,15 @@ export class CivicosProxyProvider implements AIProvider {
         return {
           success: false,
           error: 'Authentication failed — try unlocking your identity again',
+          provider: this.id,
+        };
+      }
+
+      if (resp.status === 403) {
+        const detail = await resp.json().catch(() => ({}));
+        return {
+          success: false,
+          error: detail?.detail || 'Residency verification required — verify in Settings',
           provider: this.id,
         };
       }

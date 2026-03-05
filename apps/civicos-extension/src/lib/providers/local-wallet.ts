@@ -70,7 +70,6 @@ export class LocalWalletProvider implements SigningProvider {
 
   private privateKey: Uint8Array | null = null;
   private publicKey: Uint8Array | null = null;
-  private unlockTimeout: ReturnType<typeof setTimeout> | null = null;
   private storage: WalletStorage;
 
   constructor(storage?: WalletStorage) {
@@ -137,7 +136,6 @@ export class LocalWalletProvider implements SigningProvider {
 
     this.privateKey = privateKey;
     this.publicKey = publicKey;
-    this.setUnlockTimeout(5 * 60 * 1000);
 
     return {
       identity: {
@@ -183,7 +181,6 @@ export class LocalWalletProvider implements SigningProvider {
 
     this.privateKey = privateKey;
     this.publicKey = publicKey;
-    this.setUnlockTimeout(5 * 60 * 1000);
 
     return {
       tier: this.tier,
@@ -209,9 +206,6 @@ export class LocalWalletProvider implements SigningProvider {
       this.privateKey = privateKey;
       this.publicKey = getPublicKey(privateKey);
 
-      const timeout = options.timeout ?? 5 * 60 * 1000;
-      this.setUnlockTimeout(timeout);
-
       return true;
     } catch {
       return false;
@@ -228,11 +222,6 @@ export class LocalWalletProvider implements SigningProvider {
       this.privateKey = null;
     }
     this.publicKey = null;
-
-    if (this.unlockTimeout) {
-      clearTimeout(this.unlockTimeout);
-      this.unlockTimeout = null;
-    }
   }
 
   async signEvent(event: NostrEvent): Promise<SigningResult> {
@@ -347,18 +336,6 @@ export class LocalWalletProvider implements SigningProvider {
     );
 
     return new Uint8Array(decryptedData);
-  }
-
-  private setUnlockTimeout(ms: number): void {
-    if (this.unlockTimeout) {
-      clearTimeout(this.unlockTimeout);
-    }
-
-    if (ms > 0) {
-      this.unlockTimeout = setTimeout(() => {
-        this.lock();
-      }, ms);
-    }
   }
 }
 

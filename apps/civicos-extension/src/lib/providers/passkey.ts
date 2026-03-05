@@ -40,9 +40,6 @@ const STORAGE_KEY = 'civicos-passkey-identity';
 // HKDF parameters for key derivation
 const HKDF_INFO = new TextEncoder().encode('civicos-nostr-key-v1');
 
-// Auto-lock timeout (5 minutes)
-const DEFAULT_TIMEOUT_MS = 5 * 60 * 1000;
-
 /**
  * Stored passkey identity metadata (not the key itself).
  * The actual keypair is derived on-demand from passkey PRF.
@@ -70,7 +67,6 @@ export class PasskeyProvider implements SigningProvider {
 
   private privateKey: Uint8Array | null = null;
   private publicKey: Uint8Array | null = null;
-  private unlockTimeout: ReturnType<typeof setTimeout> | null = null;
   private storage: PasskeyStorage;
 
   constructor(storage?: PasskeyStorage) {
@@ -162,7 +158,6 @@ export class PasskeyProvider implements SigningProvider {
 
     this.privateKey = privateKey;
     this.publicKey = publicKey;
-    this.setUnlockTimeout(DEFAULT_TIMEOUT_MS);
 
     return {
       identity: {
@@ -205,7 +200,6 @@ export class PasskeyProvider implements SigningProvider {
 
     this.privateKey = privateKey;
     this.publicKey = publicKey;
-    this.setUnlockTimeout(DEFAULT_TIMEOUT_MS);
 
     return {
       tier: this.tier,
@@ -232,9 +226,6 @@ export class PasskeyProvider implements SigningProvider {
       this.privateKey = privateKey;
       this.publicKey = getPublicKey(privateKey);
 
-      const timeout = options?.timeout ?? DEFAULT_TIMEOUT_MS;
-      this.setUnlockTimeout(timeout);
-
       return true;
     } catch {
       return false;
@@ -251,11 +242,6 @@ export class PasskeyProvider implements SigningProvider {
       this.privateKey = null;
     }
     this.publicKey = null;
-
-    if (this.unlockTimeout) {
-      clearTimeout(this.unlockTimeout);
-      this.unlockTimeout = null;
-    }
   }
 
   async signEvent(event: NostrEvent): Promise<SigningResult> {
@@ -401,18 +387,6 @@ export class PasskeyProvider implements SigningProvider {
       return window.location.hostname;
     }
     return 'localhost';
-  }
-
-  private setUnlockTimeout(ms: number): void {
-    if (this.unlockTimeout) {
-      clearTimeout(this.unlockTimeout);
-    }
-
-    if (ms > 0) {
-      this.unlockTimeout = setTimeout(() => {
-        this.lock();
-      }, ms);
-    }
   }
 
   private arrayBufferToBase64(buffer: ArrayBuffer): string {
