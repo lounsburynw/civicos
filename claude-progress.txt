@@ -21007,3 +21007,31 @@ Created `CivicSession` class in `packages/civicos-client/src/session.ts` (220 li
 - Profile fields gated behind sign-in state
 - Identified major gap: personalization is flat form fields, not a living context document
 - Next session should explore civic context journal / CLAUDE.md-like paradigm for edge intelligence
+
+## Session 22: Civic Journal — Edge Intelligence Phase 1
+**Date:** 2026-03-05
+
+**Built Civic Journal (AGENTS.md paradigm for civic participation):**
+- Replaced 7 structured profile fields with single markdown context document
+- Settings now: Name + Civic Journal (edit/preview tabs, monospace editor)
+- Pre-populated 9-section template: care about, support, frustrations, following, vision, civic history, trusted orgs, engagement style, perspective
+- Export/import as .md, reset to template
+- ChatUserContext simplified to { journalNotes?: string }
+- Journal injected into both CivicOS proxy (cloud) AND Ollama (local) system prompts
+- Fixed pre-existing bug: Pydantic camelCase alias mapping for server-side context
+- Removed interest chips, interest-based sorting, all structured fields except Name
+- PersonalizationService identified as dead code (never wired into AI pipeline)
+
+**Files changed:**
+- apps/civicos-extension/src/options/Options.svelte (journal UI, removed 5 profile fields)
+- apps/civicos-extension/src/side-panel/SidePanel.svelte (removed interests bar/sorting, journal data flow)
+- packages/civicos-client/src/ai/types.ts (ChatUserContext → { journalNotes?: string })
+- packages/civicos-client/src/ai/prompts.ts (simplified to journal-only context)
+- packages/civicos-client/src/ai/providers/ollama.ts (journal context in local AI)
+- packages/civicos-components/src/components/CivicAgendaView.svelte (updated userContext type)
+- packages/civicos-services/.../routers/ai_proxy.py (simplified prompt, Pydantic alias fix)
+
+**Edge Intelligence audit:** 6 providers working, chat/draft/auth/attestation all functional, journal flows E2E.
+
+**P0 remains**: turnkey_city_deployment (deferred)
+**Recommended next**: Civic Journal Phase 2 — AI-suggested updates (feedback loop)
