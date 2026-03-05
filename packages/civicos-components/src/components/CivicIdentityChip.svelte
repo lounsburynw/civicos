@@ -9,12 +9,14 @@
   let {
     identity,
     loading = false,
+    displayName = '',
     attestationLabels = [],
     onunlock,
     onopenoptions,
   }: {
     identity: IdentityInfo | null;
     loading?: boolean;
+    displayName?: string;
     attestationLabels?: string[];
     onunlock?: (password: string) => Promise<boolean>;
     onopenoptions?: () => void;
@@ -64,6 +66,9 @@
         <div class="chip-unlock-error">{unlockError}</div>
       {/if}
     {:else}
+      {#if displayName}
+        <div class="display-name">{displayName}</div>
+      {/if}
       <div class="npub">{truncateNpub(identity.npub)}</div>
     {/if}
   </div>
@@ -150,6 +155,12 @@
   .chip-unlock-btn:hover { background: #4f46e5; }
   .chip-unlock-btn:disabled { opacity: 0.5; cursor: not-allowed; }
   .chip-unlock-error { font-size: 10px; color: #ef4444; margin-top: 2px; }
+  .display-name {
+    font-size: 13px;
+    font-weight: 500;
+    color: #e5e7eb;
+    margin-top: 2px;
+  }
   .npub {
     font-family: 'SF Mono', 'Fira Code', monospace;
     font-size: 11px;
