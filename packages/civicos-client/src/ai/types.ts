@@ -19,6 +19,11 @@ export interface AICompletionResult {
   provider: string;
 }
 
+export interface ChatUserContext {
+  neighborhood?: string;
+  interests?: string[];
+}
+
 export interface AIChatResult {
   success: boolean;
   text?: string;
@@ -49,7 +54,7 @@ export interface AIProvider {
   complete(prompt: string, systemPrompt?: string): Promise<AICompletionResult>;
 
   /** Run a tool-backed civic search (optional — only proxy providers support this) */
-  chat?(question: string, jurisdiction?: string): Promise<AIChatResult>;
+  chat?(question: string, jurisdiction?: string, userContext?: ChatUserContext): Promise<AIChatResult>;
 
   /** Clean up resources */
   destroy(): void;

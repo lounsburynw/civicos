@@ -1555,7 +1555,7 @@
     "scaling": {
       "turnkey_city_deployment": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "description": "Make unified config system actually reduce new city deployment effort. Currently config is ~20% of work; extractors, HUD mapping, and elections are ~80%.",
         "rationale": "Session 545 audit found: core infrastructure 70-75% generalizable, but election data (1/5), HUD grantee mapping (manual), and platform-specific extractors still require significant per-city work.",
         "audit_reference": "docs/critical/CITY_DEPLOYMENT_AUDIT.md",
@@ -2578,11 +2578,11 @@
         ]
       },
       "engagement_ladder_ux": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 0,
         "artifact": "Progressive engagement UX from awareness to coordination",
         "description": "UX flow that guides users through engagement ladder: Awareness (what's happening) \u2192 Relevance (what affects me) \u2192 Participation (where I can act) \u2192 Coordination (who's with me). Each dashboard view surfaces the 'next step' without forcing it.",
-        "note": "Session 19: Core engagement ladder done (pulse, interest sorting, personalized drafts, initiatives). Settings UX partially redesigned — merged AI into Advanced, added field descriptions, softer aesthetic. REMAINING: Redesign to iOS-style flat grouped list (no cards). See docs/next_session_prompt.md for full design spec."
+        "note": "Session 19: Core ladder (pulse, interests, drafts, initiatives). Session 20: iOS-style Settings, AI provider dropdown, attestation. Session 21: Profile context flows into chat search (neighborhood + interests personalize server system prompt)."
       },
       "civic_dashboard_mvp": {
         "status": "ready",
@@ -4627,23 +4627,39 @@
           "description": "Cloud API (CivicOS proxy or BYOK). Zero setup, works immediately.",
           "setup": "None - default provider",
           "privacy": "Contractual (no training, short retention)",
-          "platforms": ["desktop", "mobile", "web"]
+          "platforms": [
+            "desktop",
+            "mobile",
+            "web"
+          ]
         },
         "tier_2_browser": {
           "description": "WebLLM via WebGPU. Zero install, runs entirely in browser tab/service worker.",
           "setup": "One-click enable in extension settings. Model downloaded on first use (~1-2GB).",
           "privacy": "Maximum - queries never leave device",
-          "models": ["Llama 3.2 1B", "Phi-3 Mini", "Qwen2 1.5B"],
+          "models": [
+            "Llama 3.2 1B",
+            "Phi-3 Mini",
+            "Qwen2 1.5B"
+          ],
           "requirements": "WebGPU-capable browser (Chrome 113+, Edge 113+). 4GB+ RAM.",
-          "platforms": ["desktop"],
+          "platforms": [
+            "desktop"
+          ],
           "note": "Mobile WebGPU support exists but performance is poor. Not recommended for mobile."
         },
         "tier_3_ollama": {
           "description": "Local Ollama instance. Auto-detected when running, guided setup if user opts in.",
           "setup": "Extension detects Ollama on localhost:11434. If not found, shows guided install flow: download link + polls for availability + auto-pulls recommended model.",
           "privacy": "Maximum - queries never leave device",
-          "models": ["Llama 3.2 3B", "Phi-3 Mini", "Mistral 7B"],
-          "platforms": ["desktop"]
+          "models": [
+            "Llama 3.2 3B",
+            "Phi-3 Mini",
+            "Mistral 7B"
+          ],
+          "platforms": [
+            "desktop"
+          ]
         }
       },
       "mobile_strategy": {

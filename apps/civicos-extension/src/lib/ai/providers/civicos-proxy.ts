@@ -6,7 +6,7 @@
  * No API key needed — works out of the box.
  */
 
-import type { AIProvider, AITier, AIProviderConfig, AICompletionResult, AIChatResult } from '@civicos/client';
+import type { AIProvider, AITier, AIProviderConfig, AICompletionResult, AIChatResult, ChatUserContext } from '@civicos/client';
 import { registry } from '../../client.js';
 
 const TIMEOUT_MS = 20_000;
@@ -139,7 +139,7 @@ export class CivicosProxyProvider implements AIProvider {
     }
   }
 
-  async chat(question: string, jurisdiction?: string): Promise<AIChatResult> {
+  async chat(question: string, jurisdiction?: string, userContext?: ChatUserContext): Promise<AIChatResult> {
     // 1. Get signature from service worker
     let sigData: { public_key: string; signature: string; created_at: number };
     try {
@@ -178,6 +178,7 @@ export class CivicosProxyProvider implements AIProvider {
           public_key: sigData.public_key,
           signature: sigData.signature,
           created_at: sigData.created_at,
+          ...(userContext && { user_context: userContext }),
         }),
         signal: controller.signal,
       });
