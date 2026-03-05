@@ -757,6 +757,7 @@
       <button class="btn-primary" onclick={saveProfile} disabled={profileSaving}>
         {profileSaving ? 'Saving...' : 'Save'}
       </button>
+      <span class="privacy-note">Stored in your browser only — never sent to a server.</span>
 
       <!-- Account management (within profile section) -->
       {#if identity.isUnlocked}
@@ -1132,6 +1133,12 @@
     color: #64748b;
     margin-bottom: 6px;
     line-height: 1.4;
+  }
+  .privacy-note {
+    display: block;
+    font-size: 10px;
+    color: #4b5563;
+    margin-top: 8px;
   }
 
   .info-grid {
