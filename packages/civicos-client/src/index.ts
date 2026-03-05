@@ -81,6 +81,7 @@ export { OpenAIProvider } from './ai/providers/openai.js';
 export { GeminiProvider } from './ai/providers/gemini.js';
 export { OllamaProvider } from './ai/providers/ollama.js';
 export { composeDraftPrompt, composeEnrichPrompt, SYSTEM_PROMPT, QA_SYSTEM_PROMPT } from './ai/prompts.js';
+export type { DraftUserContext } from './ai/prompts.js';
 
 // AI chat tools — local tool routing for Ollama
 export { CHAT_TOOL_DEFS, createMcpToolExecutor } from './ai/tools/chat-tools.js';

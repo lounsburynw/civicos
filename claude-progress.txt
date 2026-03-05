@@ -20838,3 +20838,81 @@ Created `CivicSession` class in `packages/civicos-client/src/session.ts` (220 li
 1. Feature state/federal focal points (comment periods, hearings, governor's desk) prominently at top of dashboard
 2. Make focal points draggable for inject into Claude.ai/ChatGPT input boxes
 3. Explore push notification capabilities for time-sensitive comment periods and hearings
+
+## Session — 2026-02-20: Marin County Agenda Extraction + MCP Deployment
+
+### What was done
+- Improved agenda extraction pipeline for HTML agendas (BeautifulSoup text extraction, content URL detection, metadata promotion)
+- Extracted 514 agenda items across 28/30 Marin County meetings using LLM pipeline (Gemini 1.5 Pro)
+- Deployed Marin County MCP server to Modal (civicos-marin-county, 30 tools)
+- Created Modal secret (civicos-marin-county-env), Cloudflare proxy Worker, Worker Route, DNS record
+- Verified: health endpoint, upcoming meetings, comment guidelines, item context all working
+
+### Commits
+- 6a10130 feat: Improve agenda extraction pipeline for HTML agendas
+- edb2cdd feat: Deploy Marin County MCP server
+
+### Key discoveries
+- Granicus AgendaViewer pages are HTML (not PDF) — needed BeautifulSoup extraction
+- Previous session's regex parser stored 204 bad items — hard-deleted and re-extracted with LLM pipeline
+- 6000 max_tokens caused JSON truncation on 50+ item agendas — bumped to 8192
+- _granicus_metadata stored in full_data, not top-level — pipeline now promotes it
+
+### Next session
+1. Verify DNS propagation for marin-county.civicosproject.org
+2. Redeploy registry Worker to include county-marin in server list
+3. Add Marin County tab to browser extension
+
+## Session — 2026-02-20: Personal MCP Extension Integration + Personalized Intelligence
+
+### What was done
+- Created `PersonalMCPClient` (`apps/civicos-extension/src/lib/personal-mcp-client.ts`) — thin JSON-RPC wrapper around Personal MCP HTTP server (localhost:8081) with 30s health caching and graceful fallback
+- Added Personal Hub section to Options page — connection status, profile editing (name, neighborhood, interests), offline instructions
+- Wired Side Panel to Personal Hub — interest chips bar between identity chip and chat, interest-sorted attention bar with relevance pips
+- Added `http://localhost:8081/*` to manifest optional_host_permissions
+- Fixed Personal MCP CLI entrypoint to initialize `PersonalStorage` (was missing `createPersonalStorage()` call, so profile tools returned "No PersonalStorage configured")
+- Tested full round-trip: set profile → read profile → set jurisdictions → verify ~/.civicos/profile.md and jurisdictions.md
+
+### Commits
+- 3538b05 feat: Connect browser extension to Personal MCP for personalized intelligence
+
+### Key decisions
+- HTTP client approach (not in-worker): extension is a surface, Personal MCP is the personalization backend. One source of truth in ~/.civicos/
+- Graceful fallback: extension works fully standalone when server isn't running
+- Interest-based personalization: attention bar items matching user interests get indigo relevance pips and sort to top
+
+### User feedback on next steps
+1. Use interests in comment drafting — AI should reference neighborhood/interests when drafting public comments
+2. Settings/Profile UX redesign needed:
+   - Combine identity + profile into single section
+   - "Sign in / Sign out" instead of "Lock / Unlock"
+   - Hide crypto details (npub, mnemonic, import) behind collapsible "Advanced"
+   - Better visual design and information architecture
+
+## Session - 2026-03-05: engagement_ladder_ux (P0)
+
+### Task 1: Interest-Based Comment Drafting
+- Added `DraftUserContext` interface to `prompts.ts` (neighborhood, interests)
+- Extended `composeDraftPrompt()` and `session.draftComment()` to accept userContext
+- Updated `CivicAgendaView.svelte` to accept + pass `userContext` prop
+- Updated `SidePanel.svelte` to store `personalNeighborhood` and pass userContext to CivicAgendaView
+- AI drafts now personalized: "The commenter lives in Terra Linda and cares about housing, transportation."
+- Exported `DraftUserContext` from `@civicos/client`
+
+### Task 2: Settings/Profile UX Redesign
+- Replaced "Lock/Unlock" with "Sign in / Sign out" throughout
+- Replaced "Create Identity" with "Create Account"
+- Merged Personal Hub fields (name, neighborhood, interests) into Profile card
+- Moved crypto details (npub, created date) to collapsible "Advanced" section
+- Moved import/recovery to Advanced > Recovery
+- Moved delete identity to Advanced > Danger Zone
+- Renamed "Preferences" to "AI & Privacy"
+- Updated all related button labels and hint text
+
+### Files Changed
+- packages/civicos-client/src/ai/prompts.ts (DraftUserContext, composeDraftPrompt)
+- packages/civicos-client/src/session.ts (draftComment userContext param)
+- packages/civicos-client/src/index.ts (export DraftUserContext)
+- packages/civicos-components/src/components/CivicAgendaView.svelte (userContext prop)
+- apps/civicos-extension/src/side-panel/SidePanel.svelte (personalNeighborhood, pass userContext)
+- apps/civicos-extension/src/options/Options.svelte (complete UX restructure)

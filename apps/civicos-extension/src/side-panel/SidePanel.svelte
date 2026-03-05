@@ -139,6 +139,7 @@
 
   // Personal Hub state
   let personalInterests: string[] = $state([]);
+  let personalNeighborhood: string = $state('');
   let hubConnected = $state(false);
 
   // Connector setup state
@@ -239,12 +240,14 @@
     hubConnected = await personalMCP.isAvailable();
     if (!hubConnected) return;
 
-    // Load profile interests (for personalized filtering)
+    // Load profile (interests + neighborhood for personalized filtering & drafting)
     try {
       const profile = await personalMCP.getProfile();
       personalInterests = profile.interests || [];
+      personalNeighborhood = profile.neighborhood || '';
     } catch {
       personalInterests = [];
+      personalNeighborhood = '';
     }
 
     // Load jurisdiction ordering (overrides registry default if set)
@@ -986,6 +989,7 @@
               {api}
               {renderMarkdown}
               {highlightedCardId}
+              userContext={personalInterests.length > 0 || personalNeighborhood ? { neighborhood: personalNeighborhood || undefined, interests: personalInterests.length > 0 ? personalInterests : undefined } : undefined}
               onvoice={({ entityId, stance }) => handleVoice(entityId, stance)}
               onopenexternalai={({ context, event }) => openExternalAI('claude', context, event)}
               ontoast={(message) => showToast(message)}

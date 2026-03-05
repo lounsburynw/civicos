@@ -83,6 +83,7 @@
     ontoast = undefined as ((message: string) => void) | undefined,
     oncommentcountchange = undefined as ((entityId: string, counts: CommentCounts) => void) | undefined,
     highlightedCardId = null as string | null,
+    userContext = undefined as { neighborhood?: string; interests?: string[] } | undefined,
   } = $props();
 
   const referenceTime = $derived(generatedAt ? new Date(generatedAt) : new Date());
@@ -298,7 +299,7 @@
     try {
       const stance = userStances.get(entityId);
       const counts = voiceCounts.get(entityId);
-      const draft = await session.draftComment(item, stance, counts);
+      const draft = await session.draftComment(item, stance, counts, userContext);
 
       if (!draft) {
         ontoast?.('AI drafting failed');
@@ -477,7 +478,7 @@
     try {
       const stance = userStances.get(entityId);
       const counts = voiceCounts.get(entityId);
-      const draft = await session.draftComment(item, stance, counts);
+      const draft = await session.draftComment(item, stance, counts, userContext);
 
       if (draft) {
         cardDrafts.set(entityId, draft);
