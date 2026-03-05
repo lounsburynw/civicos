@@ -5,7 +5,7 @@
  * Fully on-device — no queries leave the machine.
  */
 
-import type { AIProvider, AITier, AIProviderConfig, AICompletionResult, AIChatResult } from '../types.js';
+import type { AIProvider, AITier, AIProviderConfig, AICompletionResult, AIChatResult, ChatUserContext } from '../types.js';
 import type { AICredentialStorage } from '../storage.js';
 import type { ChatToolExecutor } from '../tools/chat-tools.js';
 import { CHAT_TOOL_DEFS } from '../tools/chat-tools.js';
@@ -117,18 +117,22 @@ export class OllamaProvider implements AIProvider {
     }
   }
 
-  async chat(question: string, jurisdiction?: string): Promise<AIChatResult> {
+  async chat(question: string, jurisdiction?: string, userContext?: ChatUserContext): Promise<AIChatResult> {
     if (!this.toolExecutor) {
       return { success: false, error: 'No tool executor configured for local chat', provider: this.id };
     }
 
     await this.loadConfig();
 
-    const systemPrompt =
+    let systemPrompt =
       `You are a civic assistant for ${jurisdiction || 'the local community'}. ` +
       'Answer the user\'s question using the available tools to search real civic data. ' +
       'Be concise and factual. Cite specific dates, amounts, or meeting names when available. ' +
       'If no tool is relevant, answer based on your general knowledge and note the limitation.';
+
+    if (userContext?.journalNotes) {
+      systemPrompt += ` The user's civic journal: ${userContext.journalNotes}`;
+    }
 
     try {
       // 1. First call: let Ollama select a tool
