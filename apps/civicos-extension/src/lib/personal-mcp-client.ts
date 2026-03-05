@@ -5,7 +5,7 @@
  */
 
 const DEFAULT_BASE_URL = 'http://localhost:8081';
-const HEALTH_CACHE_TTL = 30_000; // 30s
+const HEALTH_CACHE_TTL = 60_000; // 60s
 
 export interface UserProfile {
   name?: string;
@@ -39,14 +39,14 @@ export class PersonalMCPClient {
     this.baseUrl = baseUrl;
   }
 
-  /** Check if the Personal MCP server is reachable. Cached for 30s. */
+  /** Check if the Personal MCP server is reachable. Cached for 60s. */
   async isAvailable(): Promise<boolean> {
     if (this.healthCache && Date.now() - this.healthCache.checkedAt < HEALTH_CACHE_TTL) {
       return this.healthCache.available;
     }
     try {
       const resp = await fetch(`${this.baseUrl}/health`, {
-        signal: AbortSignal.timeout(2000),
+        signal: AbortSignal.timeout(500),
       });
       const available = resp.ok;
       this.healthCache = { available, checkedAt: Date.now() };
