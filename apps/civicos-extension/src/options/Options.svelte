@@ -686,78 +686,80 @@
         </div>
       {/if}
 
-      <div class="form-group">
-        <label for="profile-name">Name</label>
-        <span class="field-desc">Shown when you comment on agenda items</span>
-        <input id="profile-name" type="text" placeholder="Display name" bind:value={profileName} />
-      </div>
-      <div class="form-group">
-        <label for="profile-neighborhood">Neighborhood</label>
-        <span class="field-desc">We'll prioritize issues near you</span>
-        <input id="profile-neighborhood" type="text" placeholder="e.g. Terra Linda" bind:value={profileNeighborhood} />
-      </div>
-      <div class="form-group">
-        <label for="profile-district">District</label>
-        <span class="field-desc">Your council district — filters to your representative's items</span>
-        <input id="profile-district" type="text" placeholder="e.g. District 1" bind:value={profileDistrict} />
-      </div>
-      <div class="form-group">
-        <label for="profile-years">Years in area</label>
-        <span class="field-desc">How long you've been part of this community</span>
-        <input id="profile-years" type="number" min="0" max="99" placeholder="e.g. 5" bind:value={profileYearsInArea} />
-      </div>
-      <div class="form-group">
-        <label>Stakes</label>
-        <span class="field-desc">Your situation — helps AI draft from your perspective</span>
-        <div class="interest-pills-input">
-          {#each profileStakes as stake}
-            <span class="interest-pill">
-              {stake}
-              <button class="pill-remove" onclick={() => removeStake(stake)} aria-label="Remove {stake}">&times;</button>
-            </span>
-          {/each}
-          <input
-            class="pill-text-input"
-            type="text"
-            placeholder={profileStakes.length === 0 ? 'e.g. homeowner, parent, renter' : 'Add more...'}
-            bind:value={profileStakeInput}
-            onkeydown={(e) => {
-              if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); addStake(profileStakeInput); }
-              else if (e.key === 'Backspace' && profileStakeInput === '' && profileStakes.length > 0) { profileStakes = profileStakes.slice(0, -1); }
-            }}
-            onblur={() => { if (profileStakeInput.trim()) addStake(profileStakeInput); }}
-          />
+      {#if identity?.isUnlocked}
+        <div class="form-group">
+          <label for="profile-name">Name</label>
+          <span class="field-desc">Shown when you comment on agenda items</span>
+          <input id="profile-name" type="text" placeholder="Display name" bind:value={profileName} />
         </div>
-      </div>
-      <div class="form-group">
-        <label for="profile-expertise">Expertise</label>
-        <span class="field-desc">Professional or domain knowledge — adds depth to your comments</span>
-        <input id="profile-expertise" type="text" placeholder="e.g. urban planning, civil engineering" bind:value={profileExpertise} />
-      </div>
-      <div class="form-group">
-        <label>Interests</label>
-        <span class="field-desc">Topics you care about — matching items get highlighted</span>
-        <div class="interest-pills-input">
-          {#each profileInterests as interest}
-            <span class="interest-pill">
-              {interest}
-              <button class="pill-remove" onclick={() => removeInterest(interest)} aria-label="Remove {interest}">&times;</button>
-            </span>
-          {/each}
-          <input
-            class="pill-text-input"
-            type="text"
-            placeholder={profileInterests.length === 0 ? 'Type a topic and press Enter' : 'Add more...'}
-            bind:value={profileInterestInput}
-            onkeydown={handleInterestKeydown}
-            onblur={() => { if (profileInterestInput.trim()) addInterest(profileInterestInput); }}
-          />
+        <div class="form-group">
+          <label for="profile-neighborhood">Neighborhood</label>
+          <span class="field-desc">We'll prioritize issues near you</span>
+          <input id="profile-neighborhood" type="text" placeholder="e.g. Terra Linda" bind:value={profileNeighborhood} />
         </div>
-      </div>
-      <button class="btn-primary" onclick={saveProfile} disabled={profileSaving}>
-        {profileSaving ? 'Saving...' : 'Save'}
-      </button>
-      <span class="privacy-note">Stored in your browser only — never sent to a server.</span>
+        <div class="form-group">
+          <label for="profile-district">District</label>
+          <span class="field-desc">Your council district — filters to your representative's items</span>
+          <input id="profile-district" type="text" placeholder="e.g. District 1" bind:value={profileDistrict} />
+        </div>
+        <div class="form-group">
+          <label for="profile-years">Years in area</label>
+          <span class="field-desc">How long you've been part of this community</span>
+          <input id="profile-years" type="number" min="0" max="99" placeholder="e.g. 5" bind:value={profileYearsInArea} />
+        </div>
+        <div class="form-group">
+          <label>Stakes</label>
+          <span class="field-desc">Your situation — helps AI draft from your perspective</span>
+          <div class="interest-pills-input">
+            {#each profileStakes as stake}
+              <span class="interest-pill">
+                {stake}
+                <button class="pill-remove" onclick={() => removeStake(stake)} aria-label="Remove {stake}">&times;</button>
+              </span>
+            {/each}
+            <input
+              class="pill-text-input"
+              type="text"
+              placeholder={profileStakes.length === 0 ? 'e.g. homeowner, parent, renter' : 'Add more...'}
+              bind:value={profileStakeInput}
+              onkeydown={(e) => {
+                if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); addStake(profileStakeInput); }
+                else if (e.key === 'Backspace' && profileStakeInput === '' && profileStakes.length > 0) { profileStakes = profileStakes.slice(0, -1); }
+              }}
+              onblur={() => { if (profileStakeInput.trim()) addStake(profileStakeInput); }}
+            />
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="profile-expertise">Expertise</label>
+          <span class="field-desc">Professional or domain knowledge — adds depth to your comments</span>
+          <input id="profile-expertise" type="text" placeholder="e.g. urban planning, civil engineering" bind:value={profileExpertise} />
+        </div>
+        <div class="form-group">
+          <label>Interests</label>
+          <span class="field-desc">Topics you care about — matching items get highlighted</span>
+          <div class="interest-pills-input">
+            {#each profileInterests as interest}
+              <span class="interest-pill">
+                {interest}
+                <button class="pill-remove" onclick={() => removeInterest(interest)} aria-label="Remove {interest}">&times;</button>
+              </span>
+            {/each}
+            <input
+              class="pill-text-input"
+              type="text"
+              placeholder={profileInterests.length === 0 ? 'Type a topic and press Enter' : 'Add more...'}
+              bind:value={profileInterestInput}
+              onkeydown={handleInterestKeydown}
+              onblur={() => { if (profileInterestInput.trim()) addInterest(profileInterestInput); }}
+            />
+          </div>
+        </div>
+        <button class="btn-primary" onclick={saveProfile} disabled={profileSaving}>
+          {profileSaving ? 'Saving...' : 'Save'}
+        </button>
+        <span class="privacy-note">Stored in your browser only — never sent to a server.</span>
+      {/if}
 
       <!-- Account management (within profile section) -->
       {#if identity.isUnlocked}
