@@ -2579,7 +2579,7 @@
       },
       "engagement_ladder_ux": {
         "status": "ready",
-        "priority": 0,
+        "priority": 1,
         "artifact": "Progressive engagement UX from awareness to coordination",
         "description": "UX flow that guides users through engagement ladder: Awareness (what's happening) \u2192 Relevance (what affects me) \u2192 Participation (where I can act) \u2192 Coordination (who's with me). Each dashboard view surfaces the 'next step' without forcing it.",
         "note": "Session 19: Core ladder (pulse, interests, drafts, initiatives). Session 20: iOS-style Settings, AI provider dropdown, attestation. Session 21: Profile context flows into chat search (neighborhood + interests personalize server system prompt)."
