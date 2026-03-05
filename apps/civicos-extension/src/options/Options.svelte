@@ -501,11 +501,28 @@
     jurisdictionSaving = true;
     try {
       await registry.setActiveJurisdiction(selectedJurisdiction);
-      setStatus(`Jurisdiction set to ${availableServers.find(s => s.jurisdiction_id === selectedJurisdiction)?.display_name || selectedJurisdiction}`, 'success');
+      setStatus(`City set to ${availableServers.find(s => s.jurisdiction_id === selectedJurisdiction)?.display_name || selectedJurisdiction}`, 'success');
     } catch (err) {
       setStatus('Failed to save jurisdiction', 'error');
     }
     jurisdictionSaving = false;
+  }
+
+  // Auto-save jurisdiction on change
+  let prevJurisdiction = '';
+  $effect(() => {
+    if (selectedJurisdiction && prevJurisdiction && selectedJurisdiction !== prevJurisdiction) {
+      saveJurisdiction();
+    }
+    prevJurisdiction = selectedJurisdiction;
+  });
+
+  // AI section expand/collapse
+  let showAISettings = $state(false);
+  function getAIStatusSummary(): string {
+    const active = aiProviderStatuses.find(p => p.active);
+    if (active) return active.name;
+    return 'Not configured';
   }
 
   loadIdentity();
@@ -523,7 +540,7 @@
 </script>
 
 <div class="options">
-  <h1>CivicOS Settings</h1>
+  <h1>Settings</h1>
 
   <div class="toast" class:visible={!!statusMessage} class:success={statusType === 'success'} class:error={statusType === 'error'}>
     {statusMessage}
@@ -532,32 +549,62 @@
   {#if loading}
     <div class="loading">Loading...</div>
   {:else if identity}
-    <!-- Profile -->
-    <section class="card profile-section">
-      <h2>Profile</h2>
+
+    <!-- === ESSENTIALS: What every user needs === -->
+    <section class="card">
+      <!-- City selector -->
+      {#if availableServers.length > 0}
+        <div class="form-group">
+          <label for="jurisdiction-select">Your city</label>
+          <span class="field-desc">Determines what meetings, decisions, and issues you see</span>
+          <select id="jurisdiction-select" class="jurisdiction-select" bind:value={selectedJurisdiction}>
+            {#each availableServers as server (server.jurisdiction_id)}
+              <option value={server.jurisdiction_id}>
+                {server.display_name} ({server.level})
+              </option>
+            {/each}
+          </select>
+        </div>
+
+        {@const selectedServer = availableServers.find(s => s.jurisdiction_id === selectedJurisdiction)}
+        {#if selectedServer?.parent_jurisdictions?.length}
+          <div class="parent-info">
+            Also includes {selectedServer.parent_jurisdictions
+              .map(pid => availableServers.find(s => s.jurisdiction_id === pid)?.display_name || pid)
+              .join(', ')}
+          </div>
+        {/if}
+      {/if}
 
       <!-- Sign in / Sign out -->
-      {#if identity.isUnlocked}
-        <div class="signed-in-bar">
-          <span class="signed-in-dot"></span>
-          <span class="signed-in-label">Signed in</span>
-          <button class="btn-link" onclick={lock}>Sign out</button>
-        </div>
-      {:else}
-        <form class="sign-in-form" autocomplete="off" onsubmit={(e: Event) => { e.preventDefault(); unlock(); }}>
-          <input
-            id="unlock-password"
-            name="unlock-password"
-            type="password"
-            autocomplete="off"
-            placeholder="Password"
-            bind:value={unlockPassword}
-          />
-          <button type="submit" class="btn-primary btn-compact" disabled={unlocking}>
-            {unlocking ? 'Signing in...' : 'Sign in'}
-          </button>
-        </form>
-      {/if}
+      <div class="form-group" style="margin-top: 16px;">
+        <label>Account</label>
+        {#if identity.isUnlocked}
+          <div class="signed-in-bar">
+            <span class="signed-in-dot"></span>
+            <span class="signed-in-label">Signed in</span>
+            {#if attestationEvent}
+              <span class="verified-inline">Verified resident</span>
+            {/if}
+            <button class="btn-link" onclick={lock}>Sign out</button>
+          </div>
+        {:else}
+          <span class="field-desc">Sign in to draft comments and participate</span>
+          <form class="sign-in-form" autocomplete="off" onsubmit={(e: Event) => { e.preventDefault(); unlock(); }}>
+            <input
+              id="unlock-password"
+              name="unlock-password"
+              type="password"
+              autocomplete="off"
+              placeholder="Password"
+              bind:value={unlockPassword}
+            />
+            <button type="submit" class="btn-primary btn-compact" disabled={unlocking}>
+              {unlocking ? '...' : 'Sign in'}
+            </button>
+          </form>
+        {/if}
+      </div>
 
       {#if showMnemonic}
         <div class="mnemonic-warning">
@@ -570,22 +617,45 @@
         </div>
       {/if}
 
-      <hr class="subsection-divider" />
+      <!-- Residency verification (only if signed in + not yet verified) -->
+      {#if !attestationEvent && identity.isUnlocked}
+        <div class="verify-row">
+          <label>Verify residency</label>
+          <span class="field-desc">Got a code at a civic event? Enter it to verify you're a local resident</span>
+          <form class="attestation-form" onsubmit={(e: Event) => { e.preventDefault(); redeemAttestation(); }}>
+            <input
+              type="text"
+              placeholder="e.g. SR-2026-02-XXXX"
+              bind:value={attestationCode}
+              autocomplete="off"
+            />
+            <button type="submit" class="btn-primary btn-compact" disabled={attestationVerifying || !attestationCode.trim()}>
+              {attestationVerifying ? '...' : 'Verify'}
+            </button>
+          </form>
+        </div>
+      {/if}
+    </section>
 
-      <!-- Profile fields (from Personal Hub) -->
-      {#if hubLoading}
-        <div class="hub-loading">Loading profile...</div>
-      {:else if hubConnected}
+    <!-- === PROFILE: Personalization === -->
+    {#if hubConnected}
+      <section class="card section-gap">
+        <h2>Personalize</h2>
+        <p class="card-desc">Help CivicOS highlight what matters to you</p>
+
         <div class="form-group">
           <label for="hub-name">Name</label>
+          <span class="field-desc">Shown when you comment on agenda items</span>
           <input id="hub-name" type="text" placeholder="Display name" bind:value={hubName} />
         </div>
         <div class="form-group">
           <label for="hub-neighborhood">Neighborhood</label>
+          <span class="field-desc">We'll prioritize issues near you</span>
           <input id="hub-neighborhood" type="text" placeholder="e.g. Terra Linda" bind:value={hubNeighborhood} />
         </div>
         <div class="form-group">
           <label>Interests</label>
+          <span class="field-desc">Topics you care about — matching items get highlighted in your feed</span>
           <div class="interest-pills-input">
             {#each hubInterestsList as interest}
               <span class="interest-pill">
@@ -602,98 +672,224 @@
               onblur={() => { if (hubInterestInput.trim()) addInterest(hubInterestInput); }}
             />
           </div>
-          <span class="form-hint">Topics that personalize your AI-drafted comments</span>
         </div>
         <button class="btn-primary" onclick={savePersonalProfile} disabled={hubSaving}>
-          {hubSaving ? 'Saving...' : 'Save Profile'}
+          {hubSaving ? 'Saving...' : 'Save'}
         </button>
-      {:else}
-        <div class="hub-offline-hint">
-          <p>Start the Personal Hub to edit your profile:</p>
-          <code class="hub-command">npx civicos-personal-mcp</code>
-          <button class="btn-link" onclick={refreshPersonalHub}>Retry connection</button>
+      </section>
+    {/if}
+
+    <!-- === ADVANCED: Power user settings === -->
+    <section class="card section-gap">
+      <button class="section-toggle" onclick={() => { showAdvanced = !showAdvanced; }}>
+        <div class="section-toggle-left">
+          <h2 class="section-toggle-title">Advanced</h2>
+          <span class="section-toggle-summary">
+            AI: {getAIStatusSummary()}{ollamaConnected ? ' · Ollama' : ''}
+          </span>
         </div>
-      {/if}
+        <span class="chevron-small" class:open={showAdvanced}></span>
+      </button>
 
-      <hr class="subsection-divider" />
+      {#if showAdvanced}
+        <div class="section-expand-body">
 
-      <!-- Jurisdiction -->
-      <h3 class="subsection-label">Jurisdiction</h3>
-      {#if availableServers.length > 0}
-        <div class="form-group">
-          <select id="jurisdiction-select" class="jurisdiction-select" bind:value={selectedJurisdiction}>
-            {#each availableServers as server (server.jurisdiction_id)}
-              <option value={server.jurisdiction_id}>
-                {server.display_name} ({server.level})
-              </option>
-            {/each}
-          </select>
-        </div>
+          <!-- AI Provider -->
+          <div class="advanced-group">
+            <h3 class="advanced-group-title">Comment drafting AI</h3>
+            <p class="advanced-group-desc">Choose which AI helps draft your public comments on agenda items</p>
 
-        {@const selectedServer = availableServers.find(s => s.jurisdiction_id === selectedJurisdiction)}
-        {#if selectedServer?.parent_jurisdictions?.length}
-          <div class="parent-info">
-            Also showing: {selectedServer.parent_jurisdictions
-              .map(pid => availableServers.find(s => s.jurisdiction_id === pid)?.display_name || pid)
-              .join(', ')}
+            <div class="form-group">
+              <div class="radio-row">
+                <label class="radio-label">
+                  <input type="radio" bind:group={aiCloudProProvider} value="civicos" onchange={() => loadCurrentApiKey()} />
+                  CivicOS
+                  {#if aiProviderStatuses.find(p => p.id === 'civicos')?.ready}
+                    <span class="status-dot ready"></span>
+                  {/if}
+                </label>
+                <label class="radio-label">
+                  <input type="radio" bind:group={aiCloudProProvider} value="claude" onchange={() => loadCurrentApiKey()} />
+                  Claude
+                  {#if aiProviderStatuses.find(p => p.id === 'claude')?.ready}
+                    <span class="status-dot ready"></span>
+                  {/if}
+                </label>
+                <label class="radio-label">
+                  <input type="radio" bind:group={aiCloudProProvider} value="openai" onchange={() => loadCurrentApiKey()} />
+                  OpenAI
+                  {#if aiProviderStatuses.find(p => p.id === 'openai')?.ready}
+                    <span class="status-dot ready"></span>
+                  {/if}
+                </label>
+              </div>
+            </div>
+
+            {#if aiCloudProProvider === 'civicos'}
+              <div class="civicos-provider-note">
+                No setup needed — works with your CivicOS account.
+                {#if !identity?.isUnlocked}
+                  <span class="civicos-unlock-hint">Sign in above to enable.</span>
+                {/if}
+              </div>
+            {:else}
+              <div class="form-group">
+                <label for="pro-key">{aiCloudProProvider === 'claude' ? 'Anthropic' : 'OpenAI'} API Key</label>
+                <input id="pro-key" type="password" placeholder={aiCloudProProvider === 'claude' ? 'sk-ant-...' : 'sk-...'} bind:value={aiApiKey} />
+                <span class="form-hint">
+                  {#if aiCloudProProvider === 'claude'}
+                    From <a href="https://console.anthropic.com" target="_blank" rel="noopener">console.anthropic.com</a>
+                  {:else}
+                    From <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener">platform.openai.com</a>
+                  {/if}
+                </span>
+              </div>
+              <div class="key-warning">Keys stored locally in your browser (unencrypted).</div>
+            {/if}
+
+            <div class="ai-action-buttons">
+              <button class="btn-primary" onclick={saveAIProvider} disabled={aiSaving}>
+                {aiSaving ? 'Saving...' : 'Save'}
+              </button>
+              <button class="btn-secondary" onclick={testAIProvider} disabled={aiTesting || (aiCloudProProvider !== 'civicos' && !aiApiKey.trim())}>
+                {aiTesting ? 'Testing...' : 'Test'}
+              </button>
+              {#if aiCloudProProvider !== 'civicos'}
+                <button class="btn-secondary" onclick={clearAIProvider}>
+                  Clear
+                </button>
+              {/if}
+            </div>
           </div>
-        {/if}
 
-        <button class="btn-primary" onclick={saveJurisdiction} disabled={jurisdictionSaving}>
-          {jurisdictionSaving ? 'Saving...' : 'Save Jurisdiction'}
-        </button>
-      {:else}
-        <div class="jurisdiction-loading">Loading available jurisdictions...</div>
-      {/if}
+          <hr class="subsection-divider" />
 
-      <hr class="subsection-divider" />
+          <!-- Ollama -->
+          <div class="advanced-group">
+            <h3 class="advanced-group-title">On-device AI</h3>
+            <p class="advanced-group-desc">Run AI privately on your computer using Ollama — no data leaves your machine</p>
 
-      <h3 class="subsection-label">Residency Verification</h3>
-      {#if attestationEvent}
-        {@const attestedServer = availableServers.find(s => s.jurisdiction_id === attestationJurisdiction)}
-        <div class="attested-badge">
-          <span class="attested-check">&#10003;</span>
-          Verified {attestedServer?.display_name || attestationJurisdiction} Resident
-          {#if attestationDate}
-            <span class="attested-date">{attestationDate}</span>
-          {/if}
-        </div>
-        {#if attestedServer?.parent_jurisdictions?.length}
-          <div class="residency-derived">
-            Also recognized as {attestedServer.parent_jurisdictions
-              .map(pid => availableServers.find(s => s.jurisdiction_id === pid)?.display_name || pid)
-              .join(' and ')} resident
+            <div class="ollama-status" class:connected={ollamaConnected}>
+              <span class="ollama-dot"></span>
+              {ollamaConnected ? `Connected — ${ollamaModels.length} model${ollamaModels.length === 1 ? '' : 's'}` : 'Not connected'}
+              <button class="ollama-refresh" onclick={loadOllamaStatus} title="Refresh">&#8635;</button>
+            </div>
+
+            {#if ollamaConnected}
+              <div class="form-group">
+                <label for="ollama-model">Model</label>
+                {#if ollamaModels.length > 0}
+                  <select id="ollama-model" bind:value={ollamaModel}>
+                    {#each ollamaModels as model}
+                      <option value={model}>{model}</option>
+                    {/each}
+                  </select>
+                {:else}
+                  <input id="ollama-model" type="text" placeholder="llama3.1:8b" bind:value={ollamaModel} />
+                {/if}
+              </div>
+
+              <div class="form-group">
+                <label for="ollama-url">Server URL</label>
+                <input id="ollama-url" type="text" placeholder="http://localhost:11434" bind:value={ollamaBaseUrl} />
+              </div>
+
+              <label class="toggle-label">
+                <input type="checkbox" bind:checked={ollamaForChat} />
+                <span class="toggle-text">Use for chat search</span>
+                <span class="toggle-hint">
+                  {ollamaForChat
+                    ? 'Chat queries stay on your device'
+                    : 'Chat uses CivicOS cloud for better quality'}
+                </span>
+              </label>
+
+              <div class="ai-action-buttons">
+                <button class="btn-primary" onclick={saveOllama} disabled={ollamaSaving}>
+                  {ollamaSaving ? 'Saving...' : 'Save'}
+                </button>
+                <button class="btn-secondary" onclick={testOllama} disabled={ollamaTesting}>
+                  {ollamaTesting ? 'Testing...' : 'Test'}
+                </button>
+              </div>
+            {:else}
+              <div class="ollama-setup-hint">
+                <ol>
+                  <li>Install from <a href="https://ollama.com" target="_blank" rel="noopener">ollama.com</a></li>
+                  <li>Run: <code>ollama pull llama3.1:8b</code></li>
+                  <li>Click refresh above</li>
+                </ol>
+              </div>
+            {/if}
           </div>
-        {/if}
-      {:else if identity.isUnlocked}
-        <p class="section-desc">Enter a code received at a civic event.</p>
-        <form class="attestation-form" onsubmit={(e: Event) => { e.preventDefault(); redeemAttestation(); }}>
-          <input
-            type="text"
-            placeholder="SR-2026-02-XXXX"
-            bind:value={attestationCode}
-            autocomplete="off"
-          />
-          <button type="submit" class="btn-primary" disabled={attestationVerifying || !attestationCode.trim()}>
-            {attestationVerifying ? 'Verifying...' : 'Verify'}
-          </button>
-        </form>
-      {:else}
-        <p class="section-desc">Sign in to verify your residency.</p>
+
+          <hr class="subsection-divider" />
+
+          <!-- Identity -->
+          <div class="advanced-group">
+            <h3 class="advanced-group-title">Identity</h3>
+            <div class="info-grid">
+              <div class="info-row">
+                <span class="info-label">Public key</span>
+                <span class="npub" title={identity.npub}>{truncateNpub(identity.npub)}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Created</span>
+                <span>{formatDate(identity.createdAt)}</span>
+              </div>
+            </div>
+          </div>
+
+          <hr class="subsection-divider" />
+
+          <!-- Recovery -->
+          <div class="advanced-group">
+            <h3 class="advanced-group-title">Recovery</h3>
+            <p class="advanced-group-desc">Import an existing account using your 12-word recovery phrase</p>
+            <button class="btn-secondary" onclick={() => { showImport = !showImport; }}>
+              {showImport ? 'Cancel' : 'Recover Existing Account'}
+            </button>
+
+            {#if showImport}
+              <div class="import-form">
+                <div class="form-group">
+                  <label for="importPassword">New Password</label>
+                  <input id="importPassword" type="password" placeholder="Password to encrypt" bind:value={importPassword} />
+                </div>
+                <div class="form-group">
+                  <label for="importMnemonic">Recovery Phrase (12 words)</label>
+                  <textarea id="importMnemonic" rows="3" placeholder="word1 word2 word3 ..." bind:value={importMnemonic}></textarea>
+                </div>
+                <button class="btn-primary" onclick={handleImport} disabled={importing}>
+                  {importing ? 'Recovering...' : 'Recover Account'}
+                </button>
+              </div>
+            {/if}
+          </div>
+
+          <hr class="subsection-divider" />
+
+          <!-- Danger zone -->
+          <div class="advanced-group">
+            <button class="btn-danger" onclick={deleteIdentity}>Delete Account</button>
+            <span class="form-hint">This cannot be undone. Make sure you have your recovery phrase backed up.</span>
+          </div>
+        </div>
       {/if}
     </section>
+
   {:else}
     <!-- Create Account -->
     <section class="card">
-      <h2>Create Account</h2>
-      <p class="section-desc">Set a password to create your CivicOS identity. Your data stays on your device.</p>
+      <h2>Get Started</h2>
+      <p class="card-desc">Create an account to draft comments, verify your residency, and participate in local governance. Your data stays on your device.</p>
 
       <div class="form-group">
         <label for="password">Password</label>
-        <input id="password" type="password" placeholder="Choose a strong password" bind:value={password} />
+        <input id="password" type="password" placeholder="Choose a password" bind:value={password} />
       </div>
       <div class="form-group">
-        <label for="confirmPassword">Confirm Password</label>
+        <label for="confirmPassword">Confirm password</label>
         <input id="confirmPassword" type="password" placeholder="Confirm password" bind:value={confirmPassword} />
       </div>
 
@@ -728,230 +924,35 @@
     </section>
   {/if}
 
-  <!-- AI & Privacy -->
-  <section class="card preferences-section">
-    <h2>AI &amp; Privacy</h2>
-    <h3 class="subsection-label">AI Drafting Provider</h3>
-    <p class="section-desc">Choose an AI provider for comment drafting.</p>
-
-    <div class="form-group">
-      <label for="pro-provider">Provider</label>
-      <div class="radio-row">
-        <label class="radio-label">
-          <input type="radio" bind:group={aiCloudProProvider} value="civicos" onchange={() => loadCurrentApiKey()} />
-          CivicOS
-          {#if aiProviderStatuses.find(p => p.id === 'civicos')?.ready}
-            <span class="status-dot ready"></span>
-          {/if}
-        </label>
-        <label class="radio-label">
-          <input type="radio" bind:group={aiCloudProProvider} value="claude" onchange={() => loadCurrentApiKey()} />
-          Claude
-          {#if aiProviderStatuses.find(p => p.id === 'claude')?.ready}
-            <span class="status-dot ready"></span>
-          {/if}
-        </label>
-        <label class="radio-label">
-          <input type="radio" bind:group={aiCloudProProvider} value="openai" onchange={() => loadCurrentApiKey()} />
-          OpenAI
-          {#if aiProviderStatuses.find(p => p.id === 'openai')?.ready}
-            <span class="status-dot ready"></span>
-          {/if}
-        </label>
-      </div>
-    </div>
-
-    {#if aiCloudProProvider === 'civicos'}
-      <div class="civicos-provider-note">
-        No API key needed — uses your CivicOS identity for authentication.
-        {#if !identity?.isUnlocked}
-          <span class="civicos-unlock-hint">Sign in above to enable AI drafting.</span>
-        {/if}
-      </div>
-    {:else}
-      <div class="form-group">
-        <label for="pro-key">{aiCloudProProvider === 'claude' ? 'Anthropic' : 'OpenAI'} API Key</label>
-        <input id="pro-key" type="password" placeholder={aiCloudProProvider === 'claude' ? 'sk-ant-...' : 'sk-...'} bind:value={aiApiKey} />
-        <span class="form-hint">
-          {#if aiCloudProProvider === 'claude'}
-            From <a href="https://console.anthropic.com" target="_blank" rel="noopener">console.anthropic.com</a>
-          {:else}
-            From <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener">platform.openai.com</a>
-          {/if}
-        </span>
-      </div>
-      <div class="key-warning">API keys are stored in your browser's local storage (unencrypted).</div>
-    {/if}
-
-    <div class="ai-action-buttons">
-      <button class="btn-primary" onclick={saveAIProvider} disabled={aiSaving}>
-        {aiSaving ? 'Saving...' : 'Save'}
-      </button>
-      <button class="btn-secondary" onclick={testAIProvider} disabled={aiTesting || (aiCloudProProvider !== 'civicos' && !aiApiKey.trim())}>
-        {aiTesting ? 'Testing...' : 'Test'}
-      </button>
-      {#if aiCloudProProvider !== 'civicos'}
-        <button class="btn-secondary" onclick={clearAIProvider}>
-          Clear
-        </button>
-      {/if}
-    </div>
-
-    {#if aiProviderStatuses.some(p => p.active)}
-      {@const active = aiProviderStatuses.find(p => p.active)}
-      <div class="active-provider-badge">
-        Active: {active?.name}
-      </div>
-    {/if}
-
-    <hr class="subsection-divider" />
-
-    <h3 class="subsection-label">On-Device AI (Ollama)</h3>
-    <p class="section-desc">
-      Run AI locally for private chat. Requires <a href="https://ollama.com" target="_blank" rel="noopener">Ollama</a> installed.
-    </p>
-
-    <div class="ollama-status" class:connected={ollamaConnected}>
-      <span class="ollama-dot"></span>
-      {ollamaConnected ? `Connected — ${ollamaModels.length} model${ollamaModels.length === 1 ? '' : 's'}` : 'Not connected'}
-      <button class="ollama-refresh" onclick={loadOllamaStatus} title="Refresh">&#8635;</button>
-    </div>
-
-    {#if ollamaConnected}
-      <div class="form-group">
-        <label for="ollama-model">Model</label>
-        {#if ollamaModels.length > 0}
-          <select id="ollama-model" bind:value={ollamaModel}>
-            {#each ollamaModels as model}
-              <option value={model}>{model}</option>
-            {/each}
-          </select>
-        {:else}
-          <input id="ollama-model" type="text" placeholder="llama3.1:8b" bind:value={ollamaModel} />
-        {/if}
-        <span class="form-hint">
-          Recommended: llama3.1:8b for tool-backed search
-        </span>
-      </div>
-
-      <div class="form-group">
-        <label for="ollama-url">Server URL</label>
-        <input id="ollama-url" type="text" placeholder="http://localhost:11434" bind:value={ollamaBaseUrl} />
-      </div>
-
-      <label class="toggle-label">
-        <input type="checkbox" bind:checked={ollamaForChat} />
-        <span class="toggle-text">Use for private chat search</span>
-        <span class="toggle-hint">
-          {ollamaForChat
-            ? 'Chat queries stay on your device'
-            : 'Chat uses CivicOS (Claude) for higher quality'}
-        </span>
-      </label>
-
-      <div class="ai-action-buttons">
-        <button class="btn-primary" onclick={saveOllama} disabled={ollamaSaving}>
-          {ollamaSaving ? 'Saving...' : 'Save'}
-        </button>
-        <button class="btn-secondary" onclick={testOllama} disabled={ollamaTesting}>
-          {ollamaTesting ? 'Testing...' : 'Test'}
-        </button>
-      </div>
-
-      <div class="ollama-privacy-note">
-        {ollamaForChat
-          ? 'Chat queries stay on your device. The server only sees anonymous data requests.'
-          : 'Chat uses CivicOS cloud for higher-quality answers. Ollama is still used for drafting.'}
-      </div>
-    {:else}
-      <div class="ollama-setup-hint">
-        <p>To enable on-device AI:</p>
-        <ol>
-          <li>Install Ollama from <a href="https://ollama.com" target="_blank" rel="noopener">ollama.com</a></li>
-          <li>Run: <code>ollama pull llama3.1:8b</code></li>
-          <li>Click refresh above</li>
-        </ol>
-      </div>
-    {/if}
-  </section>
-
-  <!-- Advanced (collapsed, only when signed in) -->
-  {#if identity}
-    <section class="card advanced-section">
-      <button class="advanced-toggle" onclick={() => { showAdvanced = !showAdvanced; }}>
-        <span class="advanced-label">Advanced</span>
-        <span class="chevron-small" class:open={showAdvanced}></span>
-      </button>
-
-      {#if showAdvanced}
-        <div class="advanced-body">
-          <h3 class="subsection-label">Identity Details</h3>
-          <div class="info-grid">
-            <div class="info-row">
-              <span class="info-label">npub</span>
-              <span class="npub" title={identity.npub}>{truncateNpub(identity.npub)}</span>
-            </div>
-            <div class="info-row">
-              <span class="info-label">Created</span>
-              <span>{formatDate(identity.createdAt)}</span>
-            </div>
-          </div>
-
-          <hr class="subsection-divider" />
-
-          <h3 class="subsection-label">Recovery</h3>
-          <p class="section-desc">Import an existing account using your 12-word recovery phrase.</p>
-          <button class="btn-secondary" onclick={() => { showImport = !showImport; }}>
-            {showImport ? 'Cancel' : 'Recover Existing Account'}
-          </button>
-
-          {#if showImport}
-            <div class="import-form">
-              <div class="form-group">
-                <label for="importPassword">New Password</label>
-                <input id="importPassword" type="password" placeholder="Password to encrypt" bind:value={importPassword} />
-              </div>
-              <div class="form-group">
-                <label for="importMnemonic">Recovery Phrase (12 words)</label>
-                <textarea id="importMnemonic" rows="3" placeholder="word1 word2 word3 ..." bind:value={importMnemonic}></textarea>
-              </div>
-              <button class="btn-primary" onclick={handleImport} disabled={importing}>
-                {importing ? 'Recovering...' : 'Recover Account'}
-              </button>
-            </div>
-          {/if}
-
-          <hr class="subsection-divider" />
-
-          <h3 class="subsection-label">Danger Zone</h3>
-          <button class="btn-danger" onclick={deleteIdentity}>Delete Account</button>
-          <span class="form-hint">This cannot be undone. Make sure you have your recovery phrase backed up.</span>
-        </div>
-      {/if}
-    </section>
-  {/if}
-
 </div>
 
 <style>
   .options {
-    max-width: 480px;
+    max-width: 440px;
     margin: 0 auto;
-    padding: 32px 24px;
+    padding: 32px 20px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
   }
 
   h1 {
-    font-size: 24px;
-    font-weight: 700;
-    color: #f8fafc;
-    margin-bottom: 24px;
+    font-size: 20px;
+    font-weight: 600;
+    color: #e2e8f0;
+    margin-bottom: 20px;
   }
 
   h2 {
-    font-size: 16px;
+    font-size: 14px;
     font-weight: 600;
-    color: #f8fafc;
-    margin-bottom: 16px;
+    color: #cbd5e1;
+    margin-bottom: 14px;
+  }
+
+  .card-desc {
+    font-size: 12px;
+    color: #64748b;
+    margin: -8px 0 16px;
+    line-height: 1.5;
   }
 
   .loading {
@@ -978,9 +979,24 @@
   .toast.error { background: #450a0a; color: #fca5a5; }
 
   .card {
-    background: #1e293b;
-    border-radius: 12px;
-    padding: 20px;
+    background: rgba(30, 41, 59, 0.6);
+    border: 1px solid rgba(51, 65, 85, 0.4);
+    border-radius: 10px;
+    padding: 18px;
+  }
+
+  .field-desc {
+    display: block;
+    font-size: 11px;
+    color: #64748b;
+    margin-bottom: 6px;
+    line-height: 1.4;
+  }
+
+  .verified-inline {
+    font-size: 11px;
+    color: #4ade80;
+    margin-left: 4px;
   }
 
   .info-grid {
@@ -1094,30 +1110,32 @@
 
   input, textarea {
     width: 100%;
-    padding: 10px 12px;
-    background: #0f172a;
-    border: 1px solid #334155;
-    border-radius: 6px;
+    padding: 9px 11px;
+    background: rgba(15, 23, 42, 0.6);
+    border: 1px solid rgba(51, 65, 85, 0.6);
+    border-radius: 8px;
     color: #e2e8f0;
     font-size: 13px;
     outline: none;
+    transition: border-color 0.15s;
   }
-  input:focus, textarea:focus { border-color: #6366f1; }
+  input:focus, textarea:focus { border-color: rgba(99, 102, 241, 0.6); }
   textarea { resize: vertical; font-family: 'SF Mono', 'Fira Code', monospace; }
 
   .btn-primary {
-    background: #6366f1;
+    background: rgba(99, 102, 241, 0.85);
     color: white;
     border: none;
-    padding: 10px 16px;
-    border-radius: 6px;
+    padding: 9px 16px;
+    border-radius: 8px;
     font-size: 13px;
     font-weight: 500;
     cursor: pointer;
     width: 100%;
+    transition: background 0.15s;
   }
-  .btn-primary:hover { background: #4f46e5; }
-  .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-primary:hover { background: rgba(79, 70, 229, 0.9); }
+  .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
 
   .btn-secondary {
     background: transparent;
@@ -1172,12 +1190,26 @@
 
   /* Subsection styles */
   .subsection-label {
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
+    color: #94a3b8;
+    margin: 0 0 10px 0;
+  }
+
+  .advanced-group {
+    margin-bottom: 4px;
+  }
+  .advanced-group-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: #cbd5e1;
+    margin: 0 0 4px 0;
+  }
+  .advanced-group-desc {
+    font-size: 11px;
     color: #64748b;
     margin: 0 0 12px 0;
+    line-height: 1.4;
   }
 
   .subsection-divider {
@@ -1231,9 +1263,48 @@
     flex-shrink: 0;
   }
 
-  /* Preferences Section */
-  .preferences-section {
-    margin-top: 24px;
+  .section-gap {
+    margin-top: 16px;
+  }
+
+  .verify-row {
+    margin-top: 12px;
+  }
+
+  /* Collapsible section toggle */
+  .section-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    background: none;
+    border: none;
+    color: inherit;
+    cursor: pointer;
+    padding: 0;
+    text-align: left;
+  }
+  .section-toggle:hover .section-toggle-title { color: #e2e8f0; }
+  .section-toggle-left {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .section-toggle-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #cbd5e1;
+    margin: 0;
+    transition: color 0.15s;
+  }
+  .section-toggle-summary {
+    font-size: 12px;
+    color: #64748b;
+  }
+  .section-expand-body {
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid #334155;
   }
 
   .section-desc {
@@ -1457,16 +1528,17 @@
 
   select {
     width: 100%;
-    padding: 10px 12px;
-    background: #0f172a;
-    border: 1px solid #334155;
-    border-radius: 6px;
+    padding: 9px 11px;
+    background: rgba(15, 23, 42, 0.6);
+    border: 1px solid rgba(51, 65, 85, 0.6);
+    border-radius: 8px;
     color: #e2e8f0;
     font-size: 13px;
     outline: none;
     appearance: auto;
+    transition: border-color 0.15s;
   }
-  select:focus { border-color: #6366f1; }
+  select:focus { border-color: rgba(99, 102, 241, 0.6); }
 
   /* Personal Hub (inline in Profile) */
   .hub-loading {
@@ -1498,15 +1570,16 @@
     flex-wrap: wrap;
     gap: 6px;
     padding: 8px 10px;
-    background: #0f172a;
-    border: 1px solid #334155;
-    border-radius: 6px;
+    background: rgba(15, 23, 42, 0.6);
+    border: 1px solid rgba(51, 65, 85, 0.6);
+    border-radius: 8px;
     min-height: 40px;
     align-items: center;
     cursor: text;
+    transition: border-color 0.15s;
   }
   .interest-pills-input:focus-within {
-    border-color: #6366f1;
+    border-color: rgba(99, 102, 241, 0.6);
   }
   .interest-pill {
     display: inline-flex;
@@ -1557,41 +1630,17 @@
     color: #475569;
   }
 
-  /* Advanced section */
-  .advanced-section {
-    margin-top: 24px;
-  }
-  .advanced-toggle {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    width: 100%;
-    background: none;
-    border: none;
-    color: #64748b;
-    font-size: 13px;
-    cursor: pointer;
-    padding: 0;
-  }
-  .advanced-toggle:hover { color: #94a3b8; }
-  .advanced-label {
-    font-weight: 500;
-  }
+  /* Chevron for collapsible sections */
   .chevron-small {
     display: inline-block;
     width: 0;
     height: 0;
-    border-left: 5px solid transparent;
-    border-right: 5px solid transparent;
-    border-top: 5px solid currentColor;
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+    border-top: 4px solid #64748b;
     transition: transform 0.15s;
   }
   .chevron-small.open {
     transform: rotate(180deg);
-  }
-  .advanced-body {
-    margin-top: 16px;
-    padding-top: 16px;
-    border-top: 1px solid #334155;
   }
 </style>
