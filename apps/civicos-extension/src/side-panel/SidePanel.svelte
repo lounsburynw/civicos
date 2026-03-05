@@ -890,6 +890,7 @@
     {session}
     jurisdiction={activeJurisdiction}
     {aiAvailable}
+    userContext={personalInterests.length > 0 || personalNeighborhood ? { neighborhood: personalNeighborhood || undefined, interests: personalInterests.length > 0 ? personalInterests : undefined } : undefined}
     {renderMarkdown}
     ontoast={(message) => showToast(message)}
     onnavigate={handleChatNavigate}

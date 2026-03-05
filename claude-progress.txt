@@ -20937,3 +20937,63 @@ Created `CivicSession` class in `packages/civicos-client/src/session.ts` (220 li
 
 **P0 reassigned**: engagement_ladder_ux (Settings redesign remaining)
 - turnkey_city_deployment back to P1
+
+### Session 20: Settings UX — iOS-style flat layout + AI consolidation
+
+**Item:** engagement_ladder_ux (Settings redesign)
+**Status:** Shipped. Major Settings page restructure.
+
+**Changes:**
+- Replaced card-based layout with iOS-style flat grouped sections
+- Merged YOUR CITY + YOUR PROFILE into single "Your profile" section
+- Merged Account & Security into Your profile (below divider)
+- City dropdown filtered to city-level only (state/federal inherited)
+- AI section: replaced radio buttons with single Provider dropdown (CivicOS/Claude/OpenAI/Ollama)
+- Ollama is 4th provider option (not separate section), shown when detected
+- Fixed sign-in button margin (btn-compact specificity bug)
+- Fixed AI provider init race condition (Ollama status loaded before provider selection)
+- Added attestation requirement for CivicOS AI provider (client + server)
+- Server-side: /ai/draft and /ai/chat now check attestation (403 if unverified)
+- Verified badge shows attestation date + jurisdiction
+- Cleaned up ~30 unused CSS selectors
+
+**Files changed:**
+- apps/civicos-extension/src/options/Options.svelte (template + styles restructure)
+- apps/civicos-extension/src/lib/ai/providers/civicos-proxy.ts (attestation check + 403 handling)
+- packages/civicos-services/src/civicos_services/servers/routers/ai_proxy.py (attestation gate)
+
+**P0 remains**: engagement_ladder_ux — next: bridge Settings profile to Personal MCP agentic framework
+
+## Session 21 — 2025-03-05 — Bridge Profile to Chat Search (engagement_ladder_ux)
+
+**Item:** engagement_ladder_ux (P0) — COMPLETE
+
+**What was done:**
+- Connected user profile data (neighborhood, interests) to the AI chat/search pipeline
+- Added ChatUserContext type to @civicos/client (types.ts, index.ts)
+- Threaded userContext through: CivicSession.chat() → AIManager.chat() → AIProvider.chat()
+- CivicosProxyProvider.chat() now sends user_context in the /ai/chat request body
+- Server-side: Added ChatUserContext model to AIChatRequest, injects into system prompt
+  ("The user lives in X and cares about Y. Prioritize relevant info.")
+- CivicChatBar component now accepts userContext prop
+- SidePanel passes personalInterests + personalNeighborhood to CivicChatBar
+
+**Engagement ladder is now fully wired:**
+- Awareness: City pulse shows what's happening
+- Relevance: Interest-sorted items + personalized AI chat/search
+- Participation: Comment drafting with neighborhood/interests context
+- Coordination: Voice counts, initiatives
+
+**Committed Session 20 changes:** iOS-style Settings, AI provider dropdown, attestation gating
+
+**Files changed:**
+- packages/civicos-client/src/ai/types.ts (ChatUserContext interface)
+- packages/civicos-client/src/ai/manager.ts (thread userContext)
+- packages/civicos-client/src/session.ts (thread userContext)
+- packages/civicos-client/src/index.ts (export ChatUserContext)
+- apps/civicos-extension/src/lib/ai/providers/civicos-proxy.ts (send user_context)
+- packages/civicos-components/src/components/CivicChatBar.svelte (accept userContext prop)
+- apps/civicos-extension/src/side-panel/SidePanel.svelte (pass profile to CivicChatBar)
+- packages/civicos-services/src/civicos_services/servers/routers/ai_proxy.py (personalized system prompt)
+
+**P0 set to**: turnkey_city_deployment

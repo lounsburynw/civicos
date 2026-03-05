@@ -6,7 +6,7 @@
  * Priority: stored preference -> first ready provider in registration order
  */
 
-import type { AIProvider, AICompletionResult, AIChatResult } from './types.js';
+import type { AIProvider, AICompletionResult, AIChatResult, ChatUserContext } from './types.js';
 import type { AICredentialStorage } from './storage.js';
 
 export class AIManager {
@@ -115,7 +115,7 @@ export class AIManager {
    * Run a tool-backed civic search. Prefers local (device-tier) providers
    * for privacy, falling back to cloud providers (CivicOS proxy).
    */
-  async chat(question: string, jurisdiction?: string): Promise<AIChatResult> {
+  async chat(question: string, jurisdiction?: string, userContext?: ChatUserContext): Promise<AIChatResult> {
     if (!this.initialized) await this.initialize();
 
     // Prefer device-tier providers first (Ollama) for privacy,
@@ -141,14 +141,14 @@ export class AIManager {
     if (useLocal) {
       for (const provider of deviceProviders) {
         if (await provider.isReady()) {
-          return provider.chat!(question, jurisdiction);
+          return provider.chat!(question, jurisdiction, userContext);
         }
       }
     }
 
     // Fall back to cloud providers
     for (const provider of cloudProviders) {
-      return provider.chat!(question, jurisdiction);
+      return provider.chat!(question, jurisdiction, userContext);
     }
 
     return {

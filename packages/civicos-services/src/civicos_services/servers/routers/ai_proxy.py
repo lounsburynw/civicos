@@ -74,12 +74,18 @@ class AIDraftResponse(BaseModel):
     provider: str = "civicos"
 
 
+class ChatUserContext(BaseModel):
+    neighborhood: Optional[str] = None
+    interests: Optional[list[str]] = None
+
+
 class AIChatRequest(BaseModel):
     question: str
     jurisdiction: Optional[str] = None
     public_key: str
     signature: str
     created_at: int
+    user_context: Optional[ChatUserContext] = None
 
 
 class AIChatResponse(BaseModel):
@@ -294,6 +300,16 @@ async def ai_chat(request: AIChatRequest):
             "Be concise and factual. Cite specific dates, amounts, or meeting names when available. "
             "If no tool is relevant, answer based on your general knowledge and note the limitation."
         )
+
+        # Personalize system prompt with user context
+        if request.user_context:
+            ctx_parts = []
+            if request.user_context.neighborhood:
+                ctx_parts.append(f"lives in {request.user_context.neighborhood}")
+            if request.user_context.interests:
+                ctx_parts.append(f"cares about {', '.join(request.user_context.interests)}")
+            if ctx_parts:
+                system_prompt += f" The user {' and '.join(ctx_parts)}. Prioritize information relevant to their neighborhood and interests when possible."
 
         # First call: let Claude decide which tool to use
         response = client.messages.create(

@@ -1,11 +1,12 @@
 <script lang="ts">
   import type { CivicSession } from '@civicos/client';
-  import type { AIChatResult } from '@civicos/client';
+  import type { AIChatResult, ChatUserContext } from '@civicos/client';
 
   let {
     session,
     jurisdiction = '',
     aiAvailable = false,
+    userContext = undefined as ChatUserContext | undefined,
     renderMarkdown,
     ontoast,
     onnavigate,
@@ -13,6 +14,7 @@
     session: CivicSession;
     jurisdiction?: string;
     aiAvailable?: boolean;
+    userContext?: ChatUserContext;
     renderMarkdown?: (text: string) => string;
     ontoast?: (message: string) => void;
     onnavigate?: (tool: string) => void;
@@ -59,7 +61,7 @@
     result = null;
 
     try {
-      const chatResult = await session.chat(q, jurisdiction);
+      const chatResult = await session.chat(q, jurisdiction, userContext);
       if (!chatResult) {
         error = 'AI not available';
       } else if (!chatResult.success) {

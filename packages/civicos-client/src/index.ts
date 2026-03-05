@@ -73,7 +73,7 @@ export type { PulseBundle, CommentThread, InitiativeDetail } from './session.js'
 
 // AI — manager, providers, storage, prompts
 export { AIManager } from './ai/manager.js';
-export type { AIProvider, AITier, AICompletionResult, AIChatResult, AIProviderConfig, AIPreferences } from './ai/types.js';
+export type { AIProvider, AITier, AICompletionResult, AIChatResult, AIProviderConfig, AIPreferences, ChatUserContext } from './ai/types.js';
 export type { AICredentialStorage } from './ai/storage.js';
 export { MemoryAICredentialStorage } from './ai/storage.js';
 export { ClaudeProvider } from './ai/providers/claude.js';
