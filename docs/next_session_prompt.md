@@ -1,80 +1,73 @@
-# Recommended: MCP API Key Gate + Privacy-Preserving Relay Billing
+# Recommended: Deploy MCP API Key Gate + Run Platform DB Migration
 
-**Priority:** P0 is `turnkey_city_deployment` (deferred). Recommend this instead — cheap infrastructure that enables monetization if volume arrives.
+**Priority:** P0 is `turnkey_city_deployment` (deferred — marked "post E2E operational"). Recommend deploying the API key gate built in Session 26, then tackling a P1+ item.
 **Area:** deployment_artifacts > api_server
 **Date:** 2026-03-05
 
-> This is recommended context from Session 25. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
+> This is recommended context from Session 26. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
 
 ## Context
 
-Session 25 moved the AI proxy from MCP to relay (security fix — signature verification was silently bypassed). The relay is now the metered gateway for all authenticated AI requests. MCP is purely public civic data.
+Session 26 completed two things:
+1. **MCP API Key Gate** — `apps/civicos-mcp/api_key_middleware.py` adds optional API key auth + rate limiting to all `/api/tools/*` REST endpoints. Committed but **not yet deployed**.
+2. **Privacy-Preserving Billing ADR** — `docs/decisions/privacy_preserving_billing.md` designs the credit ledger for resident AI billing (design only, no code yet).
 
-Two billing surfaces exist:
-1. **MCP** (commercial API access) — journalists, newsrooms, AI platforms querying civic data. These users expect to identify themselves. Standard API key + Stripe works fine.
-2. **Relay** (resident AI access) — attested residents using /ai/draft and /ai/chat. These users have Nostr pseudonymous identity. We've spent significant effort on privacy (Nostr keys, attestation without PII, Schnorr signatures). Billing must not undo that.
+## Recommended Task
 
-## Privacy Constraint
+### Step 1: Deploy MCP with API Key Gate (~15 min)
 
-The current `api_keys.py` schema stores `stripe_customer_id` alongside `key_id` in the same row. Usage logs link `key_id` to endpoints + timestamps. If a resident's Nostr pubkey is linked to a Stripe customer (name, email, payment method), every civic question they asked becomes attributable to a real person. This is a surveillance-ready data model for civic inquiry — unacceptable.
+```bash
+modal deploy apps/civicos-mcp/modal_mcp.py
 
-**Requirement:** Resident AI billing must preserve pseudonymity. The payment system must not be joinable to the query log.
+# Verify health shows new auth field
+curl -s https://san-rafael.civicosproject.org/health | python3 -m json.tool | grep auth
+# Expected: "auth": "optional_api_key"
 
-## Two-Part Task
+# Test public access (no key) — should work
+curl -s https://san-rafael.civicosproject.org/api/tools/ | head -c 200
 
-### Part 1: MCP API Key Gate (~1-2hrs)
-
-Wire existing `ApiKeyStore` into MCP REST endpoints. This is straightforward — commercial users identify themselves.
-
-- **No key**: public rate limit (60 req/min per IP) — civic access stays free
-- **Valid key**: tier-based rate limit (60-1000 req/min) — commercial access
-- **Invalid key**: 401
-- **No Platform DB**: graceful pass-through
-
-**Key files:**
-- `apps/civicos-mcp/rest_api.py:155` — REST router where middleware attaches
-- `packages/civicos-services/src/civicos_services/core/api_keys.py` — `ApiKeyStore`
-- `scripts/sql/add_platform_billing.sql` — DB migration
-
-**Don't break internal calls:** The relay calls MCP REST endpoints for /ai/chat tool execution (server-to-server, no API key). Give the relay its own internal API key, or set the unauthenticated limit high enough (60 req/min per IP should suffice).
-
-### Part 2: Design Privacy-Preserving Relay Billing (~1hr design)
-
-Design (don't build yet) the billing model for resident AI access. The goal: frictionless payment by non-technical users while preserving the pseudonymity we've architected.
-
-**Approach: Stripe with architectural data separation.**
-
-The insight: separate the system that knows "who paid" from the system that knows "what they asked." Both exist, but they never share a key.
-
-```
-Stripe (knows identity)          Relay (knows queries)
-  |                                |
-  |-- payment confirms -->  credit ledger (pubkey + balance)
-  |                                |
-  |  (no query data)        (no identity data)
+# Test invalid key — should get 401
+curl -s -H "Authorization: Bearer cvk_live_invalid" https://san-rafael.civicosproject.org/api/tools/
 ```
 
-Concrete design:
-- **Credit ledger table** on relay DB: `pubkey`, `credits_remaining`, `last_topped_up`. No Stripe ID, no email, no name.
-- **Stripe checkout** is a one-shot interaction: user pays, webhook increments credits for a pubkey, Stripe receipt goes to their email. The relay only stores the pubkey + credit count.
-- **Usage deducts credits** from the ledger. Query logs reference pubkey only (already the case).
-- **The join doesn't exist in any single database.** Stripe knows "jane@email.com paid $5 to CivicOS." The relay knows "pubkey abc123 asked about housing policy." Neither system can reconstruct "Jane asked about housing."
+### Step 2: Run Platform DB Migration (if needed)
 
-This is option 3 from the privacy spectrum — Stripe with enforced data separation. It's frictionless (Stripe checkout is familiar UX), preserves pseudonymity (no identity in the relay DB), and is architecturally enforced (not just a policy).
+Check if `platform_api_keys` table exists:
+```bash
+python3 -c "
+from dotenv import load_dotenv; load_dotenv()
+import os, psycopg2
+conn = psycopg2.connect(os.getenv('PLATFORM_DATABASE_URL') or os.getenv('DATABASE_URL'))
+cur = conn.cursor()
+cur.execute(\"SELECT EXISTS(SELECT 1 FROM information_schema.tables WHERE table_name='platform_api_keys')\")
+print('platform_api_keys exists:', cur.fetchone()[0])
+conn.close()
+"
+```
 
-**Deliverable for Part 2:** A short design doc or ADR in `docs/decisions/` with the credit ledger schema, the Stripe webhook flow, and the data separation invariant. No code yet — just the design for a future session to implement.
+If table doesn't exist: `psql $PLATFORM_DATABASE_URL -f scripts/sql/add_platform_billing.sql`
 
-## What's Already Built
-- `api_keys.py` — Full `ApiKeyStore` with Stripe integration (works for MCP commercial keys as-is)
-- `billing.py` — Stripe checkout + webhook endpoints
+### Step 3: Pick Next Work Item
+
+After deploy verification, choose from remaining items. All remaining non-P0 items are P3.
+
+## Key Files
+- `apps/civicos-mcp/api_key_middleware.py` — Rate limiter + API key FastAPI dependency (NEW)
+- `apps/civicos-mcp/rest_api.py:155-162` — Router wired with `Depends(require_api_key_or_rate_limit)`
+- `apps/civicos-mcp/modal_mcp.py:405` — Health endpoint shows `"auth": "optional_api_key"`
+- `packages/civicos-services/src/civicos_services/core/api_keys.py` — `ApiKeyStore` (validates keys against Platform DB)
 - `scripts/sql/add_platform_billing.sql` — DB migration for platform tables
-- Tier config: free (60/min), journalist (120/min), organization (300/min), city (600/min), api (1000/min)
-- Relay already tracks per-pubkey usage (rate limits in ai_proxy.py)
+- `docs/decisions/privacy_preserving_billing.md` — Billing ADR (design for future implementation)
+
+## Important Design Notes
+- MCP endpoint (`/mcp`) is NOT gated — only REST API (`/api/tools/*`) has middleware
+- If `PLATFORM_DATABASE_URL` is not set, middleware passes through (all requests at public rate)
+- Relay calls MCP REST endpoints server-to-server without API keys — 60 req/min per IP suffices
+- API key format: `cvk_live_` + 32 hex chars, validated via SHA-256 hash lookup
 
 ## Success Criteria
-- [ ] MCP REST endpoints gated with optional API key middleware
-- [ ] Unauthenticated = rate-limited, valid key = tier limits, invalid = 401
-- [ ] Relay → MCP tool calls still work
-- [ ] No Platform DB = graceful pass-through
-- [ ] Design doc for privacy-preserving relay billing (credit ledger + data separation)
-- [ ] **Invariant documented:** no single database can join payment identity to query content
+- [ ] MCP deployed with API key gate active
+- [ ] Health endpoint shows `"auth": "optional_api_key"`
+- [ ] Public requests work (rate-limited at 60/min)
+- [ ] Invalid key returns 401
+- [ ] Relay -> MCP tool calls still work (no regression)
