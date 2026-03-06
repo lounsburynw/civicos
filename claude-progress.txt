@@ -1,3 +1,23 @@
+## Session 27 — 2026-03-05: Platform Billing Tables + Self-Serve Key Provisioning
+
+**Item:** API Key Infrastructure (handoff from Session 26)
+**Status:** Complete.
+
+**What was done:**
+1. Ran platform billing migration — created platform_api_keys, platform_usage_logs, platform_usage_daily tables in Supabase
+2. Added self-serve key provisioning endpoint: POST /api/keys/ (free-tier, 5 signups/hr per IP)
+3. Fixed ApiKeyStore to fall back to DATABASE_URL when PLATFORM_DATABASE_URL not set
+4. Added sslmode=require for cloud connections (fixed Modal -> Supabase connectivity)
+5. Deployed to Modal and verified end-to-end: key creation -> authenticated API access
+
+**Architecture notes for next session:**
+- ApiKeyStore falls back to DATABASE_URL (billing + civic data share same DB) — consider PLATFORM_DATABASE_URL later
+- In-memory rate limiter won't persist across container restarts/replicas — fine for MVP
+- get_usage_stats/get_all_usage_summary use f-string SQL (internally generated, not user input) — parameterize later
+
+**Commits:** 8785961 feat: Self-serve API key provisioning + platform billing tables
+**P0 remains:** turnkey_city_deployment
+
 ## Session 26 — 2026-03-05: MCP API Key Gate + Privacy Billing ADR
 
 **Item:** MCP API Key Gate + Privacy-Preserving Relay Billing Design
