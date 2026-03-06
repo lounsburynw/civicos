@@ -21096,3 +21096,41 @@ After: User Q → Claude discovers tools via search → composes queries in exec
 
 **P0 remains:** turnkey_city_deployment (deferred)
 **Recommended next:** Deploy and E2E test the Code Mode chat endpoint with real queries
+
+## Session 25 — 2026-03-05: Move AI Proxy to Relay + MCP API Key Gate
+
+**Item:** Move AI proxy from MCP to relay, fix signature bypass, prep for monetization
+
+**What changed:**
+
+1. **AI proxy moved to relay** (security fix):
+   - Relay now handles /ai/draft and /ai/chat (auth + Anthropic API calls)
+   - MCP is purely public civic data (no API keys, no auth)
+   - Extension points AI requests at relay URL (getMcpUrl → getRelayUrl)
+   - Fixes silent signature bypass (coincurve ImportError → return True)
+
+2. **CodeMode replaced with direct tool_use**:
+   - Removed FastMCP CodeMode (was broken — exhausted 5 turns)
+   - Claude gets tool definitions directly, calls via REST to MCP
+   - Simpler, faster, fewer API round trips
+
+3. **Architecture cleanup** (zero technical debt):
+   - Tool definitions fetched from MCP at startup (GET /api/tools/) — single source of truth
+   - configure_ai_proxy() accepts jurisdiction + attestation_checker (dependency injection)
+   - httpx.AsyncClient created once and reused
+   - CHAT_TOOLS filter removed — all 45 tools passed to Claude
+
+4. **MCP API key gate** (started, not finished):
+   - GET /api/tools/ endpoint added to MCP REST API
+   - ApiKeyStore infrastructure already exists (api_keys.py, billing.py, Stripe integration)
+   - Next: add optional API key middleware to MCP REST router
+
+**Commits:**
+- 28ef8f1 feat: Move AI proxy from MCP server to relay — fix signature bypass
+- 3a90f76 fix: Address architecture warnings — eliminate technical debt
+- 77199ec refactor: Remove CHAT_TOOLS filter — pass all tools to Claude
+
+**Deployed:** Both relay and MCP redeployed and verified healthy.
+
+**P0 remains:** turnkey_city_deployment (deferred)
+**Recommended next:** Wire API key middleware into MCP REST API (~2hrs)
