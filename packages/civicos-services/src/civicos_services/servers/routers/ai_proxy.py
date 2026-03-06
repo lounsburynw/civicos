@@ -32,16 +32,6 @@ CHAT_COST_PER_REQUEST = 0.02  # ~$0.02 per chat request (2 API calls)
 MAX_AGE_SECONDS = 300  # 5-minute replay window
 AI_DRAFT_KIND = 24242  # Custom Nostr kind for AI proxy auth
 
-# MVP tool subset for chat — keeps cost/latency low
-CHAT_TOOLS = [
-    "search_meeting_history",
-    "get_upcoming_meetings",
-    "search_budget",
-    "get_public_testimony",
-    "search_legislation",
-    "find_similar_issues",
-]
-
 MAX_TOOL_RESULT_CHARS = 4000
 
 # Module state — set via configure_ai_proxy()
@@ -82,20 +72,18 @@ def configure_ai_proxy(
 
 
 def _fetch_tool_definitions(mcp_base_url: str) -> list[dict]:
-    """Fetch tool definitions from MCP's GET /api/tools endpoint.
+    """Fetch all tool definitions from MCP's GET /api/tools endpoint.
 
     Uses sync httpx since this runs at startup (not in async context).
-    Filters to CHAT_TOOLS subset.
+    All tools are passed to Claude — it selects the right ones per query.
     """
     try:
         with httpx.Client(timeout=10.0) as client:
             resp = client.get(f"{mcp_base_url}/api/tools/")
             resp.raise_for_status()
-            all_tools = resp.json()
+            tools = resp.json()
 
-        chat_tool_names = set(CHAT_TOOLS)
-        tools = [t for t in all_tools if t["name"] in chat_tool_names]
-        logger.info("Fetched %d/%d tool definitions from MCP", len(tools), len(all_tools))
+        logger.info("Fetched %d tool definitions from MCP", len(tools))
         return tools
     except Exception:
         logger.exception("Failed to fetch tool definitions from MCP — /ai/chat will be unavailable")
