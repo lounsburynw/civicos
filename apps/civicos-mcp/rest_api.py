@@ -154,6 +154,18 @@ def create_rest_router(registry, civic, jurisdiction, validate_input, logger):
 
     router = APIRouter(prefix="/api/tools", tags=["Civic Tools"])
 
+    @router.get("/", summary="List available tools",
+                description="Returns tool definitions in Anthropic API format (name, description, input_schema).")
+    async def list_tools():
+        return [
+            {
+                "name": t["name"],
+                "description": t["description"],
+                "input_schema": t["inputSchema"],
+            }
+            for t in registry.list_tools()
+        ]
+
     def call_tool_safe(name: str, args: dict) -> dict:
         """Call a tool and return parsed JSON response."""
         try:
