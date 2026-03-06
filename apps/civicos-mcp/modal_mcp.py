@@ -59,9 +59,6 @@ def get_secrets(jurisdiction: str) -> list[str]:
     if jurisdiction.startswith("city-"):
         secrets.append("civic-google")  # GOOGLE_MAPS_API_KEY for geocoding
 
-    # AI proxy needs Anthropic API key for zero-config AI drafting
-    secrets.append("civic-anthropic")  # ANTHROPIC_API_KEY
-
     # Attestation issuer keypair for signing kind-30850 events
     secrets.append("civicos-attestation")  # CIVICOS_ATTESTATION_PRIVATE_KEY
 
@@ -88,7 +85,7 @@ mcp_image = (
     .pip_install(
         # MCP server
         "mcp[cli]>=1.13.1",
-        "fastmcp>=2.3.0",
+        "fastmcp>=3.1.0",
         # Database
         "psycopg2-binary>=2.9.0",
         # Embeddings (for vector search)
@@ -99,8 +96,8 @@ mcp_image = (
         "httpx>=0.24.0",
         "uvicorn>=0.30.0",
         "starlette>=0.38.0",
-        # AI proxy (for /api/ai/chat and /api/ai/draft)
-        "anthropic>=0.39.0",
+        # Crypto (BIP-340 Schnorr signature verification)
+        "coincurve>=21.0.0",
         # Utils
         "python-dotenv>=1.0.0",
         "pydantic>=2.0.0",
@@ -385,11 +382,6 @@ class MCPServer:
             self.logger
         )
         app.include_router(rest_router)
-
-        # AI proxy endpoint (zero-config AI drafting + tool-backed chat for extension)
-        from civicos_services.servers.routers.ai_proxy import router as ai_proxy_router, configure_chat_tools
-        app.include_router(ai_proxy_router, prefix="/api", tags=["AI Proxy"])
-        configure_chat_tools(self.registry, self.jurisdiction)
 
         # FastMCP Streamable HTTP at /mcp
         app.mount("/mcp", mcp_app, name="mcp")
