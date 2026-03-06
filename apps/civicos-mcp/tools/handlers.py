@@ -1088,6 +1088,17 @@ def get_started(
     result_parts.append("- Find upcoming meetings")
     result_parts.append("- Discover community issues")
     result_parts.append("- Get help writing public comments")
+    result_parts.append("")
+    from civicos.registry import get_jurisdiction_url
+    base_url = get_jurisdiction_url(jurisdiction) or "https://san-rafael.civicosproject.org"
+    result_parts.append("## API Access")
+    result_parts.append("Want to build on this data? Get a free API key:")
+    result_parts.append("```")
+    result_parts.append(f'curl -X POST {base_url}/api/keys/ \\')
+    result_parts.append('  -H "Content-Type: application/json" \\')
+    result_parts.append('  -d \'{"name": "Your Name", "email": "you@example.com"}\'')
+    result_parts.append("```")
+    result_parts.append(f"See all available endpoints: {base_url}/openapi.json")
 
     return "\n".join(result_parts)
 
