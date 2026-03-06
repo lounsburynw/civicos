@@ -5,8 +5,8 @@ forwards to Anthropic with server-side API key. Users get AI drafting
 with zero configuration — no API key needed.
 
 The /ai/chat endpoint uses direct Anthropic tool_use: Claude gets
-static tool definitions and executes them via REST calls to the MCP
-server. Simple, fast, single-turn tool use.
+tool definitions (fetched from MCP at startup) and executes them via
+REST calls to the MCP server. Simple, fast agentic loop.
 """
 
 import json
@@ -14,7 +14,7 @@ import logging
 import os
 import time
 from datetime import datetime, timezone
-from typing import Any, Optional
+from typing import Callable, Optional
 
 import httpx
 from fastapi import APIRouter, HTTPException
@@ -32,9 +32,6 @@ CHAT_COST_PER_REQUEST = 0.02  # ~$0.02 per chat request (2 API calls)
 MAX_AGE_SECONDS = 300  # 5-minute replay window
 AI_DRAFT_KIND = 24242  # Custom Nostr kind for AI proxy auth
 
-# MCP server base URL (set via configure_ai_proxy)
-_mcp_base_url: str = ""
-
 # MVP tool subset for chat — keeps cost/latency low
 CHAT_TOOLS = [
     "search_meeting_history",
@@ -47,112 +44,72 @@ CHAT_TOOLS = [
 
 MAX_TOOL_RESULT_CHARS = 4000
 
-# Static Anthropic tool definitions for the 6 chat tools
-TOOL_DEFINITIONS = [
-    {
-        "name": "search_meeting_history",
-        "description": "Search past city council meetings, decisions, and video transcripts. Returns meeting dates, decision outcomes, and relevant transcript excerpts.",
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "query": {"type": "string", "description": "Search query (e.g., 'homeless shelter', 'bike lane')"},
-                "include_transcripts": {"type": "boolean", "description": "Include video transcript excerpts", "default": True},
-                "limit": {"type": "integer", "description": "Maximum results per category", "default": 10},
-            },
-            "required": ["query"],
-        },
-    },
-    {
-        "name": "get_upcoming_meetings",
-        "description": "Get upcoming city council and commission meetings with their agendas.",
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "days": {"type": "integer", "description": "Days to look ahead", "default": 30},
-            },
-            "required": [],
-        },
-    },
-    {
-        "name": "search_budget",
-        "description": "Search the city's budget data by department, program, or spending category.",
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "query": {"type": "string", "description": "Budget search query (e.g., 'police', 'parks', 'capital improvement')"},
-                "limit": {"type": "integer", "description": "Maximum results", "default": 10},
-            },
-            "required": ["query"],
-        },
-    },
-    {
-        "name": "get_public_testimony",
-        "description": "Search public testimony and comments from meeting transcripts on a specific topic.",
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "topic": {"type": "string", "description": "Topic to search testimony for"},
-                "limit": {"type": "integer", "description": "Maximum results", "default": 10},
-            },
-            "required": ["topic"],
-        },
-    },
-    {
-        "name": "search_legislation",
-        "description": "Search state and federal legislation relevant to the city, including bills and regulatory changes.",
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "query": {"type": "string", "description": "Legislation search query"},
-                "limit": {"type": "integer", "description": "Maximum results", "default": 10},
-            },
-            "required": ["query"],
-        },
-    },
-    {
-        "name": "find_similar_issues",
-        "description": "Find 311/SeeClickFix community-reported issues similar to a topic, using semantic search.",
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "topic": {"type": "string", "description": "Topic to search (e.g., 'traffic safety', 'pothole')"},
-                "semantic": {"type": "boolean", "description": "Use semantic matching", "default": True},
-                "limit": {"type": "integer", "description": "Maximum results", "default": 20},
-            },
-            "required": ["topic"],
-        },
-    },
-]
-
-# Tool name → REST endpoint name mapping (underscore → hyphen)
-TOOL_REST_MAP = {
-    "search_meeting_history": "search-meeting-history",
-    "get_upcoming_meetings": "get-upcoming-meetings",
-    "search_budget": "search-budget",
-    "get_public_testimony": "get-public-testimony",
-    "search_legislation": "search-legislation",
-    "find_similar_issues": "find-similar-issues",
-}
+# Module state — set via configure_ai_proxy()
+_mcp_base_url: str = ""
+_jurisdiction: str = ""
+_tool_definitions: list[dict] = []
+_http_client: Optional[httpx.AsyncClient] = None
+_attestation_checker: Optional[Callable[[str], bool]] = None
 
 
-def configure_ai_proxy(mcp_base_url: str) -> None:
-    """Set the MCP server base URL for REST tool calls."""
-    global _mcp_base_url
+def configure_ai_proxy(
+    mcp_base_url: str,
+    jurisdiction: str = "city-san-rafael",
+    attestation_checker: Optional[Callable[[str], bool]] = None,
+) -> None:
+    """Configure the AI proxy with its dependencies.
+
+    Args:
+        mcp_base_url: MCP server URL for REST tool calls.
+        jurisdiction: Default jurisdiction for chat queries.
+        attestation_checker: Callable that checks if a pubkey is attested.
+            If None, falls back to relative import from coordination router.
+    """
+    global _mcp_base_url, _jurisdiction, _tool_definitions, _http_client, _attestation_checker
+
     _mcp_base_url = mcp_base_url.rstrip("/")
-    logger.info("AI proxy configured with MCP URL: %s", _mcp_base_url)
+    _jurisdiction = jurisdiction
+    _attestation_checker = attestation_checker
+    _http_client = httpx.AsyncClient(timeout=20.0)
+
+    # Fetch tool definitions from MCP server (single source of truth)
+    _tool_definitions = _fetch_tool_definitions(_mcp_base_url)
+
+    logger.info(
+        "AI proxy configured: mcp=%s, jurisdiction=%s, tools=%d",
+        _mcp_base_url, _jurisdiction, len(_tool_definitions),
+    )
+
+
+def _fetch_tool_definitions(mcp_base_url: str) -> list[dict]:
+    """Fetch tool definitions from MCP's GET /api/tools endpoint.
+
+    Uses sync httpx since this runs at startup (not in async context).
+    Filters to CHAT_TOOLS subset.
+    """
+    try:
+        with httpx.Client(timeout=10.0) as client:
+            resp = client.get(f"{mcp_base_url}/api/tools/")
+            resp.raise_for_status()
+            all_tools = resp.json()
+
+        chat_tool_names = set(CHAT_TOOLS)
+        tools = [t for t in all_tools if t["name"] in chat_tool_names]
+        logger.info("Fetched %d/%d tool definitions from MCP", len(tools), len(all_tools))
+        return tools
+    except Exception:
+        logger.exception("Failed to fetch tool definitions from MCP — /ai/chat will be unavailable")
+        return []
 
 
 async def _call_mcp_tool(name: str, args: dict) -> str:
     """Execute a tool via REST call to the MCP server."""
-    rest_name = TOOL_REST_MAP.get(name)
-    if not rest_name:
-        return json.dumps({"error": f"Unknown tool: {name}"})
-
+    rest_name = name.replace("_", "-")
     url = f"{_mcp_base_url}/api/tools/{rest_name}"
-    async with httpx.AsyncClient(timeout=20.0) as client:
-        resp = await client.post(url, json=args)
-        resp.raise_for_status()
-        data = resp.json()
+
+    resp = await _http_client.post(url, json=args)
+    resp.raise_for_status()
+    data = resp.json()
 
     # Extract result text, truncate if needed
     result = data.get("result", "")
@@ -271,7 +228,14 @@ def _verify_ai_signature(public_key: str, signature: str, created_at: int) -> bo
 
 
 def _check_attestation(public_key: str) -> bool:
-    """Check if pubkey has a valid residency attestation."""
+    """Check if pubkey has a valid residency attestation.
+
+    Uses the injected attestation_checker if available (relay deployment),
+    otherwise falls back to the coordination router (standalone API server).
+    """
+    if _attestation_checker:
+        return _attestation_checker(public_key)
+
     try:
         from .coordination import _get_attestation_storage
 
@@ -280,20 +244,6 @@ def _check_attestation(public_key: str) -> bool:
             return False
         attestation = storage.get_attestation(public_key, "city-san-rafael")
         return attestation is not None
-    except ImportError:
-        # When running on relay (not alongside coordination router),
-        # import attestation storage directly
-        try:
-            from civicos_relay.storage.postgres import PostgresAttestationStorage
-            relay_url = os.environ.get("RELAY_DATABASE_URL") or os.environ.get("DATABASE_URL")
-            if not relay_url:
-                return False
-            storage = PostgresAttestationStorage(relay_url)
-            attestation = storage.get_attestation(public_key, "city-san-rafael")
-            return attestation is not None
-        except Exception:
-            logger.exception("Attestation check error (direct)")
-            return False
     except Exception:
         logger.exception("Attestation check error")
         return False
@@ -363,8 +313,8 @@ async def ai_draft(request: AIDraftRequest):
 async def ai_chat(request: AIChatRequest):
     """Answer a civic question using AI with tool-backed search.
 
-    Uses direct Anthropic tool_use: Claude gets 6 civic tool definitions
-    and calls them via REST to the MCP server. Simple agentic loop.
+    Uses direct Anthropic tool_use: Claude gets civic tool definitions
+    (fetched from MCP at startup) and calls them via REST. Agentic loop.
     """
     # 1. Replay protection
     now = int(time.time())
@@ -389,11 +339,11 @@ async def ai_chat(request: AIChatRequest):
     if not api_key:
         raise HTTPException(status_code=503, detail="AI service not configured")
 
-    if not _mcp_base_url:
-        raise HTTPException(status_code=503, detail="Chat tools not configured — MCP URL not set")
+    if not _tool_definitions:
+        raise HTTPException(status_code=503, detail="Chat tools not available — MCP unreachable at startup")
 
     try:
-        jurisdiction = request.jurisdiction or "city-san-rafael"
+        jurisdiction = request.jurisdiction or _jurisdiction
 
         import anthropic
 
@@ -420,7 +370,7 @@ async def ai_chat(request: AIChatRequest):
                 model="claude-sonnet-4-5-20250929",
                 max_tokens=1024,
                 system=system_prompt,
-                tools=TOOL_DEFINITIONS,
+                tools=_tool_definitions,
                 messages=messages,
             )
 

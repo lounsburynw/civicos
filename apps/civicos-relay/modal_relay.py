@@ -100,10 +100,27 @@ class RelayServer:
         # Import the AI proxy router (mounted as /app/ai_proxy.py)
         from ai_proxy import router as ai_proxy_router, configure_ai_proxy
 
-        # Configure AI proxy with MCP server URL for tool calls
+        # Build attestation checker using relay's direct DB access
+        def check_attestation(public_key: str) -> bool:
+            try:
+                from civicos_relay.storage.postgres import PostgresAttestationStorage
+                relay_url = os.environ.get("RELAY_DATABASE_URL") or os.environ.get("DATABASE_URL")
+                if not relay_url:
+                    return False
+                storage = PostgresAttestationStorage(relay_url)
+                return storage.get_attestation(public_key, jurisdiction) is not None
+            except Exception:
+                return False
+
+        # Configure AI proxy with all dependencies
+        jurisdiction = os.environ.get("CIVICOS_JURISDICTION", "city-san-rafael")
         mcp_url = os.environ.get("CIVICOS_MCP_URL", "")
         if mcp_url:
-            configure_ai_proxy(mcp_url)
+            configure_ai_proxy(
+                mcp_base_url=mcp_url,
+                jurisdiction=jurisdiction,
+                attestation_checker=check_attestation,
+            )
 
         fastapi_app = FastAPI(
             title="CivicOS Coordination Relay",
