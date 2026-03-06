@@ -127,6 +127,20 @@ class CommentSynthesisRequest(BaseModel):
     entity_id: str = Field(..., description="Entity ID to get comment synthesis for (e.g., 'agenda-item:123')")
 
 
+class CreateKeyRequest(BaseModel):
+    """Request to create a free-tier API key."""
+    name: str = Field(..., description="Name or organization (e.g., 'Marin IJ Newsroom')", min_length=2, max_length=200)
+    email: str = Field(..., description="Contact email", min_length=5, max_length=254)
+
+
+class CreateKeyResponse(BaseModel):
+    """Response with the newly created API key (shown once)."""
+    key_id: str = Field(..., description="Key identifier for reference")
+    raw_key: str = Field(..., description="API key — save this, it cannot be retrieved again")
+    tier: str = Field(default="free", description="Access tier")
+    rate_limit_per_minute: int = Field(default=60, description="Rate limit for this tier")
+
+
 class ToolResponse(BaseModel):
     """Standard response for all tool endpoints."""
     success: bool = True
@@ -550,5 +564,87 @@ def create_rest_router(registry, civic, jurisdiction, validate_input, logger):
         except Exception as e:
             logger.error(f"action-draft failed: {e}")
             raise HTTPException(status_code=500, detail="Draft generation failed")
+
+    return router
+
+
+def create_keys_router(logger):
+    """
+    Create a FastAPI router for self-serve API key provisioning.
+
+    Separate from the tools router — no API key required to create a key.
+    Rate limited to 5 signups per hour per IP to prevent abuse.
+    """
+    import re
+    import time
+    from collections import defaultdict
+    from fastapi import APIRouter, HTTPException, Request
+
+    from civicos_services.core.api_keys import ApiKeyStore, TIER_CONFIG
+
+    router = APIRouter(prefix="/api/keys", tags=["API Keys"])
+
+    # Signup rate limiter: 5 per hour per IP
+    _signup_timestamps: dict[str, list[float]] = defaultdict(list)
+    SIGNUP_LIMIT = 5
+    SIGNUP_WINDOW = 3600  # 1 hour
+
+    def _check_signup_rate(ip: str) -> None:
+        now = time.monotonic()
+        cutoff = now - SIGNUP_WINDOW
+        _signup_timestamps[ip] = [t for t in _signup_timestamps[ip] if t > cutoff]
+        if len(_signup_timestamps[ip]) >= SIGNUP_LIMIT:
+            raise HTTPException(
+                status_code=429,
+                detail=f"Too many key requests ({SIGNUP_LIMIT}/hour). Try again later.",
+                headers={"Retry-After": "3600"},
+            )
+        _signup_timestamps[ip].append(now)
+
+    EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+
+    @router.post(
+        "/",
+        response_model=CreateKeyResponse,
+        summary="Create a free-tier API key",
+        description="Self-serve key provisioning. Returns the raw key once — save it immediately.",
+    )
+    async def create_key(request: Request, body: CreateKeyRequest):
+        # Rate limit by IP
+        client_ip = request.client.host if request.client else "unknown"
+        _check_signup_rate(client_ip)
+
+        # Validate email format
+        if not EMAIL_RE.match(body.email):
+            raise HTTPException(status_code=422, detail="Invalid email format.")
+
+        store = ApiKeyStore()
+        if not store.available:
+            raise HTTPException(
+                status_code=503,
+                detail="Key provisioning is temporarily unavailable.",
+            )
+
+        result = store.create_key(
+            name=body.name,
+            email=body.email,
+            tier="free",
+        )
+        if result is None:
+            raise HTTPException(
+                status_code=500,
+                detail="Failed to create API key. Please try again.",
+            )
+
+        key_id, raw_key = result
+        rate_limit = TIER_CONFIG["free"]["rate_limit_per_minute"]
+        logger.info("Self-serve key created: %s for %s", key_id, body.email)
+
+        return CreateKeyResponse(
+            key_id=key_id,
+            raw_key=raw_key,
+            tier="free",
+            rate_limit_per_minute=rate_limit,
+        )
 
     return router
