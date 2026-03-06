@@ -150,9 +150,15 @@ def create_rest_router(registry, civic, jurisdiction, validate_input, logger):
     Returns:
         FastAPI APIRouter
     """
-    from fastapi import APIRouter, HTTPException
+    from fastapi import APIRouter, Depends, HTTPException
 
-    router = APIRouter(prefix="/api/tools", tags=["Civic Tools"])
+    from api_key_middleware import require_api_key_or_rate_limit
+
+    router = APIRouter(
+        prefix="/api/tools",
+        tags=["Civic Tools"],
+        dependencies=[Depends(require_api_key_or_rate_limit)],
+    )
 
     @router.get("/", summary="List available tools",
                 description="Returns tool definitions in Anthropic API format (name, description, input_schema).")

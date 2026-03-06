@@ -405,7 +405,7 @@ class MCPServer:
             "platform": "modal",
             "tools_count": len(bound_tools),
             "tools": bound_tools,
-            "auth": "none",
+            "auth": "optional_api_key",
             "endpoints": {
                 "mcp": "/mcp/",
                 "health": "GET /health",
