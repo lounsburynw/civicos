@@ -345,18 +345,31 @@ def get_source_counts(
         "queried_at": datetime.now(),
     }
 
-    # Get meetings from ProudCity (San Rafael specific)
-    if jurisdiction_id in ("city-san-rafael", "san-rafael"):
-        try:
-            from civicos_extraction.clients.proudcity import create_san_rafael_client
-            client = create_san_rafael_client()
-            events = client.get_events(days_ahead=90, days_past=days_past)
+    # Get meetings using jurisdiction config (platform-aware)
+    try:
+        from civicos.jurisdiction_config import load_jurisdiction_config
+        jconfig = load_jurisdiction_config(jurisdiction_id)
+        platform = jconfig.data_sources.meetings.source_type
+
+        if platform == "proudcity":
+            from civicos_extraction.clients.proudcity import ProudCitySource
+            source = ProudCitySource.from_jurisdiction(jurisdiction_id)
+            events = source.get_events(days_ahead=90, days_past=days_past)
             result["meetings"]["count"] = len(events)
-        except ImportError:
-            result["meetings"]["error"] = "civic-extraction not installed"
-        except Exception as e:
-            logger.warning(f"Failed to get ProudCity meetings: {e}")
-            result["meetings"]["error"] = str(e)[:100]
+            result["meetings"]["source"] = "proudcity"
+        elif platform in ("legistar", "civicclerk", "granicus"):
+            result["meetings"]["source"] = platform
+            result["meetings"]["error"] = f"{platform} live ingest not yet implemented in CLI"
+        elif platform:
+            result["meetings"]["source"] = platform
+            result["meetings"]["error"] = f"Unknown platform: {platform}"
+        else:
+            result["meetings"]["error"] = "No meeting platform configured"
+    except ImportError as ie:
+        result["meetings"]["error"] = f"Missing dependency: {ie}"
+    except Exception as e:
+        logger.warning(f"Failed to get meetings: {e}")
+        result["meetings"]["error"] = str(e)[:100]
 
     # Get issues from SeeClickFix
     try:
@@ -1498,6 +1511,374 @@ Config Location:
     except Exception as e:
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
+
+
+def onboard_main():
+    """Main CLI entry point for city onboarding wizard."""
+    parser = argparse.ArgumentParser(
+        description="Onboard a new city — detect platform, generate config, validate",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  civicos-onboard "Berkeley" --url https://berkeleyca.gov
+  civicos-onboard "El Cerrito" --url https://www.el-cerrito.org --state CA --county Alameda
+  civicos-onboard "Oakland" --url https://www.oaklandca.gov --dry-run
+
+This command will:
+  1. Detect the city's meeting platform (Legistar, CivicClerk, ProudCity)
+  2. Generate a unified YAML config in data/jurisdictions/
+  3. Validate the config and show what needs manual input
+        """
+    )
+
+    parser.add_argument(
+        "city_name",
+        help="City display name (e.g., 'Berkeley', 'El Cerrito')"
+    )
+    parser.add_argument(
+        "--url", "-u",
+        required=True,
+        help="City website URL (e.g., 'https://berkeleyca.gov')"
+    )
+    parser.add_argument(
+        "--state",
+        default="CA",
+        help="State abbreviation (default: CA)"
+    )
+    parser.add_argument(
+        "--county",
+        default="",
+        help="County name (e.g., 'Alameda')"
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Show what would be generated without writing files"
+    )
+    parser.add_argument(
+        "--skip-detect",
+        action="store_true",
+        help="Skip platform detection (use --platform to set manually)"
+    )
+    parser.add_argument(
+        "--platform",
+        choices=["legistar", "civicclerk", "proudcity", "granicus"],
+        help="Override detected platform type"
+    )
+    parser.add_argument(
+        "--json",
+        action="store_true",
+        dest="json_output",
+        help="Output as JSON"
+    )
+
+    args = parser.parse_args()
+
+    # Derive jurisdiction_id from city name
+    city_slug = args.city_name.lower().replace(" ", "-")
+    jurisdiction_id = f"city-{city_slug}"
+
+    # Normalize URL
+    base_url = args.url.rstrip("/")
+    if not base_url.startswith(("http://", "https://")):
+        base_url = f"https://{base_url}"
+
+    print(f"Onboarding: {args.city_name} ({jurisdiction_id})")
+    print(f"Website: {base_url}")
+    print()
+
+    # Step 1: Platform detection
+    source_type = args.platform
+    detection_meta = {}
+
+    if not args.skip_detect and not source_type:
+        print("Step 1: Detecting meeting platform...")
+        try:
+            from civicos_extraction.platform_detection import detect_platform
+            result = detect_platform(base_url, jurisdiction_id=jurisdiction_id)
+            detection_meta = result.to_dict()
+
+            if result.source_type and result.confidence >= 0.5:
+                source_type = result.source_type
+                print(f"  Detected: {result.platform_name} ({result.confidence:.0%} confidence)")
+                if result.source_type == "proudcity" and result.metadata.get("proudcity", {}).get("discovered_meeting_types"):
+                    types = result.metadata["proudcity"]["discovered_meeting_types"]
+                    print(f"  Meeting types found: {len(types)}")
+            else:
+                print("  No platform detected with sufficient confidence.")
+                print("  Use --platform to set manually (legistar, civicclerk, proudcity, granicus)")
+        except ImportError:
+            print("  Warning: civicos-extraction not installed, skipping detection")
+            print("  Use --platform to set manually")
+        except Exception as e:
+            print(f"  Detection error: {e}")
+            print("  Use --platform to set manually")
+        print()
+    elif source_type:
+        print(f"Step 1: Using specified platform: {source_type}")
+        print()
+
+    # Step 2: Generate config YAML
+    print("Step 2: Generating config...")
+
+    # Build archives from detection
+    archives = {}
+    if source_type == "proudcity" and detection_meta.get("metadata", {}).get("proudcity", {}).get("discovered_meeting_types"):
+        for slug in detection_meta["metadata"]["proudcity"]["discovered_meeting_types"]:
+            key = slug.replace("-", "_")
+            archives[key] = f"/{slug}-meetings/"
+
+    config_data = _generate_config_yaml(
+        jurisdiction_id=jurisdiction_id,
+        display_name=args.city_name,
+        base_url=base_url,
+        source_type=source_type or "",
+        state=args.state,
+        county=args.county,
+        archives=archives,
+    )
+
+    from civicos.jurisdiction_config import get_config_dir
+
+    config_dir = get_config_dir()
+    config_path = config_dir / f"{jurisdiction_id}.yaml"
+
+    if args.dry_run:
+        print(f"  Would write: {config_path}")
+        print()
+        print("--- Generated Config ---")
+        print(config_data)
+        print("--- End Config ---")
+    else:
+        if config_path.exists():
+            print(f"  Config already exists: {config_path}")
+            print("  Use --dry-run to preview without overwriting, or delete the file first.")
+            sys.exit(1)
+
+        config_dir.mkdir(parents=True, exist_ok=True)
+        with open(config_path, "w") as f:
+            f.write(config_data)
+        print(f"  Written: {config_path}")
+    print()
+
+    # Step 3: Validate
+    print("Step 3: Validating config...")
+    from civicos.jurisdiction_config import (
+        load_jurisdiction_config, validate_jurisdiction_config,
+        format_validation_result,
+    )
+
+    if args.dry_run:
+        # Parse the generated YAML directly
+        import yaml
+        data = yaml.safe_load(config_data) or {}
+        # Load via the standard loader to get a JurisdictionConfig
+        # For dry-run, temporarily write to a temp location isn't needed —
+        # we can construct the config from the data manually
+        config = load_jurisdiction_config(jurisdiction_id)
+        # If config file doesn't exist yet (dry-run), construct from generated data
+        if not config_path.exists():
+            from civicos.jurisdiction_config import JurisdictionConfig
+            config = JurisdictionConfig(
+                jurisdiction_id=jurisdiction_id,
+                level="city",
+                display_name=args.city_name,
+            )
+            # Re-load would just give defaults, so parse minimally
+            config.data_sources.meetings.source_type = source_type or ""
+            config.data_sources.meetings.base_url = base_url
+            config.contact_info.website = base_url
+            config.financial.state = args.state
+            config.financial.county = args.county
+    else:
+        config = load_jurisdiction_config(jurisdiction_id)
+
+    validation = validate_jurisdiction_config(config)
+    print(format_validation_result(validation, config))
+    print()
+
+    # Step 4: Show next steps
+    print("Next steps:")
+    needs_manual = []
+
+    if not source_type:
+        needs_manual.append("Determine meeting platform and set data_sources.meetings.source_type")
+    if not args.county:
+        needs_manual.append("Add financial.county (needed for HUD/federal data)")
+    needs_manual.append("Review and fill in contact_info (clerk_email, phone, address)")
+    needs_manual.append("Add zip_codes and neighborhoods for geographic filtering")
+    if not archives:
+        needs_manual.append("Discover meeting archive URLs (run platform-specific discovery)")
+
+    needs_manual.append("Look up HUD grantee at https://www.hudexchange.info/grantees/allocations-awards/")
+
+    for i, step in enumerate(needs_manual, 1):
+        print(f"  {i}. {step}")
+
+    print()
+    print("When config is complete:")
+    print(f"  civicos-validate {jurisdiction_id}       # Validate config")
+    print(f"  civicos-deploy {jurisdiction_id} --dry-run  # Preview deployment")
+    print(f"  civicos-deploy {jurisdiction_id}            # Full deploy")
+
+    if args.json_output:
+        print()
+        print(json.dumps({
+            "jurisdiction_id": jurisdiction_id,
+            "config_path": str(config_path),
+            "platform_detected": source_type,
+            "detection": detection_meta,
+            "validation_valid": validation.is_valid,
+            "validation_summary": validation.summary,
+            "dry_run": args.dry_run,
+        }, indent=2, default=str))
+
+    sys.exit(0)
+
+
+def _generate_config_yaml(
+    jurisdiction_id: str,
+    display_name: str,
+    base_url: str,
+    source_type: str,
+    state: str,
+    county: str,
+    archives: Dict[str, str],
+) -> str:
+    """Generate a YAML config string for a new jurisdiction."""
+    today = datetime.now().strftime("%Y-%m-%d")
+
+    # Build archives block
+    archives_lines = ""
+    if archives:
+        for key, path in sorted(archives.items()):
+            archives_lines += f"      {key}: {path}\n"
+    else:
+        archives_lines = "      # TODO: Add meeting archive URLs after platform discovery\n"
+
+    # Build parent jurisdictions
+    parents = []
+    if county:
+        county_slug = county.lower().replace(" ", "-")
+        parents.append(f"  - county-{county_slug}")
+    if state:
+        # Map common state abbreviations to names
+        state_names = {"CA": "california", "NY": "new-york", "TX": "texas", "FL": "florida",
+                       "IL": "illinois", "PA": "pennsylvania", "OH": "ohio", "GA": "georgia",
+                       "NC": "north-carolina", "MI": "michigan", "WA": "washington", "OR": "oregon"}
+        state_name = state_names.get(state.upper(), state.lower())
+        parents.append(f"  - state-{state_name}")
+    parents.append("  - country-united-states")
+    parents_block = "\n".join(parents)
+
+    return f"""# {display_name} City Configuration
+#
+# Generated by civicos-onboard on {today}.
+# Review and complete TODO items before deploying.
+
+# =============================================================================
+# Identity
+# =============================================================================
+
+jurisdiction_id: {jurisdiction_id}
+level: city
+display_name: {display_name}
+
+# =============================================================================
+# Hierarchy
+# =============================================================================
+
+parent_jurisdictions:
+{parents_block}
+
+# =============================================================================
+# Contact Information
+# =============================================================================
+
+contact_info:
+  clerk_email: ""  # TODO: City clerk email
+  city_hall_address: ""  # TODO: City hall address
+  phone: ""  # TODO: Main phone number
+  website: "{base_url}"
+  public_comment_deadline: "5:00 PM day of meeting"  # TODO: Verify
+  in_person_time_limit: "3 minutes"  # TODO: Verify
+  public_comment_subject: "Public Comment - [Agenda Item Title]"
+
+# =============================================================================
+# Governing Body
+# =============================================================================
+
+governing_body:
+  name: {display_name} City Council
+  members_title: Mayor and Council Members
+  meeting_schedule: ""  # TODO: e.g., "First and third Monday, 7:00 PM"
+  meeting_location: ""  # TODO: e.g., "City Council Chambers, 123 Main St"
+
+# =============================================================================
+# Data Sources
+# =============================================================================
+
+data_sources:
+  meetings:
+    source_type: {source_type if source_type else '""  # TODO: Set platform (legistar, civicclerk, proudcity, granicus)'}
+    base_url: {base_url}
+    auto_discover: {'true' if source_type == 'proudcity' else 'false'}
+    archives:
+{archives_lines}
+  issues: seeclickfix
+  budget: ""  # TODO: opengov or municipal_portal
+  municipal_code: municode  # TODO: Verify city uses Municode
+  transcripts:
+    source: ""  # TODO: youtube or granicus
+    playlist_id: null
+
+# =============================================================================
+# Financial Context
+# =============================================================================
+
+financial:
+  state: {state}
+  county: {county if county else '"" # TODO: County name'}
+
+federal_programs:
+  hud_grantee: ""  # TODO: Look up at https://www.hudexchange.info/grantees/allocations-awards/
+  hud_relationship: ""  # TODO: direct, consortium, or subrecipient
+  notes: ""
+
+# =============================================================================
+# Geography
+# =============================================================================
+
+zip_codes: []  # TODO: Add zip codes (e.g., ["94701", "94702"])
+
+neighborhoods: []  # TODO: Add neighborhood names
+
+# =============================================================================
+# Tool Configuration
+# =============================================================================
+
+tools_enabled: null
+tool_overrides: {{}}
+
+# =============================================================================
+# Modal Deployment
+# =============================================================================
+
+modal:
+  min_containers: 0
+  secrets:
+    - civicos-env
+    - civic-google
+
+# =============================================================================
+# Metadata
+# =============================================================================
+
+metadata:
+  created: "{today}"
+  updated: "{today}"
+  notes: "Generated by civicos-onboard. Review TODOs before deploying."
+"""
 
 
 if __name__ == "__main__":
