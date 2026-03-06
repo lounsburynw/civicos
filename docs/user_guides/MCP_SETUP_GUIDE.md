@@ -279,6 +279,64 @@ Connect your MCP client to `http://localhost:8080` or `http://localhost:8081`.
 
 ---
 
+## REST API Access (No Setup Required)
+
+If you don't need MCP and just want to query civic data programmatically, use the hosted REST API directly. No local installation required.
+
+### Get an API Key
+
+```bash
+curl -X POST https://san-rafael.civicosproject.org/api/keys/ \
+  -H "Content-Type: application/json" \
+  -d '{"name": "Your Name", "email": "you@example.com"}'
+```
+
+Response:
+```json
+{
+  "key_id": "cvk_abc123...",
+  "raw_key": "cvk_live_...",
+  "tier": "free",
+  "rate_limit_per_minute": 60
+}
+```
+
+Save the `raw_key` — it's shown once and cannot be retrieved again.
+
+### Make Authenticated Requests
+
+```bash
+# Search meeting history
+curl -X POST https://san-rafael.civicosproject.org/api/tools/search-meeting-history \
+  -H "Authorization: Bearer cvk_live_your_key_here" \
+  -H "Content-Type: application/json" \
+  -d '{"query": "housing"}'
+
+# Get upcoming meetings
+curl -X POST https://san-rafael.civicosproject.org/api/tools/get-upcoming-meetings \
+  -H "Authorization: Bearer cvk_live_your_key_here" \
+  -H "Content-Type: application/json" \
+  -d '{"days": 14}'
+
+# List all available tools
+curl https://san-rafael.civicosproject.org/api/tools/
+```
+
+### Rate Limits
+
+| Access | Rate Limit |
+|--------|-----------|
+| No API key (public) | 60 requests/min per IP |
+| Free tier key | 60 requests/min per key |
+
+API keys also enable usage tracking. Higher rate limit tiers will be available in the future.
+
+### Available Endpoints
+
+See the full OpenAPI spec at: `https://san-rafael.civicosproject.org/openapi.json`
+
+---
+
 ## Next Steps
 
 - **[Getting Started](GETTING_STARTED.md)** — Learn what you can do with Civic
