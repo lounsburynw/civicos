@@ -1,19 +1,18 @@
-# Recommended: Address API Key Architecture Notes + Turnkey City Deployment
+# Recommended: API Key Architecture Fixes + Turnkey City Deployment + Landing Page
 
 **Priority:** P0 is `turnkey_city_deployment`
 **Area:** city_onboarding > scaling
-**Date:** 2026-03-05
+**Date:** 2026-03-06
 
 > This is recommended context from Session 27. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
 
 ## Context
 
-Session 27 deployed the full API key infrastructure:
-- Platform billing tables (platform_api_keys, platform_usage_logs, platform_usage_daily)
-- Self-serve key provisioning: `POST /api/keys/` (live at san-rafael.civicosproject.org)
-- End-to-end verified: key creation -> authenticated tool access
-
-Three architecture advisory notes were flagged by critics. These are quick fixes (~15 min) before moving to the P0.
+Session 27 completed the full API key infrastructure and user-facing documentation:
+- Platform billing tables live (platform_api_keys, platform_usage_logs, platform_usage_daily)
+- Self-serve key provisioning: `POST /api/keys/` (deployed, verified end-to-end)
+- User guides updated with REST API docs + get_started tool mentions API access
+- Three architecture advisory notes flagged by critics (quick fixes)
 
 ## Recommended Task
 
@@ -29,27 +28,33 @@ Three architecture advisory notes were flagged by critics. These are quick fixes
 
 ### Step 2: Turnkey City Deployment (P0)
 
-The main work item. Description: "Make unified config system actually reduce new city deployment effort. Currently config is ~20% of work; extractors, HUD mapping, and elections are ~80%."
+Description: "Make unified config system actually reduce new city deployment effort. Currently config is ~20% of work; extractors, HUD mapping, and elections are ~80%."
 
 Explore what's needed:
-- Check `config/registry.json` for jurisdiction config
-- Check `packages/civicos-extraction/` for extractor patterns
-- Check `docs/critical/EXTRACTOR_PROTOCOL.md`
-- Check `docs/user_guides/CITY_ONBOARDING_GUIDE.md`
+- `config/registry.json` — jurisdiction config
+- `packages/civicos-extraction/` — extractor patterns
+- `docs/critical/EXTRACTOR_PROTOCOL.md` — protocol docs
+- `docs/user_guides/CITY_ONBOARDING_GUIDE.md` — onboarding guide
+
+### Future Session: Landing Page + Read the Docs
+
+The project needs a public-facing landing page at `san-rafael.civicosproject.org/` (currently returns health JSON). Should cover:
+- What CivicOS is
+- Available data and tools
+- How to get an API key
+- Example queries
+- Link to full docs
+
+A Read the Docs site was also discussed for comprehensive documentation (API reference, user guides, architecture). Both are separate session work.
 
 ## Key Files
-- `apps/civicos-mcp/rest_api.py:580-650` — Self-serve key provisioning endpoint
+- `apps/civicos-mcp/rest_api.py:557-636` — Self-serve key provisioning endpoint
 - `apps/civicos-mcp/api_key_middleware.py` — Rate limiter + auth dependency
-- `packages/civicos-services/src/civicos_services/core/api_keys.py` — ApiKeyStore (DB fallback + sslmode fix)
-- `scripts/sql/add_platform_billing.sql` — Migration (already run)
-
-## Important Design Notes
-- MCP endpoint (`/mcp`) is NOT gated — only REST API (`/api/tools/*`) has middleware
-- API key format: `cvk_live_` + 32 hex chars, validated via SHA-256 hash lookup
-- `ApiKeyStore` falls back to `DATABASE_URL` when `PLATFORM_DATABASE_URL` not set (intentional for now)
-- Self-serve endpoint creates free-tier keys only (5 signups/hr per IP rate limit)
+- `apps/civicos-mcp/tools/handlers.py:1086-1104` — get_started tool (now mentions API access)
+- `packages/civicos-services/src/civicos_services/core/api_keys.py` — ApiKeyStore
+- `docs/user_guides/MCP_SETUP_GUIDE.md:282-335` — REST API Access section (new)
 
 ## Success Criteria
-- [ ] SQL injection surface removed (parameterized queries)
+- [ ] SQL injection surface removed (parameterized queries in api_keys.py)
 - [ ] Turnkey deployment scope understood and approach defined
 - [ ] Progress toward reducing city onboarding effort
