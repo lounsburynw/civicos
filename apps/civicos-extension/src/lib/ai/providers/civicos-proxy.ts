@@ -68,7 +68,7 @@ export class CivicosProxyProvider implements AIProvider {
 
     // 2. POST to CivicOS AI proxy
     try {
-      const baseUrl = await registry.getMcpUrl();
+      const baseUrl = await registry.getRelayUrl();
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
@@ -165,7 +165,7 @@ export class CivicosProxyProvider implements AIProvider {
 
     // 2. POST to CivicOS AI chat endpoint
     try {
-      const baseUrl = await registry.getMcpUrl();
+      const baseUrl = await registry.getRelayUrl();
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 30_000);
 

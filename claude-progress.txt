@@ -21062,3 +21062,37 @@ Created `CivicSession` class in `packages/civicos-client/src/session.ts` (220 li
 
 **P0 remains**: turnkey_city_deployment (deferred)
 **Recommended next**: Civic Journal Phase 2 — AI-suggested updates (feedback loop)
+
+## Session 24 — 2026-03-05: FastMCP Code Mode Refactor
+
+**Item:** Refactor /ai/chat endpoint to use FastMCP Code Mode
+**Status:** Complete — ready for deployment testing.
+
+**What changed:**
+- Upgraded FastMCP from 2.14.5 to 3.1.0 with code-mode extra
+- Refactored ai_proxy.py chat endpoint: replaced manual 2-call tool orchestration with CodeMode meta-tools
+- configure_chat_tools() now creates a CodeMode-transformed FastMCP server
+- Chat endpoint uses agentic loop (max 5 turns) instead of fixed 2-call pattern
+- Claude gets 3 meta-tools (search, get_schema, execute) instead of 6 raw civic tools
+- Multi-tool composition happens in CodeMode sandbox via execute() — eliminates the multi-tool_use matching bug
+
+**Architecture change:**
+```
+Before: User Q → Claude picks tool(s) → server executes each → Claude summarizes
+  - 2 API calls, must match every tool_use ID with tool_result, breaks on multi-tool_use
+
+After: User Q → Claude discovers tools via search → composes queries in execute() → summarizes
+  - Agentic loop (1-5 API calls), CodeMode sandbox handles multi-tool composition
+  - No manual tool_use/tool_result matching needed
+```
+
+**Files changed:**
+- packages/civicos-services/.../routers/ai_proxy.py (major refactor)
+- apps/civicos-mcp/modal_mcp.py (fastmcp version bump)
+- apps/civicos-mcp/requirements-mcp.txt (fastmcp version bump)
+- packages/civicos/pyproject.toml (fastmcp version bump)
+
+**Tests:** 42 smoke tests pass. Integration test confirms CodeMode meta-tools work with ToolRegistry.
+
+**P0 remains:** turnkey_city_deployment (deferred)
+**Recommended next:** Deploy and E2E test the Code Mode chat endpoint with real queries

@@ -4,9 +4,9 @@ Authenticates via Nostr-signed requests (reusing existing identity),
 forwards to Anthropic with server-side API key. Users get AI drafting
 with zero configuration — no API key needed.
 
-The /ai/chat endpoint adds tool-backed search: the client sends a
-natural-language question, Claude selects which civic tool to call,
-the server executes it, and returns a synthesized answer.
+The /ai/chat endpoint uses direct Anthropic tool_use: Claude gets
+static tool definitions and executes them via REST calls to the MCP
+server. Simple, fast, single-turn tool use.
 """
 
 import json
@@ -16,6 +16,7 @@ import time
 from datetime import datetime, timezone
 from typing import Any, Optional
 
+import httpx
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
@@ -31,9 +32,8 @@ CHAT_COST_PER_REQUEST = 0.02  # ~$0.02 per chat request (2 API calls)
 MAX_AGE_SECONDS = 300  # 5-minute replay window
 AI_DRAFT_KIND = 24242  # Custom Nostr kind for AI proxy auth
 
-# Tool-backed chat state (set via configure_chat_tools)
-_chat_registry: Any = None
-_chat_jurisdiction: str = ""
+# MCP server base URL (set via configure_ai_proxy)
+_mcp_base_url: str = ""
 
 # MVP tool subset for chat — keeps cost/latency low
 CHAT_TOOLS = [
@@ -47,12 +47,121 @@ CHAT_TOOLS = [
 
 MAX_TOOL_RESULT_CHARS = 4000
 
+# Static Anthropic tool definitions for the 6 chat tools
+TOOL_DEFINITIONS = [
+    {
+        "name": "search_meeting_history",
+        "description": "Search past city council meetings, decisions, and video transcripts. Returns meeting dates, decision outcomes, and relevant transcript excerpts.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "query": {"type": "string", "description": "Search query (e.g., 'homeless shelter', 'bike lane')"},
+                "include_transcripts": {"type": "boolean", "description": "Include video transcript excerpts", "default": True},
+                "limit": {"type": "integer", "description": "Maximum results per category", "default": 10},
+            },
+            "required": ["query"],
+        },
+    },
+    {
+        "name": "get_upcoming_meetings",
+        "description": "Get upcoming city council and commission meetings with their agendas.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "days": {"type": "integer", "description": "Days to look ahead", "default": 30},
+            },
+            "required": [],
+        },
+    },
+    {
+        "name": "search_budget",
+        "description": "Search the city's budget data by department, program, or spending category.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "query": {"type": "string", "description": "Budget search query (e.g., 'police', 'parks', 'capital improvement')"},
+                "limit": {"type": "integer", "description": "Maximum results", "default": 10},
+            },
+            "required": ["query"],
+        },
+    },
+    {
+        "name": "get_public_testimony",
+        "description": "Search public testimony and comments from meeting transcripts on a specific topic.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "topic": {"type": "string", "description": "Topic to search testimony for"},
+                "limit": {"type": "integer", "description": "Maximum results", "default": 10},
+            },
+            "required": ["topic"],
+        },
+    },
+    {
+        "name": "search_legislation",
+        "description": "Search state and federal legislation relevant to the city, including bills and regulatory changes.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "query": {"type": "string", "description": "Legislation search query"},
+                "limit": {"type": "integer", "description": "Maximum results", "default": 10},
+            },
+            "required": ["query"],
+        },
+    },
+    {
+        "name": "find_similar_issues",
+        "description": "Find 311/SeeClickFix community-reported issues similar to a topic, using semantic search.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "topic": {"type": "string", "description": "Topic to search (e.g., 'traffic safety', 'pothole')"},
+                "semantic": {"type": "boolean", "description": "Use semantic matching", "default": True},
+                "limit": {"type": "integer", "description": "Maximum results", "default": 20},
+            },
+            "required": ["topic"],
+        },
+    },
+]
 
-def configure_chat_tools(registry: Any, jurisdiction: str) -> None:
-    """Set the tool registry and jurisdiction for the /ai/chat endpoint."""
-    global _chat_registry, _chat_jurisdiction
-    _chat_registry = registry
-    _chat_jurisdiction = jurisdiction
+# Tool name → REST endpoint name mapping (underscore → hyphen)
+TOOL_REST_MAP = {
+    "search_meeting_history": "search-meeting-history",
+    "get_upcoming_meetings": "get-upcoming-meetings",
+    "search_budget": "search-budget",
+    "get_public_testimony": "get-public-testimony",
+    "search_legislation": "search-legislation",
+    "find_similar_issues": "find-similar-issues",
+}
+
+
+def configure_ai_proxy(mcp_base_url: str) -> None:
+    """Set the MCP server base URL for REST tool calls."""
+    global _mcp_base_url
+    _mcp_base_url = mcp_base_url.rstrip("/")
+    logger.info("AI proxy configured with MCP URL: %s", _mcp_base_url)
+
+
+async def _call_mcp_tool(name: str, args: dict) -> str:
+    """Execute a tool via REST call to the MCP server."""
+    rest_name = TOOL_REST_MAP.get(name)
+    if not rest_name:
+        return json.dumps({"error": f"Unknown tool: {name}"})
+
+    url = f"{_mcp_base_url}/api/tools/{rest_name}"
+    async with httpx.AsyncClient(timeout=20.0) as client:
+        resp = await client.post(url, json=args)
+        resp.raise_for_status()
+        data = resp.json()
+
+    # Extract result text, truncate if needed
+    result = data.get("result", "")
+    if isinstance(result, dict):
+        result = json.dumps(result, indent=2, default=str)
+    if isinstance(result, str) and len(result) > MAX_TOOL_RESULT_CHARS:
+        result = result[:MAX_TOOL_RESULT_CHARS] + "\n... (truncated)"
+    return result
+
 
 # In-memory rate tracking (resets on container restart, fine for pilot)
 _rate_limits: dict[str, dict] = {}
@@ -171,6 +280,20 @@ def _check_attestation(public_key: str) -> bool:
             return False
         attestation = storage.get_attestation(public_key, "city-san-rafael")
         return attestation is not None
+    except ImportError:
+        # When running on relay (not alongside coordination router),
+        # import attestation storage directly
+        try:
+            from civicos_relay.storage.postgres import PostgresAttestationStorage
+            relay_url = os.environ.get("RELAY_DATABASE_URL") or os.environ.get("DATABASE_URL")
+            if not relay_url:
+                return False
+            storage = PostgresAttestationStorage(relay_url)
+            attestation = storage.get_attestation(public_key, "city-san-rafael")
+            return attestation is not None
+        except Exception:
+            logger.exception("Attestation check error (direct)")
+            return False
     except Exception:
         logger.exception("Attestation check error")
         return False
@@ -201,7 +324,7 @@ async def ai_draft(request: AIDraftRequest):
     if not allowed:
         raise HTTPException(status_code=429, detail=error_msg)
 
-    # 4. Forward to Anthropic
+    # 5. Forward to Anthropic
     api_key = os.environ.get("ANTHROPIC_API_KEY")
     if not api_key:
         raise HTTPException(status_code=503, detail="AI service not configured")
@@ -236,27 +359,12 @@ async def ai_draft(request: AIDraftRequest):
         return AIDraftResponse(success=False, error=f"AI service error: {str(e)[:200]}")
 
 
-def _build_chat_tools() -> list[dict]:
-    """Build Anthropic tool definitions from the registry for the MVP subset."""
-    if not _chat_registry:
-        return []
-    tools = []
-    for tool_def in _chat_registry.list_tools():
-        if tool_def["name"] in CHAT_TOOLS:
-            tools.append({
-                "name": tool_def["name"],
-                "description": tool_def["description"],
-                "input_schema": tool_def["inputSchema"],
-            })
-    return tools
-
-
 @router.post("/ai/chat", response_model=AIChatResponse)
 async def ai_chat(request: AIChatRequest):
     """Answer a civic question using AI with tool-backed search.
 
-    Authenticates via Nostr signature, selects the right civic tool,
-    executes it server-side, and returns a synthesized answer.
+    Uses direct Anthropic tool_use: Claude gets 6 civic tool definitions
+    and calls them via REST to the MCP server. Simple agentic loop.
     """
     # 1. Replay protection
     now = int(time.time())
@@ -276,20 +384,16 @@ async def ai_chat(request: AIChatRequest):
     if not allowed:
         raise HTTPException(status_code=429, detail=error_msg)
 
-    # 4. Check prerequisites
+    # 5. Check prerequisites
     api_key = os.environ.get("ANTHROPIC_API_KEY")
     if not api_key:
         raise HTTPException(status_code=503, detail="AI service not configured")
 
-    if not _chat_registry:
-        raise HTTPException(status_code=503, detail="Chat tools not configured")
+    if not _mcp_base_url:
+        raise HTTPException(status_code=503, detail="Chat tools not configured — MCP URL not set")
 
     try:
-        tools = _build_chat_tools()
-        if not tools:
-            return AIChatResponse(success=False, error="No chat tools available")
-
-        jurisdiction = request.jurisdiction or _chat_jurisdiction
+        jurisdiction = request.jurisdiction or "city-san-rafael"
 
         import anthropic
 
@@ -306,95 +410,79 @@ async def ai_chat(request: AIChatRequest):
         if request.user_context and request.user_context.journal_notes:
             system_prompt += f" The user's civic journal: {request.user_context.journal_notes}"
 
-        # First call: let Claude decide which tool to use
-        response = client.messages.create(
-            model="claude-sonnet-4-5-20250929",
-            max_tokens=1024,
-            system=system_prompt,
-            tools=tools,
-            messages=[{"role": "user", "content": request.question}],
-        )
+        # Agentic loop: let Claude use tools iteratively until it produces a final answer
+        messages = [{"role": "user", "content": request.question}]
+        tool_used = None
+        max_turns = 3  # 3 turns is plenty with direct tool definitions
 
-        # Check if Claude wants to use tools
-        tool_use_blocks = []
-        text_blocks = []
-        for block in response.content:
-            if block.type == "tool_use":
-                tool_use_blocks.append(block)
-            elif block.type == "text":
-                text_blocks.append(block.text)
+        for _turn in range(max_turns):
+            response = client.messages.create(
+                model="claude-sonnet-4-5-20250929",
+                max_tokens=1024,
+                system=system_prompt,
+                tools=TOOL_DEFINITIONS,
+                messages=messages,
+            )
 
-        if not tool_use_blocks:
-            # No tool needed — return Claude's direct answer
-            text = "\n".join(text_blocks) if text_blocks else None
-            if not text:
-                return AIChatResponse(success=False, error="AI returned empty response")
-            _record_usage(request.public_key)
-            return AIChatResponse(success=True, text=text)
+            # Separate tool_use and text blocks
+            tool_use_blocks = []
+            text_blocks = []
+            for block in response.content:
+                if block.type == "tool_use":
+                    tool_use_blocks.append(block)
+                elif block.type == "text":
+                    text_blocks.append(block.text)
 
-        # Execute all requested tools
-        tool_results = []
-        tool_name = tool_use_blocks[0].name  # Report primary tool used
-        for tool_block in tool_use_blocks:
-            try:
-                result = _chat_registry.call_tool(tool_block.name, tool_block.input)
-                if isinstance(result, str) and len(result) > MAX_TOOL_RESULT_CHARS:
-                    result = result[:MAX_TOOL_RESULT_CHARS] + "\n... (truncated)"
-            except Exception as e:
-                logger.warning("Tool execution failed: %s(%s): %s", tool_block.name, tool_block.input, e)
-                result = json.dumps({"error": f"Tool failed: {str(e)[:200]}"})
-            tool_results.append((tool_block.id, result))
+            if not tool_use_blocks:
+                # No more tool calls — Claude is done
+                final_text = "\n".join(text_blocks) if text_blocks else None
+                if not final_text:
+                    return AIChatResponse(success=False, error="AI returned empty response")
 
-        # Second call: Claude summarizes the tool results
-        # Serialize assistant content blocks for the messages API
-        assistant_content = []
-        for block in response.content:
-            if block.type == "text":
-                assistant_content.append({"type": "text", "text": block.text})
-            elif block.type == "tool_use":
-                assistant_content.append({
-                    "type": "tool_use",
-                    "id": block.id,
-                    "name": block.name,
-                    "input": block.input,
+                _record_usage(request.public_key)
+                _global_cost["total"] = float(_global_cost.get("total", 0.0)) + CHAT_COST_PER_REQUEST - COST_PER_REQUEST
+
+                logger.info("ai_chat_success", extra={
+                    "npub_prefix": request.public_key[:8],
+                    "tool": tool_used or "none",
+                    "turns": _turn + 1,
+                })
+                return AIChatResponse(success=True, text=final_text, tool_used=tool_used)
+
+            # Execute all tool calls and build the next message pair
+            assistant_content = []
+            for block in response.content:
+                if block.type == "text":
+                    assistant_content.append({"type": "text", "text": block.text})
+                elif block.type == "tool_use":
+                    assistant_content.append({
+                        "type": "tool_use",
+                        "id": block.id,
+                        "name": block.name,
+                        "input": block.input,
+                    })
+
+            tool_result_content = []
+            for tool_block in tool_use_blocks:
+                tool_used = tool_block.name
+
+                try:
+                    result = await _call_mcp_tool(tool_block.name, tool_block.input)
+                except Exception as e:
+                    logger.warning("MCP tool call failed: %s: %s", tool_block.name, e)
+                    result = json.dumps({"error": f"Tool failed: {str(e)[:200]}"})
+
+                tool_result_content.append({
+                    "type": "tool_result",
+                    "tool_use_id": tool_block.id,
+                    "content": result if isinstance(result, str) else json.dumps(result),
                 })
 
-        # Build tool_result blocks for every tool_use
-        tool_result_content = []
-        for tool_id, result in tool_results:
-            tool_result_content.append({
-                "type": "tool_result",
-                "tool_use_id": tool_id,
-                "content": result if isinstance(result, str) else json.dumps(result),
-            })
+            messages.append({"role": "assistant", "content": assistant_content})
+            messages.append({"role": "user", "content": tool_result_content})
 
-        response2 = client.messages.create(
-            model="claude-sonnet-4-5-20250929",
-            max_tokens=1024,
-            system=system_prompt,
-            tools=tools,
-            messages=[
-                {"role": "user", "content": request.question},
-                {"role": "assistant", "content": assistant_content},
-                {"role": "user", "content": tool_result_content},
-            ],
-        )
-
-        # Extract final text
-        final_text = ""
-        for block in response2.content:
-            if block.type == "text":
-                final_text += block.text
-
-        if not final_text:
-            return AIChatResponse(success=False, error="AI returned empty response")
-
-        # Record usage at chat rate (2x)
-        _record_usage(request.public_key)
-        _global_cost["total"] = float(_global_cost.get("total", 0.0)) + CHAT_COST_PER_REQUEST - COST_PER_REQUEST
-
-        logger.info("ai_chat_success", extra={"npub_prefix": request.public_key[:8], "tool": tool_name})
-        return AIChatResponse(success=True, text=final_text, tool_used=tool_name)
+        # Exhausted turns — return whatever we have
+        return AIChatResponse(success=False, error="Chat exceeded maximum tool-use turns")
 
     except Exception as e:
         logger.exception("AI chat error")
