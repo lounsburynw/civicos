@@ -15,8 +15,15 @@
 - In-memory rate limiter won't persist across container restarts/replicas — fine for MVP
 - get_usage_stats/get_all_usage_summary use f-string SQL (internally generated, not user input) — parameterize later
 
-**Commits:** 8785961 feat: Self-serve API key provisioning + platform billing tables
+6. Added REST API Access section to MCP_SETUP_GUIDE.md (key creation + usage examples)
+7. Updated get_started tool to mention API key provisioning with dynamic jurisdiction URL
+
+**Commits:**
+- 8785961 feat: Self-serve API key provisioning + platform billing tables
+- ccce479 docs: Add API key provisioning to user guides and get_started tool
+
 **P0 remains:** turnkey_city_deployment
+**Future sessions:** Landing page at san-rafael.civicosproject.org + Read the Docs site
 
 ## Session 26 — 2026-03-05: MCP API Key Gate + Privacy Billing ADR
 
