@@ -373,7 +373,7 @@ class MCPServer:
         )
 
         # Mount REST API router
-        from rest_api import create_rest_router
+        from rest_api import create_rest_router, create_keys_router
         rest_router = create_rest_router(
             self.registry,
             self.civic,
@@ -382,6 +382,10 @@ class MCPServer:
             self.logger
         )
         app.include_router(rest_router)
+
+        # Mount API key provisioning router
+        keys_router = create_keys_router(self.logger)
+        app.include_router(keys_router)
 
         # FastMCP Streamable HTTP at /mcp
         app.mount("/mcp", mcp_app, name="mcp")
@@ -410,6 +414,7 @@ class MCPServer:
                 "mcp": "/mcp/",
                 "health": "GET /health",
                 "rest_api": "/api/tools/*",
+                "create_key": "POST /api/keys/",
                 "openapi_spec": "/openapi.json",
             }
         }

@@ -83,7 +83,7 @@ class ApiKeyStore:
     """
 
     def __init__(self, database_url: Optional[str] = None):
-        self._database_url = database_url or os.getenv("PLATFORM_DATABASE_URL")
+        self._database_url = database_url or os.getenv("PLATFORM_DATABASE_URL") or os.getenv("DATABASE_URL")
         self._pool: Optional[psycopg2.pool.SimpleConnectionPool] = None
 
     def _get_pool(self) -> Optional[psycopg2.pool.SimpleConnectionPool]:
@@ -93,9 +93,12 @@ class ApiKeyStore:
         if not self._database_url:
             return None
         try:
-            self._pool = psycopg2.pool.SimpleConnectionPool(
-                1, 5, self._database_url
-            )
+            dsn = self._database_url
+            # Ensure SSL for remote connections (required by Supabase from cloud environments)
+            if "sslmode" not in dsn:
+                sep = "&" if "?" in dsn else "?"
+                dsn = f"{dsn}{sep}sslmode=require"
+            self._pool = psycopg2.pool.SimpleConnectionPool(1, 5, dsn)
             return self._pool
         except Exception as e:
             logger.warning("Platform DB connection failed: %s", e)
