@@ -1554,41 +1554,26 @@
     },
     "scaling": {
       "turnkey_city_deployment": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 2,
         "description": "Make unified config system actually reduce new city deployment effort. Currently config is ~20% of work; extractors, HUD mapping, and elections are ~80%.",
-        "rationale": "Session 545 audit found: core infrastructure 70-75% generalizable, but election data (1/5), HUD grantee mapping (manual), and platform-specific extractors still require significant per-city work.",
+        "rationale": "Session 28: Onboarding wizard (civicos-onboard), config validation, hardcoded San Rafael check removed. Remaining: auto-HUD lookup, election scraper framework (deferred to scaling phase).",
         "audit_reference": "docs/critical/CITY_DEPLOYMENT_AUDIT.md",
-        "current_state": {
-          "generalizable": [
-            "Core API & Storage (5/5)",
-            "Pipeline stages (5/5)",
-            "Legistar/CivicClerk clients (5/5)",
-            "Federal data sources (4/5)",
-            "Municipal code (4.5/5)",
-            "ProudCity (4/5)"
-          ],
-          "manual_work": [
-            "Election data - completely jurisdiction-specific (1/5)",
-            "HUD grantee mapping - requires research per city",
-            "School board meetings - platform varies",
-            "Transcription roster data - per jurisdiction"
-          ]
-        },
-        "improvements_needed": [
-          "Auto-discover HUD grantee from FAC/HUD API",
-          "Onboarding wizard (detect platform \u2192 generate config \u2192 validate)",
-          "Config validation schema with helpful errors",
-          "Generic election scraper framework (template-based)"
+        "completed_in_session_28": [
+          "civicos-onboard CLI: detect platform -> generate config -> validate -> next steps",
+          "Config validation with helpful errors (already existed, verified working)",
+          "Removed hardcoded San Rafael check in CLI — now config-driven",
+          "SQL injection fix in api_keys.py (parameterized queries)",
+          "Full onboarding toolchain: civicos-onboard -> civicos-validate -> civicos-deploy"
         ],
-        "effort_estimate": {
-          "berkeley_mvp": "3-5 days (meetings + federal + municipal code)",
-          "berkeley_full_parity": "2-3 weeks (includes elections)"
-        },
+        "remaining_for_scaling": [
+          "Auto-discover HUD grantee from FAC/HUD API",
+          "Generic election scraper framework (template-based)",
+          "Legistar/CivicClerk/Granicus live ingest in CLI"
+        ],
         "depends_on": [
           "unified_city_deployment"
-        ],
-        "defer_until": "Post E2E operational, pre-launch scaling phase"
+        ]
       }
     }
   },
@@ -2737,7 +2722,7 @@
       ],
       "feedback_channel": {
         "status": "not_ready",
-        "priority": 3,
+        "priority": 0,
         "check": "Way for users to report issues",
         "note": "Add feedback mechanism (GitHub link, email, or in-app form) for pilot users to report bugs"
       }

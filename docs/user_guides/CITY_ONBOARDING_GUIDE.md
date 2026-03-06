@@ -54,16 +54,43 @@ For each city, Civic ingests:
 
 ---
 
+## Quick Start: Onboarding Wizard
+
+The fastest way to onboard a new city is the `civicos-onboard` CLI:
+
+```bash
+# Auto-detect platform + generate config
+civicos-onboard "Berkeley" --url https://berkeleyca.gov --state CA --county Alameda
+
+# Preview without writing files
+civicos-onboard "Oakland" --url https://www.oaklandca.gov --dry-run
+
+# Override platform if auto-detection fails
+civicos-onboard "El Cerrito" --url https://www.el-cerrito.org --platform civicclerk
+```
+
+This generates a YAML config in `data/jurisdictions/`, validates it, and shows what needs manual input (contact info, HUD grantee, zip codes, etc.).
+
+**Full workflow:**
+```bash
+civicos-onboard "City Name" --url https://city.gov     # Generate config
+civicos-validate city-name                              # Validate (fix TODOs)
+civicos-deploy city-name --dry-run                      # Preview deployment
+civicos-deploy city-name                                # Full deploy
+```
+
+---
+
 ## Pre-Onboarding: Research & Detection
 
 Before creating configuration files, determine which platform the city uses.
 
 ### Automatic Detection
 
-Use the platform detection helper to auto-detect:
+The `civicos-onboard` command auto-detects platforms. You can also use the Python API:
 
 ```python
-from civic_extraction.platform_detection import detect_platform
+from civicos_extraction.platform_detection import detect_platform
 
 # Probe the city's website
 result = detect_platform("https://www.cityofberkeley.info")

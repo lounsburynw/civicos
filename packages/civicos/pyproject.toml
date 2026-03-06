@@ -75,6 +75,7 @@ civicos-status = "civicos.cli:main"
 civicos-bootstrap = "civicos.cli:bootstrap_main"
 civicos-deploy = "civicos.cli:deploy_main"
 civicos-validate = "civicos.cli:validate_main"
+civicos-onboard = "civicos.cli:onboard_main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

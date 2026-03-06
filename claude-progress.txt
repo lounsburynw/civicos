@@ -21188,3 +21188,40 @@ After: User Q → Claude discovers tools via search → composes queries in exec
 
 **P0 remains:** turnkey_city_deployment (deferred)
 **Recommended next:** Wire API key middleware into MCP REST API (~2hrs)
+
+## Session 28 (2026-03-06) — Turnkey City Deployment
+
+**P0:** turnkey_city_deployment → READY
+
+### Completed
+
+1. **SQL injection fix** (api_keys.py):
+   - Parameterized queries in `get_usage_stats` and `get_all_usage_summary`
+   - Replaced f-string SQL interpolation with COALESCE(%s::timestamptz, default)
+
+2. **Onboarding wizard** (`civicos-onboard` CLI):
+   - Auto-detects city platform (Legistar, CivicClerk, ProudCity)
+   - Generates YAML config from template with TODO markers
+   - Validates config and shows actionable next steps
+   - Supports --dry-run, --platform override, --json output
+   - Tested with Oakland (no detection), San Rafael (ProudCity 90% confidence)
+
+3. **Removed hardcoded San Rafael check** (cli.py:349):
+   - `ingest_live()` now uses `JurisdictionConfig` to determine platform
+   - Works with any city that has a config file
+
+4. **Full onboarding toolchain verified:**
+   - `civicos-onboard` → `civicos-validate` → `civicos-deploy`
+   - All 4 existing configs pass validation
+
+### Key Files Modified
+- `packages/civicos-services/src/civicos_services/core/api_keys.py` — SQL fix
+- `packages/civicos/src/civicos/cli.py` — onboard_main(), generalized ingest_live()
+- `packages/civicos/pyproject.toml` — civicos-onboard entry point
+- `pilot.json` — turnkey_city_deployment → ready
+- `docs/user_guides/CITY_ONBOARDING_GUIDE.md` — Quick Start section
+
+### Remaining for Scaling Phase
+- Auto-HUD grantee lookup from FAC/HUD API
+- Generic election scraper framework
+- Legistar/CivicClerk/Granicus live ingest in CLI

@@ -298,33 +298,33 @@ class ApiKeyStore:
             return None
         try:
             if since is None:
-                since_clause = "NOW() - INTERVAL '30 days'"
+                since_ts = None
             else:
-                since_clause = f"'{since}'::timestamptz"
+                since_ts = since
 
             with conn.cursor() as cur:
                 # Total requests and error count
                 cur.execute(
-                    f"""
+                    """
                     SELECT COUNT(*),
                            COUNT(*) FILTER (WHERE status_code >= 400),
                            AVG(response_time_ms)::int
                     FROM platform_usage_logs
-                    WHERE key_id = %s AND timestamp >= {since_clause}
+                    WHERE key_id = %s AND timestamp >= COALESCE(%s::timestamptz, NOW() - INTERVAL '30 days')
                     """,
-                    (key_id,),
+                    (key_id, since_ts),
                 )
                 total, errors, avg_ms = cur.fetchone()
 
                 # By endpoint
                 cur.execute(
-                    f"""
+                    """
                     SELECT endpoint, COUNT(*)
                     FROM platform_usage_logs
-                    WHERE key_id = %s AND timestamp >= {since_clause}
+                    WHERE key_id = %s AND timestamp >= COALESCE(%s::timestamptz, NOW() - INTERVAL '30 days')
                     GROUP BY endpoint ORDER BY COUNT(*) DESC LIMIT 20
                     """,
-                    (key_id,),
+                    (key_id, since_ts),
                 )
                 by_endpoint = {row[0]: row[1] for row in cur.fetchall()}
 
@@ -494,24 +494,22 @@ class ApiKeyStore:
         if conn is None:
             return []
         try:
-            if since is None:
-                since_clause = "NOW() - INTERVAL '30 days'"
-            else:
-                since_clause = f"'{since}'::timestamptz"
+            since_ts = since  # None means last 30 days
 
             with conn.cursor() as cur:
                 cur.execute(
-                    f"""
+                    """
                     SELECT l.key_id, k.name, k.tier,
                            COUNT(*) as request_count,
                            COUNT(*) FILTER (WHERE l.status_code >= 400) as error_count,
                            AVG(l.response_time_ms)::int as avg_ms
                     FROM platform_usage_logs l
                     LEFT JOIN platform_api_keys k ON l.key_id = k.key_id
-                    WHERE l.timestamp >= {since_clause}
+                    WHERE l.timestamp >= COALESCE(%s::timestamptz, NOW() - INTERVAL '30 days')
                     GROUP BY l.key_id, k.name, k.tier
                     ORDER BY request_count DESC
-                    """
+                    """,
+                    (since_ts,),
                 )
                 return [
                     {
