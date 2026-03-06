@@ -1554,8 +1554,8 @@
     },
     "scaling": {
       "turnkey_city_deployment": {
-        "status": "ready",
-        "priority": 2,
+        "status": "not_ready",
+        "priority": 0,
         "description": "Make unified config system actually reduce new city deployment effort. Currently config is ~20% of work; extractors, HUD mapping, and elections are ~80%.",
         "rationale": "Session 28: Onboarding wizard (civicos-onboard), config validation, hardcoded San Rafael check removed. Remaining: auto-HUD lookup, election scraper framework (deferred to scaling phase).",
         "audit_reference": "docs/critical/CITY_DEPLOYMENT_AUDIT.md",
@@ -2722,7 +2722,7 @@
       ],
       "feedback_channel": {
         "status": "not_ready",
-        "priority": 0,
+        "priority": 3,
         "check": "Way for users to report issues",
         "note": "Add feedback mechanism (GitHub link, email, or in-app form) for pilot users to report bugs"
       }

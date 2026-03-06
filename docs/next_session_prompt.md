@@ -1,60 +1,51 @@
-# Recommended: API Key Architecture Fixes + Turnkey City Deployment + Landing Page
+# Recommended: Onboarding E2E Validation + /onboard Skill
 
 **Priority:** P0 is `turnkey_city_deployment`
 **Area:** city_onboarding > scaling
 **Date:** 2026-03-06
 
-> This is recommended context from Session 27. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
+> This is recommended context from Session 28. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
 
 ## Context
 
-Session 27 completed the full API key infrastructure and user-facing documentation:
-- Platform billing tables live (platform_api_keys, platform_usage_logs, platform_usage_daily)
-- Self-serve key provisioning: `POST /api/keys/` (deployed, verified end-to-end)
-- User guides updated with REST API docs + get_started tool mentions API access
-- Three architecture advisory notes flagged by critics (quick fixes)
+Session 28 built the `civicos-onboard` CLI (detect platform → generate YAML config → validate) and marked turnkey_city_deployment as ready. But we only tested config generation — never proved the full pipeline produces a working city. The item has been reverted to not_ready until E2E validation passes.
 
 ## Recommended Task
 
-### Step 1: Fix Architecture Advisory Notes (~15 min)
+### Step 1: E2E Proof — Berkeley Dry-Run (~30 min)
 
-1. **Parameterize SQL in `get_usage_stats`/`get_all_usage_summary`** — replace f-string `since_clause` with proper parameterized queries
-   - `packages/civicos-services/src/civicos_services/core/api_keys.py:297-310` and `:496-511`
+1. Run `civicos-onboard "Berkeley" --url https://berkeleyca.gov --state CA --county Alameda --dry-run`
+2. Compare generated config against existing `data/jurisdictions/city-berkeley.yaml` — gaps reveal what the wizard misses
+3. Run `civicos-deploy city-berkeley --dry-run` to verify the deploy pipeline accepts the config
+4. Document what works vs what still needs manual intervention
 
-2. **Optional: Add comment about DATABASE_URL fallback being intentional**
-   - `packages/civicos-services/src/civicos_services/core/api_keys.py:86`
+### Step 2: Create `/onboard` Skill
 
-3. **In-memory rate limiter** — no action needed now, just awareness for future scaling
+Wrap the multi-step onboarding in a Claude Code skill that:
+- Asks clarifying questions (city name, URL, state, county)
+- Runs platform detection interactively
+- Generates config and explains TODOs
+- Runs validation and guides user through fixes
+- Tests connectivity to detected platform
 
-### Step 2: Turnkey City Deployment (P0)
+Create as `.claude/commands/onboard.md`.
 
-Description: "Make unified config system actually reduce new city deployment effort. Currently config is ~20% of work; extractors, HUD mapping, and elections are ~80%."
+### Step 3: Mark Ready (if E2E passes)
 
-Explore what's needed:
-- `config/registry.json` — jurisdiction config
-- `packages/civicos-extraction/` — extractor patterns
-- `docs/critical/EXTRACTOR_PROTOCOL.md` — protocol docs
-- `docs/user_guides/CITY_ONBOARDING_GUIDE.md` — onboarding guide
-
-### Future Session: Landing Page + Read the Docs
-
-The project needs a public-facing landing page at `san-rafael.civicosproject.org/` (currently returns health JSON). Should cover:
-- What CivicOS is
-- Available data and tools
-- How to get an API key
-- Example queries
-- Link to full docs
-
-A Read the Docs site was also discussed for comprehensive documentation (API reference, user guides, architecture). Both are separate session work.
+Update `pilot.json` turnkey_city_deployment status to "ready" once the pipeline is proven.
 
 ## Key Files
-- `apps/civicos-mcp/rest_api.py:557-636` — Self-serve key provisioning endpoint
-- `apps/civicos-mcp/api_key_middleware.py` — Rate limiter + auth dependency
-- `apps/civicos-mcp/tools/handlers.py:1086-1104` — get_started tool (now mentions API access)
-- `packages/civicos-services/src/civicos_services/core/api_keys.py` — ApiKeyStore
-- `docs/user_guides/MCP_SETUP_GUIDE.md:282-335` — REST API Access section (new)
+- `packages/civicos/src/civicos/cli.py:1503-1700` — onboard_main() and _generate_config_yaml()
+- `packages/civicos/src/civicos/cli.py:348-372` — generalized ingest_live() (config-driven, was hardcoded)
+- `data/jurisdictions/city-berkeley.yaml` — existing Berkeley config (reference for comparison)
+- `packages/civicos-extraction/src/civicos_extraction/platform_detection.py` — platform detection
+- `docs/user_guides/CITY_ONBOARDING_GUIDE.md` — onboarding docs (has Quick Start section)
 
 ## Success Criteria
-- [ ] SQL injection surface removed (parameterized queries in api_keys.py)
-- [ ] Turnkey deployment scope understood and approach defined
-- [ ] Progress toward reducing city onboarding effort
+- [ ] Berkeley dry-run produces valid config matching existing template
+- [ ] `civicos-deploy city-berkeley --dry-run` succeeds
+- [ ] `/onboard` skill created and tested
+- [ ] pilot.json `turnkey_city_deployment` marked ready with E2E proof
+
+## Also Pending (P3)
+- `feedback_channel` — Add feedback mechanism for pilot users (simple, ~30 min)
