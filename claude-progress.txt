@@ -1,3 +1,30 @@
+## Session 26 — 2026-03-05: MCP API Key Gate + Privacy Billing ADR
+
+**Item:** MCP API Key Gate + Privacy-Preserving Relay Billing Design
+**Status:** Complete.
+
+**What was done:**
+
+1. **MCP API Key Gate** (Part 1):
+   - Created `apps/civicos-mcp/api_key_middleware.py` — FastAPI dependency with sliding window rate limiter
+   - No key: public rate limit (60 req/min per IP) — civic access stays free
+   - Valid key (`cvk_live_*`): tier-based limits (60-1000 req/min)
+   - Invalid key: 401 Unauthorized
+   - No Platform DB: graceful pass-through (all requests allowed)
+   - Wired into REST router via `dependencies=[Depends(...)]` — all `/api/tools/*` endpoints protected
+   - MCP endpoint (`/mcp`) and health check remain unauthenticated
+
+2. **Privacy-Preserving Relay Billing ADR** (Part 2):
+   - Created `docs/decisions/privacy_preserving_billing.md`
+   - Key insight: separate "who paid" from "what they asked" — no single DB can join identity to queries
+   - Credit ledger on relay DB (pubkey + balance only, no Stripe ID)
+   - Stripe webhook increments credits by pubkey from checkout metadata
+   - Free tier (5 AI req/day) + paid credits for power users
+   - Documented invariant, schema, flow, pricing, and alternatives
+
+**P0 remains:** turnkey_city_deployment (deferred)
+**Recommended next:** Deploy MCP with API key gate (`modal deploy apps/civicos-mcp/modal_mcp.py`)
+
 ## Session 23 — 2026-03-05: Civic Journal Phase 2 + Bug Fixes
 
 **Item:** Civic Journal Phase 2 — AI-suggested updates (feedback loop)
