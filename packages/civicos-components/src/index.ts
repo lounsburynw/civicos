@@ -1,3 +1,7 @@
+// Theme system
+export { applyTheme, saveTheme, loadSavedTheme, initTheme, setTheme, THEMES } from './theme/theme.js';
+export type { ThemeId, ThemeOption } from './theme/theme.js';
+
 // Shared utilities
 export {
   isPastMeeting,
