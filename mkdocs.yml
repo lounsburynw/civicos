@@ -6,8 +6,8 @@ repo_name: lounsburynw/civicos
 
 theme:
   name: material
-  logo: assets/logo-light.svg
-  favicon: assets/logo-dark.svg
+  logo: public/assets/logo-light.svg
+  favicon: public/assets/logo-dark.svg
   palette:
     - scheme: default
       primary: indigo
@@ -43,6 +43,7 @@ plugins:
 exclude_docs: |
   archive/
   private/
+  internal/
   next_session_prompt.md
 
 markdown_extensions:
@@ -73,46 +74,42 @@ extra:
 nav:
   - Home:
     - Overview: index.md
-    - Getting Started: user_guides/GETTING_STARTED.md
-    - FAQ: user_guides/FAQ.md
 
-  - User Guide:
-    - Getting Started: user_guides/GETTING_STARTED.md
-    - Features: user_guides/FEATURE_GUIDE.md
-    - Browser Extension: user_guides/BROWSER_EXTENSION_SETUP.md
-    - MCP Setup: user_guides/MCP_SETUP_GUIDE.md
-    - Verification: user_guides/VERIFICATION_TUTORIAL.md
-    - Attestation: user_guides/ATTESTATION_GUIDE.md
+  - Extension:
+    - Setup: public/extension/setup.md
+    - Development: public/extension/development.md
 
-  - City Administration:
-    - Onboarding a City: user_guides/CITY_ONBOARDING_GUIDE.md
-    - Admin Setup: user_guides/ADMIN_SETUP_GUIDE.md
-    - Data Management: user_guides/ADMIN_DATA_MANAGEMENT.md
-    - Troubleshooting: user_guides/ADMIN_TROUBLESHOOTING.md
+  - MCP Server:
+    - Setup: public/mcp/setup.md
 
-  - Architecture:
-    - Package Architecture: critical/FINAL_PACKAGE_ARCHITECTURE.md
-    - Coordination Protocol: critical/COORDINATION_PROTOCOL.md
-    - Edge Intelligence: critical/EDGE_INTELLIGENCE_ARCHITECTURE.md
-    - Browser Extension: critical/BROWSER_EXTENSION_ARCHITECTURE.md
-    - MCP Integration: critical/MCP_INTEGRATION_STRATEGY.md
-    - Nostr NIPs: critical/NOSTR_CIVIC_NIPS.md
+  - API & Data:
+    - Architecture: public/README.md
+    - Core API: public/api.md
+    - Data Dictionary: public/data-dictionary.md
 
   - Packages:
-    - packages/index.md
-    - civicos (Core API): packages/civicos.md
-    - civicos-relay (Federation): packages/civicos-relay.md
-    - civicos-extraction (Parsers): packages/civicos-extraction.md
-    - civicos-mcp (MCP Server): packages/civicos-mcp.md
+    - civicos (Core API): public/packages/civicos.md
+    - civicos-services (REST API): public/packages/civicos-services.md
+    - civicos-relay (Coordination): public/packages/civicos-relay.md
+    - civicos-extraction (Parsers): public/packages/civicos-extraction.md
+    - civicos-client (TypeScript): public/packages/civicos-client.md
+    - civicos-components (Svelte UI): public/packages/civicos-components.md
+
+  - Decisions:
+    - Vector Storage: public/decisions/vector_storage.md
+    - Data Integrity: public/decisions/data_integrity_infrastructure.md
+    - Entity ID Namespace: public/decisions/entity_id_namespace.md
+    - Data Source Federation: public/decisions/data_source_federation.md
+    - Federation Domains: public/decisions/federation_domain_architecture.md
 
   - Learning:
-    - learning/README.md
-    - Cryptographic Foundations: learning/01_CRYPTOGRAPHIC_FOUNDATIONS.md
-    - Nostr & the Relay: learning/02_NOSTR_AND_THE_RELAY.md
-    - Attestation: learning/03_ATTESTATION_AND_THE_FULL_SYSTEM.md
-    - Relay Trust: learning/04_RELAY_TRUST_AND_INTEGRITY.md
-    - Jurisdiction Scope: learning/05_JURISDICTION_SCOPE_AND_ATTESTATION_ROLLUP.md
-    - Economic Model: learning/06_ECONOMIC_MODEL_AND_SUSTAINABILITY.md
+    - public/learning/README.md
+    - Cryptographic Foundations: public/learning/01_CRYPTOGRAPHIC_FOUNDATIONS.md
+    - Nostr & the Relay: public/learning/02_NOSTR_AND_THE_RELAY.md
+    - Attestation: public/learning/03_ATTESTATION_AND_THE_FULL_SYSTEM.md
+    - Relay Trust: public/learning/04_RELAY_TRUST_AND_INTEGRITY.md
+    - Jurisdiction Scope: public/learning/05_JURISDICTION_SCOPE_AND_ATTESTATION_ROLLUP.md
+    - Economic Model: public/learning/06_ECONOMIC_MODEL_AND_SUSTAINABILITY.md
 
   - About:
-    - Essay — The Nervous System: essays/the_nervous_system_we_choose_to_build.md
+    - Essay — The Nervous System: public/essays/the_nervous_system_we_choose_to_build.md

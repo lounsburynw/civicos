@@ -171,7 +171,7 @@ The nervous system we choose to build will shape what kind of organism we become
 
 *Nicolas Lounsbury is a computational biologist and the creator of CivicOS, an open-source coordination infrastructure for local self-governance. He builds this in his spare time because he believes it matters.*
 
-*The coordination protocol described in this essay is documented at [COORDINATION_PROTOCOL.md](../critical/COORDINATION_PROTOCOL.md).*
+*The coordination protocol described in this essay is implemented in [civicos-relay](../packages/civicos-relay.md).*
 
 *This essay was written in collaboration with Claude.*
 
