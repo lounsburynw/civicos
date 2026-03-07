@@ -661,7 +661,7 @@
     },
     "Voice": {
       "type": "object",
-      "description": "User voice on an item (support, oppose, question). Core entity from FINAL_PACKAGE_ARCHITECTURE.",
+      "description": "User voice on an item (support, oppose, watching). Core entity from FINAL_PACKAGE_ARCHITECTURE.",
       "required": ["id", "user_id", "item_type", "item_id", "stance", "created_at"],
       "properties": {
         "id": { "type": "string", "description": "Unique identifier (e.g., 'voice_a1b2c3d4')" },
@@ -674,7 +674,7 @@
         "item_id": { "type": "string", "description": "ID of the item" },
         "stance": {
           "type": "string",
-          "enum": ["support", "oppose", "question"],
+          "enum": ["support", "oppose", "watching"],
           "description": "User's stance on the item"
         },
         "comment": { "type": "string", "description": "Optional comment explaining the stance" },

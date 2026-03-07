@@ -176,7 +176,7 @@ def get_mcp_tools():
                 'parameters': {
                     'item_id': 'string',
                     'item_title': 'string',
-                    'resident_stance': 'optional<support|oppose|neutral|question>',
+                    'resident_stance': 'optional<support|oppose|neutral|watching>',
                     'key_points': 'optional<string>'
                 }
             },

@@ -250,9 +250,9 @@ class CivicInputValidator:
     def validate_stance(self, stance: Optional[str]) -> ValidationResult:
         """
         Validate resident_stance parameter.
-        
+
         Args:
-            stance: The user's stance (support/oppose/question/neutral)
+            stance: The user's stance (support/oppose/watching/neutral)
             
         Returns:
             ValidationResult with sanitized value and validation status
@@ -293,7 +293,7 @@ class CivicInputValidator:
             )
         
         # Whitelist validation - only allow specific values
-        allowed_stances = ["support", "oppose", "question", "neutral"]
+        allowed_stances = ["support", "oppose", "watching", "neutral"]
         
         if stance_str not in allowed_stances:
             return ValidationResult(
