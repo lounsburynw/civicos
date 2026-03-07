@@ -3396,6 +3396,39 @@ def scheduled_low_velocity_refresh():
     logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
     logger = logging.getLogger(__name__)
 
+    def run_with_retry(func, stage_name: str, max_retries: int = 2, initial_delay: float = 30.0, **kwargs):
+        """Run a Modal .local() function with retry logic for transient failures.
+
+        Handles both exceptions AND soft failures (status="failed" in returned dict).
+        """
+        delay = initial_delay
+        last_error = None
+
+        for attempt in range(max_retries + 1):
+            try:
+                result = func.local(**kwargs)
+                # Check for soft failures (e.g., LegiScan returning status: ERROR)
+                if isinstance(result, dict) and result.get("status") == "failed":
+                    last_error = result.get("error", "unknown")
+                    if attempt < max_retries:
+                        logger.warning(f"  {stage_name} returned failed (attempt {attempt + 1}/{max_retries + 1}), retrying in {delay}s: {last_error}")
+                        time.sleep(delay)
+                        delay *= 2
+                        continue
+                    else:
+                        logger.error(f"  {stage_name} failed after {max_retries + 1} attempts: {last_error}")
+                return result
+            except Exception as e:
+                last_error = e
+                if attempt < max_retries:
+                    logger.warning(f"  {stage_name} failed (attempt {attempt + 1}/{max_retries + 1}), retrying in {delay}s: {e}")
+                    time.sleep(delay)
+                    delay *= 2
+                else:
+                    logger.exception(f"  {stage_name} failed after {max_retries + 1} attempts")
+
+        return {"status": "failed", "error": str(last_error)}
+
     logger.info("Starting scheduled low-velocity refresh")
     start_time = time.time()
 
@@ -3416,71 +3449,80 @@ def scheduled_low_velocity_refresh():
     #   2. Stores/upserts bills with temporal versioning
     #   3. Populates full_text for bills missing it
     #   4. Auto-indexes vectors
-    try:
-        logger.info("Syncing CA legislation...")
-        result = sync_legislation.local(jurisdiction="state-CA", dry_run=False, auto_index=True)
-        results["legislation_CA"] = result
+    logger.info("Syncing CA legislation...")
+    result = run_with_retry(
+        sync_legislation,
+        "CA legislation sync",
+        jurisdiction="state-CA", dry_run=False, auto_index=True,
+    )
+    results["legislation_CA"] = result
+    if result.get("status") != "failed":
         new_bills = result.get('new_bills', 0)
         stored = result.get('bills_stored', 0)
         text_updated = result.get('text_result', {}).get('bills_with_text', 0)
         indexed = result.get('vector_result', {}).get('total_indexed', 0) if result.get('auto_index') else 0
         logger.info(f"  CA Legislation: {new_bills} new bills, {stored} total stored, {text_updated} texts populated, {indexed} vectors indexed")
-    except Exception as e:
-        logger.exception("CA legislation sync failed")
-        results["legislation_CA"] = {"status": "failed", "error": str(e)}
 
     # Executive Orders from Federal Register (incremental, auto-index vectors)
-    try:
-        logger.info("Fetching Executive Orders from Federal Register...")
-        result = fetch_executive_orders.local(dry_run=False, incremental=True, auto_index=True)
-        results["executive_orders"] = result
+    logger.info("Fetching Executive Orders from Federal Register...")
+    result = run_with_retry(
+        fetch_executive_orders,
+        "Executive Orders fetch",
+        dry_run=False, incremental=True, auto_index=True,
+    )
+    results["executive_orders"] = result
+    if result.get("status") != "failed":
         stored = result.get('orders_stored', 0)
         indexed = result.get('vector_result', {}).get('total_indexed', 0) if result.get('auto_index') else 0
         logger.info(f"  Executive Orders: {stored} new orders stored (of {result.get('orders_fetched', 0)} fetched), {indexed} vectors indexed")
-    except Exception as e:
-        logger.exception("Executive Orders fetch failed")
-        results["executive_orders"] = {"status": "failed", "error": str(e)}
 
     # Federal Rules from Federal Register (proposed rules, final rules, notices)
-    try:
-        logger.info("Fetching Federal Rules from Federal Register...")
-        result = fetch_federal_rules.local(dry_run=False, incremental=True, auto_index=True)
-        results["federal_rules"] = result
+    logger.info("Fetching Federal Rules from Federal Register...")
+    result = run_with_retry(
+        fetch_federal_rules,
+        "Federal Rules fetch",
+        dry_run=False, incremental=True, auto_index=True,
+    )
+    results["federal_rules"] = result
+    if result.get("status") != "failed":
         stored = result.get('rules_stored', 0)
         indexed = result.get('vector_result', {}).get('total_indexed', 0) if result.get('auto_index') else 0
         logger.info(f"  Federal Rules: {stored} new rules stored (of {result.get('rules_fetched', 0)} fetched), {indexed} vectors indexed")
-    except Exception as e:
-        logger.exception("Federal Rules fetch failed")
-        results["federal_rules"] = {"status": "failed", "error": str(e)}
 
     # Legislative Events (hearing dates parsed from existing legislation — no API calls)
-    try:
-        logger.info("Extracting legislative events from CA legislation...")
-        result = extract_legislative_events.local(state="CA", dry_run=False)
-        results["legislative_events_CA"] = result
+    logger.info("Extracting legislative events from CA legislation...")
+    result = run_with_retry(
+        extract_legislative_events,
+        "Legislative events extraction",
+        state="CA", dry_run=False,
+    )
+    results["legislative_events_CA"] = result
+    if result.get("status") != "failed":
         stored = result.get('events_stored', 0)
         logger.info(f"  Legislative Events CA: {stored} events stored (of {result.get('events_parsed', 0)} parsed from {result.get('bills_read', 0)} bills)")
-    except Exception as e:
-        logger.exception("Legislative events extraction failed")
-        results["legislative_events_CA"] = {"status": "failed", "error": str(e)}
 
     # Federal programs from SAM.gov (full catalog refresh)
-    try:
-        logger.info("Fetching federal programs from SAM.gov...")
-        result = fetch_federal_programs.local(dry_run=False, force_refresh=True, auto_index=True)
-        results["federal_programs"] = result
+    logger.info("Fetching federal programs from SAM.gov...")
+    result = run_with_retry(
+        fetch_federal_programs,
+        "Federal programs fetch",
+        dry_run=False, force_refresh=True, auto_index=True,
+    )
+    results["federal_programs"] = result
+    if result.get("status") != "failed":
         stored = result.get("programs_stored", 0)
         indexed = result.get("vector_result", {}).get("total_indexed", 0) if result.get("auto_index") else 0
         logger.info(f"  Federal programs: {stored} programs stored, {indexed} vectors indexed")
-    except Exception as e:
-        logger.exception("Federal programs fetch failed")
-        results["federal_programs"] = {"status": "failed", "error": str(e)}
 
     # HUD allocations (CDBG, HOME, etc.) - already iterates all configured jurisdictions
-    try:
-        logger.info("Fetching HUD allocations for all configured jurisdictions...")
-        result = fetch_all_hud_allocations.local(dry_run=False)
-        results["hud_allocations"] = result
+    logger.info("Fetching HUD allocations for all configured jurisdictions...")
+    result = run_with_retry(
+        fetch_all_hud_allocations,
+        "HUD allocations fetch",
+        dry_run=False,
+    )
+    results["hud_allocations"] = result
+    if result.get("status") != "failed":
         new_years = result.get("new_years_discovered", [])
         jcount = result.get("jurisdictions_processed", 0)
         stored = result.get("total_allocations_stored", 0)
@@ -3488,9 +3530,6 @@ def scheduled_low_velocity_refresh():
             logger.info(f"  HUD allocations: {stored} stored across {jcount} jurisdictions, NEW YEARS FOUND: {new_years}")
         else:
             logger.info(f"  HUD allocations: {stored} stored across {jcount} jurisdictions")
-    except Exception as e:
-        logger.exception("HUD allocations fetch failed")
-        results["hud_allocations"] = {"status": "failed", "error": str(e)}
 
     # NOTE: Federal programs vector indexing is now handled by auto_index=True
     # in the fetch_federal_programs call above (avoids duplicate indexing).
