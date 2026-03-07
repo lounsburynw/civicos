@@ -1,7 +1,9 @@
 # Election Data Integration Reference
 
+> **Future State:** This document describes a planned integration that has not yet been implemented. It is included as a design reference for post-launch work. No election data is currently ingested.
+
 **Purpose:** Reference document for future implementation after core data ingestion is complete.
-**Target:** San Rafael pilot, Jan 2026
+**Target:** Post-launch
 **Primary use case:** Upcoming elections + deadlines in `whats_next()`
 
 ---

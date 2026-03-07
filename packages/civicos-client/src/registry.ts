@@ -135,10 +135,13 @@ export class RegistryClient {
 
   /**
    * Get the relay URL for the active jurisdiction.
-   * Priority: registry lookup > default.
+   * Priority: explicit override > registry lookup > default.
    */
   async getRelayUrl(): Promise<string> {
     try {
+      const override = await this.storage.get<string>(RELAY_STORAGE_KEY);
+      if (override) return override;
+
       const registryUrl = await this.getRelayEndpoint();
       if (registryUrl) return registryUrl;
 

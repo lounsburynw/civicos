@@ -140,3 +140,16 @@ export class PersonalMCPClient {
 
 /** Singleton instance for use across the extension. */
 export const personalMCP = new PersonalMCPClient();
+
+/** Re-initialize the singleton with a custom base URL from settings. */
+export async function refreshPersonalMCPUrl(): Promise<void> {
+  try {
+    const stored = await chrome.storage.local.get('civicos_personal_mcp_url');
+    if (stored.civicos_personal_mcp_url) {
+      personalMCP['baseUrl'] = stored.civicos_personal_mcp_url;
+      personalMCP.invalidateCache();
+    }
+  } catch {
+    // Not in extension context — use default
+  }
+}

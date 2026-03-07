@@ -36,7 +36,7 @@ python3 -m venv civicos-env
 source civicos-env/bin/activate
 
 # Install dependencies
-pip install -e packages/civic
+pip install -e packages/civicos
 pip install -e apps/civicos-mcp
 ```
 

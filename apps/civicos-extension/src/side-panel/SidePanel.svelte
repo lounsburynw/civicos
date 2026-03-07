@@ -807,6 +807,11 @@
     if (changes[JOURNAL_KEY]) {
       journalText = changes[JOURNAL_KEY].newValue?.text || '';
     }
+    // Re-load when user changes jurisdiction in Options
+    if (changes['civicos_jurisdiction']) {
+      initJurisdiction();
+      loadCityPulse();
+    }
   });
 </script>
 

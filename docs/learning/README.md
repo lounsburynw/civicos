@@ -13,6 +13,15 @@ Self-contained documents for learning the CivicOS architecture from first princi
 | [05 — Jurisdiction Scope and Attestation Rollup](05_JURISDICTION_SCOPE_AND_ATTESTATION_ROLLUP.md) | Relay scope, attestation across government levels, special districts, operational deployment | Modules 1-4 | Understanding multi-jurisdiction design |
 | [06 — Economic Model and Sustainability](06_ECONOMIC_MODEL_AND_SUSTAINABILITY.md) | Costs, revenue models, customer segments, the moat, why previous civic tech failed, anti-revenue constraints | Modules 1-5 | Understanding the business model |
 
+## Choose Your Path
+
+| You are a... | Start with | Then explore |
+|--------------|-----------|--------------|
+| **Curious resident** | [Module 1](01_CRYPTOGRAPHIC_FOUNDATIONS.md) → [Module 3](03_ATTESTATION_AND_THE_FULL_SYSTEM.md) | FAQ, Getting Started |
+| **Developer** | [Module 1](01_CRYPTOGRAPHIC_FOUNDATIONS.md) → all modules in order | CLAUDE.md, architecture docs |
+| **Civic leader / funder** | [Module 3](03_ATTESTATION_AND_THE_FULL_SYSTEM.md) → [Module 6](06_ECONOMIC_MODEL_AND_SUSTAINABILITY.md) | Pilot roadmap, sustainability model |
+| **Security researcher** | [Module 1](01_CRYPTOGRAPHIC_FOUNDATIONS.md) → [Module 4](04_RELAY_TRUST_AND_INTEGRITY.md) | Coordination protocol, attestation guide |
+
 ## How to Use
 
 **NotebookLM:** Upload all six as sources. Ask it to generate an audio overview, or quiz you on specific topics.

@@ -48,22 +48,24 @@ services:
       civic-api:
         condition: service_healthy
 
-  # Frontend (optional - comment out if deploying separately)
-  civic-frontend:
-    build:
-      context: ./apps/civicos-workspace
-      dockerfile: Dockerfile
-    container_name: civic-frontend
-    ports:
-      - "80:80"
-    environment:
-      - VITE_API_URL=http://civic-api:8001
-      - VITE_WS_URL=http://civic-websocket:8002
-    depends_on:
-      - civic-api
-      - civic-websocket
-    profiles:
-      - with-frontend
+  # Frontend (DEPRECATED - civicos-workspace is no longer the primary surface)
+  # The primary UX is the browser extension. Open WebUI is the secondary surface.
+  # This service is retained for reference only.
+  # civic-frontend:
+  #   build:
+  #     context: ./apps/civicos-workspace
+  #     dockerfile: Dockerfile
+  #   container_name: civic-frontend
+  #   ports:
+  #     - "80:80"
+  #   environment:
+  #     - VITE_API_URL=http://civic-api:8001
+  #     - VITE_WS_URL=http://civic-websocket:8002
+  #   depends_on:
+  #     - civic-api
+  #     - civic-websocket
+  #   profiles:
+  #     - with-frontend
 
 volumes:
   civic-data:

@@ -1,10 +1,12 @@
 # Rollback Procedures
 
+> **Needs Rewrite:** This document still references Fly.io, which has been fully replaced by Modal. A complete rewrite covering Modal deployments and Supabase PostgreSQL rollback is planned. Use with caution — the commands below are outdated.
+
 **Last Updated:** 2025-12-11
-**Platform:** Fly.io
+**Platform:** ~~Fly.io~~ Modal (rewrite pending)
 **Related:** [DEPLOYMENT_GUIDE.md](./DEPLOYMENT_GUIDE.md)
 
-This guide provides step-by-step rollback procedures for the Civic platform. Use this when a deployment causes issues that require reverting to a previous state.
+This guide provides step-by-step rollback procedures for the CivicOS platform. Use this when a deployment causes issues that require reverting to a previous state.
 
 ## Table of Contents
 

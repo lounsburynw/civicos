@@ -69,6 +69,19 @@
   // Advanced section collapse
   let showAIPrivacy = $state(false);
 
+  // Endpoints state
+  let showEndpoints = $state(false);
+  let resolvedMcpUrl = $state('');
+  let resolvedRelayUrl = $state('');
+  let mcpOverride = $state('');
+  let relayOverride = $state('');
+  let personalMcpUrl = $state('http://localhost:8081');
+  let mcpHealth: 'unknown' | 'ok' | 'error' = $state('unknown');
+  let relayHealth: 'unknown' | 'ok' | 'error' = $state('unknown');
+  let personalMcpHealth: 'unknown' | 'ok' | 'error' = $state('unknown');
+  let endpointsSaving = $state(false);
+  let endpointsChecking = $state(false);
+
   // Status timer handle — clear old timer before setting new one
   let statusTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -617,11 +630,86 @@
     jurisdictionSaving = false;
   }
 
-  // Auto-save jurisdiction on change
+  async function loadEndpoints() {
+    resolvedMcpUrl = await registry.getMcpUrl();
+    resolvedRelayUrl = await registry.getRelayUrl();
+    // Load overrides from chrome.storage.local (same backing store as ChromeStorageAdapter)
+    const stored = await chrome.storage.local.get(['civicos_api_url', 'civicos_relay_url', 'civicos_personal_mcp_url']);
+    mcpOverride = stored.civicos_api_url || '';
+    relayOverride = stored.civicos_relay_url || '';
+    if (stored.civicos_personal_mcp_url) personalMcpUrl = stored.civicos_personal_mcp_url;
+  }
+
+  async function checkEndpointHealth() {
+    endpointsChecking = true;
+
+    // Check MCP
+    try {
+      const resp = await fetch(`${resolvedMcpUrl}/health`, { signal: AbortSignal.timeout(3000) });
+      mcpHealth = resp.ok ? 'ok' : 'error';
+    } catch { mcpHealth = 'error'; }
+
+    // Check Relay
+    try {
+      const resp = await fetch(`${resolvedRelayUrl.replace(/\/relay\/?$/, '')}/health`, { signal: AbortSignal.timeout(3000) });
+      relayHealth = resp.ok ? 'ok' : 'error';
+    } catch { relayHealth = 'error'; }
+
+    // Check Personal MCP
+    try {
+      const resp = await fetch(`${personalMcpUrl}/health`, { signal: AbortSignal.timeout(1000) });
+      personalMcpHealth = resp.ok ? 'ok' : 'error';
+    } catch { personalMcpHealth = 'error'; }
+
+    endpointsChecking = false;
+  }
+
+  async function saveEndpoints() {
+    endpointsSaving = true;
+    try {
+      if (mcpOverride.trim()) {
+        await registry.setMcpUrl(mcpOverride.trim());
+      } else {
+        await registry.setMcpUrl('');
+      }
+      if (relayOverride.trim()) {
+        await registry.setRelayUrl(relayOverride.trim());
+      } else {
+        await registry.clearRelayUrlOverride();
+      }
+      await chrome.storage.local.set({ civicos_personal_mcp_url: personalMcpUrl });
+      // Reload resolved URLs
+      resolvedMcpUrl = await registry.getMcpUrl();
+      resolvedRelayUrl = await registry.getRelayUrl();
+      // Re-check health
+      await checkEndpointHealth();
+      setStatus('Endpoints saved', 'success');
+    } catch (err) {
+      setStatus(err instanceof Error ? err.message : 'Failed to save endpoints', 'error');
+    }
+    endpointsSaving = false;
+  }
+
+  async function resetEndpoints() {
+    mcpOverride = '';
+    relayOverride = '';
+    personalMcpUrl = 'http://localhost:8081';
+    await saveEndpoints();
+  }
+
+  // Auto-save jurisdiction on change + refresh endpoints
   let prevJurisdiction = '';
   $effect(() => {
     if (selectedJurisdiction && prevJurisdiction && selectedJurisdiction !== prevJurisdiction) {
       saveJurisdiction();
+      // Re-resolve endpoints for the new jurisdiction
+      loadEndpoints().then(() => {
+        if (showEndpoints) {
+          mcpHealth = 'unknown';
+          relayHealth = 'unknown';
+          checkEndpointHealth();
+        }
+      });
     }
     prevJurisdiction = selectedJurisdiction;
   });
@@ -643,6 +731,7 @@
   loadJurisdiction();
   loadProfile();
   loadJournal();
+  loadEndpoints();
 
   // Sync sign-in state and journal when changed from side panel or other pages
   chrome.storage.onChanged.addListener((changes, areaName) => {
@@ -743,6 +832,11 @@
             {/if}
           </div>
         </div>
+        {#if attestationJurisdiction && attestationJurisdiction !== selectedJurisdiction}
+          <div class="attestation-mismatch">
+            You're verified for {attestationJurisdiction} but viewing {availableServers.find(s => s.jurisdiction_id === selectedJurisdiction)?.display_name || selectedJurisdiction}. CivicOS AI features require verification for the selected city.
+          </div>
+        {/if}
       {/if}
 
       {#if identity?.isUnlocked}
@@ -944,6 +1038,66 @@
             <button class="ollama-refresh" onclick={loadOllamaStatus} title="Check for Ollama">&#8635;</button>
           </div>
         {/if}
+      </section>
+    {/if}
+
+    <!-- Endpoints -->
+    <button class="expand-row" onclick={() => { showEndpoints = !showEndpoints; if (showEndpoints && mcpHealth === 'unknown') checkEndpointHealth(); }}>
+      <span class="expand-row-label">Endpoints</span>
+      <span class="expand-row-meta">
+        {#if mcpHealth === 'ok'}Connected{:else if mcpHealth === 'error'}Unreachable{:else}...{/if}
+      </span>
+      <span class="chevron-right" class:open={showEndpoints}></span>
+    </button>
+
+    {#if showEndpoints}
+      <section class="expand-body">
+        <div class="endpoint-group">
+          <div class="endpoint-row">
+            <span class="endpoint-label">MCP Server</span>
+            <span class="health-dot" class:ok={mcpHealth === 'ok'} class:err={mcpHealth === 'error'}></span>
+          </div>
+          <span class="endpoint-url">{resolvedMcpUrl}</span>
+          <div class="form-group endpoint-override">
+            <input type="text" placeholder="Override URL (leave empty for auto)" bind:value={mcpOverride} />
+          </div>
+        </div>
+
+        <div class="endpoint-group">
+          <div class="endpoint-row">
+            <span class="endpoint-label">Relay</span>
+            <span class="health-dot" class:ok={relayHealth === 'ok'} class:err={relayHealth === 'error'}></span>
+          </div>
+          <span class="endpoint-url">{resolvedRelayUrl}</span>
+          <div class="form-group endpoint-override">
+            <input type="text" placeholder="Override URL (leave empty for auto)" bind:value={relayOverride} />
+          </div>
+        </div>
+
+        <div class="endpoint-group">
+          <div class="endpoint-row">
+            <span class="endpoint-label">Personal MCP</span>
+            <span class="health-dot" class:ok={personalMcpHealth === 'ok'} class:err={personalMcpHealth === 'error'}></span>
+          </div>
+          <span class="endpoint-url">{personalMcpUrl}</span>
+          <div class="form-group endpoint-override">
+            <input type="text" placeholder="http://localhost:8081" bind:value={personalMcpUrl} />
+          </div>
+        </div>
+
+        <div class="ai-action-buttons">
+          <button class="btn-primary" onclick={saveEndpoints} disabled={endpointsSaving}>
+            {endpointsSaving ? 'Saving...' : 'Save'}
+          </button>
+          <button class="btn-secondary" onclick={checkEndpointHealth} disabled={endpointsChecking}>
+            {endpointsChecking ? 'Checking...' : 'Check'}
+          </button>
+          <button class="btn-secondary" onclick={resetEndpoints}>Reset</button>
+        </div>
+
+        <span class="field-desc" style="margin-top: 8px;">
+          Endpoints are auto-discovered from the registry. Override only for local development.
+        </span>
       </section>
     {/if}
 
@@ -1598,6 +1752,56 @@
   }
   .ollama-refresh:hover { opacity: 1; }
 
+
+  .attestation-mismatch {
+    font-size: 11px;
+    color: #fbbf24;
+    background: rgba(251, 191, 36, 0.08);
+    padding: 8px 10px;
+    border-radius: 6px;
+    margin-top: 6px;
+    line-height: 1.4;
+  }
+
+  /* Endpoints */
+  .endpoint-group {
+    margin-bottom: 14px;
+  }
+  .endpoint-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 2px;
+  }
+  .endpoint-label {
+    font-size: 12px;
+    font-weight: 500;
+    color: #94a3b8;
+  }
+  .endpoint-url {
+    display: block;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 11px;
+    color: #64748b;
+    margin-bottom: 6px;
+    word-break: break-all;
+  }
+  .endpoint-override {
+    margin-bottom: 0;
+  }
+  .endpoint-override input {
+    font-size: 12px;
+    padding: 6px 9px;
+  }
+  .health-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #475569;
+    flex-shrink: 0;
+  }
+  .health-dot.ok { background: #22c55e; }
+  .health-dot.err { background: #ef4444; }
 
   select {
     width: 100%;
