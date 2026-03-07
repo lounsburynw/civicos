@@ -24,17 +24,26 @@ Identity is local-first, built on Nostr (secp256k1 Schnorr signatures). Private 
 
 ```
 Browser Extension (Svelte 5)
-    |
-    v
-civicos-client (TypeScript)  -->  REST API (FastAPI on Modal)
-    |                                   |
-    v                                   v
-civicos-components (Svelte)       CivicOS (Python core)
-                                        |
-                                   -----------
-                                   |         |
-                              PostgreSQL   pgvector
-                              (Supabase)   (embeddings)
+    ├── civicos-components (Svelte UI)
+    └── civicos-client (TypeScript)
+              |
+         ┌────┴────┐
+         v         v
+    REST API    Relay API
+    (FastAPI)   (FastAPI)
+         |         |
+         v         v
+    CivicOS    civicos-relay
+    (Python)   (coordination)
+         |         |
+         v         v
+    PostgreSQL  Relay DB
+    + pgvector  (Supabase)
+    (Supabase)
+         ^
+         |
+    civicos-extraction
+    (platform parsers)
 ```
 
 **Packages:**
