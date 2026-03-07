@@ -1,5 +1,7 @@
 # Vector Indexing Operations
 
+> **Claude Code:** Run `/vectors` for GPU-accelerated vector indexing on Modal, and `/vector-coverage` to check embedding coverage across corpus types.
+
 ## Overview
 
 Vector embeddings enable semantic search across civic documents. We use **Modal** for compute-intensive embedding generation, solving memory constraints of standard CI runners.

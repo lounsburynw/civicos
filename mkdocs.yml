@@ -137,6 +137,7 @@ nav:
       - Operating Costs: operations/OPERATING_COSTS.md
 
   - Development:
+    - Claude Code Workflow: development/claude-code-workflow.md
     - Testing Strategy: critical/TESTING_STRATEGY.md
     - Extractor Protocol: critical/EXTRACTOR_PROTOCOL.md
     - SQLite + ChromaDB Patterns: critical/SQLITE_CHROMADB_JOIN_PATTERNS.md

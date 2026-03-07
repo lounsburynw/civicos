@@ -1,5 +1,7 @@
 # Testing Strategy
 
+> **Claude Code:** Run `/test` to execute the appropriate test tier (smoke, targeted, full, or profile).
+
 This document describes the Civic platform's tiered testing strategy, designed to balance CI speed with comprehensive coverage.
 
 ## Test Tiers

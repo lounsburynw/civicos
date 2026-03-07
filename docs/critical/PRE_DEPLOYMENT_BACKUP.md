@@ -1,5 +1,7 @@
 # Pre-Deployment Backup Procedure
 
+> **Claude Code:** Run `/db-backup` for PostgreSQL backups (selective or full) and `/blob-backup` for R2 blob storage management.
+
 **Last Updated:** 2025-12-11
 **Time Required:** 5-10 minutes
 **Related:** [DEPLOYMENT_GUIDE.md](./DEPLOYMENT_GUIDE.md), [ROLLBACK_PROCEDURES.md](./ROLLBACK_PROCEDURES.md)

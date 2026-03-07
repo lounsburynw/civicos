@@ -1,8 +1,10 @@
 # Deployment Guide
 
+> **Claude Code:** Run `/launch` to start dev servers locally, `/db-backup` before any destructive operation, and `/commit` to run critics before committing.
+
+> **Note:** Production deployments now use **Modal**, not Fly.io. Some sections below reference the legacy Fly.io setup. See CLAUDE.md for current deployment instructions.
+
 **Last Updated:** 2025-12-16
-**Platform:** Fly.io
-**Region:** SJC (San Jose - closest to San Rafael pilot)
 
 This guide provides step-by-step instructions for deploying the Civic platform. For architecture decisions and cost analysis, see [HOSTING_DECISION.md](./HOSTING_DECISION.md).
 
