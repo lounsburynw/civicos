@@ -638,8 +638,7 @@ Bob Jones: No voting record (challenger)
 # 7. The full "closed loop" user journey
 # ========================================
 
-# User follows housing topic
->>> c.follow("housing")
+# User queries housing topic
 
 # whats_next shows upcoming housing-related items AND election info
 >>> events = c.whats_next(topics=["housing"], days=90, include_elections=True)

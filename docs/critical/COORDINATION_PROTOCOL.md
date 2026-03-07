@@ -67,11 +67,11 @@ Events map to existing CivicOS primitives:
 |-------|---------|----------------|
 | `agenda_published` | New agenda available | `whats_next()` |
 | `decision_made` | Council votes on item | `what_happened()` |
-| `initiative_created` | Someone starts a new initiative | `start_something()` |
-| `voice_added` | Someone voices on an initiative | `add_voice()` |
-| `threshold_reached` | Voice count crosses subscriber-defined threshold | `whos_with_me()` |
-| `public_comment_opened` | Comment period begins | `prepare()` |
-| `public_comment_closing` | Comment period ending soon | `prepare()` |
+| `initiative_created` | Someone starts a new initiative | civicos-relay |
+| `voice_added` | Someone voices on an initiative | civicos-relay |
+| `threshold_reached` | Voice count crosses subscriber-defined threshold | civicos-relay |
+| `public_comment_opened` | Comment period begins | civicos-relay |
+| `public_comment_closing` | Comment period ending soon | civicos-relay |
 | `meeting_scheduled` | New meeting on calendar | `whats_next()` |
 
 ### Event Payload
