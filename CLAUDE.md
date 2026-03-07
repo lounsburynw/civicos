@@ -158,71 +158,43 @@ apps/civicos-mcp/             # MCP server (for AI agents)
 apps/civicos-workspace/       # Vue frontend (DEPRECATED)
 apps/civicos-openwebui-fork/  # Open WebUI fork (secondary surface, symlink → ~/projects/civicos-openwebui)
 data/                       # Extracted events, issues, legislative context
-docs/critical/              # Essential architecture docs
+docs/public/                # Public-facing docs (architecture, API, extension, MCP, packages)
+docs/internal/              # Ops docs (deployment, backup, ingestion, testing, rollback)
+docs/private/               # Financial/billing (gitignored)
 docs/archive/               # Historical docs (recoverable)
-docs/archive/checklists/    # Completed phase checklists
 ```
 
 ## Documentation
 
-Read only when needed. Organized by purpose:
+Organized into public (ships with the repo) and internal (operations). Read only when needed.
 
-### Architecture & Design (docs/critical/)
+### Public Docs (docs/public/)
+
 | Doc | Purpose |
 |-----|---------|
-| `FINAL_PACKAGE_ARCHITECTURE.md` | **Master architecture** - API, coordination, four-layer design, error handling |
-| `FOCAL_POINT_DECISION_AWARENESS.md` | Core hypothesis - why civic coordination works |
-| `COORDINATION_PROTOCOL.md` | Coordination protocol - relay, voice, provenance (MVP in pilot) |
-| `MCP_INTEGRATION_STRATEGY.md` | MCP server + multi-platform distribution (Claude.ai, ChatGPT, web) |
-| `EDGE_INTELLIGENCE_ARCHITECTURE.md` | User-centric agents, tiered identity, MCP Apps integration |
-| `CIVIC_DASHBOARD_VISION.md` | Post-pilot UX vision - engagement ladder, data visualization, multi-surface rendering |
-| `VECTOR_RAG_SCHEMA.md` | Vector storage schema, corpus types |
-| `COMMITMENT_TRACKER_ARCHITECTURE.md` | Tracking official commitments |
-| `FINANCIAL_DATA_INTEGRATION.md` | Budget, ACFR, intergovernmental data |
-| `FEDERAL_FUNDING_DATA_SOURCES.md` | FAC, USAspending, federal data |
-| `ELECTION_INTEGRATION.md` | Election data integration |
-| `BROWSER_EXTENSION_ARCHITECTURE.md` | Browser extension as primary distribution surface |
+| `README.md` | Project overview, architecture, quick start |
+| `api.md` | Core CivicOS API — method signatures and return types |
+| `data-dictionary.md` | All data schemas with field definitions |
+| `extension/setup.md` | Browser extension install and user guide |
+| `extension/development.md` | Extension dev workflow, tech stack, component architecture |
+| `mcp/setup.md` | MCP server — connect Claude/ChatGPT, tool inventory |
+| `packages/*.md` | Per-package docs (civicos, services, relay, extraction, client, components) |
+| `decisions/` | Architecture Decision Records (vector storage, entity IDs, federation) |
+| `learning/` | Conceptual series — cryptography, Nostr, attestation, federation |
+| `essays/` | Long-form writing |
 
-### Operations & Deployment (docs/critical/)
+### Internal Docs (docs/internal/)
+
 | Doc | Purpose |
 |-----|---------|
-| `PILOT_ROADMAP.md` | Pilot validation plan |
-| `DEPLOYMENT_GUIDE.md` | Production deployment |
-| `HOSTING_DECISION.md` | Infrastructure choices |
-| `ROLLBACK_PROCEDURES.md` | Recovery procedures |
-| `UPTIME_MONITORING.md` | Health checks, alerting |
-| `PRE_DEPLOYMENT_BACKUP.md` | Backup before deploy |
-| `DAILY_BACKUP_SCHEDULE.md` | Ongoing backup schedule |
-| `SECRETS_MANAGEMENT.md` | Environment variables, keys |
-| `DATA_INGESTION_OPERATIONS.md` | ETL operations |
-| `VERSIONING_STRATEGY.md` | Release versioning |
-
-### Development Guides (docs/critical/)
-| Doc | Purpose |
-|-----|---------|
-| `TESTING_STRATEGY.md` | Test tiers, markers, fixtures, CI |
-| `DATA_DICTIONARY.md` | Data schemas, field definitions |
-| `EXTRACTOR_PROTOCOL.md` | Platform parser patterns |
-| `BUDGET_EXTRACTION.md` | Budget PDF extraction |
-
-### Decisions (docs/decisions/)
-Architecture Decision Records (ADRs):
-- `vector_storage.md` - ChromaDB vs pgvector choice
-- `data_integrity_infrastructure.md` - Data validation approach
-
-### Operations Runbooks (docs/operations/)
-- `VECTOR_INDEXING.md` - Re-indexing vectors
-
-### User Guides (docs/user_guides/)
-For end users and city admins:
-- `GETTING_STARTED.md`, `FEATURE_GUIDE.md`, `FAQ.md`
-- `ADMIN_SETUP_GUIDE.md`, `ADMIN_DATA_MANAGEMENT.md`, `ADMIN_TROUBLESHOOTING.md`
-- `BROWSER_EXTENSION_SETUP.md`, `MCP_SETUP_GUIDE.md`, `CITY_ONBOARDING_GUIDE.md`
-- `PLATFORM_SPECIFIC_NOTES.md`, `VERIFICATION_TUTORIAL.md`
-- `ATTESTATION_GUIDE.md` — Single-use code attestation (admin + user workflows)
+| `deployment.md` | Modal deploy, secrets, monitoring, infrastructure |
+| `backup.md` | Database + blob backup procedures |
+| `ingestion.md` | Data pipeline operations, checkpoints, vector indexing |
+| `testing.md` | Test tiers, CI, commands |
+| `rollback.md` | Recovery procedures |
 
 ### Private Docs (docs/private/ — gitignored)
-Financial, billing, and internal strategy docs. Not tracked in git.
+Financial, billing, and internal strategy docs.
 
 ### Archive (docs/archive/)
 Historical docs from completed phases. Recoverable if needed.
