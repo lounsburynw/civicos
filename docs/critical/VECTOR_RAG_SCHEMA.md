@@ -717,7 +717,7 @@ WHERE m.id = 'city-san-rafael-2025-11-17'
 
 ## Schema Validation Tests
 
-Test file: `packages/civic/tests/test_integration_rag_schema.py`
+Test file: `packages/civicos/tests/test_integration_rag_schema.py`
 
 ```python
 class TestVectorSchemaCompliance:
@@ -751,8 +751,8 @@ class TestVectorSchemaCompliance:
 - `packages/civicos/src/civicos/context.py` - Legislation semantic search implementation (ranking modes, boosting)
 - `packages/civicos/src/civicos/storage/corpus_types.py` - Corpus type registry
 - `docs/hot_session_semantic_search_critique.md` - Analysis of search patterns with empirical data
-- `packages/civic/src/civic/_internal/state/manager.py` - SQLite schema
-- `packages/civic/src/civic/_internal/meetings/embeddings.py` - Current embeddings (to refactor)
+- `packages/civicos/src/civicos/_internal/state/manager.py` - SQLite schema
+- `packages/civicos/src/civicos/_internal/meetings/embeddings.py` - Current embeddings (to refactor)
 - `integration.json` - architecture_cleanup section
 - `data/pilot/san_rafael_shelter_scenario.json` - Test corpus context
 

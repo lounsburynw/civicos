@@ -45,10 +45,12 @@
 - 311 analysis suite (10 tools): analytics, trends, geo-search, accountability, neighborhood reports
 - HTTP transport added (Session 535) - ready for public deployment
 - REST API complete: FastAPI endpoints (`packages/civicos-services/`)
-- Vue frontend available: `apps/civicos-workspace/` (fallback for non-MCP users)
+- Browser extension: `apps/civicos-extension/` (primary distribution surface)
+- Open WebUI fork: `apps/civicos-openwebui-fork/` (chat interface)
+- Vue frontend: `apps/civicos-workspace/` (deprecated)
 
 **Next Steps** (P0):
-1. Deploy Jurisdiction MCP with HTTPS (Railway, Fly.io, or ngrok for testing)
+1. Deploy Jurisdiction MCP with HTTPS (Modal production, ngrok for testing)
 2. Connect to ChatGPT via developer mode connector
 3. Connect to Claude.ai via Connectors settings (OAuth optional for start)
 4. Register on MCP Registry after validation
@@ -103,7 +105,7 @@ curl -s http://localhost:8080/mcp \
 | Option | Use Case | Cost | Setup Complexity | Notes |
 |--------|----------|------|------------------|-------|
 | **Modal** | Production (current) | ~$2-5/month | Low | All compute on one platform |
-| **Fly.io** | Legacy/alternative | ~$2/month | Medium | Previously at `civicos-mcp.fly.dev` |
+| ~~Fly.io~~ | Deprecated | N/A | N/A | Previously at `civicos-mcp.fly.dev`, migrated to Modal |
 | **ngrok** | Development/Demo | Free tier available | Lowest | Temporary URLs |
 | **Railway** | Alternative | ~$5/month | Low | Good alternative |
 | **Render** | Alternative | Free tier + $7/month | Low | |
@@ -216,13 +218,15 @@ Claude.ai/ChatGPT
     Supabase (PostgreSQL + pgvector)
 ```
 
-### Fly.io Deployment (Legacy)
+### Fly.io Deployment (Deprecated)
 
-Previously deployed on Fly.io at `civicos-mcp.fly.dev`. Configuration files remain for reference:
+> **Note (March 2026):** Fly.io is no longer used. The MCP server runs on Modal. See `apps/civicos-mcp/modal_app.py` for the current deployment configuration.
 
-- `fly-mcp.toml` - Fly.io app configuration
-- `Dockerfile.mcp` - Container definition
-- `scripts/deploy-mcp.sh` - Deployment script
+Previously deployed on Fly.io at `civicos-mcp.fly.dev`. Historical configuration files:
+
+- `fly-mcp.toml` - Fly.io app configuration (historical)
+- `Dockerfile.mcp` - Container definition (historical)
+- `scripts/deploy-mcp.sh` - Deployment script (historical)
 
 ### Railway Deployment (Alternative)
 
@@ -273,7 +277,7 @@ Claude.ai web now supports **remote MCP servers** via "Integrations" feature:
 **Deployment requirements**:
 ```
 Remote MCP Server Checklist:
-├── Host MCP server publicly (Railway, Fly.io, Render, etc.)
+├── Host MCP server publicly (Modal production, or Railway/Render as alternatives)
 ├── Implement OAuth 2.0 authentication
 │   └── Callback URL: https://claude.ai/api/mcp/auth_callback
 ├── Support SSE or Streamable HTTP transport

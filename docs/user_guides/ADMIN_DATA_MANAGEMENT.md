@@ -341,12 +341,18 @@ sqlite3 data/civic_state.db "SELECT COUNT(*) FROM meetings;" > /dev/null && \
 
 ### Manual Backup (Production)
 
-```bash
-# Run backup script on production
-fly ssh console -a civic-api -C "python scripts/backup.py --compress"
+Production data lives in Supabase PostgreSQL (managed, with automatic daily backups and PITR on Pro plan).
 
-# List available backups
-fly ssh console -a civic-api -C "python scripts/backup.py --list"
+```bash
+# Run backup script locally (connects to Supabase via DATABASE_URL)
+source civicos-env/bin/activate
+python scripts/backup.py --compress
+
+# List available local backups
+python scripts/backup.py --list
+
+# Check Supabase automatic backups via dashboard:
+# https://supabase.com/dashboard/project/lhtuixsynupnkejpahxk/settings/backups
 ```
 
 ### Restore from Backup
@@ -355,9 +361,10 @@ fly ssh console -a civic-api -C "python scripts/backup.py --list"
 # Local
 cp data/civic_state.db.backup-20251220 data/civic_state.db
 
-# Production
-fly ssh console -a civic-api -C "python scripts/backup.py --restore civic_state_20251220.db.gz --force"
-fly apps restart civic-api
+# Production (Supabase)
+# Use Supabase Dashboard > Backups > Restore to point in time (PITR)
+# Or restore from a local backup:
+python scripts/backup.py --restore civic_state_20251220.db.gz --force
 ```
 
 ---
@@ -385,8 +392,8 @@ mkdir -p data/testimony/archive
 find data/testimony -name "testimony_*.json" -mtime +365 \
   -exec mv {} data/testimony/archive/ \;
 
-# Clean backup files (production)
-fly ssh console -a civic-api -C "python scripts/backup.py --clean"
+# Clean old local backup files
+python scripts/backup.py --clean
 ```
 
 ---
@@ -428,22 +435,24 @@ du -h data/ | sort -h | tail -20
    ls data/testimony/testimony_*_original.json 2>/dev/null
    ```
 
-### Disk Full Recovery
+### Storage Notes
 
-If disk is full on production:
+Production uses managed services with no disk to fill:
+- **PostgreSQL**: Supabase manages storage automatically (Pro plan)
+- **Blobs (PDFs, audio)**: Cloudflare R2 (virtually unlimited object storage)
+- **Compute**: Modal is serverless/stateless — no persistent disk
+
+For local development storage issues:
 
 ```bash
-# 1. Check what's using space
-fly ssh console -a civic-api -C "du -h /app/user-data | sort -h | tail -20"
+# Check local data directory
+du -sh data/*/
 
-# 2. Clean backups first (safest)
-fly ssh console -a civic-api -C "python scripts/backup.py --clean"
+# Clean old local backups
+python scripts/backup.py --clean
 
-# 3. If still full, remove audio (can be re-downloaded)
-fly ssh console -a civic-api -C "rm /app/user-data/youtube_audio/*.mp3"
-
-# 4. Last resort: expand volume
-fly volumes extend vol_xxxxx --size 5 -a civic-api
+# Remove audio files (can be re-downloaded)
+rm data/youtube_audio/*.mp3
 ```
 
 ---
@@ -458,7 +467,7 @@ fly volumes extend vol_xxxxx --size 5 -a civic-api
 | Check database size | `du -h data/*.db` |
 | Run migration | `python scripts/migrate.py` |
 | Backup database | `cp data/civic_state.db data/civic_state.db.backup` |
-| List backups (prod) | `fly ssh console -a civic-api -C "python scripts/backup.py --list"` |
+| List backups (prod) | `python scripts/backup.py --list` (local) or Supabase Dashboard |
 | Clean audio files | `rm data/youtube_audio/*.mp3` |
 
 ---

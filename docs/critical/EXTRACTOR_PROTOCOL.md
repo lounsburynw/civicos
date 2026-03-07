@@ -184,7 +184,7 @@ discover → ingest → store → index
 ```python
 from civic_extraction.pipeline import Pipeline
 from civic_extraction.clients.proudcity import ProudCitySource
-from civic.storage.sqlite_backend import SQLiteBackend
+from civicos.storage.sqlite_backend import SQLiteBackend
 
 # Create source and storage
 source = ProudCitySource.from_jurisdiction("city-san-rafael")
@@ -246,7 +246,7 @@ Ingestion scripts must use the `StorageBackend` protocol for all data persistenc
 
 ### Protocol Methods
 
-The `StorageBackend` protocol (`packages/civic/src/civic/storage/backend.py`) provides methods for each data type:
+The `StorageBackend` protocol (`packages/civicos/src/civicos/storage/backend.py`) provides methods for each data type:
 
 | Data Type | Store Method | Get Method | Count Method |
 |-----------|--------------|------------|--------------|

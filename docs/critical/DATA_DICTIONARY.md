@@ -15,8 +15,8 @@ The Civic platform processes civic data organized into these main types:
 | **Issue** | SeeClickFix, native | Civic complaints and 311 reports |
 
 **Source Files:**
-- `packages/civic/src/civic/_internal/state/models.py` - Core models (CityState, Meeting, AgendaItem, Issue)
-- `packages/civic/src/civic/_internal/meetings/decision.py` - Decision models (Decision, VoteTally, LegalInstrument, etc.)
+- `packages/civicos/src/civicos/_internal/state/models.py` - Core models (CityState, Meeting, AgendaItem, Issue)
+- `packages/civicos/src/civicos/_internal/meetings/decision.py` - Decision models (Decision, VoteTally, LegalInstrument, etc.)
 
 ---
 
@@ -24,7 +24,7 @@ The Civic platform processes civic data organized into these main types:
 
 Represents the overall state of a jurisdiction.
 
-**Source File:** `packages/civic/src/civic/_internal/state/models.py:14`
+**Source File:** `packages/civicos/src/civicos/_internal/state/models.py:14`
 
 ### Fields
 
@@ -48,7 +48,7 @@ Represents the overall state of a jurisdiction.
 
 Normalized meeting data from various municipal platforms.
 
-**Source File:** `packages/civic/src/civic/_internal/state/models.py:42`
+**Source File:** `packages/civicos/src/civicos/_internal/state/models.py:42`
 
 ### Fields
 
@@ -87,7 +87,7 @@ See `packages/civicos-extraction/src/civic_extraction/meeting_schema.py` for the
 
 Represents an item on a meeting agenda.
 
-**Source File:** `packages/civic/src/civic/_internal/state/models.py:80`
+**Source File:** `packages/civicos/src/civicos/_internal/state/models.py:80`
 
 ### Fields
 
@@ -137,7 +137,7 @@ print(prep.participation_guide)
 
 Council decision extracted from meeting minutes and related documents.
 
-**Source File:** `packages/civic/src/civic/_internal/meetings/decision.py`
+**Source File:** `packages/civicos/src/civicos/_internal/meetings/decision.py`
 
 ### Fields
 
@@ -159,7 +159,7 @@ Council decision extracted from meeting minutes and related documents.
 
 ### Vote Structure (VoteTally)
 
-**Source File:** `packages/civic/src/civic/_internal/meetings/decision.py:25`
+**Source File:** `packages/civicos/src/civicos/_internal/meetings/decision.py:25`
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
@@ -186,7 +186,7 @@ Council decision extracted from meeting minutes and related documents.
 
 ### JSON Schema
 
-See `packages/civic/src/civic/_internal/meetings/decision_schema.py` for the full JSON Schema definition.
+See `packages/civicos/src/civicos/_internal/meetings/decision_schema.py` for the full JSON Schema definition.
 
 ---
 
@@ -194,7 +194,7 @@ See `packages/civic/src/civic/_internal/meetings/decision_schema.py` for the ful
 
 Civic issue or complaint, typically from 311 systems like SeeClickFix.
 
-**Source File:** `packages/civic/src/civic/_internal/state/models.py`
+**Source File:** `packages/civicos/src/civicos/_internal/state/models.py`
 
 ### Fields
 
@@ -255,7 +255,7 @@ Common issue categories from SeeClickFix:
 
 Staff recommendation that informed a decision.
 
-**Source File:** `packages/civic/src/civic/_internal/meetings/decision.py:103`
+**Source File:** `packages/civicos/src/civicos/_internal/meetings/decision.py:103`
 
 ### Fields
 
@@ -273,7 +273,7 @@ Staff recommendation that informed a decision.
 
 Summary of public input on a decision.
 
-**Source File:** `packages/civic/src/civic/_internal/meetings/decision.py:85`
+**Source File:** `packages/civicos/src/civicos/_internal/meetings/decision.py:85`
 
 ### Fields
 
@@ -289,7 +289,7 @@ Summary of public input on a decision.
 
 Resolution or ordinance that implements a decision.
 
-**Source File:** `packages/civic/src/civic/_internal/meetings/decision.py:63`
+**Source File:** `packages/civicos/src/civicos/_internal/meetings/decision.py:63`
 
 ### Fields
 
@@ -349,5 +349,5 @@ This enables point-in-time queries and audit trails.
 
 - `docs/EXTRACTOR_PROTOCOL.md` - Protocol documentation
 - `packages/civicos-extraction/src/civic_extraction/meeting_schema.py` - Meeting JSON Schema
-- `packages/civic/src/civic/_internal/meetings/decision_schema.py` - Decision JSON Schema
+- `packages/civicos/src/civicos/_internal/meetings/decision_schema.py` - Decision JSON Schema
 - `docs/critical/FINAL_PACKAGE_ARCHITECTURE.md` - System architecture

@@ -74,7 +74,7 @@ modal serve apps/civicos-mcp/modal_app.py
 
 ### Docker Container
 
-For self-hosted deployments on Docker, Fly.io, or any container platform.
+For self-hosted deployments on Docker or any container platform.
 
 ```bash
 # Build (from repo root)
