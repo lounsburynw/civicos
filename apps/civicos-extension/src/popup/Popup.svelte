@@ -76,19 +76,19 @@
   header {
     margin-bottom: 12px;
     padding-bottom: 8px;
-    border-bottom: 1px solid #1e293b;
+    border-bottom: 1px solid var(--civic-border-divider);
   }
 
   h1 {
     font-size: 16px;
     font-weight: 700;
-    color: #f8fafc;
+    color: var(--civic-text-bright);
   }
 
   .status {
     text-align: center;
     padding: 16px;
-    color: #94a3b8;
+    color: var(--civic-text-muted);
     font-size: 13px;
   }
 
@@ -107,29 +107,29 @@
 
   .label {
     font-size: 12px;
-    color: #64748b;
+    color: var(--civic-text-dim);
     text-transform: uppercase;
     font-weight: 500;
   }
 
   .sign-in-status {
     font-size: 12px;
-    color: #ef4444;
+    color: var(--civic-status-error);
     font-weight: 500;
   }
-  .sign-in-status.signed-in { color: #22c55e; }
+  .sign-in-status.signed-in { color: var(--civic-status-success); }
 
   .npub {
-    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-family: var(--civic-font-family-mono);
     font-size: 11px;
-    color: #94a3b8;
+    color: var(--civic-text-muted);
   }
 
   .no-identity {
     text-align: center;
     padding: 16px;
   }
-  .no-identity p { color: #94a3b8; font-size: 13px; }
+  .no-identity p { color: var(--civic-text-muted); font-size: 13px; }
 
   .actions {
     display: flex;
@@ -138,7 +138,7 @@
   }
 
   .btn-primary {
-    background: #6366f1;
+    background: var(--civic-accent-indigo);
     color: white;
     border: none;
     padding: 10px;
@@ -148,17 +148,17 @@
     cursor: pointer;
     width: 100%;
   }
-  .btn-primary:hover { background: #4f46e5; }
+  .btn-primary:hover { background: var(--civic-accent-indigo-hover); }
 
   .btn-secondary {
-    background: #1e293b;
-    color: #94a3b8;
-    border: 1px solid #334155;
+    background: var(--civic-border-divider);
+    color: var(--civic-text-muted);
+    border: 1px solid var(--civic-border-default);
     padding: 8px;
     border-radius: 6px;
     font-size: 12px;
     cursor: pointer;
     width: 100%;
   }
-  .btn-secondary:hover { background: #334155; color: #e2e8f0; }
+  .btn-secondary:hover { background: var(--civic-border-default); color: var(--civic-text-secondary); }
 </style>

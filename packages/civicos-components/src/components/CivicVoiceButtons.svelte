@@ -61,35 +61,35 @@
     font-size: 11px;
     padding: 4px 10px;
     border-radius: 12px;
-    border: 1px solid #374151;
+    border: 1px solid var(--civic-border-default);
     background: transparent;
-    color: #9ca3af;
+    color: var(--civic-text-muted);
     cursor: pointer;
     transition: all 0.15s ease;
     font-family: inherit;
   }
   .voice-btn:hover:not(:disabled) {
-    border-color: #4b5563;
-    color: #eee;
+    border-color: var(--civic-text-disabled);
+    color: var(--civic-text-primary);
   }
   .voice-btn:disabled {
     opacity: 0.5;
     cursor: default;
   }
   .vb-support.active {
-    background: #14532d;
-    border-color: #22c55e;
-    color: #4ade80;
+    background: var(--civic-status-success-bg);
+    border-color: var(--civic-status-success);
+    color: var(--civic-status-success-light);
   }
   .vb-oppose.active {
-    background: #7f1d1d;
-    border-color: #ef4444;
-    color: #f87171;
+    background: var(--civic-status-error-bg);
+    border-color: var(--civic-status-error);
+    color: var(--civic-status-error-light);
   }
   .vb-watch.active {
-    background: #1e3a5f;
-    border-color: #3b82f6;
-    color: #60a5fa;
+    background: var(--civic-accent-primary-dark);
+    border-color: var(--civic-accent-primary);
+    color: var(--civic-accent-primary-light);
   }
   .voice-locked-group {
     display: flex;
@@ -98,11 +98,11 @@
   }
   .voice-locked {
     font-size: 10px;
-    color: #6b7280;
+    color: var(--civic-text-dim);
     font-style: italic;
   }
   .voice-disclaimer {
     font-size: 9px;
-    color: #4b5563;
+    color: var(--civic-text-disabled);
   }
 </style>

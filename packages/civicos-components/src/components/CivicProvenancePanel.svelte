@@ -77,11 +77,11 @@
 
 <style>
   .provenance-panel {
-    background: #262626;
+    background: var(--civic-surface-elevated);
     border-radius: 8px;
     padding: 10px 12px;
     margin-bottom: 12px;
-    border: 1px solid #374151;
+    border: 1px solid var(--civic-border-default);
   }
   .prov-header {
     display: flex;
@@ -89,18 +89,18 @@
     align-items: center;
     margin-bottom: 6px;
   }
-  .prov-title { font-size: 12px; font-weight: 600; color: #eee; }
-  .prov-jurisdiction { font-size: 10px; color: #6b7280; }
+  .prov-title { font-size: 12px; font-weight: 600; color: var(--civic-text-primary); }
+  .prov-jurisdiction { font-size: 10px; color: var(--civic-text-dim); }
   .prov-stats {
     display: flex;
     gap: 4px;
     font-size: 11px;
-    color: #9ca3af;
+    color: var(--civic-text-muted);
     margin-bottom: 8px;
   }
-  .meta-sep { color: #4b5563; }
+  .meta-sep { color: var(--civic-text-disabled); }
   .prov-corpora {
-    border-top: 1px solid #374151;
+    border-top: 1px solid var(--civic-border-default);
     padding-top: 6px;
   }
   .corpus-row {
@@ -109,31 +109,31 @@
     padding: 3px 0;
     font-size: 11px;
   }
-  .corpus-name { color: #d1d5db; }
+  .corpus-name { color: var(--civic-text-body); }
   .corpus-stats { display: flex; gap: 6px; align-items: center; }
-  .corpus-count { color: #6b7280; font-variant-numeric: tabular-nums; }
+  .corpus-count { color: var(--civic-text-dim); font-variant-numeric: tabular-nums; }
   .corpus-indexed {
     font-size: 9px;
-    color: #4ade80;
+    color: var(--civic-status-success-light);
     text-transform: uppercase;
     letter-spacing: 0.3px;
   }
-  .corpus-coverage { font-size: 10px; color: #6b7280; font-variant-numeric: tabular-nums; }
-  .corpus-coverage.low { color: #f59e0b; }
+  .corpus-coverage { font-size: 10px; color: var(--civic-text-dim); font-variant-numeric: tabular-nums; }
+  .corpus-coverage.low { color: var(--civic-status-warning); }
   .prov-footer-row {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    border-top: 1px solid #374151;
+    border-top: 1px solid var(--civic-border-default);
     padding-top: 6px;
     margin-top: 6px;
   }
-  .prov-freshness { font-size: 10px; color: #4b5563; }
+  .prov-freshness { font-size: 10px; color: var(--civic-text-disabled); }
   .prov-backend {
     font-size: 9px;
-    color: #4b5563;
+    color: var(--civic-text-disabled);
     text-transform: uppercase;
     letter-spacing: 0.5px;
   }
-  .prov-loading { font-size: 11px; color: #6b7280; padding: 8px 0; }
+  .prov-loading { font-size: 11px; color: var(--civic-text-dim); padding: 8px 0; }
 </style>

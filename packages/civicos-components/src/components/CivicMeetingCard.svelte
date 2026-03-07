@@ -99,21 +99,21 @@
 
 <style>
   .card {
-    background: #1e1e1e;
+    background: var(--civic-surface-card);
     border-radius: 8px;
     padding: 10px 12px;
     margin-bottom: 4px;
-    border: 1px solid #262626;
+    border: 1px solid var(--civic-surface-elevated);
     transition: border-color 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
     cursor: grab;
   }
   .card:hover {
-    border-color: #374151;
+    border-color: var(--civic-border-default);
   }
   .card:active { cursor: grabbing; }
   .card.dragging {
     opacity: 0.4;
-    border-color: #4b5563;
+    border-color: var(--civic-text-disabled);
   }
   .past-meeting { opacity: 0.65; }
   .past-icon { font-size: 12px; margin-right: 4px; }
@@ -124,7 +124,7 @@
     gap: 6px;
   }
   .card-title {
-    color: #e5e7eb;
+    color: var(--civic-text-secondary);
     font-size: 13px;
     font-weight: 500;
     line-height: 1.3;
@@ -134,37 +134,37 @@
     align-items: center;
     gap: 4px;
     font-size: 11px;
-    color: #6b7280;
+    color: var(--civic-text-dim);
     margin-top: 4px;
     flex-wrap: wrap;
   }
-  .meta-sep { color: #4b5563; }
+  .meta-sep { color: var(--civic-text-disabled); }
   .cal-btn {
     flex-shrink: 0;
     background: none;
     border: none;
-    color: #6b7280;
+    color: var(--civic-text-dim);
     cursor: pointer;
     padding: 2px;
     border-radius: 3px;
   }
-  .cal-btn:hover:not(:disabled) { color: #d1d5db; background: #262626; }
+  .cal-btn:hover:not(:disabled) { color: var(--civic-text-body); background: var(--civic-surface-elevated); }
   .cal-btn:disabled { opacity: 0.3; cursor: default; }
   .cal-dropdown {
     display: flex;
     gap: 8px;
     margin-top: 6px;
     padding-top: 6px;
-    border-top: 1px solid #262626;
+    border-top: 1px solid var(--civic-surface-elevated);
   }
   .cal-option {
     font-size: 11px;
-    color: #9ca3af;
+    color: var(--civic-text-muted);
     background: none;
     border: none;
     cursor: pointer;
     padding: 0;
     text-decoration: none;
   }
-  .cal-option:hover { color: #d1d5db; text-decoration: underline; }
+  .cal-option:hover { color: var(--civic-text-body); text-decoration: underline; }
 </style>

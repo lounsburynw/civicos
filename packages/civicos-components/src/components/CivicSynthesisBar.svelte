@@ -38,12 +38,12 @@
     height: 6px;
     border-radius: 3px;
     overflow: hidden;
-    background: #262626;
+    background: var(--civic-surface-elevated);
   }
   .bar-seg { min-width: 4px; }
-  .bar-support { background: #22c55e; }
-  .bar-oppose { background: #ef4444; }
-  .bar-neutral { background: #9ca3af; }
+  .bar-support { background: var(--civic-status-success); }
+  .bar-oppose { background: var(--civic-status-error); }
+  .bar-neutral { background: var(--civic-text-muted); }
   .synthesis-labels {
     display: flex;
     gap: 8px;
@@ -51,8 +51,8 @@
   }
   .synth-label {
     font-size: 10px;
-    color: #6b7280;
+    color: var(--civic-text-dim);
   }
-  .synth-support { color: #22c55e; }
-  .synth-oppose { color: #ef4444; }
+  .synth-support { color: var(--civic-status-success); }
+  .synth-oppose { color: var(--civic-status-error); }
 </style>
