@@ -29,7 +29,7 @@ pip install civicos-extraction
 ### Legistar
 
 ```python
-from civic_extraction import LegistarClient
+from civicos_extraction import LegistarClient
 
 client = LegistarClient("berkeley")
 
@@ -45,7 +45,7 @@ for meeting in meetings:
 ### CivicClerk
 
 ```python
-from civic_extraction import CivicClerkClient
+from civicos_extraction import CivicClerkClient
 
 client = CivicClerkClient("elcerritoca")
 
@@ -61,7 +61,7 @@ meetings = client.get_meetings(days_ahead=30)
 All clients implement the `Extractor` protocol:
 
 ```python
-from civic_extraction import BaseExtractor, Meeting
+from civicos_extraction import BaseExtractor, Meeting
 
 class MyExtractor(BaseExtractor):
     def get_events(self, days_ahead=90, days_past=0) -> List[Dict]:
@@ -100,22 +100,19 @@ class Meeting:
     raw_data: Optional[Dict]
 ```
 
-## Integration with civic-state
+## Integration with CivicOS
 
 ```python
-from civic_extraction import LegistarClient
-from civic_state import StateManager
+from civicos_extraction import LegistarClient
+from civicos import CivicOS
 
 # Extract meetings
 client = LegistarClient("berkeley")
 meetings = client.get_meetings(days_ahead=30)
 
-# Store in StateManager
-state = StateManager("data/civic.db")
-state.update_meetings(
-    "city-berkeley",
-    [m.to_dict() for m in meetings]
-)
+# Store via CivicOS storage backend
+c = CivicOS("city-berkeley")
+c.storage.upsert_meetings("city-berkeley", [m.to_dict() for m in meetings])
 ```
 
 ## Dependencies

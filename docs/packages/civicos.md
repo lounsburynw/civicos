@@ -1,6 +1,6 @@
-# CivicOS
+# civicos
 
-Unified civic engagement platform for local self-organization.
+Core query and action API for CivicOS.
 
 ## Installation
 
@@ -18,13 +18,14 @@ pip install civicos[mcp]
 ```python
 from civicos import CivicOS
 
-c = CivicOS("san-rafael-ca")
+c = CivicOS("city-san-rafael")
 
 # Query (Learn)
-c.what_applies("housing")           # Get regulatory context
+c.what_applies("housing")           # Regulatory stack (local + state + federal)
 c.what_happened("bike lanes")       # Search past decisions
 c.whats_next(["transportation"])    # Get upcoming meetings
-c.whos_with_me("traffic safety")    # Find community
+c.whos_with_me("traffic safety")    # Find community via 311 issues
+c.what_was_said("homelessness")     # Search meeting transcripts
 
 # Action (Act)
 c.start_something(topic="traffic", title="Protected bike lane")
@@ -33,8 +34,7 @@ c.follow("meeting", "mtg_456")
 c.prepare("item_789")
 
 # AI Orchestration
-c.suggestions()                     # Get proactive recommendations
-c.coordinate("init_123", "plan_testimony")
+c.suggestions()                     # Proactive recommendations
 c.report_outcome("item_789", "passed")
 ```
 
@@ -49,13 +49,13 @@ civicos-server
 ## Architecture
 
 Four-layer design:
-1. **Intelligence** - Multi-platform data extraction
-2. **Orchestration** - Rule-based suggestions and outcome tracking
-3. **Coordination** - Custom coordination tools
-4. **Impact** - Outcome tracking and learning
+1. **Intelligence** — Multi-platform data extraction (civicos-extraction)
+2. **Orchestration** — Rule-based suggestions and outcome tracking
+3. **Coordination** — Voice, subscriptions, federation (civicos-relay)
+4. **Impact** — Outcome tracking and learning
 
-See `docs/critical/FINAL_PACKAGE_ARCHITECTURE.md` for details.
+See [Package Architecture](../critical/FINAL_PACKAGE_ARCHITECTURE.md) for details.
 
 ## License
 
-MIT
+PolyForm Noncommercial 1.0.0

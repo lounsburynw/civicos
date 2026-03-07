@@ -4,7 +4,7 @@ Production MCP (Model Context Protocol) server exposing the full CivicOS API for
 
 ## Overview
 
-**Current State**: 32 MCP primitives (25 tools + 5 resources + 2 prompts) covering:
+**Current State**: 49 MCP tools covering:
 - Meeting search, upcoming events, agenda packets
 - Decision history, voting records, public testimony
 - Budget queries, federal/state funding flows
@@ -175,73 +175,100 @@ View full details: https://civic.example.com/decisions/dec-123
 Browse all: https://civic.example.com/search?q=housing+permits
 ```
 
-## MCP Primitives
+## MCP Tools (49)
 
-### Tools (25)
+### Core Civic Data
 
 | Tool | Description |
 |------|-------------|
-| `compose_public_comment` | Generate draft public comment for agenda item |
-| `get_comment_template` | Get comment template by stance |
-| `get_comment_guidelines` | Get submission guidelines for jurisdiction |
-| `get_meeting_opportunities` | Get upcoming civic engagement opportunities |
-| `search_regulatory_stack` | Search municipal code + legislation |
-| `search_meeting_history` | Search past decisions via `what_happened()` |
-| `find_similar_issues` | Find related SeeClickFix issues via `whos_with_me()` |
-| `get_issue_analytics` | **311 analytics**: aggregate stats by type/status/location/time |
-| `query_issue_data` | **311 drill-down**: group/filter with custom parameters |
-| `get_issue_sample` | **311 patterns**: raw issue records for content analysis |
-| `get_issue_resolution_stats` | **311 accountability**: resolution rates, time to fix |
-| `find_issues_near_address` | **311 geo**: issues within radius of address |
-| `detect_trends` | **311 trends**: what's increasing/decreasing |
-| `find_repeat_issues` | **311 accountability**: recurring problems at same location |
-| `get_seasonal_patterns` | **311 patterns**: monthly distribution analysis |
-| `generate_neighborhood_report` | **311 report**: comprehensive zip code summary |
-| `compare_zip_codes` | **311 comparison**: analyze multiple neighborhoods |
-| `search_agenda_packets` | Search PDF chunks from agenda packets |
-| `search_budget` | Query budget by department or keyword |
-| `get_upcoming_meetings` | Get meetings via `whats_next()` |
-| `get_voting_record` | Get official's voting history |
-| `get_decision_context` | Get context around a specific decision |
-| `get_public_testimony` | Get public testimony from transcripts |
-| `get_funding_flow` | Trace federal/state funding to local programs |
-| `prepare_for_meeting` | Generate meeting prep via `prepare()` |
+| `get_started` | Welcome overview for new users |
+| `city_pulse` | Structured city activity data (meetings, decisions, issues) |
+| `get_upcoming_meetings` | Upcoming meetings via `whats_next()` |
+| `search_meeting_history` | Past decisions via `what_happened()` |
+| `search_regulatory_stack` | Municipal code + state/federal legislation |
+| `get_public_testimony` | Transcript excerpts on a topic |
+| `search_agenda_packets` | PDF chunks from agenda packets |
+| `get_voting_record` | Official's voting history |
+| `get_decision_context` | Context around a specific decision |
+| `decision_detail` | Structured decision detail with testimony |
+| `get_item_context` | Comprehensive context assembly for any civic item |
 
-### Resources (5)
+### Public Comment
 
-| Resource | Description |
-|----------|-------------|
-| `civicos://meetings` | Browsable list of recent meetings |
-| `civicos://budget/departments` | Budget department listing |
-| `civicos://issues/stats` | Issue statistics summary |
-| `civicos://corpus/stats` | Data corpus coverage stats |
-| `civicos://jurisdiction/info` | Jurisdiction metadata |
+| Tool | Description |
+|------|-------------|
+| `compose_public_comment` | Draft public comment for agenda item |
+| `get_comment_template` | Fill-in-the-blank template by stance |
+| `get_comment_guidelines` | Submission guidelines for jurisdiction |
+| `prepare_for_meeting` | Meeting prep via `prepare()` |
 
-### Prompts (2)
+### 311 / SeeClickFix Analytics (12 tools)
 
-| Prompt | Description |
-|--------|-------------|
-| `meeting-prep` | Guided meeting preparation workflow |
-| `research-topic` | Multi-tool topic research workflow |
+| Tool | Description |
+|------|-------------|
+| `find_similar_issues` | Related issues via `whos_with_me()` |
+| `get_issue_analytics` | Aggregate stats by type/status/location/time |
+| `get_issue_trends` | Issue trends over time |
+| `query_issue_data` | Flexible group/filter queries |
+| `get_issue_sample` | Raw issue records for analysis |
+| `get_issue_resolution_stats` | Resolution rates, time to fix |
+| `find_issues_near_address` | Issues within radius of address |
+| `geo_search_issues` | Geographic area search |
+| `detect_trends` | Significant trend detection |
+| `find_repeat_issues` | Recurring problems at same location |
+| `get_seasonal_patterns` | Monthly distribution analysis |
+| `compare_zip_codes` | Multi-neighborhood comparison |
+| `neighborhood_report` | Comprehensive zip code summary |
+
+### Legislation & Federal Data
+
+| Tool | Description |
+|------|-------------|
+| `search_legislation` | State/federal bill search |
+| `get_bill_detail` | Full bill detail with sponsors and leverage points |
+| `get_leverage_points` | Bills where citizens can take action |
+| `search_executive_orders` | Executive order search |
+| `get_recent_executive_orders` | Recently signed orders |
+| `get_open_comment_periods` | Federal rules with open comment periods |
+| `search_federal_rules` | Federal rulemaking document search |
+| `get_upcoming_hearings` | Legislative committee hearings |
+| `get_governors_desk` | Bills awaiting governor's signature |
+
+### Budget & Finance
+
+| Tool | Description |
+|------|-------------|
+| `search_budget` | Budget by department or keyword |
+| `get_funding_flow` | Federal → state → city funding trace |
+| `get_federal_expenditures` | Single Audit (FAC) expenditure data |
+| `get_intergovernmental_revenue` | CA State Controller revenue data |
+
+### Coordination (Relay)
+
+| Tool | Description |
+|------|-------------|
+| `get_voice_counts` | Community voice counts for an entity |
+| `prepare_voice` | Prepare voice payload for signing |
+| `broadcast_voice` | Submit signed voice to relay |
+| `subscribe_to_topic` | Subscribe to topic notifications via relay |
+| `prepare_initiative` | Prepare initiative for signing |
+| `broadcast_initiative` | Submit signed initiative to relay |
+| `list_initiatives` | List community-created initiatives |
+| `list_relays` | List known relay nodes |
 
 ## Development Status
 
 ### Completed
-- Full MCP server with 32 primitives (`civicos_server.py`)
+- 49 MCP tools covering civic data, legislation, 311, budget, and coordination
 - Integration with CivicOS API (PostgreSQL + pgvector)
-- 311 analysis suite (10 tools): analytics, trends, geo-search, accountability, reports
-- Input validation (`civicos_input_validator.py`)
-- Local Claude Desktop testing
-
-### In Progress
-- Remote deployment for Claude.ai web access
-- MCP Registry listing
-- ChatGPT Custom GPT build
+- Remote MCP deployment on Modal (Claude.ai + ChatGPT connector)
+- 311 analysis suite (12 tools)
+- Legislation suite (9 tools) including leverage points and comment periods
+- Relay coordination tools (8 tools)
 
 ### Planned
-- OAuth authentication for remote access
+- MCP Registry listing
 - Desktop Extensions (.mcpb) packaging
-- OpenAI Apps SDK integration (when mature)
 
 ## Testing
 
