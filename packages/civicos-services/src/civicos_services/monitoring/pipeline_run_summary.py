@@ -58,8 +58,8 @@ def _analyze_results(
 
     # Known global stage keys (not jurisdiction IDs)
     global_keys = {
-        "legislation_CA", "executive_orders", "federal_programs",
-        "hud_allocations",
+        "legislation_CA", "executive_orders", "federal_rules",
+        "legislative_events_CA", "federal_programs", "hud_allocations",
     }
 
     for key, value in results.items():
@@ -119,6 +119,10 @@ def _analyze_results(
         if fed and fed.get("programs_stored", 0) == 0 and fed.get("status") != "failed":
             anomalies.append("Federal programs: 0 programs stored (possible SAM.gov API issue)")
 
+        rules = global_stages.get("federal_rules", {})
+        if rules and rules.get("rules_stored", 0) == 0 and rules.get("status") != "failed":
+            anomalies.append("Federal rules: 0 rules stored (possible Federal Register API issue)")
+
         for jid, stages in per_jurisdiction.items():
             muni = stages.get("municipal_code", {})
             if muni and muni.get("sections_stored", 0) == 0 and muni.get("status") != "failed":
@@ -164,6 +168,10 @@ def _global_stage_metric(stage_name: str, result: Dict[str, Any]) -> str:
         return f"{new} new, {stored} total"
     elif stage_name == "executive_orders":
         return f"{result.get('orders_stored', 0)} stored"
+    elif stage_name == "federal_rules":
+        return f"{result.get('rules_stored', 0)} rules"
+    elif stage_name == "legislative_events_CA":
+        return f"{result.get('events_stored', 0)} events"
     elif stage_name == "federal_programs":
         return f"{result.get('programs_stored', 0)} programs"
     elif stage_name == "hud_allocations":
