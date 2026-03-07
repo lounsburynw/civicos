@@ -84,6 +84,7 @@ nav:
     - Platform Notes: user_guides/PLATFORM_SPECIFIC_NOTES.md
     - Verification: user_guides/VERIFICATION_TUTORIAL.md
     - Attestation: user_guides/ATTESTATION_GUIDE.md
+    - Browser Extension Setup: user_guides/BROWSER_EXTENSION_SETUP.md
 
   - City Administration:
     - Onboarding a City: user_guides/CITY_ONBOARDING_GUIDE.md
@@ -139,7 +140,6 @@ nav:
     - Claude Code Workflow: development/claude-code-workflow.md
     - Testing Strategy: critical/TESTING_STRATEGY.md
     - Extractor Protocol: critical/EXTRACTOR_PROTOCOL.md
-    - SQLite + ChromaDB Patterns: critical/SQLITE_CHROMADB_JOIN_PATTERNS.md
     - Pilot Roadmap: critical/PILOT_ROADMAP.md
     - City Deployment Audit: critical/CITY_DEPLOYMENT_AUDIT.md
 

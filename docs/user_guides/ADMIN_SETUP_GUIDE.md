@@ -1,6 +1,6 @@
-# How to Set Up Civic for a New Jurisdiction
+# How to Set Up CivicOS for a New Jurisdiction
 
-This guide walks administrators through deploying Civic for a new city or county. It assumes familiarity with command-line tools and basic server administration.
+This guide walks administrators through deploying CivicOS for a new city or county. It assumes familiarity with command-line tools and basic server administration.
 
 **Audience:** Technical administrators, civic tech organizations, municipal IT staff
 
@@ -59,8 +59,8 @@ Gather contact information for AI to route citizen inquiries:
 ### Step 1: Clone the Repository
 
 ```bash
-git clone https://github.com/civic-os/civic.git
-cd civic
+git clone https://github.com/lounsburynw/civicos.git
+cd civicos
 ```
 
 ### Step 2: Create Python Environment
@@ -68,7 +68,7 @@ cd civic
 ```bash
 python3 -m venv civicos-env
 source civicos-env/bin/activate
-pip install -e packages/civic
+pip install -e packages/civicos
 pip install -e packages/civicos-extraction
 pip install -e packages/civicos-services
 ```
@@ -122,7 +122,7 @@ This runs smoke tests and verifies your environment is configured correctly.
 
 ## Jurisdiction Configuration
 
-Civic identifies jurisdictions using a normalized ID format: `city-{name}` or `county-{name}`.
+CivicOS identifies jurisdictions using a normalized ID format: `city-{name}` or `county-{name}`.
 
 ### Step 1: Create Jurisdiction Override File
 
@@ -159,7 +159,7 @@ Add jurisdiction-specific configuration:
 
 ### Step 2: Register Jurisdiction Alias (Optional)
 
-If you want to support short names (e.g., "berkeley" instead of "city-berkeley"), add an alias in `packages/civic/src/civic/_internal/jurisdiction.py`:
+If you want to support short names (e.g., "berkeley" instead of "city-berkeley"), add an alias in `packages/civicos/src/civicos/_internal/jurisdiction.py`:
 
 ```python
 _JURISDICTION_ALIASES = {
@@ -187,7 +187,7 @@ Check your city's meeting page to identify the platform:
 Most Bay Area cities use Legistar. Connection is straightforward:
 
 ```python
-from civic_extraction import LegistarClient
+from civicos_extraction import LegistarClient
 
 # Test connection
 client = LegistarClient("berkeley")  # Use your city's Legistar client ID
@@ -205,7 +205,7 @@ To find your city's Legistar client ID:
 For cities using CivicClerk:
 
 ```python
-from civic_extraction import CivicClerkClient
+from civicos_extraction import CivicClerkClient
 
 # Test connection
 client = CivicClerkClient("elcerritoca")  # Check city's CivicClerk URL
@@ -265,8 +265,8 @@ The database is created at `data/civic_state.db`.
 Create a script to load your jurisdiction's initial data:
 
 ```python
-from civic_extraction import LegistarClient  # or CivicClerkClient
-from civic._internal.state import StateManager
+from civicos_extraction import LegistarClient  # or CivicClerkClient
+from civicos._internal.state import StateManager
 
 # Initialize
 client = LegistarClient("your-city")
@@ -285,7 +285,7 @@ print(f"Loaded {len(meetings)} meetings")
 ### Step 3: Verify Database
 
 ```python
-from civic._internal.state import StateManager
+from civicos._internal.state import StateManager
 
 state = StateManager("data/civic_state.db")
 meetings = state.get_meetings("city-your-city")
@@ -331,7 +331,7 @@ for meeting in meetings:
 Chunk and embed documents:
 
 ```python
-from civic._internal.rag import RAGEngine
+from civicos._internal.rag import RAGEngine
 
 # Initialize RAG for your jurisdiction
 rag = RAGEngine("city-your-city")
@@ -348,7 +348,7 @@ print(f"Indexed documents for city-your-city")
 Test the search functionality:
 
 ```python
-from civic._internal.rag import RAGEngine
+from civicos._internal.rag import RAGEngine
 
 rag = RAGEngine("city-your-city")
 results = rag.search("housing policy", top_k=5)
@@ -377,31 +377,9 @@ cd apps/civicos-workspace && npm run dev
 # Frontend runs on http://localhost:5173
 ```
 
-### Production Deployment (Fly.io)
+### Production Deployment (Modal)
 
-1. **Create Fly.io apps:**
-   ```bash
-   fly apps create civic-api-your-city
-   fly apps create civic-websocket-your-city
-   ```
-
-2. **Create volumes:**
-   ```bash
-   fly volumes create civic_data --region sjc --size 3 -a civic-api-your-city
-   fly volumes create civic_data --region sjc --size 3 -a civic-websocket-your-city
-   ```
-
-3. **Configure secrets:**
-   ```bash
-   fly secrets set OPENAI_API_KEY="sk-proj-..." -a civic-api-your-city
-   fly secrets set CIVICOS_WEB_KEY="$(openssl rand -hex 32)" -a civic-api-your-city
-   ```
-
-4. **Deploy:**
-   ```bash
-   fly deploy -a civic-api-your-city
-   fly deploy -a civic-websocket-your-city --config fly.websocket.toml
-   ```
+CivicOS deploys to **Modal** for all production workloads. For full deployment instructions, see [DEPLOYMENT_GUIDE.md](../critical/DEPLOYMENT_GUIDE.md).
 
 ---
 
@@ -411,7 +389,7 @@ cd apps/civicos-workspace && npm run dev
 
 1. **Health endpoint**: `GET /health` on your API server
 2. **External monitoring**: Configure UptimeRobot or similar
-   - Monitor `https://your-api-domain.fly.dev/health`
+   - Monitor `https://your-api-domain/health`
    - Set 5-minute check interval
    - Configure alerts
 
@@ -423,7 +401,7 @@ Automated backups run via GitHub Actions. Manual backup:
 
 ```bash
 # On production server
-fly ssh console -a civic-api-your-city -C "python scripts/backup.py"
+python scripts/backup.py  # See DEPLOYMENT_GUIDE.md for Modal-based backups
 ```
 
 Backups are retained:
@@ -490,7 +468,7 @@ print("All tests passed!")
 
 ```javascript
 // Test from browser console
-const socket = io("wss://your-websocket-domain.fly.dev");
+const socket = io("wss://your-websocket-domain");
 socket.on("connect", () => console.log("Connected!"));
 socket.on("error", (e) => console.error("Error:", e));
 ```
@@ -498,7 +476,7 @@ socket.on("error", (e) => console.error("Error:", e));
 ### RAG Search
 
 ```python
-from civic._internal.rag import RAGEngine
+from civicos._internal.rag import RAGEngine
 
 rag = RAGEngine("city-your-city")
 results = rag.search("recent decisions", top_k=3)
@@ -516,7 +494,7 @@ print("RAG working correctly")
 2. Verify the city's meeting management URL
 3. Test extraction manually:
    ```python
-   from civic_extraction import LegistarClient
+   from civicos_extraction import LegistarClient
    client = LegistarClient("your-city")
    events = client.get_events(days_ahead=30)
    print(f"Raw events: {len(events)}")
@@ -561,7 +539,7 @@ Target operational cost: **Low (foundation-sustainable)**
 
 | Service | Expected Usage | Monthly Cost |
 |---------|---------------|--------------|
-| Fly.io hosting | 2 small apps | ~$4-5 |
+| Modal hosting | API + cron jobs | ~$5-10 |
 | OpenAI (gpt-4o-mini) | ~10,000 queries | ~$1-3 |
 | OpenAI Embeddings | N/A (using local) | $0 |
 | External monitoring | UptimeRobot free tier | $0 |
