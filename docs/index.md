@@ -49,22 +49,24 @@ CivicOS also provides an MCP server. Connect via Claude, ChatGPT, or any MCP-com
 ## Architecture
 
 ```
-You  -->  Your AI Agent (Claude, ChatGPT, etc.)
+You  -->  Browser Extension / AI Agent (Claude, ChatGPT)
+                    |
+               ┌────┴────┐
+               v         v
+          REST API    Relay API          Data + Coordination
+               |         |
+               v         v
+          CivicOS    civicos-relay       Query / Voice / Subscriptions
+          (Python)   (coordination)
+               |         |
+               v         v
+          PostgreSQL  Relay DB           Two Supabase projects
+          + pgvector  (Supabase)
+          (Supabase)
+               ^
                |
-               v
-          MCP Server                40+ tools
-               |
-          +----+----+
-          v         v
-      Core API   Relay              Query data / Coordinate action
-       (civicos)  (civicos-relay)
-          |         |
-          v         v
-      Storage    Nostr Protocol     PostgreSQL + pgvector / secp256k1 Schnorr
-          |
-          v
-      Extraction                    Legistar, SeeClickFix, Municode, LegiScan
-       (civicos-extraction)
+          civicos-extraction             Legistar, SeeClickFix, Municode, LegiScan
+          (platform parsers)
 ```
 
 See [full architecture and package docs](public/README.md).
