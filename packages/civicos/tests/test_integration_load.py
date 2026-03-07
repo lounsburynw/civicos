@@ -3,7 +3,6 @@ Integration tests for load testing and performance.
 
 These tests verify the load_testing items from integration.json:
 - Query endpoints respond < 500ms at p95
-- Action endpoints respond < 1s at p95
 - System handles 50 concurrent requests
 
 Run: python -m pytest packages/civicos/tests/test_integration_load.py -v
@@ -31,9 +30,6 @@ sys.path.insert(0, str(PROJECT_ROOT / "packages/civicos/src"))
 os.chdir(str(PROJECT_ROOT))
 
 from civicos import CivicOS
-from civicos.actions.initiatives import start_initiative
-from civicos.actions.voices import add_voice
-from civicos.actions.subscriptions import follow_item
 from civicos._internal.state import StateManager
 
 
@@ -77,17 +73,6 @@ class TestQueryLatencyP95:
             })
 
         state.update_meetings("san-rafael-ca", meetings)
-
-        # Create some initiatives
-        for i in range(20):
-            start_initiative(
-                jurisdiction="san-rafael-ca",
-                topic=["traffic", "housing", "parks", "safety"][i % 4],
-                title=f"Initiative {i}",
-                description=f"Description for initiative {i}",
-                creator_id=f"user_{i:03d}",
-                db_path=db_path,
-            )
 
         return state
 
@@ -277,131 +262,6 @@ class TestQueryLatencyP95:
             assert p95 < 500, f"Combined query p95 latency {p95:.2f}ms exceeds 500ms threshold"
 
 
-class TestActionLatencyP95:
-    """
-    Integration tests for action endpoint performance.
-
-    Maps to integration.json > load_testing > api_performance > action_latency_p95
-    """
-
-    def test_start_something_p95_under_1s(self):
-        """
-        integration.json: load_testing > api_performance > action_latency_p95
-        test: "Action endpoints respond < 1s at p95"
-
-        Verifies start_something() responds under 1 second at 95th percentile.
-        """
-        with tempfile.TemporaryDirectory() as tmpdir:
-            db_path = os.path.join(tmpdir, "test_action_latency.db")
-
-            civic = CivicOS("san-rafael-ca", db_path=db_path)
-
-            latencies = []
-            for i in range(50):  # Fewer iterations for write operations
-                start = time.perf_counter()
-                civic.start_something(
-                    topic="traffic",
-                    title=f"Test Initiative {i}",
-                    description=f"Description {i}",
-                    creator_id=f"user_{i:03d}"
-                )
-                elapsed = (time.perf_counter() - start) * 1000
-                latencies.append(elapsed)
-
-            p95 = percentile(latencies, 95)
-            p50 = percentile(latencies, 50)
-            mean = statistics.mean(latencies)
-
-            print(f"\nstart_something() latency stats (50 calls):")
-            print(f"  Mean: {mean:.2f}ms")
-            print(f"  P50:  {p50:.2f}ms")
-            print(f"  P95:  {p95:.2f}ms")
-
-            assert p95 < 1000, f"start_something() p95 latency {p95:.2f}ms exceeds 1000ms threshold"
-
-    def test_add_voice_p95_under_1s(self):
-        """
-        Verifies add_voice() responds under 1 second at 95th percentile.
-        """
-        with tempfile.TemporaryDirectory() as tmpdir:
-            db_path = os.path.join(tmpdir, "test_voice_latency.db")
-
-            # Create an initiative first
-            initiative = start_initiative(
-                jurisdiction="san-rafael-ca",
-                topic="housing",
-                title="Test Initiative",
-                description="For performance testing",
-                creator_id="creator_001",
-                db_path=db_path,
-            )
-
-            latencies = []
-            for i in range(50):
-                start = time.perf_counter()
-                add_voice(
-                    item_type="initiative",
-                    item_id=initiative.id,
-                    stance="support",
-                    comment=f"Voice {i}",
-                    user_id=f"user_{i:03d}",
-                    db_path=db_path,
-                )
-                elapsed = (time.perf_counter() - start) * 1000
-                latencies.append(elapsed)
-
-            p95 = percentile(latencies, 95)
-            p50 = percentile(latencies, 50)
-            mean = statistics.mean(latencies)
-
-            print(f"\nadd_voice() latency stats (50 calls):")
-            print(f"  Mean: {mean:.2f}ms")
-            print(f"  P50:  {p50:.2f}ms")
-            print(f"  P95:  {p95:.2f}ms")
-
-            assert p95 < 1000, f"add_voice() p95 latency {p95:.2f}ms exceeds 1000ms threshold"
-
-    def test_follow_p95_under_1s(self):
-        """
-        Verifies follow() responds under 1 second at 95th percentile.
-        """
-        with tempfile.TemporaryDirectory() as tmpdir:
-            db_path = os.path.join(tmpdir, "test_follow_latency.db")
-
-            # Create an initiative
-            initiative = start_initiative(
-                jurisdiction="san-rafael-ca",
-                topic="parks",
-                title="Test Initiative",
-                description="For performance testing",
-                creator_id="creator_001",
-                db_path=db_path,
-            )
-
-            latencies = []
-            for i in range(50):
-                start = time.perf_counter()
-                follow_item(
-                    item_type="initiative",
-                    item_id=initiative.id,
-                    user_id=f"user_{i:03d}",
-                    db_path=db_path,
-                )
-                elapsed = (time.perf_counter() - start) * 1000
-                latencies.append(elapsed)
-
-            p95 = percentile(latencies, 95)
-            p50 = percentile(latencies, 50)
-            mean = statistics.mean(latencies)
-
-            print(f"\nfollow() latency stats (50 calls):")
-            print(f"  Mean: {mean:.2f}ms")
-            print(f"  P50:  {p50:.2f}ms")
-            print(f"  P95:  {p95:.2f}ms")
-
-            assert p95 < 1000, f"follow() p95 latency {p95:.2f}ms exceeds 1000ms threshold"
-
-
 class TestConcurrentRequests:
     """
     Integration tests for concurrent request handling.
@@ -484,114 +344,6 @@ class TestConcurrentRequests:
             assert len(errors) == 0, f"Concurrent requests had {len(errors)} errors"
             assert len(results) == 50, f"Expected 50 successful requests, got {len(results)}"
 
-    def test_50_concurrent_mixed_requests(self):
-        """
-        Verifies system handles 50 concurrent mixed (read + write) requests.
-        """
-        with tempfile.TemporaryDirectory() as tmpdir:
-            db_path = os.path.join(tmpdir, "test_mixed_concurrent.db")
-
-            # Seed data
-            state = StateManager(db_path)
-            meetings = []
-            now = datetime.now()
-            for i in range(10):
-                meeting_date = now + timedelta(days=i)
-                meetings.append({
-                    "id": f"meeting_{i:03d}",
-                    "title": f"Meeting {i}",
-                    "meeting_type": "Council",
-                    "meeting_datetime": meeting_date.isoformat(),
-                })
-            state.update_meetings("san-rafael-ca", meetings)
-
-            # Create one initiative for voice tests
-            initiative = start_initiative(
-                jurisdiction="san-rafael-ca",
-                topic="traffic",
-                title="Shared Initiative",
-                description="For concurrent testing",
-                creator_id="setup_user",
-                db_path=db_path,
-            )
-
-            results = []
-            errors = []
-            latencies = []
-
-            def mixed_task(task_id: int) -> Tuple[int, float, bool, str]:
-                """Execute a mixed operation."""
-                try:
-                    start = time.perf_counter()
-
-                    # 60% reads, 40% writes
-                    if task_id % 5 < 3:
-                        # Read operation
-                        civic = CivicOS("san-rafael-ca", db_path=db_path)
-                        if task_id % 2 == 0:
-                            civic.whats_next(days=30)
-                            op = "whats_next"
-                        else:
-                            civic.what_applies("housing")
-                            op = "what_applies"
-                    else:
-                        # Write operation
-                        if task_id % 2 == 0:
-                            add_voice(
-                                item_type="initiative",
-                                item_id=initiative.id,
-                                stance="support",
-                                comment=f"Voice from task {task_id}",
-                                user_id=f"user_{task_id:03d}",
-                                db_path=db_path,
-                            )
-                            op = "add_voice"
-                        else:
-                            start_initiative(
-                                jurisdiction="san-rafael-ca",
-                                topic="housing",
-                                title=f"Initiative {task_id}",
-                                description=f"Created by task {task_id}",
-                                creator_id=f"user_{task_id:03d}",
-                                db_path=db_path,
-                            )
-                            op = "start_initiative"
-
-                    elapsed = (time.perf_counter() - start) * 1000
-                    return (task_id, elapsed, True, op)
-                except Exception as e:
-                    return (task_id, 0, False, str(e))
-
-            # Run 50 concurrent mixed requests
-            with concurrent.futures.ThreadPoolExecutor(max_workers=50) as executor:
-                futures = [executor.submit(mixed_task, i) for i in range(50)]
-                for future in concurrent.futures.as_completed(futures):
-                    task_id, elapsed, success, op = future.result()
-                    if success:
-                        results.append((task_id, op))
-                        latencies.append(elapsed)
-                    else:
-                        errors.append((task_id, op))
-
-            success_rate = len(results) / 50 * 100
-
-            print(f"\n50 concurrent mixed requests stats:")
-            print(f"  Success: {len(results)}/50 ({success_rate:.1f}%)")
-            print(f"  Errors:  {len(errors)}")
-            if latencies:
-                print(f"  Mean latency: {statistics.mean(latencies):.2f}ms")
-                print(f"  P95 latency:  {percentile(latencies, 95):.2f}ms")
-
-            # Operation breakdown
-            ops = {}
-            for task_id, op in results:
-                ops[op] = ops.get(op, 0) + 1
-            print(f"  Operations: {ops}")
-
-            assert len(errors) == 0, f"Mixed concurrent requests had {len(errors)} errors: {errors}"
-            assert len(results) == 50, f"Expected 50 successful requests, got {len(results)}"
-
-
 class TestLargeResultSets:
     """
     Integration tests for database performance with large result sets.
@@ -650,18 +402,6 @@ class TestLargeResultSets:
             })
 
         state.update_meetings("san-rafael-ca", meetings)
-
-        # Also create many initiatives for whos_with_me testing
-        for i in range(200):
-            topic = topics[i % len(topics)]
-            start_initiative(
-                jurisdiction="san-rafael-ca",
-                topic=topic,
-                title=f"Initiative {i + 1}: Improve {topic.title()} in District {(i % 5) + 1}",
-                description=f"Community initiative to address {topic} concerns.",
-                creator_id=f"user_{i % 50:03d}",
-                db_path=db_path,
-            )
 
         return state
 
@@ -743,40 +483,6 @@ class TestLargeResultSets:
 
             assert p95 < 500, f"what_happened() p95 latency {p95:.2f}ms exceeds 500ms threshold with large dataset"
 
-    def test_whos_with_me_with_many_initiatives(self):
-        """
-        Verifies whos_with_me() performs acceptably with many initiatives.
-        Target: < 500ms for p95 query latency.
-        """
-        with tempfile.TemporaryDirectory() as tmpdir:
-            db_path = os.path.join(tmpdir, "test_large.db")
-
-            # Setup includes 200 initiatives
-            self.setup_large_dataset(db_path, num_meetings=50, items_per_meeting=10)
-
-            civic = CivicOS("san-rafael-ca", db_path=db_path)
-
-            topics = ["housing", "traffic", "parks", "safety", "budget"]
-
-            latencies = []
-            for i in range(50):
-                topic = topics[i % len(topics)]
-                start = time.perf_counter()
-                result = civic.whos_with_me(topic)
-                elapsed = (time.perf_counter() - start) * 1000
-                latencies.append(elapsed)
-
-            p95 = percentile(latencies, 95)
-            p50 = percentile(latencies, 50)
-            mean = statistics.mean(latencies)
-
-            print(f"\nwhos_with_me() with many initiatives:")
-            print(f"  Mean: {mean:.2f}ms")
-            print(f"  P50:  {p50:.2f}ms")
-            print(f"  P95:  {p95:.2f}ms")
-
-            assert p95 < 500, f"whos_with_me() p95 latency {p95:.2f}ms exceeds 500ms threshold"
-
     def test_query_meetings_with_large_result_set(self):
         """
         Verifies StateManager.query_meetings() handles 1000+ results.
@@ -811,40 +517,6 @@ class TestLargeResultSets:
             print(f"  P95:  {p95:.2f}ms")
 
             assert p95 < 500, f"query_meetings() p95 latency {p95:.2f}ms exceeds 500ms threshold"
-
-    def test_query_initiatives_with_large_result_set(self):
-        """
-        Verifies StateManager.query_initiatives() handles 200+ results.
-        Target: < 500ms for p95 query latency.
-        """
-        with tempfile.TemporaryDirectory() as tmpdir:
-            db_path = os.path.join(tmpdir, "test_large.db")
-
-            # Setup includes 200 initiatives
-            self.setup_large_dataset(db_path, num_meetings=20, items_per_meeting=5)
-
-            state = StateManager(db_path)
-
-            latencies = []
-            for _ in range(50):
-                start = time.perf_counter()
-                result = state.query_initiatives("san-rafael-ca", limit=1000)  # High limit
-                elapsed = (time.perf_counter() - start) * 1000
-                latencies.append(elapsed)
-
-                if len(latencies) == 1:
-                    print(f"\nquery_initiatives returned {len(result)} initiatives")
-
-            p95 = percentile(latencies, 95)
-            p50 = percentile(latencies, 50)
-            mean = statistics.mean(latencies)
-
-            print(f"\nquery_initiatives() with large result set:")
-            print(f"  Mean: {mean:.2f}ms")
-            print(f"  P50:  {p50:.2f}ms")
-            print(f"  P95:  {p95:.2f}ms")
-
-            assert p95 < 500, f"query_initiatives() p95 latency {p95:.2f}ms exceeds 500ms threshold"
 
     def test_combined_workload_with_large_dataset(self):
         """
@@ -945,37 +617,6 @@ class TestIndexEffectiveness:
 
         state.update_meetings("san-rafael-ca", meetings)
 
-        # Create initiatives
-        for i in range(10):
-            state.create_initiative(
-                initiative_id=f"init_{i:03d}",
-                jurisdiction_id="san-rafael-ca",
-                topic=["housing", "traffic", "parks"][i % 3],
-                title=f"Initiative {i}",
-                description=f"Description {i}",
-                creator_id=f"user_{i:03d}"
-            )
-
-        # Create voices
-        for i in range(10):
-            state.create_voice(
-                voice_id=f"voice_{i:03d}",
-                item_type="initiative",
-                item_id=f"init_{i % 5:03d}",
-                stance=["support", "oppose", "question"][i % 3],
-                comment=f"Comment {i}",
-                user_id=f"user_{i:03d}"
-            )
-
-        # Create subscriptions
-        for i in range(10):
-            state.create_subscription(
-                subscription_id=f"sub_{i:03d}",
-                item_type="initiative",
-                item_id=f"init_{i % 5:03d}",
-                user_id=f"user_{i:03d}"
-            )
-
         # Create issues
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
@@ -989,17 +630,6 @@ class TestIndexEffectiveness:
 
         conn.commit()
         conn.close()
-
-        # Create outcomes (after closing the previous connection)
-        for i in range(5):
-            state.create_outcome(
-                outcome_id=f"outcome_{i:03d}",
-                item_type="initiative",
-                item_id=f"init_{i:03d}",
-                outcome=["passed", "failed", "continued"][i % 3],
-                notes=f"Decision notes {i}",
-                recorded_by=f"user_{i:03d}"
-            )
 
         return state
 
@@ -1177,75 +807,6 @@ class TestIndexEffectiveness:
             uses_index = any("idx_agenda_items_meeting" in line or "SEARCH" in line for line in plan)
             assert uses_index, f"Query does not use agenda_items index. Plan: {plan}"
 
-    def test_initiatives_jurisdiction_topic_index(self):
-        """
-        Verify queries filtering by jurisdiction and topic use appropriate indexes.
-        """
-        with tempfile.TemporaryDirectory() as tmpdir:
-            db_path = os.path.join(tmpdir, "test_index.db")
-            self.setup_test_database(db_path)
-
-            query = """
-                SELECT * FROM initiatives
-                WHERE jurisdiction_id = ?
-                  AND topic = ?
-                  AND status = 'active'
-            """
-
-            plan = self.get_query_plan(db_path, query, ("san-rafael-ca", "housing"))
-
-            print(f"\nQuery: initiatives filtered by jurisdiction, topic, status")
-            print(f"Plan: {plan}")
-
-            # Should use one of the initiative indexes
-            uses_index = any("idx_initiatives" in line or "SEARCH" in line for line in plan)
-            assert uses_index, f"Query does not use initiatives index. Plan: {plan}"
-
-    def test_voices_item_index(self):
-        """
-        Verify queries filtering by item_type and item_id use idx_voices_item.
-        """
-        with tempfile.TemporaryDirectory() as tmpdir:
-            db_path = os.path.join(tmpdir, "test_index.db")
-            self.setup_test_database(db_path)
-
-            query = """
-                SELECT * FROM voices
-                WHERE item_type = ?
-                  AND item_id = ?
-            """
-
-            plan = self.get_query_plan(db_path, query, ("initiative", "init_001"))
-
-            print(f"\nQuery: voices filtered by item_type and item_id")
-            print(f"Plan: {plan}")
-
-            # Should use idx_voices_item composite index
-            uses_index = any("idx_voices_item" in line or "SEARCH" in line for line in plan)
-            assert uses_index, f"Query does not use voices index. Plan: {plan}"
-
-    def test_subscriptions_user_index(self):
-        """
-        Verify queries filtering by user_id use idx_subscriptions_user.
-        """
-        with tempfile.TemporaryDirectory() as tmpdir:
-            db_path = os.path.join(tmpdir, "test_index.db")
-            self.setup_test_database(db_path)
-
-            query = """
-                SELECT * FROM subscriptions
-                WHERE user_id = ?
-            """
-
-            plan = self.get_query_plan(db_path, query, ("user_001",))
-
-            print(f"\nQuery: subscriptions filtered by user_id")
-            print(f"Plan: {plan}")
-
-            # Should use idx_subscriptions_user
-            uses_index = any("idx_subscriptions_user" in line or "SEARCH" in line for line in plan)
-            assert uses_index, f"Query does not use subscriptions index. Plan: {plan}"
-
     def test_issues_jurisdiction_status_index(self):
         """
         Verify queries filtering by jurisdiction and status use appropriate indexes.
@@ -1269,31 +830,6 @@ class TestIndexEffectiveness:
             # Should use one of the issues indexes
             uses_index = any("idx_issues" in line or "SEARCH" in line for line in plan)
             assert uses_index, f"Query does not use issues index. Plan: {plan}"
-
-    def test_outcomes_item_index(self):
-        """
-        Verify queries filtering by item_type and item_id use idx_outcomes_item.
-        """
-        with tempfile.TemporaryDirectory() as tmpdir:
-            db_path = os.path.join(tmpdir, "test_index.db")
-            self.setup_test_database(db_path)
-
-            query = """
-                SELECT * FROM outcomes
-                WHERE item_type = ?
-                  AND item_id = ?
-                ORDER BY recorded_at DESC
-                LIMIT 1
-            """
-
-            plan = self.get_query_plan(db_path, query, ("initiative", "init_001"))
-
-            print(f"\nQuery: outcomes filtered by item_type and item_id")
-            print(f"Plan: {plan}")
-
-            # Should use idx_outcomes_item composite index
-            uses_index = any("idx_outcomes_item" in line or "SEARCH" in line for line in plan)
-            assert uses_index, f"Query does not use outcomes index. Plan: {plan}"
 
     def test_query_meetings_uses_index(self):
         """
@@ -1325,34 +861,6 @@ class TestIndexEffectiveness:
             uses_index = any("INDEX" in line for line in plan)
 
             assert uses_search or uses_index, f"query_meetings pattern does not use index efficiently. Plan: {plan}"
-
-    def test_query_initiatives_uses_index(self):
-        """
-        Verify the StateManager.query_initiatives method uses indexes efficiently.
-        """
-        with tempfile.TemporaryDirectory() as tmpdir:
-            db_path = os.path.join(tmpdir, "test_index.db")
-            self.setup_test_database(db_path)
-
-            # This is the query pattern used in StateManager.query_initiatives
-            query = """
-                SELECT * FROM initiatives
-                WHERE jurisdiction_id = ?
-                  AND status = ?
-                ORDER BY created_at DESC
-                LIMIT ?
-            """
-
-            plan = self.get_query_plan(db_path, query, ("san-rafael-ca", "active", 100))
-
-            print(f"\nQuery: query_initiatives pattern")
-            print(f"Plan: {plan}")
-
-            # Should use an index
-            uses_search = any("SEARCH" in line for line in plan)
-            uses_index = any("INDEX" in line for line in plan)
-
-            assert uses_search or uses_index, f"query_initiatives pattern does not use index efficiently. Plan: {plan}"
 
     def test_query_issues_uses_index(self):
         """
@@ -1420,22 +928,6 @@ class TestIndexEffectiveness:
                 "idx_issues_status",
                 "idx_issues_type",
                 "idx_issues_address",
-                # Initiatives indexes
-                "idx_initiatives_jurisdiction",
-                "idx_initiatives_topic",
-                "idx_initiatives_status",
-                "idx_initiatives_creator",
-                # Voices indexes
-                "idx_voices_item",
-                "idx_voices_user",
-                "idx_voices_stance",
-                # Subscriptions indexes
-                "idx_subscriptions_item",
-                "idx_subscriptions_user",
-                # Outcomes indexes
-                "idx_outcomes_item",
-                "idx_outcomes_outcome",
-                "idx_outcomes_recorded_at",
             }
 
             print(f"\nExpected indexes: {len(expected_indexes)}")

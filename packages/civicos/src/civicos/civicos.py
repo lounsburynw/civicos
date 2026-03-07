@@ -14,11 +14,7 @@ Usage:
     c.whats_next(["transportation"])
     c.whos_with_me("traffic safety")
 
-    # Action (Act)
-    c.start_something(topic="traffic", title="Protected bike lane")
-    c.add_voice("agenda_item", "item_123", "support", "As a cyclist...")
-    c.follow("meeting", "mtg_456")
-    c.prepare("item_789")
+    # Coordination (Act) — see civicos-relay package
 
 """
 
@@ -61,10 +57,6 @@ from civicos.types import (
     Meeting,
     UpcomingElection,
     Community,
-    Initiative,
-    Voice,
-    Subscription,
-    Preparation,
     ActionDraft,
     BudgetItem,
     BudgetSummary,
@@ -1719,173 +1711,6 @@ class CivicOS:
             undetermined_total_dollars=summary_data["undetermined_total_cents"] / 100,
             total_dollars=summary_data["total_intergovernmental_cents"] / 100,
             details=details,
-        )
-
-    # ─────────── ACTION METHODS (Act) ───────────
-
-    def start_something(
-        self,
-        topic: str,
-        title: str,
-        description: str,
-        location: str = None,
-        creator_id: str = "anonymous"
-    ) -> Initiative:
-        """
-        Start a new initiative.
-
-        Creates a user-spawned initiative that others can support.
-
-        Args:
-            topic: Topic category (e.g., "traffic safety")
-            title: Initiative title (e.g., "Protected bike lane on 4th St")
-            description: Full description
-            location: Optional location
-            creator_id: ID of the creator (default: anonymous)
-
-        Returns:
-            Created Initiative
-        """
-        from civicos.actions.initiatives import start_initiative
-
-        result = start_initiative(
-            jurisdiction=self.jurisdiction,
-            topic=topic,
-            title=title,
-            description=description,
-            creator_id=creator_id,
-            location=location,
-            db_path=self.db_path,
-        )
-
-        # Convert to this module's Initiative type for consistency
-        return Initiative(
-            id=result.id,
-            topic=result.topic,
-            title=result.title,
-            description=result.description,
-            creator_id=result.creator_id,
-            jurisdiction=result.jurisdiction,
-            location=result.location,
-            created_at=result.created_at,
-        )
-
-    def add_voice(
-        self,
-        item_type: str,
-        item_id: str,
-        stance: str,
-        comment: str,
-        user_id: str = "anonymous"
-    ) -> Voice:
-        """
-        Add your voice to an item.
-
-        Express support, opposition, or interest in an initiative,
-        agenda item, or decision.
-
-        Args:
-            item_type: Type of item ("initiative", "agenda_item", "decision")
-            item_id: ID of the item
-            stance: Your stance ("support", "oppose", "watching")
-            comment: Your comment
-            user_id: ID of the user (default: anonymous)
-
-        Returns:
-            Created Voice
-        """
-        from civicos.actions.voices import add_voice as _add_voice
-
-        result = _add_voice(
-            item_type=item_type,
-            item_id=item_id,
-            stance=stance,
-            comment=comment,
-            user_id=user_id,
-            db_path=self.db_path,
-        )
-
-        # Convert to this module's Voice type for consistency
-        return Voice(
-            id=result.id,
-            item_type=result.item_type,
-            item_id=result.item_id,
-            stance=result.stance,
-            comment=result.comment,
-            created_at=result.created_at,
-        )
-
-    def follow(
-        self,
-        item_type: str,
-        item_id: str,
-        user_id: str = "anonymous",
-        notification_prefs: dict = None
-    ) -> Subscription:
-        """
-        Follow an item for updates.
-
-        Subscribe to notifications about a meeting, initiative,
-        topic, or decision.
-
-        Args:
-            item_type: Type ("meeting", "initiative", "topic", "decision")
-            item_id: ID of the item
-            user_id: ID of the user (default: anonymous)
-            notification_prefs: Optional notification preferences
-
-        Returns:
-            Created Subscription
-        """
-        from civicos.actions.subscriptions import follow_item
-
-        result = follow_item(
-            item_type=item_type,
-            item_id=item_id,
-            user_id=user_id,
-            notification_prefs=notification_prefs,
-            db_path=self.db_path,
-        )
-
-        # Convert to this module's Subscription type for consistency
-        return Subscription(
-            id=result.id,
-            item_type=result.item_type,
-            item_id=result.item_id,
-            created_at=result.created_at,
-        )
-
-    def prepare(self, agenda_item_id: str, user_id: str = None) -> Preparation:
-        """
-        Get preparation materials for participating.
-
-        Returns context, talking points, allies, and logistics
-        for an upcoming agenda item.
-
-        Args:
-            agenda_item_id: ID of the agenda item
-            user_id: Optional user ID for personalization
-
-        Returns:
-            Preparation with context, talking points, allies, logistics
-        """
-        from civicos.actions.preparation import prepare_for_meeting
-
-        result = prepare_for_meeting(
-            agenda_item_id=agenda_item_id,
-            jurisdiction=self.jurisdiction,
-            user_id=user_id,
-            db_path=self.db_path,
-        )
-
-        # Convert to this module's Preparation type for consistency
-        return Preparation(
-            agenda_item_id=result.agenda_item_id,
-            regulatory_context=result.regulatory_context,
-            historical_decisions=result.historical_decisions,
-            talking_points=result.talking_points,
-            allies=result.allies,
-            logistics=result.logistics,
         )
 
     # ─────────── AI DRAFT GENERATION ───────────

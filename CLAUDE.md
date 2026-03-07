@@ -97,11 +97,7 @@ c.what_was_said("housing")  # Search meeting transcripts
 c.get_public_testimony("housing")  # Public testimony excerpts
 c.whos_with_me("traffic")   # Community around issue
 
-# Action methods
-c.start_something(...)      # Create initiative
-c.add_voice(...)            # Add voice to item
-c.follow(...)               # Subscribe to updates
-c.prepare(...)              # Generate prep materials
+# Coordination — see civicos-relay package
 
 ```
 

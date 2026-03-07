@@ -12,9 +12,7 @@ Usage:
     c.what_applies("housing")
     c.whats_next(["transportation"])
 
-    # Action (Act)
-    c.start_something(topic="traffic", title="Protected bike lane")
-    c.add_voice("agenda_item", "item_123", "support", "As a cyclist...")
+    # Coordination (Act) — see civicos-relay package
 
 """
 
@@ -33,10 +31,6 @@ from civicos.types import (
     Meeting,
     UpcomingElection,
     Community,
-    Initiative,
-    Voice,
-    Subscription,
-    Preparation,
     ActionDraft,
     BudgetItem,
     BudgetSummary,
@@ -135,10 +129,6 @@ __all__ = [
     "Meeting",
     "UpcomingElection",
     "Community",
-    "Initiative",
-    "Voice",
-    "Subscription",
-    "Preparation",
     "ActionDraft",
     "BudgetItem",
     "BudgetSummary",

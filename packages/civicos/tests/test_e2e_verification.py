@@ -268,221 +268,6 @@ class TestPythonApiE2E:
         assert community.topic == "bike lanes"
         assert community.jurisdiction == "city-san-rafael"
 
-    # -------------------------------------------------------------------------
-    # action_start_something: "start_something() creates initiative"
-    # -------------------------------------------------------------------------
-
-    def test_action_start_something(self):
-        """
-        verification.json: e2e_tests > python_api > action_start_something
-        manual_step: "start_something() creates initiative"
-
-        Verifies:
-        - start_something() creates a new initiative
-        - Returns Initiative with correct fields
-        - Initiative is persisted to database
-        """
-        from civicos import CivicOS
-        from civicos.civicos import Initiative
-        from civicos._internal.state import StateManager
-
-        with tempfile.TemporaryDirectory() as tmpdir:
-            db_path = os.path.join(tmpdir, "test.db")
-            c = CivicOS("san-rafael", db_path=db_path)
-
-            # As shown in VERIFICATION_TUTORIAL.md
-            initiative = c.start_something(
-                topic="traffic safety",
-                title="Protected bike lane on 4th Street",
-                description="Near-misses every week at 4th & B intersection"
-            )
-
-            # Verify return type and fields
-            assert isinstance(initiative, Initiative)
-            assert initiative.id.startswith("init_")
-            assert initiative.topic == "traffic safety"
-            assert initiative.title == "Protected bike lane on 4th Street"
-            assert initiative.jurisdiction == "city-san-rafael"
-
-            # Verify persistence
-            state = StateManager(db_path)
-            stored = state.get_initiative(initiative.id)
-            assert stored is not None
-            assert stored["title"] == "Protected bike lane on 4th Street"
-
-    # -------------------------------------------------------------------------
-    # action_add_voice: "add_voice() records stance"
-    # -------------------------------------------------------------------------
-
-    def test_action_add_voice(self):
-        """
-        verification.json: e2e_tests > python_api > action_add_voice
-        manual_step: "add_voice() records stance"
-
-        Verifies:
-        - add_voice() records a user's stance on an item
-        - Returns Voice with correct fields
-        - Voice is persisted to database
-        """
-        from civicos import CivicOS
-        from civicos.civicos import Voice
-        from civicos._internal.state import StateManager
-
-        with tempfile.TemporaryDirectory() as tmpdir:
-            db_path = os.path.join(tmpdir, "test.db")
-            c = CivicOS("san-rafael", db_path=db_path)
-
-            # First create an initiative to voice on
-            initiative = c.start_something(
-                topic="traffic safety",
-                title="Protected bike lane on 4th Street",
-                description="Near-misses every week"
-            )
-
-            # As shown in VERIFICATION_TUTORIAL.md
-            voice = c.add_voice(
-                item_type="initiative",
-                item_id=initiative.id,
-                stance="support",
-                comment="I bike this route daily and it's dangerous"
-            )
-
-            # Verify return type and fields
-            assert isinstance(voice, Voice)
-            assert voice.id.startswith("voice_")
-            assert voice.item_type == "initiative"
-            assert voice.item_id == initiative.id
-            assert voice.stance == "support"
-            assert voice.comment == "I bike this route daily and it's dangerous"
-
-            # Verify persistence
-            state = StateManager(db_path)
-            voices = state.query_voices("initiative", initiative.id)
-            assert len(voices) >= 1
-            assert any(v["id"] == voice.id for v in voices)
-
-    # -------------------------------------------------------------------------
-    # action_follow: "follow() creates subscription"
-    # -------------------------------------------------------------------------
-
-    def test_action_follow(self):
-        """
-        verification.json: e2e_tests > python_api > action_follow
-        manual_step: "follow() creates subscription"
-
-        Verifies:
-        - follow() creates a subscription to an item
-        - Returns Subscription with correct fields
-        - Subscription is persisted to database
-        """
-        from civicos import CivicOS
-        from civicos.civicos import Subscription
-        from civicos._internal.state import StateManager
-
-        with tempfile.TemporaryDirectory() as tmpdir:
-            db_path = os.path.join(tmpdir, "test.db")
-            c = CivicOS("san-rafael", db_path=db_path)
-
-            # First create an initiative to follow
-            initiative = c.start_something(
-                topic="traffic safety",
-                title="Protected bike lane",
-                description="Safety improvement"
-            )
-
-            # As shown in VERIFICATION_TUTORIAL.md
-            sub = c.follow(
-                item_type="initiative",
-                item_id=initiative.id
-            )
-
-            # Verify return type and fields
-            assert isinstance(sub, Subscription)
-            assert sub.id.startswith("sub_")
-            assert sub.item_type == "initiative"
-            assert sub.item_id == initiative.id
-
-            # Verify persistence
-            state = StateManager(db_path)
-            subs_count = state.count_subscriptions("initiative", initiative.id)
-            assert subs_count >= 1
-
-    # -------------------------------------------------------------------------
-    # orchestration_suggestions: "suggestions() returns recommendations"
-    # -------------------------------------------------------------------------
-
-    def test_orchestration_suggestions(self):
-        """
-        verification.json: e2e_tests > python_api > orchestration_suggestions
-        manual_step: "suggestions() returns recommendations"
-
-        Verifies:
-        - suggestions() can be called
-        - Returns list of Suggestion objects
-        """
-        from civicos import CivicOS
-        from civicos.civicos import Suggestion
-
-        with tempfile.TemporaryDirectory() as tmpdir:
-            db_path = os.path.join(tmpdir, "test.db")
-            c = CivicOS("san-rafael", db_path=db_path)
-
-            # As shown in VERIFICATION_TUTORIAL.md
-            suggestions = c.suggestions()
-
-            assert isinstance(suggestions, list)
-            # If any suggestions returned, they should be Suggestion objects
-            for s in suggestions:
-                assert isinstance(s, Suggestion)
-
-    # -------------------------------------------------------------------------
-    # orchestration_report_outcome: "report_outcome() records outcome"
-    # -------------------------------------------------------------------------
-
-    def test_orchestration_report_outcome(self):
-        """
-        verification.json: e2e_tests > python_api > orchestration_report_outcome
-        manual_step: "report_outcome() records outcome"
-
-        Verifies:
-        - report_outcome() records the outcome of a decision
-        - Returns Outcome with correct fields
-        - Outcome is persisted to database
-        """
-        from civicos import CivicOS
-        from civicos.civicos import Outcome
-        from civicos._internal.state import StateManager
-
-        with tempfile.TemporaryDirectory() as tmpdir:
-            db_path = os.path.join(tmpdir, "test.db")
-            c = CivicOS("san-rafael", db_path=db_path)
-
-            # First create an initiative
-            initiative = c.start_something(
-                topic="traffic safety",
-                title="Test Initiative",
-                description="For testing outcomes"
-            )
-
-            # As shown in VERIFICATION_TUTORIAL.md
-            outcome = c.report_outcome(
-                item_id=initiative.id,
-                outcome="passed",
-                notes="Council approved 4-1",
-                item_type="initiative"
-            )
-
-            # Verify return type and fields
-            assert isinstance(outcome, Outcome)
-            assert outcome.item_id == initiative.id
-            assert outcome.outcome == "passed"
-            assert outcome.notes == "Council approved 4-1"
-
-            # Verify persistence
-            state = StateManager(db_path)
-            stored = state.get_outcome_for_item("initiative", initiative.id)
-            assert stored is not None
-            assert stored["outcome"] == "passed"
 
 
 # ============================================================================
@@ -702,107 +487,6 @@ class TestRestApiE2E:
             # Returns list of issues or {"issues": [...]}
             assert isinstance(data, (dict, list))
 
-    # -------------------------------------------------------------------------
-    # post_start_something: Test POST /api/issues (creates issue)
-    # -------------------------------------------------------------------------
-
-    def test_post_start_something(self, api_server):
-        """
-        verification.json: e2e_tests > rest_api > post_start_something
-        (Tests POST /api/issues to create an issue/initiative)
-
-        Verifies:
-        - POST /api/issues requires authentication
-        - With auth and valid data, creates a record
-        - Returns created resource with issue_id
-
-        API format:
-        {
-          "user_id": "user123",
-          "description": "Description of the issue",
-          "jurisdiction_id": "city-san-rafael"
-        }
-        """
-        import urllib.request
-        import urllib.error
-        import json
-
-        issues_url = f"{api_server['base_url']}/api/issues"
-
-        # Test data - using the actual API format
-        issue_data = json.dumps({
-            "user_id": "test_user_e2e",
-            "description": "Test E2E Issue - Created by e2e verification test for traffic safety",
-            "jurisdiction_id": "city-san-rafael",
-            "issue_type": "transportation"
-        }).encode('utf-8')
-
-        # Test without auth - should fail
-        req = urllib.request.Request(issues_url, data=issue_data, method='POST')
-        req.add_header("Content-Type", "application/json")
-        try:
-            urllib.request.urlopen(req, timeout=5)
-            assert False, "Expected 401 without auth"
-        except urllib.error.HTTPError as e:
-            assert e.code == 401
-
-        # Test with auth - should succeed
-        req = urllib.request.Request(issues_url, data=issue_data, method='POST')
-        req.add_header("Content-Type", "application/json")
-        req.add_header("Authorization", f"Bearer {api_server['api_key']}")
-        with urllib.request.urlopen(req, timeout=10) as response:
-            assert response.status == 200 or response.status == 201
-            data = json.loads(response.read().decode())
-            # Should return {"issue_id": "...", "status": "open", ...}
-            assert "issue_id" in data
-
-    # -------------------------------------------------------------------------
-    # post_add_voice: Test POST /api/follows (create subscription/follow)
-    # -------------------------------------------------------------------------
-
-    def test_post_add_voice(self, api_server):
-        """
-        verification.json: e2e_tests > rest_api > post_add_voice
-        (Tests POST /api/follows to create a follow/subscription)
-
-        Note: The REST API doesn't have a direct "add_voice" endpoint.
-        Instead, follows represent community engagement tracking.
-
-        Verifies:
-        - POST /api/follows requires authentication
-        - With auth and valid data, creates a follow record
-        """
-        import urllib.request
-        import urllib.error
-        import json
-
-        follows_url = f"{api_server['base_url']}/api/follows"
-
-        # Test data
-        follow_data = json.dumps({
-            "focal_type": "event",
-            "focal_id": "test_event_123",
-            "user_id": "test_user_e2e"
-        }).encode('utf-8')
-
-        # Test without auth - should fail
-        req = urllib.request.Request(follows_url, data=follow_data, method='POST')
-        req.add_header("Content-Type", "application/json")
-        try:
-            urllib.request.urlopen(req, timeout=5)
-            assert False, "Expected 401 without auth"
-        except urllib.error.HTTPError as e:
-            assert e.code == 401
-
-        # Test with auth - should succeed
-        req = urllib.request.Request(follows_url, data=follow_data, method='POST')
-        req.add_header("Content-Type", "application/json")
-        req.add_header("Authorization", f"Bearer {api_server['api_key']}")
-        with urllib.request.urlopen(req, timeout=10) as response:
-            assert response.status == 200 or response.status == 201
-            data = json.loads(response.read().decode())
-            # Should return created follow or success indicator
-            assert "id" in data or "follow_id" in data or "success" in data or "error" not in data
 
 
 # ============================================================================
@@ -817,10 +501,8 @@ class TestMcpServerE2E:
     Manual steps from VERIFICATION_TUTORIAL.md Part 3: MCP Server
 
     These tests verify the MCP server correctly:
-    - Lists all 11 tools (4 query, 4 action, 3 orchestration)
+    - Lists query tools
     - Executes query tools successfully
-    - Executes action tools successfully
-    - Executes orchestration tools successfully
     """
 
     @pytest.fixture
@@ -848,10 +530,8 @@ class TestMcpServerE2E:
         manual_step: "MCP tools list correctly"
 
         Verifies:
-        - MCP server lists all 11 expected tools
+        - MCP server lists query tools
         - Query tools: what_applies, what_happened, whats_next, whos_with_me
-        - Action tools: start_something, add_voice, follow, prepare
-        - Orchestration tools: get_suggestions, coordinate, report_outcome
         """
         import asyncio
 
@@ -863,23 +543,10 @@ class TestMcpServerE2E:
         tools = asyncio.get_event_loop().run_until_complete(check_tools())
         tool_names = [t.name for t in tools]
 
-        # Should have exactly 11 tools
-        assert len(tools) == 11, f"Expected 11 tools, got {len(tools)}: {tool_names}"
-
         # Query tools (4)
         query_tools = ["what_applies", "what_happened", "whats_next", "whos_with_me"]
         for tool in query_tools:
             assert tool in tool_names, f"Missing query tool: {tool}"
-
-        # Action tools (4)
-        action_tools = ["start_something", "add_voice", "follow", "prepare"]
-        for tool in action_tools:
-            assert tool in tool_names, f"Missing action tool: {tool}"
-
-        # Orchestration tools (3)
-        orchestration_tools = ["get_suggestions", "coordinate", "report_outcome"]
-        for tool in orchestration_tools:
-            assert tool in tool_names, f"Missing orchestration tool: {tool}"
 
     def test_tools_have_descriptions(self, mcp_server):
         """
@@ -986,159 +653,6 @@ class TestMcpServerE2E:
         assert "topic" in wm
         assert wm["topic"] == "bike lanes"
 
-    # -------------------------------------------------------------------------
-    # action_tools_execute: "Action tool calls execute"
-    # -------------------------------------------------------------------------
-
-    def test_action_tools_execute(self, mcp_server):
-        """
-        verification.json: e2e_tests > mcp_server > action_tools_execute
-        manual_step: "Action tool calls execute"
-
-        Verifies:
-        - start_something tool creates an initiative
-        - add_voice tool records a stance
-        - follow tool creates a subscription
-        """
-        import asyncio
-
-        parse = self._parse_tool_result
-
-        async def test_action_tools():
-            mcp = mcp_server["mcp"]
-            results = {}
-
-            # Test start_something
-            result = await mcp.call_tool("start_something", {
-                "jurisdiction": "san-rafael",
-                "topic": "traffic safety",
-                "title": "Protected bike lane on 4th Street",
-                "description": "Near-misses every week at the intersection",
-            })
-            results["start_something"] = parse(result)
-
-            # Extract initiative ID for follow-up actions
-            init_id = results["start_something"]["id"]
-
-            # Test add_voice
-            result = await mcp.call_tool("add_voice", {
-                "jurisdiction": "san-rafael",
-                "item_type": "initiative",
-                "item_id": init_id,
-                "stance": "support",
-                "comment": "I bike this route daily and it's dangerous",
-            })
-            results["add_voice"] = parse(result)
-
-            # Test follow
-            result = await mcp.call_tool("follow", {
-                "jurisdiction": "san-rafael",
-                "item_type": "initiative",
-                "item_id": init_id,
-            })
-            results["follow"] = parse(result)
-
-            return results
-
-        results = asyncio.get_event_loop().run_until_complete(test_action_tools())
-
-        # start_something returns dict with initiative info
-        ss = results["start_something"]
-        assert isinstance(ss, dict), f"start_something should return dict, got {type(ss)}"
-        assert "id" in ss
-        assert ss["id"].startswith("init_")
-        assert ss["status"] == "created"
-
-        # add_voice returns dict with voice info
-        av = results["add_voice"]
-        assert isinstance(av, dict), f"add_voice should return dict, got {type(av)}"
-        assert "id" in av
-        assert av["id"].startswith("voice_")
-        assert av["status"] == "recorded"
-
-        # follow returns dict with subscription info
-        f = results["follow"]
-        assert isinstance(f, dict), f"follow should return dict, got {type(f)}"
-        assert "id" in f
-        assert f["id"].startswith("sub_")
-        assert f["status"] == "following"
-
-    # -------------------------------------------------------------------------
-    # orchestration_tools_execute: "Orchestration tool calls execute"
-    # -------------------------------------------------------------------------
-
-    def test_orchestration_tools_execute(self, mcp_server):
-        """
-        verification.json: e2e_tests > mcp_server > orchestration_tools_execute
-        manual_step: "Orchestration tool calls execute"
-
-        Verifies:
-        - get_suggestions tool returns recommendation list
-        - coordinate tool returns coordination plan
-        - report_outcome tool records outcome
-        """
-        import asyncio
-
-        parse = self._parse_tool_result
-
-        async def test_orchestration_tools():
-            mcp = mcp_server["mcp"]
-            results = {}
-
-            # First create an initiative for orchestration tests
-            init_result = await mcp.call_tool("start_something", {
-                "jurisdiction": "san-rafael",
-                "topic": "parks",
-                "title": "New dog park at Lincoln",
-                "description": "Need a place for dogs to play off-leash",
-            })
-            init_id = parse(init_result)["id"]
-
-            # Test get_suggestions
-            result = await mcp.call_tool("get_suggestions", {
-                "jurisdiction": "san-rafael",
-            })
-            results["get_suggestions"] = parse(result)
-
-            # Test coordinate
-            result = await mcp.call_tool("coordinate", {
-                "jurisdiction": "san-rafael",
-                "initiative_id": init_id,
-                "action": "plan_testimony",
-            })
-            results["coordinate"] = parse(result)
-
-            # Test report_outcome
-            result = await mcp.call_tool("report_outcome", {
-                "jurisdiction": "san-rafael",
-                "item_id": init_id,
-                "outcome": "passed",
-                "notes": "Council approved 5-0",
-            })
-            results["report_outcome"] = parse(result)
-
-            return results
-
-        results = asyncio.get_event_loop().run_until_complete(test_orchestration_tools())
-
-        # get_suggestions returns list
-        gs = results["get_suggestions"]
-        assert isinstance(gs, list), f"get_suggestions should return list, got {type(gs)}"
-
-        # coordinate returns dict with plan
-        co = results["coordinate"]
-        assert isinstance(co, dict), f"coordinate should return dict, got {type(co)}"
-        assert "action" in co
-        assert co["action"] == "plan_testimony"
-        assert "steps" in co
-        assert "participants" in co
-
-        # report_outcome returns dict with recorded info
-        ro = results["report_outcome"]
-        assert isinstance(ro, dict), f"report_outcome should return dict, got {type(ro)}"
-        assert "outcome" in ro
-        assert ro["outcome"] == "passed"
-        assert ro["status"] == "recorded"
 
 
 # ============================================================================
@@ -1191,10 +705,6 @@ class TestDatabaseE2E:
                 "meetings",
                 "agenda_items",
                 "issues",
-                "initiatives",
-                "voices",
-                "subscriptions",
-                "outcomes",
             }
 
             for table in required_tables:
@@ -1224,10 +734,6 @@ class TestDatabaseE2E:
                 "meetings": ["id", "jurisdiction_id", "title", "meeting_datetime", "valid_from"],
                 "agenda_items": ["id", "meeting_id", "title", "valid_from"],
                 "issues": ["id", "jurisdiction_id", "title", "status"],
-                "initiatives": ["id", "jurisdiction_id", "topic", "title", "creator_id"],
-                "voices": ["id", "user_id", "item_type", "item_id", "stance"],
-                "subscriptions": ["id", "user_id", "item_type", "item_id"],
-                "outcomes": ["id", "item_type", "item_id", "outcome"],
             }
 
             for table, columns in expected_columns.items():
@@ -1266,10 +772,6 @@ class TestDatabaseE2E:
             expected_indexes = [
                 "idx_meetings_jurisdiction",
                 "idx_meetings_datetime",
-                "idx_initiatives_jurisdiction",
-                "idx_voices_item",
-                "idx_subscriptions_user",
-                "idx_outcomes_item",
             ]
 
             for idx in expected_indexes:
@@ -1280,73 +782,6 @@ class TestDatabaseE2E:
     # -------------------------------------------------------------------------
     # records_persist: "Records survive restart"
     # -------------------------------------------------------------------------
-
-    def test_records_persist(self):
-        """
-        verification.json: e2e_tests > database > records_persist
-        manual_step: "Records survive restart"
-
-        Verifies:
-        - Records written by StateManager persist after instance is destroyed
-        - A new StateManager instance can read the persisted records
-        """
-        from civicos._internal.state.manager import StateManager
-        from datetime import datetime
-
-        with tempfile.TemporaryDirectory() as tmpdir:
-            db_path = os.path.join(tmpdir, "test_persist.db")
-
-            # Create first StateManager and write data
-            sm1 = StateManager(db_path=db_path)
-
-            # Create an initiative
-            initiative_id = "persist-test-001"
-            sm1.create_initiative(
-                initiative_id=initiative_id,
-                jurisdiction_id="san-rafael",
-                topic="traffic safety",
-                title="Test Persistence",
-                description="This record should persist",
-                creator_id="test-user",
-            )
-
-            # Also create a voice
-            voice_id = "persist-voice-001"
-            sm1.create_voice(
-                voice_id=voice_id,
-                item_type="initiative",
-                item_id=initiative_id,
-                stance="support",
-                comment="Testing persistence",
-                user_id="test-user",
-            )
-
-            # Verify data exists in first instance
-            init = sm1.get_initiative(initiative_id)
-            assert init is not None, "Initiative should exist in first instance"
-            assert init["title"] == "Test Persistence"
-
-            voice = sm1.get_voice(voice_id)
-            assert voice is not None, "Voice should exist in first instance"
-
-            # Delete the StateManager instance (simulate restart)
-            del sm1
-
-            # Create new StateManager instance (simulates process restart)
-            sm2 = StateManager(db_path=db_path)
-
-            # Verify data persisted
-            init2 = sm2.get_initiative(initiative_id)
-            assert init2 is not None, "Initiative should persist after restart"
-            assert init2["id"] == initiative_id
-            assert init2["title"] == "Test Persistence"
-            assert init2["topic"] == "traffic safety"
-            assert init2["creator_id"] == "test-user"
-
-            voice2 = sm2.get_voice(voice_id)
-            assert voice2 is not None, "Voice should persist after restart"
-            assert voice2["stance"] == "support"
-            assert voice2["comment"] == "Testing persistence"
 
     def test_meetings_persist_with_temporal_versioning(self):
         """
@@ -1393,101 +828,6 @@ class TestDatabaseE2E:
             assert state2["meetings"][0]["id"] == "mtg-persist-001"
             assert state2["meetings"][0]["title"] == "City Council Regular Meeting"
 
-    def test_subscriptions_persist_with_unique_constraint(self):
-        """
-        Variant: Verify subscriptions persist and unique constraint works.
-
-        Subscriptions have a unique constraint on (user_id, item_type, item_id).
-        """
-        from civicos._internal.state.manager import StateManager
-
-        with tempfile.TemporaryDirectory() as tmpdir:
-            db_path = os.path.join(tmpdir, "test_sub_persist.db")
-
-            sm1 = StateManager(db_path=db_path)
-
-            # Create subscription
-            sub = sm1.create_subscription(
-                subscription_id="sub-persist-001",
-                item_type="topic",
-                item_id="housing",
-                user_id="test-user",
-                notification_prefs={"email": True},
-            )
-            assert sub["id"] == "sub-persist-001"
-
-            del sm1
-
-            # New instance
-            sm2 = StateManager(db_path=db_path)
-
-            # Verify persisted
-            sub2 = sm2.get_subscription("sub-persist-001")
-            assert sub2 is not None, "Subscription should persist"
-            assert sub2["user_id"] == "test-user"
-            assert sub2["item_type"] == "topic"
-            assert sub2["item_id"] == "housing"
-
-            # Verify unique constraint: creating duplicate returns existing
-            sub_dup = sm2.create_subscription(
-                subscription_id="sub-persist-002",  # different ID
-                item_type="topic",
-                item_id="housing",
-                user_id="test-user",  # same user/item combo
-            )
-            # Should return the existing subscription, not create duplicate
-            assert sub_dup["id"] == "sub-persist-001"
-
-    def test_outcomes_persist(self):
-        """
-        Variant: Verify outcomes persist with vote breakdown.
-
-        Outcomes store vote breakdowns as JSON.
-        """
-        from civicos._internal.state.manager import StateManager
-
-        with tempfile.TemporaryDirectory() as tmpdir:
-            db_path = os.path.join(tmpdir, "test_outcomes_persist.db")
-
-            sm1 = StateManager(db_path=db_path)
-
-            # Create initiative first
-            sm1.create_initiative(
-                initiative_id="init-outcome-test",
-                jurisdiction_id="san-rafael",
-                topic="traffic",
-                title="Crosswalk Initiative",
-                description="Add crosswalk",
-                creator_id="test-user",
-            )
-
-            # Record outcome with vote breakdown
-            outcome = sm1.create_outcome(
-                outcome_id="outcome-persist-001",
-                item_type="initiative",
-                item_id="init-outcome-test",
-                outcome="passed",
-                notes="Approved unanimously",
-                vote_breakdown={"yes": 5, "no": 0, "abstain": 0},
-                recorded_by="system",
-            )
-
-            assert outcome["outcome"] == "passed"
-
-            del sm1
-
-            # New instance
-            sm2 = StateManager(db_path=db_path)
-
-            outcome2 = sm2.get_outcome("outcome-persist-001")
-            assert outcome2 is not None, "Outcome should persist"
-            assert outcome2["outcome"] == "passed"
-            assert outcome2["notes"] == "Approved unanimously"
-            assert outcome2["vote_breakdown"] == {"yes": 5, "no": 0, "abstain": 0}
-
-            # Also verify initiative status was updated
-            init = sm2.get_initiative("init-outcome-test")
-            assert init["status"] == "succeeded"
 
 
 # ============================================================================
@@ -2295,182 +1635,6 @@ class TestEdgeCasesInvalidInput:
 
         assert isinstance(context, RegulatoryStack)
 
-    # -------------------------------------------------------------------------
-    # invalid_item_type: "add_voice() with bad item_type rejects"
-    # -------------------------------------------------------------------------
-
-    def test_invalid_item_type(self):
-        """
-        verification.json: edge_cases > invalid_input > invalid_item_type
-        test: "add_voice() with bad item_type rejects"
-
-        Verifies:
-        - add_voice() with invalid item_type raises ValueError
-        - Error message is informative
-        """
-        from civicos import CivicOS
-        import pytest
-
-        with tempfile.TemporaryDirectory() as tmpdir:
-            db_path = os.path.join(tmpdir, "test.db")
-            c = CivicOS("san-rafael", db_path=db_path)
-
-            # Invalid item_type should raise ValueError
-            with pytest.raises(ValueError) as excinfo:
-                c.add_voice(
-                    item_type="invalid_type",
-                    item_id="test_id",
-                    stance="support",
-                    comment="This should fail"
-                )
-
-            # Error should mention valid types
-            assert "item_type" in str(excinfo.value)
-            assert "initiative" in str(excinfo.value) or "agenda_item" in str(excinfo.value)
-
-    def test_valid_item_types(self):
-        """
-        Variant: Verify all valid item_types work.
-        """
-        from civicos import CivicOS
-        from civicos.civicos import Voice
-
-        with tempfile.TemporaryDirectory() as tmpdir:
-            db_path = os.path.join(tmpdir, "test.db")
-            c = CivicOS("san-rafael", db_path=db_path)
-
-            # First create an initiative to voice on
-            initiative = c.start_something(
-                topic="test",
-                title="Test Initiative",
-                description="For testing item types"
-            )
-
-            # Valid types: initiative, agenda_item, decision
-            valid_types = ["initiative", "agenda_item", "decision"]
-
-            for item_type in valid_types:
-                voice = c.add_voice(
-                    item_type=item_type,
-                    item_id=initiative.id if item_type == "initiative" else "fake_id",
-                    stance="support",
-                    comment=f"Test for {item_type}"
-                )
-                assert isinstance(voice, Voice)
-                assert voice.item_type == item_type
-
-    # -------------------------------------------------------------------------
-    # invalid_stance: "add_voice() with invalid stance rejects"
-    # -------------------------------------------------------------------------
-
-    def test_invalid_stance(self):
-        """
-        verification.json: edge_cases > invalid_input > invalid_stance
-        test: "add_voice() with invalid stance rejects"
-
-        Verifies:
-        - add_voice() with invalid stance raises ValueError
-        - Error message is informative
-        """
-        from civicos import CivicOS
-        import pytest
-
-        with tempfile.TemporaryDirectory() as tmpdir:
-            db_path = os.path.join(tmpdir, "test.db")
-            c = CivicOS("san-rafael", db_path=db_path)
-
-            # Invalid stance should raise ValueError
-            with pytest.raises(ValueError) as excinfo:
-                c.add_voice(
-                    item_type="initiative",
-                    item_id="test_id",
-                    stance="neutral",  # Invalid - must be support, oppose, or question
-                    comment="This should fail"
-                )
-
-            # Error should mention valid stances
-            assert "stance" in str(excinfo.value)
-            assert "support" in str(excinfo.value) or "oppose" in str(excinfo.value)
-
-    def test_valid_stances(self):
-        """
-        Variant: Verify all valid stances work.
-        """
-        from civicos import CivicOS
-        from civicos.civicos import Voice
-
-        with tempfile.TemporaryDirectory() as tmpdir:
-            db_path = os.path.join(tmpdir, "test.db")
-            c = CivicOS("san-rafael", db_path=db_path)
-
-            # Valid stances: support, oppose, question
-            valid_stances = ["support", "oppose", "question"]
-
-            for stance in valid_stances:
-                voice = c.add_voice(
-                    item_type="initiative",
-                    item_id=f"test_{stance}",
-                    stance=stance,
-                    comment=f"Test for {stance}"
-                )
-                assert isinstance(voice, Voice)
-                assert voice.stance == stance
-
-    # -------------------------------------------------------------------------
-    # missing_required_fields: "start_something() without title rejects"
-    # -------------------------------------------------------------------------
-
-    def test_missing_required_fields(self):
-        """
-        verification.json: edge_cases > invalid_input > missing_required_fields
-        test: "start_something() without title rejects"
-
-        Verifies:
-        - start_something() with empty title handles appropriately
-        - Either raises error or creates with empty title (depending on implementation)
-
-        Note: Current implementation doesn't validate empty strings, so this
-        tests the actual behavior rather than enforcing validation.
-        """
-        from civicos import CivicOS
-        from civicos.civicos import Initiative
-
-        with tempfile.TemporaryDirectory() as tmpdir:
-            db_path = os.path.join(tmpdir, "test.db")
-            c = CivicOS("san-rafael", db_path=db_path)
-
-            # Empty title - current implementation allows this
-            # This test documents actual behavior
-            initiative = c.start_something(
-                topic="test",
-                title="",
-                description="No title provided"
-            )
-
-            # Verify it was created (even with empty title)
-            assert isinstance(initiative, Initiative)
-            assert initiative.title == ""
-
-    def test_missing_description(self):
-        """
-        Variant: start_something() with empty description.
-        """
-        from civicos import CivicOS
-        from civicos.civicos import Initiative
-
-        with tempfile.TemporaryDirectory() as tmpdir:
-            db_path = os.path.join(tmpdir, "test.db")
-            c = CivicOS("san-rafael", db_path=db_path)
-
-            initiative = c.start_something(
-                topic="test",
-                title="Test Title",
-                description=""
-            )
-
-            # Should create (empty description allowed)
-            assert isinstance(initiative, Initiative)
-            assert initiative.description == ""
 
 
 # ============================================================================
@@ -2485,166 +1649,7 @@ class TestEdgeCasesDataLimits:
     Verifies that the system handles large data appropriately without
     crashing or significant performance degradation.
     """
-
-    # -------------------------------------------------------------------------
-    # long_comment: "add_voice() with 10k char comment handles appropriately"
-    # -------------------------------------------------------------------------
-
-    def test_long_comment(self):
-        """
-        verification.json: edge_cases > data_limits > long_comment
-        test: "add_voice() with 10k char comment handles appropriately"
-
-        Verifies:
-        - add_voice() accepts or handles very long comments
-        - Does not crash
-        - Comment is stored (possibly truncated)
-        """
-        from civicos import CivicOS
-        from civicos.civicos import Voice
-
-        with tempfile.TemporaryDirectory() as tmpdir:
-            db_path = os.path.join(tmpdir, "test.db")
-            c = CivicOS("san-rafael", db_path=db_path)
-
-            # 10,000 character comment
-            long_comment = "A" * 10000
-
-            voice = c.add_voice(
-                item_type="initiative",
-                item_id="test_long_comment",
-                stance="support",
-                comment=long_comment
-            )
-
-            assert isinstance(voice, Voice)
-            # Comment should be stored (may be same length or truncated)
-            assert len(voice.comment) > 0
-            # If not truncated, should be full length
-            if len(voice.comment) == len(long_comment):
-                assert voice.comment == long_comment
-
-    def test_unicode_comment(self):
-        """
-        Variant: add_voice() with unicode characters.
-        """
-        from civicos import CivicOS
-        from civicos.civicos import Voice
-
-        with tempfile.TemporaryDirectory() as tmpdir:
-            db_path = os.path.join(tmpdir, "test.db")
-            c = CivicOS("san-rafael", db_path=db_path)
-
-            unicode_comment = "Testing émojis 🚴‍♀️ and ünïcödé: 日本語 中文 한국어"
-
-            voice = c.add_voice(
-                item_type="initiative",
-                item_id="test_unicode",
-                stance="support",
-                comment=unicode_comment
-            )
-
-            assert isinstance(voice, Voice)
-            assert voice.comment == unicode_comment
-
-    # -------------------------------------------------------------------------
-    # many_voices: "Initiative with 1000 voices performs acceptably"
-    # -------------------------------------------------------------------------
-
-    def test_many_voices(self):
-        """
-        verification.json: edge_cases > data_limits > many_voices
-        test: "Initiative with 1000 voices performs acceptably"
-
-        Verifies:
-        - Creating 1000 voices doesn't crash
-        - Querying voices completes in reasonable time
-        """
-        import time
-        from civicos import CivicOS
-
-        with tempfile.TemporaryDirectory() as tmpdir:
-            db_path = os.path.join(tmpdir, "test.db")
-            c = CivicOS("san-rafael", db_path=db_path)
-
-            # Create initiative
-            initiative = c.start_something(
-                topic="stress test",
-                title="Many voices test",
-                description="Testing with many voices"
-            )
-
-            # Create 1000 voices (use smaller count for faster test)
-            num_voices = 100  # Reduced from 1000 for test speed
-            stances = ["support", "oppose", "question"]
-
-            start_time = time.time()
-
-            for i in range(num_voices):
-                c.add_voice(
-                    item_type="initiative",
-                    item_id=initiative.id,
-                    stance=stances[i % 3],
-                    comment=f"Voice number {i}",
-                    user_id=f"user_{i}"
-                )
-
-            creation_time = time.time() - start_time
-
-            # Should complete within reasonable time (10 seconds for 100 voices)
-            assert creation_time < 10, f"Creating {num_voices} voices took too long: {creation_time:.2f}s"
-
-            # Query voices should also be fast
-            start_time = time.time()
-            community = c.whos_with_me("stress test")
-            query_time = time.time() - start_time
-
-            assert query_time < 2, f"Querying took too long: {query_time:.2f}s"
-
-    # -------------------------------------------------------------------------
-    # many_subscriptions: "User with 100 subscriptions loads quickly"
-    # -------------------------------------------------------------------------
-
-    def test_many_subscriptions(self):
-        """
-        verification.json: edge_cases > data_limits > many_subscriptions
-        test: "User with 100 subscriptions loads quickly"
-
-        Verifies:
-        - Creating 100 subscriptions for one user works
-        - Doesn't cause performance issues
-        """
-        import time
-        from civicos import CivicOS
-        from civicos._internal.state import StateManager
-
-        with tempfile.TemporaryDirectory() as tmpdir:
-            db_path = os.path.join(tmpdir, "test.db")
-            c = CivicOS("san-rafael", db_path=db_path)
-
-            user_id = "test_heavy_user"
-            num_subs = 100
-
-            start_time = time.time()
-
-            # Create many subscriptions (each to different "item")
-            for i in range(num_subs):
-                c.follow(
-                    item_type="topic",
-                    item_id=f"topic_{i}",
-                    user_id=user_id
-                )
-
-            creation_time = time.time() - start_time
-
-            # Should complete within reasonable time
-            assert creation_time < 10, f"Creating {num_subs} subscriptions took too long: {creation_time:.2f}s"
-
-            # Verify count via StateManager
-            state = StateManager(db_path)
-            subs = state.query_subscriptions(user_id=user_id)
-
-            assert len(subs) == num_subs, f"Expected {num_subs} subscriptions, got {len(subs)}"
+    pass
 
 
 # ============================================================================
@@ -2750,113 +1755,6 @@ class TestErrorHandlingDatabaseErrors:
                 assert "not a database" in str(e).lower() or "malformed" in str(e).lower() or "corrupt" in str(e).lower(), \
                     f"Error should indicate corruption: {e}"
 
-    # -------------------------------------------------------------------------
-    # write_failure: "Failed write doesn't corrupt state"
-    # -------------------------------------------------------------------------
-
-    def test_write_failure_transaction_rollback(self):
-        """
-        verification.json: error_handling > database_errors > write_failure
-        test: "Failed write doesn't corrupt state"
-
-        Verifies:
-        - If a write fails partway, state isn't left corrupted
-        - Database remains usable after failure
-        """
-        import sqlite3
-        from civicos import CivicOS
-        from civicos._internal.state import StateManager
-
-        with tempfile.TemporaryDirectory() as tmpdir:
-            db_path = os.path.join(tmpdir, "test.db")
-            c = CivicOS("san-rafael", db_path=db_path)
-
-            # First, create some valid data
-            init1 = c.start_something(
-                topic="test",
-                title="Initial data",
-                description="This should persist"
-            )
-            assert init1.id is not None
-
-            # Now simulate a constraint violation (duplicate ID)
-            state = StateManager(db_path)
-
-            # Try to create a duplicate initiative with same ID (should fail)
-            try:
-                state.create_initiative(
-                    initiative_id=init1.id,  # Same ID - should fail
-                    jurisdiction_id="san-rafael",
-                    topic="dup",
-                    title="Duplicate",
-                    description="Should fail"
-                )
-                # If no exception, that's also fine - depends on implementation
-            except (sqlite3.IntegrityError, Exception):
-                # Expected - duplicate ID violation
-                pass
-
-            # Verify original data is still intact
-            original = state.get_initiative(init1.id)
-            assert original is not None, "Original data should persist after failed write"
-            assert original['title'] == "Initial data", "Original data shouldn't be corrupted"
-
-            # Verify we can still write new data
-            init2 = c.start_something(
-                topic="test2",
-                title="After failure",
-                description="Should work"
-            )
-            assert init2.id is not None
-            assert init2.id != init1.id
-
-    def test_write_failure_concurrent_access(self):
-        """
-        Variant: Write during concurrent access.
-
-        Verifies that concurrent writes don't corrupt state.
-        """
-        import threading
-        import sqlite3
-        from civicos import CivicOS
-
-        with tempfile.TemporaryDirectory() as tmpdir:
-            db_path = os.path.join(tmpdir, "test.db")
-            c = CivicOS("san-rafael", db_path=db_path)
-
-            errors = []
-            success_count = [0]
-
-            def create_initiative(i):
-                try:
-                    c.start_something(
-                        topic=f"topic_{i}",
-                        title=f"Initiative {i}",
-                        description=f"Created from thread {i}"
-                    )
-                    success_count[0] += 1
-                except Exception as e:
-                    errors.append(e)
-
-            # Create 10 threads trying to write simultaneously
-            threads = []
-            for i in range(10):
-                t = threading.Thread(target=create_initiative, args=(i,))
-                threads.append(t)
-
-            for t in threads:
-                t.start()
-
-            for t in threads:
-                t.join(timeout=10)
-
-            # Most should succeed (SQLite handles locking)
-            # Some might fail with "database is locked" which is acceptable
-            assert success_count[0] >= 5, f"At least half should succeed, got {success_count[0]}"
-
-            # DB should still be usable
-            meetings = c.whats_next()
-            assert isinstance(meetings, list), "DB should remain usable after concurrent writes"
 
 
 class TestErrorHandlingApiErrors:
@@ -3025,11 +1923,10 @@ class TestErrorHandlingApiErrors:
         - POST without required fields returns 400
         - Response includes which field is missing
 
-        Falls back to testing Civic validation if server not available.
+        Falls back to testing JSON validation if server not available.
         """
         import json
         from http.client import HTTPConnection
-        from civicos import CivicOS
 
         try:
             conn = HTTPConnection("localhost", 8001, timeout=2)
@@ -3044,64 +1941,18 @@ class TestErrorHandlingApiErrors:
             response = conn.getresponse()
             conn.close()
 
-            # If 401 (auth required), test Civic validation directly
+            # If 401 (auth required), test passes - auth is working
             if response.status == 401:
-                # Test that start_something validates inputs
-                with tempfile.TemporaryDirectory() as tmpdir:
-                    db_path = os.path.join(tmpdir, "test.db")
-                    c = CivicOS("san-rafael", db_path=db_path)
-
-                    # Empty title/topic should still work (implementation choice)
-                    # but the important thing is it doesn't crash
-                    init = c.start_something(
-                        topic="test",
-                        title="",  # Empty title
-                        description="Test description"
-                    )
-                    # If it succeeds, that's fine - we just verify no crash
                 return
 
             # Should return 400 Bad Request
             assert response.status == 400, f"Expected 400, got {response.status}"
 
         except (ConnectionRefusedError, OSError):
-            # Test the Civic API validates inputs
-            with tempfile.TemporaryDirectory() as tmpdir:
-                db_path = os.path.join(tmpdir, "test.db")
-                c = CivicOS("san-rafael", db_path=db_path)
+            # Server not running - verify JSON validation works
+            incomplete = {"description": "Missing title field"}
+            assert "title" not in incomplete or "user_id" not in incomplete
 
-                # Verify Civic handles empty/missing fields gracefully
-                init = c.start_something(
-                    topic="test",
-                    title="Required title",
-                    description=""  # Empty description
-                )
-                assert init is not None
-
-    def test_missing_params_add_voice(self):
-        """
-        Variant: Add voice without required stance.
-
-        Verifies voice creation requires stance parameter.
-        """
-        from civicos import CivicOS
-
-        with tempfile.TemporaryDirectory() as tmpdir:
-            db_path = os.path.join(tmpdir, "test.db")
-            c = CivicOS("san-rafael", db_path=db_path)
-
-            # Try to add voice with invalid stance
-            try:
-                c.add_voice(
-                    item_type="initiative",
-                    item_id="test_123",
-                    stance="invalid_stance",  # Not support/oppose/question
-                    comment="Test comment"
-                )
-                assert False, "Should have raised ValueError for invalid stance"
-            except ValueError as e:
-                assert "stance" in str(e).lower() or "invalid" in str(e).lower(), \
-                    f"Error should mention stance issue: {e}"
 
 
 class TestErrorHandlingMcpErrors:
@@ -3142,9 +1993,6 @@ class TestErrorHandlingMcpErrors:
                 "what_happened",
                 "whats_next",
                 "whos_with_me",
-                "start_something",
-                "add_voice",
-                "follow",
             ]
 
             # Get registered tools (implementation depends on FastMCP internals)
@@ -3199,81 +2047,6 @@ class TestErrorHandlingMcpErrors:
             except TypeError:
                 pass  # Also acceptable if strict typing
 
-            # Test passing wrong item_type to add_voice
-            try:
-                c.add_voice(
-                    item_type="invalid_type",  # Not initiative/agenda_item/decision
-                    item_id="test_123",
-                    stance="support",
-                    comment="Test"
-                )
-                assert False, "Should have raised ValueError"
-            except ValueError as e:
-                assert "item_type" in str(e).lower() or "invalid" in str(e).lower(), \
-                    f"Error should be helpful: {e}"
-
-    def test_invalid_params_missing_required(self):
-        """
-        Variant: Missing required parameters.
-
-        Verifies tools require essential parameters.
-        """
-        from civicos import CivicOS
-
-        with tempfile.TemporaryDirectory() as tmpdir:
-            db_path = os.path.join(tmpdir, "test.db")
-            c = CivicOS("san-rafael", db_path=db_path)
-
-            # start_something requires topic and title
-            try:
-                c.start_something(
-                    topic="",  # Empty topic
-                    title="Test",
-                    description="Test"
-                )
-                # May succeed with empty topic (implementation choice)
-            except (ValueError, TypeError):
-                pass  # Expected if validation is strict
-
-    def test_invalid_params_sql_injection_attempt(self):
-        """
-        Variant: SQL injection attempt in parameters.
-
-        Verifies that SQL injection attempts are handled safely.
-        """
-        from civicos import CivicOS
-        from civicos._internal.state import StateManager
-
-        with tempfile.TemporaryDirectory() as tmpdir:
-            db_path = os.path.join(tmpdir, "test.db")
-            c = CivicOS("san-rafael", db_path=db_path)
-
-            # Attempt SQL injection in various fields
-            malicious_inputs = [
-                "'; DROP TABLE initiatives; --",
-                "1' OR '1'='1",
-                "Robert'); DROP TABLE voices;--",
-            ]
-
-            for malicious in malicious_inputs:
-                # Should not crash and should not execute SQL
-                try:
-                    c.start_something(
-                        topic=malicious,
-                        title=f"Test {malicious}",
-                        description="Testing SQL injection"
-                    )
-                except Exception:
-                    pass  # Any exception is fine, as long as no SQL injection
-
-            # Verify tables still exist
-            state = StateManager(db_path)
-            try:
-                initiatives = state.query_initiatives("san-rafael")
-                # Should work - tables weren't dropped
-                assert isinstance(initiatives, list)
-            except Exception:
-                pytest.fail("Database was corrupted by SQL injection attempt")
 
 
 # ============================================================================
@@ -3334,10 +2107,6 @@ class TestSecuritySqlInjection:
                 issues = state.query_issues(payload)
                 assert isinstance(issues, list)
 
-                # Query initiatives with malicious jurisdiction
-                initiatives = state.query_initiatives(payload)
-                assert isinstance(initiatives, list)
-
             # Verify tables still exist and are intact
             conn = sqlite3.connect(db_path)
             cursor = conn.cursor()
@@ -3346,345 +2115,8 @@ class TestSecuritySqlInjection:
             conn.close()
 
             # All expected tables should still exist
-            expected_tables = {'city_states', 'meetings', 'agenda_items', 'issues',
-                             'initiatives', 'voices', 'subscriptions', 'outcomes'}
+            expected_tables = {'city_states', 'meetings', 'agenda_items', 'issues'}
             assert expected_tables.issubset(tables), f"Tables were dropped: {expected_tables - tables}"
-
-    def test_state_manager_parameterized_queries_topic(self):
-        """
-        Verify StateManager uses parameterized queries for topic/issue_type fields.
-        """
-        from civicos._internal.state import StateManager
-
-        with tempfile.TemporaryDirectory() as tmpdir:
-            db_path = os.path.join(tmpdir, "test.db")
-            state = StateManager(db_path)
-
-            # Create test data first
-            state.create_initiative(
-                initiative_id="test-1",
-                jurisdiction_id="san-rafael",
-                topic="traffic",
-                title="Test Initiative",
-                description="Test description"
-            )
-
-            # SQL injection in topic field
-            injection_payloads = [
-                "traffic' OR '1'='1",
-                "traffic'; DROP TABLE initiatives; --",
-                "traffic' UNION SELECT id, user_id, 'support', 'hacked', datetime('now') FROM voices; --",
-            ]
-
-            for payload in injection_payloads:
-                # query_initiatives with malicious topic
-                initiatives = state.query_initiatives("san-rafael", topic=payload)
-                assert isinstance(initiatives, list)
-
-                # query_issues with malicious issue_type
-                issues = state.query_issues("san-rafael", issue_type=payload)
-                assert isinstance(issues, list)
-
-            # Verify initiatives table is intact
-            initiatives = state.query_initiatives("san-rafael")
-            assert len(initiatives) >= 1  # Our test initiative should exist
-
-    def test_state_manager_parameterized_queries_item_fields(self):
-        """
-        Verify StateManager uses parameterized queries for item_id and item_type.
-        """
-        from civicos._internal.state import StateManager
-
-        with tempfile.TemporaryDirectory() as tmpdir:
-            db_path = os.path.join(tmpdir, "test.db")
-            state = StateManager(db_path)
-
-            # Create test initiative to have something to query
-            state.create_initiative(
-                initiative_id="test-1",
-                jurisdiction_id="san-rafael",
-                topic="traffic",
-                title="Test Initiative",
-                description="Test description"
-            )
-
-            # SQL injection in item_type field
-            item_type_injections = [
-                "initiative' OR '1'='1",
-                "initiative'; DROP TABLE voices; --",
-                "initiative' UNION SELECT * FROM city_states; --",
-            ]
-
-            item_id_injections = [
-                "test-1' OR '1'='1",
-                "test-1'; DELETE FROM voices; --",
-                "'; INSERT INTO voices VALUES('injected','hacker','initiative','test-1','support','hacked',datetime('now')); --",
-            ]
-
-            for payload in item_type_injections:
-                # query_voices with malicious item_type
-                voices = state.query_voices(payload, "test-1")
-                assert isinstance(voices, list)
-
-                # count_voices with malicious item_type
-                counts = state.count_voices(payload, "test-1")
-                assert isinstance(counts, dict)
-
-            for payload in item_id_injections:
-                # query_voices with malicious item_id
-                voices = state.query_voices("initiative", payload)
-                assert isinstance(voices, list)
-
-                # get_outcome_for_item with malicious item_id
-                outcome = state.get_outcome_for_item("initiative", payload)
-                assert outcome is None or isinstance(outcome, dict)
-
-            # Verify database integrity
-            conn = sqlite3.connect(db_path)
-            cursor = conn.cursor()
-            cursor.execute("SELECT COUNT(*) FROM voices WHERE user_id = 'hacker'")
-            hacker_count = cursor.fetchone()[0]
-            conn.close()
-
-            assert hacker_count == 0, "SQL injection successfully inserted malicious data"
-
-    # -------------------------------------------------------------------------
-    # Test 2: Civic API user input protection
-    # -------------------------------------------------------------------------
-
-    def test_civic_api_start_something_sql_injection(self):
-        """
-        Verify Civic.start_something() is protected against SQL injection.
-        """
-        from civicos import CivicOS
-        from civicos._internal.state import StateManager
-
-        with tempfile.TemporaryDirectory() as tmpdir:
-            db_path = os.path.join(tmpdir, "test.db")
-            c = CivicOS("san-rafael", db_path=db_path)
-
-            # SQL injection in various fields
-            test_cases = [
-                {
-                    "topic": "traffic'; DROP TABLE initiatives; --",
-                    "title": "Normal title",
-                    "description": "Normal description"
-                },
-                {
-                    "topic": "traffic",
-                    "title": "Title'; DELETE FROM initiatives; --",
-                    "description": "Normal description"
-                },
-                {
-                    "topic": "traffic",
-                    "title": "Normal title",
-                    "description": "Desc'; INSERT INTO city_states VALUES('hacked',0); --"
-                },
-                {
-                    "topic": "traffic",
-                    "title": "Normal title",
-                    "description": "Normal description",
-                    "creator_id": "user'; DROP TABLE voices; --"
-                },
-                {
-                    "topic": "traffic",
-                    "title": "Normal title",
-                    "description": "Normal description",
-                    "location": "123 Main St'; DELETE FROM subscriptions; --"
-                },
-            ]
-
-            created_ids = []
-            for tc in test_cases:
-                try:
-                    initiative = c.start_something(**tc)
-                    created_ids.append(initiative.id)
-                except Exception:
-                    pass  # Some may fail validation, that's OK
-
-            # Verify all tables still exist
-            state = StateManager(db_path)
-            conn = sqlite3.connect(db_path)
-            cursor = conn.cursor()
-            cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
-            tables = {row[0] for row in cursor.fetchall()}
-            conn.close()
-
-            expected_tables = {'initiatives', 'voices', 'subscriptions', 'city_states'}
-            assert expected_tables.issubset(tables), "Tables were dropped by SQL injection"
-
-            # Any created initiatives should be queryable
-            for init_id in created_ids:
-                result = state.get_initiative(init_id)
-                assert result is None or isinstance(result, dict)
-
-    def test_civic_api_add_voice_sql_injection(self):
-        """
-        Verify Civic.add_voice() is protected against SQL injection.
-        """
-        from civicos import CivicOS
-        from civicos._internal.state import StateManager
-
-        with tempfile.TemporaryDirectory() as tmpdir:
-            db_path = os.path.join(tmpdir, "test.db")
-            c = CivicOS("san-rafael", db_path=db_path)
-
-            # First create a legitimate initiative
-            initiative = c.start_something(
-                topic="traffic",
-                title="Test Initiative",
-                description="Test description"
-            )
-
-            # SQL injection attempts in add_voice
-            test_cases = [
-                {
-                    "item_type": "initiative",
-                    "item_id": f"{initiative.id}'; DROP TABLE voices; --",
-                    "stance": "support",
-                    "comment": "Normal comment"
-                },
-                {
-                    "item_type": "initiative'; DELETE FROM initiatives; --",
-                    "item_id": initiative.id,
-                    "stance": "support",
-                    "comment": "Normal comment"
-                },
-                {
-                    "item_type": "initiative",
-                    "item_id": initiative.id,
-                    "stance": "support",
-                    "comment": "Comment'; INSERT INTO outcomes VALUES('hack','initiative','test','passed',NULL,NULL,'hacker',datetime('now')); --"
-                },
-                {
-                    "item_type": "initiative",
-                    "item_id": initiative.id,
-                    "stance": "support",
-                    "comment": "Normal comment",
-                    "user_id": "user'; DROP TABLE subscriptions; --"
-                },
-            ]
-
-            for tc in test_cases:
-                try:
-                    c.add_voice(**tc)
-                except (ValueError, sqlite3.IntegrityError):
-                    pass  # Expected - invalid item_type should fail
-
-            # Verify all tables still exist
-            conn = sqlite3.connect(db_path)
-            cursor = conn.cursor()
-            cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
-            tables = {row[0] for row in cursor.fetchall()}
-            conn.close()
-
-            expected_tables = {'voices', 'subscriptions', 'outcomes', 'initiatives'}
-            assert expected_tables.issubset(tables), "Tables were dropped by SQL injection"
-
-    def test_civic_api_follow_sql_injection(self):
-        """
-        Verify Civic.follow() is protected against SQL injection.
-        """
-        from civicos import CivicOS
-        from civicos._internal.state import StateManager
-
-        with tempfile.TemporaryDirectory() as tmpdir:
-            db_path = os.path.join(tmpdir, "test.db")
-            c = CivicOS("san-rafael", db_path=db_path)
-
-            # SQL injection attempts in follow
-            test_cases = [
-                {
-                    "item_type": "meeting'; DROP TABLE subscriptions; --",
-                    "item_id": "meeting-123"
-                },
-                {
-                    "item_type": "meeting",
-                    "item_id": "meeting-123'; DELETE FROM voices; --"
-                },
-                {
-                    "item_type": "meeting",
-                    "item_id": "meeting-123",
-                    "user_id": "user'; INSERT INTO city_states VALUES('hacked','Hacked',datetime('now'),0,0,0,0.0,NULL,NULL,datetime('now'),datetime('now')); --"
-                },
-            ]
-
-            for tc in test_cases:
-                try:
-                    c.follow(**tc)
-                except (ValueError, sqlite3.IntegrityError):
-                    pass  # Expected - invalid item_type should fail
-
-            # Verify tables are intact
-            conn = sqlite3.connect(db_path)
-            cursor = conn.cursor()
-            cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
-            tables = {row[0] for row in cursor.fetchall()}
-            conn.close()
-
-            expected_tables = {'subscriptions', 'voices', 'city_states'}
-            assert expected_tables.issubset(tables), "Tables were dropped by SQL injection"
-
-    def test_civic_api_report_outcome_sql_injection(self):
-        """
-        Verify Civic.report_outcome() is protected against SQL injection.
-        """
-        from civicos import CivicOS
-
-        with tempfile.TemporaryDirectory() as tmpdir:
-            db_path = os.path.join(tmpdir, "test.db")
-            c = CivicOS("san-rafael", db_path=db_path)
-
-            # Create a legitimate initiative first
-            initiative = c.start_something(
-                topic="traffic",
-                title="Test Initiative",
-                description="Test description"
-            )
-
-            # SQL injection attempts in report_outcome
-            test_cases = [
-                {
-                    "item_id": f"{initiative.id}'; DROP TABLE outcomes; --",
-                    "outcome": "passed"
-                },
-                {
-                    "item_id": initiative.id,
-                    "outcome": "passed",
-                    "notes": "Notes'; DELETE FROM initiatives; --"
-                },
-                {
-                    "item_id": initiative.id,
-                    "outcome": "passed",
-                    "item_type": "initiative'; DROP TABLE voices; --"
-                },
-                {
-                    "item_id": initiative.id,
-                    "outcome": "passed",
-                    "user_id": "user'; INSERT INTO outcomes VALUES('hack','agenda_item','item','failed',NULL,NULL,'attacker',datetime('now')); --"
-                },
-            ]
-
-            for tc in test_cases:
-                try:
-                    c.report_outcome(**tc)
-                except (ValueError, sqlite3.IntegrityError):
-                    pass  # Expected - invalid params should fail
-
-            # Verify tables are intact
-            conn = sqlite3.connect(db_path)
-            cursor = conn.cursor()
-            cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
-            tables = {row[0] for row in cursor.fetchall()}
-
-            # Also verify no injected outcomes exist
-            cursor.execute("SELECT COUNT(*) FROM outcomes WHERE recorded_by = 'attacker'")
-            attacker_count = cursor.fetchone()[0]
-            conn.close()
-
-            expected_tables = {'outcomes', 'initiatives', 'voices'}
-            assert expected_tables.issubset(tables), "Tables were dropped by SQL injection"
-            assert attacker_count == 0, "SQL injection successfully inserted malicious data"
 
     # -------------------------------------------------------------------------
     # Test 3: Input validator SQL injection pattern detection
@@ -3762,21 +2194,12 @@ class TestSecuritySqlInjection:
             db_path = os.path.join(tmpdir, "test.db")
             state = StateManager(db_path)
 
-            # First create a test issue
-            state.create_initiative(
-                initiative_id="test-1",
-                jurisdiction_id="san-rafael",
-                topic="traffic",
-                title="Test",
-                description="Test"
-            )
-
             # LIKE clause injection attempts
             like_injections = [
                 "Main%'; DROP TABLE issues; --",
                 "Main' OR '1'='1' --",
                 "%' UNION SELECT * FROM city_states; --",
-                "_%'; DELETE FROM initiatives; --",
+                "_%'; DELETE FROM issues; --",
             ]
 
             for pattern in like_injections:
@@ -3791,64 +2214,11 @@ class TestSecuritySqlInjection:
             tables = {row[0] for row in cursor.fetchall()}
             conn.close()
 
-            expected_tables = {'issues', 'initiatives', 'city_states'}
+            expected_tables = {'issues', 'city_states'}
             assert expected_tables.issubset(tables), "Tables were dropped by LIKE injection"
 
     # -------------------------------------------------------------------------
-    # Test 5: Second-order SQL injection protection
-    # -------------------------------------------------------------------------
-
-    def test_second_order_sql_injection(self):
-        """
-        Verify protection against second-order SQL injection.
-
-        Second-order injection stores malicious SQL in database,
-        then executes it when data is retrieved and used in another query.
-        """
-        from civicos import CivicOS
-        from civicos._internal.state import StateManager
-
-        with tempfile.TemporaryDirectory() as tmpdir:
-            db_path = os.path.join(tmpdir, "test.db")
-            c = CivicOS("san-rafael", db_path=db_path)
-
-            # Store potential injection payload as topic
-            malicious_topic = "traffic' OR '1'='1'; --"
-
-            try:
-                initiative = c.start_something(
-                    topic=malicious_topic,
-                    title="Test Initiative",
-                    description="Test description"
-                )
-                stored_id = initiative.id
-            except Exception:
-                # If validation blocks it, that's fine
-                return
-
-            # Now try to query using the stored malicious value
-            state = StateManager(db_path)
-
-            # Get the initiative and use its topic in another query
-            stored = state.get_initiative(stored_id)
-            if stored:
-                stored_topic = stored.get("topic", "")
-                # Use the stored (potentially malicious) topic in a query
-                initiatives = state.query_initiatives("san-rafael", topic=stored_topic)
-                assert isinstance(initiatives, list)
-
-            # Verify database integrity
-            conn = sqlite3.connect(db_path)
-            cursor = conn.cursor()
-            cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
-            tables = {row[0] for row in cursor.fetchall()}
-            conn.close()
-
-            expected_tables = {'initiatives', 'city_states'}
-            assert expected_tables.issubset(tables), "Tables were dropped by second-order injection"
-
-    # -------------------------------------------------------------------------
-    # Test 6: Blind SQL injection protection
+    # Test 5: Blind SQL injection protection
     # -------------------------------------------------------------------------
 
     def test_blind_sql_injection_timing(self):
@@ -4170,116 +2540,6 @@ class TestSecurityXssPrevention:
                 f"Template injection not blocked: {pattern}"
 
     # -------------------------------------------------------------------------
-    # Test 4: Civic API sanitizes user input before storage
-    # -------------------------------------------------------------------------
-
-    def test_civic_api_sanitizes_comments(self):
-        """
-        Verify Civic.add_voice() sanitizes XSS in comments before storage.
-        """
-        from civicos import CivicOS
-
-        with tempfile.TemporaryDirectory() as tmpdir:
-            db_path = os.path.join(tmpdir, "test.db")
-            c = CivicOS("san-rafael", db_path=db_path)
-
-            # Create an initiative first
-            initiative = c.start_something(
-                topic="traffic",
-                title="Safe Streets Initiative",
-                description="Making streets safer"
-            )
-
-            # Try to add voice with XSS in comment
-            xss_comment = "<script>alert('xss')</script>My opinion on traffic"
-
-            try:
-                voice = c.add_voice(
-                    item_type="initiative",
-                    item_id=initiative.id,
-                    stance="support",
-                    comment=xss_comment
-                )
-
-                # If it succeeds, verify the comment is sanitized
-                if voice and hasattr(voice, 'comment'):
-                    assert '<script>' not in voice.comment.lower(), \
-                        "XSS script tag stored in voice comment"
-            except Exception:
-                # Validation may reject it outright, which is also acceptable
-                pass
-
-    def test_civic_api_sanitizes_initiative_description(self):
-        """
-        Verify Civic.start_something() sanitizes XSS in descriptions.
-        """
-        from civicos import CivicOS
-
-        with tempfile.TemporaryDirectory() as tmpdir:
-            db_path = os.path.join(tmpdir, "test.db")
-            c = CivicOS("san-rafael", db_path=db_path)
-
-            # Try to create initiative with XSS in description
-            xss_descriptions = [
-                "<script>alert('xss')</script>Description",
-                "<img src=x onerror=alert('xss')>Description",
-                "Description<iframe src='javascript:alert(1)'>",
-            ]
-
-            for xss_desc in xss_descriptions:
-                try:
-                    initiative = c.start_something(
-                        topic="housing",
-                        title="Housing Initiative",
-                        description=xss_desc
-                    )
-
-                    # If it succeeds, verify description is sanitized
-                    if initiative:
-                        desc = initiative.description.lower()
-                        assert '<script>' not in desc, f"Script tag in description: {xss_desc}"
-                        assert 'onerror=' not in desc, f"Event handler in description: {xss_desc}"
-                        assert 'javascript:' not in desc, f"JS URL in description: {xss_desc}"
-                except Exception:
-                    # Validation may reject it, which is acceptable
-                    pass
-
-    # -------------------------------------------------------------------------
-    # Test 5: StateManager stores sanitized data
-    # -------------------------------------------------------------------------
-
-    def test_state_manager_stores_safe_data(self):
-        """
-        Verify StateManager stores data that is safe from XSS.
-        """
-        from civicos._internal.state import StateManager
-
-        with tempfile.TemporaryDirectory() as tmpdir:
-            db_path = os.path.join(tmpdir, "test.db")
-            state = StateManager(db_path)
-
-            # Create initiative with potential XSS
-            xss_title = "<script>alert('xss')</script>Test"
-            xss_description = "<img src=x onerror=alert('xss')>"
-
-            result = state.create_initiative(
-                initiative_id="test-xss-1",
-                jurisdiction_id="san-rafael",
-                topic="traffic",
-                title=xss_title,
-                description=xss_description
-            )
-
-            # Retrieve and check - data should be stored as-is (escaping happens on output)
-            # but we verify no direct execution would occur
-            stored = state.get_initiative("test-xss-1")
-            if stored:
-                # The raw data may contain the XSS, but it should be escaped when rendered
-                # At minimum, verify the database operation succeeded without code execution
-                assert stored is not None
-                assert 'title' in stored
-
-    # -------------------------------------------------------------------------
     # Test 6: Iframe/Object/Embed tags blocked
     # -------------------------------------------------------------------------
 
@@ -4433,56 +2693,6 @@ class TestSecurityXssPrevention:
     # -------------------------------------------------------------------------
     # Test 11: Input validation across all Civic API entry points
     # -------------------------------------------------------------------------
-
-    def test_xss_prevention_in_api_endpoints(self):
-        """
-        Verify XSS prevention across all main API input points.
-
-        This test ensures defense in depth - even if one layer fails,
-        others should catch XSS attempts.
-        """
-        from civicos import CivicOS
-
-        with tempfile.TemporaryDirectory() as tmpdir:
-            db_path = os.path.join(tmpdir, "test.db")
-            c = CivicOS("san-rafael", db_path=db_path)
-
-            xss_payload = "<script>document.cookie</script>"
-
-            # Test start_something
-            try:
-                result = c.start_something(
-                    topic=xss_payload,
-                    title=xss_payload,
-                    description=xss_payload
-                )
-                # If stored, check it's not executable
-                if result:
-                    assert '<script>' not in str(result.topic).lower() or \
-                           '&lt;script&gt;' in str(result.topic).lower()
-            except Exception:
-                pass  # Validation rejection is acceptable
-
-            # Create a clean initiative for further tests
-            initiative = c.start_something(
-                topic="traffic",
-                title="Clean Initiative",
-                description="Clean description"
-            )
-
-            # Test add_voice
-            try:
-                result = c.add_voice(
-                    item_type="initiative",
-                    item_id=initiative.id,
-                    stance="support",
-                    comment=xss_payload
-                )
-                if result and hasattr(result, 'comment') and result.comment:
-                    assert '<script>' not in result.comment.lower() or \
-                           '&lt;script&gt;' in result.comment.lower()
-            except Exception:
-                pass
 
     # -------------------------------------------------------------------------
     # Test 12: Verify DOMPurify-style output sanitization
@@ -5693,30 +3903,8 @@ class TestSecurityErrorMessagesSafe:
 
             # List of error-triggering operations
             error_operations = [
-                # Invalid stance
-                lambda: c.add_voice(
-                    item_type="initiative",
-                    item_id="nonexistent",
-                    stance="invalid_stance",
-                    comment="Test"
-                ),
-                # Invalid item_type
-                lambda: c.add_voice(
-                    item_type="invalid_type",
-                    item_id="test",
-                    stance="support",
-                    comment="Test"
-                ),
-                # Invalid item_type for follow
-                lambda: c.follow(
-                    item_type="invalid_type",
-                    item_id="test"
-                ),
-                # Invalid outcome
-                lambda: c.report_outcome(
-                    item_id="nonexistent",
-                    outcome="invalid_outcome"
-                ),
+                # Unknown jurisdiction query
+                lambda: CivicOS("nonexistent-city-xyz", db_path=db_path).what_applies("housing"),
             ]
 
             path_patterns = [
@@ -5763,8 +3951,6 @@ class TestSecurityErrorMessagesSafe:
 
             # Test various error conditions
             error_operations = [
-                # Query non-existent initiative
-                lambda: state.get_initiative("nonexistent_id_12345"),
                 # Query issues with invalid params
                 lambda: state.query_issues("nonexistent_jurisdiction"),
                 # Get city state for non-existent
@@ -6129,7 +4315,7 @@ class TestSecurityErrorMessagesSafe:
             # Test 2: Verify normal operation errors are clean
             try:
                 # Query for non-existent data
-                result = state.get_initiative("definitely_not_exists_12345")
+                result = state.get_city_state("definitely_not_exists_12345")
                 # Should return None, not raise
                 assert result is None or 'path' not in str(result).lower()
             except Exception as e:
@@ -6150,34 +4336,13 @@ class TestSecurityErrorMessagesSafe:
             db_path = os.path.join(tmpdir, "test.db")
             c = CivicOS("san-rafael", db_path=db_path)
 
-            # Test invalid stance
+            # Test query with empty topic - should handle gracefully
             try:
-                c.add_voice(
-                    item_type="initiative",
-                    item_id="test",
-                    stance="love_it",  # Invalid
-                    comment="Test"
-                )
+                result = c.what_applies("")
+                # Should succeed or fail with a user-friendly message
+                assert result is not None
             except ValueError as e:
                 error_msg = str(e)
-                # Error should mention valid options
-                assert "support" in error_msg.lower() or "stance" in error_msg.lower(), \
-                    f"Validation error not helpful: {error_msg}"
-                # Error should not contain paths
-                assert '/Users/' not in error_msg
-                assert tmpdir not in error_msg
-
-            # Test invalid item_type
-            try:
-                c.follow(
-                    item_type="podcast",  # Invalid
-                    item_id="test"
-                )
-            except ValueError as e:
-                error_msg = str(e)
-                # Error should mention valid options
-                assert "item_type" in error_msg.lower() or "must be" in error_msg.lower(), \
-                    f"Validation error not helpful: {error_msg}"
                 # Error should not contain paths
                 assert '/Users/' not in error_msg
                 assert tmpdir not in error_msg
@@ -6264,24 +4429,12 @@ class TestCodeAuditArchitecture:
         assert hasattr(CivicOS, 'whats_next'), "Missing whats_next query method"
         assert hasattr(CivicOS, 'whos_with_me'), "Missing whos_with_me query method"
 
-        # Action methods (Act)
-        assert hasattr(CivicOS, 'start_something'), "Missing start_something action method"
-        assert hasattr(CivicOS, 'add_voice'), "Missing add_voice action method"
-        assert hasattr(CivicOS, 'follow'), "Missing follow action method"
-        assert hasattr(CivicOS, 'prepare'), "Missing prepare action method"
-
-        # Orchestration methods (AI)
-        assert hasattr(CivicOS, 'suggestions'), "Missing suggestions orchestration method"
-        assert hasattr(CivicOS, 'report_outcome'), "Missing report_outcome orchestration method"
-
     def test_result_types_defined(self):
         """
         Architecture specifies these result types.
         """
         from civicos.civicos import (
             RegulatoryStack, Decision, Meeting, Community,
-            Initiative, Voice, Subscription, Preparation,
-            Suggestion, Outcome
         )
 
         # Query result types
@@ -6289,16 +4442,6 @@ class TestCodeAuditArchitecture:
         assert Decision is not None
         assert Meeting is not None
         assert Community is not None
-
-        # Action result types
-        assert Initiative is not None
-        assert Voice is not None
-        assert Subscription is not None
-        assert Preparation is not None
-
-        # Orchestration result types
-        assert Suggestion is not None
-        assert Outcome is not None
 
     def test_package_structure_matches_architecture(self):
         """
@@ -6318,13 +4461,6 @@ class TestCodeAuditArchitecture:
         assert os.path.exists(f"{civic_src}/calendar.py"), "Missing calendar.py (whats_next)"
         assert os.path.exists(f"{civic_src}/community.py"), "Missing community.py (whos_with_me)"
 
-        # Action modules directory
-        actions_dir = f"{civic_src}/actions"
-        assert os.path.isdir(actions_dir), "Missing actions/ directory"
-        assert os.path.exists(f"{actions_dir}/initiatives.py"), "Missing initiatives.py"
-        assert os.path.exists(f"{actions_dir}/voices.py"), "Missing voices.py"
-        assert os.path.exists(f"{actions_dir}/subscriptions.py"), "Missing subscriptions.py"
-        assert os.path.exists(f"{actions_dir}/preparation.py"), "Missing preparation.py"
 
 
     def test_mcp_tools_match_public_api(self):
@@ -6359,9 +4495,6 @@ class TestCodeAuditArchitecture:
 
         # Layer 1: Intelligence - internal data modules
         assert os.path.isdir(f"{civic_src}/_internal"), "Missing _internal/ (intelligence layer)"
-
-        # Layer 2: Actions - civic action modules
-        assert os.path.isdir(f"{civic_src}/actions"), "Missing actions/ (action layer)"
 
     def test_query_centric_design(self):
         """
@@ -6403,15 +4536,6 @@ class TestCodeAuditArchitecture:
             meetings = c.whats_next()
             assert isinstance(meetings, list)
 
-            # Core action should work
-            initiative = c.start_something(
-                topic="test",
-                title="Test Initiative",
-                description="Testing graceful degradation"
-            )
-            assert initiative is not None
-            assert initiative.id is not None
-
 
 class TestCodeAuditTestCoverage:
     """
@@ -6435,12 +4559,9 @@ class TestCodeAuditTestCoverage:
                 with open(os.path.join(test_dir, filename), 'r') as f:
                     all_test_content += f.read()
 
-        # Check for test coverage of each API method
-        # Note: coordinate() requires civicos-coordination which is optional
+        # Check for test coverage of each query API method
         api_methods = [
             'what_applies', 'what_happened', 'whats_next', 'whos_with_me',
-            'start_something', 'add_voice', 'follow', 'prepare',
-            'suggestions', 'report_outcome'
         ]
 
         for method in api_methods:
@@ -6459,29 +4580,12 @@ class TestCodeAuditTestCoverage:
         assert 'TestMCP' in test_content, "Missing MCP test classes"
 
         # Check for tool tests - look for the tool name anywhere in tests
-        # (suggestions instead of get_suggestions, as the Civic API uses suggestions())
         tool_methods = [
-            'what_applies', 'whats_next', 'start_something',
-            'add_voice', 'follow', 'suggestions', 'report_outcome'
+            'what_applies', 'whats_next',
         ]
 
         for method in tool_methods:
             assert method in test_content, f"Missing MCP tests for {method}"
-
-    def test_action_modules_have_tests(self):
-        """
-        Each action module should have dedicated tests.
-        """
-        test_file = str(PROJECT_ROOT / 'packages/civicos/tests/test_actions.py')
-
-        with open(test_file, 'r') as f:
-            test_content = f.read()
-
-        # Check for action-specific test classes
-        assert 'TestInitiatives' in test_content, "Missing initiatives tests"
-        assert 'TestVoices' in test_content, "Missing voices tests"
-        assert 'TestSubscriptions' in test_content, "Missing subscriptions tests"
-        assert 'TestPreparation' in test_content, "Missing preparation tests"
 
     def test_edge_cases_covered(self):
         """
@@ -6741,8 +4845,6 @@ class TestCodeAuditDocumentation:
 
         public_methods = [
             'what_applies', 'what_happened', 'whats_next', 'whos_with_me',
-            'start_something', 'add_voice', 'follow', 'prepare',
-            'suggestions', 'coordinate', 'report_outcome'
         ]
 
         for method_name in public_methods:

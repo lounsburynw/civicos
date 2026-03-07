@@ -157,53 +157,6 @@ class Community:
     active_initiatives: List[dict] = field(default_factory=list)
 
 
-# ─────────── ACTION RESULT TYPES ───────────
-
-@dataclass
-class Initiative:
-    """User-created initiative from start_something()."""
-    id: str
-    topic: str
-    title: str
-    description: str
-    creator_id: str
-    jurisdiction: str
-    location: Optional[str] = None
-    created_at: datetime = field(default_factory=datetime.now)
-
-
-@dataclass
-class Voice:
-    """User voice from add_voice()."""
-    id: str
-    item_type: str
-    item_id: str
-    stance: str  # support, oppose, question
-    comment: str
-    created_at: datetime = field(default_factory=datetime.now)
-
-
-@dataclass
-class Subscription:
-    """Subscription from follow()."""
-    id: str
-    item_type: str
-    item_id: str
-    created_at: datetime = field(default_factory=datetime.now)
-
-
-@dataclass
-class Preparation:
-    """Meeting preparation from prepare()."""
-    agenda_item_id: str
-    regulatory_context: dict
-    historical_decisions: List[dict]
-    talking_points: List[str]
-    allies: List[dict]
-    logistics: dict
-    legal_citations: List[dict] = field(default_factory=list)
-
-
 @dataclass
 class ActionDraft:
     """AI-generated draft for a civic action from draft_action()."""
