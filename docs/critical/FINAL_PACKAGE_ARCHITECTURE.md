@@ -2,7 +2,8 @@
 
 **Status**: Approved
 **Date**: 2026-01-29
-**Version**: 2.3 (added civicos-relay package, federation architecture)
+**Updated**: 2026-03-07
+**Version**: 2.4 (removed stale orchestrator refs, updated surfaces and costs)
 
 ---
 
@@ -11,7 +12,7 @@
 1. **Query-centric surface** - Users ask questions, not government levels
 2. **Action-oriented** - Every query can lead to action
 3. **Feedback loops** - Actions create data that improves future queries
-4. **AI as orchestrator** - System proactively connects and coordinates
+4. **AI as interface** - AI agents surface relevant data and coordinate on behalf of users
 5. **Hierarchy-aware jurisdictions** - Simple and complex cities use same API
 6. **Provider abstraction** - Data sources are pluggable from day one
 7. **Coordination is the moat** - The network effect, not the data
@@ -33,18 +34,18 @@
 │                   │                      │                                  │
 │                   ▼                      ▼                                  │
 │              ┌─────────────────────────────────────┐                       │
-│              │         AI ORCHESTRATOR             │                       │
-│              │  • Connects similar concerns        │                       │
-│              │  • Suggests timing                  │                       │
-│              │  • Tracks outcomes                  │                       │
-│              │  • Learns what works                │                       │
+│              │         CIVIC DATA PLATFORM         │                       │
+│              │  • Connects queries to decisions    │                       │
+│              │  • Surfaces relevant context        │                       │
+│              │  • Enables voice and coordination   │                       │
 │              └────────────────┬────────────────────┘                       │
 │                               │                                            │
 │                               ▼                                            │
 │              ┌─────────────────────────────────────┐                       │
-│              │         FEEDBACK LOOP               │                       │
-│              │  Action outcomes feed back into     │                       │
-│              │  recommendations for next user      │                       │
+│              │         COORDINATION LAYER          │                       │
+│              │  Voice counts, action tracking,     │                       │
+│              │  and federation feed back into      │                       │
+│              │  context for future queries         │                       │
 │              └─────────────────────────────────────┘                       │
 │                                                                            │
 └─────────────────────────────────────────────────────────────────────────────┘
@@ -52,18 +53,18 @@
 
 ---
 
-## Five-Layer Architecture
+## Four-Layer Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
 │                              USER                                        │
-│                    (Claude.ai, ChatGPT, Web)                            │
+│            (Browser Extension, MCP clients, REST API)                   │
 └─────────────────────────────────────────────────────────────────────────┘
                                     │
                                     ▼
 ┌─────────────────────────────────────────────────────────────────────────┐
 │                    EDGE INTELLIGENCE LAYER                               │
-│                    (Personal MCP - user's agent)                         │
+│                    (Browser Extension / Personal MCP)                    │
 │                                                                          │
 │   • User context, interests, filtering                                  │
 │   • Tiered identity (Easy/Private/Sovereign)                            │
@@ -78,38 +79,33 @@
 │                    (Jurisdiction MCP + Backend)                          │
 └─────────────────────────────────────────────────────────────────────────┘
 
-┌─────────────┐   ┌────────────────┐   ┌──────────────┐   ┌──────────────┐
-│ INTELLIGENCE│   │ ORCHESTRATION  │   │ COORDINATION │   │   IMPACT     │
-│ LAYER       │──▶│ LAYER          │──▶│ LAYER        │──▶│   LAYER      │
-│ (table      │   │ (suggestions,  │   │ (civicos-    │   │              │
-│  stakes)    │   │  outcomes)     │   │  relay)      │   │              │
-└─────────────┘   └────────────────┘   └──────────────┘   └──────────────┘
+┌─────────────────┐   ┌──────────────────┐   ┌──────────────────┐
+│  INTELLIGENCE   │   │  COORDINATION    │   │     IMPACT       │
+│  LAYER          │──▶│  LAYER           │──▶│     LAYER        │
+│  (civic data,   │   │  (civicos-relay, │   │                  │
+│   table stakes) │   │   voice, actions)│   │                  │
+└─────────────────┘   └──────────────────┘   └──────────────────┘
 
-0. EDGE INTELLIGENCE (Personal MCP):
-   - User-controlled agent, runs in Claude.ai/ChatGPT or locally
+0. EDGE INTELLIGENCE (Browser Extension / Personal MCP):
+   - User-controlled agent, runs in browser extension or AI client
    - Queries Jurisdiction MCP for civic data
    - Applies user context for personalization
    - Handles identity and signing (keys never leave user control)
-   - See: apps/civicos-personal-mcp/, EDGE_INTELLIGENCE_ARCHITECTURE.md
+   - See: apps/civicos-extension/, EDGE_INTELLIGENCE_ARCHITECTURE.md
 
 1. INTELLIGENCE (Jurisdiction MCP):
    - Multi-platform extraction (Legistar, CivicClerk, Granicus)
-   - Legislative enrichment (28 state bills, federal programs)
-   - SeeClickFix operational complaints (1,340 San Rafael issues)
+   - Legislative enrichment (state bills, federal programs)
+   - SeeClickFix operational complaints (~1,730 San Rafael issues)
    - Read-only public civic data via MCP tools
 
-2. ORCHESTRATION (suggestions + outcomes):
-   - Proactive suggestions based on user interests and system state
-   - Outcome tracking for feedback loop (what coordination worked?)
-   - Pattern learning from successful campaigns
-
-3. COORDINATION (civicos-relay):
+2. COORDINATION (civicos-relay):
    - Voice casting, action primitives
    - Subscriptions and event delivery
    - Federation sync between relays
    - WebSocket real-time coordination
 
-4. IMPACT:
+3. IMPACT:
    - Empowerment metrics (surveys)
    - Policy influence (decisions changed)
    - Coalition sustainability (repeat coordination)
@@ -127,13 +123,19 @@
 ```python
 from civicos import CivicOS
 
-c = CivicOS("san-rafael-ca")
+c = CivicOS("city-san-rafael")
 
 # What rules apply to my situation?
 c.what_applies(topic, location?) -> RegulatoryStack
 
 # What's been decided before?
 c.what_happened(query, since?) -> List[Decision]
+
+# What was said in meetings?
+c.what_was_said(query, top_k?) -> List[TranscriptExcerpt]
+
+# What did residents testify about?
+c.get_public_testimony(topic, top_k?) -> List[TranscriptExcerpt]
 
 # When can I participate?
 c.whats_next(topics?, days?) -> List[Meeting]
@@ -173,24 +175,6 @@ c.prepare(
 ) -> Preparation  # Context, talking points, allies, logistics
 ```
 
-### AI Orchestration Methods
-
-```python
-# Get proactive suggestions (AI-driven)
-c.suggestions() -> List[Suggestion]
-# Returns:
-# - "3 others commented on traffic safety this month - coordinate?"
-# - "Housing item next Tuesday matches your interests"
-# - "Your initiative reached 10 supporters - suggest next steps?"
-
-# Report outcome (closes feedback loop)
-c.report_outcome(
-    item_id="item_789",
-    outcome="passed",          # passed, failed, continued, modified
-    notes="Passed 4-1, implementation starts Q2"
-) -> Outcome
-```
-
 ---
 
 ## Feedback Loop Architecture
@@ -220,20 +204,15 @@ c.report_outcome(
    - Context at time of action
         │
         ▼
-5. OUTCOME RECORDED
-   c.report_outcome(item_id, "passed")
-   (or system detects from meeting minutes)
+5. OUTCOME VISIBLE
+   Decision outcomes from meeting minutes feed back into
+   what_happened() results for the next user who asks
         │
         ▼
-6. SYSTEM LEARNS
-   - What context led to action?
-   - What coordination patterns worked?
-   - Which outcomes were achieved?
-        │
-        ▼
-7. FUTURE QUERIES IMPROVED
-   "Similar initiatives succeeded when..."
-   "Users who cared about X also engaged with Y"
+6. COORDINATION DATA GROWS
+   - Voice counts show community interest
+   - Action completions show civic capacity
+   - Federation spreads coordination across jurisdictions
 ```
 
 ### Data Captured at Each Step
@@ -340,7 +319,8 @@ civicos/
 | `civicos-services` | REST API, WebSocket, chat interface |
 | `civicos-config` | Shared jurisdiction configuration |
 | `civicos-mcp` | MCP server for AI assistants |
-| `civicos-workspace` | Vue frontend |
+| `civicos-extension` | Browser extension (primary user surface) |
+| `civicos-workspace` | Vue frontend (deprecated) |
 
 ### Data Flow
 
@@ -348,7 +328,8 @@ civicos/
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                              USER INTERFACES                                 │
 │   ┌─────────────┐   ┌─────────────┐   ┌─────────────┐   ┌─────────────┐    │
-│   │ Vue Frontend│   │ MCP (Claude)│   │ MCP (ChatGPT)│  │   REST API  │    │
+│   │  Browser    │   │ MCP (Claude)│   │ MCP (ChatGPT)│  │   REST API  │    │
+│   │  Extension  │   │             │   │              │   │             │    │
 │   └──────┬──────┘   └──────┬──────┘   └──────┬──────┘   └──────┬──────┘    │
 └──────────┼─────────────────┼─────────────────┼─────────────────┼────────────┘
            │                 │                 │                 │
@@ -382,119 +363,68 @@ civicos/
 
 ## MCP Server (AI Interface)
 
-```python
-# civic/mcp.py
-from mcp.server import Server
-from civicos import CivicOS
+The MCP server exposes civic data as tools for AI assistants. See `apps/civicos-mcp/` for the actual implementation, which uses a registry-based tool loader pattern.
 
-server = Server("civic")
+```python
+# Simplified illustration of MCP tool patterns
 
 # ─────────── QUERY TOOLS ───────────
 
 @server.tool()
 def what_applies(jurisdiction: str, topic: str, location: str = None) -> dict:
     """Get regulatory stack for a topic.
-
     Use when user asks: "What are the rules for...", "Can I...", "Is it legal to..."
     """
-    return CivicOS(jurisdiction).what_applies(topic, location)
 
 @server.tool()
 def what_happened(jurisdiction: str, query: str, since: str = None) -> list:
     """Search past decisions.
-
     Use when user asks: "Has the city ever...", "What happened with...", "Any precedent for..."
     """
-    return CivicOS(jurisdiction).what_happened(query, since)
+
+@server.tool()
+def what_was_said(jurisdiction: str, query: str, top_k: int = 10) -> list:
+    """Search meeting transcripts.
+    Use when user asks: "What did they say about...", "What was discussed..."
+    """
 
 @server.tool()
 def whats_next(jurisdiction: str, topics: list = None, days: int = 30) -> list:
     """Get upcoming meetings and agendas.
-
-    Use when user asks: "When can I...", "Is there a meeting about...", "How do I participate..."
+    Use when user asks: "When can I...", "Is there a meeting about..."
     """
-    return CivicOS(jurisdiction).whats_next(topics, days)
 
 @server.tool()
 def whos_with_me(jurisdiction: str, topic: str) -> dict:
     """Find others who care about this topic.
-
-    Use when user asks: "Am I alone in...", "Who else cares about...", "Is anyone working on..."
+    Use when user asks: "Am I alone in...", "Who else cares about..."
     """
-    return CivicOS(jurisdiction).whos_with_me(topic)
 
 # ─────────── ACTION TOOLS ───────────
 
 @server.tool()
-def start_something(
-    jurisdiction: str,
-    topic: str,
-    title: str,
-    description: str,
-    location: str = None
-) -> dict:
+def start_something(jurisdiction: str, topic: str, title: str, description: str, location: str = None) -> dict:
     """Start a new initiative.
-
-    Use when user says: "I want to change...", "Someone should...", "Let's get people together..."
-    AI should confirm intent before creating.
+    Use when user says: "I want to change...", "Someone should..."
     """
-    return CivicOS(jurisdiction).start_something(topic, title, description, location)
 
 @server.tool()
-def add_voice(
-    jurisdiction: str,
-    item_type: str,
-    item_id: str,
-    stance: str,
-    comment: str
-) -> dict:
+def add_voice(jurisdiction: str, item_type: str, item_id: str, stance: str, comment: str) -> dict:
     """Add user's voice to an item.
-
-    Use when user says: "I support...", "I oppose...", "I want to comment on..."
-    AI should help draft comment if requested.
+    Use when user says: "I support...", "I oppose..."
     """
-    return CivicOS(jurisdiction).add_voice(item_type, item_id, stance, comment)
 
 @server.tool()
 def follow(jurisdiction: str, item_type: str, item_id: str) -> dict:
     """Follow an item for updates.
-
-    Use when user says: "Keep me posted on...", "Let me know when...", "Track this for me..."
+    Use when user says: "Keep me posted on...", "Track this for me..."
     """
-    return CivicOS(jurisdiction).follow(item_type, item_id)
 
 @server.tool()
 def prepare(jurisdiction: str, agenda_item_id: str) -> dict:
     """Get preparation materials for participating.
-
-    Use when user says: "I'm going to the meeting...", "How do I testify about...", "Help me prepare..."
-    Returns: context, talking points, who else is going, logistics.
+    Use when user says: "Help me prepare for the meeting..."
     """
-    return CivicOS(jurisdiction).prepare(agenda_item_id)
-
-# ─────────── ORCHESTRATION TOOLS ───────────
-
-@server.tool()
-def get_suggestions(jurisdiction: str, user_id: str = None) -> list:
-    """Get proactive suggestions for user.
-
-    AI should call this periodically or at session start to surface opportunities.
-    """
-    return CivicOS(jurisdiction).suggestions(user_id)
-
-@server.tool()
-def report_outcome(
-    jurisdiction: str,
-    item_id: str,
-    outcome: str,
-    notes: str = None
-) -> dict:
-    """Report outcome of a decision/initiative.
-
-    Use when: meeting concluded, vote taken, initiative succeeded/failed.
-    This closes the feedback loop and improves future recommendations.
-    """
-    return CivicOS(jurisdiction).report_outcome(item_id, outcome, notes)
 ```
 
 ---
@@ -807,11 +737,11 @@ class EcosystemMetrics:
 
 ## Error Handling & Resilience
 
-Orchestrator modules (`suggestions.py`, `outcomes.py`) use standard Python error handling:
+The platform uses standard Python error handling throughout:
 
 - **Graceful degradation**: If a data source is unavailable, return partial results rather than failing
 - **Logging**: All errors logged with context for debugging
-- **Idempotency**: Outcome recording is idempotent — re-reporting the same outcome is a no-op
+- **Idempotency**: Voice casting is idempotent — re-casting the same voice is a no-op (deduplicated by `(public_key, entity)`)
 
 ---
 
@@ -899,8 +829,8 @@ The codebase has been refactored from a monolithic structure to a multi-package 
 | `packages/civicos-config/` | Shared jurisdiction configuration | Active |
 | `apps/civicos-mcp/` | Jurisdiction MCP - read-only civic data for AI assistants | Active |
 | `apps/civicos-personal-mcp/` | Personal MCP - user context, identity, personalization | In Progress |
-| `apps/civicos-workspace/` | Vue frontend | Deprecated (use Open WebUI fork) |
-| `apps/civicos-extension/` | Browser extension - contextual civic overlay | Active |
+| `apps/civicos-workspace/` | Vue frontend | Deprecated |
+| `apps/civicos-extension/` | Browser extension - **primary user surface** | Active |
 | `packages/civicos-client/` | TypeScript/JavaScript client library | Active |
 | `packages/civicos-components/` | Svelte UI components | Active |
 
@@ -928,7 +858,7 @@ The coordination functionality is now split between two packages:
 | **Voice casting, signatures** | `civicos-relay` | Federation-ready, standalone deployable |
 | **Action primitives** | `civicos-relay` | Coordination state (commits, completions) |
 | **Subscriptions, events** | `civicos-relay` | Can run as separate service |
-| **AI orchestration** (suggestions, outcomes) | `civicos` | Standalone modules querying the data layer |
+| **Transcript search** (`what_was_said`, `get_public_testimony`) | `civicos` | Core API query methods |
 
 ### Relay Package Architecture
 
@@ -958,22 +888,21 @@ Key design decisions:
 
 ### CivicOS API Phases
 
-#### Phase 1: Pilot (Jan 2026)
-- [ ] Query methods (4)
-- [ ] Basic action methods (start_something, add_voice, follow)
-- [ ] Simple suggestions (upcoming meetings matching interests)
-- [ ] MCP server with all tools
+#### Phase 1: Intelligence + Query (Complete)
+- [x] Query methods (what_applies, what_happened, whats_next, whos_with_me, what_was_said, get_public_testimony)
+- [x] Action methods (start_something, add_voice, follow, prepare)
+- [x] MCP server with all tools (deployed on Modal)
+- [x] Browser extension as primary surface
 
-#### Phase 2: Coordination (Mar 2026)
-- [ ] prepare() method
-- [ ] coordinate() method
-- [ ] Coordination planner
-- [ ] Outcome tracking
+#### Phase 2: Coordination (Current — Mar 2026)
+- [x] Voice casting with Schnorr signatures
+- [x] Action primitives (commit, complete)
+- [ ] Attestation flow (single-use code)
+- [ ] Federation between relays
 
-#### Phase 3: Learning (Jun 2026)
-- [ ] Pattern learner
-- [ ] Strategy suggestions
-- [ ] Feedback loop analytics
+#### Phase 3: Impact (Post-Launch)
+- [ ] Coordination win tracking
+- [ ] Foundation impact reporting
 - [ ] Ecosystem health metrics
 
 ### Relay/Coordination Protocol Phases
@@ -1006,24 +935,23 @@ See `docs/critical/COORDINATION_PROTOCOL.md` for detailed specifications.
 
 ---
 
-## Cost Model (Updated)
+## Cost Model
 
-### Per-Jurisdiction
-| Component | One-time | Monthly |
-|-----------|----------|---------|
-| Corpus indexing | $2 | $0.10 |
-| Decision backfill | $10 | $0 |
-| **Total per city** | **$12** | **$0.10** |
+### Per-Jurisdiction (Pilot)
+| Component | Monthly |
+|-----------|---------|
+| Modal (API, MCP, relay, WebSocket) | ~$30-50 |
+| Supabase (PostgreSQL + pgvector) | ~$25 |
+| Cloudflare R2 (blob storage) | ~$5 |
+| OpenAI API (embeddings, chat) | ~$10-20 |
+| Domain/DNS | ~$1 |
+| **Total per jurisdiction** | **~$70-100** |
 
-### Platform (AI Orchestration)
-| Component | Monthly (26 cities) |
-|-----------|---------------------|
-| Corpus updates | $2.60 |
-| Activity monitoring | $5.00 |
-| Suggestion generation | $5.00 |
-| Coordination planning | $2.00 |
-| **Total** | **~$15/month** |
+### Scaling Notes
+- Modal is serverless (pay-per-use) — costs scale with actual usage
+- Vector indexing runs on Modal GPU only when re-indexing (~$2/run)
+- See `docs/operations/OPERATING_COSTS.md` for detailed breakdown
 
 ---
 
-*Architecture v2.1 - Living ecosystem with feedback loops and AI orchestration.*
+*Architecture v2.4 - Living ecosystem with coordination as the moat.*
