@@ -133,6 +133,7 @@ apps/civicos-openwebui-fork
 
 # Private docs (financial/internal — not for public repo)
 docs/private/
+docs/archive/
 
 # Session state (ephemeral)
 docs/next_session_prompt.md
