@@ -113,20 +113,20 @@
     gap: 6px;
     margin-bottom: 4px;
     font-size: 11px;
-    color: #6b7280;
+    color: var(--civic-text-dim);
   }
   .item-number {
-    color: #9ca3af;
+    color: var(--civic-text-muted);
     font-weight: 600;
   }
   .card-title {
-    color: #e5e7eb;
+    color: var(--civic-text-secondary);
     font-size: 13px;
     font-weight: 500;
     line-height: 1.3;
   }
   .card-desc {
-    color: #9ca3af;
+    color: var(--civic-text-muted);
     font-size: 12px;
     margin-top: 4px;
     display: -webkit-box;
@@ -135,12 +135,12 @@
     overflow: hidden;
   }
   .card-why {
-    color: #9ca3af;
+    color: var(--civic-text-muted);
     font-size: 12px;
     margin-top: 4px;
     line-height: 1.45;
   }
-  .card-why strong { color: #d1d5db; }
+  .card-why strong { color: var(--civic-text-body); }
   .card-tags {
     display: flex;
     gap: 4px;
@@ -151,13 +151,13 @@
     font-size: 9px;
     padding: 1px 6px;
     border-radius: 3px;
-    background: rgba(255, 255, 255, 0.04);
-    color: #6b7280;
+    background: var(--civic-overlay-subtle);
+    color: var(--civic-text-dim);
     font-weight: 500;
   }
-  .tag-voice { background: rgba(255, 255, 255, 0.08); color: #d1d5db; }
-  .tag-comment { background: rgba(255, 255, 255, 0.08); color: #d1d5db; }
-  .tag-topic { background: rgba(96, 165, 250, 0.08); color: #60a5fa; }
+  .tag-voice { background: var(--civic-overlay-light); color: var(--civic-text-body); }
+  .tag-comment { background: var(--civic-overlay-light); color: var(--civic-text-body); }
+  .tag-topic { background: var(--civic-accent-primary-bg-pill); color: var(--civic-accent-primary-light); }
   .voice-counts {
     display: flex;
     gap: 6px;
@@ -168,13 +168,13 @@
     padding: 1px 5px;
     border-radius: 3px;
   }
-  .vc-support { background: #14532d; color: #4ade80; }
-  .vc-oppose { background: #7f1d1d; color: #f87171; }
-  .vc-watch { background: #374151; color: #9ca3af; }
-  .vc-attested { display: inline-flex; align-items: center; gap: 2px; background: rgba(34, 197, 94, 0.12); color: #22c55e; }
+  .vc-support { background: var(--civic-status-success-bg); color: var(--civic-status-success-light); }
+  .vc-oppose { background: var(--civic-status-error-bg); color: var(--civic-status-error-light); }
+  .vc-watch { background: var(--civic-border-default); color: var(--civic-text-muted); }
+  .vc-attested { display: inline-flex; align-items: center; gap: 2px; background: var(--civic-status-success-bg-chip); color: var(--civic-status-success); }
   .deadline-tag { font-size: 10px; font-weight: 600; padding: 1px 6px; border-radius: 3px; }
-  .deadline-tag.urgent-critical { background: rgba(255, 255, 255, 0.06); color: #e5e7eb; }
-  .deadline-tag.urgent-soon { background: rgba(255, 255, 255, 0.04); color: #d1d5db; }
-  .deadline-tag.urgent-normal { background: rgba(255, 255, 255, 0.03); color: #9ca3af; font-weight: 500; }
-  .deadline-tag.urgent-closed { background: rgba(255, 255, 255, 0.02); color: #6b7280; font-weight: 500; }
+  .deadline-tag.urgent-critical { background: var(--civic-hover-bg); color: var(--civic-text-secondary); }
+  .deadline-tag.urgent-soon { background: var(--civic-overlay-subtle); color: var(--civic-text-body); }
+  .deadline-tag.urgent-normal { background: var(--civic-overlay-subtle); color: var(--civic-text-muted); font-weight: 500; }
+  .deadline-tag.urgent-closed { background: var(--civic-overlay-subtle); color: var(--civic-text-dim); font-weight: 500; }
 </style>

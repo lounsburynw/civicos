@@ -1,0 +1,5 @@
+/* Import all theme files — consumers import this single file */
+@import './tokens.css';
+@import './themes/dark.css';
+@import './themes/light.css';
+@import './themes/solarized-light.css';

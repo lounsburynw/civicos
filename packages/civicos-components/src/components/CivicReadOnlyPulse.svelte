@@ -1727,9 +1727,9 @@ Keep it substantive but accessible (150-300 words). Reference the docket number.
   .topic-filter-pill {
     padding: 3px 8px;
     border-radius: 10px;
-    border: 1px solid #333;
+    border: 1px solid var(--civic-border-input);
     background: transparent;
-    color: #6b7280;
+    color: var(--civic-text-dim);
     font-size: 10px;
     font-weight: 500;
     cursor: pointer;
@@ -1737,25 +1737,25 @@ Keep it substantive but accessible (150-300 words). Reference the docket number.
     font-family: inherit;
   }
   .topic-filter-pill:hover {
-    color: #9ca3af;
-    border-color: #4b5563;
+    color: var(--civic-text-muted);
+    border-color: var(--civic-text-disabled);
   }
   .topic-filter-pill.active {
-    background: rgba(96, 165, 250, 0.1);
-    border-color: rgba(96, 165, 250, 0.3);
-    color: #60a5fa;
+    background: var(--civic-accent-primary-bg-badge);
+    border-color: var(--civic-accent-primary-border-testimony);
+    color: var(--civic-accent-primary-light);
   }
   .topic-filter-clear {
     padding: 3px 8px;
     border-radius: 10px;
     border: none;
     background: none;
-    color: #4b5563;
+    color: var(--civic-text-disabled);
     font-size: 10px;
     cursor: pointer;
     font-family: inherit;
   }
-  .topic-filter-clear:hover { color: #6b7280; }
+  .topic-filter-clear:hover { color: var(--civic-text-dim); }
 
   .feed-section { margin-bottom: 4px; }
   .section-header {
@@ -1765,20 +1765,20 @@ Keep it substantive but accessible (150-300 words). Reference the docket number.
     width: 100%;
     background: none;
     border: none;
-    color: #9ca3af;
+    color: var(--civic-text-muted);
     padding: 8px 4px;
     cursor: pointer;
     font-size: 11px;
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.04em;
-    border-bottom: 1px solid #262626;
+    border-bottom: 1px solid var(--civic-surface-elevated);
   }
-  .section-header:hover { color: #d1d5db; }
+  .section-header:hover { color: var(--civic-text-body); }
   .section-title { display: flex; align-items: center; gap: 6px; }
   .count-badge {
-    background: rgba(255, 255, 255, 0.04);
-    color: #6b7280;
+    background: var(--civic-overlay-subtle);
+    color: var(--civic-text-dim);
     font-size: 9px;
     font-weight: 600;
     padding: 1px 5px;
@@ -1791,33 +1791,33 @@ Keep it substantive but accessible (150-300 words). Reference the docket number.
     width: 0; height: 0;
     border-left: 4px solid transparent;
     border-right: 4px solid transparent;
-    border-top: 5px solid #4b5563;
+    border-top: 5px solid var(--civic-text-disabled);
     transition: transform 0.15s ease;
   }
   .chevron.open { transform: rotate(180deg); }
   .section-body { padding: 4px 0 8px; }
   .empty-section {
     padding: 12px 8px;
-    color: #4b5563;
+    color: var(--civic-text-disabled);
     font-size: 12px;
     font-style: italic;
   }
   .card {
-    background: #1e1e1e;
+    background: var(--civic-surface-card);
     border-radius: 8px;
     padding: 10px 12px;
     margin-bottom: 4px;
-    border: 1px solid #262626;
+    border: 1px solid var(--civic-surface-elevated);
     transition: border-color 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
     cursor: grab;
   }
   .card:hover {
-    border-color: #374151;
+    border-color: var(--civic-border-default);
   }
   .card:active { cursor: grabbing; }
   .card.dragging {
     opacity: 0.4;
-    border-color: #4b5563;
+    border-color: var(--civic-text-disabled);
   }
   .card.shaking {
     animation: card-shake 0.5s ease-in-out;
@@ -1836,9 +1836,9 @@ Keep it substantive but accessible (150-300 words). Reference the docket number.
     align-items: center;
     gap: 6px;
     font-size: 10px;
-    color: #9ca3af;
+    color: var(--civic-text-muted);
     padding: 6px 10px;
-    background: rgba(255, 255, 255, 0.04);
+    background: var(--civic-overlay-subtle);
     border-radius: 6px;
     margin-top: 4px;
     animation: hint-fade 2.5s ease-out forwards;
@@ -1850,7 +1850,7 @@ Keep it substantive but accessible (150-300 words). Reference the docket number.
     100% { opacity: 0; }
   }
   .card-title {
-    color: #e5e7eb;
+    color: var(--civic-text-secondary);
     font-size: 13px;
     font-weight: 500;
     line-height: 1.3;
@@ -1860,24 +1860,24 @@ Keep it substantive but accessible (150-300 words). Reference the docket number.
     align-items: center;
     gap: 4px;
     font-size: 11px;
-    color: #6b7280;
+    color: var(--civic-text-dim);
     margin-top: 4px;
     flex-wrap: wrap;
   }
-  .meta-sep { color: #4b5563; }
+  .meta-sep { color: var(--civic-text-disabled); }
   .item-type {
     font-size: 10px;
     padding: 1px 6px;
     border-radius: 3px;
-    background: #374151;
-    color: #9ca3af;
+    background: var(--civic-border-default);
+    color: var(--civic-text-muted);
   }
   .status-tag {
     font-size: 10px;
     padding: 1px 6px;
     border-radius: 3px;
-    background: rgba(59, 130, 246, 0.12);
-    color: #60a5fa;
+    background: var(--civic-accent-primary-bg-active);
+    color: var(--civic-accent-primary-light);
     font-weight: 500;
   }
   .card-link {
@@ -1887,11 +1887,11 @@ Keep it substantive but accessible (150-300 words). Reference the docket number.
     transition: border-color 0.15s ease;
   }
   .card-link:hover {
-    border-bottom-color: #60a5fa;
-    color: #93c5fd;
+    border-bottom-color: var(--civic-accent-primary-light);
+    color: var(--civic-accent-primary-bright);
   }
   .card-summary {
-    color: #d1d5db;
+    color: var(--civic-text-body);
     font-size: 12px;
     line-height: 1.4;
     margin-top: 6px;
@@ -1899,14 +1899,14 @@ Keep it substantive but accessible (150-300 words). Reference the docket number.
   .expand-btn {
     background: none;
     border: none;
-    color: #60a5fa;
+    color: var(--civic-accent-primary-light);
     font-size: 12px;
     cursor: pointer;
     padding: 0 2px;
     text-decoration: underline;
   }
   .expand-btn:hover {
-    color: #93bbfd;
+    color: var(--civic-accent-primary-bright);
   }
   .closed-results {
     margin-top: 6px;
@@ -1915,8 +1915,8 @@ Keep it substantive but accessible (150-300 words). Reference the docket number.
   .doc-type-tag {
     font-size: 10px;
     text-transform: capitalize;
-    color: #a5b4fc;
-    background: rgba(99, 102, 241, 0.1);
+    color: var(--civic-accent-indigo);
+    background: var(--civic-accent-primary-bg-badge);
     padding: 1px 6px;
     border-radius: 3px;
   }
@@ -1928,19 +1928,19 @@ Keep it substantive but accessible (150-300 words). Reference the docket number.
   }
   .topic-tag {
     font-size: 10px;
-    color: #9ca3af;
-    background: rgba(107, 114, 128, 0.15);
+    color: var(--civic-text-muted);
+    background: var(--civic-status-neutral-bg-badge);
     padding: 1px 6px;
     border-radius: 3px;
   }
   .card-leverage {
-    color: #60a5fa;
+    color: var(--civic-accent-primary-light);
     font-size: 11px;
     line-height: 1.4;
     margin-top: 4px;
     padding: 4px 8px;
-    background: rgba(59, 130, 246, 0.06);
-    border-left: 2px solid #3b82f6;
+    background: var(--civic-accent-primary-bg-subtle);
+    border-left: 2px solid var(--civic-accent-primary);
     border-radius: 0 4px 4px 0;
   }
   .outcome-icon {
@@ -1956,10 +1956,10 @@ Keep it substantive but accessible (150-300 words). Reference the docket number.
     margin-right: 4px;
     vertical-align: middle;
   }
-  .outcome-icon.passed { background: #14532d; color: #4ade80; }
-  .outcome-icon.failed { background: #7f1d1d; color: #f87171; }
-  .outcome-icon.upcoming { background: #1e3a5f; color: #60a5fa; }
-  .outcome-icon.other { background: #374151; color: #9ca3af; }
+  .outcome-icon.passed { background: var(--civic-status-success-bg); color: var(--civic-status-success-light); }
+  .outcome-icon.failed { background: var(--civic-status-error-bg); color: var(--civic-status-error-light); }
+  .outcome-icon.upcoming { background: var(--civic-accent-primary-dark); color: var(--civic-accent-primary-light); }
+  .outcome-icon.other { background: var(--civic-border-default); color: var(--civic-text-muted); }
   .outcome-label {
     font-weight: 500;
     text-transform: capitalize;
@@ -1970,29 +1970,29 @@ Keep it substantive but accessible (150-300 words). Reference the docket number.
     gap: 6px;
   }
   .topic-card {
-    background: #262626;
+    background: var(--civic-surface-elevated);
     border-radius: 8px;
     padding: 10px 12px;
-    border: 1px solid #374151;
+    border: 1px solid var(--civic-border-default);
   }
   .topic-name {
-    color: #eee;
+    color: var(--civic-text-primary);
     font-size: 13px;
     font-weight: 500;
   }
   .topic-count {
-    color: #60a5fa;
+    color: var(--civic-accent-primary-light);
     font-size: 11px;
     font-weight: 600;
     margin-top: 2px;
   }
   .topic-breakdown {
-    color: #6b7280;
+    color: var(--civic-text-dim);
     font-size: 10px;
     margin-top: 2px;
   }
   .card-desc {
-    color: #9ca3af;
+    color: var(--civic-text-muted);
     font-size: 12px;
     line-height: 1.4;
     margin-top: 6px;
@@ -2000,15 +2000,15 @@ Keep it substantive but accessible (150-300 words). Reference the docket number.
   .card-voice {
     margin-top: 8px;
     padding-top: 6px;
-    border-top: 1px solid #374151;
+    border-top: 1px solid var(--civic-border-default);
   }
   .voice-count-badge {
     font-size: 10px;
-    color: #60a5fa;
+    color: var(--civic-accent-primary-light);
     font-weight: 500;
   }
   .card-subtitle {
-    color: #d1d5db;
+    color: var(--civic-text-body);
     font-size: 12px;
     line-height: 1.3;
     margin-top: 2px;
@@ -2020,20 +2020,20 @@ Keep it substantive but accessible (150-300 words). Reference the docket number.
     border-radius: 3px;
   }
   .deadline-tag.urgent-critical {
-    background: rgba(239, 68, 68, 0.15);
-    color: #f87171;
+    background: var(--civic-status-error-bg-badge);
+    color: var(--civic-status-error-light);
   }
   .deadline-tag.urgent-soon {
-    background: rgba(245, 158, 11, 0.15);
-    color: #fbbf24;
+    background: var(--civic-status-warning-bg-subtle);
+    color: var(--civic-status-warning-light);
   }
   .deadline-tag.urgent-normal {
-    background: rgba(59, 130, 246, 0.12);
-    color: #60a5fa;
+    background: var(--civic-accent-primary-bg-active);
+    color: var(--civic-accent-primary-light);
   }
   .deadline-tag.urgent-closed {
-    background: rgba(107, 114, 128, 0.15);
-    color: #6b7280;
+    background: var(--civic-status-neutral-bg-badge);
+    color: var(--civic-text-dim);
   }
   .card-actions {
     display: flex;
@@ -2043,28 +2043,28 @@ Keep it substantive but accessible (150-300 words). Reference the docket number.
   .action-link {
     font-size: 11px;
     font-weight: 500;
-    color: #60a5fa;
+    color: var(--civic-accent-primary-light);
     text-decoration: none;
     padding: 3px 8px;
     border-radius: 4px;
-    background: rgba(59, 130, 246, 0.08);
-    border: 1px solid rgba(59, 130, 246, 0.2);
+    background: var(--civic-accent-primary-bg-summary);
+    border: 1px solid var(--civic-accent-primary-border-subtle);
     transition: all 0.15s ease;
   }
   .action-link:hover {
-    background: rgba(59, 130, 246, 0.16);
-    border-color: #3b82f6;
-    color: #93c5fd;
+    background: var(--civic-accent-primary-bg-hover);
+    border-color: var(--civic-accent-primary);
+    color: var(--civic-accent-primary-bright);
   }
   .action-link.comment-link {
-    color: #4ade80;
-    background: rgba(74, 222, 128, 0.08);
-    border-color: rgba(74, 222, 128, 0.2);
+    color: var(--civic-status-success-light);
+    background: var(--civic-status-success-bg-action);
+    border-color: var(--civic-status-success-border-action);
   }
   .action-link.comment-link:hover {
-    background: rgba(74, 222, 128, 0.16);
-    border-color: #4ade80;
-    color: #86efac;
+    background: var(--civic-status-success-bg-action-strong);
+    border-color: var(--civic-status-success-light);
+    color: var(--civic-status-success-bright);
   }
   /* === Action button row (matches city tab CivicAgendaView) === */
   .action-btn-row {
@@ -2085,47 +2085,47 @@ Keep it substantive but accessible (150-300 words). Reference the docket number.
     font-family: inherit;
   }
   .action-btn-draft {
-    color: #a78bfa;
-    background: rgba(139,92,246,0.06);
-    border: 1px solid rgba(139,92,246,0.2);
+    color: var(--civic-ai-accent);
+    background: var(--civic-ai-bg-subtle);
+    border: 1px solid var(--civic-ai-border-medium);
   }
   .action-btn-draft:hover:not(:disabled) {
-    background: rgba(139,92,246,0.14);
-    border-color: #a78bfa;
-    color: #c4b5fd;
+    background: var(--civic-ai-bg-hover);
+    border-color: var(--civic-ai-accent);
+    color: var(--civic-ai-accent);
   }
   .action-btn-draft:disabled { opacity: 0.6; cursor: default; }
   .action-btn-official {
-    color: #4ade80;
-    background: rgba(74,222,128,0.06);
-    border: 1px solid rgba(74,222,128,0.2);
+    color: var(--civic-status-success-light);
+    background: var(--civic-status-success-bg-action);
+    border: 1px solid var(--civic-status-success-border-action);
   }
   .action-btn-official:hover {
-    background: rgba(74,222,128,0.14);
-    border-color: #4ade80;
-    color: #86efac;
+    background: var(--civic-status-success-bg-action-hover);
+    border-color: var(--civic-status-success-light);
+    color: var(--civic-status-success-bright);
   }
   .action-btn-unofficial {
-    color: #9ca3af;
-    background: rgba(255,255,255,0.04);
-    border: 1px solid rgba(255,255,255,0.08);
+    color: var(--civic-text-muted);
+    background: var(--civic-overlay-subtle);
+    border: 1px solid var(--civic-overlay-light);
   }
   .action-btn-unofficial:hover {
-    background: rgba(255,255,255,0.08);
-    border-color: rgba(255,255,255,0.15);
-    color: #d1d5db;
+    background: var(--civic-overlay-light);
+    border-color: var(--civic-overlay-medium);
+    color: var(--civic-text-body);
   }
   .action-btn-unofficial.active {
-    background: rgba(255,255,255,0.08);
-    border-color: rgba(255,255,255,0.15);
-    color: #e5e7eb;
+    background: var(--civic-overlay-light);
+    border-color: var(--civic-overlay-medium);
+    color: var(--civic-text-secondary);
   }
   .action-btn .sparkle { font-size: 10px; opacity: 0.7; }
   .action-btn-icon { opacity: 0.6; flex-shrink: 0; vertical-align: -2.5px; }
   .action-btn-count {
     font-size: 10px;
     font-weight: 600;
-    background: rgba(255, 255, 255, 0.08);
+    background: var(--civic-overlay-light);
     padding: 0 5px;
     border-radius: 8px;
     margin-left: 2px;
@@ -2153,12 +2153,12 @@ Keep it substantive but accessible (150-300 words). Reference the docket number.
   }
   .secondary-link {
     font-size: 10px;
-    color: #6b7280;
+    color: var(--civic-text-dim);
     text-decoration: none;
     transition: color 0.15s ease;
   }
   .secondary-link:hover {
-    color: #9ca3af;
+    color: var(--civic-text-muted);
     text-decoration: underline;
   }
   /* Group headers (Official / Public) */
@@ -2167,23 +2167,23 @@ Keep it substantive but accessible (150-300 words). Reference the docket number.
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.08em;
-    color: #4b5563;
+    color: var(--civic-text-disabled);
     padding: 14px 4px 4px;
   }
   /* Attention bar */
   .attention-bar {
-    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-    border: 1px solid #2a2a4a;
+    background: linear-gradient(135deg, var(--civic-surface-card-alt) 0%, var(--civic-accent-primary-dark) 100%);
+    border: 1px solid var(--civic-surface-elevated);
     border-radius: 10px;
     padding: 12px 14px;
     margin-bottom: 14px;
     transition: border-color 0.15s;
   }
-  .attention-bar:hover { border-color: #4b5563; }
+  .attention-bar:hover { border-color: var(--civic-text-disabled); }
   .attention-title {
     font-size: 11px;
     font-weight: 600;
-    color: #9ca3af;
+    color: var(--civic-text-muted);
     margin-bottom: 8px;
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -2195,14 +2195,14 @@ Keep it substantive but accessible (150-300 words). Reference the docket number.
     max-height: 200px;
     overflow-y: auto;
     scrollbar-width: thin;
-    scrollbar-color: #374151 transparent;
+    scrollbar-color: var(--civic-border-default) transparent;
   }
   .attention-item {
     display: flex;
     align-items: center;
     gap: 6px;
     font-size: 11px;
-    color: #9ca3af;
+    color: var(--civic-text-muted);
     cursor: pointer;
     padding: 3px 0;
     background: none;
@@ -2210,12 +2210,12 @@ Keep it substantive but accessible (150-300 words). Reference the docket number.
     text-align: left;
     width: 100%;
   }
-  .attention-item:hover { color: #e5e7eb; }
+  .attention-item:hover { color: var(--civic-text-secondary); }
   .attention-pip {
     width: 4px;
     height: 4px;
     border-radius: 50%;
-    background: #e5e7eb;
+    background: var(--civic-text-secondary);
     flex-shrink: 0;
   }
   .attention-item-title {
@@ -2226,14 +2226,14 @@ Keep it substantive but accessible (150-300 words). Reference the docket number.
   }
   .attention-when {
     margin-left: auto;
-    color: #6b7280;
+    color: var(--civic-text-dim);
     font-size: 10px;
     flex-shrink: 0;
   }
   /* Thread clarifier */
   .thread-clarifier {
     font-size: 9px;
-    color: #6b7280;
+    color: var(--civic-text-dim);
     text-transform: uppercase;
     letter-spacing: 0.04em;
     padding: 6px 0 0;
@@ -2250,8 +2250,8 @@ Keep it substantive but accessible (150-300 words). Reference the docket number.
   .official-draft {
     margin-top: 8px;
     padding: 10px 12px;
-    background: rgba(74, 222, 128, 0.04);
-    border: 1px solid rgba(74, 222, 128, 0.15);
+    background: var(--civic-status-success-bg-action);
+    border: 1px solid var(--civic-status-success-bg-action-hover);
     border-radius: 8px;
   }
   .official-draft-header {
@@ -2263,7 +2263,7 @@ Keep it substantive but accessible (150-300 words). Reference the docket number.
   .official-draft-label {
     font-size: 10px;
     font-weight: 600;
-    color: #4ade80;
+    color: var(--civic-status-success-light);
     text-transform: uppercase;
     letter-spacing: 0.04em;
   }
@@ -2274,35 +2274,35 @@ Keep it substantive but accessible (150-300 words). Reference the docket number.
   .official-draft-copy {
     font-size: 11px;
     font-weight: 500;
-    color: #4ade80;
-    background: rgba(74, 222, 128, 0.1);
-    border: 1px solid rgba(74, 222, 128, 0.25);
+    color: var(--civic-status-success-light);
+    background: var(--civic-status-success-bg-action);
+    border: 1px solid var(--civic-status-success-border-action);
     border-radius: 4px;
     padding: 2px 10px;
     cursor: pointer;
     transition: all 0.15s ease;
   }
   .official-draft-copy:hover {
-    background: rgba(74, 222, 128, 0.2);
-    border-color: #4ade80;
+    background: var(--civic-status-success-border-action);
+    border-color: var(--civic-status-success-light);
   }
   .official-draft-discard {
     font-size: 11px;
-    color: #6b7280;
+    color: var(--civic-text-dim);
     background: none;
     border: none;
     cursor: pointer;
     padding: 2px 4px;
   }
-  .official-draft-discard:hover { color: #9ca3af; }
+  .official-draft-discard:hover { color: var(--civic-text-muted); }
   .official-draft-text {
     width: 100%;
     min-height: 100px;
     font-size: 12px;
     line-height: 1.5;
-    color: #e5e7eb;
-    background: rgba(0, 0, 0, 0.2);
-    border: 1px solid #374151;
+    color: var(--civic-text-secondary);
+    background: var(--civic-surface-overlay);
+    border: 1px solid var(--civic-border-default);
     border-radius: 6px;
     padding: 8px 10px;
     resize: vertical;
@@ -2310,7 +2310,7 @@ Keep it substantive but accessible (150-300 words). Reference the docket number.
   }
   .official-draft-text:focus {
     outline: none;
-    border-color: #4ade80;
+    border-color: var(--civic-status-success-light);
   }
   .official-draft-submit {
     display: flex;
@@ -2321,35 +2321,35 @@ Keep it substantive but accessible (150-300 words). Reference the docket number.
   }
   .official-draft-hint {
     font-size: 11px;
-    color: #9ca3af;
+    color: var(--civic-text-muted);
   }
   .section-hint {
     font-size: 11px;
-    color: #9ca3af;
+    color: var(--civic-text-muted);
     padding: 2px 8px 6px;
     font-style: italic;
   }
   .focal-agenda-preview {
     margin-top: 8px;
     padding-top: 6px;
-    border-top: 1px solid #374151;
+    border-top: 1px solid var(--civic-border-default);
   }
   .focal-agenda-label {
     font-size: 10px;
     font-weight: 600;
-    color: #9ca3af;
+    color: var(--civic-text-muted);
     text-transform: uppercase;
     letter-spacing: 0.03em;
     margin-bottom: 4px;
   }
   .focal-agenda-item {
     font-size: 12px;
-    color: #d1d5db;
+    color: var(--civic-text-body);
     line-height: 1.4;
     padding: 2px 0;
   }
   .focal-agenda-bullet {
-    color: #6b7280;
+    color: var(--civic-text-dim);
     margin-right: 4px;
     font-weight: 700;
   }
@@ -2364,29 +2364,29 @@ Keep it substantive but accessible (150-300 words). Reference the docket number.
     flex-shrink: 0;
     background: none;
     border: none;
-    color: #6b7280;
+    color: var(--civic-text-dim);
     cursor: pointer;
     padding: 2px;
     border-radius: 3px;
   }
-  .cal-btn:hover { color: #60a5fa; background: #374151; }
+  .cal-btn:hover { color: var(--civic-accent-primary-light); background: var(--civic-border-default); }
   .cal-dropdown {
     display: flex;
     gap: 8px;
     margin-top: 6px;
     padding-top: 6px;
-    border-top: 1px solid #374151;
+    border-top: 1px solid var(--civic-border-default);
   }
   .cal-option {
     font-size: 11px;
-    color: #3b82f6;
+    color: var(--civic-accent-primary);
     background: none;
     border: none;
     cursor: pointer;
     padding: 0;
     text-decoration: none;
   }
-  .cal-option:hover { color: #60a5fa; text-decoration: underline; }
+  .cal-option:hover { color: var(--civic-accent-primary-light); text-decoration: underline; }
   /* AI action row */
   .ai-action-row {
     display: flex;
@@ -2404,29 +2404,29 @@ Keep it substantive but accessible (150-300 words). Reference the docket number.
     text-align: center;
   }
   .ai-action-ask {
-    color: #60a5fa;
-    background: rgba(59,130,246,0.06);
-    border: 1px solid #3b82f630;
+    color: var(--civic-accent-primary-light);
+    background: var(--civic-accent-primary-bg-subtle);
+    border: 1px solid var(--civic-accent-primary)30;
   }
   .ai-action-ask:hover:not(:disabled) {
-    background: rgba(59,130,246,0.14);
-    border-color: #3b82f6;
-    color: #93c5fd;
+    background: var(--civic-accent-primary-bg-hover);
+    border-color: var(--civic-accent-primary);
+    color: var(--civic-accent-primary-bright);
   }
   .ai-action-ask:disabled { opacity: 0.6; cursor: default; }
   .ai-action-ask.active {
-    background: rgba(59,130,246,0.12);
-    border-color: #3b82f6;
+    background: var(--civic-accent-primary-bg-active);
+    border-color: var(--civic-accent-primary);
   }
   .ai-action-claude {
-    color: #d4a574;
-    background: rgba(212,165,116,0.06);
-    border: 1px solid #d4a57430;
+    color: var(--civic-accent-claude);
+    background: var(--civic-accent-claude-bg-subtle);
+    border: 1px solid var(--civic-accent-claude)30;
   }
   .ai-action-claude:hover {
-    background: rgba(212,165,116,0.14);
-    border-color: #d4a574;
-    color: #e8c9a0;
+    background: var(--civic-accent-claude-bg-hover);
+    border-color: var(--civic-accent-claude);
+    color: var(--civic-accent-claude-hover);
   }
   .ai-action-claude.solo { flex: 1; }
   .sparkle { font-size: 10px; opacity: 0.7; }
@@ -2435,18 +2435,18 @@ Keep it substantive but accessible (150-300 words). Reference the docket number.
   .ai-response {
     margin-top: 8px;
     padding: 10px 12px;
-    background: rgba(139, 92, 246, 0.06);
-    border: 1px solid rgba(139, 92, 246, 0.15);
+    background: var(--civic-ai-bg-subtle);
+    border: 1px solid var(--civic-ai-border-subtle);
     border-radius: 8px;
   }
   .ai-response-text {
     font-size: 12px;
-    color: #d1d5db;
+    color: var(--civic-text-body);
     line-height: 1.5;
   }
   .ai-response-text.prose :global(p) { margin: 0 0 8px; }
   .ai-response-text.prose :global(p:last-child) { margin-bottom: 0; }
-  .ai-response-text.prose :global(strong) { color: #e5e7eb; font-weight: 600; }
+  .ai-response-text.prose :global(strong) { color: var(--civic-text-secondary); font-weight: 600; }
   .ai-response-text.prose :global(ul), .ai-response-text.prose :global(ol) {
     margin: 4px 0 8px;
     padding-left: 18px;
@@ -2456,7 +2456,7 @@ Keep it substantive but accessible (150-300 words). Reference the docket number.
     display: block;
     margin-top: 6px;
     font-size: 10px;
-    color: #64748b;
+    color: var(--civic-text-dim);
   }
   .pulse-footer {
     display: flex;
@@ -2464,8 +2464,8 @@ Keep it substantive but accessible (150-300 words). Reference the docket number.
     align-items: center;
     padding: 12px 4px 4px;
     margin-top: 8px;
-    border-top: 1px solid #374151;
+    border-top: 1px solid var(--civic-border-default);
     font-size: 10px;
-    color: #4b5563;
+    color: var(--civic-text-disabled);
   }
 </style>

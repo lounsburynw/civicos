@@ -1,0 +1,146 @@
+/*
+ * Solarized Light theme
+ * Based on Ethan Schoonover's Solarized palette
+ */
+[data-theme="solarized-light"] {
+  /* ── Surfaces ── */
+  --civic-surface-base: #fdf6e3;
+  --civic-surface-panel: #fdf6e3;
+  --civic-surface-card: #eee8d5;
+  --civic-surface-card-alt: #fdf6e3;
+  --civic-surface-elevated: #ddd6c1;
+  --civic-surface-input: #fdf6e3;
+  --civic-surface-overlay: rgba(0, 0, 0, 0.3);
+  --civic-surface-attention-gradient: linear-gradient(135deg, var(--civic-surface-card-alt) 0%, #e8f4fb 100%);
+
+  /* ── Text ── */
+  --civic-text-primary: #073642;
+  --civic-text-secondary: #586e75;
+  --civic-text-body: #657b83;
+  --civic-text-muted: #839496;
+  --civic-text-dim: #93a1a1;
+  --civic-text-disabled: #c0c4bb;
+  --civic-text-bright: #002b36;
+
+  /* ── Borders ── */
+  --civic-border-default: #d0cbb7;
+  --civic-border-subtle: #ddd6c1;
+  --civic-border-strong: #93a1a1;
+  --civic-border-input: #d0cbb7;
+  --civic-border-divider: #ddd6c1;
+
+  /* ── Accent: Primary (Blue — Solarized Blue) ── */
+  --civic-accent-primary: #268bd2;
+  --civic-accent-primary-hover: #1a6da8;
+  --civic-accent-primary-light: #268bd2;
+  --civic-accent-primary-bright: #6cb0e0;
+  --civic-accent-primary-bg: rgba(38, 139, 210, 0.1);
+  --civic-accent-primary-border: rgba(38, 139, 210, 0.3);
+  --civic-accent-primary-dark: #e8f4fb;
+
+  /* ── Accent: Indigo (Solarized Violet) ── */
+  --civic-accent-indigo: #6c71c4;
+  --civic-accent-indigo-hover: #565aa6;
+
+  /* ── Accent: Claude brand ── */
+  --civic-accent-claude: #b58900;
+  --civic-accent-claude-hover: #9a7400;
+  --civic-accent-claude-bg: rgba(181, 137, 0, 0.08);
+
+  /* ── Status: Success (Solarized Green) ── */
+  --civic-status-success: #859900;
+  --civic-status-success-light: #a3b627;
+  --civic-status-success-bright: #b8cc52;
+  --civic-status-success-bg: #f0f4d4;
+  --civic-status-success-bg-subtle: rgba(133, 153, 0, 0.1);
+  --civic-status-success-border: rgba(133, 153, 0, 0.3);
+
+  /* ── Status: Error (Solarized Red) ── */
+  --civic-status-error: #dc322f;
+  --civic-status-error-light: #e35856;
+  --civic-status-error-dark: #c42725;
+  --civic-status-error-bg: #fce4e4;
+  --civic-status-error-bg-subtle: rgba(220, 50, 47, 0.1);
+  --civic-status-error-border: rgba(220, 50, 47, 0.3);
+
+  /* ── Status: Warning (Solarized Yellow) ── */
+  --civic-status-warning: #b58900;
+  --civic-status-warning-light: #d4a017;
+  --civic-status-warning-bright: #e8bd3a;
+  --civic-status-warning-bg-subtle: rgba(181, 137, 0, 0.1);
+
+  /* ── AI / Draft (Solarized Magenta) ── */
+  --civic-ai-accent: #d33682;
+  --civic-ai-bg: rgba(211, 54, 130, 0.06);
+  --civic-ai-border: rgba(211, 54, 130, 0.15);
+
+  /* ── Interactive states ── */
+  --civic-hover-bg: rgba(0, 0, 0, 0.04);
+  --civic-hover-border: #93a1a1;
+  --civic-focus-ring: #268bd2;
+  --civic-active-bg: rgba(0, 0, 0, 0.06);
+
+  /* ── Subtle overlays ── */
+  --civic-overlay-subtle: rgba(0, 0, 0, 0.03);
+  --civic-overlay-light: rgba(0, 0, 0, 0.06);
+  --civic-overlay-medium: rgba(0, 0, 0, 0.1);
+  --civic-overlay-highlight: rgba(0, 0, 0, 0.08);
+  --civic-overlay-highlight-strong: rgba(0, 0, 0, 0.12);
+
+  /* ── Accent backgrounds ── */
+  --civic-accent-primary-bg-subtle: rgba(38, 139, 210, 0.06);
+  --civic-accent-primary-bg-hover: rgba(38, 139, 210, 0.14);
+  --civic-accent-primary-bg-active: rgba(38, 139, 210, 0.12);
+  --civic-accent-primary-border-subtle: rgba(38, 139, 210, 0.2);
+  --civic-accent-primary-border-strong: rgba(38, 139, 210, 0.4);
+  --civic-accent-primary-bg-badge: rgba(38, 139, 210, 0.1);
+  --civic-accent-primary-border-badge: rgba(38, 139, 210, 0.2);
+  --civic-accent-primary-bg-pill: rgba(38, 139, 210, 0.08);
+  --civic-accent-primary-bg-pill-hover: rgba(38, 139, 210, 0.15);
+  --civic-accent-primary-border-pill: rgba(38, 139, 210, 0.2);
+  --civic-accent-primary-border-pill-hover: rgba(38, 139, 210, 0.4);
+  --civic-accent-primary-bg-summary: rgba(38, 139, 210, 0.08);
+  --civic-accent-primary-border-summary: rgba(38, 139, 210, 0.4);
+  --civic-accent-primary-border-testimony: rgba(38, 139, 210, 0.3);
+
+  --civic-ai-bg-subtle: rgba(211, 54, 130, 0.06);
+  --civic-ai-bg-hover: rgba(211, 54, 130, 0.14);
+  --civic-ai-border-subtle: rgba(211, 54, 130, 0.15);
+  --civic-ai-border-medium: rgba(211, 54, 130, 0.2);
+  --civic-ai-border-blockquote: rgba(211, 54, 130, 0.3);
+  --civic-ai-bg-draft: rgba(211, 54, 130, 0.04);
+  --civic-ai-bg-suggestion: rgba(211, 54, 130, 0.05);
+  --civic-ai-border-suggestion: rgba(211, 54, 130, 0.2);
+  --civic-ai-bg-accept: rgba(211, 54, 130, 0.1);
+  --civic-ai-border-accept: rgba(211, 54, 130, 0.3);
+  --civic-ai-bg-accept-hover: rgba(211, 54, 130, 0.2);
+
+  --civic-accent-claude-bg-subtle: rgba(181, 137, 0, 0.06);
+  --civic-accent-claude-bg-hover: rgba(181, 137, 0, 0.14);
+
+  --civic-status-success-bg-chip: rgba(133, 153, 0, 0.12);
+  --civic-status-success-bg-action: rgba(133, 153, 0, 0.06);
+  --civic-status-success-bg-action-hover: rgba(133, 153, 0, 0.14);
+  --civic-status-success-bg-action-strong: rgba(133, 153, 0, 0.16);
+  --civic-status-success-border-action: rgba(133, 153, 0, 0.2);
+
+  --civic-status-error-bg-badge: rgba(220, 50, 47, 0.15);
+  --civic-status-success-bg-badge: rgba(133, 153, 0, 0.15);
+  --civic-status-neutral-bg-badge: rgba(147, 161, 161, 0.15);
+  --civic-accent-primary-bg-badge-strong: rgba(38, 139, 210, 0.15);
+
+  /* ── Filters / Chips ── */
+  --civic-chip-bg: #ddd6c1;
+  --civic-chip-bg-active: #d0cbb7;
+  --civic-chip-text-active: #073642;
+  --civic-chip-border-active: #93a1a1;
+
+  /* ── Shadows ── */
+  --civic-shadow-card: 0 1px 3px rgba(0, 0, 0, 0.08);
+  --civic-shadow-elevated: 0 4px 12px rgba(0, 0, 0, 0.1);
+  --civic-shadow-toast: 0 8px 24px rgba(0, 0, 0, 0.15);
+
+  /* ── Map overlay ── */
+  --civic-surface-map-btn: rgba(238, 232, 213, 0.9);
+  --civic-surface-map-btn-hover: rgba(221, 214, 193, 0.95);
+}

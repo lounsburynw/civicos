@@ -81,7 +81,7 @@
 
 <style>
   .identity-chip {
-    background: #262626;
+    background: var(--civic-surface-elevated);
     border-radius: 8px;
     padding: 10px 12px;
     margin-bottom: 12px;
@@ -94,7 +94,7 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    color: #6b7280;
+    color: var(--civic-text-dim);
     font-size: 12px;
   }
   @keyframes pulse {
@@ -107,8 +107,8 @@
     align-items: center;
     margin-bottom: 4px;
   }
-  .sign-in-status { font-size: 10px; font-weight: 500; color: #ef4444; }
-  .sign-in-status.signed-in { color: #22c55e; }
+  .sign-in-status { font-size: 10px; font-weight: 500; color: var(--civic-status-error); }
+  .sign-in-status.signed-in { color: var(--civic-status-success); }
   .attested-chips {
     display: flex;
     gap: 4px;
@@ -119,8 +119,8 @@
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    color: #22c55e;
-    background: rgba(34, 197, 94, 0.12);
+    color: var(--civic-status-success);
+    background: var(--civic-status-success-bg-chip);
     padding: 1px 6px;
     border-radius: 3px;
   }
@@ -133,16 +133,16 @@
     flex: 1;
     min-width: 0;
     padding: 4px 8px;
-    background: #1a1a1a;
-    border: 1px solid #404040;
+    background: var(--civic-surface-card-alt);
+    border: 1px solid var(--civic-border-input);
     border-radius: 4px;
-    color: #e5e7eb;
+    color: var(--civic-text-secondary);
     font-size: 12px;
     outline: none;
   }
-  .chip-unlock-input:focus { border-color: #6366f1; }
+  .chip-unlock-input:focus { border-color: var(--civic-accent-indigo); }
   .chip-unlock-btn {
-    background: #6366f1;
+    background: var(--civic-accent-indigo);
     color: white;
     border: none;
     padding: 4px 10px;
@@ -152,27 +152,27 @@
     cursor: pointer;
     flex-shrink: 0;
   }
-  .chip-unlock-btn:hover { background: #4f46e5; }
+  .chip-unlock-btn:hover { background: var(--civic-accent-indigo-hover); }
   .chip-unlock-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-  .chip-unlock-error { font-size: 10px; color: #ef4444; margin-top: 2px; }
+  .chip-unlock-error { font-size: 10px; color: var(--civic-status-error); margin-top: 2px; }
   .display-name {
     font-size: 13px;
     font-weight: 500;
-    color: #e5e7eb;
+    color: var(--civic-text-secondary);
     margin-top: 2px;
   }
   .npub {
-    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-family: var(--civic-font-family-mono);
     font-size: 11px;
-    color: #6b7280;
+    color: var(--civic-text-dim);
   }
   .link-btn {
     background: none;
     border: none;
-    color: #3b82f6;
+    color: var(--civic-accent-primary);
     cursor: pointer;
     font-size: 12px;
     text-decoration: underline;
   }
-  .link-btn:hover { color: #60a5fa; }
+  .link-btn:hover { color: var(--civic-accent-primary-light); }
 </style>

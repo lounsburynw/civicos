@@ -223,19 +223,19 @@
     gap: 5px;
     font-size: 11px;
     font-weight: 500;
-    color: #4ade80;
+    color: var(--civic-status-success-light);
     text-decoration: none;
     padding: 6px 10px;
     border-radius: 6px;
-    background: rgba(74, 222, 128, 0.08);
-    border: 1px solid rgba(74, 222, 128, 0.2);
+    background: var(--civic-status-success-bg-action);
+    border: 1px solid var(--civic-status-success-border-action);
     transition: all 0.15s ease;
     margin-bottom: 6px;
   }
   .email-clerk-btn:hover {
-    background: rgba(74, 222, 128, 0.16);
-    border-color: #4ade80;
-    color: #86efac;
+    background: var(--civic-status-success-bg-action-strong);
+    border-color: var(--civic-status-success-light);
+    color: var(--civic-status-success-bright);
   }
   .email-clerk-btn svg { opacity: 0.7; }
   .comment-toggle {
@@ -243,14 +243,14 @@
     align-items: center;
     gap: 6px;
     font-size: 11px;
-    color: #9ca3af;
+    color: var(--civic-text-muted);
     background: none;
     border: none;
     cursor: pointer;
     padding: 4px 0;
     transition: color 0.15s;
   }
-  .comment-toggle:hover { color: #d1d5db; }
+  .comment-toggle:hover { color: var(--civic-text-body); }
   .comment-toggle svg { opacity: 0.6; }
   .chevron-sm {
     display: inline-block;
@@ -266,13 +266,13 @@
   .comment-thread {
     margin-top: 6px;
     padding: 8px;
-    background: #1e1e1e;
-    border: 1px solid #2a2a2a;
+    background: var(--civic-surface-card);
+    border: 1px solid var(--civic-surface-elevated);
     border-radius: 8px;
   }
   .thread-loading, .thread-empty, .thread-locked {
     font-size: 11px;
-    color: #6b7280;
+    color: var(--civic-text-dim);
     text-align: center;
     padding: 8px 0;
   }
@@ -280,18 +280,18 @@
   /* Summarize */
   .summarize-btn {
     font-size: 10px;
-    color: #60a5fa;
+    color: var(--civic-accent-primary-light);
     background: none;
-    border: 1px solid #3b82f640;
+    border: 1px solid var(--civic-accent-primary)40;
     border-radius: 4px;
     padding: 1px 8px;
     cursor: pointer;
     transition: all 0.15s ease;
   }
   .summarize-btn:hover {
-    background: rgba(59,130,246,0.12);
-    border-color: #3b82f6;
-    color: #93c5fd;
+    background: var(--civic-accent-primary-bg-active);
+    border-color: var(--civic-accent-primary);
+    color: var(--civic-accent-primary-bright);
   }
   .summarize-btn:disabled { opacity: 0.5; cursor: default; }
   .sparkle { margin-right: 2px; }
@@ -302,19 +302,19 @@
   }
   .thread-summary-response {
     margin-bottom: 8px;
-    border-left: 2px solid #3b82f640;
+    border-left: 2px solid var(--civic-accent-primary)40;
     padding-left: 8px;
   }
   .ai-response {
     margin-top: 8px;
     padding: 10px 12px;
-    background: rgba(139, 92, 246, 0.06);
-    border: 1px solid rgba(139, 92, 246, 0.15);
+    background: var(--civic-ai-bg-subtle);
+    border: 1px solid var(--civic-ai-border-subtle);
     border-radius: 8px;
   }
   .ai-response-text {
     font-size: 12px;
-    color: #d1d5db;
+    color: var(--civic-text-body);
     line-height: 1.5;
   }
 
@@ -328,10 +328,10 @@
     padding: 6px 8px;
     border-radius: 6px;
     margin-bottom: 4px;
-    background: #262626;
+    background: var(--civic-surface-elevated);
   }
-  .thread-comment.stance-support { border-left: 2px solid rgba(34, 197, 94, 0.3); }
-  .thread-comment.stance-oppose { border-left: 2px solid rgba(239, 68, 68, 0.3); }
+  .thread-comment.stance-support { border-left: 2px solid var(--civic-status-success-border); }
+  .thread-comment.stance-oppose { border-left: 2px solid var(--civic-status-error-border); }
   .thread-comment-meta {
     display: flex;
     gap: 6px;
@@ -341,29 +341,29 @@
   .thread-author {
     font-size: 10px;
     font-weight: 600;
-    color: #d1d5db;
+    color: var(--civic-text-body);
   }
   .thread-attested {
     display: inline-flex;
     align-items: center;
-    color: #4ade80;
+    color: var(--civic-status-success-light);
   }
   .thread-stance {
     font-size: 9px;
     padding: 1px 5px;
     border-radius: 8px;
-    background: #374151;
-    color: #9ca3af;
+    background: var(--civic-border-default);
+    color: var(--civic-text-muted);
   }
-  .thread-stance.support { background: rgba(34,197,94,0.15); color: #22c55e; }
-  .thread-stance.oppose { background: rgba(239,68,68,0.15); color: #ef4444; }
+  .thread-stance.support { background: var(--civic-status-success-bg-badge); color: var(--civic-status-success); }
+  .thread-stance.oppose { background: var(--civic-status-error-bg-badge); color: var(--civic-status-error); }
   .thread-time {
     font-size: 10px;
-    color: #6b7280;
+    color: var(--civic-text-dim);
   }
   .thread-text {
     font-size: 12px;
-    color: #d1d5db;
+    color: var(--civic-text-body);
     line-height: 1.4;
     white-space: pre-wrap;
   }
@@ -379,39 +379,39 @@
     font-size: 11px;
     font-weight: 500;
     padding: 4px 10px;
-    background: rgba(139, 92, 246, 0.1);
-    color: #a78bfa;
-    border: 1px solid rgba(139, 92, 246, 0.25);
+    background: var(--civic-ai-bg-accept);
+    color: var(--civic-ai-accent);
+    border: 1px solid var(--civic-ai-border-blockquote);
     border-radius: 6px;
     cursor: pointer;
     transition: all 0.15s ease;
     font-family: inherit;
   }
   .draft-btn:hover:not(:disabled) {
-    background: rgba(139, 92, 246, 0.2);
-    border-color: #a78bfa;
+    background: var(--civic-ai-border-medium);
+    border-color: var(--civic-ai-accent);
   }
   .draft-btn:disabled { opacity: 0.5; cursor: default; }
   .enrich-btn {
     font-size: 11px;
     font-weight: 500;
     padding: 4px 10px;
-    background: rgba(34, 197, 94, 0.08);
-    color: #4ade80;
-    border: 1px solid rgba(34, 197, 94, 0.2);
+    background: var(--civic-status-success-bg-chip);
+    color: var(--civic-status-success-light);
+    border: 1px solid var(--civic-status-success-border-action);
     border-radius: 6px;
     cursor: pointer;
     transition: all 0.15s ease;
     font-family: inherit;
   }
   .enrich-btn:hover:not(:disabled) {
-    background: rgba(34, 197, 94, 0.15);
-    border-color: #4ade80;
+    background: var(--civic-status-success-bg-badge);
+    border-color: var(--civic-status-success-light);
   }
   .enrich-btn:disabled { opacity: 0.5; cursor: default; }
   .ai-provider-tag {
     font-size: 10px;
-    color: #64748b;
+    color: var(--civic-text-dim);
     align-self: center;
     white-space: nowrap;
   }
@@ -420,9 +420,9 @@
     width: 100%;
     padding: 6px 8px;
     background: transparent;
-    border: 1px solid #374151;
+    border: 1px solid var(--civic-border-default);
     border-radius: 6px;
-    color: #eee;
+    color: var(--civic-text-primary);
     font-size: 12px;
     font-family: inherit;
     outline: none;
@@ -430,13 +430,13 @@
     min-height: 40px;
     box-sizing: border-box;
   }
-  .thread-textarea:focus { border-color: #60a5fa; }
+  .thread-textarea:focus { border-color: var(--civic-accent-primary-light); }
   .thread-textarea.ai-loading {
     animation: ai-pulse 1.5s ease-in-out infinite;
   }
   @keyframes ai-pulse {
-    0%, 100% { border-color: #374151; }
-    50% { border-color: #a78bfa; }
+    0%, 100% { border-color: var(--civic-border-default); }
+    50% { border-color: var(--civic-ai-accent); }
   }
   .thread-compose-footer {
     display: flex;
@@ -448,15 +448,15 @@
     display: block;
     text-align: right;
     font-size: 10px;
-    color: #6b7280;
+    color: var(--civic-text-dim);
     margin-top: 2px;
   }
-  .char-count.near-limit { color: #dc2626; }
+  .char-count.near-limit { color: var(--civic-status-error-dark); }
   .thread-submit {
     font-size: 11px;
     font-weight: 500;
     padding: 4px 12px;
-    background: #3b82f6;
+    background: var(--civic-accent-primary);
     color: white;
     border: none;
     border-radius: 6px;
@@ -464,11 +464,11 @@
     transition: background 0.15s;
     font-family: inherit;
   }
-  .thread-submit:hover:not(:disabled) { background: #2563eb; }
+  .thread-submit:hover:not(:disabled) { background: var(--civic-accent-primary-hover); }
   .thread-submit:disabled { opacity: 0.4; cursor: default; }
   .thread-error {
     font-size: 10px;
-    color: #ef4444;
+    color: var(--civic-status-error);
     margin-top: 4px;
   }
 </style>
