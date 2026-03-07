@@ -582,4 +582,4 @@ meeting_types = source.discover_meeting_types()
 - [ADMIN_SETUP_GUIDE.md](./ADMIN_SETUP_GUIDE.md) - Full environment setup
 - [DEPLOYMENT_GUIDE.md](../critical/DEPLOYMENT_GUIDE.md) - Production deployment
 - [DATA_INGESTION_OPERATIONS.md](../critical/DATA_INGESTION_OPERATIONS.md) - Ingestion operations
-- [TESTING_STRATEGY.md](../TESTING_STRATEGY.md) - Testing approach
+- [TESTING_STRATEGY.md](../critical/TESTING_STRATEGY.md) - Testing approach

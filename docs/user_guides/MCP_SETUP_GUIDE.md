@@ -1,35 +1,48 @@
 # MCP Server Setup Guide
 
-This guide explains how to connect Civic's MCP (Model Context Protocol) servers to Claude Desktop, giving you AI-powered access to local civic data and public comment drafting tools.
+This guide explains how to connect CivicOS's MCP (Model Context Protocol) server to AI assistants, giving you AI-powered access to local civic data, meeting history, legislation, and community coordination tools.
 
 ## What is MCP?
 
-MCP lets AI assistants like Claude access external tools and data. Civic provides two MCP servers:
+MCP lets AI assistants like Claude and ChatGPT access external tools and data. CivicOS provides a unified MCP server that exposes 25+ tools for querying civic data, drafting public comments, and coordinating community voice.
 
-1. **civic-issues** — Query local civic complaints and issues (SeeClickFix data)
-2. **civicos-server** — Draft public comments for city council meetings
-
-Once connected, you can ask Claude questions like "What issues have been reported on 5th Avenue?" and it will query live civic data to answer.
+Once connected, you can ask your AI assistant questions like "What issues have been reported on 5th Avenue?" and it will query live civic data to answer.
 
 ---
 
-## Prerequisites
+## Option 1: Remote MCP (No Installation)
 
-- **Claude Desktop** (download from [claude.ai/download](https://claude.ai/download))
+Connect directly to the hosted CivicOS MCP server — no local setup required.
+
+=== "Claude (claude.ai or Desktop)"
+
+    1. Go to **Settings > Connectors > Add Connector**
+    2. Enter: `https://san-rafael.civicosproject.org/mcp`
+    3. Ask: *"What's on the San Rafael city council agenda?"*
+
+=== "ChatGPT (Plus/Team)"
+
+    1. **Settings > Connectors > Enable developer mode**
+    2. Add connector: `https://san-rafael.civicosproject.org/mcp`
+    3. Ask: *"What has San Rafael decided about housing?"*
+
+---
+
+## Option 2: Local MCP Server
+
+Run the MCP server locally for development or offline use.
+
+### Prerequisites
+
 - **Python 3.10+** installed
 - **Git** installed
-- **OpenAI API key** (optional, for AI-powered comment drafting)
 
----
-
-## Step 1: Clone and Set Up Civic
-
-If you haven't already installed Civic:
+### Step 1: Clone and Set Up CivicOS
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-org/civic.git
-cd civic
+git clone https://github.com/lounsburynw/civicos.git
+cd civicos
 
 # Create and activate virtual environment
 python3 -m venv civicos-env
@@ -40,46 +53,21 @@ pip install -e packages/civicos
 pip install -e apps/civicos-mcp
 ```
 
-If you already have Civic installed, activate the environment:
-
-```bash
-cd civic
-source civicos-env/bin/activate
-```
-
----
-
-## Step 2: Configure Environment Variables
+### Step 2: Configure Environment
 
 Create or update your `.env` file in the project root:
 
 ```bash
-# Required for AI-powered comment generation (optional)
+# Required for database access
+DATABASE_URL=your_postgres_connection_string
+
+# Required for AI-powered features (embeddings, comment drafting)
 OPENAI_API_KEY=sk-your-openai-api-key-here
 ```
 
-Without an OpenAI key, the `compose_public_comment` tool will use template-based comments instead of AI-generated ones. The `civic-issues` server works without any API keys.
+### Step 3: Configure Claude Desktop
 
----
-
-## Step 3: Find Your Civic Path
-
-You'll need the absolute path to your Civic installation:
-
-```bash
-# From the civic directory, get the full path
-pwd
-```
-
-Note this path (e.g., `/Users/yourname/projects/civic`). You'll use it in the next step.
-
----
-
-## Step 4: Configure Claude Desktop
-
-Claude Desktop reads MCP server configuration from a JSON file. The location depends on your operating system.
-
-### Find Your Config File
+Claude Desktop reads MCP server configuration from a JSON file.
 
 | OS | Config Location |
 |----|-----------------|
@@ -87,201 +75,81 @@ Claude Desktop reads MCP server configuration from a JSON file. The location dep
 | Windows | `%APPDATA%\Claude\claude_desktop_config.json` |
 | Linux | `~/.config/Claude/claude_desktop_config.json` |
 
-### Create or Edit the Config
-
-If the file doesn't exist, create it. Add the Civic MCP servers:
+Add the CivicOS MCP server:
 
 ```json
 {
   "mcpServers": {
-    "civic-issues": {
-      "command": "/path/to/civic/civicos-env/bin/python",
-      "args": ["/path/to/civic/apps/civicos-mcp/civic_issues.py"],
-      "cwd": "/path/to/civic"
-    },
-    "civicos-server": {
-      "command": "/path/to/civic/civicos-env/bin/python",
-      "args": ["/path/to/civic/apps/civicos-mcp/civic_server.py"],
-      "cwd": "/path/to/civic",
+    "civicos": {
+      "command": "/path/to/civicos/civicos-env/bin/python",
+      "args": ["/path/to/civicos/apps/civicos-mcp/server.py"],
+      "cwd": "/path/to/civicos",
       "env": {
-        "OPENAI_API_KEY": "sk-your-openai-api-key-here"
+        "CIVICOS_JURISDICTION": "city-san-rafael"
       }
     }
   }
 }
 ```
 
-**Important:** Replace `/path/to/civic` with your actual path from Step 3.
+**Important:** Replace `/path/to/civicos` with your actual installation path.
 
-### Example (macOS)
+### Step 4: Restart Claude Desktop
 
-If your Civic installation is at `/Users/jane/projects/civic`:
-
-```json
-{
-  "mcpServers": {
-    "civic-issues": {
-      "command": "/Users/jane/projects/civic/civicos-env/bin/python",
-      "args": ["/Users/jane/projects/civic/apps/civicos-mcp/civic_issues.py"],
-      "cwd": "/Users/jane/projects/civic"
-    },
-    "civicos-server": {
-      "command": "/Users/jane/projects/civic/civicos-env/bin/python",
-      "args": ["/Users/jane/projects/civic/apps/civicos-mcp/civic_server.py"],
-      "cwd": "/Users/jane/projects/civic",
-      "env": {
-        "OPENAI_API_KEY": "sk-proj-abc123..."
-      }
-    }
-  }
-}
-```
-
----
-
-## Step 5: Restart Claude Desktop
-
-After saving the config file:
-
-1. Quit Claude Desktop completely (Cmd+Q on macOS, or exit from system tray)
+1. Quit Claude Desktop completely (Cmd+Q on macOS)
 2. Reopen Claude Desktop
-3. The MCP servers will start automatically
+3. The MCP server will start automatically
 
----
+### Step 5: Verify the Connection
 
-## Step 6: Verify the Connection
+Try these prompts in Claude Desktop:
 
-In Claude Desktop, you should see MCP tools available. Try these prompts:
+> "What meetings are coming up in San Rafael?"
 
-### Test civic-issues
+> "What has the council decided about housing?"
 
-> "List the jurisdictions with civic issue data"
-
-Claude should call `list_jurisdictions()` and show you available cities.
-
-### Test with a query
-
-> "What pothole issues have been reported in San Rafael?"
-
-Claude should call `query_issues()` and return actual civic complaint data.
-
-### Test civicos-server
-
-> "Help me draft a public comment supporting the bike lane proposal"
-
-Claude should call `compose_public_comment()` and generate a draft.
+> "What does the municipal code say about ADUs?"
 
 ---
 
 ## Available Tools
 
-Once connected, Claude has access to these tools:
+Once connected, your AI assistant has access to these capabilities:
 
-### civic-issues Server
+### Query Tools
 
-| Tool | Description | Example Use |
-|------|-------------|-------------|
-| `query_issues` | Search civic complaints by location, type, or status | "What issues are on Lincoln Ave?" |
-| `get_issue_stats` | Get aggregate statistics for a jurisdiction | "How many open issues in San Rafael?" |
-| `get_street_issues_summary` | Analyze issues for a specific street | "Summarize 5th Avenue problems" |
-| `list_jurisdictions` | List all available jurisdictions | "What cities have data?" |
+| Tool | Description | Example |
+|------|-------------|---------|
+| Search meeting history | Past decisions, votes, outcomes | *"What happened with the bike lane proposal?"* |
+| Get upcoming meetings | Future meetings and agendas | *"What's on the agenda this month?"* |
+| Search transcripts | What was said in meetings | *"What did residents say about traffic?"* |
+| Search legislation | Municipal code, state/federal law | *"What laws apply to ADUs?"* |
+| Search issues | SeeClickFix/311 complaints | *"What issues are on Lincoln Ave?"* |
+| Search budget | City budget by department | *"How much is spent on public safety?"* |
+| Search agenda packets | Full-text PDF search | *"Find staff reports about Downtown Precise Plan"* |
 
-### civicos-server Server
+### 311 Analytics Tools
 
-| Tool | Description | Example Use |
-|------|-------------|-------------|
-| `compose_public_comment` | Draft a public comment for an agenda item | "Help me write a comment about the housing proposal" |
-| `get_comment_guidelines` | Get submission rules for public comments | "How do I submit a comment in San Rafael?" |
+| Tool | Description |
+|------|-------------|
+| Aggregate stats | Issue counts, types, status breakdown |
+| Geographic search | Issues near a specific address |
+| Trend analysis | Issue types increasing or decreasing |
+| Resolution tracking | How fast issues get resolved |
+| Neighborhood reports | Full report for a zip code |
 
----
+### Action Tools
 
-## Example Prompts
-
-Here are prompts that work well with the Civic MCP servers:
-
-**Finding Issues**
-- "What issues have neighbors reported on my street?"
-- "Show me open pothole complaints in San Rafael"
-- "What are the most common issue types in the city?"
-
-**Analyzing Patterns**
-- "Which streets have the most complaints?"
-- "How many issues are open vs closed?"
-- "What's the issue breakdown by type?"
-
-**Preparing to Participate**
-- "Help me write a public comment opposing the development on 4th Street"
-- "Draft a letter supporting the new bike lanes"
-- "What are the guidelines for speaking at city council?"
+| Tool | Description |
+|------|-------------|
+| Draft public comment | Generate a comment grounded in civic data |
+| Prepare for meeting | Background context, talking points, logistics |
 
 ---
 
-## Troubleshooting
+## REST API Access (No MCP Required)
 
-### Claude doesn't show MCP tools
-
-1. **Check config syntax** — Ensure your JSON is valid (no trailing commas, proper quotes)
-2. **Verify paths** — Use absolute paths, not relative ones like `~/`
-3. **Check Python path** — Use the full path to the Python in your virtual environment
-4. **Restart Claude** — Quit completely and reopen
-
-### "Command not found" or path errors
-
-Make sure you're using the Python from your virtual environment:
-```bash
-# Correct: full path to venv Python
-"/Users/jane/projects/civic/civicos-env/bin/python"
-
-# Wrong: system Python
-"python3"
-```
-
-### Tools work but return no data
-
-1. **Check database** — Verify `data/civic_state.db` exists
-2. **Refresh data** — Run the data extraction scripts if database is empty
-3. **Check jurisdiction** — Use `list_jurisdictions()` to see available data
-
-### AI comments say "template fallback"
-
-This means the OpenAI key isn't configured:
-1. Check `OPENAI_API_KEY` in your config's `env` section
-2. Verify the key is valid
-3. Template comments still work, just less personalized
-
-### Server crashes on startup
-
-Check the logs:
-```bash
-# Test the server directly
-cd /path/to/civic
-source civicos-env/bin/activate
-python apps/civicos-mcp/civic_issues.py
-```
-
-If it runs without errors, the issue is in Claude's configuration.
-
----
-
-## Advanced: HTTP Mode
-
-For integration with other systems, run the servers in HTTP mode:
-
-```bash
-# civic-issues on port 8080
-python apps/civicos-mcp/civic_issues.py --http --port 8080
-
-# civicos-server on port 8081
-python apps/civicos-mcp/civic_server.py --http --port 8081
-```
-
-Connect your MCP client to `http://localhost:8080` or `http://localhost:8081`.
-
----
-
-## REST API Access (No Setup Required)
-
-If you don't need MCP and just want to query civic data programmatically, use the hosted REST API directly. No local installation required.
+Query civic data programmatically via the REST API. No local installation required.
 
 ### Get an API Key
 
@@ -291,19 +159,9 @@ curl -X POST https://san-rafael.civicosproject.org/api/keys/ \
   -d '{"name": "Your Name", "email": "you@example.com"}'
 ```
 
-Response:
-```json
-{
-  "key_id": "cvk_abc123...",
-  "raw_key": "cvk_live_...",
-  "tier": "free",
-  "rate_limit_per_minute": 60
-}
-```
+Save the returned `raw_key` — it's shown once and cannot be retrieved again.
 
-Save the `raw_key` — it's shown once and cannot be retrieved again.
-
-### Make Authenticated Requests
+### Make Requests
 
 ```bash
 # Search meeting history
@@ -311,12 +169,6 @@ curl -X POST https://san-rafael.civicosproject.org/api/tools/search-meeting-hist
   -H "Authorization: Bearer cvk_live_your_key_here" \
   -H "Content-Type: application/json" \
   -d '{"query": "housing"}'
-
-# Get upcoming meetings
-curl -X POST https://san-rafael.civicosproject.org/api/tools/get-upcoming-meetings \
-  -H "Authorization: Bearer cvk_live_your_key_here" \
-  -H "Content-Type: application/json" \
-  -d '{"days": 14}'
 
 # List all available tools
 curl https://san-rafael.civicosproject.org/api/tools/
@@ -329,25 +181,37 @@ curl https://san-rafael.civicosproject.org/api/tools/
 | No API key (public) | 60 requests/min per IP |
 | Free tier key | 60 requests/min per key |
 
-API keys also enable usage tracking. Higher rate limit tiers will be available in the future.
+Full OpenAPI spec: `https://san-rafael.civicosproject.org/openapi.json`
 
-### Available Endpoints
+---
 
-See the full OpenAPI spec at: `https://san-rafael.civicosproject.org/openapi.json`
+## Troubleshooting
+
+### Claude doesn't show MCP tools
+
+1. **Check config syntax** — Ensure your JSON is valid (no trailing commas)
+2. **Verify paths** — Use absolute paths, not relative ones like `~/`
+3. **Check Python path** — Use the full path to the Python in your virtual environment
+4. **Restart Claude** — Quit completely and reopen
+
+### Tools work but return no data
+
+1. **Check environment** — Verify `DATABASE_URL` is set in your `.env`
+2. **Check jurisdiction** — The server defaults to `city-san-rafael`
+
+### Server crashes on startup
+
+Test the server directly:
+
+```bash
+cd /path/to/civicos
+source civicos-env/bin/activate
+python apps/civicos-mcp/server.py
+```
 
 ---
 
 ## Next Steps
 
-- **[Getting Started](GETTING_STARTED.md)** — Learn what you can do with Civic
-- **[Admin Setup Guide](ADMIN_SETUP_GUIDE.md)** — Set up Civic for a new jurisdiction
-
----
-
-## Getting Help
-
-Having trouble?
-
-- Check the [MCP documentation](https://modelcontextprotocol.io/docs)
-- Report issues at the Civic repository
-- Contact your local Civic administrator
+- **[Getting Started](GETTING_STARTED.md)** — Learn what you can do with CivicOS
+- **[Admin Setup Guide](ADMIN_SETUP_GUIDE.md)** — Set up CivicOS for a new jurisdiction

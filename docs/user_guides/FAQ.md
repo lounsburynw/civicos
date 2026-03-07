@@ -121,7 +121,7 @@ CivicOS provides clerk contact information and submission guidelines to make thi
 
 ### What does "voicing" mean?
 
-Voicing is expressing support, opposition, or a question on a civic item (agenda item, initiative, etc.) within the CivicOS coordination system. It's visible to other CivicOS users and helps measure community sentiment, but it is **not** the same as an official public comment submitted to the city.
+Voicing is expressing your stance — support, oppose, or watching — on a civic item (agenda item, initiative, etc.) within the CivicOS coordination system. You can also attach a comment to your voice. It's visible to other CivicOS users and helps measure community sentiment, but it is **not** the same as an official public comment submitted to the city.
 
 ### How do I actually participate in a city council meeting?
 

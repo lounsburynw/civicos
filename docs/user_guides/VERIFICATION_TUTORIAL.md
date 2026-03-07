@@ -189,27 +189,21 @@ Open http://localhost:5173 (or the Vite dev server URL)
 
 ## Part 5: Database Verification
 
-Check that data persists:
+Check that data persists using the CivicOS API (production uses PostgreSQL, not SQLite):
 
-```bash
-sqlite3 data/civic_state.db
+```python
+from dotenv import load_dotenv
+load_dotenv()
 
-# Check tables exist
-.tables
+from civicos import CivicOS
+c = CivicOS('city-san-rafael')
 
-# Check initiatives
-SELECT * FROM initiatives LIMIT 5;
+# Verify backend
+print(f"Backend: {type(c.storage).__name__}")
 
-# Check voices
-SELECT * FROM voices LIMIT 5;
-
-# Check subscriptions
-SELECT * FROM subscriptions LIMIT 5;
-
-# Check outcomes
-SELECT * FROM outcomes LIMIT 5;
-
-.quit
+# Check data counts
+print(f"Meetings: {c.storage.get_meeting_count('city-san-rafael')}")
+print(f"Decisions: {c.storage.get_decision_count('city-san-rafael')}")
 ```
 
 ---
