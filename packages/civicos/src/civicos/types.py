@@ -212,24 +212,6 @@ class ActionDraft:
     citations: List[str] = field(default_factory=list)
 
 
-@dataclass
-class Suggestion:
-    """Proactive suggestion from suggestions()."""
-    type: str  # upcoming_meeting, trending_initiative, coordination_ready
-    title: str
-    reason: str
-    action: str
-    item_id: str
-
-
-@dataclass
-class Outcome:
-    """Recorded outcome from report_outcome()."""
-    item_id: str
-    outcome: str  # passed, failed, continued, modified
-    notes: Optional[str] = None
-    recorded_at: datetime = field(default_factory=datetime.now)
-
 
 # ─────────── BUDGET & FUNDING TYPES ───────────
 

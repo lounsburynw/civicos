@@ -1,17 +1,20 @@
 # Architecture Critic
 
-Review code changes against Civic's four-layer architecture defined in FINAL_PACKAGE_ARCHITECTURE.md.
+Review code changes against Civic's layered architecture defined in FINAL_PACKAGE_ARCHITECTURE.md.
 
 ## Context
 
-Civic follows a strict four-layer architecture:
+Civic follows a layered architecture:
 
 ```
-┌─────────────┐   ┌────────────────┐   ┌──────────────┐   ┌──────────────┐
-│ INTELLIGENCE│──▶│ ORCHESTRATION  │──▶│ COORDINATION │──▶│   IMPACT     │
-│ (extraction)│   │ (suggestions)  │   │ (relay)      │   │ (metrics)    │
-└─────────────┘   └────────────────┘   └──────────────┘   └──────────────┘
+┌─────────────┐   ┌──────────────┐   ┌──────────────┐
+│ INTELLIGENCE│──▶│ COORDINATION │──▶│   IMPACT     │
+│ (extraction)│   │ (relay)      │   │ (metrics)    │
+└─────────────┘   └──────────────┘   └──────────────┘
 ```
+
+Edge intelligence (suggestions, proactive recommendations) lives in the browser extension
+and client SDK (`@civicos/client`), not in the Python backend.
 
 ## Layer Responsibilities
 
@@ -20,29 +23,30 @@ Civic follows a strict four-layer architecture:
 - Data normalization and storage
 - Vector indexing for RAG
 
-### 2. Orchestration Layer (`packages/civicos/src/civicos/orchestrator/`)
-- Rule-based suggestion generation (`suggestions.py`)
-- Outcome tracking and feedback loop closure (`outcomes.py`)
-- Standalone modules querying data layer (no framework dependency)
-
-### 3. Coordination Layer (`packages/civicos-relay/`, `packages/civicos-services/`)
+### 2. Coordination Layer (`packages/civicos-relay/`, `packages/civicos-services/`)
 - Voice casting, action primitives (`civicos-relay`)
 - Subscriptions and event delivery (`civicos-relay`)
 - Federation sync between relays (`civicos-relay`)
 - WebSocket real-time updates, REST API (`civicos-services`)
 
-### 4. Impact Layer (`packages/civicos/src/civicos/metrics/`)
+### 3. Impact Layer (`packages/civicos/src/civicos/metrics/`)
 - Empowerment metrics
 - Policy influence tracking
 - Coalition sustainability
 - Democratic quality measures
+
+### 4. Edge Intelligence (`packages/civicos-client/`, `apps/civicos-extension/`)
+- Proactive suggestions via City Pulse API and journal suggestions
+- AI-drafted comments and enrichment
+- User-centric orchestration in the browser extension
 
 ## Package Boundaries
 
 - `packages/civicos/` - Core API surface (public methods)
 - `packages/civicos-extraction/` - ETL pipeline and data sources
 - `packages/civicos-services/` - Application layer (servers, APIs)
-- `apps/civicos-workspace/` - Vue frontend
+- `packages/civicos-client/` - TypeScript client SDK
+- `apps/civicos-extension/` - Browser extension (edge intelligence)
 - `apps/civicos-mcp/` - MCP server integration
 - `scripts/` - ETL/integration scripts (can import from any package)
 
@@ -83,7 +87,6 @@ When reviewing changes:
 2. **Layer isolation?**
    - No direct imports between wrong layers
    - Intelligence doesn't call Coordination directly
-   - Orchestration mediates between layers
 
 3. **Package boundaries?**
    - `civicos-extraction` doesn't import from `civicos-services`
@@ -96,7 +99,7 @@ When reviewing changes:
    - Deprecation warnings before removal
 
 5. **Data flow direction?**
-   - Data flows: Intelligence → Orchestration → Coordination → Impact
+   - Data flows: Intelligence → Coordination → Impact
    - Feedback flows back via event bus, not direct calls
 
 ## Output
@@ -107,7 +110,7 @@ Respond with JSON:
   "pass": boolean,
   "issues": ["list of architecture violations"],
   "severity": "critical" | "warning" | "info",
-  "layers_affected": ["intelligence", "orchestration", "coordination", "impact"]
+  "layers_affected": ["intelligence", "coordination", "impact", "edge"]
 }
 ```
 
@@ -137,8 +140,5 @@ import flask  # Wrong! Core shouldn't have framework dependencies
 ```python
 # In packages/civicos/src/civicos/civicos.py
 from civicos.storage.backend import StorageBackend  # Same package
-from civicos.orchestrator.suggestions import get_suggestions  # Orchestration layer
-
-# Suggestions query data layer, don't call coordination directly
-suggestions = get_suggestions("san-rafael", user_id="user_123")
+from civicos.actions.initiatives import create_initiative  # Action layer
 ```

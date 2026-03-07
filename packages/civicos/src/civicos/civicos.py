@@ -20,9 +20,6 @@ Usage:
     c.follow("meeting", "mtg_456")
     c.prepare("item_789")
 
-    # AI Orchestration
-    c.suggestions()
-    c.report_outcome("item_789", "passed")
 """
 
 from typing import Optional, List, Any, Dict, Union, Literal, TYPE_CHECKING
@@ -69,8 +66,6 @@ from civicos.types import (
     Subscription,
     Preparation,
     ActionDraft,
-    Suggestion,
-    Outcome,
     BudgetItem,
     BudgetSummary,
     FundingFlow,
@@ -2019,87 +2014,3 @@ IMPORTANT: Start your response with a one-line action description (max 80 chars)
 
         return ActionDraft(draft=draft, description=action_desc, citations=citations)
 
-    # ─────────── ORCHESTRATION METHODS (AI) ───────────
-
-    def suggestions(self, user_id: str = None) -> List[Suggestion]:
-        """
-        Get proactive suggestions.
-
-        AI-driven suggestions based on user interests and system state.
-        Returns suggestions for:
-        - Upcoming meetings matching interests
-        - Trending initiatives gaining momentum
-        - Coordination opportunities (for user's initiatives with 5+ supporters)
-        - Pending outcomes to report
-
-        Args:
-            user_id: Optional user ID for personalization
-
-        Returns:
-            List of suggestions sorted by priority
-        """
-        from civicos.orchestrator.suggestions import get_suggestions as _get_suggestions
-
-        results = _get_suggestions(
-            jurisdiction=self.jurisdiction,
-            user_id=user_id,
-            db_path=self.db_path,
-        )
-
-        # Convert to this module's Suggestion type for consistency
-        return [
-            Suggestion(
-                type=s.type,
-                title=s.title,
-                reason=s.reason,
-                action=s.action,
-                item_id=s.item_id,
-            )
-            for s in results
-        ]
-
-    def report_outcome(
-        self,
-        item_id: str,
-        outcome: str,
-        notes: str = None,
-        item_type: str = "agenda_item",
-        user_id: str = "anonymous",
-        vote_breakdown: dict = None
-    ) -> Outcome:
-        """
-        Report outcome of a decision.
-
-        Closes the feedback loop by recording what happened.
-        This improves future recommendations.
-
-        Args:
-            item_id: ID of the item
-            outcome: Result ("passed", "failed", "continued", "modified")
-            notes: Optional notes (e.g., "Passed 4-1, starts Q2")
-            item_type: Type of item ("initiative", "agenda_item", "decision")
-            user_id: ID of the reporter (default: anonymous)
-            vote_breakdown: Optional vote breakdown (e.g., {"yes": 4, "no": 1})
-
-        Returns:
-            Recorded Outcome
-        """
-        from civicos.orchestrator.outcomes import report_outcome as _report_outcome
-
-        result = _report_outcome(
-            item_id=item_id,
-            outcome=outcome,
-            notes=notes,
-            item_type=item_type,
-            user_id=user_id,
-            vote_breakdown=vote_breakdown,
-            db_path=self.db_path,
-        )
-
-        # Convert to this module's Outcome type for consistency
-        return Outcome(
-            item_id=result.item_id,
-            outcome=result.outcome,
-            notes=result.notes,
-            recorded_at=result.recorded_at,
-        )

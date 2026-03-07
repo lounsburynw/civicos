@@ -25,9 +25,6 @@ Tools exposed:
     - follow: Subscribe to updates
     - prepare: Get meeting preparation materials
 
-    Orchestration (AI):
-    - get_suggestions: Proactive recommendations
-    - report_outcome: Close the feedback loop
 """
 
 from typing import Optional, List
@@ -335,71 +332,6 @@ class CivicServer:
                 "talking_points": prep.talking_points,
                 "allies": prep.allies,
                 "logistics": prep.logistics,
-            }
-
-        # ─────────── ORCHESTRATION TOOLS (AI) ───────────
-
-        @mcp.tool()
-        def get_suggestions(
-            jurisdiction: str,
-            user_id: str = None
-        ) -> list:
-            """
-            Get proactive suggestions for user.
-
-            AI should call this periodically or at session start to surface opportunities.
-
-            Args:
-                jurisdiction: City/jurisdiction ID
-                user_id: Optional user ID for personalization
-
-            Returns:
-                List of suggestions with type, title, reason, action
-            """
-            from civicos.civicos import CivicOS
-            c = CivicOS(jurisdiction, db_path=self.db_path)
-            suggestions = c.suggestions(user_id)
-            return [
-                {
-                    "type": s.type,
-                    "title": s.title,
-                    "reason": s.reason,
-                    "action": s.action,
-                    "item_id": s.item_id,
-                }
-                for s in suggestions
-            ]
-
-        @mcp.tool()
-        def report_outcome(
-            jurisdiction: str,
-            item_id: str,
-            outcome: str,
-            notes: str = None
-        ) -> dict:
-            """
-            Report outcome of a decision/initiative.
-
-            Use when: meeting concluded, vote taken, initiative succeeded/failed.
-            This closes the feedback loop and improves future recommendations.
-
-            Args:
-                jurisdiction: City/jurisdiction ID
-                item_id: ID of the item
-                outcome: Result ("passed", "failed", "continued", "modified")
-                notes: Optional notes (e.g., "Passed 4-1, starts Q2")
-
-            Returns:
-                Recorded outcome info
-            """
-            from civicos.civicos import CivicOS
-            c = CivicOS(jurisdiction, db_path=self.db_path)
-            result = c.report_outcome(item_id, outcome, notes)
-            return {
-                "item_id": result.item_id,
-                "outcome": result.outcome,
-                "recorded_at": str(result.recorded_at),
-                "status": "recorded",
             }
 
         return mcp

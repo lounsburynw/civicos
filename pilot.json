@@ -3586,7 +3586,7 @@
           "Attribution display in CityPulse.svelte (outcome banner, personal impact)",
           "Aggregate attribution for non-participants"
         ],
-        "notes": "Session 570: Promoted to P0. The feedback loop transforms 'I clicked a button' into 'My comment influenced the vote.' See COORDINATION_PROTOCOL.md lines 570-656 for design. Existing report_outcome() in orchestrator/outcomes.py needs relay integration.",
+        "notes": "Session 570: Promoted to P0. The feedback loop transforms 'I clicked a button' into 'My comment influenced the vote.' See COORDINATION_PROTOCOL.md lines 570-656 for design. Outcome reporting needs relay endpoint + extension UI (orchestrator module deprecated).",
         "depends_on": "action_templates"
       }
     },
