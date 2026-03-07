@@ -101,9 +101,6 @@ c.add_voice(...)            # Add voice to item
 c.follow(...)               # Subscribe to updates
 c.prepare(...)              # Generate prep materials
 
-# Orchestration methods (AI-driven)
-c.suggestions()             # Proactive recommendations
-c.report_outcome(...)       # Close feedback loop
 ```
 
 ### Data Access Patterns

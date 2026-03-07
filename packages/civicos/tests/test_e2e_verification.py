@@ -6326,11 +6326,6 @@ class TestCodeAuditArchitecture:
         assert os.path.exists(f"{actions_dir}/subscriptions.py"), "Missing subscriptions.py"
         assert os.path.exists(f"{actions_dir}/preparation.py"), "Missing preparation.py"
 
-        # Orchestrator modules directory
-        orchestrator_dir = f"{civic_src}/orchestrator"
-        assert os.path.isdir(orchestrator_dir), "Missing orchestrator/ directory"
-        assert os.path.exists(f"{orchestrator_dir}/suggestions.py"), "Missing suggestions.py"
-        assert os.path.exists(f"{orchestrator_dir}/outcomes.py"), "Missing outcomes.py"
 
     def test_mcp_tools_match_public_api(self):
         """
@@ -6352,15 +6347,11 @@ class TestCodeAuditArchitecture:
         assert mcp is not None, "MCP server should be created"
         assert mcp.name == "civic", "MCP server should be named 'civic'"
 
-    def test_four_layer_architecture_implemented(self):
+    def test_core_layer_architecture_implemented(self):
         """
-        Architecture specifies four layers:
+        Verify key architectural layers exist:
         1. INTELLIGENCE (data layer)
-        2. ORCHESTRATION (LangGraph workflows)
-        3. COORDINATION (custom coordination)
-        4. IMPACT (metrics)
-
-        Verify key components of each layer exist.
+        2. ACTIONS (civic actions)
         """
         import os
 
@@ -6369,13 +6360,8 @@ class TestCodeAuditArchitecture:
         # Layer 1: Intelligence - internal data modules
         assert os.path.isdir(f"{civic_src}/_internal"), "Missing _internal/ (intelligence layer)"
 
-        # Layer 2: Orchestration - orchestrator with suggestions/outcomes
-        assert os.path.isdir(f"{civic_src}/orchestrator"), "Missing orchestrator/ (orchestration layer)"
-
-        # Layer 3: Coordination - coordination module exists
-        assert os.path.exists(f"{civic_src}/orchestrator/coordinator.py"), "Missing coordinator.py"
-
-        # Note: Impact layer is implicit in report_outcome and not a separate directory
+        # Layer 2: Actions - civic action modules
+        assert os.path.isdir(f"{civic_src}/actions"), "Missing actions/ (action layer)"
 
     def test_query_centric_design(self):
         """

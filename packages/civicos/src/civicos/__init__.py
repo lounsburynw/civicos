@@ -16,7 +16,6 @@ Usage:
     c.start_something(topic="traffic", title="Protected bike lane")
     c.add_voice("agenda_item", "item_123", "support", "As a cyclist...")
 
-    # AI Orchestration
 """
 
 __version__ = "0.1.0"
@@ -39,8 +38,6 @@ from civicos.types import (
     Subscription,
     Preparation,
     ActionDraft,
-    Suggestion,
-    Outcome,
     BudgetItem,
     BudgetSummary,
     FundingFlow,
@@ -143,8 +140,6 @@ __all__ = [
     "Subscription",
     "Preparation",
     "ActionDraft",
-    "Suggestion",
-    "Outcome",
     "BudgetItem",
     "BudgetSummary",
     "FundingFlow",
