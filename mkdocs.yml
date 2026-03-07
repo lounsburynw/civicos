@@ -1,0 +1,165 @@
+site_name: CivicOS
+site_description: Open, permissionless civic infrastructure for AI agents
+site_url: https://docs.civicosproject.org
+repo_url: https://github.com/lounsburynw/civicos
+repo_name: lounsburynw/civicos
+
+theme:
+  name: material
+  logo: assets/logo-light.svg
+  favicon: assets/logo-dark.svg
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: amber
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: indigo
+      accent: amber
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - navigation.indexes
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - toc.follow
+  icon:
+    repo: fontawesome/brands/github
+
+plugins:
+  - search
+  - minify:
+      minify_html: true
+
+exclude_docs: |
+  archive/
+  next_session_prompt.md
+  FEDERAL_PROGRAMS_PARSER_STRATEGY.md
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - tables
+  - attr_list
+  - md_in_html
+  - toc:
+      permalink: true
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/lounsburynw/civicos
+
+nav:
+  - Home:
+    - Overview: index.md
+    - Getting Started: user_guides/GETTING_STARTED.md
+    - FAQ: user_guides/FAQ.md
+
+  - User Guide:
+    - user_guides/GETTING_STARTED.md
+    - Features: user_guides/FEATURE_GUIDE.md
+    - MCP Setup: user_guides/MCP_SETUP_GUIDE.md
+    - Open WebUI Setup: user_guides/OPENWEBUI_SETUP.md
+    - Platform Notes: user_guides/PLATFORM_SPECIFIC_NOTES.md
+    - Verification: user_guides/VERIFICATION_TUTORIAL.md
+    - Attestation: user_guides/ATTESTATION_GUIDE.md
+    - FAQ: user_guides/FAQ.md
+
+  - City Administration:
+    - Onboarding a City: user_guides/CITY_ONBOARDING_GUIDE.md
+    - Admin Setup: user_guides/ADMIN_SETUP_GUIDE.md
+    - Data Management: user_guides/ADMIN_DATA_MANAGEMENT.md
+    - Troubleshooting: user_guides/ADMIN_TROUBLESHOOTING.md
+    - Key Migration: user_guides/KEY_MIGRATION_GUIDE.md
+    - Pilot Users: user_guides/PILOT_USER_IDENTIFICATION.md
+
+  - Architecture:
+    - Package Architecture: critical/FINAL_PACKAGE_ARCHITECTURE.md
+    - Core Hypothesis: critical/FOCAL_POINT_DECISION_AWARENESS.md
+    - Coordination Protocol: critical/COORDINATION_PROTOCOL.md
+    - MCP Integration: critical/MCP_INTEGRATION_STRATEGY.md
+    - Edge Intelligence: critical/EDGE_INTELLIGENCE_ARCHITECTURE.md
+    - Browser Extension: critical/BROWSER_EXTENSION_ARCHITECTURE.md
+    - Civic Lens: critical/CIVIC_LENS_SPEC.md
+    - Dashboard Vision: critical/CIVIC_DASHBOARD_VISION.md
+    - Context Assembly: critical/CONTEXT_ASSEMBLY_API.md
+    - Commitment Tracker: critical/COMMITMENT_TRACKER_ARCHITECTURE.md
+    - Nostr NIPs: critical/NOSTR_CIVIC_NIPS.md
+    - Data:
+      - Data Dictionary: critical/DATA_DICTIONARY.md
+      - Vector & RAG Schema: critical/VECTOR_RAG_SCHEMA.md
+      - Financial Data: critical/FINANCIAL_DATA_INTEGRATION.md
+      - Federal Funding Sources: critical/FEDERAL_FUNDING_DATA_SOURCES.md
+      - Election Integration: critical/ELECTION_INTEGRATION.md
+      - Budget Extraction: critical/BUDGET_EXTRACTION.md
+      - Billing: critical/BILLING_INFRASTRUCTURE.md
+    - Decisions:
+      - Vector Storage: decisions/vector_storage.md
+      - Data Integrity: decisions/data_integrity_infrastructure.md
+      - Data Source Federation: decisions/data_source_federation.md
+      - Entity ID Namespace: decisions/entity_id_namespace.md
+      - Federation Domain: decisions/federation_domain_architecture.md
+      - Privacy-Preserving Billing: decisions/privacy_preserving_billing.md
+
+  - Operations:
+    - Deployment: critical/DEPLOYMENT_GUIDE.md
+    - Hosting Decision: critical/HOSTING_DECISION.md
+    - Secrets Management: critical/SECRETS_MANAGEMENT.md
+    - Data Ingestion: critical/DATA_INGESTION_OPERATIONS.md
+    - Backup Schedule: critical/DAILY_BACKUP_SCHEDULE.md
+    - Pre-Deploy Backup: critical/PRE_DEPLOYMENT_BACKUP.md
+    - Rollback Procedures: critical/ROLLBACK_PROCEDURES.md
+    - Uptime Monitoring: critical/UPTIME_MONITORING.md
+    - Versioning: critical/VERSIONING_STRATEGY.md
+    - Runbooks:
+      - Vector Indexing: operations/VECTOR_INDEXING.md
+      - Operating Costs: operations/OPERATING_COSTS.md
+
+  - Development:
+    - Testing Strategy: critical/TESTING_STRATEGY.md
+    - Extractor Protocol: critical/EXTRACTOR_PROTOCOL.md
+    - SQLite + ChromaDB Patterns: critical/SQLITE_CHROMADB_JOIN_PATTERNS.md
+    - Pilot Roadmap: critical/PILOT_ROADMAP.md
+    - City Deployment Audit: critical/CITY_DEPLOYMENT_AUDIT.md
+
+  - Packages:
+    - packages/index.md
+    - civicos (Core API): packages/civicos.md
+    - civicos-relay (Federation): packages/civicos-relay.md
+    - civicos-extraction (Parsers): packages/civicos-extraction.md
+    - civicos-mcp (MCP Server): packages/civicos-mcp.md
+
+  - Learning:
+    - learning/README.md
+    - Cryptographic Foundations: learning/01_CRYPTOGRAPHIC_FOUNDATIONS.md
+    - Nostr & the Relay: learning/02_NOSTR_AND_THE_RELAY.md
+    - Attestation: learning/03_ATTESTATION_AND_THE_FULL_SYSTEM.md
+    - Relay Trust: learning/04_RELAY_TRUST_AND_INTEGRITY.md
+    - Jurisdiction Scope: learning/05_JURISDICTION_SCOPE_AND_ATTESTATION_ROLLUP.md
+    - Economic Model: learning/06_ECONOMIC_MODEL_AND_SUSTAINABILITY.md
+
+  - About:
+    - Sustainability Model: funding/SUSTAINABILITY_MODEL.md
+    - Foundation Funding: critical/FOUNDATION_FUNDING_THESIS.md
+    - Essay — The Nervous System: essays/the_nervous_system_we_choose_to_build.md

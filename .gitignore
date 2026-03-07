@@ -131,6 +131,9 @@ city-san-rafael
 # Open WebUI fork (symlinked to separate repo)
 apps/civicos-openwebui-fork
 
+# MkDocs build output
+site/
+
 # Node.js
 node_modules/
 package-lock.json
