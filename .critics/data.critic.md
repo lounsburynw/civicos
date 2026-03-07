@@ -18,7 +18,7 @@ Critical invariants:
 - `packages/civicos/src/civicos/storage/corpus_types.py` - **CORPUS_REGISTRY** (source of truth for schema)
 - `packages/civicos/src/civicos/storage/postgres_backend.py` - Schema definitions, store methods
 - `packages/civicos/src/civicos/storage/sqlite_backend.py` - Local schema mirror
-- `packages/civicos/src/civic/diagnostics.py` - DataStatus, VectorCoverage utilities
+- `packages/civicos/src/civicos/diagnostics.py` - DataStatus, VectorCoverage utilities
 - `packages/civicos-extraction/src/civic_extraction/clients/*.py` - Platform clients with normalization
 - `packages/civicos-extraction/src/civic_extraction/meeting_schema.py` - Meeting validation
 - `scripts/modal_ingest.py` - Cloud ingestion pipeline
@@ -28,14 +28,14 @@ Critical invariants:
 **Always use `CORPUS_REGISTRY`** for schema information, not hardcoded values:
 
 ```python
-from civic.storage.corpus_types import CORPUS_REGISTRY, CorpusType
+from civicos.storage.corpus_types import CORPUS_REGISTRY, CorpusType
 
 # Get correct table name
 config = CORPUS_REGISTRY[CorpusType.MEETINGS]
 table = config.sql_table  # "meetings"
 
 # For diagnostics, use DataStatus
-from civic import DataStatus
+from civicos import DataStatus
 status = DataStatus(storage, vectors, 'city-san-rafael')
 ```
 

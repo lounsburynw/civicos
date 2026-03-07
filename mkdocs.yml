@@ -77,14 +77,13 @@ nav:
     - FAQ: user_guides/FAQ.md
 
   - User Guide:
-    - user_guides/GETTING_STARTED.md
+    - Getting Started: user_guides/GETTING_STARTED.md
     - Features: user_guides/FEATURE_GUIDE.md
     - MCP Setup: user_guides/MCP_SETUP_GUIDE.md
     - Open WebUI Setup: user_guides/OPENWEBUI_SETUP.md
     - Platform Notes: user_guides/PLATFORM_SPECIFIC_NOTES.md
     - Verification: user_guides/VERIFICATION_TUTORIAL.md
     - Attestation: user_guides/ATTESTATION_GUIDE.md
-    - FAQ: user_guides/FAQ.md
 
   - City Administration:
     - Onboarding a City: user_guides/CITY_ONBOARDING_GUIDE.md

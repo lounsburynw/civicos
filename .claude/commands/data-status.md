@@ -56,10 +56,10 @@ source civicos-env/bin/activate && python3 -c "
 from dotenv import load_dotenv
 load_dotenv()
 
-from civic import Civic, DataStatus, format_data_status
+from civicos import CivicOS, DataStatus, format_data_status
 
 jurisdiction = '$1' if '$1' else 'city-san-rafael'
-c = Civic(jurisdiction)
+c = CivicOS(jurisdiction)
 
 status = DataStatus(c._storage, c._vectors, jurisdiction)
 report = status.summary()
@@ -74,10 +74,10 @@ source civicos-env/bin/activate && python3 -c "
 from dotenv import load_dotenv
 load_dotenv()
 
-from civic import Civic, DataStatus
+from civicos import CivicOS, DataStatus
 
 jurisdiction = '$1' if '$1' else 'city-san-rafael'
-c = Civic(jurisdiction)
+c = CivicOS(jurisdiction)
 
 status = DataStatus(c._storage, c._vectors, jurisdiction)
 gaps = status.gaps()
@@ -101,10 +101,10 @@ from dotenv import load_dotenv
 load_dotenv()
 import json
 
-from civic import Civic, DataStatus
+from civicos import CivicOS, DataStatus
 
 jurisdiction = '$1' if '$1' else 'city-san-rafael'
-c = Civic(jurisdiction)
+c = CivicOS(jurisdiction)
 
 status = DataStatus(c._storage, c._vectors, jurisdiction)
 report = status.summary()
