@@ -26,6 +26,26 @@ CivicOS aggregates data from multiple sources (agendas, transcripts, municipal c
 
 ---
 
+## Browser Extension
+
+### What is the CivicOS browser extension?
+
+A Chrome extension that brings civic data directly into your browser. It adds a side panel where you can search meeting history, see upcoming decisions, sign public comments, and track issues — all without leaving your current page.
+
+### How do I install the extension?
+
+See the [Browser Extension Setup Guide](BROWSER_EXTENSION_SETUP.md) for installation and first-time setup instructions.
+
+### Is my data private?
+
+Yes. Your identity keys are generated locally and stored in your browser. CivicOS uses Nostr-based cryptographic signatures — your private key never leaves your device. Public actions (like signed comments) are published to the coordination relay.
+
+### Do I need an account?
+
+No traditional account is needed. The extension creates a local cryptographic identity on first use. This identity is yours — it's not stored on any server.
+
+---
+
 ## How It Works
 
 ### How do I connect?

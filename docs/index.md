@@ -13,7 +13,9 @@ Query meetings, decisions, and municipal code. Find neighbors with shared concer
 
 ## Try It Now
 
-CivicOS provides an MCP server. Connect via Claude, ChatGPT, or any MCP-compatible client.
+The **CivicOS browser extension** (Chrome) is the primary way to use CivicOS. It adds a side panel to your browser for searching meetings, tracking decisions, and signing public comments. See the [Browser Extension Setup Guide](user_guides/BROWSER_EXTENSION_SETUP.md).
+
+CivicOS also provides an MCP server. Connect via Claude, ChatGPT, or any MCP-compatible client.
 
 === "Claude"
 
@@ -86,15 +88,18 @@ You  -->  Your AI Agent (Claude, ChatGPT, etc.)
 
 ## San Rafael Pilot Data
 
+*As of March 2026. Ongoing ingestion.*
+
 | Corpus | Records | Source |
 |--------|---------|--------|
-| Meetings | 98 | Legistar API (Oct 2025 - Jan 2026) |
-| Decisions | 44 | Extracted from meeting minutes |
-| Transcripts | 29 | YouTube audio > AssemblyAI |
-| Municipal Code | 16,175 sections | Municode |
-| 311 Complaints | 1,730 | SeeClickFix API |
-| Budget Items | 58 | FY25-26 adopted budget ($180M) |
-| State/Federal Legislation | 17,719 | LegiScan API |
+| Meetings | ~98 | Legistar API (Oct 2025 - present) |
+| Decisions | ~44 | Extracted from meeting minutes |
+| Transcripts | ~19 | YouTube audio > AssemblyAI |
+| Agenda Chunks | ~5,084 | Agenda packet PDFs |
+| Municipal Code | ~16,175 sections | Municode |
+| 311 Complaints | ~1,730 | SeeClickFix API |
+| Budget Items | ~58 | FY25-26 adopted budget ($180M) |
+| State/Federal Legislation | ~17,719 | LegiScan API |
 
 ---
 

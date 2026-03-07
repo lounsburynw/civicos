@@ -1,14 +1,14 @@
 # Civic Platform Verification Tutorial
 
-**Purpose**: Hands-on verification of the Civic platform before pilot launch.
+**Purpose**: Hands-on verification of the CivicOS platform before pilot launch.
 **Audience**: Developers, auditors, and stakeholders testing the system.
-**Last Updated**: 2025-11-30
+**Last Updated**: 2026-03-07
 
 ---
 
 ## Overview
 
-This tutorial walks you through hands-on verification of the Civic platform. You'll test each layer:
+This tutorial walks you through hands-on verification of the CivicOS platform. You'll test each layer:
 
 1. **Python API** - Direct library usage
 2. **REST API** - HTTP endpoints
@@ -110,7 +110,7 @@ print(f"Outcome recorded: {outcome.id}")
 
 ```bash
 # Terminal 1
-python src/civic_api_integrated.py
+python -m civicos_services.civic_api_integrated
 # Should start on http://localhost:8001
 ```
 
@@ -139,7 +139,7 @@ curl -X POST http://localhost:8001/api/add-voice \
 ### 3.1 Test MCP Tools Programmatically
 
 ```python
-from civic.mcp import CivicServer
+from civicos.mcp import CivicServer
 
 server = CivicServer()
 
@@ -166,10 +166,10 @@ print(f"Result: {result}")
 
 ```bash
 # Terminal 1 - API Server
-python src/civic_api_integrated.py
+python -m civicos_services.civic_api_integrated
 
 # Terminal 2 - WebSocket Server
-python src/civic_socketio_server.py
+python -m civicos_services.civic_socketio_server
 
 # Terminal 3 - Frontend
 cd apps/civicos-workspace && npm run dev
@@ -263,6 +263,6 @@ After completing verification:
 
 ## Related Documentation
 
-- [FINAL_PACKAGE_ARCHITECTURE.md](critical/FINAL_PACKAGE_ARCHITECTURE.md) - System architecture
-- [MCP_INTEGRATION_STRATEGY.md](critical/MCP_INTEGRATION_STRATEGY.md) - MCP server design
-- [PILOT_ROADMAP.md](critical/PILOT_ROADMAP.md) - Pilot deployment plan
+- [FINAL_PACKAGE_ARCHITECTURE.md](../critical/FINAL_PACKAGE_ARCHITECTURE.md) - System architecture
+- [MCP_INTEGRATION_STRATEGY.md](../critical/MCP_INTEGRATION_STRATEGY.md) - MCP server design
+- [PILOT_ROADMAP.md](../critical/PILOT_ROADMAP.md) - Pilot deployment plan
