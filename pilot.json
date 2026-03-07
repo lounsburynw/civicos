@@ -1554,11 +1554,20 @@
     },
     "scaling": {
       "turnkey_city_deployment": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 2,
         "description": "Make unified config system actually reduce new city deployment effort. Currently config is ~20% of work; extractors, HUD mapping, and elections are ~80%.",
-        "rationale": "Session 28: Onboarding wizard (civicos-onboard), config validation, hardcoded San Rafael check removed. Remaining: auto-HUD lookup, election scraper framework (deferred to scaling phase).",
+        "rationale": "Session 29: E2E validated — Berkeley dry-run produces valid config, civicos-deploy --dry-run succeeds. /onboard skill created. Remaining scaling items (auto-HUD, election scrapers) deferred.",
         "audit_reference": "docs/critical/CITY_DEPLOYMENT_AUDIT.md",
+        "e2e_validation": {
+          "session": 29,
+          "test_city": "city-berkeley",
+          "civicos_onboard_dry_run": "pass — generates valid YAML with correct hierarchy, TODOs flagged",
+          "civicos_validate": "pass — all checks passed",
+          "civicos_deploy_dry_run": "pass — deployment plan generated",
+          "config_comparison": "Generated config matches existing Berkeley config structure; platform detection missed Granicus (expected — uses separate subdomain)",
+          "onboard_skill": "created .claude/commands/onboard.md"
+        },
         "completed_in_session_28": [
           "civicos-onboard CLI: detect platform -> generate config -> validate -> next steps",
           "Config validation with helpful errors (already existed, verified working)",
