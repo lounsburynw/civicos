@@ -1,26 +1,2 @@
-"""
-Actions Module - Act on civic opportunities
-
-Contains:
-- initiatives.py - start_something()
-- voices.py - add_voice()
-- subscriptions.py - follow()
-- preparation.py - prepare()
-"""
-
-from civicos.actions.initiatives import start_initiative, Initiative
-from civicos.actions.voices import add_voice, Voice
-from civicos.actions.subscriptions import follow_item, unfollow_item, Subscription
-from civicos.actions.preparation import prepare_for_meeting, Preparation
-
-__all__ = [
-    "start_initiative",
-    "Initiative",
-    "add_voice",
-    "Voice",
-    "follow_item",
-    "unfollow_item",
-    "Subscription",
-    "prepare_for_meeting",
-    "Preparation",
-]
+# Actions module — coordination code has moved to civicos-relay.
+# This module is intentionally empty.
