@@ -1,12 +1,25 @@
 # Getting Started with CivicOS
 
-CivicOS connects your AI agent to local government data — meetings, decisions, municipal code, budgets, legislation, and community issues. Ask questions in natural language and get answers grounded in real civic data.
+CivicOS connects you to local government data — meetings, decisions, municipal code, budgets, legislation, and community issues. Ask questions in natural language and get answers grounded in real civic data.
 
 ---
 
-## Connect in 60 Seconds
+## Get Started in 60 Seconds
 
-CivicOS works through the Model Context Protocol (MCP). Connect from any compatible AI client:
+### Option 1: Browser Extension (Recommended)
+
+Install the CivicOS Chrome extension to get civic data directly in your browser:
+
+1. Install from the [Chrome Web Store](https://chrome.google.com/webstore) (or sideload from source — see [Browser Extension Setup](BROWSER_EXTENSION_SETUP.md))
+2. Click the CivicOS icon in your toolbar and open the side panel
+3. Create your local identity (keys are generated on your device — no account needed)
+4. Ask: *"What's on the San Rafael city council agenda?"*
+
+The extension adds a side panel where you can search meeting history, see upcoming decisions, sign public comments, and track community issues — all without leaving your current page.
+
+### Option 2: MCP (For AI Agents)
+
+Connect your AI agent via the Model Context Protocol:
 
 === "Claude (claude.ai or Desktop)"
 
@@ -20,7 +33,24 @@ CivicOS works through the Model Context Protocol (MCP). Connect from any compati
     2. Add connector: `https://san-rafael.civicosproject.org/mcp`
     3. Ask: *"What has San Rafael decided about housing?"*
 
-Once connected, say **"get started"** and the agent will walk you through what's available.
+### Option 3: REST API (For Developers)
+
+Query civic data programmatically. No local installation required.
+
+```bash
+# Get an API key
+curl -X POST https://san-rafael.civicosproject.org/api/keys/ \
+  -H "Content-Type: application/json" \
+  -d '{"name": "Your Name", "email": "you@example.com"}'
+
+# Search meeting history
+curl -X POST https://san-rafael.civicosproject.org/api/tools/search-meeting-history \
+  -H "Authorization: Bearer cvk_live_your_key_here" \
+  -H "Content-Type: application/json" \
+  -d '{"query": "housing"}'
+```
+
+See the [MCP Setup Guide](MCP_SETUP_GUIDE.md) for detailed API documentation.
 
 ---
 

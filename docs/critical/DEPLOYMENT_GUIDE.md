@@ -2,66 +2,70 @@
 
 > **Claude Code:** Run `/launch` to start dev servers locally, `/db-backup` before any destructive operation, and `/commit` to run critics before committing.
 
-> **Note:** Production deployments now use **Modal**, not Fly.io. Some sections below reference the legacy Fly.io setup. See CLAUDE.md for current deployment instructions.
+**Last Updated:** 2026-03-07
 
-**Last Updated:** 2025-12-16
-
-This guide provides step-by-step instructions for deploying the Civic platform. For architecture decisions and cost analysis, see [HOSTING_DECISION.md](./HOSTING_DECISION.md).
+This guide provides step-by-step instructions for deploying the CivicOS platform on Modal. For architecture decisions and cost analysis, see [HOSTING_DECISION.md](./HOSTING_DECISION.md).
 
 ## Table of Contents
 
-1. [Data Architecture](#data-architecture)
+1. [Architecture Overview](#architecture-overview)
 2. [Prerequisites](#prerequisites)
 3. [Pre-Deployment Checklist](#pre-deployment-checklist)
 4. [First-Time Deployment](#first-time-deployment)
-5. [Updating an Existing Deployment](#updating-an-existing-deployment)
-6. [Updating Data](#updating-data)
+5. [Updating Deployments](#updating-deployments)
+6. [Data Operations](#data-operations)
 7. [Post-Deployment Verification](#post-deployment-verification)
 8. [Troubleshooting](#troubleshooting)
-9. [Related Documentation](#related-documentation)
+9. [Quick Reference Commands](#quick-reference-commands)
+10. [Related Documentation](#related-documentation)
 
 ---
 
-## Data Architecture
+## Architecture Overview
 
-The platform uses a **hybrid data model** that separates read-only reference data from persistent user data:
+CivicOS runs entirely on serverless infrastructure. There are no containers to manage, no volumes to provision, and no persistent disks.
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                     PRODUCTION DATA LAYOUT                       │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                  │
-│  Docker Image (rebuilt on deploy)     Fly Volume (persistent)   │
-│  ────────────────────────────────     ───────────────────────   │
-│                                                                  │
-│  /app/bundled-data/                   /app/user-data/           │
-│  ├── pilot/                           ├── civic_participation.db│
-│  │   └── vectors/                     ├── sessions/             │
-│  │       └── city-{name}/             └── backups/              │
-│  ├── events/                                                     │
-│  └── legislative_context/             (Never overwritten)       │
-│                                                                  │
-│  (Updated each deploy)                                           │
-│                                                                  │
-└─────────────────────────────────────────────────────────────────┘
+                        CivicOS Production Architecture
+
+ ┌──────────────────────────────────────────────────────────────────────┐
+ │                          Modal (Serverless)                          │
+ │                                                                      │
+ │  civicos-api          HTTP API server (FastAPI)                      │
+ │  civicos-mcp          MCP server (Model Context Protocol)            │
+ │  civicos-relay        Coordination relay (voice, actions, sync)      │
+ │  civicos-websocket    WebSocket server (real-time updates)           │
+ │  civicos-vectors      GPU vector indexing (on-demand)                │
+ │                                                                      │
+ └──────────────┬──────────────────────┬────────────────────────────────┘
+                │                      │
+                ▼                      ▼
+ ┌──────────────────────┐   ┌──────────────────────┐
+ │  Supabase PostgreSQL  │   │   Cloudflare R2      │
+ │                       │   │                      │
+ │  - Civic data (SQL)   │   │  - PDFs (agendas)    │
+ │  - pgvector embeddings│   │  - Audio (meetings)  │
+ │  - Relay/coordination │   │  - Static assets     │
+ │  - Automatic backups  │   │                      │
+ └──────────────────────┘   └──────────────────────┘
 ```
 
-### Data Types
+### Data Layer
 
-| Data | Location | Updates | Persistence |
-|------|----------|---------|-------------|
-| **Events/Meetings** | `/app/bundled-data/events/` | Each deploy | Baked into image |
-| **Vector Embeddings** | `/app/bundled-data/pilot/vectors/` | Each deploy | Baked into image |
-| **Legislative Context** | `/app/bundled-data/legislative_context/` | Each deploy | Baked into image |
-| **User Participation** | `/app/user-data/civic_participation.db` | Runtime | Fly.io volume |
-| **Sessions** | `/app/user-data/sessions/` | Runtime | Fly.io volume |
+| Data | Storage | Details |
+|------|---------|---------|
+| Meetings, decisions, transcripts | Supabase PostgreSQL | Main database |
+| Vector embeddings | Supabase pgvector | Semantic search |
+| Coordination (voices, actions) | Supabase PostgreSQL | Relay database |
+| PDFs, audio files | Cloudflare R2 | Blob storage |
+| Secrets / env vars | Modal Secrets | Encrypted, injected at runtime |
 
 ### Benefits
 
-- ✅ **Simple updates**: Just deploy to update reference data
-- ✅ **User data preserved**: Never overwritten by deploys
-- ✅ **Rollback-safe**: Old images contain old reference data
-- ✅ **No runtime complexity**: No data fetching or syncing needed
+- No infrastructure to manage -- Modal scales to zero when idle
+- GPU access for vector indexing without provisioning machines
+- Database backups handled by Supabase automatically
+- Deployments are instant re-deploys of Python functions
 
 ---
 
@@ -70,316 +74,260 @@ The platform uses a **hybrid data model** that separates read-only reference dat
 ### Required Tools
 
 ```bash
-# 1. Install Fly CLI
-curl -L https://fly.io/install.sh | sh
+# 1. Install Modal CLI
+pip install modal
 
-# 2. Verify installation
-fly version
-# Expected: fly v0.x.x
+# 2. Authenticate (opens browser)
+modal setup
 
-# 3. Authenticate (opens browser)
-fly auth login
+# 3. Verify installation
+modal --version
 ```
 
 ### Required Accounts
 
 | Service | Purpose | Sign Up |
 |---------|---------|---------|
-| Fly.io | Hosting platform | [fly.io/app/sign-up](https://fly.io/app/sign-up) |
-| OpenAI | LLM API | [platform.openai.com](https://platform.openai.com) |
+| [Modal](https://modal.com) | Serverless compute (API, relay, GPU) | modal.com |
+| [Supabase](https://supabase.com) | PostgreSQL + pgvector database | supabase.com |
+| [Cloudflare](https://cloudflare.com) | R2 blob storage | cloudflare.com |
+| [OpenAI](https://platform.openai.com) | LLM API | platform.openai.com |
 
 ### Required Secrets
 
-Before deployment, gather these values. See [SECRETS_MANAGEMENT.md](./SECRETS_MANAGEMENT.md) for details.
+All secrets are stored in Modal as a single secret group called `civicos-secrets`. See [SECRETS_MANAGEMENT.md](./SECRETS_MANAGEMENT.md) for rotation procedures.
 
-| Secret | Required | How to Generate |
-|--------|----------|-----------------|
-| `OPENAI_API_KEY` | Yes | From OpenAI dashboard |
-| `CIVICOS_WEB_KEY` | Yes (prod) | `openssl rand -hex 32` |
-| `CIVICOS_CORS_ORIGINS` | Yes (prod) | Your frontend domain(s) |
+| Secret | Required | Description |
+|--------|----------|-------------|
+| `OPENAI_API_KEY` | Yes | OpenAI API key |
+| `DATABASE_URL` | Yes | Supabase PostgreSQL connection string (main DB) |
+| `RELAY_DATABASE_URL` | Yes | Supabase PostgreSQL connection string (relay DB) |
+| `BLOB_STORAGE_URL` | Yes | Cloudflare R2 endpoint |
+| `CIVICOS_WEB_KEY` | Yes (prod) | API authentication key (`openssl rand -hex 32`) |
+| `CIVICOS_CORS_ORIGINS` | Yes (prod) | Allowed frontend origins |
 
 ---
 
 ## Pre-Deployment Checklist
 
-Complete these steps before every deployment:
+Complete these steps before every deployment.
 
 ### Code Verification
 
-- [ ] All tests pass locally: `pytest packages/civic/tests/ -q`
+- [ ] All tests pass: `pytest packages/civicos/tests/test_civicos.py -q --override-ini="addopts="`
 - [ ] No uncommitted changes: `git status`
 - [ ] On correct branch: `git branch --show-current`
-- [ ] Docker builds successfully: `docker build -t civic-test .`
 
 ### Backup (for updates only)
 
-- [ ] Run pre-deployment backup:
+- [ ] Run database backup via `/db-backup` or:
   ```bash
-  # On production server
-  fly ssh console -a civic-api -C "python scripts/backup.py"
-
-  # Download backup locally
-  fly ssh sftp get /app/user-data/backups/latest.tar.gz ./backups/
+  source civicos-env/bin/activate
+  python scripts/db_backup.py --action selective
   ```
 
 ### Secrets Verification
 
 - [ ] Verify all secrets are configured:
   ```bash
-  fly secrets list -a civic-api
-  fly secrets list -a civic-websocket
+  modal secret list
   ```
+- [ ] Confirm `civicos-secrets` appears in the list
 
 ---
 
 ## First-Time Deployment
 
-Follow these steps for initial deployment only. For updates, see [Updating an Existing Deployment](#updating-an-existing-deployment).
+Follow these steps for initial deployment. For updates, see [Updating Deployments](#updating-deployments).
 
-### Step 1: Create Fly.io Apps
+### Step 1: Create Supabase Projects
 
-```bash
-# Create both applications
-fly apps create civic-api
-fly apps create civic-websocket
+1. Create **main database** project (civic data):
+   - Enable pgvector extension: `CREATE EXTENSION IF NOT EXISTS vector;`
+   - Note the connection string for `DATABASE_URL`
 
-# Verify creation
-fly apps list
-```
+2. Create **relay database** project (coordination data):
+   - Note the connection string for `RELAY_DATABASE_URL`
+   - Use `db.PROJECT_REF.supabase.co:6543` pooler format
 
-**Expected output:**
-```
-NAME            OWNER           STATUS  PLATFORM
-civic-api       personal        pending machines
-civic-websocket personal        pending machines
-```
+3. Run schema migrations:
+   ```bash
+   source civicos-env/bin/activate
+   python scripts/migrate.py
+   ```
 
-### Step 2: Create Persistent Volumes
-
-Data persistence requires volumes. Both apps share data via identical volumes in the same region.
+### Step 2: Create Modal Secrets
 
 ```bash
-# Create volume for API server (3GB)
-fly volumes create civic_data --region sjc --size 3 -a civic-api
-
-# Create volume for WebSocket server (3GB)
-fly volumes create civic_data --region sjc --size 3 -a civic-websocket
-```
-
-**Expected output:**
-```
-        ID: vol_xxxxxxxxxxxxx
-      Name: civic_data
-       App: civic-api
-    Region: sjc
-      Zone: xxxx
-   Size GB: 3
- Encrypted: true
-Created at: ...
-```
-
-**Verify volumes:**
-```bash
-fly volumes list -a civic-api
-fly volumes list -a civic-websocket
-```
-
-### Step 3: Configure Secrets
-
-Set required secrets for both applications:
-
-```bash
-# API server secrets
-fly secrets set \
+modal secret create civicos-secrets \
   OPENAI_API_KEY="sk-proj-..." \
+  DATABASE_URL="postgresql://..." \
+  RELAY_DATABASE_URL="postgresql://..." \
+  BLOB_STORAGE_URL="https://..." \
   CIVICOS_WEB_KEY="$(openssl rand -hex 32)" \
-  CIVICOS_CORS_ORIGINS="https://your-frontend-domain.com" \
-  -a civic-api
-
-# WebSocket server secrets (same values)
-fly secrets set \
-  OPENAI_API_KEY="sk-proj-..." \
-  CIVICOS_WEB_KEY="your-civic-web-key" \
-  -a civic-websocket
+  CIVICOS_CORS_ORIGINS="https://your-frontend-domain.com"
 ```
 
-**Verify secrets are set:**
+Verify:
 ```bash
-fly secrets list -a civic-api
+modal secret list
 ```
 
-**Expected output:**
-```
-NAME                    DIGEST                  CREATED AT
-CIVICOS_CORS_ORIGINS      xxxxxxxx                ...
-CIVICOS_WEB_KEY           xxxxxxxx                ...
-OPENAI_API_KEY          xxxxxxxx                ...
-```
-
-### Step 4: Deploy Applications
-
-Deploy both applications:
-
-```bash
-# Deploy API server (uses fly.toml)
-fly deploy -a civic-api
-
-# Deploy WebSocket server (uses fly.websocket.toml)
-fly deploy -a civic-websocket --config fly.websocket.toml
-```
-
-**Expected output for successful deployment:**
-```
-==> Building image
-...
-==> Pushing image
-...
-==> Creating release
-...
-==> Monitoring deployment
- 1 desired, 1 placed, 1 healthy, 0 unhealthy [health checks: 1 total, 1 passing]
---> v1 deployed successfully
-```
-
-### Step 5: Initialize Database (First Time Only)
-
-SSH into the container and run migrations:
-
-```bash
-# Connect to API server
-fly ssh console -a civic-api
-
-# Inside container: check migration status
-python scripts/migrate.py --status
-
-# Run migrations if needed
-python scripts/migrate.py
-
-# Exit container
-exit
-```
-
-### Step 6: Verify Deployment
-
-See [Post-Deployment Verification](#post-deployment-verification) for complete verification steps.
-
----
-
-## Updating an Existing Deployment
-
-For routine updates after initial deployment.
-
-### Step 1: Pre-Update Backup
-
-```bash
-# Create backup before any changes
-fly ssh console -a civic-api -C "python scripts/backup.py"
-
-# Verify backup was created
-fly ssh console -a civic-api -C "python scripts/backup.py --list"
-```
-
-### Step 2: Deploy Updates
+### Step 3: Deploy All Services
 
 ```bash
 # Deploy API server
-fly deploy -a civic-api
+modal deploy packages/civicos-services/src/civicos_services/servers/modal_api.py
+
+# Deploy MCP server
+modal deploy apps/civicos-mcp/modal_mcp.py
+
+# Deploy relay
+modal deploy packages/civicos-relay/src/civicos_relay/modal_relay.py
 
 # Deploy WebSocket server
-fly deploy -a civic-websocket --config fly.websocket.toml
+modal deploy packages/civicos-services/src/civicos_services/servers/modal_websocket.py
 ```
 
-### Step 3: Monitor Deployment
+Each command outputs the public URL for the deployed service.
 
-Watch the deployment progress:
+### Step 4: Run Initial Vector Indexing
+
+Vector indexing runs on Modal GPUs:
 
 ```bash
-# Real-time logs during deployment
-fly logs -a civic-api
-
-# Check deployment status
-fly status -a civic-api
+modal run scripts/modal_ingest.py
 ```
 
-### Step 4: Run Migrations (If Needed)
-
-Only if schema changes are included:
-
-```bash
-fly ssh console -a civic-api -C "python scripts/migrate.py --status"
-fly ssh console -a civic-api -C "python scripts/migrate.py"
-```
-
-### Step 5: Verify
+### Step 5: Verify Deployment
 
 See [Post-Deployment Verification](#post-deployment-verification).
 
 ---
 
-## Updating Data
+## Updating Deployments
 
-Reference data (events, vectors, legislative context) is bundled into the Docker image. To update it:
+Updating a Modal deployment is a single command per service. Modal handles zero-downtime rollover automatically.
 
-### Weekly Data Refresh
-
-```bash
-# 1. Refresh events from civic data sources
-python -m civic.extraction.scraper
-
-# 2. Regenerate vector embeddings (if events changed significantly)
-python -m civic.rag.vectorize
-
-# 3. Commit updated data
-git add data/
-git commit -m "Weekly data refresh"
-
-# 4. Deploy (data is bundled into image)
-fly deploy -a civic-api
-fly deploy -a civic-websocket --config fly.websocket.toml
-```
-
-### Quarterly Legislative Refresh
+### Deploy a Single Service
 
 ```bash
-# Run the legislative verification script
-./scripts/quarterly_legislative_refresh.sh
-
-# Review and update legislative context files
-# Edit files in data/legislative_context/
-
-# Commit and deploy
-git add data/legislative_context/
-git commit -m "Quarterly legislative context update"
-fly deploy -a civic-api
+# Just re-run the deploy command for the changed service
+modal deploy packages/civicos-services/src/civicos_services/servers/modal_api.py
 ```
 
-### Adding a New City
+### Deploy All Services
 
 ```bash
-# 1. Extract events for the new city
-python -m civic.extraction.scraper --city new-city-name
+# API
+modal deploy packages/civicos-services/src/civicos_services/servers/modal_api.py
 
-# 2. Generate vectors for the new city
-python -m civic.rag.vectorize --city new-city-name
+# MCP
+modal deploy apps/civicos-mcp/modal_mcp.py
 
-# 3. Verify locally
-pytest packages/civic/tests/test_integration_rag.py -k new_city
+# Relay
+modal deploy packages/civicos-relay/src/civicos_relay/modal_relay.py
 
-# 4. Commit and deploy
-git add data/
-git commit -m "Add new-city-name to platform"
-fly deploy -a civic-api
+# WebSocket
+modal deploy packages/civicos-services/src/civicos_services/servers/modal_websocket.py
 ```
 
-### What NOT to Update via Deploy
+### Update Secrets
 
-User data is stored on the persistent volume and should **never** be included in deploys:
+```bash
+# Update a specific secret value
+modal secret create civicos-secrets \
+  OPENAI_API_KEY="sk-proj-new-key..." \
+  DATABASE_URL="postgresql://..." \
+  RELAY_DATABASE_URL="postgresql://..." \
+  BLOB_STORAGE_URL="https://..." \
+  CIVICOS_WEB_KEY="existing-key" \
+  CIVICOS_CORS_ORIGINS="https://your-domain.com"
 
-- `civic_participation.db` - User preferences, participation history
-- Session data - Active user sessions
-- Backups - Created by backup.py script
+# Re-deploy services to pick up new secrets
+modal deploy packages/civicos-services/src/civicos_services/servers/modal_api.py
+```
 
-These are managed via the backup/restore scripts, not deployments.
+Note: `modal secret create` replaces the entire secret group. Include all values, not just the one you are changing.
+
+---
+
+## Data Operations
+
+All data lives in Supabase PostgreSQL and Cloudflare R2. Data operations run via Modal or locally.
+
+### Ingestion Pipeline
+
+Use the `/ingest` command or run directly:
+
+```bash
+# Run ingestion pipeline on Modal (GPU-accelerated)
+modal run scripts/modal_ingest.py
+
+# Check ingestion status
+source civicos-env/bin/activate
+python -c "
+from dotenv import load_dotenv; load_dotenv()
+from civicos import CivicOS, DataStatus, format_data_status
+c = CivicOS('city-san-rafael')
+status = DataStatus(c.storage, c._vectors, 'city-san-rafael')
+print(format_data_status(status.summary()))
+"
+```
+
+### Vector Indexing (GPU)
+
+Vector embeddings are computed on Modal GPUs and stored in Supabase pgvector:
+
+```bash
+# Full re-index
+modal run scripts/modal_ingest.py
+
+# Check vector coverage
+# Use /vector-coverage command or:
+source civicos-env/bin/activate
+python -c "
+from dotenv import load_dotenv; load_dotenv()
+from civicos import CivicOS, VectorCoverage
+c = CivicOS('city-san-rafael')
+vc = VectorCoverage(c.storage, c._vectors, 'city-san-rafael')
+print(vc.summary())
+"
+```
+
+### Adding a New Jurisdiction
+
+```bash
+# 1. Run extraction for the new jurisdiction
+source civicos-env/bin/activate
+python -m civicos_extraction.scraper --jurisdiction city-new-name
+
+# 2. Ingest data into PostgreSQL
+python scripts/ingest.py --jurisdiction city-new-name
+
+# 3. Generate vector embeddings on Modal GPU
+modal run scripts/modal_ingest.py --jurisdiction city-new-name
+
+# 4. Verify
+python -c "
+from dotenv import load_dotenv; load_dotenv()
+from civicos import CivicOS
+c = CivicOS('city-new-name')
+print(f'Decisions: {c.storage.get_decision_count(\"city-new-name\")}')
+"
+```
+
+### Database Backups
+
+Supabase provides automatic daily backups. For manual backups:
+
+```bash
+# Selective backup (specific tables)
+python scripts/db_backup.py --action selective
+
+# Full backup
+python scripts/db_backup.py --action full
+```
 
 ---
 
@@ -387,79 +335,61 @@ These are managed via the backup/restore scripts, not deployments.
 
 Run these checks after every deployment.
 
-### Check Application Status
+### Check Running Apps
 
 ```bash
-# Check both apps are running
-fly status -a civic-api
-fly status -a civic-websocket
+modal app list
 ```
 
-**Expected output:**
-```
-App
-  Name     = civic-api
-  Owner    = personal
-  Hostname = civic-api.fly.dev
-  Platform = machines
+Expected: `civicos-api`, `civicos-mcp`, `civicos-relay`, `civicos-websocket` all showing as deployed.
 
-Machines
-PROCESS ID              VERSION REGION  STATE   HEALTH CHECKS   LAST UPDATED
-app     xxxxxxxxxxxxx   1       sjc     started 1 total, 1 passing ...
+### View Logs
+
+```bash
+# View logs for a specific app
+modal app logs civicos-api
+
+# Follow logs in real-time
+modal app logs civicos-api --follow
 ```
 
 ### Test Health Endpoints
 
 ```bash
-# API server health
-curl -s https://civic-api.fly.dev/health | jq .
-# Expected: {"status": "healthy", ...}
-
-# WebSocket server health
-curl -s https://civic-websocket.fly.dev/health | jq .
+# API server health (URL from deploy output)
+curl -s https://YOUR-MODAL-URL/health | jq .
 # Expected: {"status": "healthy", ...}
 ```
 
 ### Test API Endpoints
 
 ```bash
-# Test events endpoint (requires auth)
+# Test civic query
 curl -s -H "Authorization: Bearer YOUR_CIVICOS_WEB_KEY" \
-  https://civic-api.fly.dev/api/events | jq .
-
-# Test civic info
-curl -s -H "Authorization: Bearer YOUR_CIVICOS_WEB_KEY" \
-  https://civic-api.fly.dev/api/civic/san-rafael | jq .
+  https://YOUR-MODAL-URL/api/civic/city-san-rafael/whats-next | jq .
 ```
 
-### Check Logs for Errors
+### Verify Database Connectivity
 
 ```bash
-# Recent logs (last 100 lines)
-fly logs -a civic-api -n 100
-
-# Filter for errors
-fly logs -a civic-api | grep -i error
+source civicos-env/bin/activate
+python -c "
+from dotenv import load_dotenv; load_dotenv()
+from civicos import CivicOS
+c = CivicOS('city-san-rafael')
+print(f'Backend: {type(c.storage).__name__}')
+print(f'Decisions: {c.storage.get_decision_count(\"city-san-rafael\")}')
+print(f'Meetings: {len(c.storage.get_meetings(\"city-san-rafael\"))}')
+"
 ```
 
-### Verify Data Persistence
+Expected: `Backend: PostgresBackend` with non-zero counts.
 
-```bash
-# Check user data on persistent volume
-fly ssh console -a civic-api -C "ls -la /app/user-data/"
-
-# Check bundled reference data (baked into image)
-fly ssh console -a civic-api -C "ls -la /app/bundled-data/pilot/vectors/"
-
-# Verify vector stores for each city
-fly ssh console -a civic-api -C "ls -la /app/bundled-data/pilot/vectors/city-*"
-```
-
-### External Monitoring Check
+### External Monitoring
 
 If UptimeRobot is configured (see [UPTIME_MONITORING.md](./UPTIME_MONITORING.md)):
-- Log into UptimeRobot dashboard
 - Verify monitors show "Up" status
+- Check Supabase dashboard for database health
 
 ---
 
@@ -467,113 +397,112 @@ If UptimeRobot is configured (see [UPTIME_MONITORING.md](./UPTIME_MONITORING.md)
 
 ### Deployment Fails
 
-**Symptom:** `fly deploy` exits with error
+**Symptom:** `modal deploy` exits with an error.
 
 **Solutions:**
 ```bash
-# Check build logs
-fly logs -a civic-api
+# Check for Python import errors locally
+source civicos-env/bin/activate
+python -c "import civicos_services"
 
-# Verify Dockerfile builds locally
-docker build -t civic-test .
+# Verify Modal CLI is authenticated
+modal profile current
 
-# Check for resource issues
-fly scale show -a civic-api
+# Check Modal status page
+# https://status.modal.com
 ```
 
-### Health Checks Failing
+### Service Not Responding
 
-**Symptom:** Deployment hangs at "waiting for health checks"
+**Symptom:** Deployed URL returns errors or timeouts.
 
 **Solutions:**
 ```bash
-# Check application logs
-fly logs -a civic-api
+# Check app logs for errors
+modal app logs civicos-api
 
-# Verify health endpoint locally
-curl http://localhost:8001/health
+# Verify the app is listed
+modal app list
 
-# Check container is starting
-fly status -a civic-api
+# Re-deploy
+modal deploy packages/civicos-services/src/civicos_services/servers/modal_api.py
 ```
 
-### Cannot Connect to Database
+### Database Connection Errors
 
-**Symptom:** SQLite errors in logs
+**Symptom:** "connection refused" or timeout errors in logs.
 
 **Solutions:**
 ```bash
-# Check volume is mounted (user data)
-fly ssh console -a civic-api -C "df -h /app/user-data"
+# Verify DATABASE_URL is in Modal secrets
+modal secret list
 
-# Check database permissions
-fly ssh console -a civic-api -C "ls -la /app/user-data/*.db"
+# Test connection locally
+source civicos-env/bin/activate
+python -c "
+from dotenv import load_dotenv; load_dotenv()
+import psycopg2
+conn = psycopg2.connect(os.environ['DATABASE_URL'])
+print('Connected successfully')
+conn.close()
+"
 
-# Verify SQLite integrity
-fly ssh console -a civic-api -C "python scripts/backup.py --status"
+# Re-create secrets if needed
+modal secret create civicos-secrets ...
 ```
+
+Common causes:
+- Supabase project is paused (free tier pauses after inactivity)
+- Connection string uses wrong pooler format
+- Relay DB must use `db.PROJECT_REF.supabase.co:6543` format
 
 ### Secrets Not Available
 
-**Symptom:** "Environment variable not set" errors
+**Symptom:** "Environment variable not set" errors in logs.
 
 **Solutions:**
 ```bash
 # List current secrets
-fly secrets list -a civic-api
+modal secret list
 
-# Re-set a secret
-fly secrets set OPENAI_API_KEY="sk-proj-..." -a civic-api
+# Re-create the secret group with all values
+modal secret create civicos-secrets \
+  OPENAI_API_KEY="..." \
+  DATABASE_URL="..." \
+  ...
 
-# Redeploy to pick up new secrets
-fly deploy -a civic-api
+# Re-deploy to pick up new secrets
+modal deploy packages/civicos-services/src/civicos_services/servers/modal_api.py
 ```
 
-### Out of Memory
+### Vector Indexing Fails
 
-**Symptom:** Container restarts, OOM in logs
+**Symptom:** `modal run scripts/modal_ingest.py` errors out.
 
 **Solutions:**
 ```bash
-# Check current memory
-fly scale show -a civic-api
+# Check logs for the run
+modal app logs civicos-vectors
 
-# Increase memory (costs more)
-fly scale memory 512 -a civic-api
+# Verify GPU availability (Modal handles this, but check for quota issues)
+modal profile current
+
+# Run with smaller batch for debugging
+modal run scripts/modal_ingest.py --limit 10
 ```
 
-### Volume Full
+### Rollback
 
-**Symptom:** Write errors, backup failures
-
-**Solutions:**
-```bash
-# Check disk usage (user data volume)
-fly ssh console -a civic-api -C "df -h /app/user-data"
-
-# Clean old backups
-fly ssh console -a civic-api -C "python scripts/backup.py --clean"
-
-# Expand volume (requires downtime)
-fly volumes extend vol_xxxxx --size 5 -a civic-api
-```
-
-**Note:** Reference data (vectors, events) is in the Docker image, not the volume.
-If the image is too large, clean up old/test city data locally before deploying.
-
-### Rollback to Previous Version
-
-If a deployment causes issues:
+Modal keeps previous deployments. To rollback:
 
 ```bash
-# List recent releases
-fly releases -a civic-api
-
-# Rollback to specific version
-fly deploy -a civic-api --image registry.fly.io/civic-api:vN
+# Re-deploy from a previous git commit
+git checkout <previous-commit>
+modal deploy packages/civicos-services/src/civicos_services/servers/modal_api.py
+git checkout main
 ```
 
-For detailed rollback procedures including data restore and coordinated two-app rollback, see [ROLLBACK_PROCEDURES.md](./ROLLBACK_PROCEDURES.md).
+For detailed rollback procedures including database restore, see [ROLLBACK_PROCEDURES.md](./ROLLBACK_PROCEDURES.md).
 
 ---
 
@@ -581,17 +510,19 @@ For detailed rollback procedures including data restore and coordinated two-app 
 
 | Task | Command |
 |------|---------|
-| Deploy API | `fly deploy -a civic-api` |
-| Deploy WebSocket | `fly deploy -a civic-websocket --config fly.websocket.toml` |
-| View logs | `fly logs -a civic-api` |
-| SSH into container | `fly ssh console -a civic-api` |
-| Check status | `fly status -a civic-api` |
-| List secrets | `fly secrets list -a civic-api` |
-| Set secret | `fly secrets set KEY=value -a civic-api` |
-| Run backup | `fly ssh console -a civic-api -C "python scripts/backup.py"` |
-| Check health | `curl https://civic-api.fly.dev/health` |
-| View releases | `fly releases -a civic-api` |
-| Check billing | `fly billing` |
+| Deploy API | `modal deploy packages/civicos-services/src/civicos_services/servers/modal_api.py` |
+| Deploy MCP | `modal deploy apps/civicos-mcp/modal_mcp.py` |
+| Deploy Relay | `modal deploy packages/civicos-relay/src/civicos_relay/modal_relay.py` |
+| Deploy WebSocket | `modal deploy packages/civicos-services/src/civicos_services/servers/modal_websocket.py` |
+| Run vector indexing | `modal run scripts/modal_ingest.py` |
+| List running apps | `modal app list` |
+| View logs | `modal app logs civicos-api` |
+| List secrets | `modal secret list` |
+| Create/update secrets | `modal secret create civicos-secrets KEY=value ...` |
+| Check Modal auth | `modal profile current` |
+| Database backup | `python scripts/db_backup.py --action selective` |
+| Data status | `/data-status city-san-rafael` |
+| Vector coverage | `/vector-coverage city-san-rafael` |
 
 ---
 
@@ -603,10 +534,10 @@ For detailed rollback procedures including data restore and coordinated two-app 
 | [SECRETS_MANAGEMENT.md](./SECRETS_MANAGEMENT.md) | All secrets configuration and rotation |
 | [UPTIME_MONITORING.md](./UPTIME_MONITORING.md) | External monitoring setup |
 | [ROLLBACK_PROCEDURES.md](./ROLLBACK_PROCEDURES.md) | Detailed rollback and data restore procedures |
-| [fly.toml](../../fly.toml) | API server Fly.io configuration |
-| [fly.websocket.toml](../../fly.websocket.toml) | WebSocket server Fly.io configuration |
-| [scripts/backup.py](../../scripts/backup.py) | Backup/restore operations |
-| [scripts/migrate.py](../../scripts/migrate.py) | Database migrations |
+| [PRE_DEPLOYMENT_BACKUP.md](./PRE_DEPLOYMENT_BACKUP.md) | Backup before deploy |
+| [DAILY_BACKUP_SCHEDULE.md](./DAILY_BACKUP_SCHEDULE.md) | Ongoing backup schedule |
+| [DATA_INGESTION_OPERATIONS.md](./DATA_INGESTION_OPERATIONS.md) | ETL operations |
+| [VECTOR_RAG_SCHEMA.md](./VECTOR_RAG_SCHEMA.md) | Vector storage schema |
 
 ---
 
@@ -614,10 +545,8 @@ For detailed rollback procedures including data restore and coordinated two-app 
 
 | Date | Decision | Rationale |
 |------|----------|-----------|
-| 2025-12-11 | Use Fly.io | Best cost/feature balance (<$7/mo budget) |
+| 2025-12-11 | Use Fly.io | Initial choice for cost/feature balance |
 | 2025-12-11 | SJC region | Closest to San Rafael pilot |
-| 2025-12-11 | 3GB volumes | Sufficient for user data + backups + growth |
-| 2025-12-11 | Separate apps | Independent scaling, clearer health checks |
 | 2025-12-16 | Hybrid data model | Bundle reference data in image, user data on volume |
-| 2025-12-16 | `/app/bundled-data` | Read-only reference data (vectors, events, legislative) |
-| 2025-12-16 | `/app/user-data` | Persistent user data (participation DB, sessions) |
+| 2026-02 | Migrate to Modal | Serverless, GPU access for vectors, simpler than Fly.io |
+| 2026-02 | Supabase PostgreSQL | Managed DB with pgvector, automatic backups, eliminates local SQLite/volumes |
