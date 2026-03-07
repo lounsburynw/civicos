@@ -350,9 +350,9 @@
   .topic-filter-pill {
     padding: 3px 8px;
     border-radius: 10px;
-    border: 1px solid #333;
+    border: 1px solid var(--civic-border-input);
     background: transparent;
-    color: #6b7280;
+    color: var(--civic-text-dim);
     font-size: 10px;
     font-weight: 500;
     cursor: pointer;
@@ -360,48 +360,48 @@
     font-family: inherit;
   }
   .topic-filter-pill:hover {
-    color: #9ca3af;
-    border-color: #4b5563;
+    color: var(--civic-text-muted);
+    border-color: var(--civic-text-disabled);
   }
   .topic-filter-pill.active {
-    background: rgba(96, 165, 250, 0.1);
-    border-color: rgba(96, 165, 250, 0.3);
-    color: #60a5fa;
+    background: var(--civic-accent-primary-bg-badge);
+    border-color: var(--civic-accent-primary-border-testimony);
+    color: var(--civic-accent-primary-light);
   }
   .topic-filter-clear {
     padding: 3px 8px;
     border-radius: 10px;
     border: none;
     background: none;
-    color: #4b5563;
+    color: var(--civic-text-disabled);
     font-size: 10px;
     cursor: pointer;
     font-family: inherit;
   }
-  .topic-filter-clear:hover { color: #6b7280; }
+  .topic-filter-clear:hover { color: var(--civic-text-dim); }
 
   .card {
-    background: #1e1e1e;
+    background: var(--civic-surface-card);
     border-radius: 8px;
     padding: 10px 12px;
     margin-bottom: 4px;
-    border: 1px solid #262626;
+    border: 1px solid var(--civic-surface-elevated);
     transition: border-color 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
     cursor: grab;
   }
   .card:hover {
-    border-color: #374151;
+    border-color: var(--civic-border-default);
   }
   .card:active { cursor: grabbing; }
   .card.dragging {
     opacity: 0.4;
-    border-color: #4b5563;
+    border-color: var(--civic-text-disabled);
   }
   .expanded-card {
-    border: 1px solid #262626;
+    border: 1px solid var(--civic-surface-elevated);
   }
   .empty-section {
-    color: #6b7280;
+    color: var(--civic-text-dim);
     font-size: 12px;
     padding: 8px 0;
     text-align: center;

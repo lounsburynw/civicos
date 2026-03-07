@@ -1,0 +1,8 @@
+/*
+ * Dark theme (default) — inherits all values from tokens.css :root
+ * This file exists so the theme switcher has an explicit dark entry.
+ * Only overrides needed if tokens.css defaults ever diverge.
+ */
+[data-theme="dark"] {
+  /* All values match tokens.css :root — no overrides needed */
+}

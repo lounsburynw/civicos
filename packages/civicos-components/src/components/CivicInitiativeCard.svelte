@@ -262,8 +262,8 @@
     align-items: center;
     gap: 3px;
     padding: 2px 8px;
-    background: rgba(255, 255, 255, 0.06);
-    color: #9ca3af;
+    background: var(--civic-hover-bg);
+    color: var(--civic-text-muted);
     font-size: 10px;
     font-weight: 600;
     border-radius: 10px;
@@ -273,7 +273,7 @@
   .ini-attested-check {
     width: 10px;
     height: 10px;
-    color: #4ade80;
+    color: var(--civic-status-success-light);
     flex-shrink: 0;
   }
   .ini-card-badges {
@@ -286,29 +286,29 @@
     display: flex;
     align-items: center;
     gap: 3px;
-    color: #9ca3af;
+    color: var(--civic-text-muted);
   }
   .ini-voice-icon {
     width: 13px;
     height: 13px;
-    color: #6b7280;
+    color: var(--civic-text-dim);
   }
   .ini-voice-num {
     font-size: 11px;
     font-weight: 600;
     font-variant-numeric: tabular-nums;
-    color: #9ca3af;
+    color: var(--civic-text-muted);
   }
   .ini-coord-icon {
     width: 13px;
     height: 13px;
-    color: #6b7280;
+    color: var(--civic-text-dim);
     flex-shrink: 0;
   }
   .ini-expand-chevron {
     width: 12px;
     height: 12px;
-    color: #6b7280;
+    color: var(--civic-text-dim);
     flex-shrink: 0;
     transition: transform 150ms ease;
   }
@@ -316,16 +316,16 @@
     transform: rotate(180deg);
   }
   .ini-card-title {
-    color: #eee;
+    color: var(--civic-text-primary);
     font-size: 13px;
     font-weight: 500;
     line-height: 1.3;
   }
-  .ini-card-toggle:hover .ini-card-title { color: #e5e7eb; }
-  .ini-card-toggle:hover .ini-expand-chevron { color: #9ca3af; }
-  .ini-card-toggle:hover .ini-coord-icon { color: #9ca3af; }
+  .ini-card-toggle:hover .ini-card-title { color: var(--civic-text-secondary); }
+  .ini-card-toggle:hover .ini-expand-chevron { color: var(--civic-text-muted); }
+  .ini-card-toggle:hover .ini-coord-icon { color: var(--civic-text-muted); }
   .ini-card-desc {
-    color: #6b7280;
+    color: var(--civic-text-dim);
     font-size: 12px;
     margin-top: 3px;
     display: -webkit-box;
@@ -342,12 +342,12 @@
     margin-top: 4px;
     font-size: 10px;
   }
-  .ini-stat { color: #9ca3af; }
-  .ini-stat.ini-stat-done { color: #4ade80; }
+  .ini-stat { color: var(--civic-text-muted); }
+  .ini-stat.ini-stat-done { color: var(--civic-status-success-light); }
 
   /* === Expanded detail === */
   .ini-detail {
-    border-top: 1px solid #262626;
+    border-top: 1px solid var(--civic-surface-elevated);
     padding-top: 10px;
     margin-top: 10px;
     display: flex;
@@ -359,24 +359,24 @@
     align-items: center;
     gap: 6px;
     font-size: 12px;
-    color: #9ca3af;
+    color: var(--civic-text-muted);
     text-decoration: none;
     transition: color 0.15s;
   }
-  .ini-coord-link:hover { color: #d1d5db; text-decoration: underline; }
-  .ini-detail-msg { font-size: 12px; color: #6b7280; font-style: italic; }
+  .ini-coord-link:hover { color: var(--civic-text-body); text-decoration: underline; }
+  .ini-detail-msg { font-size: 12px; color: var(--civic-text-dim); font-style: italic; }
   .ini-detail-label {
     font-size: 11px;
     font-weight: 600;
-    color: #9ca3af;
+    color: var(--civic-text-muted);
     text-transform: uppercase;
     letter-spacing: 0.04em;
   }
 
   /* === Action cards === */
   .ini-action {
-    background: #1a1a1a;
-    border: 1px solid #333;
+    background: var(--civic-surface-card-alt);
+    border: 1px solid var(--civic-border-input);
     border-radius: 8px;
     padding: 10px 12px;
     position: relative;
@@ -392,8 +392,8 @@
     font-weight: 600;
     padding: 2px 8px;
     border-radius: 6px;
-    background: rgba(255, 255, 255, 0.06);
-    color: #9ca3af;
+    background: var(--civic-hover-bg);
+    color: var(--civic-text-muted);
   }
   .ini-deadline {
     font-size: 11px;
@@ -401,11 +401,11 @@
     padding: 2px 8px;
     border-radius: 6px;
   }
-  .ini-deadline.normal { background: rgba(107, 114, 128, 0.12); color: #9ca3af; }
-  .ini-deadline.urgent { background: rgba(251, 191, 36, 0.12); color: #fbbf24; }
-  .ini-deadline.overdue { background: rgba(239, 68, 68, 0.12); color: #f87171; }
-  .ini-action-desc { font-size: 13px; color: #d1d5db; line-height: 1.4; }
-  .ini-action-target { font-size: 12px; color: #6b7280; margin-top: 2px; }
+  .ini-deadline.normal { background: var(--civic-status-neutral-bg-badge); color: var(--civic-text-muted); }
+  .ini-deadline.urgent { background: var(--civic-status-warning-bg-subtle); color: var(--civic-status-warning-light); }
+  .ini-deadline.overdue { background: var(--civic-status-error-bg-badge); color: var(--civic-status-error-light); }
+  .ini-action-desc { font-size: 13px; color: var(--civic-text-body); line-height: 1.4; }
+  .ini-action-target { font-size: 12px; color: var(--civic-text-dim); margin-top: 2px; }
 
   /* === Progress bar === */
   .ini-progress {
@@ -417,17 +417,17 @@
   .ini-progress-bar {
     flex: 1;
     height: 6px;
-    background: #333;
+    background: var(--civic-border-input);
     border-radius: 3px;
     overflow: hidden;
   }
   .ini-progress-fill {
     height: 100%;
-    background: #6b7280;
+    background: var(--civic-text-dim);
     border-radius: 2px;
     transition: width 0.3s ease;
   }
-  .ini-progress-text { font-size: 11px; color: #6b7280; white-space: nowrap; }
+  .ini-progress-text { font-size: 11px; color: var(--civic-text-dim); white-space: nowrap; }
 
   /* === Action buttons === */
   .ini-action-btns {
@@ -438,30 +438,30 @@
   }
   .ini-btn-primary {
     padding: 8px 16px;
-    border: 1px solid rgba(255, 255, 255, 0.15);
+    border: 1px solid var(--civic-overlay-medium);
     border-radius: 8px;
-    background: rgba(255, 255, 255, 0.1);
-    color: #e5e7eb;
+    background: var(--civic-overlay-light);
+    color: var(--civic-text-secondary);
     font-size: 13px;
     font-weight: 500;
     cursor: pointer;
     transition: all 0.15s;
     font-family: inherit;
   }
-  .ini-btn-primary:hover:not(:disabled) { background: rgba(255, 255, 255, 0.15); border-color: rgba(255, 255, 255, 0.25); }
+  .ini-btn-primary:hover:not(:disabled) { background: var(--civic-overlay-medium); border-color: var(--civic-overlay-highlight); }
   .ini-btn-primary:disabled { opacity: 0.4; cursor: default; }
   .ini-btn-cancel {
     padding: 8px 14px;
-    border: 1px solid #374151;
+    border: 1px solid var(--civic-border-default);
     border-radius: 8px;
     background: transparent;
-    color: #9ca3af;
+    color: var(--civic-text-muted);
     font-size: 13px;
     cursor: pointer;
     transition: all 0.15s;
     font-family: inherit;
   }
-  .ini-btn-cancel:hover { border-color: #4b5563; color: #d1d5db; }
+  .ini-btn-cancel:hover { border-color: var(--civic-text-disabled); color: var(--civic-text-body); }
   .ini-btn-sm { padding: 5px 12px; font-size: 12px; }
   .ini-completed-label {
     display: inline-flex;
@@ -469,31 +469,31 @@
     gap: 4px;
     font-size: 12px;
     font-weight: 600;
-    color: #4ade80;
+    color: var(--civic-status-success-light);
     padding: 3px 10px;
-    background: rgba(34, 197, 94, 0.1);
+    background: var(--civic-status-success-bg-chip);
     border-radius: 6px;
   }
   .ini-locked-hint {
     font-size: 11px;
-    color: #6b7280;
+    color: var(--civic-text-dim);
     font-style: italic;
   }
 
   /* === Template draft === */
   .ini-draft {
     margin-top: 8px;
-    border: 1px solid rgba(139, 92, 246, 0.2);
+    border: 1px solid var(--civic-ai-border-medium);
     border-radius: 8px;
     padding: 8px;
-    background: rgba(139, 92, 246, 0.05);
+    background: var(--civic-ai-bg-suggestion);
   }
   .ini-draft-text {
     width: 100%;
     min-height: 120px;
     background: transparent;
     border: none;
-    color: #d1d5db;
+    color: var(--civic-text-body);
     font-size: 12px;
     line-height: 1.5;
     resize: vertical;
@@ -510,14 +510,14 @@
     padding: 3px 10px;
     font-size: 11px;
     font-weight: 500;
-    color: #a78bfa;
-    background: rgba(139, 92, 246, 0.15);
-    border: 1px solid rgba(139, 92, 246, 0.3);
+    color: var(--civic-ai-accent);
+    background: var(--civic-ai-border-subtle);
+    border: 1px solid var(--civic-ai-border-accept);
     border-radius: 6px;
     cursor: pointer;
     font-family: inherit;
   }
-  .ini-btn-copy:hover { background: rgba(139, 92, 246, 0.25); }
+  .ini-btn-copy:hover { background: var(--civic-ai-border-blockquote); }
 
   /* === Add Action button === */
   .ini-add-action {
@@ -527,14 +527,14 @@
     gap: 6px;
     width: 100%;
     background: transparent;
-    border: 1px dashed #374151;
+    border: 1px dashed var(--civic-border-default);
     border-radius: 8px;
-    color: #6b7280;
+    color: var(--civic-text-dim);
     font-size: 12px;
     padding: 8px;
     cursor: pointer;
     transition: all 0.15s;
     font-family: inherit;
   }
-  .ini-add-action:hover { color: #3b82f6; border-color: #3b82f6; }
+  .ini-add-action:hover { color: var(--civic-accent-primary); border-color: var(--civic-accent-primary); }
 </style>

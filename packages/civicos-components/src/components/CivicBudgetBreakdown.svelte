@@ -136,13 +136,13 @@
 <style>
   .viz-loading {
     font-size: 11px;
-    color: #6b7280;
+    color: var(--civic-text-dim);
     padding: 12px 0;
     text-align: center;
   }
   .empty-section {
     font-size: 11px;
-    color: #6b7280;
+    color: var(--civic-text-dim);
     padding: 8px 0;
   }
   .legend-dot {
@@ -161,11 +161,11 @@
   .budget-total {
     font-size: 18px;
     font-weight: 700;
-    color: #eee;
+    color: var(--civic-text-primary);
   }
   .budget-year {
     font-size: 11px;
-    color: #6b7280;
+    color: var(--civic-text-dim);
   }
   .chart-wrapper {
     display: flex;
@@ -188,19 +188,19 @@
   }
   .budget-cat-name {
     flex: 1;
-    color: #d1d5db;
+    color: var(--civic-text-body);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
   .budget-cat-amount {
-    color: #6b7280;
+    color: var(--civic-text-dim);
     font-variant-numeric: tabular-nums;
     white-space: nowrap;
   }
   .budget-legend-more {
     font-size: 10px;
-    color: #4b5563;
+    color: var(--civic-text-disabled);
     margin-top: 4px;
   }
 </style>
