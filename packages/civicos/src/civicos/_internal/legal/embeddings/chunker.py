@@ -276,19 +276,18 @@ def expand_municipal_code_to_chunks(
         section_header = "".join(header_parts)
 
         # Create source_id for chunk tracking
-        # Use database id if available (guaranteed unique), fallback to section_number
-        db_id = section.get("id")  # Database UUID for traceback to source row
-        if db_id:
-            source_id = f"mc-{db_id}"
-        else:
-            source_id = f"mc-{section_number}"
+        # Use section_number (stable across re-fetches) as the canonical ID.
+        # Database UUIDs change on every temporal version, which causes duplicate
+        # vectors since ON CONFLICT (id) never matches old chunk IDs.
+        # section_number is unique within a jurisdiction and stable over time.
+        source_id = f"mc-{section_number}"
 
         # Metadata to preserve across chunks
         base_metadata = {
             "section_number": section_number,
             "section_name": section.get("section_name"),
             "chapter": section.get("chapter"),
-            "db_id": db_id,  # Traceback to source row
+            "db_id": section.get("id"),  # Traceback to source row (UUID, changes per fetch)
         }
 
         # Chunk the section text

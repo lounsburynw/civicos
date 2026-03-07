@@ -3640,25 +3640,43 @@ class PostgresBackend:
                 as_of.isoformat()
             ))
 
-            # Close previous versions for this jurisdiction
-            cursor.execute("""
-                UPDATE municipal_code
-                SET valid_to = %s
-                WHERE jurisdiction_id = %s
-                  AND valid_to IS NULL
-            """, (as_of.isoformat(), jurisdiction_id))
-
-            # Insert new versions
-            count = 0
+            # Build lookup of incoming sections by section_number
+            incoming_by_number = {}
             for section in sections:
-                section_number = section.get('section_number')
-                if not section_number:
-                    continue  # Skip sections without section_number
+                sn = section.get('section_number')
+                if sn:
+                    incoming_by_number[sn] = section
 
-                # Generate a unique ID for this section version
-                import uuid
+            # Fetch current versions to detect actual changes
+            cursor.execute("""
+                SELECT id, section_number, full_text
+                FROM municipal_code
+                WHERE jurisdiction_id = %s AND valid_to IS NULL
+            """, (jurisdiction_id,))
+            current_rows = cursor.fetchall()
+
+            # Index current rows by section_number (keep first if duplicates exist)
+            current_by_number: dict = {}
+            for row_id, sn, full_text in current_rows:
+                if sn not in current_by_number:
+                    current_by_number[sn] = (row_id, full_text or "")
+
+            # Determine which sections are new or changed
+            import uuid
+            count = 0
+            sections_to_close = []  # section_numbers whose content changed
+
+            for sn, section in incoming_by_number.items():
+                new_text = section.get('full_text', '')
+                if sn in current_by_number:
+                    _existing_id, existing_text = current_by_number[sn]
+                    if new_text == existing_text:
+                        continue  # Content unchanged — skip
+                    # Content changed — close old version, insert new
+                    sections_to_close.append(sn)
+                # New section or changed content — insert
+
                 section_id = str(uuid.uuid4())
-
                 cursor.execute("""
                     INSERT INTO municipal_code (
                         id, jurisdiction_id, section_number, section_title,
@@ -3669,9 +3687,9 @@ class PostgresBackend:
                 """, (
                     section_id,
                     jurisdiction_id,
-                    section_number,
+                    sn,
                     section.get('section_title', ''),
-                    section.get('full_text', ''),
+                    new_text,
                     section.get('chapter', ''),
                     section.get('chapter_title'),
                     section.get('title_number'),
@@ -3684,6 +3702,27 @@ class PostgresBackend:
                     section.get('extraction_version'),
                 ))
                 count += 1
+
+            # Close old versions only for sections that actually changed
+            if sections_to_close:
+                cursor.execute("""
+                    UPDATE municipal_code
+                    SET valid_to = %s
+                    WHERE jurisdiction_id = %s
+                      AND valid_to IS NULL
+                      AND section_number = ANY(%s)
+                """, (as_of.isoformat(), jurisdiction_id, sections_to_close))
+
+            # Close sections that were removed from source (no longer in Municode)
+            removed_sections = set(current_by_number.keys()) - set(incoming_by_number.keys())
+            if removed_sections:
+                cursor.execute("""
+                    UPDATE municipal_code
+                    SET valid_to = %s
+                    WHERE jurisdiction_id = %s
+                      AND valid_to IS NULL
+                      AND section_number = ANY(%s)
+                """, (as_of.isoformat(), jurisdiction_id, list(removed_sections)))
 
             conn.commit()
             return count
