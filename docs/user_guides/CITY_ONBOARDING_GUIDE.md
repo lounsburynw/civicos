@@ -56,6 +56,8 @@ For each city, Civic ingests:
 
 ## Quick Start: Onboarding Wizard
 
+**Using Claude Code?** Run `/onboard` for an interactive guided walkthrough that handles platform detection, config generation, validation, and deployment step by step.
+
 The fastest way to onboard a new city is the `civicos-onboard` CLI:
 
 ```bash
