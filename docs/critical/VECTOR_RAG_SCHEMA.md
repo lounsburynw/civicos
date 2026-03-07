@@ -494,9 +494,7 @@ The vector database **complements** (not replaces) the civic-state SQLite databa
 | `whats_next()` | SQLite (meetings) | - |
 | `what_applies()` | SQLite + embeddings (future) | SQLite keyword |
 | `what_happened()` | ChromaDB (decisions) | SQLite keyword |
-| `whos_with_me()` | SQLite (initiatives) | - |
-| `start_something()` | SQLite (initiatives) | - |
-| `add_voice()` | SQLite (voices) | - |
+| `whos_with_me()` | SQLite (issues) | - |
 
 ---
 

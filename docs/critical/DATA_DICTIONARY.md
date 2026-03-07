@@ -125,10 +125,8 @@ from civicos import CivicOS
 
 c = CivicOS("san-rafael")
 
-# Prepare for a specific agenda item
-prep = c.prepare(meeting_id="2025-01-15-council", item_number="6.a")
-print(prep.summary)
-print(prep.participation_guide)
+# Meeting preparation has moved to civicos-relay
+# See civicos-relay documentation for participation tools
 ```
 
 ---

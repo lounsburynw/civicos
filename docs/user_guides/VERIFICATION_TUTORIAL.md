@@ -58,49 +58,10 @@ community = c.whos_with_me("bike lanes")
 print(f"Community: {community}")
 ```
 
-### 1.2 Action Methods
+### 1.2 Coordination (civicos-relay)
 
-```python
-# Start an initiative
-initiative = c.start_something(
-    topic="traffic safety",
-    title="Protected bike lane on 4th Street",
-    description="Near-misses every week at 4th & B intersection"
-)
-print(f"Created: {initiative.id}")
-
-# Add your voice
-voice = c.add_voice(
-    item_type="initiative",
-    item_id=initiative.id,
-    stance="support",
-    comment="I bike this route daily and it's dangerous"
-)
-print(f"Voice added: {voice.id}")
-
-# Follow the initiative
-sub = c.follow(
-    item_type="initiative",
-    item_id=initiative.id
-)
-print(f"Following: {sub.id}")
-```
-
-### 1.3 Orchestration Methods
-
-```python
-# Get AI-powered suggestions
-suggestions = c.suggestions()
-print(f"Suggestions: {suggestions}")
-
-# Report an outcome (closes feedback loop)
-outcome = c.report_outcome(
-    item_id=initiative.id,
-    outcome="passed",
-    notes="Council approved 4-1"
-)
-print(f"Outcome recorded: {outcome.id}")
-```
+Action methods (voices, initiatives, subscriptions) have moved to the `civicos-relay` package.
+See the relay documentation for coordination verification steps.
 
 ---
 
@@ -122,14 +83,7 @@ curl http://localhost:8001/api/whats-next/san-rafael
 curl http://localhost:8001/api/what-applies/san-rafael/housing
 curl http://localhost:8001/api/what-happened/san-rafael/traffic
 
-# Action endpoints
-curl -X POST http://localhost:8001/api/start-something \
-  -H "Content-Type: application/json" \
-  -d '{"jurisdiction": "san-rafael", "topic": "parking", "title": "Resident parking permits", "description": "Downtown parking is impossible"}'
-
-curl -X POST http://localhost:8001/api/add-voice \
-  -H "Content-Type: application/json" \
-  -d '{"item_type": "initiative", "item_id": "init_test123", "stance": "support", "comment": "I agree!"}'
+# Action endpoints have moved to civicos-relay
 ```
 
 ---
@@ -155,8 +109,7 @@ print(f"Result: {result}")
 ### 3.2 Expected Tools
 
 - **Query**: `what_applies`, `what_happened`, `whats_next`, `whos_with_me`
-- **Action**: `start_something`, `add_voice`, `follow`, `prepare`
-- **Orchestration**: `get_suggestions`, `coordinate`, `report_outcome`
+- **Action tools**: moved to civicos-relay MCP server (apps/civicos-mcp/)
 
 ---
 
@@ -215,14 +168,9 @@ print(f"Decisions: {c.storage.get_decision_count('city-san-rafael')}")
 | **Python API** | `CivicOS("san-rafael")` instantiates | |
 | **Query** | `whats_next()` returns list | |
 | **Query** | `what_applies("housing")` returns context | |
-| **Action** | `start_something()` creates initiative | |
-| **Action** | `add_voice()` records stance | |
-| **Action** | `follow()` creates subscription | |
-| **Orchestration** | `suggestions()` returns recommendations | |
-| **Orchestration** | `report_outcome()` records outcome | |
+| **Coordination** | Action methods — see civicos-relay | |
 | **REST API** | Server starts on 8001 | |
 | **REST API** | GET endpoints return data | |
-| **REST API** | POST endpoints create records | |
 | **MCP Server** | Tools list correctly | |
 | **MCP Server** | Tool calls execute | |
 | **Database** | Tables exist | |

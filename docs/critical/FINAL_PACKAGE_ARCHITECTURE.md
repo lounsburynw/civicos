@@ -144,36 +144,10 @@ c.whats_next(topics?, days?) -> List[Meeting]
 c.whos_with_me(topic) -> Community
 ```
 
-### Action Methods (Act)
+### Coordination Methods (Act) — civicos-relay
 
-```python
-# Start an initiative
-c.start_something(
-    topic="traffic safety",
-    title="Protected bike lane on 4th St",
-    description="Near-misses every week...",
-    location="4th St & B St"
-) -> Initiative
-
-# Add your voice to something
-c.add_voice(
-    item_type="initiative",  # or "agenda_item", "decision"
-    item_id="init_123",
-    stance="support",        # support, oppose, watching
-    comment="As a daily cyclist..."
-) -> Voice
-
-# Follow something for updates
-c.follow(
-    item_type="meeting",     # meeting, initiative, topic, decision
-    item_id="mtg_456"
-) -> Subscription
-
-# Prepare to participate
-c.prepare(
-    agenda_item_id="item_789"
-) -> Preparation  # Context, talking points, allies, logistics
-```
+Action methods (voices, initiatives, subscriptions) have moved to the `civicos-relay` package,
+which uses PostgreSQL, Nostr protocol, and BIP-340 Schnorr signatures.
 
 ---
 
@@ -192,16 +166,15 @@ c.prepare(
    "Meeting Tuesday - 2 others following this"
         │
         ▼
-3. USER ACTS
-   c.start_something("Protected bike lane on 4th")
-   c.add_voice(item_id, "support", comment)
+3. USER ACTS (via civicos-relay)
+   Voice casting, initiative creation, subscriptions
         │
         ▼
-4. SYSTEM TRACKS
-   - Who acted
+4. SYSTEM TRACKS (via civicos-relay)
+   - Who acted (Nostr identity)
    - On what
    - When
-   - Context at time of action
+   - Cryptographic attestation
         │
         ▼
 5. OUTCOME VISIBLE
@@ -227,14 +200,13 @@ QueryEvent:
     timestamp: datetime
     results_count: int
 
-# Action event
+# Action event (via civicos-relay)
 ActionEvent:
-    user_id: str
+    pubkey: str           # Nostr public key
     jurisdiction: str
-    action: str           # "start_something", "add_voice", etc.
-    target_type: str      # "initiative", "agenda_item"
+    action: str           # Voice, initiative, subscription
+    target_type: str
     target_id: str
-    context: dict         # What queries preceded this?
     timestamp: datetime
 
 # Outcome event
@@ -400,31 +372,8 @@ def whos_with_me(jurisdiction: str, topic: str) -> dict:
     Use when user asks: "Am I alone in...", "Who else cares about..."
     """
 
-# ─────────── ACTION TOOLS ───────────
-
-@server.tool()
-def start_something(jurisdiction: str, topic: str, title: str, description: str, location: str = None) -> dict:
-    """Start a new initiative.
-    Use when user says: "I want to change...", "Someone should..."
-    """
-
-@server.tool()
-def add_voice(jurisdiction: str, item_type: str, item_id: str, stance: str, comment: str) -> dict:
-    """Add user's voice to an item.
-    Use when user says: "I support...", "I oppose..."
-    """
-
-@server.tool()
-def follow(jurisdiction: str, item_type: str, item_id: str) -> dict:
-    """Follow an item for updates.
-    Use when user says: "Keep me posted on...", "Track this for me..."
-    """
-
-@server.tool()
-def prepare(jurisdiction: str, agenda_item_id: str) -> dict:
-    """Get preparation materials for participating.
-    Use when user says: "Help me prepare for the meeting..."
-    """
+# Action tools (voices, initiatives, subscriptions) have moved to
+# civicos-relay MCP server (apps/civicos-mcp/)
 ```
 
 ---
@@ -890,8 +839,8 @@ Key design decisions:
 
 #### Phase 1: Intelligence + Query (Complete)
 - [x] Query methods (what_applies, what_happened, whats_next, whos_with_me, what_was_said, get_public_testimony)
-- [x] Action methods (start_something, add_voice, follow, prepare)
-- [x] MCP server with all tools (deployed on Modal)
+- [x] Action methods — moved to civicos-relay
+- [x] MCP server with query tools (deployed on Modal)
 - [x] Browser extension as primary surface
 
 #### Phase 2: Coordination (Current — Mar 2026)

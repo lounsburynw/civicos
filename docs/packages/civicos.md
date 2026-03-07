@@ -1,6 +1,6 @@
 # civicos
 
-Core query and action API for CivicOS.
+Core query API for CivicOS.
 
 ## Installation
 
@@ -27,15 +27,7 @@ c.whats_next(["transportation"])    # Get upcoming meetings
 c.whos_with_me("traffic safety")    # Find community via 311 issues
 c.what_was_said("homelessness")     # Search meeting transcripts
 
-# Action (Act)
-c.start_something(topic="traffic", title="Protected bike lane")
-c.add_voice("agenda_item", "item_123", "support", "As a cyclist...")
-c.follow("meeting", "mtg_456")
-c.prepare("item_789")
-
-# AI Orchestration
-c.suggestions()                     # Proactive recommendations
-c.report_outcome("item_789", "passed")
+# Coordination (Act) — see civicos-relay package
 ```
 
 ## MCP Server
@@ -50,7 +42,7 @@ civicos-server
 
 Four-layer design:
 1. **Intelligence** — Multi-platform data extraction (civicos-extraction)
-2. **Orchestration** — Rule-based suggestions and outcome tracking
+2. **Query** — Civic data access (civicos)
 3. **Coordination** — Voice, subscriptions, federation (civicos-relay)
 4. **Impact** — Outcome tracking and learning
 
