@@ -4,25 +4,25 @@
 
 ## Strategic Position
 
-**MCP-native is the primary surface. Web frontend is the fallback.**
+**The browser extension is the primary surface.** It implements the Personal MCP directly in the browser, combining edge intelligence (identity, context, signing) with a native Chrome side panel UI. MCP connectors (Claude.ai, ChatGPT) and the REST API serve as secondary surfaces for AI agents and developers.
 
 The Edge Intelligence layer closes the loop between:
 - **Read**: Jurisdiction MCP servers (civic data, meetings, decisions) ✓
 - **Coordinate**: Relay protocol (voices, initiatives, commitments) ✓
 - **Act**: User-centric agents that personalize and simplify participation ← this document
 
-## Why MCP-First
+## Why MCP Architecture
 
-| Traditional Approach | MCP-First Approach |
+| Traditional Approach | MCP Architecture |
 |---------------------|-------------------|
-| Build web app, add AI as feature | Build for AI assistants, add web for accessibility |
-| Users learn new UI | Users stay in familiar AI assistant |
-| Maintain frontend + backend | Maintain backend; AI hosts render UI |
-| Distribution requires marketing | Distribution via MCP connector directories |
+| Build web app, add AI as feature | Build data layer as MCP tools, render via extension + AI surfaces |
+| Users learn new UI | Users get civic context in browser and AI assistants |
+| Maintain frontend + backend | Maintain backend + extension; AI hosts get MCP tools for free |
+| Distribution requires marketing | Distribution via Chrome Web Store + MCP connector directories |
 
-**The bet**: Engaged civic participants increasingly live in AI assistants. Meeting them there eliminates friction and reduces development surface.
+**The bet**: The browser extension brings civic data to where users already are (their browser), while MCP connectors extend the same data into AI assistants. Both run the same backend — the surface is the variable.
 
-**January 2026 context**: MCP Apps extension released, enabling interactive UI components inside Claude.ai, Goose, VS Code, and other MCP-compatible hosts. This changes the calculus—MCP servers can now provide rich interfaces, not just text responses.
+**Evolution (Jan-Mar 2026)**: Started MCP-first (Claude.ai connectors, ChatGPT). Discovered that browser extension solves distribution, identity, and signing better than any MCP App iframe. Extension became primary surface; MCP remains the data protocol underneath.
 
 ## Why Local Models Change Everything
 

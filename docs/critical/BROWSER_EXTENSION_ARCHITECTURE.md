@@ -1,6 +1,6 @@
 # Browser Extension Architecture
 
-**Status:** Design
+**Status:** Active — extension built and in use, design doc kept current
 **Created:** 2026-02-12
 **Related:** `EDGE_INTELLIGENCE_ARCHITECTURE.md`, `MCP_INTEGRATION_STRATEGY.md`, `COORDINATION_PROTOCOL.md`
 

@@ -1,7 +1,9 @@
 # Commitment Tracker Architecture
 
+> **Future Work:** This module has not been implemented. It is a design reference for post-launch development. Code examples use planned APIs and may not match current package names exactly.
+
 *Created: Session 210 (December 2025)*
-*Status: Design Draft*
+*Status: Design Draft — not yet implemented*
 
 ## Overview
 
@@ -55,7 +57,7 @@ The commitment tracker core should:
 - Have its own data models (not depend on Civic's StateManager)
 - Have its own database schema (separate tables, or separate DB entirely)
 - Expose a clean API that Civic consumes (but others could too)
-- Have no imports from `civic.*` except through explicit adapter
+- Have no imports from `civicos.*` except through explicit adapter
 
 ```python
 # GOOD: Commitment tracker is self-contained
@@ -63,11 +65,11 @@ from commitments import CommitmentTracker
 tracker = CommitmentTracker(db_path="commitments.db")
 
 # GOOD: Civic integrates via adapter
-from civic._internal.commitments import CivicCommitmentAdapter
+from civicos._internal.commitments import CivicCommitmentAdapter
 adapter = CivicCommitmentAdapter(tracker, civic_state_manager)
 
 # BAD: Commitment tracker depends on Civic
-from civic import StateManager  # NO - creates coupling
+from civicos import StateManager  # NO - creates coupling
 ```
 
 ### 3. Dual-Use API
@@ -275,8 +277,8 @@ CREATE INDEX idx_matches_status ON commitment_matches(status);
 
 ```
 packages/
-├── civic/                          # Existing Civic package
-│   └── src/civic/
+├── civicos/                        # Existing CivicOS package
+│   └── src/civicos/
 │       └── _internal/
 │           └── commitments/
 │               └── adapter.py      # CivicCommitmentAdapter
@@ -672,9 +674,9 @@ class CivicCommitmentAdapter:
 ### Integration with Civic API
 
 ```python
-# packages/civicos/src/civicos/civic.py (additions to main Civic class)
+# packages/civicos/src/civicos/civicos.py (additions to main CivicOS class)
 
-class Civic:
+class CivicOS:
 
     def __init__(self, jurisdiction_id: str):
         # ... existing init ...
@@ -686,7 +688,7 @@ class Civic:
     def commitments(self) -> CivicCommitmentAdapter:
         """Access commitment tracking features."""
         if self._commitment_adapter is None:
-            from civic._internal.commitments.adapter import CivicCommitmentAdapter
+            from civicos._internal.commitments.adapter import CivicCommitmentAdapter
             from commitments import CommitmentTracker
 
             tracker = CommitmentTracker(
