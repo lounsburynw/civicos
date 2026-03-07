@@ -127,5 +127,5 @@ for m in meetings:
 ## References
 
 - pilot.json item: `entity_id_namespacing`
-- Coordination Protocol: `docs/critical/COORDINATION_PROTOCOL.md`
+- Coordination: `packages/civicos-relay/`
 - civicos-relay: `packages/civicos-relay/src/civicos_relay/sync/protocol.py`
