@@ -216,19 +216,17 @@ Architecture Decision Records (ADRs):
 
 ### Operations Runbooks (docs/operations/)
 - `VECTOR_INDEXING.md` - Re-indexing vectors
-- `OPERATING_COSTS.md` - Monthly costs per jurisdiction
-
-### Strategy & Business (docs/funding/)
-- `SUSTAINABILITY_MODEL.md` - Business model, pricing, open source
-- `docs/critical/FOUNDATION_FUNDING_THESIS.md` - Grant funding strategy
 
 ### User Guides (docs/user_guides/)
 For end users and city admins:
 - `GETTING_STARTED.md`, `FEATURE_GUIDE.md`, `FAQ.md`
 - `ADMIN_SETUP_GUIDE.md`, `ADMIN_DATA_MANAGEMENT.md`, `ADMIN_TROUBLESHOOTING.md`
 - `BROWSER_EXTENSION_SETUP.md`, `MCP_SETUP_GUIDE.md`, `CITY_ONBOARDING_GUIDE.md`
-- `PLATFORM_SPECIFIC_NOTES.md`, `PILOT_USER_IDENTIFICATION.md`, `VERIFICATION_TUTORIAL.md`
+- `PLATFORM_SPECIFIC_NOTES.md`, `VERIFICATION_TUTORIAL.md`
 - `ATTESTATION_GUIDE.md` — Single-use code attestation (admin + user workflows)
+
+### Private Docs (docs/private/ — gitignored)
+Financial, billing, and internal strategy docs. Not tracked in git.
 
 ### Archive (docs/archive/)
 Historical docs from completed phases. Recoverable if needed.
