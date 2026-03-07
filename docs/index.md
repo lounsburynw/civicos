@@ -13,7 +13,7 @@ Query meetings, decisions, and municipal code. Find neighbors with shared concer
 
 ## Try It Now
 
-The **CivicOS browser extension** (Chrome) is the primary way to use CivicOS. It adds a side panel to your browser for searching meetings, tracking decisions, and signing public comments. See the [Browser Extension Setup Guide](user_guides/BROWSER_EXTENSION_SETUP.md).
+The **CivicOS browser extension** (Chrome) is the primary way to use CivicOS. It adds a side panel to your browser for searching meetings, tracking decisions, and signing public comments. See the [Browser Extension Setup](public/extension/setup.md).
 
 CivicOS also provides an MCP server. Connect via Claude, ChatGPT, or any MCP-compatible client.
 
@@ -48,13 +48,11 @@ CivicOS also provides an MCP server. Connect via Claude, ChatGPT, or any MCP-com
 
 ## Architecture
 
-CivicOS is built in layers, connected by open protocols:
-
 ```
 You  -->  Your AI Agent (Claude, ChatGPT, etc.)
                |
                v
-          MCP Server                32 tools, 5 resources, 2 prompts
+          MCP Server                40+ tools
                |
           +----+----+
           v         v
@@ -69,20 +67,7 @@ You  -->  Your AI Agent (Claude, ChatGPT, etc.)
        (civicos-extraction)
 ```
 
-**MCP Server** — Exposes civic data to any AI agent via the [Model Context Protocol](https://modelcontextprotocol.io). 32 primitives covering meetings, decisions, transcripts, legislation, budget, 311 issues, and coordination. See [MCP Integration Strategy](critical/MCP_INTEGRATION_STRATEGY.md).
-
-**Core API** — The `CivicOS` class: `what_happened()`, `whats_next()`, `what_applies()`, `whos_with_me()`, `prepare()`, and more. Semantic search over 16,000+ vector embeddings. See [Package Architecture](critical/FINAL_PACKAGE_ARCHITECTURE.md).
-
-**Relay** — Federation-ready coordination server using [Nostr protocol](critical/NOSTR_CIVIC_NIPS.md) with secp256k1 Schnorr signatures. Handles voices, subscriptions, and cross-jurisdiction sync. See [Coordination Protocol](critical/COORDINATION_PROTOCOL.md).
-
-**Extraction** — Platform parsers that normalize data from Legistar, CivicClerk, Granicus, SeeClickFix, Municode, and more into a unified schema. See [Extractor Protocol](critical/EXTRACTOR_PROTOCOL.md).
-
-**Why AI agents?** Most people won't download a civic engagement app. But millions already use AI agents daily. CivicOS connects via open protocols (MCP for knowledge, Nostr for coordination) — works with Claude, ChatGPT, open source models, or any compatible system.
-
-**Why federation?** Civic issues span jurisdictions — housing involves federal funding, state law, county planning, and city zoning. CivicOS runs at each level. Your AI agent synthesizes across boundaries while you voice support once and it syncs everywhere relevant.
-
-!!! info "Want to understand the cryptography and protocol design?"
-    The [Learning Modules](learning/README.md) are self-contained deep dives: from [cryptographic foundations](learning/01_CRYPTOGRAPHIC_FOUNDATIONS.md) through [Nostr and the relay](learning/02_NOSTR_AND_THE_RELAY.md) to [economic sustainability](learning/06_ECONOMIC_MODEL_AND_SUSTAINABILITY.md).
+See [full architecture and package docs](public/README.md).
 
 ---
 
@@ -92,7 +77,7 @@ You  -->  Your AI Agent (Claude, ChatGPT, etc.)
 
 | Corpus | Records | Source |
 |--------|---------|--------|
-| Meetings | ~98 | Legistar API (Oct 2025 - present) |
+| Meetings | ~98 | ProudCity (Oct 2025 - present) |
 | Decisions | ~44 | Extracted from meeting minutes |
 | Transcripts | ~19 | YouTube audio > AssemblyAI |
 | Agenda Chunks | ~5,084 | Agenda packet PDFs |
@@ -107,10 +92,10 @@ You  -->  Your AI Agent (Claude, ChatGPT, etc.)
 
 | | |
 |---|---|
-| **[Users — Getting Started](user_guides/GETTING_STARTED.md)** | Connect your AI agent and start asking questions about local government. |
-| **[Cities — Onboarding Guide](user_guides/CITY_ONBOARDING_GUIDE.md)** | Deploy CivicOS for your jurisdiction. Supports Legistar, Granicus, CivicClerk, and more. |
-| **[Developers — Architecture](critical/FINAL_PACKAGE_ARCHITECTURE.md)** | Explore the architecture, API, and package structure. |
-| **[Learn — Modules](learning/README.md)** | Self-contained modules covering cryptography, Nostr, attestation, and federation. |
+| **[Users — Extension Setup](public/extension/setup.md)** | Install the browser extension and start exploring civic data. |
+| **[Developers — Architecture](public/README.md)** | Package structure, API reference, and data dictionary. |
+| **[MCP — AI Agent Setup](public/mcp/setup.md)** | Connect Claude, ChatGPT, or any MCP client. |
+| **[Learn — Modules](public/learning/README.md)** | Cryptography, Nostr, attestation, and federation. |
 
 ---
 
