@@ -2421,6 +2421,130 @@
           "status": "ready"
         }
       ]
+    },
+    "docs_audit_wave2": {
+      "browser_extension_setup_guide": {
+        "status": "not_ready",
+        "priority": 1,
+        "description": "Create docs/user_guides/BROWSER_EXTENSION_SETUP.md — primary surface has no setup guide. Cover installation, first-time setup, feature overview, troubleshooting.",
+        "artifact": "docs/user_guides/BROWSER_EXTENSION_SETUP.md"
+      },
+      "getting_started_rewrite": {
+        "status": "not_ready",
+        "priority": 1,
+        "description": "Rewrite GETTING_STARTED.md to lead with browser extension (primary surface), MCP as secondary for AI agents, REST API for developers. Currently MCP-first.",
+        "artifact": "docs/user_guides/GETTING_STARTED.md"
+      },
+      "deployment_guide_rewrite": {
+        "status": "not_ready",
+        "priority": 1,
+        "description": "Rewrite DEPLOYMENT_GUIDE.md to clearly distinguish Modal compute (MCP, relay, vectors) from Fly.io web tier (API, WebSocket). Currently Fly.io-only with a disclaimer.",
+        "artifact": "docs/critical/DEPLOYMENT_GUIDE.md"
+      },
+      "rollback_procedures_update": {
+        "status": "not_ready",
+        "priority": 1,
+        "description": "Add Modal rollback and PostgreSQL rollback sections to ROLLBACK_PROCEDURES.md. Currently Fly.io-only.",
+        "artifact": "docs/critical/ROLLBACK_PROCEDURES.md"
+      },
+      "pilot_roadmap_update": {
+        "status": "not_ready",
+        "priority": 1,
+        "description": "Update PILOT_ROADMAP.md — still says Jan 2026 target. Update with actual pilot status and current timeline.",
+        "artifact": "docs/critical/PILOT_ROADMAP.md"
+      },
+      "dashboard_vision_surface_update": {
+        "status": "not_ready",
+        "priority": 1,
+        "description": "Update CIVIC_DASHBOARD_VISION.md to reflect browser extension as primary surface (currently says Open WebUI).",
+        "artifact": "docs/critical/CIVIC_DASHBOARD_VISION.md"
+      },
+      "openwebui_setup_archive": {
+        "status": "not_ready",
+        "priority": 1,
+        "description": "Archive or add secondary-surface banner to OPENWEBUI_SETUP.md. Browser extension is now primary.",
+        "artifact": "docs/user_guides/OPENWEBUI_SETUP.md"
+      },
+      "admin_setup_flyio_removal": {
+        "status": "not_ready",
+        "priority": 1,
+        "description": "Remove Fly.io deployment section from ADMIN_SETUP_GUIDE.md (lines 380-404). Replace with Modal deployment instructions.",
+        "artifact": "docs/user_guides/ADMIN_SETUP_GUIDE.md"
+      }
+    },
+    "docs_audit_wave3": {
+      "sqlite_chromadb_archive": {
+        "status": "not_ready",
+        "priority": 2,
+        "description": "Archive SQLITE_CHROMADB_JOIN_PATTERNS.md — reads as production but is dev-only. Move to docs/archive/ with note.",
+        "artifact": "docs/critical/SQLITE_CHROMADB_JOIN_PATTERNS.md"
+      },
+      "uptime_monitoring_modal": {
+        "status": "not_ready",
+        "priority": 2,
+        "description": "Add Modal health endpoint monitoring to UPTIME_MONITORING.md. Currently Fly.io-only.",
+        "artifact": "docs/critical/UPTIME_MONITORING.md"
+      },
+      "backup_schedule_supabase": {
+        "status": "not_ready",
+        "priority": 2,
+        "description": "Add Supabase backup section to DAILY_BACKUP_SCHEDULE.md. Currently Fly.io-only.",
+        "artifact": "docs/critical/DAILY_BACKUP_SCHEDULE.md"
+      },
+      "docker_compose_cleanup": {
+        "status": "not_ready",
+        "priority": 2,
+        "description": "Remove deprecated civicos-workspace service from docker-compose.yml.",
+        "artifact": "docker-compose.yml"
+      },
+      "mcp_setup_package_fix": {
+        "status": "not_ready",
+        "priority": 2,
+        "description": "Fix package name in MCP_SETUP_GUIDE.md (pip install -e packages/civic → packages/civicos).",
+        "artifact": "docs/user_guides/MCP_SETUP_GUIDE.md"
+      },
+      "faq_extension_section": {
+        "status": "not_ready",
+        "priority": 2,
+        "description": "Add browser extension Q&A section to FAQ.md (installation, permissions, extension vs MCP).",
+        "artifact": "docs/user_guides/FAQ.md"
+      },
+      "index_corpus_stats_update": {
+        "status": "not_ready",
+        "priority": 2,
+        "description": "Update docs/index.md corpus stats — currently says Oct 2025 - Jan 2026. Update date range and counts.",
+        "artifact": "docs/index.md"
+      },
+      "operating_costs_reconcile": {
+        "status": "not_ready",
+        "priority": 2,
+        "description": "Reconcile OPERATING_COSTS.md with HOSTING_DECISION.md — numbers are inconsistent. Verify against actual billing.",
+        "artifact": "docs/operations/OPERATING_COSTS.md"
+      },
+      "election_budget_reclassify": {
+        "status": "not_ready",
+        "priority": 2,
+        "description": "Add WIP banners to ELECTION_INTEGRATION.md and BUDGET_EXTRACTION.md — design docs, not operational.",
+        "artifact": "docs/critical/ELECTION_INTEGRATION.md"
+      },
+      "learning_choose_your_path": {
+        "status": "not_ready",
+        "priority": 2,
+        "description": "Add role-based 'Choose Your Path' navigation to docs/learning/README.md (user vs admin vs developer).",
+        "artifact": "docs/learning/README.md"
+      },
+      "verification_tutorial_update": {
+        "status": "not_ready",
+        "priority": 2,
+        "description": "Verify and update API examples in VERIFICATION_TUTORIAL.md against actual codebase.",
+        "artifact": "docs/user_guides/VERIFICATION_TUTORIAL.md"
+      },
+      "gitignore_build_artifacts": {
+        "status": "not_ready",
+        "priority": 2,
+        "description": "Add untracked build artifacts to .gitignore: extension/data/, test-results/, .wrangler/, registry/data/.",
+        "artifact": ".gitignore"
+      }
     }
   },
   "frontend_refinement": {

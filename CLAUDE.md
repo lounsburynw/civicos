@@ -59,7 +59,7 @@ Development follows a phased approach, tracked in `phase.json`:
 | **implementation** | archived | Core feature development (COMPLETE) |
 | **hardening** | archived | Audit, e2e tests, edge cases (COMPLETE) |
 | **integration** | archived | Real data, stress tests, multi-user (COMPLETE) |
-| **pilot** | `pilot.json` | Deployment readiness for Jan 2026 (ACTIVE) |
+| **pilot** | `pilot.json` | Deployment readiness (ACTIVE) |
 
 Check current phase: `python3 -c "import json; print(json.load(open('phase.json'))['current_phase'])"`
 
@@ -185,7 +185,7 @@ Read only when needed. Organized by purpose:
 ### Operations & Deployment (docs/critical/)
 | Doc | Purpose |
 |-----|---------|
-| `PILOT_ROADMAP.md` | Jan 2026 validation plan |
+| `PILOT_ROADMAP.md` | Pilot validation plan |
 | `DEPLOYMENT_GUIDE.md` | Production deployment |
 | `HOSTING_DECISION.md` | Infrastructure choices |
 | `ROLLBACK_PROCEDURES.md` | Recovery procedures |
@@ -289,7 +289,7 @@ Task(subagent_type="Explore", prompt="Explore [area] for [item]...")
 **Pilot Phase** (current):
 - Priority: Deployment artifacts and monitoring
 - Reference: `pilot.json` for checklist items
-- Focus: Rollback procedures, user documentation, Jan 2026 launch readiness
+- Focus: Rollback procedures, user documentation, launch readiness
 
 ### Session End Requirements
 
@@ -455,7 +455,7 @@ If you see `SQLiteBackend`, you forgot to load `.env` or `DATABASE_URL` is not s
 
 ### PostgreSQL Data Inventory (Production)
 
-San Rafael pilot data as of Jan 2026:
+San Rafael pilot data (counts approximate, run `/data-status` for current):
 
 | Table | Count | Description |
 |-------|-------|-------------|
@@ -550,7 +550,7 @@ The Docker container serves the production build at `localhost:8080`. Use it to 
 
 ## Protocol (Nostr)
 
-This project uses **Nostr protocol with secp256k1 Schnorr signatures** (not P-256 ECDSA). All cryptographic operations must use the correct curve. Entity IDs follow Nostr conventions and require proper namespacing for federation. See `packages/civicos-relay/src/civicos_relay/voice/crypto.py` and `nostr/kinds.py`.
+This project uses **Nostr protocol with secp256k1 Schnorr signatures** (not P-256 ECDSA). All cryptographic operations must use the correct curve. Entity IDs follow Nostr conventions and require proper namespacing for federation. See `packages/civicos-relay/src/civicos_relay/voice/crypto.py` and `packages/civicos-relay/src/civicos_relay/nostr/kinds.py`.
 
 ## Constraints
 

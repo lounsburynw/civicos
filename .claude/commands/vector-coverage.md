@@ -53,10 +53,10 @@ source civicos-env/bin/activate && python3 -c "
 from dotenv import load_dotenv
 load_dotenv()
 
-from civic import Civic, VectorCoverage, format_vector_coverage
+from civicos import CivicOS, VectorCoverage, format_vector_coverage
 
 jurisdiction = '$1' if '$1' else 'city-san-rafael'
-c = Civic(jurisdiction)
+c = CivicOS(jurisdiction)
 
 coverage = VectorCoverage(c._storage, c._vectors, jurisdiction)
 print(f'Vector Coverage: {jurisdiction}')
@@ -72,10 +72,10 @@ source civicos-env/bin/activate && python3 -c "
 from dotenv import load_dotenv
 load_dotenv()
 
-from civic import Civic, VectorCoverage
+from civicos import CivicOS, VectorCoverage
 
 jurisdiction = '$1' if '$1' else 'city-san-rafael'
-c = Civic(jurisdiction)
+c = CivicOS(jurisdiction)
 
 coverage = VectorCoverage(c._storage, c._vectors, jurisdiction)
 totals = coverage.total()
@@ -98,10 +98,10 @@ source civicos-env/bin/activate && python3 -c "
 from dotenv import load_dotenv
 load_dotenv()
 
-from civic import Civic, VectorCoverage
+from civicos import CivicOS, VectorCoverage
 
 jurisdiction = '$1' if '$1' else 'city-san-rafael'
-c = Civic(jurisdiction)
+c = CivicOS(jurisdiction)
 
 coverage = VectorCoverage(c._storage, c._vectors, jurisdiction)
 by_corpus = coverage.by_corpus()
