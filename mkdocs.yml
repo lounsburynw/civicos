@@ -92,7 +92,6 @@ nav:
     - Data Management: user_guides/ADMIN_DATA_MANAGEMENT.md
     - Troubleshooting: user_guides/ADMIN_TROUBLESHOOTING.md
     - Key Migration: user_guides/KEY_MIGRATION_GUIDE.md
-    - Pilot Users: user_guides/PILOT_USER_IDENTIFICATION.md
 
   - Architecture:
     - Package Architecture: critical/FINAL_PACKAGE_ARCHITECTURE.md
@@ -112,14 +111,12 @@ nav:
       - Federal Funding Sources: critical/FEDERAL_FUNDING_DATA_SOURCES.md
       - Election Integration: critical/ELECTION_INTEGRATION.md
       - Budget Extraction: critical/BUDGET_EXTRACTION.md
-      - Billing: critical/BILLING_INFRASTRUCTURE.md
     - Decisions:
       - Vector Storage: decisions/vector_storage.md
       - Data Integrity: decisions/data_integrity_infrastructure.md
       - Data Source Federation: decisions/data_source_federation.md
       - Entity ID Namespace: decisions/entity_id_namespace.md
       - Federation Domain: decisions/federation_domain_architecture.md
-      - Privacy-Preserving Billing: decisions/privacy_preserving_billing.md
 
   - Operations:
     - Deployment: critical/DEPLOYMENT_GUIDE.md
@@ -133,7 +130,6 @@ nav:
     - Versioning: critical/VERSIONING_STRATEGY.md
     - Runbooks:
       - Vector Indexing: operations/VECTOR_INDEXING.md
-      - Operating Costs: operations/OPERATING_COSTS.md
 
   - Development:
     - Claude Code Workflow: development/claude-code-workflow.md
@@ -158,6 +154,4 @@ nav:
     - Economic Model: learning/06_ECONOMIC_MODEL_AND_SUSTAINABILITY.md
 
   - About:
-    - Sustainability Model: funding/SUSTAINABILITY_MODEL.md
-    - Foundation Funding: critical/FOUNDATION_FUNDING_THESIS.md
     - Essay — The Nervous System: essays/the_nervous_system_we_choose_to_build.md
