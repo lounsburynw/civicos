@@ -1,381 +1,148 @@
 # Frequently Asked Questions
 
-Quick answers to common questions about Civic. For detailed feature documentation, see [Feature Guide](FEATURE_GUIDE.md). For your first steps, see [Getting Started](GETTING_STARTED.md).
-
 ---
 
-## About Civic
+## About CivicOS
 
-### What is Civic?
+### What is CivicOS?
 
-Civic is a platform that helps San Rafael residents participate in local government. It shows you upcoming city council decisions, helps you find neighbors who care about the same issues, and makes it easier to have your voice heard before decisions are made.
+CivicOS is open infrastructure that connects AI agents to local government data. It lets you ask questions about meetings, decisions, municipal code, budgets, and community issues — and find neighbors who care about the same things. It works through the Model Context Protocol (MCP), so you use it from within Claude, ChatGPT, or any compatible AI client.
 
 ### Why does this exist?
 
-Most residents learn about city council decisions after they've already been made. By then, it's too late to influence the outcome. Civic bridges this gap by:
+Most residents learn about city council decisions after they've already been made. CivicOS bridges this gap by making civic data queryable through the AI tools people already use — no new app to download, no login required.
 
-- Alerting you to upcoming high-stakes decisions
-- Connecting you with neighbors who share your concerns
-- Helping you prepare effective public comments
-- Making the process less intimidating
+### Who created CivicOS?
 
-### Who created Civic?
+CivicOS is a foundation-funded project building open civic infrastructure. It's not affiliated with any city government.
 
-Civic is a pilot project testing whether technology can make local civic participation more accessible. It's not affiliated with the City of San Rafael government.
+### Is CivicOS free?
 
-### Is Civic free?
+Yes. CivicOS is free for individuals and nonprofits under the PolyForm Noncommercial license.
 
-Yes. Civic is free during the San Rafael pilot (January 2026).
+### How is this different from just reading the city website?
+
+CivicOS aggregates data from multiple sources (agendas, transcripts, municipal code, SeeClickFix, state/federal legislation, budgets), indexes it for semantic search, and makes it queryable through natural language via your AI agent. Instead of clicking through Legistar, searching YouTube timestamps, and cross-referencing state bills — you ask one question and get a synthesized answer with sources.
 
 ---
 
-## Data and Sources
+## How It Works
 
-### Where does the information come from?
+### How do I connect?
 
-Civic aggregates data from public sources:
+Add the MCP connector URL in your AI client:
 
-| Source | What We Get |
-|--------|-------------|
-| **Legistar** | City council agendas, meeting schedules, staff reports |
-| **City YouTube** | Meeting video recordings, which we transcribe |
-| **SeeClickFix** | Resident-reported issues (potholes, graffiti, etc.) |
-| **Legiscan** | California state legislation |
-| **HUD/Federal** | Federal housing programs and regulations |
-| **Municipal code** | San Rafael city ordinances |
+- **Claude:** Settings > Connectors > `https://san-rafael.civicosproject.org/mcp`
+- **ChatGPT:** Settings > Connectors > same URL
 
-All information comes from publicly available sources.
+Then just ask questions. See [Getting Started](GETTING_STARTED.md) for details.
+
+### Where does the data come from?
+
+All data comes from publicly available sources:
+
+| Source | Data |
+|--------|------|
+| Legistar | Agendas, meetings, staff reports |
+| YouTube + AssemblyAI | Meeting transcripts |
+| SeeClickFix | 311 complaints and issues |
+| LegiScan | State and federal legislation |
+| Municode | Municipal code |
+| OpenGov | Budget data |
+| HUD / Federal | Housing programs and grants |
 
 ### How current is the data?
 
-- **Meeting agendas**: Updated daily from Legistar
-- **Meeting videos**: Transcribed within days of posting
-- **SeeClickFix issues**: Updated daily
-- **State legislation**: Updated weekly
-- **Federal programs**: Updated as changes occur
+- **Meeting agendas**: Synced from Legistar regularly
+- **Transcripts**: Processed from YouTube recordings after meetings are posted
+- **SeeClickFix issues**: Updated regularly
+- **State legislation**: Updated from LegiScan
+- **Municipal code**: Full Municode corpus indexed
 
-### Can I trust the information?
+### Can I trust the AI answers?
 
-Civic aggregates and presents public data—it doesn't create or editorialize it. Meeting agendas come directly from the city. Transcripts are generated from official meeting videos. When in doubt, click through to the original source.
-
-The AI Assistant answers questions based on this real data. It can't make things up, but it can misunderstand your question or miss relevant context. Treat AI responses as a starting point for your own research.
-
-### What if something is wrong?
-
-If you find an error—an incorrect meeting date, a transcription mistake, or missing information—please report it via [GitHub Issues](https://github.com/lounsburynw/civic/issues). We'll investigate and fix it.
+CivicOS grounds AI responses in real civic data — the AI searches indexed records to answer your questions. It can't fabricate meeting dates or invent council votes because it's querying actual data. However, AI can misinterpret questions or miss relevant context. Treat responses as a well-researched starting point, not a legal source. When in doubt, check the original sources linked in responses.
 
 ---
 
-## Privacy and Accounts
+## Privacy
 
-### Is my browsing private?
+### Is my usage private?
 
-Yes. Your browsing activity (what meetings you view, what searches you run) is not shared with anyone, including the city government.
+Yes. CivicOS does not log or store your queries. Your AI client (Claude, ChatGPT) has its own privacy policies for conversation data.
 
 ### Do I need an account?
 
-No. You can browse meetings, search decisions, and ask the Assistant questions without creating an account.
+No. You can query all civic data — meetings, decisions, transcripts, legislation, budgets, issues — without any account or registration.
 
-An account lets you:
-- Follow topics and get notified of updates
-- Add public comments on agenda items
-- Start initiatives for others to support
+### What about voice and coordination features?
 
-### What happens when I post a comment?
+Voicing support/opposition and coordination features require **attestation** — a cryptographic proof obtained by attending a local community event. This prevents automated spam while preserving privacy. See the [Attestation Guide](ATTESTATION_GUIDE.md).
 
-Public comments become part of the public record—just like speaking at a city council meeting. Your name is attached to your comment and visible to other users.
+### What data does CivicOS store about me?
 
-If you're not comfortable with that, you can still browse, search, and follow topics without posting anything public.
+If you only query data (ask questions): nothing.
 
-### Can I comment anonymously?
-
-No. Public comments to city government require identification. This is the same rule as speaking at a council meeting in person.
-
-### What data do you store about me?
-
-| Data Type | Stored? | Purpose |
-|-----------|---------|---------|
-| Browsing history | No | — |
-| Search queries | No | — |
-| Account info (if registered) | Yes | Login, notifications |
-| Public comments | Yes | Part of public record |
-| Topics followed | Yes (private) | Notifications |
-| Privacy preferences | Yes | Respect your choices |
-
-You can delete your account at any time, which removes your private data. Public comments remain in the public record.
-
-### Who can see what I follow?
-
-Only you. Your followed topics and notifications are private.
-
----
-
-## Using Civic
-
-### How do I find upcoming meetings?
-
-The Events panel (left side of the screen) shows upcoming city council meetings. Click any meeting to see its agenda items. You can filter by topic (Housing, Transportation, Budget, etc.) using the buttons at the top.
-
-### How do I search past decisions?
-
-Ask the Assistant: *"What has the council decided about bike lanes?"* or *"What happened with the housing development on Lincoln?"*
-
-Results include:
-- Council votes and outcomes
-- Staff recommendations
-- Public testimony excerpts
-- Video clips with timestamps
-
-### Why can't I find a decision I'm looking for?
-
-Possible reasons:
-- The decision predates Civic's data collection
-- Try different search terms (e.g., "bike lanes" instead of "protected bicycle infrastructure")
-- The decision may have been a consent calendar item with limited discussion
-
-### How does the AI Assistant work?
-
-The Assistant searches city council records, meeting transcripts, and regulations to answer your questions. It uses AI to understand natural language and synthesize information from multiple sources.
-
-The Assistant:
-- Answers based on real city data
-- Cites sources when possible
-- Admits when it doesn't know something
-
-The Assistant cannot:
-- Predict how the council will vote
-- Access non-public information
-- Speak to the council on your behalf
-
-### Can I prepare a public comment using Civic?
-
-Yes. Click "Prepare" on any agenda item, or ask the Assistant: *"Help me prepare a comment about the traffic calming proposal."*
-
-Civic will provide:
-- Background on the issue
-- Relevant laws and regulations
-- Talking points based on the agenda
-- Historical context from past decisions
-
-You can also ask the Assistant to help draft your comment. Remember that AI drafts are a starting point—personalize them with your own experience and perspective.
+If you use coordination features (voice, follow, subscribe): your cryptographic identity key and your public actions (voices, comments) are stored on the relay. No email, name, or personal information is required.
 
 ---
 
 ## Participating in Government
 
-### What's the difference between supporting and opposing?
+### Can CivicOS submit comments to the city council for me?
 
-When you add your voice to a proposal:
+No. CivicOS helps you *prepare* comments and understand context, but it does not submit anything to the city on your behalf. To have your voice count in the official record, you should:
 
-- **Support**: You're in favor of the proposal
-- **Oppose**: You're against the proposal
-- **Question**: You have a question without taking a side
+- Email the city clerk directly
+- Attend the meeting and speak during public comment
+- Submit written comments through the city's official channels
 
-All three are valuable. Questions can highlight issues the council hasn't considered.
+CivicOS provides clerk contact information and submission guidelines to make this easier.
 
-### Do my comments actually reach the council?
+### What does "voicing" mean?
 
-Public comments submitted through Civic become part of the public record. Council members and staff can see them when reviewing agenda items.
+Voicing is expressing support, opposition, or a question on a civic item (agenda item, initiative, etc.) within the CivicOS coordination system. It's visible to other CivicOS users and helps measure community sentiment, but it is **not** the same as an official public comment submitted to the city.
 
-For the highest impact, also consider:
-- Emailing your comment to the city clerk
-- Attending the meeting to speak in person
-- Requesting time on the agenda for complex issues
+### How do I actually participate in a city council meeting?
+
+1. **Find the meeting** — Ask CivicOS: *"When is the next city council meeting?"*
+2. **Prepare** — Ask: *"Help me prepare for the [topic] agenda item"*
+3. **Submit a comment** — Email the city clerk before the meeting deadline
+4. **Attend** — Show up in person or join the virtual meeting link
+5. **Speak** — Sign up for public comment (typically 2-3 minutes per person)
 
 ### What's an initiative?
 
-An initiative is a proposal you create for others to support. Unlike commenting on an existing agenda item, an initiative starts with your idea.
-
-Examples:
-- "Add a crosswalk at 4th and B Streets"
-- "Increase funding for wildfire prevention in Terra Linda"
-- "Create a community garden on vacant city land"
-
-When enough people support an initiative, Civic can help coordinate next steps like petitioning for the item to be added to a council agenda.
-
-### How many people need to support an initiative?
-
-There's no fixed number. Civic tracks support and suggests coordination options when momentum builds. The value of collective action comes from demonstrating community interest to decision-makers.
-
-### When should I speak at a meeting vs. submit a written comment?
-
-| Method | Best For |
-|--------|----------|
-| **Written comment** | When you can't attend, or when you want your position recorded even if you can't speak |
-| **In-person testimony** | High-stakes items where personal presence carries weight, or when you want to respond to council questions |
-| **Both** | The most impactful approach—submit written comments AND speak in person |
-
-Council members often receive written comments before the meeting and review them during deliberation.
+An initiative is a community-sourced proposal within CivicOS. You create it, others voice support, and when momentum builds, CivicOS helps coordinate next steps (like petitioning for the item to be added to a council agenda). Initiatives are coordination tools, not official government actions.
 
 ---
 
-## Attestation
+## Technical
 
-### What is attestation?
+### What AI clients work with CivicOS?
 
-Attestation proves you're a real person in a specific community. You get a single-use code from a volunteer at a local event, enter it in the CivicOS extension, and a cryptographic proof is generated that accompanies every voice and comment you submit. This prevents spam from bots and automated agents.
+Any client that supports the Model Context Protocol (MCP):
 
-### Do I need attestation to use CivicOS?
+- Claude (claude.ai, Claude Desktop, Claude Mobile)
+- ChatGPT (Plus/Team with developer mode)
+- Any MCP-compatible open source client
 
-You need attestation to voice or comment on civic items. You can still browse all civic data — meetings, decisions, agendas, legislation, budget — and subscribe to notifications without attestation. To get attested, attend any community event where codes are being distributed.
+### What cities are supported?
 
-### How do I get an attestation code?
+Currently San Rafael, California (pilot). The infrastructure is designed for multi-city federation — see the [City Onboarding Guide](CITY_ONBOARDING_GUIDE.md) if you're interested in adding your city.
 
-Attend a CivicOS distribution event in your city. A volunteer will hand you a card with a unique code. No government ID is required — just show up.
+### What is MCP?
 
-### Why is attestation required?
+The Model Context Protocol is an open standard for connecting AI assistants to external data sources. It lets CivicOS provide structured civic data to any compatible AI client without building separate integrations for each platform. Learn more at [modelcontextprotocol.io](https://modelcontextprotocol.io).
 
-In an era of autonomous AI agents capable of generating unlimited synthetic identities, gated participation is the only credible defense for a coordination system whose value depends on genuine human signal. Physical presence at a community event makes automated spam uneconomical.
+### What is federation?
 
-### I lost my identity key. Is my attestation gone?
-
-Yes. Attestation binds to your identity key. If you reset your identity, you'll need a new code from a future event. This is by design — it prevents people from creating many attested identities.
-
-For more details, see the [Attestation Guide](ATTESTATION_GUIDE.md).
+CivicOS is designed so each jurisdiction runs independently while coordinating across boundaries. A housing question might involve federal funding, state law, county planning, and city zoning. Federation lets your AI agent synthesize across these levels while each jurisdiction maintains sovereignty over its own data.
 
 ---
 
-## Technical Questions
+## Get Help
 
-### What browsers work with Civic?
-
-Civic works in modern browsers:
-- Chrome (recommended)
-- Firefox
-- Safari
-- Edge
-
-Internet Explorer is not supported.
-
-### The video timestamp doesn't match the transcript
-
-Timestamps are approximate and may be off by a few seconds. The video will start near the relevant content. This happens because video processing introduces small timing variations.
-
-### I'm not receiving notifications
-
-Check that:
-1. You're logged in
-2. You've followed at least one topic or item
-3. Notifications are enabled in your profile settings
-4. Civic emails aren't going to spam
-
-### The page isn't loading
-
-Try:
-1. Refreshing the page
-2. Clearing your browser cache
-3. Using a different browser
-4. Checking your internet connection
-
-If problems persist, report them via [GitHub Issues](https://github.com/lounsburynw/civic/issues).
-
-### Keyboard shortcuts aren't working
-
-Shortcuts only work when focus is on the main interface (not in a text field). Click outside any text input and try again.
-
-| Shortcut | Action |
-|----------|--------|
-| `Cmd/Ctrl + I` | Report a local issue |
-| `Cmd/Ctrl + K` | Open search |
-| `Escape` | Close current panel |
-
----
-
-## The San Rafael Pilot
-
-### What is the pilot?
-
-Civic is launching a pilot program with San Rafael residents in January 2026. The goal is to test whether Civic helps residents feel more informed and empowered to participate in local government.
-
-### Why San Rafael?
-
-San Rafael has:
-- Active city council with regular high-stakes decisions
-- Good digital infrastructure (Legistar, YouTube streaming)
-- A mix of housing, transportation, and environmental issues
-- Engaged residents who file complaints and attend meetings
-
-### How long does the pilot last?
-
-The pilot runs from January 2026 through early 2026. Based on results, Civic may expand to additional cities or change direction.
-
-### What are you measuring?
-
-The pilot measures:
-- Whether residents feel more informed about decisions
-- Whether more people participate in public meetings
-- Whether neighbors connect around shared concerns
-- Whether the coordination process feels empowering
-
-### How can I participate in the pilot?
-
-If you're a San Rafael resident:
-1. Sign up for an account
-2. Follow topics you care about
-3. Add your voice to upcoming decisions
-4. Provide feedback on your experience
-
-Your participation helps improve Civic for future users.
-
-### What happens after the pilot?
-
-Depending on results:
-- **Success**: Civic expands to more cities and adds features
-- **Partial success**: Civic pivots to address what's working
-- **Failure**: Civic learns from the experiment and considers alternatives
-
-Either way, pilot users' public comments remain part of the public record.
-
----
-
-## Getting Help
-
-### I have a question not answered here
-
-- **Ask the Assistant**: Try asking your question in the chat panel
-- **GitHub Discussions**: Post in [Discussions](https://github.com/lounsburynw/civic/discussions) for community help
-- **GitHub Issues**: Report bugs or request features via [Issues](https://github.com/lounsburynw/civic/issues)
-
-### I want to give feedback
-
-We'd love to hear from you:
-- What's working well?
-- What's confusing?
-- What's missing?
-
-Share feedback via [GitHub Discussions](https://github.com/lounsburynw/civic/discussions) or the in-app feedback button (coming soon).
-
-### I found a bug
-
-Report it via [GitHub Issues](https://github.com/lounsburynw/civic/issues) with:
-- What you were trying to do
-- What happened instead
-- Your browser and operating system
-- Screenshots if helpful
-
----
-
-## Quick Reference
-
-### What can I do without an account?
-
-- Browse upcoming meetings
-- Search past decisions
-- Ask the Assistant questions
-- View legislation and regulations
-
-### What requires an account?
-
-- Follow topics for notifications
-- Add public comments
-- Start initiatives
-- Track your participation history
-
-### How do I get started?
-
-1. Browse the Events panel to see upcoming meetings
-2. Click a meeting to explore its agenda
-3. Ask the Assistant a question about your neighborhood
-4. Follow a topic to get updates
-
-See [Getting Started](GETTING_STARTED.md) for a detailed walkthrough.
+- **Documentation:** [docs.civicosproject.org](https://docs.civicosproject.org)
+- **Report a bug:** [GitHub Issues](https://github.com/lounsburynw/civicos/issues)
+- **Feature requests:** [GitHub Issues](https://github.com/lounsburynw/civicos/issues)

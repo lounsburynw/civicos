@@ -82,41 +82,12 @@ across boundaries — city, county, state. No central platform.
 
 ## Quick Links
 
-<div class="grid cards" markdown>
-
--   :material-account-group:{ .lg .middle } **Users**
-
-    ---
-
-    Connect your AI agent and start asking questions about local government.
-
-    [:octicons-arrow-right-24: Getting Started](user_guides/GETTING_STARTED.md)
-
--   :material-city:{ .lg .middle } **Cities**
-
-    ---
-
-    Deploy CivicOS for your jurisdiction. Supports Legistar, Granicus, CivicClerk, and more.
-
-    [:octicons-arrow-right-24: City Onboarding](user_guides/CITY_ONBOARDING_GUIDE.md)
-
--   :material-code-braces:{ .lg .middle } **Developers**
-
-    ---
-
-    Explore the architecture, API, and package structure.
-
-    [:octicons-arrow-right-24: Architecture](critical/FINAL_PACKAGE_ARCHITECTURE.md)
-
--   :material-book-open-variant:{ .lg .middle } **Learn**
-
-    ---
-
-    Self-contained modules covering cryptography, Nostr, attestation, and federation.
-
-    [:octicons-arrow-right-24: Learning Modules](learning/README.md)
-
-</div>
+| | |
+|---|---|
+| **[Users — Getting Started](user_guides/GETTING_STARTED.md)** | Connect your AI agent and start asking questions about local government. |
+| **[Cities — Onboarding Guide](user_guides/CITY_ONBOARDING_GUIDE.md)** | Deploy CivicOS for your jurisdiction. Supports Legistar, Granicus, CivicClerk, and more. |
+| **[Developers — Architecture](critical/FINAL_PACKAGE_ARCHITECTURE.md)** | Explore the architecture, API, and package structure. |
+| **[Learn — Modules](learning/README.md)** | Self-contained modules covering cryptography, Nostr, attestation, and federation. |
 
 ---
 
