@@ -1,5 +1,7 @@
 # Data Ingestion Operations
 
+> **Claude Code:** Run `/ingest` to orchestrate the data ingestion pipeline, `/data-status` for corpus counts and gaps, `/checkpoint` to manage resumable pipeline state, and `/ingest-audio` for YouTube audio downloads.
+
 Operator manual for ingesting, refreshing, and managing Civic data.
 
 ## Overview
