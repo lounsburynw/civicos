@@ -316,22 +316,18 @@ civicos/
 │
 ├── apps/
 │   ├── civicos-mcp/                # MCP server (Claude.ai, ChatGPT)
-│   │   ├── src/civicos_mcp/
-│   │   │   ├── server.py           # FastMCP server
-│   │   │   └── tools/              # MCP tool definitions
-│   │   └── fly.toml                # Fly.io deployment
+│   │   ├── tools/                  # Tool definitions (registry.py, handlers.py)
+│   │   ├── handlers/               # Tool implementation
+│   │   ├── server.py               # Container entry point
+│   │   ├── modal_mcp.py            # Modal deployment
+│   │   └── Dockerfile.mcp          # Docker build
 │   │
-│   └── civicos-workspace/          # Vue frontend
-│       ├── src/
-│       │   ├── components/         # Vue components
-│       │   ├── composables/        # State management
-│       │   └── services/           # API clients
-│       └── vite.config.ts
+│   ├── civicos-extension/          # Browser extension (Civic Lens)
+│   └── civicos-workspace/          # Vue frontend (DEPRECATED — use Open WebUI)
 │
 ├── data/                           # Local data (gitignored in production)
-├── docs/critical/                  # Architecture documentation
-├── scripts/                        # Dev and deployment scripts
-└── deploy/                         # Deployment artifacts (Docker, Fly, etc.)
+├── docs/                           # Documentation (MkDocs Material site)
+└── scripts/                        # Dev and deployment scripts
 ```
 
 ### Package Responsibilities
@@ -531,7 +527,7 @@ The `civicos-relay` package provides federation-ready coordination infrastructur
 │                                     │                                       │
 │   ┌─────────────────────────────────┴─────────────────────────────────┐   │
 │   │                      Relay Identity                                │   │
-│   │  • ECDSA keypair for signing events and sync responses            │   │
+│   │  • P-256 ECDSA keypair for relay-to-relay authentication          │   │
 │   │  • Peer configuration (URLs, namespaces, sync intervals)          │   │
 │   └───────────────────────────────────────────────────────────────────┘   │
 └─────────────────────────────────────────────────────────────────────────────┘
@@ -539,17 +535,19 @@ The `civicos-relay` package provides federation-ready coordination infrastructur
 
 ### Voice Model
 
-Voices are cryptographically signed expressions of civic interest:
+Voices are cryptographically signed expressions of civic interest using secp256k1 Schnorr signatures (BIP-340, Nostr-compatible):
 
 ```python
 Voice(
     entity="agenda:2026-02-03:item-6a",  # What they're voicing on
     stance=Stance.SUPPORT,                # support | oppose | watching
-    public_key="02ab3f...",               # ECDSA public key
-    signature="3045...",                  # Signature of entity+stance
+    public_key="ab3f...",                 # secp256k1 x-only public key (32 bytes)
+    signature="...",                      # BIP-340 Schnorr signature (64 bytes)
     timestamp=datetime.utcnow(),
 )
 ```
+
+**Note:** Voices use secp256k1 Schnorr (Nostr-compatible) for user-facing cryptography. Relay-to-relay authentication uses P-256 ECDSA (separate key type).
 
 Key properties:
 - **Self-verifying**: Any relay can verify a voice independently
@@ -1049,8 +1047,11 @@ The codebase has been refactored from a monolithic structure to a multi-package 
 | `packages/civicos-services/` | REST API, WebSocket, chat | Active |
 | `packages/civicos-config/` | Shared jurisdiction configuration | Active |
 | `apps/civicos-mcp/` | Jurisdiction MCP - read-only civic data for AI assistants | Active |
-| `apps/civicos-personal-mcp/` | Personal MCP - user context, identity, personalization | Planned |
-| `apps/civicos-workspace/` | Vue frontend (fallback for non-MCP users) | Active |
+| `apps/civicos-personal-mcp/` | Personal MCP - user context, identity, personalization | In Progress |
+| `apps/civicos-workspace/` | Vue frontend | Deprecated (use Open WebUI fork) |
+| `apps/civicos-extension/` | Browser extension - contextual civic overlay | Active |
+| `packages/civicos-client/` | TypeScript/JavaScript client library | Active |
+| `packages/civicos-components/` | Svelte UI components | Active |
 
 ### Two-MCP Architecture
 
