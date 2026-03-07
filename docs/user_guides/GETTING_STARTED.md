@@ -1,197 +1,136 @@
-# Getting Started with Civic
+# Getting Started with CivicOS
 
-Welcome to Civic, your connection to local government decisions in San Rafael.
-
-## Why Civic?
-
-Every week, your city council makes decisions that affect your neighborhood—housing policies, traffic changes, budget allocations, environmental programs. Most residents learn about these decisions after they've already been made.
-
-Civic changes that. With Civic, you can:
-
-- **Stay informed** about upcoming meetings and decisions
-- **Find neighbors** who care about the same issues you do
-- **Make your voice heard** before decisions are finalized
+CivicOS connects your AI agent to local government data — meetings, decisions, municipal code, budgets, legislation, and community issues. Ask questions in natural language and get answers grounded in real civic data.
 
 ---
 
-## What You Can Do
+## Connect in 60 Seconds
 
-### 1. See What's Coming
+CivicOS works through the Model Context Protocol (MCP). Connect from any compatible AI client:
 
-Browse upcoming city council meetings filtered by topic:
+=== "Claude (claude.ai or Desktop)"
 
-- **Housing** — Zoning changes, affordable housing, tenant protections
-- **Transportation** — Bike lanes, traffic calming, parking policies
-- **Environment** — Wildfire prevention, creek restoration, sustainability
-- **Budget** — City spending priorities, grant allocations
-- **Development** — Building permits, design review, neighborhood changes
+    1. Go to **Settings > Connectors > Add Connector**
+    2. Enter: `https://san-rafael.civicosproject.org/mcp`
+    3. Ask: *"What's on the San Rafael city council agenda?"*
 
-**How to do it:** Open Civic and look at the Events panel on the left. Click any meeting to see its agenda items and what's being decided.
+=== "ChatGPT (Plus/Team)"
 
-### 2. Understand What Applies
+    1. **Settings > Connectors > Enable developer mode**
+    2. Add connector: `https://san-rafael.civicosproject.org/mcp`
+    3. Ask: *"What has San Rafael decided about housing?"*
 
-For any topic, see the regulatory context:
-
-- Federal programs and funding (HUD grants, FEMA programs)
-- State legislation (housing bills, environmental mandates)
-- Local ordinances (San Rafael municipal code)
-
-**How to do it:** Ask the Civic Assistant: *"What laws apply to housing in San Rafael?"*
-
-### 3. Learn What Happened Before
-
-Search past decisions with full context:
-
-- Council votes and outcomes
-- Staff recommendations
-- Public testimony from residents
-- Video clips with timestamps
-
-**How to do it:** Ask the Civic Assistant: *"What has the council decided about bike lanes?"*
-
-### 4. Find Your Community
-
-See who else in your area cares about the same issues:
-
-- Neighbors who've filed similar complaints
-- Residents who've testified on related topics
-- People following the same meetings
-
-**How to do it:** Click on an issue or meeting to see related community activity.
-
-### 5. Prepare and Participate
-
-Get help preparing for a meeting:
-
-- Talking points based on the agenda
-- Relevant background information
-- Draft public comments (AI-assisted)
-
-**How to do it:** Click "Prepare" on any agenda item, or ask the Civic Assistant: *"Help me prepare a comment about the bike lane proposal."*
+Once connected, say **"get started"** and the agent will walk you through what's available.
 
 ---
 
-## Your First Five Minutes
+## What You Can Ask
 
-### Step 1: Browse Upcoming Meetings
+### Upcoming Meetings & Agendas
 
-When you open Civic, you'll see the Events panel showing upcoming city council meetings. Each meeting shows:
+> *"What's being decided about housing this month?"*
+> *"When is the next city council meeting?"*
+> *"What's on the agenda for the planning commission?"*
 
-- Date and time
-- Main topics being discussed
-- Number of agenda items
+Returns meeting dates, agenda items, and links to staff reports and agenda packets.
 
-Click any meeting to open it in the main workspace.
+### Past Decisions & Voting History
 
-### Step 2: Explore an Agenda Item
+> *"What has the council decided about bike lanes?"*
+> *"How did the council vote on the homeless shelter?"*
+> *"What happened with the 4th Street rezoning?"*
 
-Inside a meeting, you'll see the agenda items—the specific decisions being made. Click one to see:
+Returns council votes, outcomes, staff recommendations, and related context.
 
-- Staff report summary
-- What previous residents have said
-- Related laws and regulations
+### Public Testimony & Meeting Transcripts
 
-### Step 3: Ask a Question
+> *"What did residents say about traffic on 4th Street?"*
+> *"What was discussed at the last planning commission meeting?"*
 
-The Civic Assistant (on the right side of the screen) can answer questions about local government:
+Returns excerpts from meeting transcripts with speaker identification and timestamps.
 
-- *"What's being decided about housing this month?"*
-- *"Has the council discussed traffic on 4th Street?"*
-- *"What are my neighbors concerned about?"*
+### Laws & Regulations
 
-Just type naturally—the assistant understands civic topics.
+> *"What laws apply to ADUs in San Rafael?"*
+> *"What state bills affect affordable housing?"*
+> *"What does the municipal code say about noise ordinances?"*
 
-### Step 4: Follow Something
+Searches across municipal code, California state legislation, and federal programs.
 
-Found a meeting or issue you care about? Click "Follow" to get updates when:
+### Community Issues (311 / SeeClickFix)
 
-- New agenda items are added
-- The meeting date approaches
-- A decision is made
+> *"Who else cares about traffic safety in my neighborhood?"*
+> *"What are the most common complaints in 94901?"*
+> *"Are there repeat issues at the intersection of 4th and B?"*
 
-### Step 5: Add Your Voice
+Returns SeeClickFix complaints, trends, geographic patterns, and resolution statistics.
 
-Ready to participate? You can:
+### Budget & Funding
 
-- **Add a comment** on a meeting or agenda item
-- **Support or oppose** a proposal
-- **Ask a question** for the council to consider
+> *"How much does San Rafael spend on public safety?"*
+> *"What federal grants fund homelessness prevention?"*
+> *"What's the city budget for parks and recreation?"*
 
-Your comments become part of the public record.
+Returns budget line items, department spending, and federal/state funding flows.
+
+### Meeting Preparation
+
+> *"Help me prepare for the bike lane agenda item."*
+> *"Draft a public comment supporting the traffic calming proposal."*
+
+Generates background context, talking points, regulatory context, and draft comments.
 
 ---
 
-## Verify Your Identity (Required for Voicing/Commenting)
+## Voice & Coordination
 
-To voice or comment on civic items, you need an attestation code from a local event. Enter the code in the CivicOS extension settings (Options > Attestation). This produces a cryptographic proof that you're a real community member — the extension embeds this proof on every voice and comment you submit. No government ID required; physical presence at a distribution event is sufficient. You can browse all civic data without attestation. See the [Attestation Guide](ATTESTATION_GUIDE.md) for details.
+Beyond querying data, CivicOS supports civic coordination:
+
+- **Voice support or opposition** on agenda items and proposals
+- **Find allies** — see how many others share your position
+- **Follow topics** — get updates when meetings or decisions match your interests
+- **Start initiatives** — propose ideas for community backing
+
+Voice and coordination features require **attestation** — a cryptographic proof that you're a real community member. See the [Attestation Guide](ATTESTATION_GUIDE.md) for details.
 
 ---
 
-## Common Questions
+## Data Sources
 
-**How do you know what's being decided?**
+All information comes from publicly available sources:
 
-Civic pulls data directly from the city's official sources: Legistar (agenda management system), meeting videos, and public records. All information is sourced from San Rafael city government.
+| Source | What You Get |
+|--------|-------------|
+| **Legistar** | City council agendas, meeting schedules, staff reports |
+| **YouTube / AssemblyAI** | Meeting transcripts from video recordings |
+| **SeeClickFix** | Resident-reported issues (potholes, graffiti, noise, etc.) |
+| **LegiScan** | California state and federal legislation |
+| **HUD / Federal** | Federal housing programs, grants, regulations |
+| **Municode** | San Rafael municipal code |
+| **OpenGov** | City budget data |
 
-**Is my information private?**
-
-Your browsing is private. If you choose to add a public comment, it becomes part of the public record (just like speaking at a meeting). You control what you share.
-
-**Do I need an account?**
-
-You can browse meetings, search decisions, and ask questions without an account. Creating an account lets you follow topics, add comments, and get personalized recommendations.
-
-**What if I miss a meeting?**
-
-Civic keeps records of past meetings with full transcripts and video links. You can see what was decided and what residents said, even after the meeting ends.
-
-**How does the AI assistant work?**
-
-The Civic Assistant uses AI to help you find relevant information and draft comments. It searches city council records, meeting transcripts, and local regulations to answer your questions. All AI responses are based on real city data.
-
-**Can I comment anonymously?**
-
-Public comments to city council are part of the public record and typically include your name. Civic follows the same rules as attending a meeting in person.
+CivicOS aggregates and indexes this data for semantic search. It does not create or editorialize content.
 
 ---
 
 ## Tips
 
-**Use natural language.** Instead of searching for keywords, ask questions like you'd ask a neighbor: *"What's happening with the new housing development on Lincoln?"*
-
-**Start with what's next.** The most actionable information is about upcoming decisions—ones you can still influence.
-
-**Follow before you forget.** If something catches your eye, click Follow. You'll get a reminder when the meeting approaches.
-
-**You're not alone.** Civic shows you who else cares about the same issues. Finding allies makes participation less intimidating.
+- **Use natural language.** Ask questions like you'd ask a neighbor: *"What's happening with the new housing development on Lincoln?"*
+- **Start with what's next.** Upcoming decisions are the most actionable — ones you can still influence.
+- **Be specific.** *"Housing on Lincoln Avenue"* gets better results than just *"housing"*.
+- **Ask follow-ups.** The AI remembers conversation context: *"Tell me more about that"* or *"When was that decided?"*
 
 ---
 
-## Keyboard Shortcuts
+## Privacy
 
-| Shortcut | Action |
-|----------|--------|
-| `Cmd/Ctrl + I` | Report a local issue |
-| `Cmd/Ctrl + K` | Open search |
-| `Escape` | Close current panel |
+- **Your queries are private.** CivicOS does not log or store your questions.
+- **Public actions are public.** Voices and comments become part of the coordination record, similar to speaking at a public meeting.
+- **No account required to browse.** You can query all civic data without registration. Voice and coordination features require attestation.
 
 ---
 
 ## Get Help
 
-Having trouble? Have feedback?
-
-- **Report an issue:** [GitHub Issues](https://github.com/lounsburynw/civic/issues)
-- **Questions:** Start a [GitHub Discussion](https://github.com/lounsburynw/civic/discussions)
-
----
-
-## About the San Rafael Pilot
-
-Civic is currently in a pilot phase with San Rafael residents (January 2026). Your participation helps us understand how to make local government more accessible. We're measuring whether:
-
-- Residents feel more informed about decisions
-- More people participate in public meetings
-- Neighbors connect around shared concerns
-
-Thank you for being part of this experiment in civic engagement.
+- **Report an issue:** [GitHub Issues](https://github.com/lounsburynw/civicos/issues)
+- **Documentation:** [docs.civicosproject.org](https://docs.civicosproject.org)
