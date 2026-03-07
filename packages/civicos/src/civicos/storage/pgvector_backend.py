@@ -1346,7 +1346,7 @@ class PgVectorBackend:
 
         # HNSW search uses ef_search to control recall/speed tradeoff
         # Default (40) is good for most queries; increase for higher recall
-        cursor.execute("SET hnsw.ef_search = 40")
+        cursor.execute("SET hnsw.ef_search = 200")
 
         # Validate model compatibility - vectors from different models can't be compared
         cursor.execute(f"""
