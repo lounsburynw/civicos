@@ -137,7 +137,22 @@ The Model Context Protocol is an open standard for connecting AI assistants to e
 
 ### What is federation?
 
-CivicOS is designed so each jurisdiction runs independently while coordinating across boundaries. A housing question might involve federal funding, state law, county planning, and city zoning. Federation lets your AI agent synthesize across these levels while each jurisdiction maintains sovereignty over its own data.
+CivicOS is designed so each jurisdiction runs independently while coordinating across boundaries. A housing question might involve federal funding, state law, county planning, and city zoning. Federation lets your AI agent synthesize across these levels while each jurisdiction maintains sovereignty over its own data. See the [Coordination Protocol](../critical/COORDINATION_PROTOCOL.md) for the full design.
+
+### What is the relay?
+
+The relay is a federation-ready server that handles coordination: routing civic events, managing subscriptions, counting voices, and syncing with peer relays across jurisdictions. It uses the [Nostr protocol](../critical/NOSTR_CIVIC_NIPS.md) with secp256k1 Schnorr signatures for cryptographic identity without centralized accounts. See the [civicos-relay package](../packages/civicos-relay.md) for details.
+
+### How does the cryptography work?
+
+CivicOS uses Nostr-style cryptographic identity: each user generates a secp256k1 keypair locally. Voices and actions are signed with Schnorr signatures, making them verifiable without a central authority. Attestation adds a proof-of-community-membership layer on top. The [Learning Modules](../learning/README.md) walk through this from first principles:
+
+- [Cryptographic Foundations](../learning/01_CRYPTOGRAPHIC_FOUNDATIONS.md) — Keys, signatures, identity
+- [Nostr & the Relay](../learning/02_NOSTR_AND_THE_RELAY.md) — Protocol design
+- [Attestation](../learning/03_ATTESTATION_AND_THE_FULL_SYSTEM.md) — Proof of personhood
+- [Relay Trust](../learning/04_RELAY_TRUST_AND_INTEGRITY.md) — Trust signals and integrity
+- [Jurisdiction Scope](../learning/05_JURISDICTION_SCOPE_AND_ATTESTATION_ROLLUP.md) — Cross-jurisdiction coordination
+- [Economic Model](../learning/06_ECONOMIC_MODEL_AND_SUSTAINABILITY.md) — Sustainability
 
 ---
 

@@ -44,25 +44,43 @@ CivicOS provides an MCP server. Connect via Claude, ChatGPT, or any MCP-compatib
 
 ---
 
-## How It Works
+## Architecture
+
+CivicOS is built in layers, connected by open protocols:
 
 ```
-You  -->  Your AI Agent  -->  CivicOS
-                                 |
-                      +----------+----------+
-                      v                     v
-                   Learn                   Act
-               What's happening?      Voice support.
-               Who else cares?        Commit to action.
-
---------------------------------------------------------------
-Federated: Each city runs independently. Coordination syncs
-across boundaries — city, county, state. No central platform.
+You  -->  Your AI Agent (Claude, ChatGPT, etc.)
+               |
+               v
+          MCP Server                32 tools, 5 resources, 2 prompts
+               |
+          +----+----+
+          v         v
+      Core API   Relay              Query data / Coordinate action
+       (civicos)  (civicos-relay)
+          |         |
+          v         v
+      Storage    Nostr Protocol     PostgreSQL + pgvector / secp256k1 Schnorr
+          |
+          v
+      Extraction                    Legistar, SeeClickFix, Municode, LegiScan
+       (civicos-extraction)
 ```
+
+**MCP Server** — Exposes civic data to any AI agent via the [Model Context Protocol](https://modelcontextprotocol.io). 32 primitives covering meetings, decisions, transcripts, legislation, budget, 311 issues, and coordination. See [MCP Integration Strategy](critical/MCP_INTEGRATION_STRATEGY.md).
+
+**Core API** — The `CivicOS` class: `what_happened()`, `whats_next()`, `what_applies()`, `whos_with_me()`, `prepare()`, and more. Semantic search over 16,000+ vector embeddings. See [Package Architecture](critical/FINAL_PACKAGE_ARCHITECTURE.md).
+
+**Relay** — Federation-ready coordination server using [Nostr protocol](critical/NOSTR_CIVIC_NIPS.md) with secp256k1 Schnorr signatures. Handles voices, subscriptions, and cross-jurisdiction sync. See [Coordination Protocol](critical/COORDINATION_PROTOCOL.md).
+
+**Extraction** — Platform parsers that normalize data from Legistar, CivicClerk, Granicus, SeeClickFix, Municode, and more into a unified schema. See [Extractor Protocol](critical/EXTRACTOR_PROTOCOL.md).
 
 **Why AI agents?** Most people won't download a civic engagement app. But millions already use AI agents daily. CivicOS connects via open protocols (MCP for knowledge, Nostr for coordination) — works with Claude, ChatGPT, open source models, or any compatible system.
 
 **Why federation?** Civic issues span jurisdictions — housing involves federal funding, state law, county planning, and city zoning. CivicOS runs at each level. Your AI agent synthesizes across boundaries while you voice support once and it syncs everywhere relevant.
+
+!!! info "Want to understand the cryptography and protocol design?"
+    The [Learning Modules](learning/README.md) are self-contained deep dives: from [cryptographic foundations](learning/01_CRYPTOGRAPHIC_FOUNDATIONS.md) through [Nostr and the relay](learning/02_NOSTR_AND_THE_RELAY.md) to [economic sustainability](learning/06_ECONOMIC_MODEL_AND_SUSTAINABILITY.md).
 
 ---
 
