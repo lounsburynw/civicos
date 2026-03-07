@@ -134,6 +134,12 @@ apps/civicos-openwebui-fork
 # MkDocs build output
 site/
 
+# Extension build artifacts and local data
+apps/civicos-extension/data/
+apps/civicos-extension/test-results/
+apps/civicos-registry/.wrangler/
+apps/civicos-registry/data/
+
 # Node.js
 node_modules/
 package-lock.json

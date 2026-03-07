@@ -1,6 +1,8 @@
 # Budget Extraction System
 
-This document describes the architecture for extracting and storing municipal budget data in Civic.
+> **Partially Implemented:** Budget extraction for San Rafael FY25-26 is complete (58 line items, $180M). The architecture below describes the full system design; some components (multi-year comparison, ACFR integration) are future work.
+
+This document describes the architecture for extracting and storing municipal budget data in CivicOS.
 
 ## Overview
 

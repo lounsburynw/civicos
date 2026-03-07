@@ -35,40 +35,55 @@ AI_DRAFT_KIND = 24242  # Custom Nostr kind for AI proxy auth
 MAX_TOOL_RESULT_CHARS = 4000
 
 # Module state — set via configure_ai_proxy()
-_mcp_base_url: str = ""
-_jurisdiction: str = ""
-_tool_definitions: list[dict] = []
-_http_client: Optional[httpx.AsyncClient] = None
-_attestation_checker: Optional[Callable[[str], bool]] = None
+_default_jurisdiction: str = ""
+_attestation_checker: Optional[Callable[[str, str], bool]] = None
+
+# Per-jurisdiction MCP routing
+_jurisdiction_map: dict[str, dict] = {}  # jurisdiction_id -> {"mcp_url": str, "tools": list, "client": AsyncClient}
 
 
 def configure_ai_proxy(
     mcp_base_url: str,
     jurisdiction: str = "city-san-rafael",
-    attestation_checker: Optional[Callable[[str], bool]] = None,
+    attestation_checker: Optional[Callable[[str, str], bool]] = None,
+    jurisdiction_endpoints: Optional[dict[str, str]] = None,
 ) -> None:
     """Configure the AI proxy with its dependencies.
 
     Args:
-        mcp_base_url: MCP server URL for REST tool calls.
+        mcp_base_url: Default MCP server URL for REST tool calls.
         jurisdiction: Default jurisdiction for chat queries.
-        attestation_checker: Callable that checks if a pubkey is attested.
+        attestation_checker: Callable(pubkey, jurisdiction) that checks attestation.
             If None, falls back to relative import from coordination router.
+        jurisdiction_endpoints: Optional map of jurisdiction_id -> mcp_base_url.
+            When provided, the proxy routes requests to the correct MCP server
+            based on the request's jurisdiction field.
     """
-    global _mcp_base_url, _jurisdiction, _tool_definitions, _http_client, _attestation_checker
+    global _default_jurisdiction, _attestation_checker, _jurisdiction_map
 
-    _mcp_base_url = mcp_base_url.rstrip("/")
-    _jurisdiction = jurisdiction
+    _default_jurisdiction = jurisdiction
     _attestation_checker = attestation_checker
-    _http_client = httpx.AsyncClient(timeout=20.0)
 
-    # Fetch tool definitions from MCP server (single source of truth)
-    _tool_definitions = _fetch_tool_definitions(_mcp_base_url)
+    # Build the jurisdiction map
+    endpoints = jurisdiction_endpoints or {}
+    # Always include the default
+    if jurisdiction not in endpoints:
+        endpoints[jurisdiction] = mcp_base_url
 
-    logger.info(
-        "AI proxy configured: mcp=%s, jurisdiction=%s, tools=%d",
-        _mcp_base_url, _jurisdiction, len(_tool_definitions),
-    )
+    for jid, url in endpoints.items():
+        url = url.rstrip("/")
+        tools = _fetch_tool_definitions(url)
+        _jurisdiction_map[jid] = {
+            "mcp_url": url,
+            "tools": tools,
+            "client": httpx.AsyncClient(timeout=20.0),
+        }
+        logger.info(
+            "AI proxy: %s -> %s (%d tools)", jid, url, len(tools),
+        )
+
+    if not _jurisdiction_map:
+        logger.warning("AI proxy: no jurisdiction endpoints configured")
 
 
 def _fetch_tool_definitions(mcp_base_url: str) -> list[dict]:
@@ -90,12 +105,22 @@ def _fetch_tool_definitions(mcp_base_url: str) -> list[dict]:
         return []
 
 
-async def _call_mcp_tool(name: str, args: dict) -> str:
-    """Execute a tool via REST call to the MCP server."""
-    rest_name = name.replace("_", "-")
-    url = f"{_mcp_base_url}/api/tools/{rest_name}"
+def _get_jurisdiction_config(jurisdiction: str) -> dict:
+    """Get the MCP config for a jurisdiction, falling back to default."""
+    if jurisdiction in _jurisdiction_map:
+        return _jurisdiction_map[jurisdiction]
+    if _default_jurisdiction in _jurisdiction_map:
+        return _jurisdiction_map[_default_jurisdiction]
+    raise ValueError(f"No MCP endpoint configured for {jurisdiction}")
 
-    resp = await _http_client.post(url, json=args)
+
+async def _call_mcp_tool(name: str, args: dict, jurisdiction: str = "") -> str:
+    """Execute a tool via REST call to the jurisdiction's MCP server."""
+    config = _get_jurisdiction_config(jurisdiction or _default_jurisdiction)
+    rest_name = name.replace("_", "-")
+    url = f"{config['mcp_url']}/api/tools/{rest_name}"
+
+    resp = await config["client"].post(url, json=args)
     resp.raise_for_status()
     data = resp.json()
 
@@ -116,6 +141,7 @@ _global_cost: dict[str, float | str] = {"total": 0.0, "reset_date": ""}
 class AIDraftRequest(BaseModel):
     prompt: str
     system_prompt: Optional[str] = None
+    jurisdiction: Optional[str] = None
     public_key: str
     signature: str
     created_at: int
@@ -215,14 +241,15 @@ def _verify_ai_signature(public_key: str, signature: str, created_at: int) -> bo
         return False
 
 
-def _check_attestation(public_key: str) -> bool:
-    """Check if pubkey has a valid residency attestation.
+def _check_attestation(public_key: str, jurisdiction: str = "") -> bool:
+    """Check if pubkey has a valid residency attestation for the given jurisdiction.
 
     Uses the injected attestation_checker if available (relay deployment),
     otherwise falls back to the coordination router (standalone API server).
     """
+    j = jurisdiction or _default_jurisdiction
     if _attestation_checker:
-        return _attestation_checker(public_key)
+        return _attestation_checker(public_key, j)
 
     try:
         from .coordination import _get_attestation_storage
@@ -230,7 +257,7 @@ def _check_attestation(public_key: str) -> bool:
         storage = _get_attestation_storage()
         if not storage:
             return False
-        attestation = storage.get_attestation(public_key, "city-san-rafael")
+        attestation = storage.get_attestation(public_key, j)
         return attestation is not None
     except Exception:
         logger.exception("Attestation check error")
@@ -253,8 +280,9 @@ async def ai_draft(request: AIDraftRequest):
     if not _verify_ai_signature(request.public_key, request.signature, request.created_at):
         raise HTTPException(status_code=401, detail="Invalid signature")
 
-    # 3. Verify residency attestation
-    if not _check_attestation(request.public_key):
+    # 3. Verify residency attestation (scoped to jurisdiction)
+    jurisdiction = request.jurisdiction or _default_jurisdiction
+    if not _check_attestation(request.public_key, jurisdiction):
         raise HTTPException(status_code=403, detail="Residency verification required — verify in Settings to use CivicOS AI")
 
     # 4. Rate limits
@@ -287,7 +315,7 @@ async def ai_draft(request: AIDraftRequest):
             return AIDraftResponse(success=False, error="AI returned empty response")
 
         _record_usage(request.public_key)
-        logger.info("ai_draft_success", extra={"npub_prefix": request.public_key[:8]})
+        logger.info("ai_draft_success", extra={"npub_prefix": request.public_key[:8], "jurisdiction": jurisdiction})
         return AIDraftResponse(success=True, text=text)
 
     except anthropic.RateLimitError:
@@ -313,8 +341,9 @@ async def ai_chat(request: AIChatRequest):
     if not _verify_ai_signature(request.public_key, request.signature, request.created_at):
         raise HTTPException(status_code=401, detail="Invalid signature")
 
-    # 3. Verify residency attestation
-    if not _check_attestation(request.public_key):
+    # 3. Verify residency attestation (scoped to jurisdiction)
+    jurisdiction = request.jurisdiction or _default_jurisdiction
+    if not _check_attestation(request.public_key, jurisdiction):
         raise HTTPException(status_code=403, detail="Residency verification required — verify in Settings to use CivicOS AI")
 
     # 4. Rate limits (shared pool, but chat costs 2x)
@@ -327,12 +356,15 @@ async def ai_chat(request: AIChatRequest):
     if not api_key:
         raise HTTPException(status_code=503, detail="AI service not configured")
 
-    if not _tool_definitions:
-        raise HTTPException(status_code=503, detail="Chat tools not available — MCP unreachable at startup")
+    try:
+        config = _get_jurisdiction_config(jurisdiction)
+    except ValueError:
+        raise HTTPException(status_code=400, detail=f"No MCP endpoint configured for {jurisdiction}")
+
+    if not config["tools"]:
+        raise HTTPException(status_code=503, detail=f"Chat tools not available — MCP unreachable for {jurisdiction}")
 
     try:
-        jurisdiction = request.jurisdiction or _jurisdiction
-
         import anthropic
 
         client = anthropic.Anthropic(api_key=api_key)
@@ -358,7 +390,7 @@ async def ai_chat(request: AIChatRequest):
                 model="claude-sonnet-4-5-20250929",
                 max_tokens=1024,
                 system=system_prompt,
-                tools=_tool_definitions,
+                tools=config["tools"],
                 messages=messages,
             )
 
@@ -384,6 +416,7 @@ async def ai_chat(request: AIChatRequest):
                     "npub_prefix": request.public_key[:8],
                     "tool": tool_used or "none",
                     "turns": _turn + 1,
+                    "jurisdiction": jurisdiction,
                 })
                 return AIChatResponse(success=True, text=final_text, tool_used=tool_used)
 
@@ -405,7 +438,7 @@ async def ai_chat(request: AIChatRequest):
                 tool_used = tool_block.name
 
                 try:
-                    result = await _call_mcp_tool(tool_block.name, tool_block.input)
+                    result = await _call_mcp_tool(tool_block.name, tool_block.input, jurisdiction)
                 except Exception as e:
                     logger.warning("MCP tool call failed: %s: %s", tool_block.name, e)
                     result = json.dumps({"error": f"Tool failed: {str(e)[:200]}"})

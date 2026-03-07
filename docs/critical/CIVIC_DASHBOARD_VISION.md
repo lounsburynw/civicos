@@ -1,8 +1,10 @@
 # Civic Dashboard Vision: City Status at a Glance
 
+> **Note:** The primary user-facing surface for CivicOS is now the **browser extension** (Chrome). Open WebUI and REST API remain available as secondary surfaces. Dashboard concepts described here may be implemented within the extension side panel or as web views rendered by the extension.
+
 **Created**: 2026-01-22
-**Updated**: 2026-02-04
-**Status**: In Progress - Open WebUI artifact integration validated
+**Updated**: 2026-03-07
+**Status**: In Progress - browser extension is now the primary surface
 **Priority**: Active - implementing for pilot launch
 
 ---

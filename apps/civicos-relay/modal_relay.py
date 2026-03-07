@@ -42,6 +42,11 @@ relay_image = (
         "packages/civicos-services/src/civicos_services/servers/routers/ai_proxy.py",
         remote_path="/app/ai_proxy.py",
     )
+    # Registry config — jurisdiction → MCP endpoint mapping
+    .add_local_file(
+        "config/registry.json",
+        remote_path="/app/registry.json",
+    )
 )
 
 
@@ -101,7 +106,7 @@ class RelayServer:
         from ai_proxy import router as ai_proxy_router, configure_ai_proxy
 
         # Build attestation checker using relay's direct DB access
-        def check_attestation(public_key: str) -> bool:
+        def check_attestation(public_key: str, jurisdiction: str) -> bool:
             try:
                 from civicos_relay.storage.postgres import PostgresAttestationStorage
                 relay_url = os.environ.get("RELAY_DATABASE_URL") or os.environ.get("DATABASE_URL")
@@ -112,14 +117,28 @@ class RelayServer:
             except Exception:
                 return False
 
-        # Configure AI proxy with all dependencies
+        # Build jurisdiction → MCP endpoint map from registry.json
+        import json as _json
+        jurisdiction_endpoints: dict[str, str] = {}
+        try:
+            with open("/app/registry.json") as f:
+                reg = _json.load(f)
+            for jid, config in reg.get("jurisdictions", {}).items():
+                domain = config.get("domain", "")
+                if domain:
+                    jurisdiction_endpoints[jid] = f"https://{domain}"
+        except Exception:
+            pass  # Fall back to CIVICOS_MCP_URL only
+
+        # Configure AI proxy with jurisdiction routing
         jurisdiction = os.environ.get("CIVICOS_JURISDICTION", "city-san-rafael")
         mcp_url = os.environ.get("CIVICOS_MCP_URL", "")
-        if mcp_url:
+        if mcp_url or jurisdiction_endpoints:
             configure_ai_proxy(
-                mcp_base_url=mcp_url,
+                mcp_base_url=mcp_url or jurisdiction_endpoints.get(jurisdiction, ""),
                 jurisdiction=jurisdiction,
                 attestation_checker=check_attestation,
+                jurisdiction_endpoints=jurisdiction_endpoints,
             )
 
         fastapi_app = FastAPI(

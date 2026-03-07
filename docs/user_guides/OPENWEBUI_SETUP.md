@@ -1,5 +1,7 @@
 # Open WebUI Setup Guide
 
+> **Note:** Open WebUI is a **secondary surface** for CivicOS. The primary user-facing experience is the **[CivicOS Browser Extension](BROWSER_EXTENSION_SETUP.md)** (Chrome). Open WebUI remains useful for developers and advanced users who want a self-hosted AI chat interface with MCP server access.
+
 This guide explains how to set up [Open WebUI](https://docs.openwebui.com/) with CivicOS MCP servers, giving you AI-powered access to local civic data and identity/signing tools.
 
 ## Overview
