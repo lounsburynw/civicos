@@ -1,5 +1,7 @@
 # Hosting Decision: Modal + Supabase
 
+> **Updated March 2026:** The project has fully migrated from Fly.io to Modal. Fly.io is no longer used for any workloads. This document is retained as a historical decision record. See [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md) for current deployment procedures.
+
 **Decision Date:** 2025-12-11 (initial), 2026-01-30 (Modal migration)
 **Status:** APPROVED
 **Budget Constraint:** <$25/month total operational
@@ -493,3 +495,26 @@ modal secret create civicos-env \
 - [Civic Docker Compose](../../docker-compose.yml)
 - [Foundation Funding Thesis](./FOUNDATION_FUNDING_THESIS.md)
 - [Coordination Protocol](./COORDINATION_PROTOCOL.md)
+
+---
+
+## Migration to Modal (February 2026)
+
+The project fully migrated from Fly.io to Modal in early 2026. The Fly.io sections above are retained as historical context for the original decision.
+
+**Why Modal replaced Fly.io:**
+
+| Factor | Fly.io (original) | Modal (current) |
+|--------|-------------------|-----------------|
+| **Deployment model** | Docker containers + volumes | Serverless Python functions |
+| **GPU access** | Not available | Built-in GPU for vector indexing |
+| **Operations overhead** | Manage containers, volumes, CLI | Minimal — no containers or volumes |
+| **Cost structure** | Fixed costs for running machines | Pay-per-use, scales to zero |
+| **Consolidation** | Separate from vector indexing | All compute on one platform |
+
+**Key benefits of the migration:**
+- Serverless deployment eliminates container management
+- Built-in GPU access for embedding generation and vector indexing
+- Simpler operations with no volumes, machines, or CLI tooling to manage
+- Better cost structure for variable/bursty workloads (pilot scale)
+- Single platform for MCP server, relay worker, and vector indexer

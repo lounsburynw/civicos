@@ -2,142 +2,80 @@
 
 > **Claude Code:** Run `/db-backup` for PostgreSQL backups (selective or full) and `/blob-backup` for R2 blob storage management.
 
-**Last Updated:** 2025-12-11
-**Time Required:** 5-10 minutes
+**Last Updated:** 2026-03-07
+**Time Required:** 2-5 minutes
 **Related:** [DEPLOYMENT_GUIDE.md](./DEPLOYMENT_GUIDE.md), [ROLLBACK_PROCEDURES.md](./ROLLBACK_PROCEDURES.md)
 
-This procedure must be followed before every production deployment. It ensures you have a known-good backup to restore from if the deployment causes issues.
+This procedure should be followed before significant production deployments. With Modal (serverless) and Supabase (managed PostgreSQL), most backup concerns are handled automatically, but verifying backup state before deploying is still good practice.
+
+## Architecture Note
+
+CivicOS deploys on **Modal** (serverless). There is no server-side state to back up — Modal containers are stateless and ephemeral. All persistent data lives in managed services:
+
+| Data | Service | Backup |
+|------|---------|--------|
+| PostgreSQL (civic data, vectors) | Supabase | Automatic daily backups (Pro plan, PITR) |
+| Blob storage (PDFs, audio) | Cloudflare R2 | Managed by Cloudflare (durable object storage) |
+| Source code | Git (GitHub) | Standard git history |
 
 ## Quick Reference
 
 ```bash
-# 1. Create backup
-fly ssh console -a civic-api -C "python scripts/backup.py"
+# 1. Run local backup script (dumps from Supabase)
+python scripts/backup.py
 
-# 2. Verify backup exists
-fly ssh console -a civic-api -C "python scripts/backup.py --list"
+# 2. Verify backup
+python scripts/backup.py --list
 
-# 3. Verify backup integrity
-fly ssh console -a civic-api -C "python scripts/backup.py --verify FILENAME"
-
-# 4. (Optional) Download locally
-fly ssh sftp get /app/data/backups/FILENAME ./backups/
+# 3. Check Supabase automatic backup status
+# Visit: https://supabase.com/dashboard/project/lhtuixsynupnkejpahxk/settings/backups
 ```
 
 ---
 
 ## Full Procedure
 
-### Step 1: Pre-Backup Checks (1 min)
+### Step 1: Verify Supabase Backups Are Current (1 min)
 
-Before creating a backup, verify the environment:
+Supabase Pro plan provides automatic daily backups with point-in-time recovery (PITR).
 
-```bash
-# Verify you can access production
-fly status -a civic-api
-```
+1. Open [Supabase Dashboard > Backups](https://supabase.com/dashboard/project/lhtuixsynupnkejpahxk/settings/backups)
+2. Confirm the most recent backup completed successfully
+3. Note the latest backup timestamp
 
-**Expected:** App shows "started" state with passing health checks.
+### Step 2: Run Local Backup (Optional, 1-2 min)
 
-```bash
-# Check current disk usage (ensure space for backup)
-fly ssh console -a civic-api -C "df -h /app/data"
-```
-
-**Expected:** Less than 80% disk usage. If higher, run `python scripts/backup.py --clean` first.
+For an additional local copy before critical deployments:
 
 ```bash
-# Verify databases are healthy
-fly ssh console -a civic-api -C "python scripts/backup.py --status"
+# Activate environment
+source civicos-env/bin/activate
+
+# Run backup script (connects to Supabase via DATABASE_URL)
+python scripts/backup.py
+
+# List available local backups
+python scripts/backup.py --list
 ```
 
-**Expected:** Both databases show "OK" status.
-
-### Step 2: Create Backup (1-2 min)
+### Step 3: Verify Modal App State (30 sec)
 
 ```bash
-fly ssh console -a civic-api -C "python scripts/backup.py"
+# Check current Modal deployment
+modal app list
+
+# View specific app details
+modal app show civicos-mcp
 ```
 
-**Expected output:**
-```
-Creating backup...
-  Backing up civic_state.db... OK
-  Backing up civic_participation.db... OK
-Backup complete:
-  civic_state_20251211_143052.db (2.1 MB)
-  civic_participation_20251211_143052.db (1.5 MB)
-```
-
-**Record the backup filenames** for reference during deployment.
-
-### Step 3: Verify Backup Created (30 sec)
-
-```bash
-fly ssh console -a civic-api -C "python scripts/backup.py --list"
-```
-
-**Verify:**
-- [ ] New backup files appear at top of list
-- [ ] Timestamps match current time
-- [ ] File sizes are reasonable (>100KB for populated databases)
-
-### Step 4: Verify Backup Integrity (30 sec)
-
-```bash
-# Verify state database backup
-fly ssh console -a civic-api -C "python scripts/backup.py --verify civic_state_YYYYMMDD_HHMMSS.db"
-
-# Verify participation database backup
-fly ssh console -a civic-api -C "python scripts/backup.py --verify civic_participation_YYYYMMDD_HHMMSS.db"
-```
-
-**Expected output for each:**
-```
-Verifying backup: civic_state_YYYYMMDD_HHMMSS.db
-  File exists: Yes
-  Checksum valid: Yes
-  SQLite integrity: OK
-Backup is valid and can be restored.
-```
-
-**All three checks must pass:**
-- [ ] File exists: Yes
-- [ ] Checksum valid: Yes
-- [ ] SQLite integrity: OK
-
-### Step 5: (Optional) Download Local Copy (1-2 min)
-
-For critical deployments or if you want an off-server backup:
-
-```bash
-# Create local backups directory if needed
-mkdir -p ./backups
-
-# Download both backup files
-fly ssh sftp get /app/data/backups/civic_state_YYYYMMDD_HHMMSS.db ./backups/
-fly ssh sftp get /app/data/backups/civic_participation_YYYYMMDD_HHMMSS.db ./backups/
-
-# Download checksum files
-fly ssh sftp get /app/data/backups/civic_state_YYYYMMDD_HHMMSS.db.sha256 ./backups/
-fly ssh sftp get /app/data/backups/civic_participation_YYYYMMDD_HHMMSS.db.sha256 ./backups/
-```
-
-**Verify local checksums:**
-```bash
-cd backups
-sha256sum -c civic_state_YYYYMMDD_HHMMSS.db.sha256
-sha256sum -c civic_participation_YYYYMMDD_HHMMSS.db.sha256
-```
-
-### Step 6: Record Deployment Context
+### Step 4: Record Deployment Context
 
 Before proceeding with deployment, note:
 
 | Field | Value |
 |-------|-------|
-| Backup timestamp | YYYYMMDD_HHMMSS |
-| Current release version | (from `fly releases -a civic-api | head -2`) |
+| Supabase backup timestamp | (from dashboard) |
+| Current git tag | (from `git tag --list "v*-pilot-*" \| tail -1`) |
 | Deployer | Your name |
 | Deployment reason | Brief description |
 
@@ -147,47 +85,37 @@ This helps correlate backups with deployments if rollback is needed.
 
 ## Troubleshooting
 
-### "Permission denied" accessing files
+### Cannot connect to Supabase
 
 ```bash
-# Check volume is mounted
-fly ssh console -a civic-api -C "ls -la /app/data/"
+# Verify DATABASE_URL is set
+source civicos-env/bin/activate
+python3 -c "from dotenv import load_dotenv; load_dotenv(); import os; print('Set' if os.getenv('DATABASE_URL') else 'NOT SET')"
+
+# Test connection
+python3 -c "
+from dotenv import load_dotenv; load_dotenv()
+from civicos import CivicOS
+c = CivicOS('city-san-rafael')
+print(f'Backend: {type(c.storage).__name__}')
+print(f'Decisions: {c.storage.get_decision_count(\"city-san-rafael\")}')
+"
 ```
 
-If `/app/data/` is empty, the volume may not be mounted. Check `fly.toml` volume configuration.
+### Backup script fails
 
-### "Disk full" error
+1. Check that `.env` contains a valid `DATABASE_URL`
+2. Verify network connectivity to Supabase
+3. Check Supabase dashboard for service status
 
-```bash
-# Check disk usage
-fly ssh console -a civic-api -C "df -h /app/data"
-
-# Clean old backups per retention policy
-fly ssh console -a civic-api -C "python scripts/backup.py --clean"
-```
-
-### Backup integrity check fails
-
-If checksum validation fails:
-
-1. Re-run the backup: `python scripts/backup.py`
-2. If repeated failures, check disk health:
-   ```bash
-   fly ssh console -a civic-api -C "dmesg | tail -20"
-   ```
-3. Consider expanding volume if near capacity
-
-### Cannot SSH to production
+### Modal deployment issues
 
 ```bash
-# Verify app is running
-fly status -a civic-api
+# Check Modal service status
+modal app list
 
-# Check your fly.io authentication
-fly auth whoami
-
-# Try restarting the machine
-fly machine restart -a civic-api
+# View deployment logs
+modal app logs civicos-mcp
 ```
 
 ---
@@ -198,14 +126,11 @@ Complete this checklist before every deployment:
 
 ### Pre-Deployment Backup Checklist
 
-- [ ] **Environment accessible:** `fly status -a civic-api` shows healthy
-- [ ] **Disk space available:** Less than 80% used on `/app/data`
-- [ ] **Databases healthy:** `--status` shows OK for both databases
-- [ ] **Backup created:** `python scripts/backup.py` completed successfully
-- [ ] **Backup listed:** New files visible in `--list` output
-- [ ] **Integrity verified:** Both `--verify` checks passed
-- [ ] **Backup filenames recorded:** Noted for rollback reference
-- [ ] **(Optional) Local copy downloaded:** If critical deployment
+- [ ] **Supabase backups current:** Dashboard shows recent successful backup
+- [ ] **Database accessible:** Can connect and query via `DATABASE_URL`
+- [ ] **(Optional) Local backup created:** `python scripts/backup.py` completed
+- [ ] **Git state clean:** All changes committed and tagged
+- [ ] **Deployment context recorded:** Timestamp, tag, deployer noted
 
 **Only proceed with deployment after all required items are checked.**
 
@@ -216,9 +141,12 @@ Complete this checklist before every deployment:
 If deployment fails and rollback is needed:
 
 ```bash
-# Quick restore command (replace with your recorded filenames)
-fly ssh console -a civic-api -C "python scripts/backup.py --restore civic_state_YYYYMMDD_HHMMSS.db"
-fly ssh console -a civic-api -C "python scripts/backup.py --restore civic_participation_YYYYMMDD_HHMMSS.db"
+# Modal deployments are atomic — redeploy the previous version
+git checkout v0.2.0-pilot-YYYYMMDD
+modal deploy apps/civicos-mcp/modal_app.py
+
+# For database rollback, use Supabase PITR (point-in-time recovery)
+# via the Supabase Dashboard > Backups > Restore to point in time
 ```
 
 For complete rollback procedures including code rollback, see [ROLLBACK_PROCEDURES.md](./ROLLBACK_PROCEDURES.md).

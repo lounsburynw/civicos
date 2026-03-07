@@ -60,6 +60,35 @@ actual=$(ls .critics/*.critic.md 2>/dev/null | xargs -n1 basename | sort)
 diff <(echo "$documented") <(echo "$actual")
 ```
 
+### Tier 1.5: Stale Infrastructure References
+
+Run on any `.md` file in the changeset. These patterns indicate outdated documentation that will mislead users and AI agents.
+
+**1. Deprecated infrastructure references?**
+
+```bash
+# Check for Fly.io references in non-archive docs (fully migrated to Modal)
+grep -rn 'fly deploy\|fly ssh\|fly\.io\|fly\.toml\|Fly\.io' docs/ --include="*.md" \
+  --exclude-dir=archive --exclude-dir=decisions | \
+  grep -v "migrated\|deprecated\|historical\|no longer" && echo "FAIL: Fly.io refs in live docs"
+
+# Check for old package name (renamed civic → civicos)
+grep -rn 'packages/civic[^o]' docs/ --include="*.md" \
+  --exclude-dir=archive && echo "FAIL: Old package name refs"
+```
+
+**2. Deprecated surface references?**
+
+```bash
+# Check for Open WebUI as "primary" surface (browser extension is primary)
+grep -rn 'primary.*Open WebUI\|Open WebUI.*primary' docs/ --include="*.md" \
+  --exclude-dir=archive && echo "FAIL: Open WebUI listed as primary surface"
+
+# Check for Vue frontend without "deprecated" qualifier
+grep -rn 'civicos-workspace' docs/ --include="*.md" \
+  --exclude-dir=archive | grep -vi 'deprecated' && echo "WARN: workspace ref without deprecated note"
+```
+
 ### Tier 2: Bloat Detection (docs/)
 
 Run periodically or via `/critic docs --full`.
@@ -238,6 +267,35 @@ def check_directory_structure(content: str) -> list[str]:
     return issues
 
 
+def check_stale_infra_refs() -> list[str]:
+    """Check for deprecated infrastructure references in live docs."""
+    import subprocess
+    issues = []
+
+    # Fly.io references in non-archive docs
+    result = subprocess.run(
+        ['grep', '-rn', r'fly deploy\|fly ssh\|fly\.toml\|Fly\.io',
+         'docs/', '--include=*.md', '--exclude-dir=archive', '--exclude-dir=decisions'],
+        capture_output=True, text=True
+    )
+    for line in result.stdout.strip().split('\n'):
+        if line and not any(skip in line.lower() for skip in ['migrated', 'deprecated', 'historical', 'no longer', 'replaced']):
+            issues.append(f"Stale Fly.io ref: {line.split(':')[0]}")
+
+    # Old package name
+    result = subprocess.run(
+        ['grep', '-rnP', r'packages/civic[^o]',
+         'docs/', '--include=*.md', '--exclude-dir=archive'],
+        capture_output=True, text=True
+    )
+    for line in result.stdout.strip().split('\n'):
+        if line:
+            issues.append(f"Old package name: {line.split(':')[0]}")
+
+    # Deduplicate by file
+    return list(set(issues))
+
+
 def check_critics_table(content: str) -> list[str]:
     """Check that critics table matches actual .critic.md files."""
     issues = []
@@ -282,6 +340,9 @@ def main():
             readme_content = f.read()
         all_issues.extend(check_explicit_paths(readme_content, 'README.md'))
         all_issues.extend(check_directory_structure(readme_content))
+
+    # Check for stale infrastructure references in docs
+    all_issues.extend(check_stale_infra_refs())
 
     # Determine severity
     severity = "info"

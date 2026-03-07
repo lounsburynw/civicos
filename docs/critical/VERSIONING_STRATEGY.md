@@ -57,7 +57,7 @@ These tags are preserved for history but the new format applies going forward.
 
 ### Always Tag
 
-- **Production deployments**: Every deployment to Fly.io production
+- **Production deployments**: Every deployment to Modal production
 - **Milestone completions**: End of development sessions with significant changes
 - **Before migrations**: Tag before any database schema changes
 
@@ -127,18 +127,17 @@ Migration: {Yes/No}
 |----------|---------|------------------|
 | `pyproject.toml` version | Package version for pip | Major releases only |
 | Git tags | Deployment tracking | Every deployment |
-| Fly.io versions (vN) | Platform versioning | Automatic per deploy |
 
 **Current State:**
 - `pyproject.toml`: `0.1.0` (alpha, pre-pilot)
 - Git tags: `v0.2.x-pilot-*` (pilot phase)
-- Fly.io: `vN` (auto-incremented)
+- Modal: atomic deploys (each `modal deploy` replaces the running app)
 
 ### Syncing Versions
 
 When making a significant release:
 
-1. Update `packages/civic/pyproject.toml`:
+1. Update `packages/civicos/pyproject.toml`:
    ```toml
    version = "0.2.0"
    ```
@@ -166,16 +165,16 @@ git tag -l --format='%(refname:short) %(creatordate:short)' | grep pilot
 git log --tags --simplify-by-decoration --pretty="format:%ci %d" | grep "2026-01"
 ```
 
-### By Fly.io Version
+### By Modal Deployment
 
-Correlate Fly.io's `vN` with Git tags:
+Modal deploys are atomic — each `modal deploy` replaces the running app with the current code. To identify what's deployed:
 
 ```bash
-# Get Fly.io deployment info
-fly releases -a civic-api
+# Check current Modal app status
+modal app show civicos-mcp
 
-# Find corresponding Git commit
-# (Fly.io shows image digest; Git tag points to same commit)
+# The deployed code corresponds to the git commit at deploy time
+# Use git tags to track which version was deployed
 ```
 
 ### Quick Reference
@@ -226,8 +225,8 @@ When rolling back, the sequence is:
 
 1. **Identify problematic deployment:**
    ```bash
-   fly releases -a civic-api
-   # Note: v5 deployed at 10:00, issues started
+   # Check logs for when issues started
+   modal app logs civicos-mcp
    ```
 
 2. **Find corresponding Git tag:**
@@ -237,9 +236,10 @@ When rolling back, the sequence is:
    # v0.2.0-pilot-20260110 <- last known good
    ```
 
-3. **Roll back code:**
+3. **Roll back code (Modal deploys are atomic):**
    ```bash
-   fly deploy -a civic-api --image registry.fly.io/civic-api:v4
+   git checkout v0.2.0-pilot-20260110
+   modal deploy apps/civicos-mcp/modal_app.py
    ```
 
 4. **Document in rollback log:**

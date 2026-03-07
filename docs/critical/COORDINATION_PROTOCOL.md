@@ -938,7 +938,7 @@ REST API endpoints for relay operations are now available in `civicos-services`:
 2. **Phase 2 (Complete):** MCP Server on Modal
    - Deploy `civicos-mcp` to Modal as web endpoint ✓
    - Connect to Claude.ai and ChatGPT ✓
-   - Full parity with Fly.io (25+ tools) ✓
+   - Full parity with Modal deployment (25+ tools) ✓
    - Input validation and federation support ✓
 
 3. **Phase 3 (Next):** Relay Worker on Modal

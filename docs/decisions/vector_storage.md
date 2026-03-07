@@ -1,5 +1,7 @@
 # Vector Storage Decision
 
+> **Updated March 2026:** Production now uses pgvector on Supabase PostgreSQL, not ChromaDB on Fly.io. ChromaDB remains available for local development. This document is retained as a historical decision record.
+
 **Date**: 2025-12-26
 **Status**: Decided
 **Decision**: ChromaDB on Fly.io volume
@@ -15,10 +17,10 @@ Civic requires a vector database for semantic search over meeting transcripts, d
 
 ## Current State
 
-- **Implementation**: ChromaDB via `CivicEmbeddings` class (`packages/civic/src/civic/_internal/meetings/embeddings.py`)
+- **Implementation**: ChromaDB via `CivicEmbeddings` class (`packages/civicos/src/civicos/_internal/meetings/embeddings.py`)
 - **Embedding model**: `nomic-ai/nomic-embed-text-v1.5` (768 dimensions, 8192 token context)
 - **Index size**: ~13MB for San Rafael (city-san-rafael)
-- **Protocol**: `VectorBackend` defined in `packages/civic/src/civic/storage/vector.py`
+- **Protocol**: `VectorBackend` defined in `packages/civicos/src/civicos/storage/vector.py`
 
 ## Options Evaluated
 
@@ -146,5 +148,20 @@ If scale requirements change, the `VectorBackend` protocol supports alternative 
 - [Fly.io Pricing](https://fly.io/pricing/) - $0.15/GB/month for volumes
 - [Qdrant Cloud Pricing](https://qdrant.tech/pricing/) - 1GB free tier with limitations
 - [Supabase pgvector](https://supabase.com/docs/guides/database/extensions/pgvector) - Vector extension docs
-- VectorBackend protocol: `packages/civic/src/civic/storage/vector.py`
-- CivicEmbeddings: `packages/civic/src/civic/_internal/meetings/embeddings.py`
+- VectorBackend protocol: `packages/civicos/src/civicos/storage/vector.py`
+- CivicEmbeddings: `packages/civicos/src/civicos/_internal/meetings/embeddings.py`
+
+---
+
+## Migration to pgvector (2026)
+
+Production migrated from ChromaDB on Fly.io volumes to pgvector on Supabase PostgreSQL. The original decision above is retained as historical context.
+
+**Why pgvector replaced ChromaDB in production:**
+
+- **Managed storage**: pgvector on Supabase provides automatic backups, point-in-time recovery, and managed infrastructure
+- **No Fly.io dependency**: Eliminates the need for Fly.io volumes and container management
+- **Unified database**: Vectors live alongside relational data in the same PostgreSQL instance, simplifying queries and operations
+- **Scales with the database**: As the PostgreSQL database grows, vector storage grows with it — no separate volume management
+
+**ChromaDB remains in use for local development**, providing a lightweight zero-dependency option for offline work. The `VectorBackend` protocol abstraction (predicted in the original decision) made this migration straightforward.

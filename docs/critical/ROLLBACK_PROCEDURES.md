@@ -446,7 +446,7 @@ fly ssh console -a civic-api -C "python scripts/backup.py --restore civic_state_
 Before each deployment, reduce rollback risk:
 
 ### Code Review
-- [ ] All tests pass: `pytest packages/civic/tests/ -q`
+- [ ] All tests pass: `pytest packages/civicos/tests/ -q`
 - [ ] Migration tested locally (if any)
 - [ ] No breaking API changes (or coordinated with frontend)
 
