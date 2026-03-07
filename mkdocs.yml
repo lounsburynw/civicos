@@ -42,8 +42,8 @@ plugins:
 
 exclude_docs: |
   archive/
+  private/
   next_session_prompt.md
-  FEDERAL_PROGRAMS_PARSER_STRATEGY.md
 
 markdown_extensions:
   - admonition
@@ -103,7 +103,6 @@ nav:
     - Browser Extension: critical/BROWSER_EXTENSION_ARCHITECTURE.md
     - Civic Lens: critical/CIVIC_LENS_SPEC.md
     - Dashboard Vision: critical/CIVIC_DASHBOARD_VISION.md
-    - Context Assembly: critical/CONTEXT_ASSEMBLY_API.md
     - Commitment Tracker: critical/COMMITMENT_TRACKER_ARCHITECTURE.md
     - Nostr NIPs: critical/NOSTR_CIVIC_NIPS.md
     - Data:
@@ -141,7 +140,6 @@ nav:
     - Testing Strategy: critical/TESTING_STRATEGY.md
     - Extractor Protocol: critical/EXTRACTOR_PROTOCOL.md
     - Pilot Roadmap: critical/PILOT_ROADMAP.md
-    - City Deployment Audit: critical/CITY_DEPLOYMENT_AUDIT.md
 
   - Packages:
     - packages/index.md
