@@ -1781,13 +1781,13 @@ class CivicOS:
         """
         Add your voice to an item.
 
-        Express support, opposition, or questions about an initiative,
+        Express support, opposition, or interest in an initiative,
         agenda item, or decision.
 
         Args:
             item_type: Type of item ("initiative", "agenda_item", "decision")
             item_id: ID of the item
-            stance: Your stance ("support", "oppose", "question")
+            stance: Your stance ("support", "oppose", "watching")
             comment: Your comment
             user_id: ID of the user (default: anonymous)
 

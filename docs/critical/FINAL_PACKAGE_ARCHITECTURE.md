@@ -159,7 +159,7 @@ c.start_something(
 c.add_voice(
     item_type="initiative",  # or "agenda_item", "decision"
     item_id="init_123",
-    stance="support",        # support, oppose, question
+    stance="support",        # support, oppose, watching
     comment="As a daily cyclist..."
 ) -> Voice
 
@@ -604,7 +604,7 @@ class Voice:
     user_id: str
     item_type: str  # "initiative", "agenda_item", "decision"
     item_id: str
-    stance: str  # "support", "oppose", "question"
+    stance: str  # "support", "oppose", "watching"
     comment: Optional[str]
     created_at: datetime
 

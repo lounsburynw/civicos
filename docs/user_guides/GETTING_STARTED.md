@@ -116,7 +116,7 @@ Generates background context, talking points, regulatory context, and draft comm
 
 Beyond querying data, CivicOS supports civic coordination:
 
-- **Voice support or opposition** on agenda items and proposals
+- **Voice your stance** (support, oppose, or watching) on agenda items and proposals
 - **Find allies** — see how many others share your position
 - **Follow topics** — get updates when meetings or decisions match your interests
 - **Start initiatives** — propose ideas for community backing

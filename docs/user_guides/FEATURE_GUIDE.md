@@ -161,7 +161,7 @@ Express your stance on an agenda item or community proposal within the CivicOS c
 
 - **Support** — You're in favor
 - **Oppose** — You're against
-- **Question** — You want clarification without taking a side
+- **Watching** — You're interested but not taking a stance yet
 
 Voices are aggregated to show community sentiment. They require [attestation](ATTESTATION_GUIDE.md).
 
@@ -210,6 +210,6 @@ A multi-tool research workflow that comprehensively explores a topic across meet
 ## What CivicOS Cannot Do
 
 - **Predict votes** — CivicOS provides historical data, not forecasts
-- **Submit comments** — You must submit through official city channels
+- **Submit official comments** — CivicOS coordinates community voice through its relay, but official public comments must be submitted through city channels (email to clerk or speaking at the meeting)
 - **Access non-public data** — All data comes from public sources
 - **Represent you** — CivicOS provides information and drafts; you make the decisions
