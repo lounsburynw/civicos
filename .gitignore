@@ -131,6 +131,12 @@ city-san-rafael
 # Open WebUI fork (symlinked to separate repo)
 apps/civicos-openwebui-fork
 
+# Private docs (financial/internal — not for public repo)
+docs/private/
+
+# Session state (ephemeral)
+docs/next_session_prompt.md
+
 # MkDocs build output
 site/
 
