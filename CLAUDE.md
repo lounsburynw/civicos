@@ -37,8 +37,8 @@ LSP enables faster code navigation (50ms vs 45s) and better context awareness.
 # Python (Pyright) - already in requirements.txt
 pip install pyright
 
-# TypeScript - install in frontend
-cd ~/projects/civicos-openwebui && npm install
+# TypeScript - install in extension
+cd apps/civicos-extension && npm install
 ```
 
 **Configuration files:**
@@ -93,6 +93,8 @@ c = CivicOS("san-rafael")
 c.whats_next()              # Upcoming meetings/decisions
 c.what_happened("housing")  # Historical decisions
 c.what_applies("housing")   # Relevant legislation
+c.what_was_said("housing")  # Search meeting transcripts
+c.get_public_testimony("housing")  # Public testimony excerpts
 c.whos_with_me("traffic")   # Community around issue
 
 # Action methods
@@ -153,9 +155,12 @@ packages/civicos/             # Core API package
 packages/civicos-relay/       # Federation-ready relay (voice, actions, sync, subscriptions)
 packages/civicos-extraction/  # Platform parsers
 packages/civicos-services/    # Application layer (API server, chat, websocket)
-apps/civicos-workspace/       # Vue frontend (DEPRECATED — use Open WebUI)
-apps/civicos-mcp/             # MCP server
-apps/civicos-openwebui-fork/  # Open WebUI fork — PRIMARY frontend (symlink → ~/projects/civicos-openwebui)
+packages/civicos-client/      # TypeScript/JavaScript client library
+packages/civicos-components/  # Svelte UI components
+apps/civicos-extension/       # Browser extension — PRIMARY user surface (Chrome)
+apps/civicos-mcp/             # MCP server (for AI agents)
+apps/civicos-workspace/       # Vue frontend (DEPRECATED)
+apps/civicos-openwebui-fork/  # Open WebUI fork (secondary surface, symlink → ~/projects/civicos-openwebui)
 data/                       # Extracted events, issues, legislative context
 docs/critical/              # Essential architecture docs
 docs/archive/               # Historical docs (recoverable)
@@ -169,7 +174,7 @@ Read only when needed. Organized by purpose:
 ### Architecture & Design (docs/critical/)
 | Doc | Purpose |
 |-----|---------|
-| `FINAL_PACKAGE_ARCHITECTURE.md` | **Master architecture** - API, coordination, orchestration, error handling |
+| `FINAL_PACKAGE_ARCHITECTURE.md` | **Master architecture** - API, coordination, four-layer design, error handling |
 | `FOCAL_POINT_DECISION_AWARENESS.md` | Core hypothesis - why civic coordination works |
 | `COORDINATION_PROTOCOL.md` | Coordination protocol - relay, voice, provenance (MVP in pilot) |
 | `MCP_INTEGRATION_STRATEGY.md` | MCP server + multi-platform distribution (Claude.ai, ChatGPT, web) |
@@ -203,7 +208,6 @@ Read only when needed. Organized by purpose:
 | `DATA_DICTIONARY.md` | Data schemas, field definitions |
 | `EXTRACTOR_PROTOCOL.md` | Platform parser patterns |
 | `BUDGET_EXTRACTION.md` | Budget PDF extraction |
-| `SQLITE_CHROMADB_JOIN_PATTERNS.md` | Local dev storage patterns |
 
 ### Decisions (docs/decisions/)
 Architecture Decision Records (ADRs):
@@ -222,7 +226,7 @@ Architecture Decision Records (ADRs):
 For end users and city admins:
 - `GETTING_STARTED.md`, `FEATURE_GUIDE.md`, `FAQ.md`
 - `ADMIN_SETUP_GUIDE.md`, `ADMIN_DATA_MANAGEMENT.md`, `ADMIN_TROUBLESHOOTING.md`
-- `CITY_ONBOARDING_GUIDE.md`, `MCP_SETUP_GUIDE.md`
+- `BROWSER_EXTENSION_SETUP.md`, `MCP_SETUP_GUIDE.md`, `CITY_ONBOARDING_GUIDE.md`
 - `PLATFORM_SPECIFIC_NOTES.md`, `PILOT_USER_IDENTIFICATION.md`, `VERIFICATION_TUTORIAL.md`
 - `ATTESTATION_GUIDE.md` — Single-use code attestation (admin + user workflows)
 
@@ -244,7 +248,7 @@ Historical docs from completed phases. Recoverable if needed.
 |---------|---------|-----------|
 | `/start` | Begin session, find next item | No |
 | `/start-parallel` | Begin secondary session (different track than P0) | No |
-| `/launch` | Start dev servers (API, WebSocket, Frontend, Open WebUI) | No |
+| `/launch` | Start dev servers (API, WebSocket) | No |
 | `/load_context` | Load context for work area | Yes (Explore) |
 | `/analyze-item [name]` | Deep analysis of item | Yes (3 parallel) |
 | `/test [mode]` | Run tests (smoke/targeted/full/profile) | No |
@@ -367,21 +371,24 @@ The `pr-review-toolkit` Claude Code plugin provides general code quality agents 
 
 ## Launching the App
 
-Start the API backend and Open WebUI frontend separately:
+Start the API backend for local development:
 
 ```bash
 ./scripts/dev.sh api                              # REST API (port 8001)
-cd ~/projects/civicos-openwebui && npm run dev     # Open WebUI frontend (port 5173, hot reload)
 ```
 
-Or use `/launch` which starts both.
+Or use `/launch` which starts the API and WebSocket servers.
 
 The `dev.sh` script automatically:
 - Loads `.env` (requires `GOOGLE_MAPS_API_KEY` with Geocoding API enabled)
 - Sets `CIVICOS_DEV_MODE=true` and `CIVICOS_WEB_KEY=dev_key_local`
 - Uses `civicos-env` venv Python directly
 
-**Note:** `apps/civicos-workspace/` (Vue frontend) is deprecated. The primary UX surface is the Open WebUI fork.
+For browser extension development:
+```bash
+cd apps/civicos-extension && npm run dev          # Watch mode with hot reload
+# Then load unpacked from apps/civicos-extension/dist in chrome://extensions
+```
 
 ## Testing Strategy
 
@@ -459,7 +466,7 @@ San Rafael pilot data (counts approximate, run `/data-status` for current):
 
 | Table | Count | Description |
 |-------|-------|-------------|
-| meetings | 98 | Oct 2025 - Jan 2026 |
+| meetings | 98 | Oct 2025 - present |
 | decisions | 44 | With outcomes, topics |
 | transcripts | 19 | Full meeting transcripts |
 | chunks | 5,084 | Agenda packet PDFs |
@@ -519,34 +526,50 @@ Use `/data-status` and `/vector-coverage` commands for quick checks.
 
 ## Deployment
 
-Always deploy to **Modal**, never Fly.io or other platforms. The project uses Modal for all cloud deployments including apps, cron jobs, relay services, and GPU workloads (vector indexing).
-
-- Local file edits are not automatically included in Modal deployments — code is bundled at deploy time. Verify edits are saved before deploying.
-- Ensure all required Modal Secrets are configured before deploying (`modal secret list`).
-
-## UX Surface
-
-The primary UX surface is the **Open WebUI fork** (`apps/civicos-openwebui-fork/` symlink → `~/projects/civicos-openwebui`). When discussing UI/UX changes, always target this fork unless explicitly told otherwise. Do not propose changes to Vue dashboards, Claude.ai MCP panels, or other surfaces without asking first.
-
-### Open WebUI Development
-
-**For iterating on frontend changes, use the Vite dev server (hot reload):**
+All production services run on **Modal** (serverless Python). Data lives in **Supabase PostgreSQL** (with pgvector). Blobs in **Cloudflare R2**.
 
 ```bash
-cd ~/projects/civicos-openwebui && npm run dev   # localhost:5173, hot reload
+# Deploy services
+modal deploy packages/civicos-services/src/civicos_services/servers/modal_api.py
+modal deploy apps/civicos-mcp/modal_mcp.py
+modal deploy packages/civicos-relay/src/civicos_relay/modal_relay.py
+
+# Vector indexing (GPU)
+modal run scripts/modal_ingest.py
+
+# Check status
+modal app list
+modal app logs civicos-api
 ```
 
-**Only rebuild Docker for production testing or deployment:**
+- Never deploy to Fly.io or other platforms — Modal only.
+- Local file edits are not automatically included — code is bundled at deploy time.
+- Modal Secrets (`civicos-secrets`) store DATABASE_URL, OPENAI_API_KEY, etc. Check with `modal secret list`.
+- See `docs/critical/DEPLOYMENT_GUIDE.md` for full procedures.
+
+## UX Surfaces
+
+The primary UX surface is the **browser extension** (`apps/civicos-extension/`). When discussing UI/UX changes, always target the extension unless explicitly told otherwise.
+
+| Surface | Package | Role | Status |
+|---------|---------|------|--------|
+| **Browser extension** | `apps/civicos-extension/` | Primary — end users | Active |
+| **MCP server** | `apps/civicos-mcp/` | AI agents (Claude, ChatGPT) | Active |
+| **REST API** | `packages/civicos-services/` | Developers, integrations | Active |
+| **Open WebUI fork** | `apps/civicos-openwebui-fork/` | Secondary — advanced users | Maintained |
+| **Vue frontend** | `apps/civicos-workspace/` | Deprecated | Do not use |
+
+### Browser Extension Development
 
 ```bash
-cd ~/projects/civicos-openwebui
-docker build -t civicos-openwebui:latest .
-docker stop civicos-openwebui && docker rm civicos-openwebui
-docker run -d --name civicos-openwebui -p 8080:8080 \
-  --env-file .env --restart unless-stopped civicos-openwebui:latest
+cd apps/civicos-extension
+npm run dev          # Watch mode, auto-rebuilds on change
+npm run build        # Production build
 ```
 
-The Docker container serves the production build at `localhost:8080`. Use it to verify the final build before deploying, not for development iteration.
+Load the extension in Chrome: `chrome://extensions` → Developer mode → Load unpacked → select `apps/civicos-extension/dist`.
+
+The extension uses Svelte, communicates with the CivicOS API, and manages local identity (Nostr keys) in browser storage. See `docs/critical/BROWSER_EXTENSION_ARCHITECTURE.md` for design details.
 
 ## Protocol (Nostr)
 
