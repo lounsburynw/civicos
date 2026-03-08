@@ -102,7 +102,7 @@ nav:
     - civicos-client (TypeScript): public/packages/civicos-client.md
     - civicos-components (Svelte UI): public/packages/civicos-components.md
 
-  - Decisions:
+  - ADRs:
     - Vector Storage: public/decisions/vector_storage.md
     - Data Integrity: public/decisions/data_integrity_infrastructure.md
     - Entity ID Namespace: public/decisions/entity_id_namespace.md
