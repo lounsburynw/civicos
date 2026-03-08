@@ -12,7 +12,6 @@ Usage:
     c.what_applies("housing")
     c.what_happened("bike lanes")
     c.whats_next(["transportation"])
-    c.whos_with_me("traffic safety")
 
     # Coordination (Act) — see civicos-relay package
 
@@ -56,7 +55,7 @@ from civicos.types import (
     DecisionWithContext,
     Meeting,
     UpcomingElection,
-    Community,
+
     ActionDraft,
     BudgetItem,
     BudgetSummary,
@@ -824,117 +823,6 @@ class CivicOS:
         combined.sort(key=lambda x: x.date if isinstance(x, Meeting) else x.election_date)
 
         return combined
-
-    def whos_with_me(
-        self,
-        topic: str,
-        semantic: bool = True,
-        similarity_threshold: float = 0.3,
-    ) -> Community:
-        """
-        Find others who care about this topic.
-
-        Uses civicos-state to query issues, followers, and initiatives
-        related to the topic. When embeddings are available, uses semantic
-        matching to find related issue types beyond exact matches.
-
-        Args:
-            topic: Topic to search (e.g., "traffic safety")
-            semantic: If True (default), use semantic matching to find
-                     related issue types. Falls back to exact match if
-                     embeddings unavailable.
-            similarity_threshold: Minimum similarity score for semantic
-                                 matching (0.0-1.0, default 0.3)
-
-        Returns:
-            Community with followers, voices, and initiatives
-        """
-        all_issues = []
-
-        # Try semantic matching first if enabled
-        if semantic:
-            related_types = self._find_semantic_issue_types(
-                topic, threshold=similarity_threshold
-            )
-            if related_types:
-                # Query for each semantically related issue type
-                for issue_type, _score in related_types:
-                    issues = self._state.query_issues(
-                        self.jurisdiction, issue_type=issue_type
-                    )
-                    if issues:
-                        all_issues.extend(issues)
-
-        # If no semantic results (or semantic disabled), fall back to exact match
-        if not all_issues:
-            issues = self._state.query_issues(self.jurisdiction, issue_type=topic)
-            if issues:
-                all_issues = issues
-
-        return Community(
-            topic=topic,
-            jurisdiction=self.jurisdiction,
-            follower_count=len(all_issues),
-            recent_voices=[],
-            active_initiatives=[],
-        )
-
-    def _find_semantic_issue_types(
-        self,
-        topic: str,
-        threshold: float = 0.3,
-    ) -> list:
-        """
-        Find issue types semantically related to a topic.
-
-        Uses embeddings to match user's natural language query to actual
-        issue type names in the database.
-
-        Args:
-            topic: Natural language topic (e.g., "traffic problems")
-            threshold: Minimum similarity score (0.0-1.0)
-
-        Returns:
-            List of (issue_type, score) tuples, or empty list if unavailable
-        """
-        import os
-        from civicos._internal.jurisdiction import normalize_jurisdiction
-        from civicos.paths import get_vectors_dir
-
-        try:
-            from civicos._internal.meetings.embeddings import CivicEmbeddings
-        except ImportError:
-            return []
-
-        # Check if embeddings are available for this jurisdiction
-        # Use strict=False since self.jurisdiction may be unknown (already normalized non-strictly)
-        jurisdiction = normalize_jurisdiction(self.jurisdiction, strict=False)
-        persist_dir = get_vectors_dir(jurisdiction)
-        if not os.path.exists(persist_dir):
-            return []
-
-        # Get available issue types from StateManager
-        stats = self._state.get_issue_stats(self.jurisdiction)
-        top_types = stats.get("top_types", [])
-        if not top_types:
-            return []
-
-        # Extract just the type names
-        issue_type_names = [t[0] for t in top_types]
-
-        try:
-            embedder = CivicEmbeddings(
-                jurisdiction_id=jurisdiction,
-                persist_directory=persist_dir,
-            )
-            return embedder.find_similar_issue_types(
-                query_topic=topic,
-                issue_types=issue_type_names,
-                threshold=threshold,
-            )
-        except Exception:
-            # Any error - fall back to empty list (exact match will be used)
-            return []
 
     # ─────────── VOTING RECORD METHODS ───────────
 

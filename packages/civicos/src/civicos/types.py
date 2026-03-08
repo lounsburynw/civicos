@@ -147,15 +147,6 @@ class UpcomingElection:
     source_url: Optional[str] = None
 
 
-@dataclass
-class Community:
-    """Result from whos_with_me() - others who care about a topic."""
-    topic: str
-    jurisdiction: str
-    follower_count: int = 0
-    recent_voices: List[dict] = field(default_factory=list)
-    active_initiatives: List[dict] = field(default_factory=list)
-
 
 @dataclass
 class ActionDraft:

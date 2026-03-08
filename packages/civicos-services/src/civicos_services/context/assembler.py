@@ -19,7 +19,7 @@ from .models import (
     AgendaItemDetails,
     BudgetRef,
     CommentStatus,
-    CommunitySection,
+
     ContextBundle,
     ContextDepth,
     ContextItem,
@@ -39,7 +39,7 @@ from .models import (
     ParticipationSection,
     RegulatorySection,
     RelatedDecision,
-    SimilarIssue,
+
     StateLegislationRef,
     TestimonyExcerpt,
     TestimonySection,
@@ -48,7 +48,7 @@ from .models import (
 logger = logging.getLogger("civicos.context")
 
 SECTION_TIMEOUT_S = 10.0
-ALL_SECTION_NAMES = {"history", "regulatory", "community", "financial", "testimony", "participation"}
+ALL_SECTION_NAMES = {"history", "regulatory", "financial", "testimony", "participation"}
 
 # project_type → department mapping for budget lookups
 PROJECT_TYPE_DEPARTMENT_MAP = {
@@ -320,30 +320,6 @@ async def assemble_regulatory(civic: CivicOS, item: ContextItem, depth: ContextD
     )
 
 
-async def assemble_community(civic: CivicOS, item: ContextItem, depth: ContextDepth) -> Optional[CommunitySection]:
-    """Assemble community section — similar issues and engagement.
-
-    V1: whos_with_me() returns sparse data. We query issues directly
-    for similar_issues. related_initiatives and voice_summary depend
-    on relay integration (stub for now).
-    """
-    community = await _run_sync(civic.whos_with_me, item.title)
-
-    similar_issues = []
-    for issue in (community.recent_voices or []):
-        similar_issues.append(SimilarIssue(
-            id=issue.get("id", ""),
-            title=issue.get("title", ""),
-            issue_type=issue.get("issue_type"),
-            status=issue.get("status"),
-        ))
-
-    return CommunitySection(
-        similar_issues=similar_issues,
-        related_initiatives=community.active_initiatives or [],
-        voice_summary=None,  # Requires relay integration
-    )
-
 
 async def assemble_financial(civic: CivicOS, item: ContextItem, depth: ContextDepth) -> Optional[FinancialSection]:
     """Assemble financial section — relevant budget items.
@@ -576,7 +552,7 @@ async def assemble_context(
     section_assemblers = {
         "history": assemble_history,
         "regulatory": assemble_regulatory,
-        "community": assemble_community,
+
         "financial": assemble_financial,
         "testimony": assemble_testimony,
     }

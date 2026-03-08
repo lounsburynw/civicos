@@ -168,37 +168,6 @@ class TestQueryLatencyP95:
 
             assert p95 < 500, f"what_happened() p95 latency {p95:.2f}ms exceeds 500ms threshold"
 
-    def test_whos_with_me_p95_under_500ms(self):
-        """
-        Verifies whos_with_me() responds under 500ms at 95th percentile.
-        """
-        with tempfile.TemporaryDirectory() as tmpdir:
-            db_path = os.path.join(tmpdir, "test_latency.db")
-            self.setup_test_data(db_path)
-
-            civic = CivicOS("san-rafael-ca", db_path=db_path)
-
-            topics = ["traffic", "housing", "parks", "safety", "environment"]
-
-            latencies = []
-            for i in range(100):
-                topic = topics[i % len(topics)]
-                start = time.perf_counter()
-                result = civic.whos_with_me(topic)
-                elapsed = (time.perf_counter() - start) * 1000
-                latencies.append(elapsed)
-
-            p95 = percentile(latencies, 95)
-            p50 = percentile(latencies, 50)
-            mean = statistics.mean(latencies)
-
-            print(f"\nwhos_with_me() latency stats (100 calls):")
-            print(f"  Mean: {mean:.2f}ms")
-            print(f"  P50:  {p50:.2f}ms")
-            print(f"  P95:  {p95:.2f}ms")
-
-            assert p95 < 500, f"whos_with_me() p95 latency {p95:.2f}ms exceeds 500ms threshold"
-
     def test_all_query_methods_p95_combined(self):
         """
         Combined test of all query methods to verify overall query performance.
@@ -216,7 +185,6 @@ class TestQueryLatencyP95:
                 "whats_next": [],
                 "what_applies": [],
                 "what_happened": [],
-                "whos_with_me": []
             }
 
             topics = ["housing", "traffic", "parks", "safety", "environment"]
@@ -224,7 +192,7 @@ class TestQueryLatencyP95:
             # Mixed workload: 100 calls across all methods
             for i in range(100):
                 topic = topics[i % len(topics)]
-                method = i % 4
+                method = i % 3
 
                 start = time.perf_counter()
 
@@ -234,12 +202,9 @@ class TestQueryLatencyP95:
                 elif method == 1:
                     civic.what_applies(topic)
                     method_name = "what_applies"
-                elif method == 2:
+                else:
                     civic.what_happened(topic)
                     method_name = "what_happened"
-                else:
-                    civic.whos_with_me(topic)
-                    method_name = "whos_with_me"
 
                 elapsed = (time.perf_counter() - start) * 1000
                 all_latencies.append(elapsed)
@@ -306,15 +271,13 @@ class TestConcurrentRequests:
                     start = time.perf_counter()
 
                     # Rotate through different query methods
-                    method = task_id % 4
+                    method = task_id % 3
                     if method == 0:
                         civic.whats_next(days=30)
                     elif method == 1:
                         civic.what_applies("housing")
-                    elif method == 2:
-                        civic.what_happened("traffic")
                     else:
-                        civic.whos_with_me("parks")
+                        civic.what_happened("traffic")
 
                     elapsed = (time.perf_counter() - start) * 1000
                     return (task_id, elapsed, True)
@@ -537,13 +500,12 @@ class TestLargeResultSets:
                 "whats_next": [],
                 "what_applies": [],
                 "what_happened": [],
-                "whos_with_me": []
             }
 
             # Mixed workload: 100 calls across all methods
             for i in range(100):
                 topic = topics[i % len(topics)]
-                method = i % 4
+                method = i % 3
 
                 start = time.perf_counter()
 
@@ -553,12 +515,9 @@ class TestLargeResultSets:
                 elif method == 1:
                     civic.what_applies(topic)
                     method_name = "what_applies"
-                elif method == 2:
+                else:
                     civic.what_happened(topic)
                     method_name = "what_happened"
-                else:
-                    civic.whos_with_me(topic)
-                    method_name = "whos_with_me"
 
                 elapsed = (time.perf_counter() - start) * 1000
                 all_latencies.append(elapsed)

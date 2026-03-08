@@ -24,7 +24,7 @@ c = CivicOS("san-rafael-ca")
 c.what_applies("housing")           # Get regulatory context
 c.what_happened("bike lanes")       # Search past decisions
 c.whats_next(["transportation"])    # Get upcoming meetings
-c.whos_with_me("traffic safety")    # Find community
+
 
 # Action (Act)
 c.start_something(topic="traffic", title="Protected bike lane")

@@ -17,7 +17,6 @@ Tools exposed:
     - what_applies: Get regulatory stack for a topic
     - what_happened: Search past decisions
     - whats_next: Get upcoming meetings
-    - whos_with_me: Find others who care
 
     Coordination tools have moved to civicos-relay.
 
@@ -171,34 +170,6 @@ class CivicServer:
                 }
                 for m in meetings
             ]
-
-        @mcp.tool()
-        def whos_with_me(
-            jurisdiction: str,
-            topic: str
-        ) -> dict:
-            """
-            Find others who care about this topic.
-
-            Use when user asks: "Am I alone in...", "Who else cares about...", "Is anyone working on..."
-
-            Args:
-                jurisdiction: City/jurisdiction ID
-                topic: Topic to search
-
-            Returns:
-                Community info with follower count, voices, initiatives
-            """
-            from civicos.civicos import CivicOS
-            c = CivicOS(jurisdiction, db_path=self.db_path)
-            community = c.whos_with_me(topic)
-            return {
-                "topic": community.topic,
-                "jurisdiction": community.jurisdiction,
-                "follower_count": community.follower_count,
-                "recent_voices": community.recent_voices,
-                "active_initiatives": community.active_initiatives,
-            }
 
         return mcp
 

@@ -63,11 +63,6 @@ Search meeting transcripts by topic.
 
 Public comment excerpts only (filters transcripts to public comment segments).
 
-### whos_with_me(topic, semantic=True) -> Community
-
-Find community interest around a topic.
-
-**Community fields:** `topic`, `jurisdiction`, `follower_count`, `recent_voices`, `active_initiatives`
 
 ### what_happened_with_discussion(query, top_k=10, agenda_item=None) -> List[HybridSearchResult]
 

@@ -141,18 +141,6 @@ class RegulatorySection(BaseModel):
     executive_orders: List[FederalRef] = []
 
 
-class SimilarIssue(BaseModel):
-    id: str
-    title: str
-    issue_type: Optional[str] = None
-    status: Optional[str] = None
-
-
-class CommunitySection(BaseModel):
-    similar_issues: List[SimilarIssue] = []
-    related_initiatives: List[dict] = []
-    voice_summary: Optional[dict] = None
-
 
 class BudgetRef(BaseModel):
     department: str
@@ -208,7 +196,7 @@ class ContextSections(BaseModel):
     """All context sections. None means requested but failed/empty."""
     history: Optional[HistorySection] = None
     regulatory: Optional[RegulatorySection] = None
-    community: Optional[CommunitySection] = None
+
     financial: Optional[FinancialSection] = None
     testimony: Optional[TestimonySection] = None
     participation: Optional[ParticipationSection] = None

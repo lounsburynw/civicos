@@ -95,7 +95,7 @@ c.what_happened("housing")  # Historical decisions
 c.what_applies("housing")   # Relevant legislation
 c.what_was_said("housing")  # Search meeting transcripts
 c.get_public_testimony("housing")  # Public testimony excerpts
-c.whos_with_me("traffic")   # Community around issue
+
 
 # Coordination — see civicos-relay package
 
@@ -448,7 +448,7 @@ San Rafael pilot data (counts approximate, run `/data-status` for current):
 | transcripts | 4,296 | `what_was_said()`, `get_public_testimony()` |
 | chunks | 5,084 | PDF/agenda search |
 | municipal_code | 5,857 | Legal code search |
-| issues | 1,459 | `whos_with_me()` semantic matching |
+| issues | 1,459 | SeeClickFix issue search |
 | decisions | 44 | `what_happened()` semantic search |
 | meetings | 46 | Meeting search |
 

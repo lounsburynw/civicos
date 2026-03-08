@@ -30,7 +30,7 @@ from civicos.types import (
     DecisionWithContext,
     Meeting,
     UpcomingElection,
-    Community,
+
     ActionDraft,
     BudgetItem,
     BudgetSummary,
@@ -128,7 +128,7 @@ __all__ = [
     "DecisionWithContext",
     "Meeting",
     "UpcomingElection",
-    "Community",
+
     "ActionDraft",
     "BudgetItem",
     "BudgetSummary",
