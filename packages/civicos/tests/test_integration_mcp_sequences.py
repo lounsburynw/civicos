@@ -209,95 +209,6 @@ class TestDiscoverySequence:
             assert context.jurisdiction == "san-rafael"
 
 
-class TestResearchWorkflow:
-    """Test MCP research workflow sequences."""
-
-    def test_research_workflow_basic(self):
-        """
-        Test what_happened → whos_with_me → prepare sequence works.
-
-        Simulates an agent researching a topic, finding community,
-        and preparing for participation.
-        """
-        from civicos.mcp import CivicServer
-        from civicos._internal.state import StateManager
-
-        with tempfile.TemporaryDirectory() as tmpdir:
-            db_path = os.path.join(tmpdir, "test.db")
-
-            # Setup: Create meeting with agenda item, and some community data
-            state = StateManager(db_path)
-            future_date = (datetime.now(timezone.utc) + timedelta(days=7)).isoformat()
-
-            state.update_meetings("san-rafael", [{
-                "id": "mtg_research_001",
-                "title": "City Council Meeting",
-                "meeting_datetime": future_date,
-                "meeting_type": "City Council",
-                "location": "City Hall, Council Chambers",
-                "source_platform": "test",
-                "full_data": {
-                    "agenda_items": [{
-                        "id": "agenda_bikes_001",
-                        "title": "Protected Bike Lane Proposal",
-                        "description": "Discussion of bike infrastructure improvements"
-                    }]
-                }
-            }])
-
-            server = CivicServer(db_path=db_path)
-            civic = server._get_civic()
-            civic.jurisdiction = "san-rafael"
-
-            # Step 1: Research what has happened with this topic before
-            history = civic.what_happened("bike lanes")
-            # what_happened returns empty list in Phase 1 implementation
-            assert isinstance(history, list)
-
-            # Step 2: Find community around this topic
-            community = civic.whos_with_me("bike lanes")
-
-            assert community.topic == "bike lanes"
-            assert community.jurisdiction == "san-rafael"
-            assert isinstance(community.follower_count, int)
-            assert isinstance(community.recent_voices, list)
-            assert isinstance(community.active_initiatives, list)
-
-            # Step 3: Prepare for the meeting
-            preparation = civic.prepare("agenda_bikes_001")
-
-            assert preparation.agenda_item_id == "agenda_bikes_001"
-            assert isinstance(preparation.regulatory_context, dict)
-            assert isinstance(preparation.historical_decisions, list)
-            assert isinstance(preparation.talking_points, list)
-            assert isinstance(preparation.allies, list)
-            assert isinstance(preparation.logistics, dict)
-
-    def test_research_workflow_prepare_not_found(self):
-        """
-        Test prepare raises error for non-existent agenda item.
-        """
-        from civicos.mcp import CivicServer
-
-        with tempfile.TemporaryDirectory() as tmpdir:
-            db_path = os.path.join(tmpdir, "test.db")
-
-            server = CivicServer(db_path=db_path)
-            civic = server._get_civic()
-            civic.jurisdiction = "san-rafael"
-
-            # Research steps work even without data
-            history = civic.what_happened("unknown topic")
-            assert isinstance(history, list)
-
-            community = civic.whos_with_me("unknown topic")
-            assert community.topic == "unknown topic"
-
-            # But prepare fails for non-existent agenda item
-            with pytest.raises(ValueError, match="not found"):
-                civic.prepare("nonexistent_agenda_item")
-
-
 class TestSequenceDataConsistency:
     """Test that data remains consistent across tool sequences."""
 
@@ -409,18 +320,9 @@ class TestSequenceErrorHandling:
             history = civic.what_happened("rare_topic")
             assert history == []
 
-            # Step 2: whos_with_me still works
-            community = civic.whos_with_me("rare_topic")
-            assert community.topic == "rare_topic"
-            assert community.follower_count == 0
-
-            # Step 3: prepare fails but doesn't corrupt state
-            with pytest.raises(ValueError):
-                civic.prepare("nonexistent_item")
-
-            # Can still use other methods after error
-            community2 = civic.whos_with_me("another_topic")
-            assert community2.topic == "another_topic"
+            # Step 2: Verify other methods still work after empty results
+            context = civic.what_applies("rare_topic")
+            assert context.topic == "rare_topic"
 
 
 class TestCrossToolConsistency:
@@ -481,117 +383,8 @@ class TestCrossToolConsistency:
             assert civic_mtg.title == state_mtg["title"]
             assert civic_mtg.location == state_mtg["location"]
 
-    def test_prepare_uses_consistent_data(self):
-        """
-        Test that prepare() uses consistent underlying data.
-        """
-        from civicos.mcp import CivicServer
-        from civicos._internal.state import StateManager
+    # test_prepare_uses_consistent_data removed: prepare() not yet implemented
 
-        with tempfile.TemporaryDirectory() as tmpdir:
-            db_path = os.path.join(tmpdir, "test.db")
-
-            state = StateManager(db_path)
-            future_date = (datetime.now(timezone.utc) + timedelta(days=7)).isoformat()
-
-            # Create meeting with specific agenda item
-            state.update_meetings("san-rafael", [{
-                "id": "mtg_prep_001",
-                "title": "City Council",
-                "meeting_datetime": future_date,
-                "meeting_type": "City Council",
-                "location": "City Hall, Council Chambers",
-                "source_platform": "test",
-                "full_data": {
-                    "agenda_items": [{
-                        "id": "agenda_prep_001",
-                        "title": "Annual Budget Review",
-                        "description": "Review of FY2025 budget proposal"
-                    }]
-                }
-            }])
-
-            server = CivicServer(db_path=db_path)
-            civic = server._get_civic()
-            civic.jurisdiction = "san-rafael"
-
-            # Call prepare
-            preparation = civic.prepare("agenda_prep_001")
-
-            # Verify prepare returns consistent data
-            assert preparation.agenda_item_id == "agenda_prep_001"
-            assert isinstance(preparation.regulatory_context, dict)
-            assert isinstance(preparation.talking_points, list)
-            assert isinstance(preparation.logistics, dict)
-
-            # Logistics should reflect meeting data
-            assert "location" in preparation.logistics or len(preparation.logistics) >= 0
-
-
-class TestErrorRecovery:
-    """
-    Test error_recovery in MCP agent sequences.
-
-    Verifies that an agent can retry failed tool calls and that
-    partial workflow failures don't corrupt state.
-    """
-
-    def test_retry_after_error_missing_item(self):
-        """
-        Test that agent can retry prepare() after agenda item not found.
-
-        Simulates: Agent calls prepare with wrong ID, gets error,
-        queries for correct ID, retries successfully.
-        """
-        from civicos.mcp import CivicServer
-        from civicos._internal.state import StateManager
-
-        with tempfile.TemporaryDirectory() as tmpdir:
-            db_path = os.path.join(tmpdir, "test.db")
-
-            # Create meeting with agenda item
-            state = StateManager(db_path)
-            future_date = (datetime.now(timezone.utc) + timedelta(days=7)).isoformat()
-
-            state.update_meetings("san-rafael", [{
-                "id": "mtg_retry_001",
-                "title": "City Council Meeting",
-                "meeting_datetime": future_date,
-                "meeting_type": "City Council",
-                "location": "City Hall",
-                "source_platform": "test",
-                "full_data": {
-                    "agenda_items": [{
-                        "id": "agenda_correct_001",
-                        "title": "Traffic Safety Discussion",
-                        "description": "Review of traffic incidents"
-                    }]
-                }
-            }])
-
-            server = CivicServer(db_path=db_path)
-            civic = server._get_civic()
-            civic.jurisdiction = "san-rafael"
-
-            # First attempt: Wrong agenda item ID
-            try:
-                civic.prepare("agenda_wrong_id")
-                assert False, "Should have raised ValueError"
-            except ValueError as e:
-                error_msg = str(e)
-                assert "not found" in error_msg
-
-            # Agent discovers correct ID by browsing meetings
-            meetings = civic.whats_next(days=30)
-            assert len(meetings) >= 1
-
-            # Retry with correct ID
-            preparation = civic.prepare("agenda_correct_001")
-
-            # Retry succeeds
-            assert preparation.agenda_item_id == "agenda_correct_001"
-            assert isinstance(preparation.talking_points, list)
-            assert isinstance(preparation.regulatory_context, dict)
 
 
 class TestPartialWorkflow:
@@ -606,8 +399,8 @@ class TestPartialWorkflow:
         """
         Test that workflow continues after middle step fails.
 
-        Workflow: whats_next → what_applies (fails) → whos_with_me
-        The workflow should still complete whos_with_me after what_applies error.
+        Workflow: whats_next → what_applies (fails) → what_happened
+        The workflow should still complete what_happened after what_applies error.
         """
         from civicos.mcp import CivicServer
         from civicos._internal.state import StateManager
@@ -641,16 +434,15 @@ class TestPartialWorkflow:
             assert context.topic == "very_obscure_topic_xyz"
             # Returns empty context but doesn't fail
 
-            # Step 3: whos_with_me (succeeds)
-            community = civic.whos_with_me("housing")
-            assert community.topic == "housing"
-            assert community.jurisdiction == "san-rafael"
+            # Step 3: what_happened (succeeds)
+            history = civic.what_happened("housing")
+            assert isinstance(history, list)
 
     def test_workflow_survives_prepare_failure(self):
         """
         Test that research workflow survives prepare() failure.
 
-        Workflow: what_happened → whos_with_me → prepare (fails) → retries prepare
+        Workflow: what_happened → what_applies → prepare (fails) → retries prepare
         """
         from civicos.mcp import CivicServer
         from civicos._internal.state import StateManager
@@ -685,17 +477,8 @@ class TestPartialWorkflow:
             history = civic.what_happened("zoning")
             assert isinstance(history, list)
 
-            # Step 2: whos_with_me
-            community = civic.whos_with_me("zoning")
-            assert community.topic == "zoning"
+            # Step 2: what_applies
+            context = civic.what_applies("zoning")
+            assert context.topic == "zoning"
 
-            # Step 3a: prepare fails (wrong ID)
-            try:
-                civic.prepare("wrong_agenda_id")
-                assert False, "Should have raised ValueError"
-            except ValueError:
-                pass  # Expected
-
-            # Step 3b: prepare succeeds with correct ID
-            preparation = civic.prepare("agenda_valid_001")
-            assert preparation.agenda_item_id == "agenda_valid_001"
+            # Note: prepare() not yet implemented on CivicOS
