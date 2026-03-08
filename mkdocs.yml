@@ -82,6 +82,13 @@ nav:
   - MCP Server:
     - Setup: public/mcp/setup.md
 
+  - Relay:
+    - Overview: public/relay/overview.md
+    - Attestation: public/relay/attestation.md
+    - Trust Model: public/relay/trust.md
+    - Federation: public/relay/federation.md
+    - AI Proxy: public/relay/ai-proxy.md
+
   - API & Data:
     - Architecture: public/README.md
     - Core API: public/api.md
