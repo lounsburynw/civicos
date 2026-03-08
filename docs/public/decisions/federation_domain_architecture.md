@@ -59,6 +59,19 @@ CivicOS is designed for federation across multiple jurisdictions and multiple op
 | **Neighborhood** | Canal Alliance | Hyperlocal issues, community voices |
 | **Media** | Marin IJ | Public interest, transparency |
 
+## Components
+
+Operators can run either or both of two independent services:
+
+| Component | Protocol | Direction | Purpose |
+|-----------|----------|-----------|---------|
+| **MCP Server** | MCP (JSON-RPC) | Read-only | Serves civic data queries — AI clients and apps ask "what happened at the last council meeting?" |
+| **Relay** | WebSocket | Bidirectional | Syncs coordination data between operators — voices, subscriptions, and events peer across instances |
+
+The two are independent. A city government might run only an MCP server to publish authoritative civic data. A neighborhood group might run only a relay to coordinate community voices. An operator running both can serve queries *and* participate in peer-to-peer sync.
+
+This split reflects the data sovereignty model: authoritative civic data (meetings, decisions, code) flows *outward* via MCP as a read API, while community-generated data (voices, subscriptions) flows *between* operators via relay peering.
+
 ## Domain Structure
 
 ### Jurisdiction-first with operator subdomains
