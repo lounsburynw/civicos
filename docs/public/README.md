@@ -97,5 +97,6 @@ npm install && npm run dev
 - [MCP server setup](mcp/setup.md)
 - [Core API reference](api.md)
 - [Data dictionary](data-dictionary.md)
+- [Relay — attestation, trust, federation](relay/overview.md)
 - [Architecture decisions](decisions/vector_storage.md)
 - [Learning series](learning/README.md) — cryptographic foundations, Nostr, attestation

@@ -178,6 +178,7 @@ Organized into public (ships with the repo) and internal (operations). Read only
 | `extension/setup.md` | Browser extension install and user guide |
 | `extension/development.md` | Extension dev workflow, tech stack, component architecture |
 | `mcp/setup.md` | MCP server — connect Claude/ChatGPT, tool inventory |
+| `relay/overview.md` | Relay — attestation, trust model, federation, AI proxy |
 | `packages/*.md` | Per-package docs (civicos, services, relay, extraction, client, components) |
 | `decisions/` | Architecture Decision Records (vector storage, entity IDs, federation) |
 | `learning/` | Conceptual series — cryptography, Nostr, attestation, federation |
