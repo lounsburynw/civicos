@@ -155,10 +155,3 @@ class TestCalendarModule:
         assert callable(get_upcoming_meetings)
 
 
-class TestCommunityModule:
-    """Test community.py (whos_with_me)."""
-
-    def test_find_community_import(self):
-        """Can import find_community."""
-        from civicos.community import find_community, Community
-        assert callable(find_community)

@@ -23,7 +23,7 @@ c = CivicOS("city-san-rafael")  # or a CivicOSConfig object
 | `what_applies(topic, location, ranking_mode)` | `RegulatoryStack` | Regulatory context |
 | `what_was_said(query, top_k)` | `List[TranscriptExcerpt]` | Transcript search |
 | `get_public_testimony(topic, top_k)` | `List[TranscriptExcerpt]` | Public comment excerpts |
-| `whos_with_me(topic, semantic)` | `Community` | Community interest |
+
 | `get_voting_record(official_name, topic, since, until)` | `VotingRecord` | Official voting stats |
 
 ### Budget & Finance

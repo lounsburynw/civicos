@@ -82,9 +82,6 @@ Flags potential problems:
   Topic Bias: "housing" queries work well, but "pothole" queries fail
     → Might indicate uneven data coverage
 
-  Method Bias: what_happened() works, but whos_with_me() always fails
-    → Might indicate a broken API method or missing data type
-
   Temporal Bias: Large precision-recall gap
     → Might be finding recent items but missing historical ones
 
@@ -783,14 +780,6 @@ Only output valid JSON, no other text."""
             except Exception:
                 pass
 
-        elif claim.claim_type == "number":
-            # For numerical claims, check issues/community data
-            try:
-                result = c.whos_with_me(query)
-                evidence_parts.append(f"Community engagement: {result.follower_count} related issues")
-            except Exception:
-                pass
-
         return "\n".join(evidence_parts) if evidence_parts else "(no relevant evidence found)"
 
     def verify_claim(self, claim: Claim, query: str) -> Claim:
@@ -1054,13 +1043,7 @@ I cannot access real-time meeting schedules. To find upcoming meetings:
 
 Housing discussions often occur at Planning Commission or City Council meetings.
 """,
-        "whos_with_me:traffic": """
-I cannot identify specific individuals or groups in your area.
-To find others concerned about traffic:
-- Attend neighborhood association meetings
-- Check local Facebook groups or Nextdoor
-- Contact local advocacy organizations
-- Submit comments during public comment periods
+
 
 Community organizing often starts with talking to neighbors.
 """,
@@ -1381,64 +1364,6 @@ Community organizing often starts with talking to neighbors.
             }
         )
 
-    def run_whos_with_me(self, topic: str, threshold: float = 0.5) -> QueryResult:
-        """Benchmark whos_with_me query."""
-        c = self._get_civic()
-        result = c.whos_with_me(topic, similarity_threshold=threshold)
-
-        # Check for uniform count (gap indicator)
-        result_low = c.whos_with_me(topic, similarity_threshold=0.3)
-        if result.follower_count == result_low.follower_count and result.follower_count > 100:
-            self.gaps.append(f"whos_with_me('{topic}'): Uniform count {result.follower_count} regardless of threshold")
-
-        # ACCURACY: Verify count is topic-specific (not just returning all issues)
-        # If high threshold returns same as low threshold, accuracy is suspect
-        is_topic_specific = result.follower_count != result_low.follower_count or result.follower_count < 100
-        accuracy_score = 1.0 if is_topic_specific else 0.5
-
-        baseline_key = f"whos_with_me:{topic}"
-        llm_baseline = self.LLM_BASELINES.get(baseline_key, "No baseline defined")
-
-        # PRECISION: topic-specific count / low-threshold count
-        # Higher precision = more selective matching
-        precision_score = (
-            result.follower_count / result_low.follower_count
-            if result_low.follower_count > 0 else 1.0
-        )
-
-        # RECALL: retrieved / total relevant issues in DB
-        total_relevant = self._ground_truth.get(f"issues_{topic}", 0)
-        recall_score = result.follower_count / total_relevant if total_relevant > 0 else 1.0
-        # Cap at 1.0 (can retrieve more than exact matches via semantic search)
-        recall_score = min(recall_score, 1.0)
-
-        # F1 score: harmonic mean of precision and recall
-        f1_score = calculate_f1(precision_score, recall_score)
-
-        return QueryResult(
-            method="whos_with_me",
-            query=topic,
-            civic_result={
-                "follower_count": result.follower_count,
-                "threshold": threshold,
-                "is_topic_specific": is_topic_specific,
-                "total_relevant_in_db": total_relevant,
-            },
-            civic_count=result.follower_count,
-            civic_sample=[f"{result.follower_count} issues related to '{topic}'"],
-            llm_baseline=llm_baseline.strip(),
-            evaluation={
-                "accurate": is_topic_specific,
-                "accuracy_score": accuracy_score,
-                "precision": round(precision_score, 2),
-                "recall": round(recall_score, 2),
-                "f1": round(f1_score, 2),
-                "grounded": result.follower_count > 0,
-                "specific": True,  # Quantified community size
-                "actionable": result.follower_count > 0,  # Can connect users
-            }
-        )
-
     def detect_bias(self) -> dict:
         """Detect potential biases in benchmark results."""
         if not self.results:
@@ -1532,7 +1457,7 @@ Community organizing often starts with talking to neighbors.
     def calculate_coverage(self) -> dict:
         """Calculate coverage metrics for the eval framework."""
         # QUERY COVERAGE: How many API methods are tested
-        all_api_methods = ["what_applies", "what_happened", "whats_next", "whos_with_me"]
+        all_api_methods = ["what_applies", "what_happened", "whats_next"]
         tested_methods = set(r.method for r in self.results)
         query_coverage = len(tested_methods) / len(all_api_methods)
 
@@ -1563,7 +1488,7 @@ Community organizing often starts with talking to neighbors.
             "legislation": any(r.method == "what_applies" for r in self.results),
             "decisions": any(r.method == "what_happened" for r in self.results),
             "meetings": any(r.method == "whats_next" for r in self.results),
-            "issues": any(r.method == "whos_with_me" for r in self.results),
+
         }
         data_coverage = sum(data_sources_tested.values()) / len(data_sources_tested)
 
@@ -1600,10 +1525,6 @@ Community organizing often starts with talking to neighbors.
         # whats_next tests
         self.results.append(self.run_whats_next(["housing"]))
         self.results.append(self.run_whats_next())  # all topics
-
-        # whos_with_me tests
-        self.results.append(self.run_whos_with_me("traffic", threshold=0.6))
-        self.results.append(self.run_whos_with_me("pothole", threshold=0.6))
 
         # Calculate summary
         accurate_count = sum(1 for r in self.results if r.evaluation.get("accurate"))

@@ -136,16 +136,6 @@ class TestMCPToolExecution:
             result = civic.whats_next()
             assert isinstance(result, list)
 
-    def test_whos_with_me_tool_via_civic(self):
-        """whos_with_me tool can be called via Civic."""
-        from civicos.mcp import CivicServer
-        with tempfile.TemporaryDirectory() as tmpdir:
-            db_path = os.path.join(tmpdir, "test.db")
-            server = CivicServer(db_path=db_path)
-            civic = server._get_civic()
-            result = civic.whos_with_me("traffic")
-            assert result.topic == "traffic"
-
 
 class TestMCPServerRun:
     """Test MCP server run method."""

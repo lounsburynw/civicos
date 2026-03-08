@@ -145,7 +145,7 @@ c = CivicOS("city-san-rafael")
 c.whats_next()                      # Upcoming meetings with agendas
 c.what_happened("housing")          # Past decisions on a topic
 c.what_applies("ADU")               # Municipal code + state/federal law
-c.whos_with_me("traffic on 4th")    # Neighbors with similar complaints
+
 c.prepare(meeting_id="...")         # Background, context, talking points
 ```
 

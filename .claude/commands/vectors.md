@@ -104,7 +104,7 @@ modal run scripts/modal_vectors.py --corpus all
 | `decisions` | decisions | `what_happened()` semantic search |
 | `meetings` | meetings | Meeting search |
 | `municipal_code` | municipal_code | Local law search |
-| `issues` | issues | `whos_with_me()` matching |
+| `issues` | issues | SeeClickFix issue search |
 | `legislation` | legislation | Bill search |
 
 ## Modal Configuration

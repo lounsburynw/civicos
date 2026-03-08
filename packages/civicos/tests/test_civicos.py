@@ -16,7 +16,6 @@ from civicos.civicos import (
     TranscriptLink,
     Meeting,
     UpcomingElection,
-    Community,
     BudgetItem,
     BudgetSummary,
 )
@@ -102,13 +101,6 @@ class TestQueryMethods:
         # All results should be Meeting objects (backward compatible)
         for item in result:
             assert isinstance(item, Meeting)
-
-    def test_whos_with_me_returns_community(self):
-        """whos_with_me() returns Community."""
-        c = CivicOS("san-rafael-ca")
-        result = c.whos_with_me("traffic safety")
-        assert isinstance(result, Community)
-        assert result.topic == "traffic safety"
 
     def test_what_happened_full_context_returns_list(self):
         """what_happened_full_context() returns list of DecisionWithContext."""
@@ -202,12 +194,3 @@ class TestDataclasses:
         assert meeting.id == "mtg_123"
         assert meeting.agenda_items == []
 
-    def test_community_dataclass(self):
-        """Community has expected fields."""
-        community = Community(
-            topic="traffic",
-            jurisdiction="san-rafael-ca",
-            follower_count=10,
-        )
-        assert community.follower_count == 10
-        assert community.recent_voices == []

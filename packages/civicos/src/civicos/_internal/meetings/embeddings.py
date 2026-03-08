@@ -478,9 +478,6 @@ class CivicEmbeddings:
         (e.g., "traffic problems") to actual issue type names in the database
         (e.g., "pothole", "traffic_signal", "street_damage").
 
-        This enables whos_with_me() to find related issues even when the user
-        doesn't know the exact issue type names.
-
         Args:
             query_topic: Natural language topic query (e.g., "traffic safety")
             issue_types: List of issue type names from the database

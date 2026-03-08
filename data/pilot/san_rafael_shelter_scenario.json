@@ -98,7 +98,7 @@
     "option_a_forward_looking": {
       "name": "Good Neighbor Policy Preparation",
       "description": "Help residents prepare informed input for Dec 9 and Jan 14 meetings",
-      "methods": ["whats_next()", "prepare()", "what_applies('homeless shelter')", "whos_with_me()", "add_voice()"],
+      "methods": ["whats_next()", "prepare()", "what_applies('homeless shelter')", "add_voice()"],
       "complexity": "low",
       "data_needed": "Dec 9 meeting details, shelter ordinance text",
       "timeline": "Ready for Dec 9 with minimal extraction"

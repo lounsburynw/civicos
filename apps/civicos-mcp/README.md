@@ -156,7 +156,7 @@ Custom GPT Structure:
 - Actions: OpenAPI spec -> civicos-services REST API
   - /api/meetings (whats_next)
   - /api/decisions (what_happened)
-  - /api/issues (whos_with_me)
+  - /api/issues (issue search)
   - /api/search (multi-corpus)
 - Conversation starters:
   - "What's on the city council agenda this week?"
@@ -187,7 +187,7 @@ Browse all: https://civic.example.com/search?q=housing+permits
 | `get_meeting_opportunities` | Get upcoming civic engagement opportunities |
 | `search_regulatory_stack` | Search municipal code + legislation |
 | `search_meeting_history` | Search past decisions via `what_happened()` |
-| `find_similar_issues` | Find related SeeClickFix issues via `whos_with_me()` |
+| `find_similar_issues` | Find related SeeClickFix issues |
 | `get_issue_analytics` | **311 analytics**: aggregate stats by type/status/location/time |
 | `query_issue_data` | **311 drill-down**: group/filter with custom parameters |
 | `get_issue_sample` | **311 patterns**: raw issue records for content analysis |

@@ -25,7 +25,7 @@ logger = logging.getLogger("civicos.context.router")
 router = APIRouter()
 
 # Valid section names for request validation
-VALID_SECTIONS = {"history", "regulatory", "community", "financial", "testimony", "participation"}
+VALID_SECTIONS = {"history", "regulatory", "financial", "testimony", "participation"}
 
 
 @router.get(
@@ -50,8 +50,7 @@ async def get_context(
     Assemble a rich context bundle for any civic item.
 
     Given an item type and ID, returns the item details plus contextual
-    sections (history, regulatory, community, financial, testimony,
-    participation) assembled from existing CivicOS data.
+    sections (history, regulatory, financial, testimony, participation) assembled from existing CivicOS data.
 
     Sections are assembled in parallel with per-section timeout and
     error isolation. Failed sections return null with error details

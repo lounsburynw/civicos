@@ -243,31 +243,6 @@ class TestPythonApiE2E:
         # Note: Phase 1 implementation returns empty list
         # Future: should return Decision objects
 
-    # -------------------------------------------------------------------------
-    # query_whos_with_me: "whos_with_me('topic') returns community"
-    # -------------------------------------------------------------------------
-
-    def test_query_whos_with_me(self):
-        """
-        verification.json: e2e_tests > python_api > query_whos_with_me
-        manual_step: "whos_with_me('topic') returns community"
-
-        Verifies:
-        - whos_with_me() can be called with a topic
-        - Returns Community object
-        """
-        from civicos import CivicOS
-        from civicos.civicos import Community
-
-        c = CivicOS("san-rafael")
-
-        # As shown in VERIFICATION_TUTORIAL.md
-        community = c.whos_with_me("bike lanes")
-
-        assert isinstance(community, Community)
-        assert community.topic == "bike lanes"
-        assert community.jurisdiction == "city-san-rafael"
-
 
 
 # ============================================================================
@@ -531,7 +506,7 @@ class TestMcpServerE2E:
 
         Verifies:
         - MCP server lists query tools
-        - Query tools: what_applies, what_happened, whats_next, whos_with_me
+        - Query tools: what_applies, what_happened, whats_next
         """
         import asyncio
 
@@ -544,7 +519,7 @@ class TestMcpServerE2E:
         tool_names = [t.name for t in tools]
 
         # Query tools (4)
-        query_tools = ["what_applies", "what_happened", "whats_next", "whos_with_me"]
+        query_tools = ["what_applies", "what_happened", "whats_next"]
         for tool in query_tools:
             assert tool in tool_names, f"Missing query tool: {tool}"
 
@@ -593,7 +568,6 @@ class TestMcpServerE2E:
         - what_applies tool executes and returns regulatory context
         - whats_next tool executes and returns meetings list
         - what_happened tool executes and returns decisions
-        - whos_with_me tool executes and returns community info
         """
         import asyncio
 
@@ -622,13 +596,6 @@ class TestMcpServerE2E:
             })
             results["what_happened"] = result
 
-            # Test whos_with_me
-            result = await mcp.call_tool("whos_with_me", {
-                "jurisdiction": "san-rafael",
-                "topic": "bike lanes",
-            })
-            results["whos_with_me"] = result
-
             return results
 
         results = asyncio.get_event_loop().run_until_complete(test_query_tools())
@@ -646,12 +613,6 @@ class TestMcpServerE2E:
         # what_happened returns list of decisions
         wh = self._parse_tool_result(results["what_happened"])
         assert isinstance(wh, list), f"what_happened should return list, got {type(wh)}"
-
-        # whos_with_me returns dict with community info
-        wm = self._parse_tool_result(results["whos_with_me"])
-        assert isinstance(wm, dict), f"whos_with_me should return dict, got {type(wm)}"
-        assert "topic" in wm
-        assert wm["topic"] == "bike lanes"
 
 
 
@@ -1509,37 +1470,6 @@ class TestEdgeCasesEmptyResults:
         assert isinstance(history, list)
         assert len(history) == 0
 
-    # -------------------------------------------------------------------------
-    # no_community: "whos_with_me() for niche topic returns empty"
-    # -------------------------------------------------------------------------
-
-    def test_no_community(self):
-        """
-        verification.json: edge_cases > empty_results > no_community
-        test: "whos_with_me() for niche topic returns empty"
-
-        Verifies:
-        - whos_with_me() for niche topic returns Community with zeros
-        - Does not raise exception
-        """
-        from civicos import CivicOS
-        from civicos.civicos import Community
-
-        with tempfile.TemporaryDirectory() as tmpdir:
-            db_path = os.path.join(tmpdir, "empty_test.db")
-            c = CivicOS("san-rafael", db_path=db_path)
-
-            # Query for very niche topic on fresh database
-            community = c.whos_with_me("underwater_basket_weaving_regulations")
-
-            assert isinstance(community, Community)
-            assert community.topic == "underwater_basket_weaving_regulations"
-            assert community.jurisdiction == "city-san-rafael"
-            assert community.follower_count == 0
-            assert isinstance(community.recent_voices, list)
-            assert isinstance(community.active_initiatives, list)
-            assert len(community.recent_voices) == 0
-            assert len(community.active_initiatives) == 0
 
 
 # ============================================================================
@@ -1569,7 +1499,7 @@ class TestEdgeCasesInvalidInput:
         - Query methods return empty/placeholder results, not errors
         """
         from civicos import CivicOS
-        from civicos.civicos import RegulatoryStack, Community
+        from civicos.civicos import RegulatoryStack
 
         with tempfile.TemporaryDirectory() as tmpdir:
             db_path = os.path.join(tmpdir, "test.db")
@@ -1588,11 +1518,6 @@ class TestEdgeCasesInvalidInput:
             assert isinstance(context, RegulatoryStack)
             # Should have note about unknown jurisdiction
             assert any("Unknown" in str(f) for f in context.federal) or len(context.federal) >= 0
-
-            # whos_with_me works with empty database
-            community = c.whos_with_me("anything")
-            assert isinstance(community, Community)
-            assert community.follower_count == 0
 
     # -------------------------------------------------------------------------
     # empty_topic: "what_applies('') returns meaningful error"
@@ -1992,7 +1917,6 @@ class TestErrorHandlingMcpErrors:
                 "what_applies",
                 "what_happened",
                 "whats_next",
-                "whos_with_me",
             ]
 
             # Get registered tools (implementation depends on FastMCP internals)
@@ -3191,7 +3115,6 @@ class TestSecurityNoSecretsInLogs:
                 # Call various methods
                 c.whats_next()
                 c.what_happened("test")
-                c.whos_with_me("test")
 
                 # Get captured logs
                 log_output = log_capture.getvalue()
@@ -4427,21 +4350,19 @@ class TestCodeAuditArchitecture:
         assert hasattr(CivicOS, 'what_applies'), "Missing what_applies query method"
         assert hasattr(CivicOS, 'what_happened'), "Missing what_happened query method"
         assert hasattr(CivicOS, 'whats_next'), "Missing whats_next query method"
-        assert hasattr(CivicOS, 'whos_with_me'), "Missing whos_with_me query method"
 
     def test_result_types_defined(self):
         """
         Architecture specifies these result types.
         """
         from civicos.civicos import (
-            RegulatoryStack, Decision, Meeting, Community,
+            RegulatoryStack, Decision, Meeting,
         )
 
         # Query result types
         assert RegulatoryStack is not None
         assert Decision is not None
         assert Meeting is not None
-        assert Community is not None
 
     def test_package_structure_matches_architecture(self):
         """
@@ -4459,7 +4380,6 @@ class TestCodeAuditArchitecture:
         assert os.path.exists(f"{civic_src}/context.py"), "Missing context.py (what_applies)"
         assert os.path.exists(f"{civic_src}/history.py"), "Missing history.py (what_happened)"
         assert os.path.exists(f"{civic_src}/calendar.py"), "Missing calendar.py (whats_next)"
-        assert os.path.exists(f"{civic_src}/community.py"), "Missing community.py (whos_with_me)"
 
 
 
@@ -4561,7 +4481,7 @@ class TestCodeAuditTestCoverage:
 
         # Check for test coverage of each query API method
         api_methods = [
-            'what_applies', 'what_happened', 'whats_next', 'whos_with_me',
+            'what_applies', 'what_happened', 'whats_next',
         ]
 
         for method in api_methods:
@@ -4844,7 +4764,7 @@ class TestCodeAuditDocumentation:
         from civicos import CivicOS
 
         public_methods = [
-            'what_applies', 'what_happened', 'whats_next', 'whos_with_me',
+            'what_applies', 'what_happened', 'whats_next',
         ]
 
         for method_name in public_methods:
