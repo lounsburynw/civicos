@@ -298,6 +298,18 @@
     } catch {
       availableServers = [];
     }
+    // Pre-warm parent servers (fire-and-forget health pings to wake cold containers)
+    // By the time loadParentPulse() runs after primary pulse loads, containers are warm.
+    prewarmParentServers();
+  }
+
+  function prewarmParentServers() {
+    const parents = availableServers.filter(s =>
+      s.jurisdiction_id !== activeJurisdiction && s.level !== 'city'
+    );
+    for (const server of parents) {
+      fetch(server.health_endpoint, { signal: AbortSignal.timeout(25000) }).catch(() => {});
+    }
   }
 
   /** Load profile from chrome.storage.local (always available, no server needed). */
