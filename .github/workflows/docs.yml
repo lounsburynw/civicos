@@ -6,9 +6,6 @@ on:
     paths:
       - 'docs/**'
       - 'mkdocs.yml'
-      - 'README.md'
-      - 'packages/*/README.md'
-      - 'apps/*/README.md'
   workflow_dispatch:
 
 permissions:
@@ -32,14 +29,6 @@ jobs:
 
       - name: Install dependencies
         run: pip install mkdocs-material mkdocs-minify-plugin
-
-      - name: Copy package READMEs
-        run: |
-          mkdir -p docs/packages
-          cp packages/civicos/README.md docs/packages/civicos.md
-          cp packages/civicos-relay/README.md docs/packages/civicos-relay.md
-          cp packages/civicos-extraction/README.md docs/packages/civicos-extraction.md
-          cp apps/civicos-mcp/README.md docs/packages/civicos-mcp.md
 
       - name: Build site
         run: mkdocs build --strict 2>&1 || mkdocs build
