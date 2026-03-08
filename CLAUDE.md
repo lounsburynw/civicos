@@ -192,6 +192,7 @@ Organized into public (ships with the repo) and internal (operations). Read only
 | `ingestion.md` | Data pipeline operations, checkpoints, vector indexing |
 | `testing.md` | Test tiers, CI, commands |
 | `rollback.md` | Recovery procedures |
+| `storage-schema.md` | Database table schemas (internal, not API-facing) |
 
 ### Private Docs (docs/private/ — gitignored)
 Financial, billing, and internal strategy docs.

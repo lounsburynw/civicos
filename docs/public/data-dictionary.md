@@ -1,104 +1,142 @@
 # Data Dictionary
 
-Canonical data schemas for CivicOS. All types are defined in `packages/civicos/src/civicos/types.py` (Python) and `packages/civicos-client/src/types.ts` (TypeScript).
+Types returned by the CivicOS API. All amounts are in **dollars**. All dates are ISO 8601 datetimes.
 
-## City-Level Corpora
+For storage-level schemas (database columns, internal fields), see [docs/internal/storage-schema.md](../internal/storage-schema.md).
 
-### Meetings
+## Meetings & Decisions
 
-Source: ProudCity (San Rafael city website)
+### Decision
+
+Returned by `what_happened()`.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | str | Unique decision ID |
+| `title` | str | Decision title |
+| `date` | datetime | Date of the meeting |
+| `outcome` | str | One of: `approved`, `denied`, `continued`, `withdrawn`, `received`, `adopted`, `other` |
+| `body` | str | Governing body (e.g., "City Council") |
+| `votes` | dict | Vote details (see below) |
+
+**votes object:** `{ ayes, noes, absent, motion_by, second_by, passed, unanimous, vote_count }` — may be `null` for consent calendar items.
+
+### DecisionWithContext
+
+Returned by `what_happened_full_context()`. A decision enriched with linked transcript excerpts.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `decision` | Decision | The decision (see above) |
+| `transcript_links` | list | Linked transcript excerpts (see TranscriptExcerpt) |
+| `link_confidence` | float | Overall confidence of decision-to-transcript linking |
+| `link_type` | str | `"high_confidence"`, `"medium_confidence"`, `"low_confidence"`, `"none"` |
+
+Properties: `has_transcript`, `public_comments`, `staff_discussion`, `council_discussion`
+
+### Meeting
+
+Returned by `whats_next()`.
 
 | Field | Type | Description |
 |-------|------|-------------|
 | `id` | str | Unique meeting ID |
 | `title` | str | Meeting name (e.g., "City Council Regular Meeting") |
-| `meeting_datetime` | datetime | Meeting date and time |
-| `body` | str | Governing body (e.g., "City Council") |
+| `date` | datetime | Meeting date and time |
+| `body` | str | Governing body |
 | `location` | str | Physical location |
-| `virtual_url` | str | Virtual meeting link |
-| `agenda_url` | str | Link to agenda PDF |
-| `minutes_url` | str | Link to minutes PDF |
-| `video_url` | str | Link to video recording |
-| `status` | str | Meeting status |
-| `agenda_items` | list | Associated agenda items |
+| `agenda_items` | list | Agenda items (see below) |
 
-**Schema note:** The date column is `meeting_datetime`, not `meeting_date`.
+**Agenda item fields:** `title`, `project_type` (category), `actionability`, `impact_level`, `financial_impact_cents` (int), `participation_guide`
 
-### Agenda Items
+### TranscriptExcerpt
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `title` | str | Item title |
-| `project_type` | str | Category |
-| `actionability` | str | Whether public can act |
-| `impact_level` | str | Impact assessment |
-| `financial_impact_cents` | int | Dollar impact (stored in cents) |
-| `participation_guide` | str | How to participate |
-
-### Decisions
-
-Source: Minutes extraction (LLM-assisted)
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `decision_id` | str | Unique decision ID |
-| `meeting_date` | str | Date of the meeting |
-| `meeting_id` | str | Link to parent meeting |
-| `agenda_item` | str | Agenda item reference |
-| `title` | str | Decision title |
-| `summary` | str | Decision summary |
-| `outcome` | str | One of: approved, denied, continued, withdrawn, received, adopted, other |
-| `vote` | object | `{ ayes, noes, absent, motion_by, second_by, passed, unanimous, vote_count }` |
-| `staff_recommendation` | str | Staff recommendation |
-| `public_input` | str | Public input summary |
-| `topics` | list | Topic tags |
-| `financial_impact_cents` | int | Dollar impact (stored in cents) |
-
-### Transcripts
-
-Source: YouTube + AssemblyAI
+Returned by `what_was_said()` and `get_public_testimony()`.
 
 | Field | Type | Description |
 |-------|------|-------------|
 | `id` | str | Excerpt ID |
 | `text` | str | Transcript text |
 | `speaker` | str | Speaker name |
-| `speaker_role` | str | Role (council member, staff, public) |
+| `speaker_role` | str | `"council"`, `"staff"`, `"public"`, etc. |
 | `video_id` | str | YouTube video ID |
-| `start_timestamp` | float | Start time in seconds |
-| `end_timestamp` | float | End time in seconds |
+| `start_timestamp` | str | Start time (HH:MM:SS) |
+| `end_timestamp` | str | End time (HH:MM:SS) |
 | `is_public_comment` | bool | Whether this is public testimony |
+| `score` | float | Search relevance score |
 
-### Chunks (Agenda Packets)
+Property: `video_url` — YouTube link with timestamp (e.g., `https://youtube.com/watch?v=...&t=123s`)
 
-Source: City agenda PDFs, parsed into sections
+### RegulatoryStack
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `id` | str | Chunk ID |
-| `meeting_id` | str | Link to parent meeting |
-| `content` | str | Text content |
-| `metadata` | dict | Source page, section info |
-
-**Schema note:** Link column is `meeting_id`, not `content_id`.
-
-### Community Issues
-
-Source: SeeClickFix (311)
+Returned by `what_applies()`.
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `source_id` | str | SeeClickFix issue ID |
-| `issue_type` | str | Category (e.g., "Pothole", "Graffiti") |
-| `address` | str | Location address |
-| `latitude` | float | GPS latitude |
-| `longitude` | float | GPS longitude |
-| `status` | str | Resolution status |
-| `matched_meetings` | list | Linked meeting IDs |
+| `topic` | str | Search topic |
+| `jurisdiction` | str | Jurisdiction ID |
+| `federal` | list | Federal legislation matches |
+| `state` | list | State legislation matches |
+| `local` | list | Municipal code section matches |
 
-### Budget Items
+Each item in `federal`/`state` is a Legislation object. Each item in `local` is a MunicipalCodeSection.
 
-Source: FY25-26 budget PDF extraction
+## Legislation
+
+### Legislation
+
+Returned within `RegulatoryStack` and via `/api/legislation/` endpoints.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `bill_id` | str | Unique bill identifier (e.g., `ca-sb123`) |
+| `state` | str | State code (`"CA"`, `"US"`) |
+| `bill_number` | str | Bill number (e.g., "SB 123") |
+| `bill_name` | str | Full bill title |
+| `status` | str | Legislative status code |
+| `summary` | str | Bill summary |
+| `leverage_point` | str | How citizens can engage |
+| `keywords` | list | Topic keywords |
+| `local_implementation_required` | bool | Whether cities must act |
+
+Source: LegiScan (CA + federal bills)
+
+### Executive Order
+
+Returned via `/api/legislation/` endpoints.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `document_number` | str | Federal Register document number |
+| `title` | str | Executive order title |
+| `president` | str | Issuing president |
+| `eo_number` | int | EO number |
+| `abstract` | str | Summary |
+| `signing_date` | str | Date signed |
+| `status` | str | `"active"`, `"revoked"` |
+| `revoked_by_eo` | int | EO number that revoked this one |
+
+Source: Federal Register
+
+### Municipal Code Section
+
+Returned within `RegulatoryStack.local`.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `section_number` | str | Section number (e.g., "14.01.020") |
+| `section_title` | str | Section heading |
+| `full_text` | str | Complete section text |
+| `chapter` | str | Chapter number |
+| `chapter_title` | str | Chapter heading |
+
+Source: Municode
+
+## Budget & Finance
+
+### BudgetItem
+
+Returned by `budget()`.
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -114,80 +152,142 @@ Source: FY25-26 budget PDF extraction
 | `source_url` | str | Source document URL |
 | `source_page` | int | Page in source PDF |
 
-### Municipal Code
+### BudgetSummary
 
-Source: Municode
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `id` | str | Section ID |
-| `jurisdiction_id` | str | Jurisdiction |
-| `section_number` | str | Section number (e.g., "14.01.020") |
-| `section_title` | str | Section heading |
-| `full_text` | str | Complete section text |
-| `chapter` | str | Chapter number |
-| `chapter_title` | str | Chapter heading |
-| `title_number` | str | Title number |
-| `ordinance_history` | str | Amendment history |
-
-## State/Federal Corpora
-
-### Legislation
-
-Source: LegiScan (CA + federal bills)
+Returned by `budget_summary()`.
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `id` | str | Internal ID |
-| `bill_id` | str | LegiScan bill ID |
-| `state` | str | State code (e.g., "CA") |
-| `bill_number` | str | Bill number (e.g., "SB 123") |
-| `bill_name` | str | Short title |
-| `status` | str | Legislative status |
-| `summary` | str | Bill summary |
-| `leverage_point` | str | How citizens can engage |
-| `keywords` | list | Topic keywords |
-| `local_implementation_required` | bool | Whether cities must act |
+| `name` | str | Department, fund, or program name |
+| `budgeted_dollars` | float | Total budgeted |
+| `item_count` | int | Number of line items |
+| `revised_dollars` | float | Revised total |
+| `actual_dollars` | float | Actual spending total |
 
-### Executive Orders
+### FederalExpenditure
 
-Source: Federal Register
+Returned by `federal_expenditures()`. Audited federal spending from the Single Audit.
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `id` | str | Internal ID |
-| `document_number` | str | FR document number |
-| `title` | str | Executive order title |
-| `president` | str | Issuing president |
-| `eo_number` | str | EO number |
-| `abstract` | str | Summary |
-| `signing_date` | str | Date signed |
-| `status` | str | Current status |
-| `revoked_by_eo` | str | If revoked, by which EO |
-
-### Federal Expenditures
+| `cfda_number` | str | CFDA program number (e.g., "93.778") |
+| `federal_program_name` | str | Program name (e.g., "MEDICAL ASSISTANCE PROGRAM") |
+| `amount_expended_dollars` | float | Amount expended |
+| `audit_year` | int | Audit year |
+| `cluster_name` | str | Cluster name (e.g., "MEDICAID CLUSTER") |
+| `is_major` | bool | Major program flag |
+| `is_passthrough` | bool | Pass-through flag |
+| `source_url` | str | Link to FAC report |
 
 Source: Federal Audit Clearinghouse (FAC)
 
+### IntergovernmentalRevenueSummary
+
+Returned by `intergovernmental_revenue()`. Revenue from federal, state, and county sources.
+
 | Field | Type | Description |
 |-------|------|-------------|
-| `report_id` | str | FAC report ID |
-| `cfda_number` | str | CFDA program number |
-| `audit_year` | int | Audit year |
-| `amount_expended_dollars` | float | Amount expended |
-| `federal_program_name` | str | Program name |
-| `is_major` | bool | Major program flag |
-| `is_passthrough` | bool | Pass-through flag |
+| `fiscal_year` | int | Fiscal year |
+| `entity_name` | str | City name |
+| `federal_total_dollars` | float | Total federal revenue |
+| `state_total_dollars` | float | Total state revenue |
+| `county_total_dollars` | float | Total county revenue |
+| `total_dollars` | float | Grand total |
+| `details` | list | Line-item breakdown (see below) |
 
-## Vector Embeddings
+**Detail fields:** `source` ("federal"/"state"/"county"), `amount_dollars` (float), `category`, `subcategory`, `line_description`
 
-All corpora are semantically indexed using OpenAI embeddings stored in pgvector. Corpus types are defined in `packages/civicos/src/civicos/storage/corpus_types.py`.
+Source: CA State Controller
 
-| Corpus Type | Embedding Count | Enables |
-|-------------|-----------------|---------|
-| `transcripts` | ~4,296 | `what_was_said()`, `get_public_testimony()` |
-| `chunks` | ~5,084 | PDF/agenda packet search |
-| `municipal_code` | ~5,857 | Legal code search |
-| `issues` | ~1,459 | SeeClickFix issue search |
-| `decisions` | ~44 | `what_happened()` semantic search |
-| `meetings` | ~46 | Meeting search |
+### FundingFlow
+
+Returned by `funding_flow()`. Traces federal-to-state-to-city funding paths.
+
+> **Note:** Linkage data not yet available for all jurisdictions.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `budget_item_id` | str | City budget item ID |
+| `budget_description` | str | Budget line description |
+| `budget_dollars` | float | City-level amount |
+| `department` | str | City department |
+| `federal_cfda_number` | str | Federal CFDA number |
+| `federal_program_name` | str | Federal program name |
+| `federal_dollars` | float | Federal award amount |
+| `match_confidence` | float | Linkage confidence (0.0–1.0) |
+
+### FundingFlowImpact
+
+Returned by `funding_flow_impact()`. Models hypothetical funding cuts.
+
+> **Note:** Depends on funding flow linkage data (see above).
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `program_name` | str | Program being cut |
+| `cut_percentage` | float | Cut percentage (e.g., 0.20) |
+| `total_current_dollars` | float | Current funding level |
+| `total_impact_dollars` | float | Dollar impact of cut |
+| `affected_items` | list | Affected FundingFlow items |
+
+## Voting Records
+
+### VotingRecord
+
+Returned by `get_voting_record()`.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `official_name` | str | Display name |
+| `topic` | str | Topic filter (if applied) |
+| `total_votes` | int | Total votes cast |
+| `yes_votes` | int | Yes/aye votes |
+| `no_votes` | int | No/nay votes |
+| `abstain_votes` | int | Abstentions/absences |
+| `decisions` | list | Vote details: `decision_id`, `title`, `date`, `vote` |
+
+Properties: `yes_percentage`, `no_percentage`, `abstain_percentage`
+
+## Community Issues
+
+### Issue (SeeClickFix / 311)
+
+Returned via `/api/operational-issues/`.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `source_id` | str | SeeClickFix issue ID |
+| `issue_type` | str | Category (e.g., "Pothole", "Graffiti") |
+| `address` | str | Location address |
+| `latitude` | float | GPS latitude |
+| `longitude` | float | GPS longitude |
+| `status` | str | Resolution status |
+
+Source: SeeClickFix (311)
+
+## AI Actions
+
+### ActionDraft
+
+Returned by `draft_action()`.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `draft` | str | Generated text (public comment, letter, etc.) |
+| `description` | str | Action description |
+| `citations` | list | Source citations |
+
+## Data Coverage (San Rafael Pilot)
+
+| Corpus | Records | Source |
+|--------|---------|--------|
+| Meetings | ~98 | ProudCity |
+| Decisions | ~44 | Minutes extraction |
+| Transcripts | ~19 | YouTube + AssemblyAI |
+| Agenda packets | ~5,084 chunks | City agenda PDFs |
+| Municipal code | ~16,175 sections | Municode |
+| Community issues | ~1,730 | SeeClickFix (311) |
+| Budget items | ~58 | FY25-26 budget ($180M) |
+| Legislation | ~17,719 | LegiScan (CA + federal) |
+| Federal expenditures | 52 | FAC Single Audit |
+| Intergovernmental revenue | 10 line items | CA State Controller |
