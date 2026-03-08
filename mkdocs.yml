@@ -7,7 +7,7 @@ repo_name: lounsburynw/civicos
 theme:
   name: material
   logo: public/assets/logo-light.svg
-  favicon: public/assets/logo-dark.svg
+  favicon: public/assets/favicon.svg
   palette:
     - scheme: default
       primary: indigo
@@ -65,6 +65,9 @@ markdown_extensions:
   - md_in_html
   - toc:
       permalink: true
+
+extra_css:
+  - public/assets/custom.css
 
 extra:
   social:

@@ -1,0 +1,4 @@
+/* Hide the site name text — the logo wordmark already includes "CivicOS" */
+.md-header__topic .md-ellipsis {
+  display: none;
+}
