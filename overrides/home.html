@@ -1,0 +1,299 @@
+{% extends "main.html" %}
+
+{% block tabs %}{{ super() }}{% endblock %}
+
+{% block content %}
+<style>
+  /* Hide sidebar, TOC, and article header on the landing page */
+  .md-sidebar { display: none; }
+  .md-content__inner > h1 { display: none; }
+
+  .cx-hero {
+    text-align: center;
+    padding: 4rem 1rem 3rem;
+    max-width: 720px;
+    margin: 0 auto;
+  }
+  .cx-hero__logo {
+    margin-bottom: 1.5rem;
+  }
+  .cx-hero__logo svg {
+    height: 56px;
+    width: auto;
+  }
+  .cx-hero h1 {
+    font-size: 2.4rem;
+    font-weight: 700;
+    line-height: 1.15;
+    margin: 0 0 1rem;
+    letter-spacing: -0.02em;
+  }
+  .cx-hero p {
+    font-size: 1.15rem;
+    line-height: 1.6;
+    opacity: 0.82;
+    margin: 0 0 2rem;
+  }
+  .cx-cta {
+    display: flex;
+    gap: 0.75rem;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  .cx-cta a {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.7rem 1.6rem;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 0.95rem;
+    text-decoration: none;
+    transition: opacity 0.15s;
+  }
+  .cx-cta a:hover { opacity: 0.88; }
+  .cx-cta__primary {
+    background: var(--md-primary-fg-color);
+    color: var(--md-primary-bg-color);
+  }
+  .cx-cta__secondary {
+    border: 1.5px solid var(--md-default-fg-color--lighter);
+    color: var(--md-default-fg-color);
+  }
+
+  .cx-section {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 2.5rem 1rem;
+  }
+  .cx-section h2 {
+    text-align: center;
+    margin-bottom: 1.5rem;
+    font-size: 1.5rem;
+  }
+
+  /* Use cases */
+  .cx-usecases {
+    display: grid;
+    gap: 1rem;
+    max-width: 640px;
+    margin: 0 auto;
+  }
+  .cx-usecase {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 0.5rem;
+    align-items: baseline;
+    padding: 1rem 1.25rem;
+    border-radius: 8px;
+    border: 1px solid var(--md-default-fg-color--lightest);
+  }
+  .cx-usecase__q {
+    font-style: italic;
+    font-size: 0.95rem;
+  }
+  .cx-usecase__a {
+    font-size: 0.85rem;
+    opacity: 0.7;
+    text-align: right;
+    white-space: nowrap;
+  }
+
+  /* Steps */
+  .cx-steps {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.5rem;
+    text-align: center;
+    max-width: 640px;
+    margin: 0 auto;
+  }
+  .cx-step__num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.2rem;
+    height: 2.2rem;
+    border-radius: 50%;
+    background: var(--md-primary-fg-color);
+    color: var(--md-primary-bg-color);
+    font-weight: 700;
+    font-size: 1rem;
+    margin-bottom: 0.5rem;
+  }
+  .cx-step h3 {
+    font-size: 0.95rem;
+    margin: 0.4rem 0 0.25rem;
+  }
+  .cx-step p {
+    font-size: 0.82rem;
+    opacity: 0.7;
+    margin: 0;
+  }
+
+  /* Principles */
+  .cx-principles {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    max-width: 640px;
+    margin: 0 auto;
+  }
+  .cx-principle {
+    padding: 1rem;
+    border-radius: 8px;
+    border: 1px solid var(--md-default-fg-color--lightest);
+  }
+  .cx-principle strong {
+    display: block;
+    margin-bottom: 0.25rem;
+    font-size: 0.9rem;
+  }
+  .cx-principle span {
+    font-size: 0.82rem;
+    opacity: 0.7;
+  }
+  .cx-principle--wide {
+    grid-column: 1 / -1;
+  }
+
+  /* Footer links */
+  .cx-links {
+    text-align: center;
+    padding: 2rem 1rem 3rem;
+    font-size: 0.85rem;
+    opacity: 0.6;
+  }
+  .cx-links a { color: var(--md-default-fg-color); }
+
+  /* Screenshot */
+  .cx-screenshot {
+    text-align: center;
+    max-width: 640px;
+    margin: 0 auto;
+  }
+  .cx-screenshot img {
+    max-width: 320px;
+    width: 100%;
+    border-radius: 12px;
+    border: 1px solid var(--md-default-fg-color--lightest);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.25);
+  }
+  .cx-screenshot__caption {
+    margin-top: 0.75rem;
+    font-size: 0.82rem;
+    opacity: 0.5;
+  }
+
+  .cx-divider {
+    max-width: 640px;
+    margin: 0 auto;
+    border: none;
+    border-top: 1px solid var(--md-default-fg-color--lightest);
+  }
+
+  @media (max-width: 600px) {
+    .cx-hero h1 { font-size: 1.7rem; }
+    .cx-hero p { font-size: 1rem; }
+    .cx-steps { grid-template-columns: 1fr; gap: 1rem; }
+    .cx-principles { grid-template-columns: 1fr; }
+    .cx-usecase { grid-template-columns: 1fr; }
+    .cx-usecase__a { text-align: left; }
+  }
+</style>
+
+<section class="cx-hero">
+  <h1>Know what your city is deciding before they decide it.</h1>
+  <p>Search meetings, track decisions, find neighbors who care about the same things. Open civic infrastructure for San Rafael — and beyond.</p>
+  <div class="cx-cta">
+    <a class="cx-cta__primary" href="public/extension/setup/">Install Extension</a>
+    <a class="cx-cta__secondary" href="public/mcp/setup/">Connect via Claude or ChatGPT</a>
+  </div>
+</section>
+
+<hr class="cx-divider">
+
+<section class="cx-section">
+  <h2>What can you ask?</h2>
+  <div class="cx-usecases">
+    <div class="cx-usecase">
+      <span class="cx-usecase__q">"What's happening with the 4th St rezoning?"</span>
+      <span class="cx-usecase__a">Agenda, past votes, state law</span>
+    </div>
+    <div class="cx-usecase">
+      <span class="cx-usecase__q">"Who else cares about traffic on Lincoln?"</span>
+      <span class="cx-usecase__a">23 neighbors, 8 voiced support</span>
+    </div>
+    <div class="cx-usecase">
+      <span class="cx-usecase__q">"What did people say about homelessness?"</span>
+      <span class="cx-usecase__a">Public testimony from transcripts</span>
+    </div>
+    <div class="cx-usecase">
+      <span class="cx-usecase__q">"Help me prepare to speak at the next meeting."</span>
+      <span class="cx-usecase__a">Context, talking points, ready</span>
+    </div>
+  </div>
+</section>
+
+<hr class="cx-divider">
+
+<section class="cx-section">
+  <h2>How it works</h2>
+  <div class="cx-steps">
+    <div class="cx-step">
+      <span class="cx-step__num">1</span>
+      <h3>Install</h3>
+      <p>Add the Chrome extension or connect an AI agent</p>
+    </div>
+    <div class="cx-step">
+      <span class="cx-step__num">2</span>
+      <h3>Pick your city</h3>
+      <p>San Rafael pilot — more cities coming</p>
+    </div>
+    <div class="cx-step">
+      <span class="cx-step__num">3</span>
+      <h3>Ask a question</h3>
+      <p>Meetings, decisions, budgets, municipal code</p>
+    </div>
+  </div>
+</section>
+
+<section class="cx-section">
+  <div class="cx-screenshot">
+    <img src="public/assets/extension-screenshot.png" alt="CivicOS browser extension showing San Rafael city council meetings and agenda items" loading="lazy">
+    <div class="cx-screenshot__caption">The CivicOS extension — San Rafael pilot data</div>
+  </div>
+</section>
+
+<hr class="cx-divider">
+
+<section class="cx-section">
+  <h2>Principles</h2>
+  <div class="cx-principles">
+    <div class="cx-principle">
+      <strong>Data sovereignty</strong>
+      <span>All civic data is public record. We aggregate, not gatekeep.</span>
+    </div>
+    <div class="cx-principle">
+      <strong>AI as leverage</strong>
+      <span>LLMs surface information. Humans decide what to do with it.</span>
+    </div>
+    <div class="cx-principle">
+      <strong>Jurisdictions first</strong>
+      <span>Built around cities, counties, and districts — not arbitrary regions.</span>
+    </div>
+    <div class="cx-principle">
+      <strong>Sustainable, not cheap</strong>
+      <span>Foundation-funded. Not VC, not ads, not your data.</span>
+    </div>
+    <div class="cx-principle cx-principle--wide">
+      <strong>Replicable</strong>
+      <span>Adding a new city should be configuration, not code.</span>
+    </div>
+  </div>
+</section>
+
+<div class="cx-links">
+  Source-available under <a href="https://github.com/lounsburynw/civicos/blob/main/LICENSE.md">PolyForm Noncommercial 1.0.0</a>&ensp;&middot;&ensp;Foundation-funded&ensp;&middot;&ensp;<a href="https://github.com/lounsburynw/civicos">GitHub</a>
+</div>
+{% endblock %}

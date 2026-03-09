@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "test:visual": "npx playwright test",
     "test:visual:update": "npx playwright test --update-snapshots",
-    "harness": "npx vite --config vite.harness.config.ts"
+    "harness": "npx vite --config vite.harness.config.ts",
+    "screenshot:landing": "npx playwright test tests/visual/screenshot-landing.spec.ts"
   },
   "dependencies": {
     "@civicos/client": "file:../../packages/civicos-client",
