@@ -4,8 +4,12 @@
 
 {% block content %}
 <style>
-  /* Hide sidebar, TOC, and article header on the landing page */
-  .md-sidebar { display: none; }
+  /* Hide desktop sidebars and article header on the landing page.
+     Keep .md-sidebar--primary visible at mobile widths — it powers the hamburger drawer. */
+  .md-sidebar--secondary { display: none; }
+  @media (min-width: 76.25em) {
+    .md-sidebar--primary { display: none; }
+  }
   .md-content__inner > h1 { display: none; }
 
   .cx-hero {
