@@ -4,9 +4,8 @@
   import { createExtensionAIManager } from '../lib/ai.js';
   import { registry } from '../lib/client.js';
   import type { RegistryServer } from '@civicos/client';
-  import { THEMES, setTheme, loadSavedTheme, extractAttestationJurisdiction, formatAttestationDate } from '@civicos/components';
+  import { THEMES, setTheme, loadSavedTheme } from '@civicos/components';
   import type { ThemeId } from '@civicos/components';
-  import CivicAttestationCard from '@civicos/components/src/components/CivicAttestationCard.svelte';
   import { marked } from 'marked';
 
   marked.setOptions({ breaks: true, gfm: true });
@@ -532,26 +531,31 @@
 
 
   // Attestation state
+  let attestationCode = $state('');
   let attestationVerifying = $state(false);
   let attestationEvent: Record<string, unknown> | null = $state(null);
   let attestationDate: string | null = $state(null);
   let attestationJurisdiction: string | null = $state(null);
-  let attestationError: string | null = $state(null);
 
-  function applyAttestationEvent(event: Record<string, unknown>) {
-    attestationEvent = event;
-    attestationJurisdiction = extractAttestationJurisdiction(event);
-    const createdAt = event?.created_at;
-    if (typeof createdAt === 'number') {
-      attestationDate = formatAttestationDate(createdAt);
-    }
+  function extractAttestationJurisdiction(event: Record<string, unknown>): string | null {
+    const tags = event?.tags;
+    if (!Array.isArray(tags)) return null;
+    const jTag = tags.find((t: unknown) => Array.isArray(t) && t[0] === 'j');
+    return Array.isArray(jTag) && typeof jTag[1] === 'string' ? jTag[1] : null;
   }
 
   async function loadAttestationStatus() {
     // Check local storage first
     const stored = await chrome.storage.local.get('civicos_attestation');
     if (stored.civicos_attestation) {
-      applyAttestationEvent(stored.civicos_attestation);
+      attestationEvent = stored.civicos_attestation;
+      attestationJurisdiction = extractAttestationJurisdiction(stored.civicos_attestation);
+      const createdAt = (attestationEvent as Record<string, unknown>)?.created_at;
+      if (typeof createdAt === 'number') {
+        attestationDate = new Date(createdAt * 1000).toLocaleDateString('en-US', {
+          year: 'numeric', month: 'short', day: 'numeric',
+        });
+      }
       return;
     }
 
@@ -559,16 +563,18 @@
     if (identity?.isUnlocked) {
       try {
         const { api } = await import('../lib/client.js');
+        // Need the hex pubkey — derive from npub
         const pubkeyResponse = await sendMessage<string | null>({ type: 'GET_PUBLIC_KEY' });
         if (pubkeyResponse.success && pubkeyResponse.data) {
           const status = await api.getAttestationStatus(pubkeyResponse.data);
           if (status.attested && status.attestation_event) {
-            applyAttestationEvent(status.attestation_event);
-            if (status.attested_at) {
-              attestationDate = new Date(status.attested_at).toLocaleDateString('en-US', {
-                year: 'numeric', month: 'short', day: 'numeric',
-              });
-            }
+            attestationEvent = status.attestation_event;
+            attestationJurisdiction = extractAttestationJurisdiction(status.attestation_event);
+            attestationDate = status.attested_at
+              ? new Date(status.attested_at).toLocaleDateString('en-US', {
+                  year: 'numeric', month: 'short', day: 'numeric',
+                })
+              : null;
             await chrome.storage.local.set({ civicos_attestation: status.attestation_event });
           }
         }
@@ -578,22 +584,33 @@
     }
   }
 
-  async function redeemAttestation(code: string) {
-    attestationError = null;
+  async function redeemAttestation() {
+    if (!attestationCode.trim()) {
+      setStatus('Enter a verification code', 'error');
+      return;
+    }
     attestationVerifying = true;
     try {
       const response = await sendMessage<Record<string, unknown>>({
         type: 'REDEEM_ATTESTATION',
-        code,
+        code: attestationCode.trim(),
       });
       if (response.success && response.data) {
-        applyAttestationEvent(response.data);
+        attestationEvent = response.data;
+        attestationJurisdiction = extractAttestationJurisdiction(response.data);
+        const createdAt = (response.data as Record<string, unknown>)?.created_at;
+        if (typeof createdAt === 'number') {
+          attestationDate = new Date(createdAt * 1000).toLocaleDateString('en-US', {
+            year: 'numeric', month: 'short', day: 'numeric',
+          });
+        }
+        attestationCode = '';
         setStatus('Residency verified', 'success');
       } else {
-        attestationError = (response as { error?: string }).error || 'Verification failed';
+        setStatus((response as { error?: string }).error || 'Verification failed', 'error');
       }
     } catch (err) {
-      attestationError = err instanceof Error ? err.message : 'Verification error';
+      setStatus(err instanceof Error ? err.message : 'Verification error', 'error');
     }
     attestationVerifying = false;
   }
@@ -811,13 +828,22 @@
       {/if}
 
       {#if identity.isUnlocked && attestationEvent}
-        <CivicAttestationCard
-          attested={true}
-          jurisdiction={attestationJurisdiction}
-          date={attestationDate}
-          selectedJurisdiction={selectedJurisdiction}
-          selectedJurisdictionName={availableServers.find(s => s.jurisdiction_id === selectedJurisdiction)?.display_name || selectedJurisdiction}
-        />
+        <div class="verified-badge">
+          <span class="verified-badge-check">&#10003;</span>
+          <div class="verified-badge-text">
+            <span class="verified-badge-label">Verified resident</span>
+            {#if attestationDate || attestationJurisdiction}
+              <span class="verified-badge-meta">
+                {#if attestationJurisdiction}{attestationJurisdiction}{/if}{#if attestationDate} · {attestationDate}{/if}
+              </span>
+            {/if}
+          </div>
+        </div>
+        {#if attestationJurisdiction && attestationJurisdiction !== selectedJurisdiction}
+          <div class="attestation-mismatch">
+            You're verified for {attestationJurisdiction} but viewing {availableServers.find(s => s.jurisdiction_id === selectedJurisdiction)?.display_name || selectedJurisdiction}. CivicOS AI features require verification for the selected city.
+          </div>
+        {/if}
       {/if}
 
       {#if identity?.isUnlocked}
@@ -871,12 +897,21 @@
         <hr class="subsection-divider" />
 
         {#if !attestationEvent}
-          <CivicAttestationCard
-            attested={false}
-            verifying={attestationVerifying}
-            error={attestationError}
-            onredeem={redeemAttestation}
-          />
+          <div class="form-group">
+            <label>Verify residency</label>
+            <span class="field-desc">Enter a code from a civic event to unlock CivicOS AI</span>
+            <form class="attestation-form" onsubmit={(e: Event) => { e.preventDefault(); redeemAttestation(); }}>
+              <input
+                type="text"
+                placeholder="e.g. SR-2026-02-XXXX"
+                bind:value={attestationCode}
+                autocomplete="off"
+              />
+              <button type="submit" class="btn-primary btn-compact" disabled={attestationVerifying || !attestationCode.trim()}>
+                {attestationVerifying ? '...' : 'Verify'}
+              </button>
+            </form>
+          </div>
         {/if}
 
         <div class="info-grid">
@@ -1279,6 +1314,36 @@
     padding: 16px 2px;
   }
 
+  .verified-badge {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    background: var(--civic-status-success-bg-subtle);
+    border-radius: 6px;
+    margin-top: 8px;
+  }
+  .verified-badge-check {
+    color: var(--civic-status-success-light);
+    font-size: 14px;
+    font-weight: 600;
+    flex-shrink: 0;
+  }
+  .verified-badge-text {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+  }
+  .verified-badge-label {
+    font-size: 13px;
+    color: var(--civic-status-success-light);
+    font-weight: 500;
+  }
+  .verified-badge-meta {
+    font-size: 11px;
+    color: var(--civic-text-dim);
+  }
+
   .sign-in-row {
     margin-top: 12px;
   }
@@ -1609,6 +1674,22 @@
     margin: 20px 0;
   }
 
+  .attestation-form {
+    display: flex;
+    gap: 8px;
+  }
+  .attestation-form input {
+    flex: 1;
+    min-width: 0;
+    font-family: var(--civic-font-family-mono);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  .attestation-form .btn-primary {
+    width: auto;
+    flex-shrink: 0;
+  }
+
   .verify-row {
     margin-top: 12px;
   }
@@ -1706,6 +1787,16 @@
   }
   .ollama-refresh:hover { opacity: 1; }
 
+
+  .attestation-mismatch {
+    font-size: 11px;
+    color: var(--civic-status-warning-light);
+    background: var(--civic-status-warning-bg-subtle);
+    padding: 8px 10px;
+    border-radius: 6px;
+    margin-top: 6px;
+    line-height: 1.4;
+  }
 
   /* Endpoints */
   .endpoint-group {

@@ -122,89 +122,6 @@ def cmd_register(args):
         sys.exit(1)
 
 
-def cmd_generate_codes(args):
-    """Generate attestation codes, sign them, and push to relay."""
-    import httpx
-
-    if args.env_file:
-        _load_env_file(args.env_file)
-
-    from civicos_signer.crypto import IssuerKeyPair, sign_code_batch
-
-    private_key = os.environ.get("CIVICOS_SIGNER_PRIVATE_KEY")
-    jurisdiction = os.environ.get("CIVICOS_SIGNER_JURISDICTION")
-    if not all([private_key, jurisdiction]):
-        print("Error: Set CIVICOS_SIGNER_PRIVATE_KEY, _JURISDICTION", file=sys.stderr)
-        sys.exit(1)
-
-    issuer = IssuerKeyPair.from_private_key(private_key)
-
-    # Generate codes
-    import random
-    import string
-
-    now = __import__("datetime").datetime.utcnow()
-
-    # Jurisdiction -> code prefix
-    prefixes = {
-        "city-san-rafael": "SR", "city-berkeley": "BK",
-        "city-oakland": "OK", "city-richmond": "RC",
-    }
-    prefix = prefixes.get(jurisdiction)
-    if not prefix:
-        parts = jurisdiction.replace("city-", "").split("-")
-        prefix = "".join(p[0].upper() for p in parts[:2]) if len(parts) > 1 else parts[0][:2].upper()
-
-    codes = set()
-    while len(codes) < args.count:
-        rand = "".join(random.choices(string.ascii_uppercase + string.digits, k=4))
-        codes.add(f"{prefix}-{now.year}-{now.month:02d}-{rand}")
-
-    codes_list = sorted(codes)
-
-    # Sign the batch
-    batch_event = sign_code_batch(
-        issuer=issuer,
-        codes=codes_list,
-        jurisdiction=jurisdiction,
-        batch_id=args.batch,
-        expires_at=args.expires,
-    )
-
-    if args.dry_run:
-        print(f"# Dry run: {len(codes_list)} codes for {jurisdiction} (batch: {args.batch})")
-        print(f"# Signed by issuer: {issuer.public_key_hex[:16]}...")
-        for code in codes_list:
-            print(code)
-        return
-
-    # Push to relay
-    relay_url = args.relay_url.rstrip("/")
-    resp = httpx.post(
-        f"{relay_url}/coordination/codes/batch",
-        json={"signed_event": batch_event},
-        timeout=30.0,
-    )
-
-    if resp.status_code == 200:
-        result = resp.json()
-        print(f"Pushed {result.get('count', len(codes_list))} codes to relay")
-        print(f"  Jurisdiction: {jurisdiction}")
-        print(f"  Batch: {args.batch}")
-        print(f"  Issuer: {issuer.public_key_hex[:16]}...")
-        if args.output:
-            with open(args.output, "w") as f:
-                for code in codes_list:
-                    f.write(code + "\n")
-            print(f"  Codes written to: {args.output}")
-        else:
-            for code in codes_list:
-                print(code)
-    else:
-        print(f"Failed: {resp.status_code} — {resp.text}", file=sys.stderr)
-        sys.exit(1)
-
-
 def cmd_verify(args):
     """Verify a signed attestation event from a JSON file."""
     from civicos_signer.crypto import verify_attestation
@@ -273,16 +190,6 @@ def main():
     rg.add_argument("--env-file", default=".env.signer", help="Env file to load")
     rg.add_argument("--dry-run", action="store_true", help="Print payload without sending")
 
-    # generate-codes
-    gc = sub.add_parser("generate-codes", help="Generate codes, sign, and push to relay")
-    gc.add_argument("--count", type=int, required=True, help="Number of codes to generate")
-    gc.add_argument("--batch", required=True, help="Batch identifier (e.g., 'mar-2026-event')")
-    gc.add_argument("--relay-url", required=True, help="CivicOS relay URL")
-    gc.add_argument("--expires", help="Expiration date (ISO format, e.g., 2026-04-01)")
-    gc.add_argument("--output", "-o", help="Write codes to file (one per line)")
-    gc.add_argument("--env-file", default=".env.signer", help="Env file to load")
-    gc.add_argument("--dry-run", action="store_true", help="Generate and sign without pushing")
-
     # verify
     vf = sub.add_parser("verify", help="Verify a signed attestation event")
     vf.add_argument("file", help="JSON file containing attestation event")
@@ -294,8 +201,6 @@ def main():
         cmd_serve(args)
     elif args.command == "register":
         cmd_register(args)
-    elif args.command == "generate-codes":
-        cmd_generate_codes(args)
     elif args.command == "verify":
         cmd_verify(args)
     else:

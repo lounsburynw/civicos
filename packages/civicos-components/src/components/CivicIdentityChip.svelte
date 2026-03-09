@@ -49,7 +49,7 @@
       {:else}
         <span class="sign-in-status">Signed out</span>
       {/if}
-      {#if identity.isUnlocked && attestationLabels.length > 0}
+      {#if attestationLabels.length > 0}
         <span class="attested-chips">
           {#each attestationLabels as label}
             <span class="attested-chip">{label}</span>

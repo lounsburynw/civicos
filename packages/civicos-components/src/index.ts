@@ -15,8 +15,6 @@ export {
   computeCityFocalMeetings,
   urgencyClass,
   meetingDaysUntil,
-  extractAttestationJurisdiction,
-  formatAttestationDate,
 } from './utils/civic-helpers.js';
 export type { FocalMeeting } from './utils/civic-helpers.js';
 
@@ -37,7 +35,6 @@ import './components/CivicProcessBar.svelte';
 import './components/CivicProvenancePanel.svelte';
 import './components/CivicIdentityChip.svelte';
 import './components/CivicReadOnlyPulse.svelte';
-import './components/CivicAttestationCard.svelte';
 // Visualization components (own data loading, self-contained rendering)
 import './components/CivicIssueMap.svelte';
 import './components/CivicBudgetBreakdown.svelte';
