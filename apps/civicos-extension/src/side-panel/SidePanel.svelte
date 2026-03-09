@@ -397,6 +397,13 @@
         .then(data => {
           parentPulseData.set(id, data);
           parentPulseData = new Map(parentPulseData);
+          // Data loaded successfully — ensure health dot reflects reality
+          // (health check may have timed out during cold start)
+          const current = serverHealth.get(id);
+          if (!current || current.status !== 'healthy') {
+            serverHealth.set(id, { status: 'healthy', checked_at: Date.now() });
+            serverHealth = new Map(serverHealth);
+          }
           // Load voice counts and comment counts for this parent's legislation
           loadParentVoiceCounts(id, data);
           loadParentCommentCounts(id, data);
