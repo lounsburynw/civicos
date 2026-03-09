@@ -6,6 +6,7 @@ repo_name: lounsburynw/civicos
 
 theme:
   name: material
+  custom_dir: overrides
   logo: public/assets/logo-light.svg
   favicon: public/assets/favicon.svg
   palette:
