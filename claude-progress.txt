@@ -21225,3 +21225,40 @@ After: User Q → Claude discovers tools via search → composes queries in exec
 - Auto-HUD grantee lookup from FAC/HUD API
 - Generic election scraper framework
 - Legistar/CivicClerk/Granicus live ingest in CLI
+
+## Session — 2026-03-09 — Pipeline Crash Resilience (Fixes 2-4)
+
+### Context
+Previous session identified a crash in `scheduled_low_velocity_refresh` where `federal_rules` vector indexing hit Supabase statement timeouts, killing all parallel workers and crashing the orchestrator without sending notifications. Fix 1 (adding `federal_rules` to corpus types) was done in the prior session.
+
+### Changes Made
+
+**Fix 2 — `bulk_insert_embeddings` connection resilience (`pgvector_backend.py`):**
+- Check `conn.closed` before attempting `rollback()` (prevents `InterfaceError` on dead connections)
+- On `OperationalError` or `InterfaceError`, retry once with a fresh connection
+- Applied to both COPY and upsert code paths
+
+**Fix 3 — Worker failure isolation (`modal_ingest.py`):**
+- Wrapped `_embed_and_store_batch` body in try/except, returning error dict instead of raising
+- Extracted inner logic to `_embed_and_store_batch_inner` for clarity
+- Updated `starmap` result aggregation to handle error dicts and log failed workers
+- One worker failure no longer cancels all 40 parallel workers
+
+**Fix 4 — Orchestrator crash notification (`modal_ingest.py`):**
+- Wrapped entire pipeline body in `try/except/finally`
+- Notification (`send_pipeline_summary`) now runs in `finally` block — always sends, even on crash
+- Pipeline crash info added to results dict for notification visibility
+
+### Key Files Modified
+- `packages/civicos/src/civicos/storage/pgvector_backend.py` — connection resilience + retry
+- `scripts/modal_ingest.py` — worker isolation + orchestrator try/finally
+
+### Verification
+- Both files parse cleanly (py_compile)
+- 20/20 smoke tests pass
+- Module imports verified
+
+### Next Steps
+- Deploy to Modal: `modal deploy scripts/modal_ingest.py`
+- Backfill federal_rules vectors: `modal run scripts/modal_ingest.py::index_vectors --jurisdiction federal-US --corpus federal_rules`
+- Run full low-velocity refresh to verify end-to-end
