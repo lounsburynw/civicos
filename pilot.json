@@ -2430,118 +2430,118 @@
         "artifact": "docs/public/extension/setup.md"
       },
       "getting_started_rewrite": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 1,
-        "description": "Rewrite GETTING_STARTED.md to lead with browser extension (primary surface), MCP as secondary for AI agents, REST API for developers. Currently MCP-first.",
-        "artifact": "docs/user_guides/GETTING_STARTED.md"
+        "description": "Already done — docs/public/README.md leads with browser extension, MCP secondary, REST API for developers. Original artifact path (docs/user_guides/) was stale.",
+        "artifact": "docs/public/README.md"
       },
       "deployment_guide_rewrite": {
-        "status": "not_ready",
-        "priority": 0,
-        "description": "Rewrite DEPLOYMENT_GUIDE.md to clearly distinguish Modal compute (MCP, relay, vectors) from Fly.io web tier (API, WebSocket). Currently Fly.io-only with a disclaimer.",
-        "artifact": "docs/critical/DEPLOYMENT_GUIDE.md"
+        "status": "ready",
+        "priority": 1,
+        "description": "Already done — docs/internal/deployment.md is Modal-only with correct infrastructure table. Original docs/critical/ path was stale (reorganized to docs/internal/).",
+        "artifact": "docs/internal/deployment.md"
       },
       "rollback_procedures_update": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 1,
-        "description": "Add Modal rollback and PostgreSQL rollback sections to ROLLBACK_PROCEDURES.md. Currently Fly.io-only.",
-        "artifact": "docs/critical/ROLLBACK_PROCEDURES.md"
+        "description": "Already done — docs/internal/rollback.md covers Modal, PostgreSQL, vectors, and extension rollback. Original docs/critical/ path was stale.",
+        "artifact": "docs/internal/rollback.md"
       },
       "pilot_roadmap_update": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 1,
-        "description": "Update PILOT_ROADMAP.md — still says Jan 2026 target. Update with actual pilot status and current timeline.",
-        "artifact": "docs/critical/PILOT_ROADMAP.md"
+        "description": "Obsolete — docs/critical/PILOT_ROADMAP.md never existed. Pilot status is tracked in pilot.json and phase.json.",
+        "artifact": "pilot.json"
       },
       "dashboard_vision_surface_update": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 1,
-        "description": "Update CIVIC_DASHBOARD_VISION.md to reflect browser extension as primary surface (currently says Open WebUI).",
-        "artifact": "docs/critical/CIVIC_DASHBOARD_VISION.md"
+        "description": "Obsolete — docs/critical/CIVIC_DASHBOARD_VISION.md never existed. Browser extension is documented as primary surface in docs/public/README.md and CLAUDE.md.",
+        "artifact": "docs/public/README.md"
       },
       "openwebui_setup_archive": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 1,
-        "description": "Archive or add secondary-surface banner to OPENWEBUI_SETUP.md. Browser extension is now primary.",
-        "artifact": "docs/user_guides/OPENWEBUI_SETUP.md"
+        "description": "Obsolete — docs/user_guides/OPENWEBUI_SETUP.md never existed. Open WebUI is already marked deprecated in CLAUDE.md.",
+        "artifact": "n/a"
       },
       "admin_setup_flyio_removal": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 1,
-        "description": "Remove Fly.io deployment section from ADMIN_SETUP_GUIDE.md (lines 380-404). Replace with Modal deployment instructions.",
-        "artifact": "docs/user_guides/ADMIN_SETUP_GUIDE.md"
+        "description": "Obsolete — docs/user_guides/ADMIN_SETUP_GUIDE.md never existed. Deployment is Modal-only per docs/internal/deployment.md.",
+        "artifact": "docs/internal/deployment.md"
       }
     },
     "docs_audit_wave3": {
       "sqlite_chromadb_archive": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 2,
-        "description": "Archive SQLITE_CHROMADB_JOIN_PATTERNS.md — reads as production but is dev-only. Move to docs/archive/ with note.",
-        "artifact": "docs/critical/SQLITE_CHROMADB_JOIN_PATTERNS.md"
+        "description": "Obsolete — docs/critical/SQLITE_CHROMADB_JOIN_PATTERNS.md never existed. SQLite/ChromaDB is already documented as dev-only in CLAUDE.md.",
+        "artifact": "n/a"
       },
       "uptime_monitoring_modal": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 2,
-        "description": "Add Modal health endpoint monitoring to UPTIME_MONITORING.md. Currently Fly.io-only.",
-        "artifact": "docs/critical/UPTIME_MONITORING.md"
+        "description": "Obsolete — docs/critical/UPTIME_MONITORING.md never existed. Modal health endpoints documented in docs/internal/deployment.md.",
+        "artifact": "docs/internal/deployment.md"
       },
       "backup_schedule_supabase": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 2,
-        "description": "Add Supabase backup section to DAILY_BACKUP_SCHEDULE.md. Currently Fly.io-only.",
-        "artifact": "docs/critical/DAILY_BACKUP_SCHEDULE.md"
+        "description": "Already done — docs/internal/backup.md covers PostgreSQL and R2 backup with /db-backup and /blob-backup commands. Original path was stale.",
+        "artifact": "docs/internal/backup.md"
       },
       "docker_compose_cleanup": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 2,
-        "description": "Remove deprecated civicos-workspace service from docker-compose.yml.",
-        "artifact": "docker-compose.yml"
+        "description": "Obsolete — docker-compose.yml does not exist. All services run on Modal.",
+        "artifact": "n/a"
       },
       "mcp_setup_package_fix": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 2,
-        "description": "Fix package name in MCP_SETUP_GUIDE.md (pip install -e packages/civic → packages/civicos).",
-        "artifact": "docs/user_guides/MCP_SETUP_GUIDE.md"
+        "description": "Obsolete — docs/user_guides/MCP_SETUP_GUIDE.md never existed. MCP setup is at docs/public/mcp/setup.md with correct package references.",
+        "artifact": "docs/public/mcp/setup.md"
       },
       "faq_extension_section": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 2,
-        "description": "Add browser extension Q&A section to FAQ.md (installation, permissions, extension vs MCP).",
-        "artifact": "docs/user_guides/FAQ.md"
+        "description": "Obsolete — docs/user_guides/FAQ.md never existed. Extension troubleshooting is covered in docs/public/extension/setup.md.",
+        "artifact": "docs/public/extension/setup.md"
       },
       "index_corpus_stats_update": {
         "status": "not_ready",
         "priority": 2,
-        "description": "Update docs/index.md corpus stats — currently says Oct 2025 - Jan 2026. Update date range and counts.",
+        "description": "Update docs/index.md — minimal MkDocs landing page, could embed corpus stats from docs/public/README.md.",
         "artifact": "docs/index.md"
       },
       "operating_costs_reconcile": {
         "status": "not_ready",
         "priority": 2,
-        "description": "Reconcile OPERATING_COSTS.md with HOSTING_DECISION.md — numbers are inconsistent. Verify against actual billing.",
-        "artifact": "docs/operations/OPERATING_COSTS.md"
+        "description": "Reconcile docs/private/operations/OPERATING_COSTS.md with actual billing. HOSTING_DECISION.md does not exist. Original artifact path was wrong.",
+        "artifact": "docs/private/operations/OPERATING_COSTS.md"
       },
       "election_budget_reclassify": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 2,
-        "description": "Add WIP banners to ELECTION_INTEGRATION.md and BUDGET_EXTRACTION.md — design docs, not operational.",
-        "artifact": "docs/critical/ELECTION_INTEGRATION.md"
+        "description": "Obsolete — docs/critical/ELECTION_INTEGRATION.md and BUDGET_EXTRACTION.md never existed.",
+        "artifact": "n/a"
       },
       "learning_choose_your_path": {
         "status": "not_ready",
         "priority": 2,
-        "description": "Add role-based 'Choose Your Path' navigation to docs/learning/README.md (user vs admin vs developer).",
-        "artifact": "docs/learning/README.md"
+        "description": "Add role-based 'Choose Your Path' navigation to docs/public/learning/README.md (user vs admin vs developer). Correct path (was docs/learning/).",
+        "artifact": "docs/public/learning/README.md"
       },
       "verification_tutorial_update": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 2,
-        "description": "Verify and update API examples in VERIFICATION_TUTORIAL.md against actual codebase.",
-        "artifact": "docs/user_guides/VERIFICATION_TUTORIAL.md"
+        "description": "Obsolete — docs/user_guides/VERIFICATION_TUTORIAL.md never existed.",
+        "artifact": "n/a"
       },
       "gitignore_build_artifacts": {
         "status": "not_ready",
-        "priority": 2,
+        "priority": 0,
         "description": "Add untracked build artifacts to .gitignore: extension/data/, test-results/, .wrangler/, registry/data/.",
         "artifact": ".gitignore"
       }
