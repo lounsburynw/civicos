@@ -337,6 +337,9 @@
 
   function applyPulseData(pulse: CityPulseData) {
     pulseData = pulse;
+    // Primary data loaded successfully — mark healthy regardless of health ping
+    serverHealth.set(activeJurisdiction, { status: 'healthy', checked_at: Date.now() });
+    serverHealth = new Map(serverHealth);
     loadVoiceCounts();
     loadCommentCounts();
     loadParentPulse();
@@ -354,11 +357,10 @@
       if (entry?.data && !pulseData) {
         pulseData = entry.data;
         pulseLoading = false; // stop spinner early
-        // Kick off enrichment with stale data
+        // Kick off enrichment with stale data (but NOT parent loads —
+        // those need warm containers, so defer to fresh data path)
         loadVoiceCounts();
         loadCommentCounts();
-        loadParentPulse();
-        checkAllHealth();
       }
     } catch { /* no cache, continue */ }
 
@@ -387,6 +389,9 @@
     }
     if (parentServers.length === 0) return;
 
+    // Clear stale errors from previous load attempts
+    parentPulseErrors = new Map();
+
     // Fetch pulse data from each parent server concurrently
     for (const server of parentServers) {
       const id = server.jurisdiction_id;
@@ -411,6 +416,9 @@
         .catch(() => {
           parentPulseErrors.set(id, 'Server unavailable');
           parentPulseErrors = new Map(parentPulseErrors);
+          // Data failed — mark degraded even if health ping succeeded
+          serverHealth.set(id, { status: 'degraded', checked_at: Date.now() });
+          serverHealth = new Map(serverHealth);
         })
         .finally(() => {
           parentPulseLoading.delete(id);
@@ -583,6 +591,18 @@
       });
     }
     await Promise.all(checks);
+    // Reconcile: if data already loaded successfully, override failed health pings.
+    // Health pings can fail during cold start even though data fetches (with retry) succeed.
+    if (pulseData) {
+      serverHealth.set(activeJurisdiction, { status: 'healthy', checked_at: Date.now() });
+    }
+    for (const [id, _data] of parentPulseData) {
+      const health = serverHealth.get(id);
+      if (health && health.status !== 'healthy') {
+        serverHealth.set(id, { status: 'healthy', checked_at: Date.now() });
+      }
+    }
+    serverHealth = new Map(serverHealth);
   }
 
   // === External AI Platform Routing ===
@@ -1226,7 +1246,11 @@
           parentPulseLoading.add(id);
           parentPulseLoading = new Set(parentPulseLoading);
           api.getCityPulseFromServer(registry.getServerBaseUrl(tabServer))
-            .then(data => { parentPulseData.set(id, data); parentPulseData = new Map(parentPulseData); })
+            .then(data => {
+              parentPulseData.set(id, data); parentPulseData = new Map(parentPulseData);
+              serverHealth.set(id, { status: 'healthy', checked_at: Date.now() });
+              serverHealth = new Map(serverHealth);
+            })
             .catch(() => { parentPulseErrors.set(id, 'Server unavailable'); parentPulseErrors = new Map(parentPulseErrors); })
             .finally(() => { parentPulseLoading.delete(id); parentPulseLoading = new Set(parentPulseLoading); });
         }}>Retry</button>
