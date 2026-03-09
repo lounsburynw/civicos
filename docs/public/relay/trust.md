@@ -133,10 +133,12 @@ The hardest attack to prevent because it uses real people with real attestation 
 - Voice attribution (key binding)
 - Attestation forgery (issuer signature + six-check verification)
 
+**Solved by civicos-signer:**
+- Issuer key separation — the [`civicos-signer`](../packages/civicos-signer.md) package enables trusted organizations to hold their own attestation signing keys, separating attestation authority from relay operation
+
 **Solvable with known mechanisms (not yet built):**
 - Silent censorship detection (commitment logs)
 - Equivocation detection (cross-relay merkle root comparison)
-- Issuer key separation (multisig or jurisdiction-held key)
 
 **Fundamentally hard (social/institutional, not purely technical):**
 - Paid real-person Sybil attacks

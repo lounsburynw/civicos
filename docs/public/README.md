@@ -53,6 +53,7 @@ Browser Extension (Svelte 5)
 | [`civicos`](packages/civicos.md) | Core query API — `what_happened()`, `whats_next()`, `what_applies()` |
 | [`civicos-services`](packages/civicos-services.md) | REST API server (FastAPI, 15 routers, 50+ endpoints) |
 | [`civicos-relay`](packages/civicos-relay.md) | Coordination — voice casting, subscriptions, relay sync |
+| [`civicos-signer`](packages/civicos-signer.md) | Portable attestation signing — lets organizations hold their own issuer keys |
 | [`civicos-extraction`](packages/civicos-extraction.md) | Platform parsers — Legistar, CivicClerk, ProudCity, SeeClickFix, LegiScan, and more |
 | [`civicos-client`](packages/civicos-client.md) | TypeScript client — API wrapper, identity, AI provider management |
 | [`civicos-components`](packages/civicos-components.md) | Svelte UI components — meetings, decisions, budgets, maps |
