@@ -589,17 +589,94 @@ class InMemoryAttestationStorage:
         redeemed = sum(1 for c in codes if c.get("redeemed_by") is not None)
         return {"total_issued": len(codes), "total_redeemed": redeemed}
 
-    def add_code(self, code: str, jurisdiction: str, batch_id: str, expires_at=None) -> None:
+    def add_code(self, code: str, jurisdiction: str, batch_id: str, expires_at=None, issuer_id: str | None = None) -> None:
         """Add a code (for testing convenience)."""
         self._codes[code] = {
             "code": code,
             "jurisdiction": jurisdiction,
             "batch_id": batch_id,
+            "issuer_id": issuer_id,
             "redeemed_by": None,
             "redeemed_at": None,
             "created_at": datetime.utcnow(),
             "expires_at": expires_at,
         }
+
+    def add_codes_batch(self, codes: list[str], jurisdiction: str, batch_id: str, issuer_id: str, expires_at=None) -> int:
+        """Add a batch of codes linked to an issuer. Returns count of new codes added."""
+        added = 0
+        for code in codes:
+            if code not in self._codes:
+                self.add_code(code, jurisdiction, batch_id, expires_at, issuer_id)
+                added += 1
+        return added
+
+
+class InMemoryIssuerRegistryStorage:
+    """In-memory issuer registry for testing."""
+
+    def __init__(self):
+        self._issuers: dict[str, dict] = {}
+
+    def set_attestation_storage(self, attestation_storage: "InMemoryAttestationStorage"):
+        """Wire up cross-reference to attestation storage for code lookups."""
+        self._attestation_storage = attestation_storage
+
+    def register_issuer(self, issuer: dict) -> str:
+        issuer_id = issuer["issuer_id"]
+        record = {
+            "issuer_id": issuer_id,
+            "jurisdiction": issuer["jurisdiction"],
+            "issuer_pubkey": issuer["issuer_pubkey"],
+            "organization": issuer["organization"],
+            "signing_url": issuer["signing_url"],
+            "bearer_token": issuer["bearer_token"],
+            "allowed_types": issuer.get("allowed_types", ["physical"]),
+            "created_at": datetime.utcnow(),
+            "verified": issuer.get("verified", False),
+            "revoked": False,
+        }
+        self._issuers[issuer_id] = record
+        return issuer_id
+
+    def get_issuer(self, issuer_id: str) -> dict | None:
+        return self._issuers.get(issuer_id)
+
+    def get_issuers_for_jurisdiction(self, jurisdiction: str) -> list[dict]:
+        return [
+            i for i in self._issuers.values()
+            if i["jurisdiction"] == jurisdiction and not i["revoked"]
+        ]
+
+    def get_issuer_by_pubkey(self, issuer_pubkey: str, jurisdiction: str) -> dict | None:
+        for i in self._issuers.values():
+            if i["issuer_pubkey"] == issuer_pubkey and i["jurisdiction"] == jurisdiction:
+                return i
+        return None
+
+    def verify_issuer(self, issuer_id: str) -> bool:
+        issuer = self._issuers.get(issuer_id)
+        if issuer and not issuer["revoked"]:
+            issuer["verified"] = True
+            return True
+        return False
+
+    def revoke_issuer(self, issuer_id: str) -> bool:
+        issuer = self._issuers.get(issuer_id)
+        if issuer:
+            issuer["revoked"] = True
+            return True
+        return False
+
+    def get_code_issuer(self, code: str) -> dict | None:
+        """Look up the issuer for a code by checking the code's issuer_id."""
+        attest_store = getattr(self, "_attestation_storage", None)
+        if not attest_store:
+            return None
+        code_record = attest_store.get_code(code)
+        if code_record and code_record.get("issuer_id"):
+            return self._issuers.get(code_record["issuer_id"])
+        return None
 
 
 class InMemoryStorage:
@@ -621,3 +698,5 @@ class InMemoryStorage:
         self.outcomes = InMemoryOutcomeStorage()
         self.attributions = InMemoryAttributionStorage()
         self.attestations = InMemoryAttestationStorage()
+        self.issuers = InMemoryIssuerRegistryStorage()
+        self.issuers.set_attestation_storage(self.attestations)

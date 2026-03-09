@@ -1938,6 +1938,32 @@ class PostgresAttestationStorage:
         finally:
             self._return_connection(conn)
 
+    def add_codes_batch(self, codes: list[str], jurisdiction: str, batch_id: str, issuer_id: str, expires_at=None) -> int:
+        """Insert a batch of codes linked to an issuer. Returns count of new codes added."""
+        conn = self._get_connection()
+        try:
+            import psycopg2.extras
+            with conn.cursor() as cur:
+                values = [
+                    (code, jurisdiction, batch_id, issuer_id, expires_at)
+                    for code in codes
+                ]
+                psycopg2.extras.execute_values(
+                    cur,
+                    """
+                    INSERT INTO coordination_attestation_codes
+                    (code, jurisdiction, batch_id, issuer_id, expires_at)
+                    VALUES %s
+                    ON CONFLICT (code) DO NOTHING
+                    """,
+                    values,
+                )
+                added = cur.rowcount
+                conn.commit()
+                return added
+        finally:
+            self._return_connection(conn)
+
     def redeem_code(self, code: str, public_key: str) -> bool:
         """Atomically redeem a code. Returns True if successful."""
         conn = self._get_connection()
