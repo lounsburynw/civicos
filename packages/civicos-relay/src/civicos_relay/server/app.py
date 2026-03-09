@@ -5,7 +5,7 @@ import os
 from contextlib import asynccontextmanager
 from typing import Optional
 
-from fastapi import FastAPI, APIRouter, HTTPException, Depends
+from fastapi import FastAPI, APIRouter, HTTPException, Depends, Header
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
@@ -24,6 +24,8 @@ from civicos_relay.sync.protocol import SyncRequest, VoiceSyncResponse, VoiceImp
 from civicos_relay.sync.service import SyncService
 from civicos_relay.storage import InMemoryStorage, PostgresStorage
 from civicos_relay.delivery import EmailDelivery, EmailConfig
+from civicos_relay.attestation.service import AttestationService
+from civicos_relay.attestation.signer_client import SignerError
 
 logger = logging.getLogger(__name__)
 
@@ -126,6 +128,29 @@ class SubscribeRequest(BaseModel):
     webhook_url: Optional[str] = None
 
 
+class RedeemCodeRequest(BaseModel):
+    """Request to redeem an attestation code."""
+    code: str = Field(description="Attestation code (e.g., SR-2026-02-A7K9)")
+    subject_pubkey: str = Field(description="Resident's public key (hex)")
+    signature: str = Field(description="Kind-24242 signature proving pubkey ownership")
+    created_at: int = Field(description="Unix timestamp from signed event")
+
+
+class CodeBatchRequest(BaseModel):
+    """Issuer-signed batch of attestation codes."""
+    signed_event: dict = Field(description="Kind-30851 Nostr event signed by issuer")
+
+
+class RegisterIssuerRequest(BaseModel):
+    """Request to register a trusted issuer."""
+    issuer_pubkey: str = Field(description="Issuer's public key (64-char hex)")
+    jurisdiction: str
+    organization: str
+    signing_url: str = Field(description="URL of the issuer's signing service")
+    bearer_token: str = Field(description="Shared secret for authenticating with signer")
+    allowed_types: list[str] = Field(default=["physical"])
+
+
 class HealthResponse(BaseModel):
     """Health check response."""
     status: str
@@ -173,6 +198,10 @@ def get_identity() -> RelayIdentity:
     return _relay_state["identity"]
 
 
+def get_attestation_service() -> AttestationService:
+    return _relay_state["attestation_service"]
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan - startup and shutdown."""
@@ -209,6 +238,10 @@ async def lifespan(app: FastAPI):
     _relay_state["sync_service"] = SyncService(identity, storage.sync, config.peers)
     _relay_state["comment_storage"] = storage.comments
     _relay_state["initiative_storage"] = storage.initiatives
+    _relay_state["attestation_service"] = AttestationService(
+        attestation_storage=storage.attestations,
+        issuer_storage=storage.issuers,
+    )
     _relay_state["civic_action_service"] = CivicActionService(
         action_storage=storage.civic_action_events,
         commitment_storage=storage.civic_commitments,
@@ -668,6 +701,65 @@ def create_app() -> FastAPI:
         if not success:
             raise HTTPException(status_code=404, detail="Commitment not found")
         return {"status": "withdrawn"}
+
+    # --- Attestation endpoints ---
+
+    def _verify_relay_api_key(authorization: str):
+        """Verify relay admin API key from Authorization header."""
+        relay_api_key = os.environ.get("CIVICOS_RELAY_API_KEY", "")
+        provided = authorization.removeprefix("Bearer ").strip() if authorization else ""
+        if not provided or provided != relay_api_key:
+            raise HTTPException(status_code=401, detail="Invalid relay API key")
+
+    @router.post("/attestation/redeem")
+    async def redeem_attestation_code(
+        request: RedeemCodeRequest,
+        attestation_service: AttestationService = Depends(get_attestation_service),
+    ):
+        """Redeem an attestation code."""
+        try:
+            attestation_event = attestation_service.redeem_code(
+                code=request.code,
+                subject_pubkey=request.subject_pubkey,
+                signature=request.signature,
+                created_at=request.created_at,
+            )
+            return {"attestation_event": attestation_event}
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+        except SignerError as e:
+            raise HTTPException(status_code=502, detail=str(e))
+
+    @router.post("/codes/batch")
+    async def accept_code_batch(
+        request: CodeBatchRequest,
+        attestation_service: AttestationService = Depends(get_attestation_service),
+    ):
+        """Accept a batch of issuer-signed attestation codes.
+
+        No admin API key required — authorization is cryptographic.
+        The signed_event must be a valid kind-30851 Nostr event signed by
+        a registered and verified issuer's private key.
+        """
+        try:
+            result = attestation_service.accept_code_batch(request.signed_event)
+            return result
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+
+    @router.post("/issuers/register")
+    async def register_issuer(
+        request: RegisterIssuerRequest,
+        authorization: str = Header(default=""),
+    ):
+        """Register a trusted issuer for a jurisdiction."""
+        _verify_relay_api_key(authorization)
+        attestation_service = get_attestation_service()
+        try:
+            result = attestation_service.register_issuer(request.model_dump())
+            return result
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
 
     app.include_router(router)
     return app
