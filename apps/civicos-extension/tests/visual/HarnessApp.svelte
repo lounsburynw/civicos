@@ -8,6 +8,7 @@
 
   const tabs = [
     { id: 'city', label: 'San Rafael' },
+    { id: 'county', label: 'Marin County' },
     { id: 'state', label: 'California' },
     { id: 'federal', label: 'Federal' },
   ];
