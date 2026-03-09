@@ -259,17 +259,16 @@ The most important adversary to design against is CivicOS. Not because of malice
 
 **1. Open source everything.** The relay code, the verification logic, the commitment log — all public and auditable. Anyone can run the same software and verify CivicOS's relay is behaving correctly.
 
-**2. Separate the issuer key from the relay operator.** Right now (pilot), the attestation issuer keypair is held by the relay. This means the relay operator can issue attestations — and theoretically fabricate them. The issuer key should eventually be held by a separate entity (the jurisdiction itself, or a multisig arrangement) so that the relay operator and the attestation authority are different parties.
+**2. Separate the issuer key from the relay operator.** The [`civicos-signer`](../packages/civicos-signer.md) package enforces this separation from launch: trusted organizations hold their own issuer keys and run independent signing services. The relay operator cannot issue attestations — it calls out to the organization that distributed the code.
 
 ```
-Current (pilot):
-  CivicOS controls: relay operation + attestation issuance
-  → Single point of control. Acceptable for proving the thesis.
-
-Future (production):
-  Entity A controls: relay operation
-  Entity B controls: attestation issuance (city government or multisig)
-  → Separation of powers. Neither can act alone.
+How it works (civicos-signer):
+  CivicOS controls: relay operation
+  Canal Alliance controls: their attestation signing key
+  SR Public Library controls: their attestation signing key
+  City Clerk controls: their attestation signing key
+  → Multiple independent issuers. Relay calls out to each org's signer.
+  → No single party controls attestation.
 ```
 
 **3. Commitment logs** (described above). CivicOS publishes cryptographic commitments to its relay state. If CivicOS ever censors a voice, the historical commitment record proves it — permanently and irrefutably.
@@ -398,10 +397,12 @@ Layer 5: PRIVACY ARCHITECTURE (what no single party can see)
 - Voice attribution (key binding)
 - Attestation forgery (issuer signature + 6-check verification)
 
+**Solved by civicos-signer:**
+- Issuer key separation — [`civicos-signer`](../packages/civicos-signer.md) enables organizations to hold their own attestation keys independently of the relay operator
+
 **Solvable with known mechanisms (not yet built):**
 - Silent censorship detection (commitment logs)
 - Equivocation detection (cross-relay merkle root comparison)
-- Issuer key separation (multisig or jurisdiction-held key)
 
 **Fundamentally hard (social/institutional, not purely technical):**
 - Paid real-person Sybil attacks (bussing supporters)

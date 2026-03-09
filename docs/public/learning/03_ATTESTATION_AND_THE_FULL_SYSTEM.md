@@ -186,7 +186,7 @@ The attestation is a Nostr event — the same structure you learned in Module 2,
 
 **Key observations:**
 
-1. **Signed by the ISSUER, not the user.** The `pubkey` field is the jurisdiction's issuer key — a key controlled by the CivicOS relay for that jurisdiction. This is what makes it an authority-issued credential.
+1. **Signed by the ISSUER, not the user.** The `pubkey` field is the issuer's key — during the pilot, a key controlled by the CivicOS relay; in production, keys held by independent trusted organizations via [`civicos-signer`](../packages/civicos-signer.md). This is what makes it an authority-issued credential.
 
 2. **Addressable event.** The d-tag `attest:city-san-rafael:{user_pubkey}` means one attestation per user per jurisdiction. You can't accumulate multiple attestations for the same city.
 

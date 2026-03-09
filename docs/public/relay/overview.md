@@ -78,6 +78,10 @@ All relay interactions use **secp256k1 Schnorr signatures** (Nostr-compatible, B
 
 The relay uses its own database, separate from the MCP server's civic data store. This is a deliberate architectural boundary — coordination data (who voiced what) is isolated from civic data (what happened at the meeting).
 
+## Attestation Signing
+
+Trusted organizations run their own signing services via [`civicos-signer`](../packages/civicos-signer.md). When a resident redeems an attestation code, the relay calls the issuing organization's signer to produce the attestation event. This separates attestation authority from relay operation from day one — see [Attestation: Multi-Issuer](attestation.md#multi-issuer-attestation).
+
 ## Further Reading
 
 - [Attestation](attestation.md) — How gated attestation prevents spam and ensures genuine participation

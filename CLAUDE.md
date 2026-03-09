@@ -149,6 +149,7 @@ claude-progress.txt         # Session state (append-only)
 init.sh                     # Verification script
 packages/civicos/             # Core API package
 packages/civicos-relay/       # Federation-ready relay (voice, actions, sync, subscriptions)
+packages/civicos-signer/      # Portable attestation signing service (for issuer orgs)
 packages/civicos-extraction/  # Platform parsers
 packages/civicos-services/    # Application layer (API server, chat, websocket)
 packages/civicos-client/      # TypeScript/JavaScript client library

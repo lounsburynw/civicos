@@ -43,6 +43,10 @@ Voice and event synchronization between peer relays.
 
 Selection: `RELAY_DATABASE_URL` > `DATABASE_URL` > in-memory.
 
+## Attestation
+
+The relay verifies attestation proofs (kind-30850 events) embedded on voices and comments. Trusted organizations run [`civicos-signer`](civicos-signer.md) instances with their own keys, and the relay calls out to their `/sign` endpoints during code redemption. The relay maintains a registry of trusted issuer pubkeys per jurisdiction.
+
 ## Cryptography
 
 All voices are signed with secp256k1 Schnorr signatures (Nostr-compatible, BIP-340). Not P-256 ECDSA.
