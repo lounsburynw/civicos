@@ -1610,12 +1610,34 @@ def _embed_and_store_batch(
 
     When reindex=False, uses upsert (ON CONFLICT) to handle existing vectors.
     When reindex=True, uses COPY for speed (caller must delete existing vectors first).
+
+    Returns error dict instead of raising, so starmap doesn't cancel all workers.
     """
     import logging
     import os
     import hashlib
 
     logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+    logger = logging.getLogger(__name__)
+
+    try:
+        return _embed_and_store_batch_inner(chunks, jurisdiction_id, corpus_type, reindex)
+    except Exception as e:
+        logger.exception(f"Worker failed for {corpus_type} ({len(chunks)} chunks): {e}")
+        return {"success": 0, "failed": len(chunks), "error": str(e)}
+
+
+def _embed_and_store_batch_inner(
+    chunks: list[dict],
+    jurisdiction_id: str,
+    corpus_type: str,
+    reindex: bool = False,
+) -> dict:
+    """Inner implementation of _embed_and_store_batch (unwrapped for clarity)."""
+    import logging
+    import os
+    import hashlib
+
     logger = logging.getLogger(__name__)
 
     # Use persistent volume for fastembed model cache
@@ -1855,7 +1877,7 @@ def index_vectors(
     if jurisdiction.startswith("state-"):
         all_corpus_types = ["legislation"]
     elif jurisdiction.startswith("federal-"):
-        all_corpus_types = ["programs", "executive_orders"]  # Federal programs + EOs
+        all_corpus_types = ["programs", "executive_orders", "federal_rules"]
     else:
         all_corpus_types = ["chunks", "decisions", "meetings", "transcripts", "municipal_code", "issues", "agenda_items", "budget_items"]
 
@@ -1907,6 +1929,34 @@ def index_vectors(
             chunks = backend.get_agenda_items(jurisdiction_id=jurisdiction)
         elif ct == "programs":
             chunks = backend.get_programs()
+        elif ct == "federal_rules":
+            raw = backend.get_federal_rules()
+            chunks = []
+            for rule in raw:
+                agencies = rule.get("agency_names") or []
+                parts = []
+                if agencies:
+                    parts.append(f"Agency: {', '.join(agencies)}")
+                if rule.get("title"):
+                    parts.append(rule["title"])
+                if rule.get("abstract"):
+                    parts.append(rule["abstract"])
+                text = "\n".join(parts)
+                if not text.strip():
+                    continue
+                chunks.append({
+                    "id": f"rule-{rule.get('document_number', rule.get('id', ''))}",
+                    "text": text,
+                    "title": rule.get("title"),
+                    "document_type": rule.get("document_type"),
+                    "publication_date": rule.get("publication_date"),
+                    "comments_close_on": rule.get("comments_close_on"),
+                    "metadata": {
+                        "document_number": rule.get("document_number"),
+                        "agency_names": agencies,
+                        "html_url": rule.get("html_url"),
+                    },
+                })
         elif ct == "budget_items":
             chunks = backend.get_budget_items(jurisdiction)
         else:
@@ -1938,12 +1988,17 @@ def index_vectors(
                 for i in range(0, len(chunks), batch_size)
             ]
 
-            # Run parallel workers
+            # Run parallel workers (individual failures return error dicts, not exceptions)
             worker_results = list(_embed_and_store_batch.starmap(batches))
 
-            # Aggregate results
-            total_success = sum(r["success"] for r in worker_results)
-            total_failed = sum(r["failed"] for r in worker_results)
+            # Aggregate results (workers return error dicts on failure instead of raising)
+            failed_workers = [r for r in worker_results if r.get("error")]
+            if failed_workers:
+                logger.warning(f"  {len(failed_workers)}/{len(worker_results)} workers failed for {ct}")
+                for fw in failed_workers:
+                    logger.warning(f"    Worker error: {fw['error']}")
+            total_success = sum(r.get("success", 0) for r in worker_results)
+            total_failed = sum(r.get("failed", 0) for r in worker_results)
             num_batches = len(batches)
 
         results[ct] = {
@@ -3438,177 +3493,187 @@ def scheduled_low_velocity_refresh():
     logger.info(f"Found {len(jurisdictions)} configured jurisdictions: {list(jurisdictions.keys())}")
 
     results = {}
+    pipeline_error = None
 
-    # =========================================================================
-    # Global operations (not per-jurisdiction)
-    # =========================================================================
-
-    # Legislation CA (run weekly to avoid quota issues, auto-index vectors)
-    # Uses sync_legislation() which:
-    #   1. Fetches master list to discover new bills and status updates (1 API call)
-    #   2. Stores/upserts bills with temporal versioning
-    #   3. Populates full_text for bills missing it
-    #   4. Auto-indexes vectors
-    logger.info("Syncing CA legislation...")
-    result = run_with_retry(
-        sync_legislation,
-        "CA legislation sync",
-        jurisdiction="state-CA", dry_run=False, auto_index=True,
-    )
-    results["legislation_CA"] = result
-    if result.get("status") != "failed":
-        new_bills = result.get('new_bills', 0)
-        stored = result.get('bills_stored', 0)
-        text_updated = result.get('text_result', {}).get('bills_with_text', 0)
-        indexed = result.get('vector_result', {}).get('total_indexed', 0) if result.get('auto_index') else 0
-        logger.info(f"  CA Legislation: {new_bills} new bills, {stored} total stored, {text_updated} texts populated, {indexed} vectors indexed")
-
-    # Executive Orders from Federal Register (incremental, auto-index vectors)
-    logger.info("Fetching Executive Orders from Federal Register...")
-    result = run_with_retry(
-        fetch_executive_orders,
-        "Executive Orders fetch",
-        dry_run=False, incremental=True, auto_index=True,
-    )
-    results["executive_orders"] = result
-    if result.get("status") != "failed":
-        stored = result.get('orders_stored', 0)
-        indexed = result.get('vector_result', {}).get('total_indexed', 0) if result.get('auto_index') else 0
-        logger.info(f"  Executive Orders: {stored} new orders stored (of {result.get('orders_fetched', 0)} fetched), {indexed} vectors indexed")
-
-    # Federal Rules from Federal Register (proposed rules, final rules, notices)
-    logger.info("Fetching Federal Rules from Federal Register...")
-    result = run_with_retry(
-        fetch_federal_rules,
-        "Federal Rules fetch",
-        dry_run=False, incremental=True, auto_index=True,
-    )
-    results["federal_rules"] = result
-    if result.get("status") != "failed":
-        stored = result.get('rules_stored', 0)
-        indexed = result.get('vector_result', {}).get('total_indexed', 0) if result.get('auto_index') else 0
-        logger.info(f"  Federal Rules: {stored} new rules stored (of {result.get('rules_fetched', 0)} fetched), {indexed} vectors indexed")
-
-    # Legislative Events (hearing dates parsed from existing legislation — no API calls)
-    logger.info("Extracting legislative events from CA legislation...")
-    result = run_with_retry(
-        extract_legislative_events,
-        "Legislative events extraction",
-        state="CA", dry_run=False,
-    )
-    results["legislative_events_CA"] = result
-    if result.get("status") != "failed":
-        stored = result.get('events_stored', 0)
-        logger.info(f"  Legislative Events CA: {stored} events stored (of {result.get('events_parsed', 0)} parsed from {result.get('bills_read', 0)} bills)")
-
-    # Federal programs from SAM.gov (full catalog refresh)
-    logger.info("Fetching federal programs from SAM.gov...")
-    result = run_with_retry(
-        fetch_federal_programs,
-        "Federal programs fetch",
-        dry_run=False, force_refresh=True, auto_index=True,
-    )
-    results["federal_programs"] = result
-    if result.get("status") != "failed":
-        stored = result.get("programs_stored", 0)
-        indexed = result.get("vector_result", {}).get("total_indexed", 0) if result.get("auto_index") else 0
-        logger.info(f"  Federal programs: {stored} programs stored, {indexed} vectors indexed")
-
-    # HUD allocations (CDBG, HOME, etc.) - already iterates all configured jurisdictions
-    logger.info("Fetching HUD allocations for all configured jurisdictions...")
-    result = run_with_retry(
-        fetch_all_hud_allocations,
-        "HUD allocations fetch",
-        dry_run=False,
-    )
-    results["hud_allocations"] = result
-    if result.get("status") != "failed":
-        new_years = result.get("new_years_discovered", [])
-        jcount = result.get("jurisdictions_processed", 0)
-        stored = result.get("total_allocations_stored", 0)
-        if new_years:
-            logger.info(f"  HUD allocations: {stored} stored across {jcount} jurisdictions, NEW YEARS FOUND: {new_years}")
-        else:
-            logger.info(f"  HUD allocations: {stored} stored across {jcount} jurisdictions")
-
-    # NOTE: Federal programs vector indexing is now handled by auto_index=True
-    # in the fetch_federal_programs call above (avoids duplicate indexing).
-
-    # =========================================================================
-    # Per-jurisdiction operations
-    # =========================================================================
-
-    for jid, config in jurisdictions.items():
-        # Skip jurisdictions without per-jurisdiction low-velocity data sources
-        # (e.g., county-marin is financial context only, no municipal code/meetings/minutes)
-        source_type = config.get("source_type", "")
-        if source_type in ("county", "financial"):
-            logger.info(f"Skipping {jid} (source_type={source_type}, no per-jurisdiction low-velocity data)")
-            continue
-
-        logger.info(f"Processing jurisdiction: {jid}")
-        results[jid] = {}
-
-        # Municipal code (always full refresh - no incremental API support, auto-index vectors)
-        try:
-            logger.info(f"  [{jid}] Fetching municipal code...")
-            result = fetch_municipal_code.local(jurisdiction=jid, dry_run=False, auto_index=True)
-            results[jid]["municipal_code"] = result
-            stored = result.get('sections_stored', 0)
-            indexed = result.get('vector_result', {}).get('total_indexed', 0) if result.get('auto_index') else 0
-            logger.info(f"    Municipal code: {stored} sections stored, {indexed} vectors indexed")
-        except Exception as e:
-            logger.exception(f"  [{jid}] Municipal code fetch failed")
-            results[jid]["municipal_code"] = {"status": "failed", "error": str(e)}
-
-        # Agenda items extraction (LLM-powered, after meetings are available, auto-index vectors)
-        try:
-            logger.info(f"  [{jid}] Extracting agenda items...")
-            result = extract_agenda_items.local(jurisdiction=jid, dry_run=False, auto_index=True)
-            results[jid]["agenda_items"] = result
-            extracted = result.get('items_extracted', 0)
-            indexed = result.get('vector_result', {}).get('total_indexed', 0) if result.get('auto_index') else 0
-            logger.info(f"    Agenda items: {extracted} items ({result.get('actionable_items', 0)} actionable), {indexed} vectors indexed")
-        except Exception as e:
-            logger.exception(f"  [{jid}] Agenda items extraction failed")
-            results[jid]["agenda_items"] = {"status": "failed", "error": str(e)}
-
-        # Decision extraction (LLM-powered, weekly because minutes PDFs lag behind meetings, auto-index vectors)
-        try:
-            logger.info(f"  [{jid}] Extracting decisions...")
-            result = extract_decisions.local(jurisdiction=jid, dry_run=False, auto_index=True)
-            results[jid]["decisions"] = result
-            extracted = result.get('decisions_extracted', 0)
-            indexed = result.get('vector_result', {}).get('total_indexed', 0) if result.get('auto_index') else 0
-            logger.info(f"    Decisions: {extracted} decisions from {result.get('meetings_extracted', 0)} meetings, {indexed} vectors indexed")
-        except Exception as e:
-            logger.exception(f"  [{jid}] Decision extraction failed")
-            results[jid]["decisions"] = {"status": "failed", "error": str(e)}
-
-        # NOTE: Vector indexing now handled by auto_index=True on each fetch/extract call above.
-        # This ensures vectors are indexed immediately after data is stored, closing the
-        # staleness gap where data could exist in storage but not be searchable.
-
-    elapsed = time.time() - start_time
-    logger.info(f"Low-velocity refresh complete in {elapsed:.1f}s for {len(jurisdictions)} jurisdictions")
-
-    # Send pipeline summary notification
     try:
-        from civicos_services.monitoring.pipeline_run_summary import send_pipeline_summary
-        summary = send_pipeline_summary(
-            results=results,
-            schedule="low_velocity_weekly",
-            elapsed_seconds=elapsed,
+        # =========================================================================
+        # Global operations (not per-jurisdiction)
+        # =========================================================================
+
+        # Legislation CA (run weekly to avoid quota issues, auto-index vectors)
+        # Uses sync_legislation() which:
+        #   1. Fetches master list to discover new bills and status updates (1 API call)
+        #   2. Stores/upserts bills with temporal versioning
+        #   3. Populates full_text for bills missing it
+        #   4. Auto-indexes vectors
+        logger.info("Syncing CA legislation...")
+        result = run_with_retry(
+            sync_legislation,
+            "CA legislation sync",
+            jurisdiction="state-CA", dry_run=False, auto_index=True,
         )
-        logger.info(f"Pipeline summary: {summary['stages_succeeded']}/{summary['stages_succeeded'] + summary['stages_failed']} passed, sent={summary['notification_sent']}")
+        results["legislation_CA"] = result
+        if result.get("status") != "failed":
+            new_bills = result.get('new_bills', 0)
+            stored = result.get('bills_stored', 0)
+            text_updated = result.get('text_result', {}).get('bills_with_text', 0)
+            indexed = result.get('vector_result', {}).get('total_indexed', 0) if result.get('auto_index') else 0
+            logger.info(f"  CA Legislation: {new_bills} new bills, {stored} total stored, {text_updated} texts populated, {indexed} vectors indexed")
+
+        # Executive Orders from Federal Register (incremental, auto-index vectors)
+        logger.info("Fetching Executive Orders from Federal Register...")
+        result = run_with_retry(
+            fetch_executive_orders,
+            "Executive Orders fetch",
+            dry_run=False, incremental=True, auto_index=True,
+        )
+        results["executive_orders"] = result
+        if result.get("status") != "failed":
+            stored = result.get('orders_stored', 0)
+            indexed = result.get('vector_result', {}).get('total_indexed', 0) if result.get('auto_index') else 0
+            logger.info(f"  Executive Orders: {stored} new orders stored (of {result.get('orders_fetched', 0)} fetched), {indexed} vectors indexed")
+
+        # Federal Rules from Federal Register (proposed rules, final rules, notices)
+        logger.info("Fetching Federal Rules from Federal Register...")
+        result = run_with_retry(
+            fetch_federal_rules,
+            "Federal Rules fetch",
+            dry_run=False, incremental=True, auto_index=True,
+        )
+        results["federal_rules"] = result
+        if result.get("status") != "failed":
+            stored = result.get('rules_stored', 0)
+            indexed = result.get('vector_result', {}).get('total_indexed', 0) if result.get('auto_index') else 0
+            logger.info(f"  Federal Rules: {stored} new rules stored (of {result.get('rules_fetched', 0)} fetched), {indexed} vectors indexed")
+
+        # Legislative Events (hearing dates parsed from existing legislation — no API calls)
+        logger.info("Extracting legislative events from CA legislation...")
+        result = run_with_retry(
+            extract_legislative_events,
+            "Legislative events extraction",
+            state="CA", dry_run=False,
+        )
+        results["legislative_events_CA"] = result
+        if result.get("status") != "failed":
+            stored = result.get('events_stored', 0)
+            logger.info(f"  Legislative Events CA: {stored} events stored (of {result.get('events_parsed', 0)} parsed from {result.get('bills_read', 0)} bills)")
+
+        # Federal programs from SAM.gov (full catalog refresh)
+        logger.info("Fetching federal programs from SAM.gov...")
+        result = run_with_retry(
+            fetch_federal_programs,
+            "Federal programs fetch",
+            dry_run=False, force_refresh=True, auto_index=True,
+        )
+        results["federal_programs"] = result
+        if result.get("status") != "failed":
+            stored = result.get("programs_stored", 0)
+            indexed = result.get("vector_result", {}).get("total_indexed", 0) if result.get("auto_index") else 0
+            logger.info(f"  Federal programs: {stored} programs stored, {indexed} vectors indexed")
+
+        # HUD allocations (CDBG, HOME, etc.) - already iterates all configured jurisdictions
+        logger.info("Fetching HUD allocations for all configured jurisdictions...")
+        result = run_with_retry(
+            fetch_all_hud_allocations,
+            "HUD allocations fetch",
+            dry_run=False,
+        )
+        results["hud_allocations"] = result
+        if result.get("status") != "failed":
+            new_years = result.get("new_years_discovered", [])
+            jcount = result.get("jurisdictions_processed", 0)
+            stored = result.get("total_allocations_stored", 0)
+            if new_years:
+                logger.info(f"  HUD allocations: {stored} stored across {jcount} jurisdictions, NEW YEARS FOUND: {new_years}")
+            else:
+                logger.info(f"  HUD allocations: {stored} stored across {jcount} jurisdictions")
+
+        # NOTE: Federal programs vector indexing is now handled by auto_index=True
+        # in the fetch_federal_programs call above (avoids duplicate indexing).
+
+        # =========================================================================
+        # Per-jurisdiction operations
+        # =========================================================================
+
+        for jid, config in jurisdictions.items():
+            # Skip jurisdictions without per-jurisdiction low-velocity data sources
+            # (e.g., county-marin is financial context only, no municipal code/meetings/minutes)
+            source_type = config.get("source_type", "")
+            if source_type in ("county", "financial"):
+                logger.info(f"Skipping {jid} (source_type={source_type}, no per-jurisdiction low-velocity data)")
+                continue
+
+            logger.info(f"Processing jurisdiction: {jid}")
+            results[jid] = {}
+
+            # Municipal code (always full refresh - no incremental API support, auto-index vectors)
+            try:
+                logger.info(f"  [{jid}] Fetching municipal code...")
+                result = fetch_municipal_code.local(jurisdiction=jid, dry_run=False, auto_index=True)
+                results[jid]["municipal_code"] = result
+                stored = result.get('sections_stored', 0)
+                indexed = result.get('vector_result', {}).get('total_indexed', 0) if result.get('auto_index') else 0
+                logger.info(f"    Municipal code: {stored} sections stored, {indexed} vectors indexed")
+            except Exception as e:
+                logger.exception(f"  [{jid}] Municipal code fetch failed")
+                results[jid]["municipal_code"] = {"status": "failed", "error": str(e)}
+
+            # Agenda items extraction (LLM-powered, after meetings are available, auto-index vectors)
+            try:
+                logger.info(f"  [{jid}] Extracting agenda items...")
+                result = extract_agenda_items.local(jurisdiction=jid, dry_run=False, auto_index=True)
+                results[jid]["agenda_items"] = result
+                extracted = result.get('items_extracted', 0)
+                indexed = result.get('vector_result', {}).get('total_indexed', 0) if result.get('auto_index') else 0
+                logger.info(f"    Agenda items: {extracted} items ({result.get('actionable_items', 0)} actionable), {indexed} vectors indexed")
+            except Exception as e:
+                logger.exception(f"  [{jid}] Agenda items extraction failed")
+                results[jid]["agenda_items"] = {"status": "failed", "error": str(e)}
+
+            # Decision extraction (LLM-powered, weekly because minutes PDFs lag behind meetings, auto-index vectors)
+            try:
+                logger.info(f"  [{jid}] Extracting decisions...")
+                result = extract_decisions.local(jurisdiction=jid, dry_run=False, auto_index=True)
+                results[jid]["decisions"] = result
+                extracted = result.get('decisions_extracted', 0)
+                indexed = result.get('vector_result', {}).get('total_indexed', 0) if result.get('auto_index') else 0
+                logger.info(f"    Decisions: {extracted} decisions from {result.get('meetings_extracted', 0)} meetings, {indexed} vectors indexed")
+            except Exception as e:
+                logger.exception(f"  [{jid}] Decision extraction failed")
+                results[jid]["decisions"] = {"status": "failed", "error": str(e)}
+
+                # NOTE: Vector indexing now handled by auto_index=True on each fetch/extract call above.
+                # This ensures vectors are indexed immediately after data is stored, closing the
+                # staleness gap where data could exist in storage but not be searchable.
+
     except Exception as e:
-        logger.warning(f"Failed to send pipeline summary notification: {e}")
+        logger.exception(f"Pipeline crashed with unhandled exception: {e}")
+        pipeline_error = e
+        results["_pipeline_crash"] = {"status": "failed", "error": str(e)}
+
+    finally:
+        elapsed = time.time() - start_time
+        status = "crashed" if pipeline_error else "complete"
+        logger.info(f"Low-velocity refresh {status} in {elapsed:.1f}s for {len(jurisdictions)} jurisdictions")
+
+        # Send pipeline summary notification (always, even on crash)
+        try:
+            from civicos_services.monitoring.pipeline_run_summary import send_pipeline_summary
+            summary = send_pipeline_summary(
+                results=results,
+                schedule="low_velocity_weekly",
+                elapsed_seconds=elapsed,
+            )
+            logger.info(f"Pipeline summary: {summary['stages_succeeded']}/{summary['stages_succeeded'] + summary['stages_failed']} passed, sent={summary['notification_sent']}")
+        except Exception as e:
+            logger.warning(f"Failed to send pipeline summary notification: {e}")
 
     return {
         "schedule": "low_velocity_weekly",
         "jurisdictions_processed": len(jurisdictions),
         "results": results,
         "elapsed_seconds": elapsed,
+        "error": str(pipeline_error) if pipeline_error else None,
     }
 
 

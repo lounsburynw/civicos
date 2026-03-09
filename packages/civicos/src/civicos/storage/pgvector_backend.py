@@ -1760,9 +1760,36 @@ class PgVectorBackend:
                 conn.close()
                 return {"success": len(records), "failed": 0}
             except Exception as e:
-                conn.rollback()
-                conn.close()
-                logger.error(f"Bulk insert failed: {e}")
+                if not conn.closed:
+                    conn.rollback()
+                    conn.close()
+                logger.error(f"Bulk COPY insert failed: {e}")
+                # Retry once with a fresh connection on connection/timeout errors
+                import psycopg2
+                if isinstance(e, (psycopg2.OperationalError, psycopg2.InterfaceError)):
+                    logger.info("Retrying bulk COPY insert with fresh connection...")
+                    try:
+                        buffer.seek(0)
+                        conn2 = self._get_connection()
+                        cursor2 = conn2.cursor()
+                        cursor2.copy_from(
+                            buffer,
+                            self.TABLE_NAME,
+                            columns=(
+                                "id", "jurisdiction_id", "corpus_type", "content", "embedding",
+                                "embedding_model", "meeting_id", "meeting_title", "meeting_datetime",
+                                "metadata", "created_at", "updated_at"
+                            ),
+                        )
+                        conn2.commit()
+                        conn2.close()
+                        return {"success": len(records), "failed": 0}
+                    except Exception as e2:
+                        if not conn2.closed:
+                            conn2.rollback()
+                            conn2.close()
+                        logger.error(f"Bulk COPY insert retry failed: {e2}")
+                        return {"success": 0, "failed": len(records), "error": str(e2)}
                 return {"success": 0, "failed": len(records), "error": str(e)}
         else:
             # Use execute_values with upsert for incremental mode
@@ -1823,7 +1850,46 @@ class PgVectorBackend:
                 conn.close()
                 return {"success": len(records), "failed": 0}
             except Exception as e:
-                conn.rollback()
-                conn.close()
-                logger.error(f"Bulk insert failed: {e}")
+                if not conn.closed:
+                    conn.rollback()
+                    conn.close()
+                logger.error(f"Bulk upsert failed: {e}")
+                # Retry once with a fresh connection on connection/timeout errors
+                import psycopg2
+                if isinstance(e, (psycopg2.OperationalError, psycopg2.InterfaceError)):
+                    logger.info("Retrying bulk upsert with fresh connection...")
+                    try:
+                        conn2 = self._get_connection()
+                        cursor2 = conn2.cursor()
+                        execute_values(
+                            cursor2,
+                            f"""
+                            INSERT INTO {self.TABLE_NAME}
+                                (id, jurisdiction_id, corpus_type, content, embedding,
+                                 embedding_model, meeting_id, meeting_title, meeting_datetime,
+                                 metadata, updated_at)
+                            VALUES %s
+                            ON CONFLICT (id) DO UPDATE SET
+                                content = EXCLUDED.content,
+                                embedding = EXCLUDED.embedding,
+                                embedding_model = EXCLUDED.embedding_model,
+                                meeting_id = EXCLUDED.meeting_id,
+                                meeting_title = EXCLUDED.meeting_title,
+                                meeting_datetime = EXCLUDED.meeting_datetime,
+                                metadata = EXCLUDED.metadata,
+                                updated_at = CURRENT_TIMESTAMP
+                            """,
+                            insert_values,
+                            template="(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP)",
+                            page_size=500,
+                        )
+                        conn2.commit()
+                        conn2.close()
+                        return {"success": len(records), "failed": 0}
+                    except Exception as e2:
+                        if not conn2.closed:
+                            conn2.rollback()
+                            conn2.close()
+                        logger.error(f"Bulk upsert retry failed: {e2}")
+                        return {"success": 0, "failed": len(records), "error": str(e2)}
                 return {"success": 0, "failed": len(records), "error": str(e)}
