@@ -3,9 +3,23 @@
   display: none;
 }
 
+/* Hide the "CivicOS" label in the mobile drawer nav (below the logo) */
+.md-nav--primary > .md-nav__title {
+  font-size: 0 !important;
+  line-height: 0 !important;
+  padding-bottom: 0.4rem !important;
+}
+
+/* Keep the logo visible inside the drawer title */
+.md-nav--primary > .md-nav__title .md-nav__button.md-logo {
+  display: inline-block;
+}
+
 /* Scale up the logo wordmark to match the former site name text size */
 .md-header__button.md-logo img,
-.md-header__button.md-logo svg {
+.md-header__button.md-logo svg,
+.md-nav__button.md-logo img,
+.md-nav__button.md-logo svg {
   height: 2rem !important;
   width: auto !important;
 }
