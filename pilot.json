@@ -2424,10 +2424,10 @@
     },
     "docs_audit_wave2": {
       "browser_extension_setup_guide": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 1,
-        "description": "Create docs/user_guides/BROWSER_EXTENSION_SETUP.md — primary surface has no setup guide. Cover installation, first-time setup, feature overview, troubleshooting.",
-        "artifact": "docs/user_guides/BROWSER_EXTENSION_SETUP.md"
+        "description": "Already exists at docs/public/extension/setup.md — covers installation, identity, voice, settings, attestation. Artifact path was incorrect (docs/user_guides/ doesn't follow repo convention).",
+        "artifact": "docs/public/extension/setup.md"
       },
       "getting_started_rewrite": {
         "status": "not_ready",
@@ -2437,7 +2437,7 @@
       },
       "deployment_guide_rewrite": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "description": "Rewrite DEPLOYMENT_GUIDE.md to clearly distinguish Modal compute (MCP, relay, vectors) from Fly.io web tier (API, WebSocket). Currently Fly.io-only with a disclaimer.",
         "artifact": "docs/critical/DEPLOYMENT_GUIDE.md"
       },
