@@ -416,6 +416,13 @@ INSTANCE SCOPE:
 
 ---
 
+## See Also
+
+- [Relay Federation](../relay/federation.md) — Operational reference for attestation rollup and multi-operator peering
+- [Federation Domain Architecture](../decisions/federation_domain_architecture.md) — Domain strategy and operator model
+
+---
+
 ## Questions to Explore
 
 **On attestation rollup:**

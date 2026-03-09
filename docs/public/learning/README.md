@@ -10,8 +10,8 @@ Self-contained documents for learning the CivicOS architecture from first princi
 | [02 — Nostr and the Relay](02_NOSTR_AND_THE_RELAY.md) | Events, relays, federation, how CivicOS extends Nostr | Module 1 | Understanding the protocol layer |
 | [03 — Attestation and the Full System](03_ATTESTATION_AND_THE_FULL_SYSTEM.md) | Gated attestation, edge intelligence, design decisions, the complete architecture | Modules 1 + 2 | Understanding the full system and its motivations |
 | [04 — Relay Trust and Integrity](04_RELAY_TRUST_AND_INTEGRITY.md) | Relay cardinality, data robustness, adversary analysis (government, capital, institutional capture) | Modules 1-3 | Understanding the trust and threat model |
-| [05 — Jurisdiction Scope and Attestation Rollup](05_JURISDICTION_SCOPE_AND_ATTESTATION_ROLLUP.md) | Relay scope, attestation across government levels, special districts, operational deployment | Modules 1-4 | Understanding multi-jurisdiction design |
-| [06 — Economic Model and Sustainability](06_ECONOMIC_MODEL_AND_SUSTAINABILITY.md) | Costs, revenue models, customer segments, the moat, why previous civic tech failed, anti-revenue constraints | Modules 1-5 | Understanding the business model |
+| [05 — Economic Model and Sustainability](06_ECONOMIC_MODEL_AND_SUSTAINABILITY.md) | Costs, revenue models, customer segments, the moat, why previous civic tech failed, anti-revenue constraints | Modules 1-4 | Understanding the business model |
+| [06 — Jurisdiction Scope and Attestation Rollup](05_JURISDICTION_SCOPE_AND_ATTESTATION_ROLLUP.md) | Relay scope, attestation across government levels, special districts, operational deployment | Modules 1-5 | Understanding multi-jurisdiction design |
 
 ## Choose Your Path
 
@@ -19,8 +19,8 @@ Self-contained documents for learning the CivicOS architecture from first princi
 |--------------|-----------|--------------|
 | **Curious resident** | [Module 1](01_CRYPTOGRAPHIC_FOUNDATIONS.md) → [Module 3](03_ATTESTATION_AND_THE_FULL_SYSTEM.md) | FAQ, Getting Started |
 | **Developer** | [Module 1](01_CRYPTOGRAPHIC_FOUNDATIONS.md) → all modules in order | CLAUDE.md, architecture docs |
-| **Civic leader / funder** | [Module 3](03_ATTESTATION_AND_THE_FULL_SYSTEM.md) → [Module 6](06_ECONOMIC_MODEL_AND_SUSTAINABILITY.md) | Pilot roadmap, sustainability model |
-| **Security researcher** | [Module 1](01_CRYPTOGRAPHIC_FOUNDATIONS.md) → [Module 4](04_RELAY_TRUST_AND_INTEGRITY.md) | Coordination protocol, attestation guide |
+| **Civic leader / funder** | [Module 3](03_ATTESTATION_AND_THE_FULL_SYSTEM.md) → [Module 5](06_ECONOMIC_MODEL_AND_SUSTAINABILITY.md) | Sustainability model, relay docs |
+| **Security researcher** | [Module 1](01_CRYPTOGRAPHIC_FOUNDATIONS.md) → [Module 4](04_RELAY_TRUST_AND_INTEGRITY.md) | Coordination protocol, relay trust model |
 
 ## How to Use
 
@@ -28,4 +28,8 @@ Self-contained documents for learning the CivicOS architecture from first princi
 
 **Claude.ai:** Paste a module into a conversation and ask follow-up questions. The "Questions to Explore" sections in Modules 3-6 have good starting prompts.
 
-**Reading order:** 1 → 2 → 3 → 4 → 5 → 6. Each builds on the previous. Modules 1-3 cover the system. Modules 4-6 cover trust, jurisdiction design, and sustainability.
+**Reading order:** 1 → 2 → 3 → 4 → 5 → 6. Each builds on the previous. Modules 1-3 cover the system. Module 4 covers trust. Module 5 covers sustainability. Module 6 covers multi-jurisdiction operations.
+
+## See Also
+
+The [Relay documentation](../relay/overview.md) covers the same topics as Modules 3-5 in operational reference form. The learning modules teach from first principles with analogies and design rationale; the relay docs are concise reference for implementers.

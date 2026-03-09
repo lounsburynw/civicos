@@ -413,6 +413,13 @@ The honest summary: the cryptographic architecture handles fabrication well. The
 
 ---
 
+## See Also
+
+- [Relay Trust Model](../relay/trust.md) — Operational reference for adversary defenses and commitment logs
+- [Relay Federation](../relay/federation.md) — Cross-relay verification and multi-operator peering
+
+---
+
 ## Questions to Explore
 
 **On cardinality:**

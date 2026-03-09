@@ -40,6 +40,8 @@ The cost of faking civic participation has collapsed to near zero. A coordinatio
 
 ### The Old Approach: Weighted Provenance
 
+> **Note:** Weighted provenance was evaluated during early design and rejected. CivicOS now uses exclusively gated attestation (described in the next section). This history is included because understanding *why* the simpler approach fails is essential to understanding why the gate exists.
+
 CivicOS initially tried a different approach — let anyone voice, but make voice quality transparent:
 
 ```
@@ -831,6 +833,14 @@ Here's everything in one view:
 | **Sybil attack** | Creating fake identities to manipulate vote/voice counts |
 | **Voice** | A signed expression of civic interest (support, oppose, watching) on an entity |
 | **Weighted provenance** | The old model where voice quality was a spectrum (replaced by gated attestation) |
+
+---
+
+## See Also
+
+- [Relay Attestation](../relay/attestation.md) — Operational reference for gated attestation
+- [Relay Overview](../relay/overview.md) — Relay services and architecture
+- [AI Proxy](../relay/ai-proxy.md) — How the relay provides privacy-preserving AI access
 
 ---
 
