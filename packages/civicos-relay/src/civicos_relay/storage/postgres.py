@@ -1938,6 +1938,32 @@ class PostgresAttestationStorage:
         finally:
             self._return_connection(conn)
 
+    def add_codes_batch(self, codes: list[str], jurisdiction: str, batch_id: str, issuer_id: str, expires_at=None) -> int:
+        """Insert a batch of codes linked to an issuer. Returns count of new codes added."""
+        conn = self._get_connection()
+        try:
+            import psycopg2.extras
+            with conn.cursor() as cur:
+                values = [
+                    (code, jurisdiction, batch_id, issuer_id, expires_at)
+                    for code in codes
+                ]
+                psycopg2.extras.execute_values(
+                    cur,
+                    """
+                    INSERT INTO coordination_attestation_codes
+                    (code, jurisdiction, batch_id, issuer_id, expires_at)
+                    VALUES %s
+                    ON CONFLICT (code) DO NOTHING
+                    """,
+                    values,
+                )
+                added = cur.rowcount
+                conn.commit()
+                return added
+        finally:
+            self._return_connection(conn)
+
     def redeem_code(self, code: str, public_key: str) -> bool:
         """Atomically redeem a code. Returns True if successful."""
         conn = self._get_connection()
@@ -2144,6 +2170,195 @@ class PostgresSyncStorageAdapter:
         return self._events.import_event(event)
 
 
+class PostgresIssuerRegistryStorage:
+    """PostgreSQL storage for trusted issuer registry."""
+
+    def __init__(self, connection_url: str):
+        self._connection_url = connection_url
+        self._pool = None
+
+    def _get_connection(self):
+        if self._pool is None:
+            import psycopg2.pool
+            self._pool = psycopg2.pool.SimpleConnectionPool(
+                1, 10, self._connection_url
+            )
+        return self._pool.getconn()
+
+    def _return_connection(self, conn):
+        self._pool.putconn(conn)
+
+    def register_issuer(self, issuer: dict) -> str:
+        """Register a trusted issuer. Returns issuer_id."""
+        conn = self._get_connection()
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    INSERT INTO coordination_issuer_registry
+                    (issuer_id, jurisdiction, issuer_pubkey, organization,
+                     signing_url, bearer_token, allowed_types, verified)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                    ON CONFLICT (issuer_id) DO UPDATE SET
+                        signing_url = EXCLUDED.signing_url,
+                        bearer_token = EXCLUDED.bearer_token,
+                        allowed_types = EXCLUDED.allowed_types
+                    RETURNING issuer_id
+                    """,
+                    (
+                        issuer["issuer_id"],
+                        issuer["jurisdiction"],
+                        issuer["issuer_pubkey"],
+                        issuer["organization"],
+                        issuer["signing_url"],
+                        issuer["bearer_token"],
+                        issuer.get("allowed_types", ["physical"]),
+                        issuer.get("verified", False),
+                    ),
+                )
+                result = cur.fetchone()
+                conn.commit()
+                return result[0]
+        finally:
+            self._return_connection(conn)
+
+    def get_issuer(self, issuer_id: str) -> Optional[dict]:
+        """Fetch an issuer by ID."""
+        conn = self._get_connection()
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT issuer_id, jurisdiction, issuer_pubkey, organization,
+                           signing_url, bearer_token, allowed_types,
+                           created_at, verified, revoked
+                    FROM coordination_issuer_registry
+                    WHERE issuer_id = %s
+                    """,
+                    (issuer_id,),
+                )
+                row = cur.fetchone()
+                return self._row_to_dict(row) if row else None
+        finally:
+            self._return_connection(conn)
+
+    def get_issuers_for_jurisdiction(self, jurisdiction: str) -> list[dict]:
+        """List all trusted issuers for a jurisdiction."""
+        conn = self._get_connection()
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT issuer_id, jurisdiction, issuer_pubkey, organization,
+                           signing_url, bearer_token, allowed_types,
+                           created_at, verified, revoked
+                    FROM coordination_issuer_registry
+                    WHERE jurisdiction = %s AND revoked = FALSE
+                    ORDER BY created_at
+                    """,
+                    (jurisdiction,),
+                )
+                return [self._row_to_dict(row) for row in cur.fetchall()]
+        finally:
+            self._return_connection(conn)
+
+    def get_issuer_by_pubkey(self, issuer_pubkey: str, jurisdiction: str) -> Optional[dict]:
+        """Fetch issuer by pubkey + jurisdiction."""
+        conn = self._get_connection()
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT issuer_id, jurisdiction, issuer_pubkey, organization,
+                           signing_url, bearer_token, allowed_types,
+                           created_at, verified, revoked
+                    FROM coordination_issuer_registry
+                    WHERE issuer_pubkey = %s AND jurisdiction = %s
+                    """,
+                    (issuer_pubkey, jurisdiction),
+                )
+                row = cur.fetchone()
+                return self._row_to_dict(row) if row else None
+        finally:
+            self._return_connection(conn)
+
+    def verify_issuer(self, issuer_id: str) -> bool:
+        """Mark issuer as verified (admin action)."""
+        conn = self._get_connection()
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    UPDATE coordination_issuer_registry
+                    SET verified = TRUE
+                    WHERE issuer_id = %s AND revoked = FALSE
+                    RETURNING issuer_id
+                    """,
+                    (issuer_id,),
+                )
+                result = cur.fetchone()
+                conn.commit()
+                return result is not None
+        finally:
+            self._return_connection(conn)
+
+    def revoke_issuer(self, issuer_id: str) -> bool:
+        """Revoke an issuer (admin action)."""
+        conn = self._get_connection()
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    UPDATE coordination_issuer_registry
+                    SET revoked = TRUE
+                    WHERE issuer_id = %s
+                    RETURNING issuer_id
+                    """,
+                    (issuer_id,),
+                )
+                result = cur.fetchone()
+                conn.commit()
+                return result is not None
+        finally:
+            self._return_connection(conn)
+
+    def get_code_issuer(self, code: str) -> Optional[dict]:
+        """Look up the issuer that generated a code."""
+        conn = self._get_connection()
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT r.issuer_id, r.jurisdiction, r.issuer_pubkey, r.organization,
+                           r.signing_url, r.bearer_token, r.allowed_types,
+                           r.created_at, r.verified, r.revoked
+                    FROM coordination_attestation_codes c
+                    JOIN coordination_issuer_registry r ON c.issuer_id = r.issuer_id
+                    WHERE c.code = %s
+                    """,
+                    (code,),
+                )
+                row = cur.fetchone()
+                return self._row_to_dict(row) if row else None
+        finally:
+            self._return_connection(conn)
+
+    @staticmethod
+    def _row_to_dict(row) -> dict:
+        return {
+            "issuer_id": row[0],
+            "jurisdiction": row[1],
+            "issuer_pubkey": row[2],
+            "organization": row[3],
+            "signing_url": row[4],
+            "bearer_token": row[5],
+            "allowed_types": row[6],
+            "created_at": row[7],
+            "verified": row[8],
+            "revoked": row[9],
+        }
+
+
 class PostgresStorage:
     """Combined PostgreSQL storage for all relay data."""
 
@@ -2162,3 +2377,4 @@ class PostgresStorage:
         self.outcomes = PostgresOutcomeStorage(connection_url)
         self.attributions = PostgresAttributionStorage(connection_url)
         self.attestations = PostgresAttestationStorage(connection_url)
+        self.issuers = PostgresIssuerRegistryStorage(connection_url)

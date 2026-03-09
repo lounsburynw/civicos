@@ -5,7 +5,7 @@ import os
 from contextlib import asynccontextmanager
 from typing import Optional
 
-from fastapi import FastAPI, APIRouter, HTTPException, Depends
+from fastapi import FastAPI, APIRouter, HTTPException, Depends, Header
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
@@ -24,6 +24,8 @@ from civicos_relay.sync.protocol import SyncRequest, VoiceSyncResponse, VoiceImp
 from civicos_relay.sync.service import SyncService
 from civicos_relay.storage import InMemoryStorage, PostgresStorage
 from civicos_relay.delivery import EmailDelivery, EmailConfig
+from civicos_relay.attestation.service import AttestationService
+from civicos_relay.attestation.signer_client import IssuerSignerClient, SignerError
 
 logger = logging.getLogger(__name__)
 
@@ -117,6 +119,29 @@ class SubmitCommentRequest(BaseModel):
     stance: Optional[str] = None
 
 
+class RedeemCodeRequest(BaseModel):
+    """Request to redeem an attestation code."""
+    code: str = Field(description="Attestation code (e.g., SR-2026-02-A7K9)")
+    subject_pubkey: str = Field(description="Resident's public key (hex)")
+    signature: str = Field(description="Kind-24242 signature proving pubkey ownership")
+    created_at: int = Field(description="Unix timestamp from signed event")
+
+
+class CodeBatchRequest(BaseModel):
+    """Issuer-signed batch of attestation codes."""
+    signed_event: dict = Field(description="Kind-30851 Nostr event signed by issuer")
+
+
+class RegisterIssuerRequest(BaseModel):
+    """Request to register a trusted issuer."""
+    issuer_pubkey: str = Field(description="Issuer's public key (64-char hex)")
+    jurisdiction: str = Field(description="Jurisdiction code")
+    organization: str = Field(description="Organization name")
+    signing_url: str = Field(description="URL of the signer service")
+    bearer_token: str = Field(description="Shared secret for relay-to-signer auth")
+    allowed_types: list[str] = Field(default=["physical"])
+
+
 class SubscribeRequest(BaseModel):
     """Request to create a subscription."""
     jurisdiction: str
@@ -169,6 +194,10 @@ def get_civic_action_service() -> CivicActionService:
     return _relay_state["civic_action_service"]
 
 
+def get_attestation_service() -> AttestationService:
+    return _relay_state["attestation_service"]
+
+
 def get_identity() -> RelayIdentity:
     return _relay_state["identity"]
 
@@ -215,6 +244,10 @@ async def lifespan(app: FastAPI):
         completion_storage=storage.civic_completions,
         outcome_storage=getattr(storage, 'outcomes', None),
         attribution_storage=getattr(storage, 'attributions', None),
+    )
+    _relay_state["attestation_service"] = AttestationService(
+        attestation_storage=storage.attestations,
+        issuer_storage=storage.issuers,
     )
 
     if config.sync_enabled:
@@ -668,6 +701,109 @@ def create_app() -> FastAPI:
         if not success:
             raise HTTPException(status_code=404, detail="Commitment not found")
         return {"status": "withdrawn"}
+
+    # --- Admin auth helper ---
+    def _verify_relay_api_key(authorization: str):
+        relay_api_key = os.environ.get("CIVICOS_RELAY_API_KEY")
+        if not relay_api_key:
+            raise HTTPException(status_code=503, detail="Relay API key not configured")
+        provided = authorization.removeprefix("Bearer ").strip() if authorization else ""
+        if not provided or provided != relay_api_key:
+            raise HTTPException(status_code=401, detail="Invalid relay API key")
+
+    # Attestation endpoints (multi-issuer)
+    @router.post("/attestation/redeem")
+    async def redeem_attestation_code(
+        request: RedeemCodeRequest,
+        attestation_service: AttestationService = Depends(get_attestation_service),
+    ):
+        """Redeem an attestation code.
+
+        The resident signs a kind-24242 event proving pubkey ownership.
+        The relay looks up the code's issuer, calls their /sign endpoint,
+        and returns the signed attestation event.
+        """
+        try:
+            attestation_event = attestation_service.redeem_code(
+                code=request.code,
+                subject_pubkey=request.subject_pubkey,
+                signature=request.signature,
+                created_at=request.created_at,
+            )
+            return {"attestation_event": attestation_event}
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+        except SignerError as e:
+            raise HTTPException(status_code=502, detail=str(e))
+
+    @router.post("/codes/batch")
+    async def accept_code_batch(
+        request: CodeBatchRequest,
+        attestation_service: AttestationService = Depends(get_attestation_service),
+    ):
+        """Accept a batch of issuer-signed attestation codes.
+
+        No admin API key required — authorization is cryptographic.
+        The signed_event must be a valid kind-30851 Nostr event signed by
+        a registered and verified issuer's private key.
+        """
+        try:
+            result = attestation_service.accept_code_batch(request.signed_event)
+            return result
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+
+    @router.post("/issuers/register")
+    async def register_issuer(
+        request: RegisterIssuerRequest,
+        authorization: str = Header(default=""),
+    ):
+        """Register a trusted issuer for a jurisdiction.
+
+        Requires relay admin API key in Authorization header.
+        """
+        _verify_relay_api_key(authorization)
+
+        attestation_service = get_attestation_service()
+        try:
+            result = attestation_service.register_issuer(request.model_dump())
+            return result
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+
+    @router.get("/issuers/{jurisdiction}")
+    async def list_issuers(
+        jurisdiction: str,
+        attestation_service: AttestationService = Depends(get_attestation_service),
+    ):
+        """List registered issuers for a jurisdiction."""
+        return {"issuers": attestation_service.list_issuers(jurisdiction)}
+
+    @router.post("/issuers/{issuer_id}/verify")
+    async def verify_issuer(
+        issuer_id: str,
+        authorization: str = Header(default=""),
+    ):
+        """Admin: verify an issuer (enables their codes)."""
+        _verify_relay_api_key(authorization)
+
+        attestation_service = get_attestation_service()
+        if not attestation_service.verify_issuer(issuer_id):
+            raise HTTPException(status_code=404, detail="Issuer not found or already revoked")
+        return {"status": "verified", "issuer_id": issuer_id}
+
+    @router.post("/issuers/{issuer_id}/revoke")
+    async def revoke_issuer(
+        issuer_id: str,
+        authorization: str = Header(default=""),
+    ):
+        """Admin: revoke an issuer."""
+        _verify_relay_api_key(authorization)
+
+        attestation_service = get_attestation_service()
+        if not attestation_service.revoke_issuer(issuer_id):
+            raise HTTPException(status_code=404, detail="Issuer not found")
+        return {"status": "revoked", "issuer_id": issuer_id}
 
     app.include_router(router)
     return app
