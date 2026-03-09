@@ -2,6 +2,8 @@
 
 How relays peer across operators and jurisdictions, how attestation works across government levels, and how data sovereignty is maintained.
 
+> **Note:** Federation applies to both CivicOS services — **relays** and **MCP servers**. Relays federate coordination data (voices, actions) via peer-to-peer sync. MCP servers federate civic data (meetings, decisions, legislation) as read-only APIs. This document covers relay federation. For the full two-service model, see [Federation Domain Architecture](../decisions/federation_domain_architecture.md). For MCP federation, see [MCP Server Setup](../mcp/setup.md#federation).
+
 ## Multi-Operator Peering
 
 Multiple operators can run relays for the same jurisdiction. When they do, voices and events sync between them via the relay protocol:

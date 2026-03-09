@@ -75,6 +75,19 @@ Add to your Claude Desktop config (`~/Library/Application Support/Claude/claude_
 - `get_comment_guidelines` — Jurisdiction-specific public comment guidelines
 - `get_comment_template` — Comment templates
 
+## Federation
+
+The MCP server is one of two independent services in CivicOS's [federation model](../decisions/federation_domain_architecture.md). Operators can run either or both:
+
+| Component | Direction | Purpose |
+|-----------|-----------|---------|
+| **MCP Server** | Read-only | Serves civic data queries — meetings, decisions, legislation |
+| **[Relay](../relay/overview.md)** | Bidirectional | Coordinates civic participation — voices, actions, subscriptions |
+
+A city government might run only an MCP server to publish authoritative civic data. A neighborhood group might run only a relay to coordinate community voices. A full operator runs both.
+
+When multiple operators serve the same jurisdiction, each can run an MCP server. Clients discover available operators via the [registry](../decisions/federation_domain_architecture.md#discovery-via-registry). Authoritative civic data (meetings, decisions, municipal code) flows outward from the official operator's MCP server; community-generated data (voices, subscriptions) flows between operators via [relay peering](../relay/federation.md).
+
 ## Deployment
 
 The MCP server runs on Modal (serverless Python):

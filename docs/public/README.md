@@ -27,23 +27,36 @@ Browser Extension (Svelte 5)
     ├── civicos-components (Svelte UI)
     └── civicos-client (TypeScript)
               |
-         ┌────┴────┐
-         v         v
-    REST API    Relay API
-    (FastAPI)   (FastAPI)
-         |         |
-         v         v
-    CivicOS    civicos-relay
-    (Python)   (coordination)
-         |         |
-         v         v
-    PostgreSQL  Relay DB
-    + pgvector  (Supabase)
+    ┌─────────┼─────────┐
+    v         v         v
+REST API  MCP Server  Relay API
+(FastAPI) (JSON-RPC)  (FastAPI)
+    |         |         |
+    v         v         v
+    CivicOS (core)   civicos-relay
+    (Python query)   (coordination)
+         |                |
+         v                v
+    PostgreSQL        Relay DB
+    + pgvector        (Supabase)
     (Supabase)
          ^
          |
     civicos-extraction
     (platform parsers)
+```
+
+### Federation
+
+Operators can independently run an **MCP server** (read-only civic data), a **relay** (bidirectional coordination), or both. Multiple operators per jurisdiction [peer via the relay protocol](relay/federation.md) and are discoverable through a [central registry](decisions/federation_domain_architecture.md).
+
+```
+       Operator A (Government)       Operator B (Civic Org)
+    ┌──────────┬──────────┐     ┌──────────┬──────────┐
+    │MCP Server│  Relay   │◄───►│  Relay   │MCP Server│
+    │(civic    │(voices,  │peer │(community│(mirrors  │
+    │ data)    │ actions) │sync │ voices)  │ data)    │
+    └──────────┴──────────┘     └──────────┴──────────┘
 ```
 
 **Packages:**
@@ -98,6 +111,7 @@ npm install && npm run dev
 - [MCP server setup](mcp/setup.md)
 - [Core API reference](api.md)
 - [Data dictionary](data-dictionary.md)
-- [Relay — attestation, trust, federation](relay/overview.md)
+- [Relay — attestation, trust, coordination](relay/overview.md)
+- [Federation — how relays and MCP servers peer across operators](relay/federation.md)
 - [Architecture decisions](decisions/vector_storage.md)
 - [Learning series](learning/README.md) — cryptographic foundations, Nostr, attestation

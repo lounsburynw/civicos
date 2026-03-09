@@ -41,13 +41,13 @@ CivicOS is designed for federation across multiple jurisdictions and multiple op
             │
   ┌─────────┼─────────┐
   ▼         ▼         ▼
-┌────────┐┌────────┐┌────────┐
-│  City  ││  LWV   ││ Canal  │
-│Official││Chapter ││Neighbor│
-└────────┘└────────┘└────────┘
-     └────────┬──────────┘
-        Relay peering
-       (voices, events)
+┌──────────┐┌──────────┐┌──────────┐
+│Government││ Civic Org││Community │
+│MCP+Relay ││MCP+Relay ││  Relay   │
+└──────────┘└──────────┘└──────────┘
+      └─────────┬──────────┘
+   Relay peering (voices, events)
+   MCP publishing (civic data)
 ```
 
 ### Operator Types
