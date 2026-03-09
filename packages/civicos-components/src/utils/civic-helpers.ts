@@ -145,26 +145,6 @@ export function classifyTopics(title: string, description?: string): string[] {
 
 export const ALL_TOPICS = Object.keys(TOPIC_KEYWORDS);
 
-/**
- * Extract jurisdiction ID from a Nostr attestation event's tags.
- * Looks for a 'j' tag: [["j", "city-san-rafael"]].
- */
-export function extractAttestationJurisdiction(event: Record<string, unknown>): string | null {
-  const tags = event?.tags;
-  if (!Array.isArray(tags)) return null;
-  const jTag = tags.find((t: unknown) => Array.isArray(t) && t[0] === 'j');
-  return Array.isArray(jTag) && typeof jTag[1] === 'string' ? jTag[1] : null;
-}
-
-/**
- * Format a Unix timestamp (seconds) into a human-readable date string.
- */
-export function formatAttestationDate(createdAt: number): string {
-  return new Date(createdAt * 1000).toLocaleDateString('en-US', {
-    year: 'numeric', month: 'short', day: 'numeric',
-  });
-}
-
 export function downloadIcs(meeting: { title: string; location: string; meeting_datetime: string }): void {
   const start = new Date(meeting.meeting_datetime);
   const end = new Date(start.getTime() + 2 * 60 * 60 * 1000);

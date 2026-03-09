@@ -594,12 +594,12 @@ export class ApiClient {
   ): Promise<{ success: boolean; attestation_event?: Record<string, unknown>; error?: string }> {
     try {
       const relayUrl = await this.registry.getRelayUrl();
-      const response = await fetch(`${relayUrl}/coordination/attestation/redeem`, {
+      const response = await fetch(`${relayUrl}/coordination/attest`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           code,
-          subject_pubkey: publicKey,
+          public_key: publicKey,
           signature,
           created_at: createdAt,
         }),
