@@ -23,3 +23,11 @@
   height: 2rem !important;
   width: auto !important;
 }
+
+/* Swap to light logo in the mobile drawer (white background in light mode) */
+[data-md-color-scheme="default"] .md-nav__button.md-logo img {
+  content: url("logo-light.svg");
+}
+[data-md-color-scheme="slate"] .md-nav__button.md-logo img {
+  content: url("logo-dark.svg");
+}

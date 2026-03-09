@@ -1,0 +1,5 @@
+<svg viewBox="0 0 120 44" width="240" xmlns="http://www.w3.org/2000/svg">
+  <!-- CivicOS Logo - White variant for indigo header -->
+  <path d="M 18 8 L 6 22 L 18 36" fill="none" stroke="rgba(255,255,255,0.85)" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" />
+  <text x="22" y="32" font-family="system-ui, -apple-system, sans-serif" font-size="28" font-weight="600" fill="#ffffff" letter-spacing="-1">ivicOS</text>
+</svg>
