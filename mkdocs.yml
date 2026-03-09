@@ -118,8 +118,8 @@ nav:
     - Nostr & the Relay: public/learning/02_NOSTR_AND_THE_RELAY.md
     - Attestation: public/learning/03_ATTESTATION_AND_THE_FULL_SYSTEM.md
     - Relay Trust: public/learning/04_RELAY_TRUST_AND_INTEGRITY.md
-    - Jurisdiction Scope: public/learning/05_JURISDICTION_SCOPE_AND_ATTESTATION_ROLLUP.md
     - Economic Model: public/learning/06_ECONOMIC_MODEL_AND_SUSTAINABILITY.md
+    - Jurisdiction Scope: public/learning/05_JURISDICTION_SCOPE_AND_ATTESTATION_ROLLUP.md
 
   - About:
     - Essay — The Nervous System: public/essays/the_nervous_system_we_choose_to_build.md
