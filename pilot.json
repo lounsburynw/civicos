@@ -2863,7 +2863,7 @@
       ],
       "feedback_channel": {
         "status": "not_ready",
-        "priority": 3,
+        "priority": 0,
         "check": "Way for users to report issues",
         "note": "Add feedback mechanism (GitHub link, email, or in-app form) for pilot users to report bugs"
       }
