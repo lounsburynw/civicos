@@ -21381,3 +21381,28 @@ Added cost logging for the 3 remaining uninstrumented services:
 
 ### P0 for Next Session
 TBD — needs assignment before /nextsesh
+
+### Additional Changes (same session)
+
+**Table partitioning (`vector_embeddings`):**
+- Migrated to LIST partitioning by `corpus_type` (15 partitions + default)
+- Each partition has its own HNSW index — bulk inserts only affect one partition
+- Deferred indexing: `index_vectors` now DROPs HNSW before insert, rebuilds after
+- `PgVectorBackend.drop_hnsw_index()` and `rebuild_hnsw_index()` added
+- `rebuild_hnsw_index()` uses session pooler (port 5432) for `SET statement_timeout`
+- `_get_connection(session_mode=True)` swaps port 6543→5432 for DDL operations
+- codified_law uses m=12, ef_construction=40 (490K vectors too large for m=16 on Supabase)
+- Migration SQL: `scripts/sql/partition_vector_embeddings.sql`
+
+**federal_programs content-diffing:**
+- `store_federal_programs` now compares key fields before close/insert
+- Cleaned 13,399 duplicate historical rows (15,745 → 2,346)
+
+**municipal_code temporal fix:**
+- Close old versions BEFORE inserting new ones (CHECK constraint violation)
+
+**Index build timings (for reference):**
+- codified_law (490K, m=12, ef=40): ~45 min
+- legislation (67K, m=16, ef=64): 29s
+- executive_orders (21K): 8s
+- All others (<15K each): <5s each
