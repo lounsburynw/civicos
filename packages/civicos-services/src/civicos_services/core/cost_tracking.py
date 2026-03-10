@@ -33,6 +33,7 @@ logger = logging.getLogger(__name__)
 # Module-level storage instance (lazy initialization)
 _cost_storage = None
 _storage_initialized = False
+_blob_hook_registered = False
 
 
 def _get_storage():
@@ -63,10 +64,29 @@ def _get_storage():
         c = CivicOS("city-san-rafael")
         _cost_storage = c.storage
         logger.info("Cost tracking enabled - connected to PostgreSQL")
+
+        # Register blob cost hook so R2Backend can log costs without
+        # importing from the services layer (preserves layer boundaries)
+        _register_blob_cost_hook()
+
         return _cost_storage
     except Exception as e:
         logger.warning(f"Cost tracking initialization failed: {e}")
         return None
+
+
+def _register_blob_cost_hook() -> None:
+    """Wire up R2Backend cost tracking via the blob module's callback hook."""
+    global _blob_hook_registered
+    if _blob_hook_registered:
+        return
+    _blob_hook_registered = True
+    try:
+        from civicos.storage.blob import set_blob_cost_hook
+        set_blob_cost_hook(log_r2_cost)
+        logger.debug("Blob cost hook registered")
+    except Exception as e:
+        logger.debug(f"Blob cost hook registration skipped: {e}")
 
 
 def log_llm_cost(
