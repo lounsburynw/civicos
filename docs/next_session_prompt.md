@@ -1,52 +1,63 @@
-# Recommended: Feedback Channel for Pilot Users
+# Recommended: Municipal Data Isolation
 
 **Priority:** P0
-**Area:** pilot_validation > user_readiness
+**Area:** data_architecture > data_federation
 **Date:** 2026-03-09
 
 > This is recommended context from the previous session. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
 
 ## Context
 
-Previous session completed `provider_api_polling` — all 7 external services (Modal, OpenAI, Google, AssemblyAI, Supabase, R2) are now instrumented for unified cost tracking with a reconciliation endpoint. Also fixed an architecture violation (cross-layer import in blob.py replaced with callback hook pattern). Pilot is at 94% completion with 21 items remaining (all P3). `feedback_channel` is set as P0 because pilot launch requires a way for San Rafael users to report issues.
+Previous session completed `feedback_channel` — full relay-backed feedback system with Nostr kind 1804, signed events, rate-limited endpoints, CivicFeedbackForm component, and MCP admin tool. Pilot is now at ~96% (24 items remaining, all P3). `municipal_data_isolation` is set as P0 because clean per-jurisdiction data isolation is a prerequisite for onboarding a second city.
 
 ## Recommended Task
 
-Add a feedback mechanism so pilot users can report bugs and provide feedback. Options:
-1. **GitHub Issues link** — simplest, add to extension UI and API responses
-2. **In-app feedback form** — richer, sends to a backend endpoint
-3. **Email link** — fallback if GitHub is too technical for non-dev users
+Verify that all municipal data (meetings, decisions, issues, transcripts, chunks, budget_items) is cleanly isolatable per jurisdiction. The current schema already has `jurisdiction_id` columns, but we need to confirm:
+1. No cross-jurisdiction dependencies exist in queries or joins
+2. A city-owned instance could run with only its own data
+3. Vector embeddings are jurisdiction-scoped (they are, via `jurisdiction` column)
+4. Coordination data (voices, comments, initiatives) is jurisdiction-filtered
 
-The extension is the primary user surface, so the feedback mechanism should be accessible from there.
+This is a verification + report task, not a large code change.
 
 ## Key Files
 
-- `apps/civicos-extension/src/` — Browser extension source (Svelte)
-- `apps/civicos-extension/src/components/` — UI components
-- `packages/civicos-services/src/civicos_services/servers/routers/` — API routers
-- `docs/internal/user-feedback-spec.md` — May contain a spec (untracked file exists)
+- `packages/civicos/src/civicos/storage/postgres_backend.py` — Main storage backend, all queries filter by jurisdiction
+- `packages/civicos/src/civicos/storage/pgvector_backend.py` — Vector storage, check jurisdiction scoping
+- `docs/internal/storage-schema.md` — Database table schemas
+- `packages/civicos-services/src/civicos_services/servers/routers/coordination.py` — Coordination endpoints, check jurisdiction filtering
+- `packages/civicos-relay/src/civicos_relay/storage/postgres.py` — Relay storage classes
 
 ## Suggested Approach
 
-1. **Read `docs/internal/user-feedback-spec.md`** — check if a spec already exists
-2. **Add feedback button to extension** — small icon/link in the extension popup or sidebar that opens a feedback form or links to GitHub Issues
-3. **Optional: Add `/feedback` API endpoint** — receives feedback JSON, stores in DB or forwards to GitHub Issues via API
-4. **Test in extension** — `cd apps/civicos-extension && npm run dev`, load in Chrome, verify feedback flow
-5. **Update pilot.json** — mark `feedback_channel` as ready
+1. **Audit SQL queries** in `postgres_backend.py` — verify every query filters by `jurisdiction_id`
+2. **Audit vector queries** in `pgvector_backend.py` — verify embeddings are jurisdiction-scoped
+3. **Audit coordination tables** — voices, comments, initiatives, feedback all have jurisdiction columns
+4. **Check for shared/reference data** — legislation and federal programs are shared across jurisdictions by design (not municipal data)
+5. **Write verification report** — document findings, flag any issues, propose fixes if needed
+6. **Update pilot.json** — mark `municipal_data_isolation` as ready if verification passes
 
 ## Tests to Run
 
 ```bash
-# Extension builds
-cd apps/civicos-extension && npm run build
-
-# API smoke test (if endpoint added)
+# Smoke test (verify nothing broken)
 pytest packages/civicos/tests/test_civicos.py -q --override-ini="addopts="
+
+# Check data counts per jurisdiction
+python3 -c "
+from dotenv import load_dotenv; load_dotenv()
+from civicos import CivicOS, DataStatus
+c = CivicOS('city-san-rafael')
+status = DataStatus(c.storage, c._vectors, 'city-san-rafael')
+print(status.summary())
+"
 ```
 
 ## Success Criteria
 
-- [ ] Pilot users have a visible way to report issues from the extension
-- [ ] Feedback reaches maintainers (GitHub Issues, email, or stored in DB)
-- [ ] Extension builds successfully with the feedback UI
-- [ ] `feedback_channel` marked ready in pilot.json
+- [ ] All municipal data queries filter by jurisdiction_id (verified via code audit)
+- [ ] Vector embeddings are jurisdiction-scoped
+- [ ] Coordination tables have jurisdiction filtering
+- [ ] Shared reference data (legislation, federal programs) correctly identified as non-municipal
+- [ ] Verification report written (can be brief, in claude-progress.txt)
+- [ ] `municipal_data_isolation` marked ready in pilot.json
