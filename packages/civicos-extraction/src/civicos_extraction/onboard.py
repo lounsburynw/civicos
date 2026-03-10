@@ -30,7 +30,7 @@ from civicos_extraction.platform_detection import detect_platform
 logger = logging.getLogger(__name__)
 
 # Path to cost_registry.yaml (relative to repo root)
-_COST_REGISTRY_PATH = Path(__file__).parents[4] / "docs" / "private" / "operations" / "cost_registry.yaml"
+_COST_REGISTRY_PATH = Path(__file__).parents[4] / "docs" / "public" / "cost_registry.yaml"
 
 
 @dataclass
