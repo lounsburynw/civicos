@@ -6,6 +6,7 @@ The Personal MCP signs Nostr events; the relay verifies them.
 
 import hashlib
 import json
+import os
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Optional
@@ -26,11 +27,13 @@ def _schnorr_verify(pubkey_hex: str, sig_hex: str, msg_hex: str) -> bool:
         pk = PublicKeyXOnly(bytes.fromhex(pubkey_hex))
         return pk.verify(bytes.fromhex(sig_hex), bytes.fromhex(msg_hex))
     except ImportError:
-        import logging
-        logging.getLogger(__name__).warning(
-            "coincurve not installed, skipping signature verification"
-        )
-        return True
+        if os.environ.get("CIVICOS_ALLOW_UNSIGNED") == "1":
+            import logging
+            logging.getLogger(__name__).warning(
+                "coincurve not installed — BYPASSING signature verification (test only)"
+            )
+            return True
+        raise RuntimeError("coincurve is required for signature verification")
     except Exception:
         return False
 
