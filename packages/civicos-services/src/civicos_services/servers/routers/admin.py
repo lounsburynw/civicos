@@ -362,6 +362,23 @@ async def get_cost_dashboard(
         raise HTTPException(status_code=500, detail=f"Server error: {str(e)}")
 
 
+@router.get("/cost-reconciliation")
+async def get_cost_reconciliation(
+    period_days: int = Query(30, description="Days to look back"),
+    token: str = Depends(verify_auth)
+):
+    """
+    Reconcile operating costs against cost_registry.yaml estimates.
+
+    Shows actual vs expected costs per service and flags uninstrumented services.
+    """
+    try:
+        from civicos_services.core.cost_tracking import reconcile_costs
+        return reconcile_costs(period_days=period_days)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Server error: {str(e)}")
+
+
 @router.get("/operations")
 async def list_operations(
     status: Optional[str] = Query(None, description="Filter by status"),

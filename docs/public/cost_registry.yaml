@@ -348,8 +348,8 @@ per_meeting_costs:
 actual_observed:
   period: "2026-01-13 to 2026-03-10"
   total_logged: 203.44
-  services_instrumented: ["modal", "openai", "google"]
-  services_not_instrumented: ["assemblyai", "supabase", "cloudflare_r2"]
+  services_instrumented: ["modal", "openai", "google", "assemblyai", "supabase", "cloudflare_r2"]
+  services_not_instrumented: []
 
   modal:
     total: 203.42
