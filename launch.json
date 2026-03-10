@@ -1,0 +1,281 @@
+{
+  "version": "1.0",
+  "phase": "launch",
+  "last_updated": "2026-03-10",
+  "summary": "Launch readiness: billing infrastructure, acceptance policy enforcement, token issuance, operator tooling, observability",
+  "category_order": [
+    "security_fixes",
+    "observability",
+    "billing_payments",
+    "acceptance_policy",
+    "token_issuance",
+    "operator_readiness"
+  ],
+
+  "security_fixes": {
+    "description": "Fix existing security vulnerabilities that undermine the trust model (Phase 0 from acceptance policy spec)",
+    "items": [
+      {
+        "name": "coincurve_import_hard_fail",
+        "description": "Make coincurve ImportError a hard failure in production. Currently silently disables ALL signature verification — _schnorr_verify() returns True for any input if library missing.",
+        "status": "not_started",
+        "priority": 0,
+        "source": "docs/internal/relay-acceptance-policy-spec.md (Phase 0, item 1)",
+        "files": ["packages/civicos-relay/src/civicos_relay/voice/crypto.py"],
+        "test_file": "packages/civicos-relay/tests/test_crypto.py"
+      },
+      {
+        "name": "require_created_at_on_writes",
+        "description": "All relay write endpoints must require created_at and reject writes without it. Currently Optional[int] = None, omitting it skips signature verification entirely.",
+        "status": "not_started",
+        "priority": 0,
+        "source": "docs/internal/relay-acceptance-policy-spec.md (Phase 0, item 2)",
+        "files": ["packages/civicos-relay/src/civicos_relay/server/app.py"],
+        "test_file": "packages/civicos-relay/tests/test_acceptance.py"
+      }
+    ]
+  },
+
+  "observability": {
+    "description": "Usage logging and metrics across all deployed services",
+    "items": [
+      {
+        "name": "mcp_usage_logging",
+        "description": "Wire usage_logging_middleware into MCP Modal server. Add civicos-platform secret to Modal deployment. Currently the only production service serving traffic has no usage logging.",
+        "status": "not_started",
+        "priority": 1,
+        "files": ["apps/civicos-mcp/modal_mcp.py"],
+        "test_file": null,
+        "notes": "Need to add civicos-platform Modal secret, import usage logging middleware, mount before route handlers"
+      },
+      {
+        "name": "relay_usage_logging",
+        "description": "Add usage logging to relay Modal server for coordination and AI proxy endpoints.",
+        "status": "not_started",
+        "priority": 2,
+        "files": ["apps/civicos-relay/modal_relay.py"],
+        "test_file": null
+      },
+      {
+        "name": "deploy_usage_rollup",
+        "description": "Verify modal_usage_rollup.py is deployed as a cron job and the platform DB has the schema applied.",
+        "status": "not_started",
+        "priority": 2,
+        "files": ["scripts/modal_usage_rollup.py", "scripts/sql/add_platform_billing.sql"],
+        "test_file": null,
+        "notes": "Job exists but may not be deployed. Verify with `modal app list`."
+      },
+      {
+        "name": "acceptance_policy_monitoring",
+        "description": "Add monitoring for relay acceptance policy: rejections by tier, rate limit hits/day, total writes by tier.",
+        "status": "not_started",
+        "priority": 2,
+        "source": "docs/internal/relay-acceptance-policy-spec.md (Phase 2)",
+        "files": ["packages/civicos-relay/src/civicos_relay/server/acceptance.py"],
+        "test_file": null
+      }
+    ]
+  },
+
+  "billing_payments": {
+    "description": "Stripe billing pipeline for API key provisioning (read access)",
+    "items": [
+      {
+        "name": "stripe_key_delivery_automation",
+        "description": "Automate API key delivery after Stripe checkout. Currently raw key is logged server-side and must be manually emailed. Options: email via SendGrid/SES, or show on a post-checkout page.",
+        "status": "not_started",
+        "priority": 1,
+        "files": ["packages/civicos-services/src/civicos_services/core/stripe_billing.py"],
+        "test_file": null,
+        "notes": "Webhook handler auto-provisions key but delivery is documented stub: 'raw_key delivery is manual for now'"
+      },
+      {
+        "name": "billing_endpoint_deployment",
+        "description": "Verify /api/billing/checkout and /api/billing/webhook are reachable on the deployed MCP server. May need to mount billing router in modal_mcp.py.",
+        "status": "not_started",
+        "priority": 1,
+        "files": ["apps/civicos-mcp/modal_mcp.py", "packages/civicos-services/src/civicos_services/core/stripe_billing.py"],
+        "test_file": null
+      },
+      {
+        "name": "stripe_secrets_deployment",
+        "description": "Verify STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, and STRIPE_PRICE_* are configured in Modal secrets.",
+        "status": "not_started",
+        "priority": 1,
+        "files": [],
+        "test_file": null,
+        "notes": "Check with `modal secret list` and `modal secret get civicos-env`"
+      }
+    ]
+  },
+
+  "acceptance_policy": {
+    "description": "Relay acceptance policy enforcement — attestation verification and rate limiting hardening (Phases 2-3 from spec)",
+    "items": [
+      {
+        "name": "http_ip_rate_limiting",
+        "description": "Add HTTP-level per-IP rate limiting on relay before crypto verification. First line of defense against spam.",
+        "status": "not_started",
+        "priority": 1,
+        "source": "docs/internal/relay-acceptance-policy-spec.md (Phase 2)",
+        "files": ["apps/civicos-relay/modal_relay.py"],
+        "test_file": null
+      },
+      {
+        "name": "nip13_proof_of_work",
+        "description": "Add NIP-13 proof-of-work requirement for rate-limited (free) tier writes. 20-bit target ~1s computation. Provides sybil resistance for the free tier.",
+        "status": "not_started",
+        "priority": 2,
+        "source": "docs/internal/relay-acceptance-policy-spec.md (Phase 2)",
+        "files": ["packages/civicos-relay/src/civicos_relay/server/acceptance.py"],
+        "test_file": "packages/civicos-relay/tests/test_acceptance.py"
+      },
+      {
+        "name": "relay_write_metadata_table",
+        "description": "Create relay_write_metadata table to store acceptance_tier per write. Avoids modifying frozen Voice model. Clients can filter/weight by tier.",
+        "status": "not_started",
+        "priority": 2,
+        "source": "docs/internal/relay-acceptance-policy-spec.md (Model Changes)",
+        "files": ["packages/civicos-relay/schema.sql"],
+        "test_file": null
+      },
+      {
+        "name": "attestation_proof_on_requests",
+        "description": "Add attestation_proof field to CastVoiceRequest and other write request schemas. Currently missing — prerequisite for attestation enforcement.",
+        "status": "not_started",
+        "priority": 1,
+        "source": "docs/internal/relay-acceptance-policy-spec.md (Phase 3)",
+        "files": [
+          "packages/civicos-services/src/civicos_services/servers/routers/coordination.py"
+        ],
+        "test_file": "packages/civicos-relay/tests/test_acceptance.py"
+      },
+      {
+        "name": "wire_attestation_verification",
+        "description": "Wire existing verify_attestation_proof() into acceptance policy check on all write endpoints. Look up trusted issuer pubkey from issuer_registry table.",
+        "status": "not_started",
+        "priority": 1,
+        "source": "docs/internal/relay-acceptance-policy-spec.md (Phase 3)",
+        "files": [
+          "packages/civicos-relay/src/civicos_relay/server/acceptance.py",
+          "packages/civicos-relay/src/civicos_relay/voice/crypto.py"
+        ],
+        "test_file": "packages/civicos-relay/tests/test_acceptance.py"
+      },
+      {
+        "name": "attestation_expiry",
+        "description": "Add attestation expiry check: created_at + validity_period > now. Recommend 1-year validity. Design revocation mechanism (blocklist of revoked attestation event IDs).",
+        "status": "not_started",
+        "priority": 2,
+        "source": "docs/internal/relay-acceptance-policy-spec.md (Phase 3)",
+        "files": ["packages/civicos-relay/src/civicos_relay/server/acceptance.py"],
+        "test_file": "packages/civicos-relay/tests/test_acceptance.py"
+      },
+      {
+        "name": "extension_402_handling",
+        "description": "Update extension to handle HTTP 402 responses from relay gracefully. Show UX guidance for attestation or payment options.",
+        "status": "not_started",
+        "priority": 2,
+        "source": "docs/internal/relay-acceptance-policy-spec.md (Phase 2)",
+        "files": ["apps/civicos-extension/src/"],
+        "test_file": null
+      }
+    ]
+  },
+
+  "token_issuance": {
+    "description": "Blinded token payment system for relay writes — privacy-preserving per-action billing (Phase 4 from spec)",
+    "items": [
+      {
+        "name": "blind_signature_scheme_design",
+        "description": "Design blind signature scheme using existing secp256k1 primitives. Define token format, blinding protocol, and spent-token storage.",
+        "status": "not_started",
+        "priority": 2,
+        "source": "docs/internal/relay-acceptance-policy-spec.md (Phase 4)",
+        "files": [],
+        "test_file": null,
+        "notes": "Use secp256k1 blind signatures, not Cashu (deferred due to pre-1.0 status and regulatory risk)"
+      },
+      {
+        "name": "token_issuance_service",
+        "description": "Implement token issuance service (separate from relay). Accepts Stripe/Lightning payment, returns blinded tokens. Cannot link issued tokens to payment session.",
+        "status": "not_started",
+        "priority": 2,
+        "source": "docs/internal/relay-acceptance-policy-spec.md (Phase 4)",
+        "files": [],
+        "test_file": null,
+        "notes": "New service, likely deployed on Modal. Separate from relay for privacy boundary."
+      },
+      {
+        "name": "payment_proof_on_models",
+        "description": "Add payment_proof: Optional[dict] to Voice, Comment, CivicActionEvent, CivicCommitment, CivicCompletion models and their request schemas.",
+        "status": "not_started",
+        "priority": 2,
+        "source": "docs/internal/relay-acceptance-policy-spec.md (Model Changes)",
+        "files": [
+          "packages/civicos-relay/src/civicos_relay/voice/models.py",
+          "packages/civicos-services/src/civicos_services/servers/routers/coordination.py"
+        ],
+        "test_file": "packages/civicos-relay/tests/test_acceptance.py"
+      },
+      {
+        "name": "token_verification_in_policy",
+        "description": "Add token verification + spent-token tracking to acceptance policy. Atomic: token must be marked spent BEFORE write is persisted.",
+        "status": "not_started",
+        "priority": 2,
+        "source": "docs/internal/relay-acceptance-policy-spec.md (Phase 4)",
+        "files": ["packages/civicos-relay/src/civicos_relay/server/acceptance.py"],
+        "test_file": "packages/civicos-relay/tests/test_acceptance.py"
+      },
+      {
+        "name": "extension_token_wallet",
+        "description": "Add token wallet to browser extension. Store blinded tokens in local-wallet.ts (already handles secp256k1). Include tokens in write requests automatically.",
+        "status": "not_started",
+        "priority": 2,
+        "source": "docs/internal/relay-acceptance-policy-spec.md (Phase 4)",
+        "files": ["apps/civicos-extension/src/"],
+        "test_file": null
+      },
+      {
+        "name": "token_purchase_ui",
+        "description": "Token purchase flow in extension: Stripe checkout -> blinded tokens, and (future) Lightning -> blinded tokens.",
+        "status": "not_started",
+        "priority": 3,
+        "source": "docs/internal/relay-acceptance-policy-spec.md (Phase 4)",
+        "files": ["apps/civicos-extension/src/"],
+        "test_file": null
+      }
+    ]
+  },
+
+  "operator_readiness": {
+    "description": "Tooling and documentation for external operators to run CivicOS instances",
+    "items": [
+      {
+        "name": "data_ingestion_guide",
+        "description": "Public-facing guide for operators to ingest data for their jurisdiction. Currently noted as a gap in operator-guide.md — links to internal docs only.",
+        "status": "not_started",
+        "priority": 2,
+        "files": ["docs/public/"],
+        "test_file": null,
+        "notes": "Ingestion is jurisdiction-specific and complex. May need per-platform quickstarts (Legistar, ProudCity, Granicus)."
+      },
+      {
+        "name": "registry_pr_workflow",
+        "description": "Document and test the PR workflow for adding new jurisdictions to config/registry.json. Include CI validation of registry format.",
+        "status": "not_started",
+        "priority": 3,
+        "files": ["config/registry.json"],
+        "test_file": null
+      },
+      {
+        "name": "operator_relay_dockerfile",
+        "description": "Dockerfile for self-hosted relay deployment. Operator guide currently documents uvicorn command only.",
+        "status": "not_started",
+        "priority": 3,
+        "files": [],
+        "test_file": null
+      }
+    ]
+  }
+}

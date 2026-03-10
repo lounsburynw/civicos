@@ -59,7 +59,8 @@ Development follows a phased approach, tracked in `phase.json`:
 | **implementation** | archived | Core feature development (COMPLETE) |
 | **hardening** | archived | Audit, e2e tests, edge cases (COMPLETE) |
 | **integration** | archived | Real data, stress tests, multi-user (COMPLETE) |
-| **pilot** | `pilot.json` | Deployment readiness (ACTIVE) |
+| **pilot** | archived | Deployment readiness (COMPLETE) |
+| **launch** | `launch.json` | Billing, acceptance policy, token issuance, operator tooling (ACTIVE) |
 
 Check current phase: `python3 -c "import json; print(json.load(open('phase.json'))['current_phase'])"`
 
@@ -68,7 +69,8 @@ Check current phase: `python3 -c "import json; print(json.load(open('phase.json'
 - **implementation -> hardening**: All `features.json` items passing
 - **hardening -> integration**: All `verification.json` items verified
 - **integration -> pilot**: All `integration.json` items passing
-- **pilot -> launch**: All `pilot.json` items complete
+- **pilot -> launch**: All `pilot.json` items complete (DONE)
+- **launch -> production**: All `launch.json` items complete
 
 ### Priority Levels
 
@@ -144,7 +146,7 @@ cursor.execute("SELECT * FROM meetings WHERE meeting_date > ...")  # Wrong colum
 
 ```
 phase.json                  # Current development phase
-pilot.json                  # Pilot checklist (active)
+launch.json                 # Launch checklist (active)
 claude-progress.txt         # Session state (append-only)
 init.sh                     # Verification script
 packages/civicos/             # Core API package
@@ -259,10 +261,10 @@ Task(subagent_type="Explore", prompt="Explore [area] for [item]...")
 
 ### Phase-Specific Guidance
 
-**Pilot Phase** (current):
-- Priority: Deployment artifacts and monitoring
-- Reference: `pilot.json` for checklist items
-- Focus: Rollback procedures, user documentation, launch readiness
+**Launch Phase** (current):
+- Priority: Security fixes, billing infrastructure, acceptance policy
+- Reference: `launch.json` for checklist items
+- Focus: Usage logging, Stripe pipeline, attestation enforcement, blinded tokens, operator tooling
 
 ### Session End Requirements
 
@@ -270,7 +272,7 @@ Task(subagent_type="Explore", prompt="Explore [area] for [item]...")
 
 Before running `/nextsesh`:
 1. Identify the most important next task
-2. Update `pilot.json` to set that item's `priority: 0`
+2. Update `launch.json` to set that item's `priority: 0`
 3. `/nextsesh` will fail if no P0 is set
 
 ### Parallel Sessions
@@ -400,7 +402,7 @@ Full test suite runs automatically on GitHub Actions:
 
 - **Never run full suite locally** - let CI handle it (saves RAM/time)
 - **Use smoke tests for quick validation** - 31 tests, ~75s
-- **Use targeted tests during dev** - each pilot.json item has a `test_file` field
+- **Use targeted tests during dev** - each launch.json item has a `test_file` field
 - **Check CI status before merging** - full coverage runs there
 
 ## Storage Backends

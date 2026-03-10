@@ -1,9 +1,9 @@
 {
   "version": "1.0",
-  "last_updated": "2025-12-09",
+  "last_updated": "2026-03-10",
 
-  "current_phase": "pilot",
-  "active_checklist": "pilot.json",
+  "current_phase": "launch",
+  "active_checklist": "launch.json",
 
   "phases": {
     "implementation": {
@@ -29,23 +29,38 @@
     },
     "pilot": {
       "description": "Deployment readiness for Jan 2026 launch",
-      "checklist": "pilot.json",
-      "status": "active",
+      "checklist": "docs/archive/checklists/pilot.json",
+      "status": "complete",
+      "completed_at": "2026-03-10",
       "focus": [
         "Deployment artifacts",
         "Monitoring and observability",
         "Rollback procedures",
         "User documentation"
       ]
+    },
+    "launch": {
+      "description": "Billing, acceptance policy, token issuance, operator tooling",
+      "checklist": "launch.json",
+      "status": "active",
+      "focus": [
+        "Security fixes (coincurve, created_at)",
+        "Usage logging across deployed services",
+        "Stripe billing pipeline",
+        "Relay acceptance policy enforcement",
+        "Blinded token payment system",
+        "Operator readiness"
+      ]
     }
   },
 
-  "progression": ["implementation", "hardening", "integration", "pilot"],
+  "progression": ["implementation", "hardening", "integration", "pilot", "launch"],
 
   "transition_criteria": {
     "implementation_to_hardening": "All features.json items passing",
     "hardening_to_integration": "All verification.json items passing",
     "integration_to_pilot": "All integration.json items passing",
-    "pilot_to_launch": "All pilot.json items passing"
+    "pilot_to_launch": "All pilot.json items passing",
+    "launch_to_production": "All launch.json items passing"
   }
 }
