@@ -71,6 +71,31 @@ All relay interactions use **secp256k1 Schnorr signatures** (Nostr-compatible, B
 - Signatures are verified by the relay on every write operation
 - Attestation proofs are embedded on each voice/action record
 
+## Acceptance Policy
+
+All relay write endpoints enforce an acceptance policy after signature verification. When enabled (`RELAY_ACCEPTANCE_POLICY=true`), writes are checked against a tiered system:
+
+1. **Attested** — present a kind-30850 attestation proof for unlimited writes
+2. **Paid** — include a payment proof for unlimited writes
+3. **Rate-limited** — per-event-type daily limits (e.g., 50 voices/day, 20 comments/day)
+
+If a write exceeds the rate limit without an attestation or payment proof, the relay returns **HTTP 402** with a body describing upgrade options:
+
+```json
+{
+  "accepted": false,
+  "tier": "rejected",
+  "reason": "Daily rate limit exceeded (50/day for voice)",
+  "options": {
+    "attestation": "Present a kind-30850 attestation proof for unlimited writes",
+    "payment": "Include a payment proof for unlimited writes",
+    "retry": "Wait until tomorrow when your rate limit resets"
+  }
+}
+```
+
+The acceptance policy is disabled by default. Write tools are not exposed in the MCP server — all writes go through the relay directly.
+
 ## Storage
 
 - **Production:** PostgreSQL (`RELAY_DATABASE_URL`), separate from the civic data database

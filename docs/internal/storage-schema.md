@@ -230,6 +230,32 @@ Source: CA State Controller
 | `entity_name` | str | |
 | `county` | str | |
 
+### coordination_rate_limits
+
+Source: Relay acceptance policy (auto-populated)
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `public_key_hash` | str | SHA-256 of pubkey, truncated to 16 hex chars |
+| `event_type` | str | voice, comment, initiative, action_create, action_commit, action_complete |
+| `day` | date | Current date (auto-set) |
+| `count` | int | Number of writes today |
+
+Primary key: `(public_key_hash, event_type, day)`. Rows older than 7 days are cleaned up on relay startup.
+
+### coordination_write_metadata
+
+Source: Relay acceptance policy (auto-populated)
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `public_key_hash` | str | SHA-256 of pubkey, truncated to 16 hex chars |
+| `entity` | str | Entity written to |
+| `acceptance_tier` | str | attested, paid, rate_limited, legacy |
+| `accepted_at` | timestamptz | When the write was accepted |
+
+Primary key: `(public_key_hash, entity)`. Migration: `scripts/sql/add_relay_acceptance_policy.sql`.
+
 ## Vector Embeddings
 
 All corpora are semantically indexed using OpenAI embeddings stored in pgvector (`vector_embeddings` table).

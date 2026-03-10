@@ -17,7 +17,7 @@ Identity is local-first, built on Nostr (secp256k1 Schnorr signatures). Private 
 | Surface | What it does | Who it's for |
 |---------|-------------|--------------|
 | [Browser extension](extension/setup.md) | Primary UI — civic dashboard, voice, identity | Residents |
-| [MCP server](mcp/setup.md) | 40+ civic data tools for AI assistants | Claude, ChatGPT users |
+| [MCP server](mcp/setup.md) | 45+ read-only civic data tools for AI assistants | Claude, ChatGPT users |
 | REST API | Programmatic access to civic data | Developers |
 
 ## Architecture

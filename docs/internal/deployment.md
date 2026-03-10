@@ -32,6 +32,8 @@ Modal secrets are stored in the `civicos-secrets` (or jurisdiction-specific) sec
 - `BLOB_STORAGE_URL` — R2 connection string
 - `CIVICOS_ATTESTATION_PRIVATE_KEY` — For signing kind-30850 attestation events
 - `GOOGLE_MAPS_API_KEY` — Geocoding (extension + API)
+- `RELAY_ACCEPTANCE_POLICY` — Set `true` to enable rate limiting on relay writes (default: `false`)
+- `CIVICOS_ALLOW_UNSIGNED` — Set `1` to bypass signature verification when coincurve is missing (test only, never in production)
 
 Check secrets: `modal secret list`
 
