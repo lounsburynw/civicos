@@ -41,10 +41,10 @@ Returns a Stripe checkout URL. After payment, your API key is emailed.
 | Tier | Rate Limit | Use Case |
 |------|-----------|----------|
 | **free** | 60 req/min | Personal use, exploration |
-| **journalist** | 120 req/min | Reporting, investigations |
-| **organization** | 300 req/min | Nonprofits, civic tech |
+| **builder** | 300 req/min | Application integrations, civic tech |
+| **organization** | 300 req/min | Nonprofits, civic orgs |
 | **city** | 600 req/min | Municipal staff, officials |
-| **api** | 1,000 req/min | Application integrations |
+| **admin** | 1,000 req/min | Platform operations |
 
 All tiers have a 10,000 req/hour ceiling. LLM-powered endpoints (conversation, chat routing) are limited to 30 req/min regardless of tier.
 
@@ -260,7 +260,9 @@ curl -H "Authorization: Bearer $KEY" \
 
 ### Coordination (Nostr-based)
 
-Voice, subscription, and initiative endpoints use Nostr-signed requests instead of API key auth. See [Coordination docs](../packages/civicos-relay.md).
+Read endpoints (voice counts, initiative listings) are available via the REST API. **Write endpoints** (casting voices, creating initiatives, committing to actions) are served exclusively by the [relay](relay/overview.md) and require Nostr-signed requests. Write tools are not available through the MCP server or API key tiers.
+
+Write requests are subject to the relay's [acceptance policy](relay/overview.md#acceptance-policy) — rate limiting per public key, with unlimited access for attested or paying users.
 
 #### GET /api/coordination/voice/counts/{entity}
 

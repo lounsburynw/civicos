@@ -25,15 +25,21 @@ FastAPI REST API server. Exposes civic data, coordination, AI, and admin endpoin
 - `GET /api/transcripts` — Transcript search
 - `GET /api/public-testimony` — Public testimony search
 
-### Coordination
-- `POST /api/coordination/voice` — Cast a voice (stance)
-- `GET /api/coordination/voice/counts/{entity}` — Voice counts per entity
-- `GET /api/coordination/voice/{entity}` — List voices on entity
-- `POST /api/coordination/subscribe` — Subscribe to topic/entity
-- `DELETE /api/coordination/subscribe/{id}` — Unsubscribe
-- `GET /api/coordination/provenance/{public_key}` — Key provenance
-- `GET /api/coordination/sync/voices` — Export voices for peer sync
-- `POST /api/coordination/sync/voices` — Import voices from peer
+### Coordination (via relay)
+
+Write endpoints require Nostr signatures (not API keys) and are subject to the relay's [acceptance policy](../relay/overview.md#acceptance-policy).
+
+- `POST /coordination/voice` — Cast a voice (Nostr-signed, rate-limited)
+- `GET /coordination/voice/counts/{entity}` — Voice counts per entity
+- `GET /coordination/voice/{entity}` — List voices on entity
+- `POST /coordination/comment` — Submit public comment (Nostr-signed, rate-limited)
+- `POST /coordination/initiative` — Create initiative (Nostr-signed, rate-limited)
+- `POST /coordination/civic-action` — Create civic action (Nostr-signed, rate-limited)
+- `POST /coordination/subscribe` — Subscribe to topic/entity
+- `DELETE /coordination/subscribe/{id}` — Unsubscribe
+- `GET /coordination/provenance/{public_key}` — Key provenance
+- `GET /coordination/sync/voices` — Export voices for peer sync
+- `POST /coordination/sync/voices` — Import voices from peer
 
 ### AI
 - `POST /api/conversation` — AI conversation (30 req/min)
