@@ -21312,3 +21312,39 @@ Previous session identified a crash in `scheduled_low_velocity_refresh` where `f
 - 27/27 Granicus unit tests pass
 - 20/20 smoke tests pass
 - Live ingestion verified in PostgreSQL
+
+## Session: operating_costs_reconcile — Cost Registry + Per-User Model
+
+**Date:** 2026-03-09
+**Item:** operating_costs_reconcile (user_documentation > docs_audit_wave3)
+**Status:** Complete
+
+### What Was Done
+1. Reconciled OPERATING_COSTS.md against actual billing:
+   - Verified unit prices from 7 service pricing pages (Modal, Supabase, AssemblyAI, OpenAI, Gemini, R2, LegiScan)
+   - Cross-referenced against operating_costs table (88 rows, Jan-Mar 2026)
+   - Found Modal steady-state is ~$8/mo (covered by $30 free credits), LLM is $0.0014/query
+   - AssemblyAI was wrong ($0.37/min → actual $0.0035/min = $0.21/hr)
+
+2. Created docs/public/cost_registry.yaml:
+   - Verified unit prices with source URLs and last_verified dates
+   - Confidence levels (exact/observed/estimated/unverified)
+   - Per-user cost model: $0.0014/query observed from 11 sessions
+   - User scale projections (10→2000 users)
+   - Actual vs estimated reconciliation from operating_costs table
+
+3. Added estimate_costs() to onboard.py:
+   - Reads cost_registry.yaml for unit prices
+   - Accepts meeting_count, user_count, tier selection, backfill
+   - Shows infrastructure ($51 fixed) + ingestion (per meeting) + user queries (per user)
+
+4. Updated /onboard slash command with corrected prices
+
+### Key Findings
+- Infrastructure (Supabase $50/mo) dominates at every scale
+- LLM queries negligible until hundreds of users ($0.0014/query observed)
+- Modal compute covered by $30/mo free credits at steady-state
+- Only 3/7 services instrumented in operating_costs table (Modal, OpenAI, Google)
+
+### P0 for Next Session
+provider_api_polling — Instrument remaining services (AssemblyAI, Supabase, R2) into operating_costs table

@@ -1919,8 +1919,8 @@
       },
       "provider_api_polling": {
         "status": "not_ready",
-        "priority": 3,
-        "description": "Poll external APIs for cost reconciliation",
+        "priority": 0,
+        "description": "Poll external APIs for cost reconciliation. Instrument AssemblyAI, Supabase, R2 into operating_costs table (currently only Modal/OpenAI/Google logged). Cross-ref with cost_registry.yaml.",
         "artifact": "Pull actual costs from Modal, Supabase, Cloudflare APIs for reconciliation",
         "note": "Monthly reconciliation to catch any costs not logged in real-time."
       }
