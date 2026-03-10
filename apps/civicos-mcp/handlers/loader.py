@@ -138,6 +138,15 @@ COORDINATION_TOOLS = frozenset([
     "list_relays",
 ])
 
+# Write tools excluded from MCP — writes go through relay acceptance policy
+RELAY_WRITE_TOOLS = frozenset([
+    "prepare_voice",
+    "broadcast_voice",
+    "prepare_initiative",
+    "broadcast_initiative",
+    "subscribe_to_topic",
+])
+
 ADMIN_TOOLS = frozenset([
     "admin_data_status",
     "admin_vector_coverage",
@@ -147,12 +156,12 @@ ADMIN_TOOLS = frozenset([
     "query_feedback",
 ])
 
-# Complete tool level mapping
+# Complete tool level mapping (relay write tools excluded — writes go through relay)
 TOOL_LEVELS = {
-    "federal": FEDERAL_TOOLS | LEGISLATION_TOOLS | CROSS_LEVEL_TOOLS | ADMIN_TOOLS,
-    "state": FEDERAL_TOOLS | STATE_TOOLS | LEGISLATION_TOOLS | CROSS_LEVEL_TOOLS | ADMIN_TOOLS,
-    "county": FEDERAL_TOOLS | STATE_TOOLS | COUNTY_TOOLS | LEGISLATION_TOOLS | CROSS_LEVEL_TOOLS | ADMIN_TOOLS,
-    "city": FEDERAL_TOOLS | STATE_TOOLS | CITY_TOOLS | LEGISLATION_TOOLS | CROSS_LEVEL_TOOLS | COORDINATION_TOOLS | ADMIN_TOOLS,
+    "federal": (FEDERAL_TOOLS | LEGISLATION_TOOLS | CROSS_LEVEL_TOOLS | ADMIN_TOOLS) - RELAY_WRITE_TOOLS,
+    "state": (FEDERAL_TOOLS | STATE_TOOLS | LEGISLATION_TOOLS | CROSS_LEVEL_TOOLS | ADMIN_TOOLS) - RELAY_WRITE_TOOLS,
+    "county": (FEDERAL_TOOLS | STATE_TOOLS | COUNTY_TOOLS | LEGISLATION_TOOLS | CROSS_LEVEL_TOOLS | ADMIN_TOOLS) - RELAY_WRITE_TOOLS,
+    "city": (FEDERAL_TOOLS | STATE_TOOLS | CITY_TOOLS | LEGISLATION_TOOLS | CROSS_LEVEL_TOOLS | COORDINATION_TOOLS | ADMIN_TOOLS) - RELAY_WRITE_TOOLS,
 }
 
 
