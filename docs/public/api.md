@@ -38,7 +38,7 @@ curl -X POST "$BASE/api/billing/checkout" \
   -d '{"tier": "builder", "email": "you@example.com"}'
 ```
 
-Returns a Stripe checkout URL. After payment, your API key is emailed.
+Returns a Stripe checkout URL. After payment, your API key is provisioned automatically. Key delivery is currently manual — an admin will send it to the email you provide. Automated delivery is planned.
 
 | Tier | Rate Limit | Use Case | Tools |
 |------|-----------|----------|-------|
@@ -50,6 +50,10 @@ Returns a Stripe checkout URL. After payment, your API key is emailed.
 | **admin** | 1,000 req/min | Platform operations | + Admin tools (data status, cost dashboard, key management) |
 
 All tiers have a 10,000 req/hour ceiling. LLM-powered endpoints (conversation, chat routing) are limited to 30 req/min regardless of tier. See [MCP Tool Access by Tier](mcp/setup.md#tool-access-by-api-tier) for the complete tool-to-tier mapping.
+
+### Billing Webhooks
+
+Stripe webhook events (`checkout.session.completed`, `customer.subscription.deleted`, `invoice.payment_failed`) are handled at `POST /api/billing/webhook`. On successful checkout, the key is auto-provisioned with the correct tier. Subscription changes (cancellations, failures) update key status automatically.
 
 ## Authentication
 
@@ -75,6 +79,8 @@ Authorization: Bearer YOUR_API_KEY
 
 ## Rate Limiting
 
+The API uses a sliding-window rate limiter with per-minute and per-hour windows, plus a burst token bucket for spike protection. Rate limits are tracked per API key (or per IP for unauthenticated requests).
+
 Rate limit status is returned in response headers:
 
 ```
@@ -98,6 +104,8 @@ X-RateLimit-Burst-Remaining: 20
 ```
 
 The `Retry-After` header tells you how many seconds to wait.
+
+> **Note:** Rate limit counters are in-memory and reset on server restart. This is acceptable for pilot scale but means brief windows of unrestricted access after deploys.
 
 ## Error Responses
 

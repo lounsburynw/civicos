@@ -107,6 +107,8 @@ If a write exceeds the rate limit without an attestation or payment proof, the r
 
 Write tools are not exposed in the MCP server — all writes go through the relay directly.
 
+> **Current status:** Only rate limiting (tier 3) is active. Attestation verification (tier 1) and payment proof verification (tier 2) are designed and stubbed but not yet enforced — all writes currently fall through to rate limiting. Rate limits are persistent (PostgreSQL-backed), unlike REST API rate limits which are in-memory.
+
 ## HTTP Endpoints
 
 All endpoints are under the relay's base URL. Write endpoints require Nostr-signed request bodies; read endpoints are public.

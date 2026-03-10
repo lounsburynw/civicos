@@ -90,18 +90,36 @@ Add to your Claude Desktop config (`~/Library/Application Support/Claude/claude_
 
 Admin tools require an `_admin_token` argument validated against the server's `CIVICOS_ADMIN_TOKEN` environment variable. These tools are available at all jurisdiction levels (federal, state, county, city).
 
+### API Key Rate Limiting
+
+MCP connections are rate-limited per API key (or per IP without a key):
+
+| Tier | Rate Limit |
+|------|-----------|
+| No key (public) | 60 req/min |
+| **open** | 30 req/min |
+| **free** | 60 req/min |
+| **builder** | 300 req/min |
+| **organization** | 300 req/min |
+| **city** | 600 req/min |
+| **admin** | 1,000 req/min |
+
+Rate limits use a sliding 60-second window, tracked in-memory (resets on server restart).
+
 ### Tool Access by API Tier
 
-Tools are gated by API key tier. Each tier includes all tools from lower tiers (cumulative):
+Tools are assigned to tiers cumulatively — each tier includes all tools from lower tiers:
 
-| Tier | Rate Limit | Additional Tools |
-|------|-----------|-----------------|
-| **open** | 30/min | `city_pulse`, `get_started`, `get_voice_counts`, `list_relays`, `list_initiatives`, `data_provenance` |
-| **free** | 60/min | + All read-only civic data (meetings, legislation, budget, issues, voting, executive orders, federal participation) |
-| **builder** | 300/min | + Participation tools (`get_public_testimony`, `search_agenda_packets`, `compose_public_comment`, `get_decision_context`, `prepare_for_meeting`, `neighborhood_report`, `get_item_context`) |
-| **organization** | 300/min | Same as builder |
-| **city** | 600/min | Same as builder |
-| **admin** | 1,000/min | + Admin tools (`admin_data_status`, `admin_vector_coverage`, `admin_system_health`, `admin_cost_dashboard`, `manage_api_keys`) |
+| Tier | Additional Tools |
+|------|-----------------|
+| **open** | `city_pulse`, `get_started`, `get_voice_counts`, `list_relays`, `list_initiatives`, `data_provenance` |
+| **free** | + All read-only civic data (meetings, legislation, budget, issues, voting, executive orders, federal participation) |
+| **builder** | + Participation tools (`get_public_testimony`, `search_agenda_packets`, `compose_public_comment`, `get_decision_context`, `prepare_for_meeting`, `neighborhood_report`, `get_item_context`) |
+| **organization** | Same as builder |
+| **city** | Same as builder |
+| **admin** | + Admin tools (`admin_data_status`, `admin_vector_coverage`, `admin_system_health`, `admin_cost_dashboard`, `manage_api_keys`) |
+
+> **Note:** Tool-level tier enforcement is defined but not yet active at the MCP endpoint level. Currently all authenticated users can access all non-admin tools. Per-tool gating is planned.
 
 ## Federation
 
