@@ -125,6 +125,31 @@ neighborhoods:                    # List of neighborhoods for geo tools
   - Terra Linda
 
 # =============================================================================
+# OPTIONAL: Ingestion Tiers
+# Controls which pipeline stages run during ingestion.
+# Omitted = defaults for the jurisdiction level.
+# =============================================================================
+
+ingestion:
+  # Tier 1: Free — always safe to enable
+  meetings: boolean               # Meeting discovery + extraction (default: true)
+  pdf_chunks: boolean             # Agenda packet PDF text extraction (default: true)
+  issues: boolean                 # SeeClickFix/311 issue sync (default: true)
+  municipal_code: boolean         # Municipal code sync (default: true)
+
+  # Tier 2: Low cost — LLM-powered, ~$0.10-0.50/meeting
+  agenda_items: boolean           # LLM agenda item extraction + actionability (default: true)
+  decisions: boolean              # LLM decision extraction from transcripts (default: true)
+  legislation: boolean            # State/federal bill sync via LegiScan (default: true)
+
+  # Tier 3: Higher cost — audio processing, ~$0.02/min
+  transcription: boolean          # Audio transcription via AssemblyAI (default: false)
+  diarization: boolean            # Speaker diarization (requires transcription) (default: false)
+
+  # Tier 4: GPU — vector indexing, ~$0.01/batch
+  vector_indexing: boolean        # pgvector embedding generation (default: true)
+
+# =============================================================================
 # OPTIONAL: Tool Configuration
 # =============================================================================
 

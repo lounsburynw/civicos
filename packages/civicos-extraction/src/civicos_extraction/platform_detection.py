@@ -182,6 +182,79 @@ def _detect_civicclerk(subdomain: str, timeout: int) -> tuple[float, Dict[str, A
         return 0.0, metadata
 
 
+def _detect_granicus(base_url: str, client_name: str, timeout: int) -> tuple[float, Dict[str, Any]]:
+    """
+    Attempt Granicus detection.
+
+    Two detection modes:
+    - Direct: URL matches *.granicus.com → fetch ViewPublisher, check for tables
+    - Indirect: Scrape city website for granicus.com/ViewPublisher links
+
+    Returns:
+        Tuple of (confidence, metadata)
+    """
+    metadata: Dict[str, Any] = {}
+    parsed = urlparse(base_url)
+    domain = parsed.netloc.lower()
+
+    # Direct detection: URL is already a granicus.com domain
+    if "granicus.com" in domain:
+        subdomain = domain.replace(".granicus.com", "")
+        metadata["granicus_domain"] = subdomain
+        metadata["detection_mode"] = "direct"
+
+        try:
+            test_url = f"https://{subdomain}.granicus.com/ViewPublisher.php?view_id=1"
+            headers = {"User-Agent": "Civic-Platform-Detection/1.0"}
+            response = requests.get(test_url, headers=headers, timeout=timeout)
+            metadata["status_code"] = response.status_code
+
+            if response.status_code == 200:
+                soup = BeautifulSoup(response.text, "html.parser")
+                tables = soup.find_all("table")
+                metadata["table_count"] = len(tables)
+                if tables:
+                    return 0.95, metadata
+                else:
+                    return 0.70, metadata
+            else:
+                return 0.0, metadata
+
+        except requests.exceptions.Timeout:
+            metadata["error"] = "Timeout"
+            return 0.0, metadata
+        except requests.exceptions.RequestException as e:
+            metadata["error"] = str(e)
+            return 0.0, metadata
+
+    # Indirect detection: scrape city website for granicus links
+    metadata["detection_mode"] = "indirect"
+    try:
+        headers = {"User-Agent": "Civic-Platform-Detection/1.0"}
+        response = requests.get(base_url, headers=headers, timeout=timeout)
+        if response.status_code != 200:
+            return 0.0, metadata
+
+        # Look for granicus.com/ViewPublisher links
+        granicus_pattern = re.compile(r"https?://([^.]+)\.granicus\.com/ViewPublisher", re.I)
+        matches = granicus_pattern.findall(response.text)
+
+        if matches:
+            granicus_domain = matches[0]
+            metadata["granicus_domain"] = granicus_domain
+            metadata["link_count"] = len(matches)
+            return 0.85, metadata
+
+        return 0.0, metadata
+
+    except requests.exceptions.Timeout:
+        metadata["error"] = "Timeout"
+        return 0.0, metadata
+    except requests.exceptions.RequestException as e:
+        metadata["error"] = str(e)
+        return 0.0, metadata
+
+
 def _detect_proudcity(base_url: str, timeout: int) -> tuple[float, Dict[str, Any]]:
     """
     Attempt ProudCity detection by scraping /meetings/ page.
@@ -298,7 +371,21 @@ def detect_platform(
             metadata=legistar_meta,
         )
 
-    # 2. Try CivicClerk (API-based)
+    # 2. Try Granicus (HTML scraping)
+    granicus_confidence, granicus_meta = _detect_granicus(base_url, client_name, timeout)
+    all_metadata["granicus"] = granicus_meta
+    if granicus_confidence > best_confidence:
+        best_confidence = granicus_confidence
+        granicus_domain = granicus_meta.get("granicus_domain", client_name)
+        best_result = DetectionResult(
+            source_type="granicus",
+            source_id=f"granicus-{jurisdiction_id}",
+            platform_name="Granicus",
+            confidence=granicus_confidence,
+            metadata=granicus_meta,
+        )
+
+    # 3. Try CivicClerk (API-based)
     # Try common subdomain patterns
     civicclerk_subdomains = [
         client_name,
@@ -325,7 +412,7 @@ def detect_platform(
         # Record that we tried CivicClerk but found nothing
         all_metadata["civicclerk"] = {"subdomain_tested": civicclerk_subdomains, "found": False}
 
-    # 3. Try ProudCity (scraping-based, slowest)
+    # 4. Try ProudCity (scraping-based, slowest)
     pc_confidence, pc_meta = _detect_proudcity(base_url, timeout)
     all_metadata["proudcity"] = pc_meta
     if pc_confidence > best_confidence:
