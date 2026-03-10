@@ -155,9 +155,20 @@ class PgVectorBackend:
         self._embedding_model_override = embedding_model
         self._embedding_dimension_override = embedding_dimension
 
-    def _get_connection(self):
-        """Get a database connection."""
-        return psycopg2.connect(self._conn_string)
+    def _get_connection(self, session_mode: bool = False):
+        """Get a database connection.
+
+        Args:
+            session_mode: If True, use the session pooler (port 5432) instead
+                of the transaction pooler (port 6543). Required for SET
+                commands (statement_timeout, maintenance_work_mem) which are
+                not supported on Supabase's transaction pooler.
+        """
+        import re
+        conn_string = self._conn_string
+        if session_mode:
+            conn_string = re.sub(r':6543/', ':5432/', conn_string)
+        return psycopg2.connect(conn_string)
 
     @property
     def _embedding_provider(self) -> "EmbeddingProvider":
@@ -323,21 +334,33 @@ class PgVectorBackend:
             ON {self.TABLE_NAME} (embedding_model)
         """)
 
-        # Create HNSW index for fast similarity search
-        # HNSW is preferred over IVFFlat because:
-        # - Self-maintaining: new inserts are automatically indexed
-        # - No retraining needed as data grows (critical for incremental ingestion)
-        # - Better recall at equivalent speed
-        # - No periodic rebuilds needed when adding cities
+        # HNSW indexes are managed per-partition by index_vectors (deferred
+        # indexing pattern: DROP before bulk insert, CREATE after). When the
+        # table is partitioned by corpus_type, each partition has its own HNSW
+        # index, so bulk inserts only contend with the partition's small index.
+        #
+        # For non-partitioned tables (e.g., fresh installs), create a global
+        # HNSW index as a fallback.
         try:
             cursor.execute(f"""
-                CREATE INDEX IF NOT EXISTS idx_{self.TABLE_NAME}_embedding_hnsw
-                ON {self.TABLE_NAME} USING hnsw (embedding vector_cosine_ops)
-                WITH (m = 16, ef_construction = 64)
+                SELECT EXISTS (
+                    SELECT 1 FROM pg_partitioned_table
+                    WHERE partrelid = '{self.TABLE_NAME}'::regclass
+                )
             """)
-        except Exception as e:
-            # Index may already exist or fail for other reasons
-            logger.warning(f"Could not create HNSW index: {e}")
+            is_partitioned = cursor.fetchone()[0]
+        except Exception:
+            is_partitioned = False
+
+        if not is_partitioned:
+            try:
+                cursor.execute(f"""
+                    CREATE INDEX IF NOT EXISTS idx_{self.TABLE_NAME}_embedding_hnsw
+                    ON {self.TABLE_NAME} USING hnsw (embedding vector_cosine_ops)
+                    WITH (m = 16, ef_construction = 64)
+                """)
+            except Exception as e:
+                logger.warning(f"Could not create HNSW index: {e}")
 
         conn.commit()
         self._schema_ensured = True
@@ -1623,6 +1646,104 @@ class PgVectorBackend:
             + (f" ({corpus_type})" if corpus_type else "")
         )
         return deleted
+
+    def drop_hnsw_index(self, corpus_type: str) -> bool:
+        """Drop the HNSW index for a specific corpus_type partition.
+
+        Used before bulk inserts to avoid expensive per-row HNSW maintenance.
+        Call rebuild_hnsw_index() after inserts complete.
+
+        For non-partitioned tables, drops the global HNSW index.
+
+        Returns True if an index was dropped, False if none existed.
+        """
+        conn = self._get_connection()
+        cursor = conn.cursor()
+
+        try:
+            # Check if table is partitioned
+            cursor.execute(f"""
+                SELECT EXISTS (
+                    SELECT 1 FROM pg_partitioned_table
+                    WHERE partrelid = '{self.TABLE_NAME}'::regclass
+                )
+            """)
+            is_partitioned = cursor.fetchone()[0]
+
+            if is_partitioned:
+                partition_name = f"{self.TABLE_NAME}_{corpus_type}"
+                index_name = f"idx_ve_{corpus_type}_hnsw"
+                cursor.execute(f"DROP INDEX IF EXISTS {index_name}")
+            else:
+                index_name = f"idx_{self.TABLE_NAME}_embedding_hnsw"
+                cursor.execute(f"DROP INDEX IF EXISTS {index_name}")
+
+            conn.commit()
+            dropped = cursor.statusmessage != "DROP INDEX"
+            logger.info(f"Dropped HNSW index: {index_name}")
+            return True
+        except Exception as e:
+            conn.rollback()
+            logger.warning(f"Could not drop HNSW index for {corpus_type}: {e}")
+            return False
+        finally:
+            conn.close()
+
+    def rebuild_hnsw_index(self, corpus_type: str) -> bool:
+        """Rebuild the HNSW index for a specific corpus_type partition.
+
+        Call after bulk inserts complete. Uses maintenance_work_mem and
+        extended statement_timeout for fast parallel builds.
+
+        Uses session pooler (port 5432) because SET commands are not
+        supported on Supabase's transaction pooler (port 6543).
+
+        For non-partitioned tables, rebuilds the global HNSW index.
+
+        Returns True if index was created successfully.
+        """
+        conn = self._get_connection(session_mode=True)
+        cursor = conn.cursor()
+
+        try:
+            # Extend timeout and memory for index creation
+            cursor.execute("SET statement_timeout = '30min'")
+            cursor.execute("SET maintenance_work_mem = '256MB'")
+
+            # Check if table is partitioned
+            cursor.execute(f"""
+                SELECT EXISTS (
+                    SELECT 1 FROM pg_partitioned_table
+                    WHERE partrelid = '{self.TABLE_NAME}'::regclass
+                )
+            """)
+            is_partitioned = cursor.fetchone()[0]
+
+            if is_partitioned:
+                partition_name = f"{self.TABLE_NAME}_{corpus_type}"
+                index_name = f"idx_ve_{corpus_type}_hnsw"
+                cursor.execute(f"""
+                    CREATE INDEX IF NOT EXISTS {index_name}
+                    ON {partition_name} USING hnsw (embedding vector_cosine_ops)
+                    WITH (m = 16, ef_construction = 64)
+                """)
+            else:
+                index_name = f"idx_{self.TABLE_NAME}_embedding_hnsw"
+                cursor.execute(f"""
+                    CREATE INDEX IF NOT EXISTS {index_name}
+                    ON {self.TABLE_NAME} USING hnsw (embedding vector_cosine_ops)
+                    WITH (m = 16, ef_construction = 64)
+                """)
+
+            conn.commit()
+            logger.info(f"Rebuilt HNSW index: {index_name}")
+            return True
+        except Exception as e:
+            conn.rollback()
+            logger.error(f"Failed to rebuild HNSW index for {corpus_type}: {e}")
+            return False
+        finally:
+            conn.close()
 
     def encode_texts(
         self,
