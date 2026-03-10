@@ -78,6 +78,12 @@ extra:
 nav:
   - Home:
     - Overview: index.md
+    - Quick Start: public/quickstart-api.md
+
+  - Operators:
+    - Guide: public/operator-guide.md
+    - Environment Variables: public/operator-env-reference.md
+    - Federation Setup: public/operator-federation.md
 
   - Extension:
     - Setup: public/extension/setup.md
