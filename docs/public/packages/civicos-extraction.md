@@ -11,6 +11,7 @@ Platform parsers for extracting civic data from municipal websites and governmen
 | Platform | Type | Cities |
 |----------|------|--------|
 | **ProudCity** | Web scraper | San Rafael (primary pilot) |
+| **Granicus** | API | Marin County |
 | **Legistar** | API | Berkeley, Oakland, SF, Richmond, Hayward, San Pablo |
 | **CivicClerk** | API + OData | El Cerrito, Hayward, San Pablo, Richmond, Vallejo, Antioch |
 
@@ -75,4 +76,24 @@ class MyExtractor:
         """Platform availability check"""
 ```
 
-Configuration is YAML-based per jurisdiction.
+Configuration is YAML-based per jurisdiction. See `packages/civicos-extraction/config/` for examples.
+
+## Config-Driven Ingestion
+
+Each jurisdiction has a YAML config that defines its data sources, extraction platform, and meeting bodies:
+
+```yaml
+# config/county-marin.yaml
+jurisdiction_id: county-marin
+level: county
+platforms:
+  meetings: granicus
+  issues: null
+granicus:
+  base_url: https://marin.granicus.com
+  bodies:
+    - name: Board of Supervisors
+      body_id: 123
+```
+
+The ingestion pipeline reads this config to determine which extractor to use and which meeting bodies to fetch. See `scripts/ingest_jurisdiction.py` for the orchestrator.

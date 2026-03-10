@@ -256,11 +256,99 @@ Source: Relay acceptance policy (auto-populated)
 
 Primary key: `(public_key_hash, entity)`. Migration: `scripts/sql/add_relay_acceptance_policy.sql`.
 
+### coordination_feedback
+
+Source: User feedback (kind 1804)
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | str | Primary key |
+| `feedback_type` | str | bug, feature, general |
+| `content` | str | Free-text feedback body |
+| `public_key` | str | Hex-encoded pubkey |
+| `jurisdiction` | str | |
+| `created_at` | timestamptz | |
+
+Rate limited: 10/hour per pubkey. Stored on relay database (`RELAY_DATABASE_URL`).
+
+### platform_api_keys
+
+Source: API key management (tiered access)
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `key_id` | str | Format: `cvk_{8_hex_chars}` |
+| `key_hash` | str | SHA-256 of raw key |
+| `name` | str | Human-readable name |
+| `email` | str | Contact email |
+| `tier` | str | open, free, builder, organization, city, admin |
+| `status` | str | active, suspended, revoked |
+| `rate_limit_per_minute` | int | |
+| `jurisdictions` | jsonb | Array of jurisdiction IDs |
+| `stripe_customer_id` | str | Stripe integration |
+| `stripe_subscription_id` | str | Stripe integration |
+| `expires_at` | timestamptz | |
+| `created_at` | timestamptz | |
+| `last_used_at` | timestamptz | |
+
+Stored on platform database (`PLATFORM_DATABASE_URL` or fallback to `DATABASE_URL`).
+
+### platform_usage_logs
+
+Source: API usage tracking
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `key_id` | str | FK to platform_api_keys |
+| `endpoint` | str | |
+| `method` | str | HTTP method |
+| `status_code` | int | |
+| `response_time_ms` | float | |
+| `jurisdiction` | str | |
+| `timestamp` | timestamptz | |
+
+### operating_costs
+
+Source: Cost tracking instrumentation
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | serial | Primary key |
+| `service` | str | openai, modal, assemblyai, r2, supabase, google |
+| `category` | str | llm, compute, transcription, storage, database, geocoding |
+| `amount_dollars` | float | |
+| `metadata` | jsonb | Service-specific (model, tokens, function_name, gpu_type, etc.) |
+| `jurisdiction_id` | str | |
+| `recorded_at` | timestamptz | |
+
 ## Vector Embeddings
 
-All corpora are semantically indexed using OpenAI embeddings stored in pgvector (`vector_embeddings` table).
+All corpora are semantically indexed using OpenAI embeddings stored in pgvector (`vector_embeddings` table), **partitioned by `corpus_type`** using PostgreSQL LIST partitioning.
 
-| Corpus Type | Count | Enables |
+### Schema
+
+```sql
+CREATE TABLE vector_embeddings (
+    id TEXT PRIMARY KEY,
+    jurisdiction_id TEXT NOT NULL,
+    corpus_type TEXT NOT NULL,          -- Partition key
+    content TEXT NOT NULL,
+    embedding vector(768),              -- pgvector column
+    embedding_model TEXT DEFAULT 'unknown',
+    meeting_id TEXT,
+    meeting_title TEXT,
+    meeting_datetime TIMESTAMP,
+    metadata JSONB,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+) PARTITION BY LIST (corpus_type);
+```
+
+### Partitions
+
+Each corpus type has its own partition (15 total) with an independent HNSW index. This avoids contention during bulk inserts — only the target partition's index is affected.
+
+| Corpus Type | Count (as of March 2026) | Enables |
 |-------------|-------|---------|
 | `transcripts` | ~4,296 | `what_was_said()`, `get_public_testimony()` |
 | `chunks` | ~5,084 | PDF/agenda packet search |
@@ -268,5 +356,20 @@ All corpora are semantically indexed using OpenAI embeddings stored in pgvector 
 | `issues` | ~1,459 | Issue search |
 | `decisions` | ~44 | `what_happened()` semantic search |
 | `meetings` | ~46 | Meeting search |
+
+### HNSW Index Management
+
+Per-partition HNSW indexes use `m=16, ef_construction=64`. For bulk inserts, use deferred indexing:
+
+1. `drop_hnsw_index(corpus_type)` — Drop the partition's HNSW index
+2. Execute bulk inserts (no per-row HNSW maintenance)
+3. `rebuild_hnsw_index(corpus_type)` — Rebuild using session pooler (port 5432, required for SET commands)
+
+Rebuild sets `statement_timeout=30min`, `maintenance_work_mem=256MB`. Parallel rebuilds across partitions are safe (each uses a separate connection).
+
+### Connection Modes
+
+- **Transaction pooler** (port 6543): Default for queries. Does not support SET statements.
+- **Session pooler** (port 5432): Required for DDL and SET commands (index rebuild, maintenance_work_mem).
 
 Corpus types defined in `packages/civicos/src/civicos/storage/corpus_types.py`.
