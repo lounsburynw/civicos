@@ -3665,6 +3665,7 @@ class PostgresBackend:
             import uuid
             count = 0
             sections_to_close = []  # section_numbers whose content changed
+            sections_to_insert = []  # (sn, section) pairs to insert
 
             for sn, section in incoming_by_number.items():
                 new_text = section.get('full_text', '')
@@ -3674,8 +3675,22 @@ class PostgresBackend:
                         continue  # Content unchanged — skip
                     # Content changed — close old version, insert new
                     sections_to_close.append(sn)
-                # New section or changed content — insert
+                sections_to_insert.append((sn, section))
 
+            # Close old versions BEFORE inserting new ones to avoid
+            # the UPDATE matching newly-inserted rows (valid_to = valid_from
+            # violates the CHECK constraint: valid_to > valid_from)
+            if sections_to_close:
+                cursor.execute("""
+                    UPDATE municipal_code
+                    SET valid_to = %s
+                    WHERE jurisdiction_id = %s
+                      AND valid_to IS NULL
+                      AND section_number = ANY(%s)
+                """, (as_of.isoformat(), jurisdiction_id, sections_to_close))
+
+            # Now insert new versions
+            for sn, section in sections_to_insert:
                 section_id = str(uuid.uuid4())
                 cursor.execute("""
                     INSERT INTO municipal_code (
@@ -3689,7 +3704,7 @@ class PostgresBackend:
                     jurisdiction_id,
                     sn,
                     section.get('section_title', ''),
-                    new_text,
+                    section.get('full_text', ''),
                     section.get('chapter', ''),
                     section.get('chapter_title'),
                     section.get('title_number'),
@@ -3702,16 +3717,6 @@ class PostgresBackend:
                     section.get('extraction_version'),
                 ))
                 count += 1
-
-            # Close old versions only for sections that actually changed
-            if sections_to_close:
-                cursor.execute("""
-                    UPDATE municipal_code
-                    SET valid_to = %s
-                    WHERE jurisdiction_id = %s
-                      AND valid_to IS NULL
-                      AND section_number = ANY(%s)
-                """, (as_of.isoformat(), jurisdiction_id, sections_to_close))
 
             # Close sections that were removed from source (no longer in Municode)
             removed_sections = set(current_by_number.keys()) - set(incoming_by_number.keys())
@@ -8420,43 +8425,97 @@ class PostgresBackend:
                 if p.get("program_id") and p.get("program_name")
             ]
 
-            # Close previous versions for these program_ids
-            program_ids = [p.get("program_id") for p in valid_programs]
-            if program_ids:
-                for i in range(0, len(program_ids), 1000):
-                    chunk = program_ids[i:i + 1000]
-                    placeholders = ",".join(["%s"] * len(chunk))
-                    cursor.execute(f"""
+            # Build lookup of incoming programs by program_id
+            incoming_by_id = {}
+            for prog in valid_programs:
+                pid = prog.get("program_id")
+                if pid:
+                    incoming_by_id[pid] = prog
+
+            # Fetch current versions to detect actual changes
+            cursor.execute("""
+                SELECT program_id, program_name, description, topic,
+                       cfda_number, official_url, verification_status
+                FROM federal_programs
+                WHERE valid_to IS NULL
+                  AND program_id = ANY(%s)
+            """, (list(incoming_by_id.keys()),))
+            current_rows = cursor.fetchall()
+
+            # Index current programs by program_id
+            current_by_id: dict = {}
+            for row in current_rows:
+                pid = row[0]
+                if pid not in current_by_id:
+                    current_by_id[pid] = {
+                        "program_name": row[1] or "",
+                        "description": row[2] or "",
+                        "topic": row[3] or "",
+                        "cfda_number": row[4] or "",
+                        "official_url": row[5] or "",
+                        "verification_status": row[6] or "",
+                    }
+
+            # Determine which programs are new or changed
+            programs_to_close = []
+            programs_to_insert = []
+            unchanged_count = 0
+
+            for pid, prog in incoming_by_id.items():
+                if pid in current_by_id:
+                    existing = current_by_id[pid]
+                    # Compare key fields for changes
+                    if (prog.get("program_name", "") == existing["program_name"]
+                            and (prog.get("description") or "") == existing["description"]
+                            and (prog.get("topic") or "") == existing["topic"]
+                            and (prog.get("cfda_number") or "") == existing["cfda_number"]
+                            and (prog.get("official_url") or "") == existing["official_url"]
+                            and prog.get("verification_status", "DRAFT") == existing["verification_status"]):
+                        unchanged_count += 1
+                        continue  # Content unchanged — skip
+                    programs_to_close.append(pid)
+                programs_to_insert.append(prog)
+
+            if unchanged_count:
+                logger.info(f"Federal programs: {unchanged_count} unchanged, "
+                            f"{len(programs_to_close)} changed, "
+                            f"{len(programs_to_insert) - len(programs_to_close)} new")
+
+            # Close old versions BEFORE inserting new ones
+            if programs_to_close:
+                for i in range(0, len(programs_to_close), 1000):
+                    chunk = programs_to_close[i:i + 1000]
+                    cursor.execute("""
                         UPDATE federal_programs
                         SET valid_to = %s
-                        WHERE program_id IN ({placeholders})
+                        WHERE program_id = ANY(%s)
                           AND valid_to IS NULL
-                    """, [as_of_str] + chunk)
+                    """, (as_of_str, chunk))
 
-            # Insert new versions
-            values = []
-            for prog in valid_programs:
-                values.append((
-                    prog.get("program_id"),
-                    prog.get("program_name"),
-                    prog.get("administering_agency", "Unknown"),
-                    prog.get("description"),
-                    prog.get("topic"),
-                    prog.get("cfda_number"),
-                    json.dumps(prog.get("eligible_activities")) if prog.get("eligible_activities") else None,
-                    json.dumps(prog.get("compliance_requirements")) if prog.get("compliance_requirements") else None,
-                    json.dumps(prog.get("citizen_participation")) if prog.get("citizen_participation") else None,
-                    json.dumps(prog.get("keywords")) if prog.get("keywords") else None,
-                    json.dumps(prog.get("key_contacts")) if prog.get("key_contacts") else None,
-                    prog.get("official_url"),
-                    prog.get("source_url"),
-                    prog.get("verification_status", "DRAFT"),
-                    json.dumps(prog.get("data_sources")) if prog.get("data_sources") else None,
-                    as_of_str,
-                    as_of_str,
-                ))
+            # Insert new/changed versions
+            if programs_to_insert:
+                values = []
+                for prog in programs_to_insert:
+                    values.append((
+                        prog.get("program_id"),
+                        prog.get("program_name"),
+                        prog.get("administering_agency", "Unknown"),
+                        prog.get("description"),
+                        prog.get("topic"),
+                        prog.get("cfda_number"),
+                        json.dumps(prog.get("eligible_activities")) if prog.get("eligible_activities") else None,
+                        json.dumps(prog.get("compliance_requirements")) if prog.get("compliance_requirements") else None,
+                        json.dumps(prog.get("citizen_participation")) if prog.get("citizen_participation") else None,
+                        json.dumps(prog.get("keywords")) if prog.get("keywords") else None,
+                        json.dumps(prog.get("key_contacts")) if prog.get("key_contacts") else None,
+                        prog.get("official_url"),
+                        prog.get("source_url"),
+                        prog.get("verification_status", "DRAFT"),
+                        json.dumps(prog.get("data_sources")) if prog.get("data_sources") else None,
+                        as_of_str,
+                        as_of_str,
+                    ))
 
-            if values:
                 psycopg2.extras.execute_values(
                     cursor,
                     """
@@ -8475,7 +8534,7 @@ class PostgresBackend:
                 )
 
             conn.commit()
-            return len(valid_programs)
+            return len(programs_to_insert)
 
         except Exception:
             conn.rollback()
