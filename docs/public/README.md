@@ -106,6 +106,8 @@ npm install && npm run dev
 
 ## Links
 
+- [Quick start for builders](quickstart-api.md) — zero to querying civic data in 10 minutes
+- [Operator guide](operator-guide.md) — run your own CivicOS instance
 - [Extension setup](extension/setup.md)
 - [Extension development](extension/development.md)
 - [MCP server setup](mcp/setup.md)
