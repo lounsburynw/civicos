@@ -1,6 +1,6 @@
 # MCP Server Setup
 
-The CivicOS MCP server exposes 40+ civic data tools for AI assistants like Claude and ChatGPT.
+The CivicOS MCP server exposes 50+ civic data tools for AI assistants like Claude and ChatGPT.
 
 ## Connect to Claude Desktop
 
@@ -74,6 +74,15 @@ Add to your Claude Desktop config (`~/Library/Application Support/Claude/claude_
 - `get_started` — Welcome overview for new users
 - `get_comment_guidelines` — Jurisdiction-specific public comment guidelines
 - `get_comment_template` — Comment templates
+
+### Admin (5 tools) — requires `_admin_token`
+- `admin_data_status` — Corpus counts, vector coverage, indexing gaps
+- `admin_vector_coverage` — Embedding coverage by corpus type
+- `admin_system_health` — Backend connectivity status
+- `admin_cost_dashboard` — Operating costs by service/time
+- `manage_api_keys` — Create, list, revoke API keys
+
+Admin tools require an `_admin_token` argument validated against the server's `CIVICOS_ADMIN_TOKEN` environment variable. These tools are available at all jurisdiction levels (federal, state, county, city).
 
 ## Federation
 

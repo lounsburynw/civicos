@@ -9,7 +9,7 @@ Usage:
     Open WebUI can import tools via the /openapi.json spec.
 """
 
-from typing import Optional, Any
+from typing import Literal, Optional, Any
 from pydantic import BaseModel, Field
 import json
 
@@ -128,9 +128,10 @@ class CommentSynthesisRequest(BaseModel):
 
 
 class CreateKeyRequest(BaseModel):
-    """Request to create a free-tier API key."""
+    """Request to create an API key (free or builder tier)."""
     name: str = Field(..., description="Name or organization (e.g., 'Marin IJ Newsroom')", min_length=2, max_length=200)
     email: str = Field(..., description="Contact email", min_length=5, max_length=254)
+    tier: Literal["free", "builder"] = Field(default="free", description="Access tier: 'free' for read-only, 'builder' for participation tools")
 
 
 class CreateKeyResponse(BaseModel):
@@ -164,9 +165,10 @@ def create_rest_router(registry, civic, jurisdiction, validate_input, logger):
     Returns:
         FastAPI APIRouter
     """
-    from fastapi import APIRouter, Depends, HTTPException
+    from fastapi import APIRouter, Depends, HTTPException, Request
 
     from api_key_middleware import require_api_key_or_rate_limit
+    from civicos_services.core.api_keys import get_allowed_tools, min_tier_for_tool, resolve_tier
 
     router = APIRouter(
         prefix="/api/tools",
@@ -186,8 +188,18 @@ def create_rest_router(registry, civic, jurisdiction, validate_input, logger):
             for t in registry.list_tools()
         ]
 
-    def call_tool_safe(name: str, args: dict) -> dict:
-        """Call a tool and return parsed JSON response."""
+    def call_tool_safe(name: str, args: dict, request: Request) -> dict:
+        """Call a tool and return parsed JSON response, with tier enforcement."""
+        # Tier-based access check
+        tier = getattr(request.state, "auth_tier", "open")
+        allowed = get_allowed_tools(tier)
+        if name not in allowed:
+            required = min_tier_for_tool(name)
+            raise HTTPException(
+                status_code=403,
+                detail=f"Tool '{name}' requires '{required}' tier (current: '{tier}'). Register at POST /api/register",
+            )
+
         try:
             result = registry.call_tool(name, args)
             # Result is already JSON string from handler wrapper
@@ -206,8 +218,8 @@ def create_rest_router(registry, civic, jurisdiction, validate_input, logger):
     @router.post("/city-pulse", response_model=ToolResponse,
                  summary="Get structured civic data",
                  description="Get structured civic activity data as JSON. For city servers: meetings, decisions, issues. For state/federal: legislation and leverage points.")
-    async def city_pulse(request: CityPulseRequest):
-        data = call_tool_safe("city_pulse", request.model_dump())
+    async def city_pulse(request: Request, body: CityPulseRequest):
+        data = call_tool_safe("city_pulse", body.model_dump(), request)
         # Include relay URL so clients can auto-discover coordination endpoints
         if isinstance(data, dict) and "relay_url" not in data:
             from civicos.registry import get_relay_url
@@ -217,106 +229,106 @@ def create_rest_router(registry, civic, jurisdiction, validate_input, logger):
     @router.post("/search-meeting-history", response_model=ToolResponse,
                  summary="Search meeting history",
                  description="Search past city council meetings and decisions on a topic.")
-    async def search_meeting_history(request: SearchMeetingHistoryRequest):
-        data = call_tool_safe("search_meeting_history", request.model_dump())
+    async def search_meeting_history(request: Request, body: SearchMeetingHistoryRequest):
+        data = call_tool_safe("search_meeting_history", body.model_dump(), request)
         return ToolResponse(data=data)
 
     @router.post("/get-upcoming-meetings", response_model=ToolResponse,
                  summary="Get upcoming meetings",
                  description="Get upcoming city council meetings and agenda items.")
-    async def get_upcoming_meetings(request: GetUpcomingMeetingsRequest):
-        data = call_tool_safe("get_upcoming_meetings", request.model_dump())
+    async def get_upcoming_meetings(request: Request, body: GetUpcomingMeetingsRequest):
+        data = call_tool_safe("get_upcoming_meetings", body.model_dump(), request)
         return ToolResponse(data=data)
 
     @router.post("/find-similar-issues", response_model=ToolResponse,
                  summary="Find similar community issues",
                  description="Find community issues related to a topic via 311/SeeClickFix.")
-    async def find_similar_issues(request: FindSimilarIssuesRequest):
-        data = call_tool_safe("find_similar_issues", request.model_dump())
+    async def find_similar_issues(request: Request, body: FindSimilarIssuesRequest):
+        data = call_tool_safe("find_similar_issues", body.model_dump(), request)
         return ToolResponse(data=data)
 
     @router.post("/search-regulatory-stack", response_model=ToolResponse,
                  summary="Search regulatory stack",
                  description="Search relevant laws and regulations across local, state, and federal levels.")
-    async def search_regulatory_stack(request: SearchRegulatoryStackRequest):
-        data = call_tool_safe("search_regulatory_stack", request.model_dump())
+    async def search_regulatory_stack(request: Request, body: SearchRegulatoryStackRequest):
+        data = call_tool_safe("search_regulatory_stack", body.model_dump(), request)
         return ToolResponse(data=data)
 
     @router.post("/compose-public-comment", response_model=ToolResponse,
                  summary="Get context for public comment",
                  description="Get context for writing a public comment on a civic agenda item.")
-    async def compose_public_comment(request: ComposePublicCommentRequest):
-        data = call_tool_safe("compose_public_comment", request.model_dump(exclude_none=True))
+    async def compose_public_comment(request: Request, body: ComposePublicCommentRequest):
+        data = call_tool_safe("compose_public_comment", body.model_dump(exclude_none=True), request)
         return ToolResponse(data=data)
 
     @router.post("/get-public-testimony", response_model=ToolResponse,
                  summary="Get public testimony",
                  description="Get public testimony excerpts on a topic from meeting transcripts.")
-    async def get_public_testimony(request: GetPublicTestimonyRequest):
-        data = call_tool_safe("get_public_testimony", request.model_dump())
+    async def get_public_testimony(request: Request, body: GetPublicTestimonyRequest):
+        data = call_tool_safe("get_public_testimony", body.model_dump(), request)
         return ToolResponse(data=data)
 
     @router.post("/search-agenda-packets", response_model=ToolResponse,
                  summary="Search agenda packets",
                  description="Search agenda packets and staff reports.")
-    async def search_agenda_packets(request: SearchAgendaPacketsRequest):
-        data = call_tool_safe("search_agenda_packets", request.model_dump())
+    async def search_agenda_packets(request: Request, body: SearchAgendaPacketsRequest):
+        data = call_tool_safe("search_agenda_packets", body.model_dump(), request)
         return ToolResponse(data=data)
 
     @router.post("/search-budget", response_model=ToolResponse,
                  summary="Search city budget",
                  description="Search city budget data by department or category.")
-    async def search_budget(request: SearchBudgetRequest):
-        data = call_tool_safe("search_budget", request.model_dump(exclude_none=True))
+    async def search_budget(request: Request, body: SearchBudgetRequest):
+        data = call_tool_safe("search_budget", body.model_dump(exclude_none=True), request)
         return ToolResponse(data=data)
 
     @router.post("/search-legislation", response_model=ToolResponse,
                  summary="Search legislation",
                  description="Search state or federal legislation by topic, keyword, or status.")
-    async def search_legislation(request: SearchLegislationRequest):
-        data = call_tool_safe("search_legislation", request.model_dump(exclude_none=True))
+    async def search_legislation(request: Request, body: SearchLegislationRequest):
+        data = call_tool_safe("search_legislation", body.model_dump(exclude_none=True), request)
         return ToolResponse(data=data)
 
     @router.post("/geo-search-issues", response_model=ToolResponse,
                  summary="Geographic issue search",
                  description="Search 311 issues by geographic area (street, neighborhood).")
-    async def geo_search_issues(request: GeoSearchIssuesRequest):
-        data = call_tool_safe("geo_search_issues", request.model_dump(exclude_none=True))
+    async def geo_search_issues(request: Request, body: GeoSearchIssuesRequest):
+        data = call_tool_safe("geo_search_issues", body.model_dump(exclude_none=True), request)
         return ToolResponse(data=data)
 
     @router.post("/neighborhood-report", response_model=ToolResponse,
                  summary="Generate neighborhood report",
                  description="Generate a comprehensive report for a neighborhood.")
-    async def neighborhood_report(request: NeighborhoodReportRequest):
-        data = call_tool_safe("neighborhood_report", request.model_dump())
+    async def neighborhood_report(request: Request, body: NeighborhoodReportRequest):
+        data = call_tool_safe("neighborhood_report", body.model_dump(), request)
         return ToolResponse(data=data)
 
     @router.post("/get-decision-context", response_model=ToolResponse,
                  summary="Get decision context",
                  description="Get decisions with linked transcript excerpts showing what was discussed.")
-    async def get_decision_context(request: GetDecisionContextRequest):
-        data = call_tool_safe("get_decision_context", request.model_dump())
+    async def get_decision_context(request: Request, body: GetDecisionContextRequest):
+        data = call_tool_safe("get_decision_context", body.model_dump(), request)
         return ToolResponse(data=data)
 
     @router.post("/decision-detail", response_model=ToolResponse,
                  summary="Get decision detail",
                  description="Get structured detail for a specific decision including testimony and related decisions. For dashboard expansion.")
-    async def decision_detail(request: DecisionDetailRequest):
-        data = call_tool_safe("decision_detail", request.model_dump())
+    async def decision_detail(request: Request, body: DecisionDetailRequest):
+        data = call_tool_safe("decision_detail", body.model_dump(), request)
         return ToolResponse(data=data)
 
     @router.get("/get-started", response_model=ToolResponse,
                 summary="Welcome overview for new users",
                 description="Get a friendly welcome overview for new users. Returns formatted text with upcoming meetings, recent decisions, and suggestions for what to explore. Use when users first arrive or ask general questions like 'what can you help with?' or 'what's going on?'")
-    async def get_started():
-        data = call_tool_safe("get_started", {})
+    async def get_started(request: Request):
+        data = call_tool_safe("get_started", {}, request)
         return ToolResponse(data=data)
 
     @router.get("/get-comment-guidelines", response_model=ToolResponse,
                 summary="Get comment guidelines",
                 description="Get public comment guidelines and submission information.")
-    async def get_comment_guidelines(jurisdiction: str = "san-rafael"):
-        data = call_tool_safe("get_comment_guidelines", {"jurisdiction": jurisdiction})
+    async def get_comment_guidelines(request: Request, jurisdiction: str = "san-rafael"):
+        data = call_tool_safe("get_comment_guidelines", {"jurisdiction": jurisdiction}, request)
         return ToolResponse(data=data)
 
     @router.get("/issue-geography", response_model=ToolResponse,
@@ -436,7 +448,7 @@ def create_rest_router(registry, civic, jurisdiction, validate_input, logger):
     @router.post("/get-item-context", response_model=ToolResponse,
                  summary="Get comprehensive context for a civic item",
                  description="Assemble history, regulatory, community, financial, testimony, and participation context for any civic item. Returns a structured bundle suitable for LLM conversations.")
-    async def get_item_context(request: GetItemContextRequest):
+    async def get_item_context(request: Request, body: GetItemContextRequest):
         from civicos_services.context import (
             assemble_context,
             ItemNotFoundError,
@@ -447,26 +459,26 @@ def create_rest_router(registry, civic, jurisdiction, validate_input, logger):
 
         # Validate item_type
         try:
-            item_type = ItemType(request.item_type)
+            item_type = ItemType(body.item_type)
         except ValueError:
             valid = ", ".join(t.value for t in ItemType)
-            raise HTTPException(status_code=422, detail=f"Invalid item_type '{request.item_type}'. Valid: {valid}")
+            raise HTTPException(status_code=422, detail=f"Invalid item_type '{body.item_type}'. Valid: {valid}")
 
         # Parse depth
         try:
-            depth = ContextDepth(request.depth)
+            depth = ContextDepth(body.depth)
         except ValueError:
             depth = ContextDepth.standard
 
         # Parse sections
         sections = None
-        if request.sections:
-            sections = set(s.strip() for s in request.sections.split(",") if s.strip())
+        if body.sections:
+            sections = set(s.strip() for s in body.sections.split(",") if s.strip())
 
         try:
             bundle = await assemble_context(
                 item_type=item_type,
-                item_id=request.item_id,
+                item_id=body.item_id,
                 jurisdiction=jurisdiction,
                 sections=sections,
                 depth=depth,
@@ -481,7 +493,7 @@ def create_rest_router(registry, civic, jurisdiction, validate_input, logger):
     @router.post("/comment-synthesis", response_model=ToolResponse,
                   summary="Comment synthesis for an entity",
                   description="Aggregate public comments for an entity: total count, stance breakdown, and comment texts. No LLM — pure data aggregation for edge AI synthesis.")
-    async def comment_synthesis(request: CommentSynthesisRequest):
+    async def comment_synthesis(request: Request, body: CommentSynthesisRequest):
         import httpx
         import os
 
@@ -495,7 +507,7 @@ def create_rest_router(registry, civic, jurisdiction, validate_input, logger):
             else:
                 relay_url = "https://san-rafael.civicosproject.org/relay"
         relay_url = relay_url.rstrip("/")
-        entity_id = request.entity_id
+        entity_id = body.entity_id
 
         try:
             async with httpx.AsyncClient(timeout=10.0) as client:
@@ -543,14 +555,14 @@ def create_rest_router(registry, civic, jurisdiction, validate_input, logger):
     @router.post("/action-draft", response_model=ToolResponse,
                   summary="Generate AI draft for a civic action",
                   description="Generate a contextual draft (comment, speaking points, or email) for a civic action using RAG context from meetings, decisions, and legislation.")
-    async def action_draft(request: ActionDraftRequest):
+    async def action_draft(request: Request, body: ActionDraftRequest):
         try:
             result = civic.draft_action(
-                action_type=request.action_type,
-                topic=request.topic,
-                description=request.description,
-                target=request.target,
-                template=request.template,
+                action_type=body.action_type,
+                topic=body.topic,
+                description=body.description,
+                target=body.target,
+                template=body.template,
             )
             return ToolResponse(data={
                 "draft": result.draft,
@@ -568,21 +580,14 @@ def create_rest_router(registry, civic, jurisdiction, validate_input, logger):
     return router
 
 
-def create_keys_router(logger):
-    """
-    Create a FastAPI router for self-serve API key provisioning.
-
-    Separate from the tools router — no API key required to create a key.
-    Rate limited to 5 signups per hour per IP to prevent abuse.
-    """
+def _create_key_handler(logger):
+    """Shared handler logic for key provisioning (used by both /api/keys and /api/register)."""
     import re
     import time
     from collections import defaultdict
-    from fastapi import APIRouter, HTTPException, Request
+    from fastapi import HTTPException, Request
 
     from civicos_services.core.api_keys import ApiKeyStore, TIER_CONFIG
-
-    router = APIRouter(prefix="/api/keys", tags=["API Keys"])
 
     # Signup rate limiter: 5 per hour per IP
     _signup_timestamps: dict[str, list[float]] = defaultdict(list)
@@ -603,13 +608,7 @@ def create_keys_router(logger):
 
     EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
-    @router.post(
-        "/",
-        response_model=CreateKeyResponse,
-        summary="Create a free-tier API key",
-        description="Self-serve key provisioning. Returns the raw key once — save it immediately.",
-    )
-    async def create_key(request: Request, body: CreateKeyRequest):
+    async def handler(request: Request, body: CreateKeyRequest) -> CreateKeyResponse:
         # Rate limit by IP
         client_ip = request.client.host if request.client else "unknown"
         _check_signup_rate(client_ip)
@@ -625,10 +624,11 @@ def create_keys_router(logger):
                 detail="Key provisioning is temporarily unavailable.",
             )
 
+        tier = body.tier
         result = store.create_key(
             name=body.name,
             email=body.email,
-            tier="free",
+            tier=tier,
         )
         if result is None:
             raise HTTPException(
@@ -637,14 +637,61 @@ def create_keys_router(logger):
             )
 
         key_id, raw_key = result
-        rate_limit = TIER_CONFIG["free"]["rate_limit_per_minute"]
-        logger.info("Self-serve key created: %s for %s", key_id, body.email)
+        rate_limit = TIER_CONFIG.get(tier, TIER_CONFIG["free"])["rate_limit_per_minute"]
+        logger.info("Self-serve key created: %s for %s (tier=%s)", key_id, body.email, tier)
 
         return CreateKeyResponse(
             key_id=key_id,
             raw_key=raw_key,
-            tier="free",
+            tier=tier,
             rate_limit_per_minute=rate_limit,
         )
+
+    return handler
+
+
+def create_keys_router(logger):
+    """
+    Create a FastAPI router for self-serve API key provisioning at /api/keys.
+
+    Separate from the tools router — no API key required to create a key.
+    Rate limited to 5 signups per hour per IP to prevent abuse.
+    """
+    from fastapi import APIRouter
+
+    router = APIRouter(prefix="/api/keys", tags=["API Keys"])
+    handler = _create_key_handler(logger)
+
+    @router.post(
+        "/",
+        response_model=CreateKeyResponse,
+        summary="Create an API key",
+        description="Self-serve key provisioning (free or builder tier). Returns the raw key once — save it immediately.",
+    )
+    async def create_key(request, body: CreateKeyRequest):
+        return await handler(request, body)
+
+    return router
+
+
+def create_register_router(logger):
+    """
+    Create a FastAPI router for POST /api/register (alias for key provisioning).
+
+    Same handler as /api/keys but at the path referenced in the spec.
+    """
+    from fastapi import APIRouter
+
+    router = APIRouter(prefix="/api", tags=["Registration"])
+    handler = _create_key_handler(logger)
+
+    @router.post(
+        "/register",
+        response_model=CreateKeyResponse,
+        summary="Register for an API key",
+        description="Self-serve API key registration. Supports 'free' and 'builder' tiers. Returns the raw key once — save it immediately.",
+    )
+    async def register(request, body: CreateKeyRequest):
+        return await handler(request, body)
 
     return router

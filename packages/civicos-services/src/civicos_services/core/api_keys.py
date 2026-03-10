@@ -23,12 +23,85 @@ logger = logging.getLogger(__name__)
 
 # Tier configuration: rate limits and display names
 TIER_CONFIG = {
-    "free": {"rate_limit_per_minute": 60, "label": "Free"},
-    "journalist": {"rate_limit_per_minute": 120, "label": "Journalist"},
-    "organization": {"rate_limit_per_minute": 300, "label": "Organization"},
-    "city": {"rate_limit_per_minute": 600, "label": "City"},
-    "api": {"rate_limit_per_minute": 1000, "label": "API Access"},
+    "open":         {"rate_limit_per_minute": 30,   "label": "Open"},
+    "free":         {"rate_limit_per_minute": 60,   "label": "Free"},
+    "builder":      {"rate_limit_per_minute": 300,  "label": "Builder"},
+    "organization": {"rate_limit_per_minute": 300,  "label": "Organization"},
+    "city":         {"rate_limit_per_minute": 600,  "label": "City"},
+    "admin":        {"rate_limit_per_minute": 1000, "label": "Admin"},
+    # Legacy aliases (existing keys in DB)
+    "journalist":   {"rate_limit_per_minute": 120,  "label": "Journalist", "alias_of": "builder"},
+    "api":          {"rate_limit_per_minute": 1000, "label": "API Access", "alias_of": "admin"},
 }
+
+# Tier ordering from least to most privileged
+TIER_ORDER = ["open", "free", "builder", "organization", "city", "admin"]
+
+# Tools available at each tier (cumulative — higher tiers inherit lower)
+TIER_TOOLS: dict[str, set[str]] = {
+    "open": {
+        "city_pulse", "get_started", "get_voice_counts",
+        "list_relays", "list_initiatives", "data_provenance",
+    },
+    "free": {
+        # Core read-only civic data
+        "search_meeting_history", "get_upcoming_meetings",
+        "find_similar_issues", "search_regulatory_stack",
+        "search_legislation", "get_bill_detail", "search_budget",
+        "get_issue_analytics", "get_issue_trends", "detect_trends",
+        "geo_search_issues", "query_issue_data", "get_issue_resolution_stats",
+        "get_issue_sample", "find_issues_near_address", "find_repeat_issues",
+        "get_seasonal_patterns", "compare_zip_codes",
+        "get_voting_record", "decision_detail",
+        "search_executive_orders", "get_recent_executive_orders",
+        "get_leverage_points",
+        "get_open_comment_periods", "search_federal_rules",
+        "get_upcoming_hearings", "get_governors_desk",
+        "get_funding_flow", "get_federal_expenditures", "get_intergovernmental_revenue",
+        "get_comment_guidelines", "get_comment_template",
+    },
+    "builder": {
+        # Participation and write tools
+        "get_public_testimony", "search_agenda_packets",
+        "compose_public_comment", "get_decision_context",
+        "prepare_for_meeting", "neighborhood_report",
+        "prepare_voice", "broadcast_voice",
+        "subscribe_to_topic",
+        "prepare_initiative", "broadcast_initiative",
+        "get_item_context",
+    },
+    "organization": set(),  # Same as builder (inherits)
+    "city": set(),  # Same as organization (inherits)
+    "admin": {
+        "admin_data_status", "admin_vector_coverage",
+        "admin_system_health", "admin_cost_dashboard", "manage_api_keys",
+    },
+}
+
+
+def resolve_tier(tier: str) -> str:
+    """Resolve legacy tier names to current names."""
+    return TIER_CONFIG.get(tier, {}).get("alias_of", tier)
+
+
+def get_allowed_tools(tier: str) -> set[str]:
+    """Return all tools accessible at the given tier (cumulative)."""
+    resolved = resolve_tier(tier)
+    if resolved not in TIER_ORDER:
+        resolved = "open"
+    idx = TIER_ORDER.index(resolved)
+    allowed: set[str] = set()
+    for t in TIER_ORDER[:idx + 1]:
+        allowed |= TIER_TOOLS.get(t, set())
+    return allowed
+
+
+def min_tier_for_tool(tool_name: str) -> str:
+    """Return the minimum tier required to access a tool."""
+    for tier in TIER_ORDER:
+        if tool_name in TIER_TOOLS.get(tier, set()):
+            return tier
+    return "admin"  # Unknown tools require admin
 
 
 @dataclass
