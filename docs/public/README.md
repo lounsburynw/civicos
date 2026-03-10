@@ -107,6 +107,7 @@ npm install && npm run dev
 ## Links
 
 - [Quick start for builders](quickstart-api.md) — zero to querying civic data in 10 minutes
+- [Building agents](building-agents.md) — build AI agents on CivicOS (read, write, patterns)
 - [Operator guide](operator-guide.md) — run your own CivicOS instance
 - [Extension setup](extension/setup.md)
 - [Extension development](extension/development.md)

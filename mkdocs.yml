@@ -79,6 +79,7 @@ nav:
   - Home:
     - Overview: index.md
     - Quick Start: public/quickstart-api.md
+    - Building Agents: public/building-agents.md
 
   - Operators:
     - Guide: public/operator-guide.md
