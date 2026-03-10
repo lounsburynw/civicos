@@ -601,7 +601,7 @@ TOOL_DEFINITIONS: dict[str, ToolDefinition] = {
     },
     # === Initiative Tools ===
     "prepare_initiative": {
-        "description": "Prepare an initiative (focal point for coordination) for signing. Returns the exact message to sign with your ECDSA P-256 private key. This is step 1 of creating an initiative.",
+        "description": "Prepare an initiative (focal point for coordination) for signing. Returns the exact message to sign with your secp256k1 Schnorr (BIP-340) private key. This is step 1 of creating an initiative.",
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -648,7 +648,7 @@ TOOL_DEFINITIONS: dict[str, ToolDefinition] = {
                 },
                 "public_key": {
                     "type": "string",
-                    "description": "Your public key (hex-encoded, compressed ECDSA P-256)",
+                    "description": "Your public key (hex-encoded, 32-byte x-only secp256k1 Schnorr BIP-340)",
                 },
                 "signature": {
                     "type": "string",

@@ -61,13 +61,10 @@ TIER_TOOLS: dict[str, set[str]] = {
         "get_comment_guidelines", "get_comment_template",
     },
     "builder": {
-        # Participation and write tools
+        # Participation tools (write tools removed — writes go through relay)
         "get_public_testimony", "search_agenda_packets",
         "compose_public_comment", "get_decision_context",
         "prepare_for_meeting", "neighborhood_report",
-        "prepare_voice", "broadcast_voice",
-        "subscribe_to_topic",
-        "prepare_initiative", "broadcast_initiative",
         "get_item_context",
     },
     "organization": set(),  # Same as builder (inherits)
