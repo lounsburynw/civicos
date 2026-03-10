@@ -334,6 +334,7 @@ class InMemoryActionStorage:
                 public_key=old.public_key,
                 signature=old.signature,
                 timestamp=old.timestamp,
+                created_at=old.created_at,
                 evidence_url=old.evidence_url,
                 revoked=True,
             )

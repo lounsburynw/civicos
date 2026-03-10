@@ -2,6 +2,7 @@
 
 import logging
 import os
+import time
 from contextlib import asynccontextmanager
 from typing import Optional
 
@@ -49,6 +50,7 @@ class CommitActionRequest(BaseModel):
     action_id: str
     public_key: str
     signature: str
+    created_at: int = Field(description="Unix timestamp from the signed Nostr event")
 
 
 class CompleteActionRequest(BaseModel):
@@ -56,6 +58,7 @@ class CompleteActionRequest(BaseModel):
     action_id: str
     public_key: str
     signature: str
+    created_at: int = Field(description="Unix timestamp from the signed Nostr event")
     evidence_url: Optional[str] = None
 
 
@@ -281,6 +284,20 @@ async def lifespan(app: FastAPI):
     logger.info("Relay stopped")
 
 
+_CLOCK_SKEW_TOLERANCE = 300  # 5 minutes
+
+
+def _check_created_at(created_at: int) -> None:
+    """Reject writes with timestamps too far from server time (clock skew protection)."""
+    now = int(time.time())
+    drift = abs(now - created_at)
+    if drift > _CLOCK_SKEW_TOLERANCE:
+        raise HTTPException(
+            status_code=400,
+            detail=f"created_at timestamp is {drift}s from server time (max {_CLOCK_SKEW_TOLERANCE}s)",
+        )
+
+
 def _check_acceptance(event_type: str, public_key: str, entity: str,
                       attestation_proof=None, payment_proof=None):
     """Check acceptance policy for a write event. No-op if policy is disabled."""
@@ -324,6 +341,8 @@ def create_app() -> FastAPI:
         provenance_service: ProvenanceService = Depends(get_provenance_service),
     ):
         """Cast a voice on an entity."""
+        _check_created_at(request.created_at)
+
         # Create voice from signed Nostr event fields
         voice = Voice(
             entity=request.entity,
@@ -376,12 +395,15 @@ def create_app() -> FastAPI:
         action_service: ActionService = Depends(get_action_service),
     ):
         """Commit to taking a civic action."""
+        _check_created_at(request.created_at)
+
         # Create action from request
         action = Action(
             action_id=request.action_id,
             action_type=ActionType.COMMITMENT,
             public_key=request.public_key,
             signature=request.signature,
+            created_at=request.created_at,
         )
 
         # Verify signature
@@ -393,6 +415,7 @@ def create_app() -> FastAPI:
             action_id=request.action_id,
             public_key=request.public_key,
             signature=request.signature,
+            created_at=request.created_at,
         )
 
     @router.post("/action/complete", response_model=Action)
@@ -401,12 +424,15 @@ def create_app() -> FastAPI:
         action_service: ActionService = Depends(get_action_service),
     ):
         """Mark a civic action as completed."""
+        _check_created_at(request.created_at)
+
         # Create action from request
         action = Action(
             action_id=request.action_id,
             action_type=ActionType.COMPLETION,
             public_key=request.public_key,
             signature=request.signature,
+            created_at=request.created_at,
             evidence_url=request.evidence_url,
         )
 
@@ -419,6 +445,7 @@ def create_app() -> FastAPI:
             action_id=request.action_id,
             public_key=request.public_key,
             signature=request.signature,
+            created_at=request.created_at,
             evidence_url=request.evidence_url,
         )
 
@@ -454,6 +481,8 @@ def create_app() -> FastAPI:
         comment_storage=Depends(get_comment_storage),
     ):
         """Submit a signed public comment on an entity."""
+        _check_created_at(request.created_at)
+
         comment = Comment(
             entity=request.entity,
             comment_text=request.comment_text,
@@ -568,6 +597,8 @@ def create_app() -> FastAPI:
         initiative_storage=Depends(get_initiative_storage),
     ):
         """Create a community initiative (signed by creator)."""
+        _check_created_at(request.created_at)
+
         import hashlib
         from datetime import datetime
 
@@ -633,6 +664,8 @@ def create_app() -> FastAPI:
         civic_service: CivicActionService = Depends(get_civic_action_service),
     ):
         """Create a civic action (Kind 30810)."""
+        _check_created_at(request.created_at)
+
         from datetime import datetime
 
         if not verify_action_event(
@@ -690,6 +723,8 @@ def create_app() -> FastAPI:
         civic_service: CivicActionService = Depends(get_civic_action_service),
     ):
         """Commit to a civic action (Kind 30811)."""
+        _check_created_at(request.created_at)
+
         if not verify_commitment(
             request.public_key, request.signature,
             action_id, request.jurisdiction, request.created_at,
@@ -715,6 +750,8 @@ def create_app() -> FastAPI:
         civic_service: CivicActionService = Depends(get_civic_action_service),
     ):
         """Complete a civic action (Kind 30812)."""
+        _check_created_at(request.created_at)
+
         if not verify_completion(
             request.public_key, request.signature,
             action_id, request.jurisdiction, request.created_at,
@@ -741,6 +778,8 @@ def create_app() -> FastAPI:
         civic_service: CivicActionService = Depends(get_civic_action_service),
     ):
         """Withdraw commitment to a civic action."""
+        _check_created_at(request.created_at)
+
         if not verify_withdrawal(
             request.public_key, request.signature,
             action_id, request.created_at,
@@ -769,6 +808,8 @@ def create_app() -> FastAPI:
         attestation_service: AttestationService = Depends(get_attestation_service),
     ):
         """Redeem an attestation code."""
+        _check_created_at(request.created_at)
+
         try:
             attestation_event = attestation_service.redeem_code(
                 code=request.code,

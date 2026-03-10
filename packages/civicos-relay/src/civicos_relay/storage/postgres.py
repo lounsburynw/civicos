@@ -1020,10 +1020,10 @@ class PostgresActionStorage:
                 cur.execute(
                     """
                     INSERT INTO coordination_actions
-                    (action_id, action_type, public_key, signature, timestamp, evidence_url, revoked)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s)
+                    (action_id, action_type, public_key, signature, timestamp, evidence_url, revoked, created_at)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                     ON CONFLICT (public_key, action_id, action_type)
-                    DO UPDATE SET signature = %s, timestamp = %s, evidence_url = %s, revoked = %s
+                    DO UPDATE SET signature = %s, timestamp = %s, evidence_url = %s, revoked = %s, created_at = %s
                     """,
                     (
                         action.action_id,
@@ -1033,10 +1033,12 @@ class PostgresActionStorage:
                         action.timestamp,
                         action.evidence_url,
                         action.revoked,
+                        action.created_at,
                         action.signature,
                         action.timestamp,
                         action.evidence_url,
                         action.revoked,
+                        action.created_at,
                     ),
                 )
                 conn.commit()
@@ -1051,7 +1053,7 @@ class PostgresActionStorage:
             with conn.cursor() as cur:
                 cur.execute(
                     """
-                    SELECT action_id, action_type, public_key, signature, timestamp, evidence_url, revoked
+                    SELECT action_id, action_type, public_key, signature, timestamp, evidence_url, revoked, COALESCE(created_at, 0)
                     FROM coordination_actions
                     WHERE public_key = %s AND action_id = %s AND action_type = %s
                     """,
@@ -1067,6 +1069,7 @@ class PostgresActionStorage:
                         timestamp=row[4],
                         evidence_url=row[5],
                         revoked=row[6],
+                        created_at=row[7],
                     )
                 return None
         finally:
@@ -1080,7 +1083,7 @@ class PostgresActionStorage:
             with conn.cursor() as cur:
                 cur.execute(
                     """
-                    SELECT action_id, action_type, public_key, signature, timestamp, evidence_url, revoked
+                    SELECT action_id, action_type, public_key, signature, timestamp, evidence_url, revoked, COALESCE(created_at, 0)
                     FROM coordination_actions
                     WHERE action_id = %s AND revoked = FALSE
                     """,
@@ -1095,6 +1098,7 @@ class PostgresActionStorage:
                         timestamp=row[4],
                         evidence_url=row[5],
                         revoked=row[6],
+                        created_at=row[7],
                     )
                     for row in cur.fetchall()
                 ]
@@ -1109,7 +1113,7 @@ class PostgresActionStorage:
             with conn.cursor() as cur:
                 cur.execute(
                     """
-                    SELECT action_id, action_type, public_key, signature, timestamp, evidence_url, revoked
+                    SELECT action_id, action_type, public_key, signature, timestamp, evidence_url, revoked, COALESCE(created_at, 0)
                     FROM coordination_actions
                     WHERE action_id = %s AND action_type = 'commitment' AND revoked = FALSE
                     """,
@@ -1124,6 +1128,7 @@ class PostgresActionStorage:
                         timestamp=row[4],
                         evidence_url=row[5],
                         revoked=row[6],
+                        created_at=row[7],
                     )
                     for row in cur.fetchall()
                 ]
@@ -1138,7 +1143,7 @@ class PostgresActionStorage:
             with conn.cursor() as cur:
                 cur.execute(
                     """
-                    SELECT action_id, action_type, public_key, signature, timestamp, evidence_url, revoked
+                    SELECT action_id, action_type, public_key, signature, timestamp, evidence_url, revoked, COALESCE(created_at, 0)
                     FROM coordination_actions
                     WHERE action_id = %s AND action_type = 'completion' AND revoked = FALSE
                     """,
@@ -1153,6 +1158,7 @@ class PostgresActionStorage:
                         timestamp=row[4],
                         evidence_url=row[5],
                         revoked=row[6],
+                        created_at=row[7],
                     )
                     for row in cur.fetchall()
                 ]

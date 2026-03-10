@@ -91,12 +91,14 @@ class TestSyncService:
         sync = SyncService(identity, storage.sync, [])
 
         # Create voice with tampered signature
+        import time
         from civicos_relay.voice.models import Voice
         voice = Voice(
             entity="agenda:2026-02-03:item-6a",
             stance=Stance.SUPPORT,
             public_key="02" + "ab" * 32,  # Fake key
             signature="invalid",
+            created_at=int(time.time()),
         )
 
         request = VoiceImportRequest(
@@ -318,6 +320,7 @@ class TestSyncSignatureVerification:
             public_key=export.voices[0].public_key,
             signature=export.voices[0].signature,  # Original signature
             timestamp=export.voices[0].timestamp,
+            created_at=export.voices[0].created_at,
         )
 
         # Recompute data_hash with tampered voice (as import side would)
@@ -339,11 +342,13 @@ class TestSyncSignatureVerification:
         ) is True
 
         # Now add a fake voice to the list — hash changes
+        import time
         fake_voice = Voice(
             entity="agenda:fake",
             stance=Stance.SUPPORT,
             public_key="02" + "ab" * 32,
             signature="fakesig123",
+            created_at=int(time.time()),
         )
         injected_hash = hashlib.sha256(
             b"".join(v.signature.encode() for v in export.voices + [fake_voice])
