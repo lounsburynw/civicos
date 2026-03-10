@@ -161,6 +161,40 @@
     grid-column: 1 / -1;
   }
 
+  /* Data stats */
+  .cx-stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem;
+    max-width: 640px;
+    margin: 0 auto;
+  }
+  .cx-stat {
+    text-align: center;
+    padding: 0.75rem 0.5rem;
+  }
+  .cx-stat__num {
+    display: block;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--md-primary-fg-color);
+    line-height: 1.2;
+  }
+  .cx-stat__label {
+    font-size: 0.78rem;
+    opacity: 0.65;
+    line-height: 1.3;
+  }
+  .cx-stats-note {
+    text-align: center;
+    font-size: 0.78rem;
+    opacity: 0.5;
+    margin-top: 0.75rem;
+  }
+  @media (max-width: 600px) {
+    .cx-stats { grid-template-columns: repeat(2, 1fr); }
+  }
+
   /* Footer links */
   .cx-links {
     text-align: center;
@@ -267,6 +301,47 @@
     <img src="public/assets/extension-screenshot.png" alt="CivicOS browser extension showing San Rafael city council meetings and agenda items" loading="lazy">
     <div class="cx-screenshot__caption">The CivicOS extension — San Rafael pilot data</div>
   </div>
+</section>
+
+<hr class="cx-divider">
+
+<section class="cx-section">
+  <h2>San Rafael Pilot Data</h2>
+  <div class="cx-stats">
+    <div class="cx-stat">
+      <span class="cx-stat__num">98</span>
+      <span class="cx-stat__label">Meetings</span>
+    </div>
+    <div class="cx-stat">
+      <span class="cx-stat__num">5K</span>
+      <span class="cx-stat__label">Agenda pages</span>
+    </div>
+    <div class="cx-stat">
+      <span class="cx-stat__num">16K</span>
+      <span class="cx-stat__label">Municipal codes</span>
+    </div>
+    <div class="cx-stat">
+      <span class="cx-stat__num">17K</span>
+      <span class="cx-stat__label">Legislation</span>
+    </div>
+    <div class="cx-stat">
+      <span class="cx-stat__num">1.7K</span>
+      <span class="cx-stat__label">Community issues</span>
+    </div>
+    <div class="cx-stat">
+      <span class="cx-stat__num">19</span>
+      <span class="cx-stat__label">Transcripts</span>
+    </div>
+    <div class="cx-stat">
+      <span class="cx-stat__num">58</span>
+      <span class="cx-stat__label">Budget items</span>
+    </div>
+    <div class="cx-stat">
+      <span class="cx-stat__num">16K+</span>
+      <span class="cx-stat__label">Vector embeddings</span>
+    </div>
+  </div>
+  <p class="cx-stats-note">All data is public record, semantically indexed for natural language search.</p>
 </section>
 
 <hr class="cx-divider">

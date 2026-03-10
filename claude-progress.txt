@@ -1,3 +1,17 @@
+## Session 28 — 2026-03-09: Docs Landing Page + Checklist Cleanup
+
+**Items:** index_corpus_stats_update, gitignore_build_artifacts, learning_choose_your_path
+**Status:** Complete.
+
+### Changes
+- Added corpus stats section to MkDocs landing page (overrides/home.html) — shows 8 data categories (meetings, agenda pages, municipal codes, legislation, issues, transcripts, budget, embeddings) in a responsive grid
+- Marked gitignore_build_artifacts as ready (paths already in .gitignore)
+- Marked learning_choose_your_path as ready (section already existed in docs/public/learning/README.md)
+- Set operating_costs_reconcile as P0 for next session
+
+### Verification
+- MkDocs build succeeds, stats section renders in site/index.html
+
 ## Session 27 — 2026-03-05: Platform Billing Tables + Self-Serve Key Provisioning
 
 **Item:** API Key Infrastructure (handoff from Session 26)
