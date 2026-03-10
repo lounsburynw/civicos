@@ -19,8 +19,8 @@ Critical invariants:
 - `packages/civicos/src/civicos/storage/postgres_backend.py` - Schema definitions, store methods
 - `packages/civicos/src/civicos/storage/sqlite_backend.py` - Local schema mirror
 - `packages/civicos/src/civicos/diagnostics.py` - DataStatus, VectorCoverage utilities
-- `packages/civicos-extraction/src/civic_extraction/clients/*.py` - Platform clients with normalization
-- `packages/civicos-extraction/src/civic_extraction/meeting_schema.py` - Meeting validation
+- `packages/civicos-extraction/src/civicos_extraction/clients/*.py` - Platform clients with normalization
+- `packages/civicos-extraction/src/civicos_extraction/meeting_schema.py` - Meeting validation
 - `scripts/modal_ingest.py` - Cloud ingestion pipeline
 
 ## Schema Source of Truth
@@ -92,10 +92,10 @@ Temporal versioning requires:
 ### 5. Status Enum Values?
 
 Validate against allowed values:
-- Meetings: `scheduled`, `cancelled`, `postponed`, `completed`
+- Meetings: `scheduled`, `cancelled`, `postponed`, `completed` (not enforced by CHECK constraint — validate at ingestion)
 - Issues: `open`, `closed`, `acknowledged`
-- Decisions: `approved`, `denied`, `tabled`, `continued`
-- Legislation: `Active`, `Enacted`, `Failed`, `Vetoed`
+- Decisions: `approved`, `denied`, `continued`, `withdrawn`, `received`, `adopted`, `other`
+- Legislation: LegiScan status codes (e.g., `introduced`, `in_committee`, `passed_house`, `passed_both`, `enrolled`, `signed`, `vetoed`, `chaptered`, `dead`)
 
 ### 6. JSON Field Validity?
 
@@ -235,14 +235,14 @@ Output:
 
 ```python
 # BAD: Status not in allowed enum
-decision["outcome"] = "passed"  # Not in: approved, denied, tabled, continued
+decision["outcome"] = "passed"  # Not in: approved, denied, continued, withdrawn, received, adopted, other
 ```
 
 Output:
 ```json
 {
   "pass": false,
-  "issues": ["Decision outcome 'passed' not in allowed values: approved, denied, tabled, continued"],
+  "issues": ["Decision outcome 'passed' not in allowed values: approved, denied, continued, withdrawn, received, adopted, other"],
   "severity": "warning",
   "affected_tables": ["decisions"],
   "suggestions": ["Use 'approved' for passed decisions"]

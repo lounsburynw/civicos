@@ -311,6 +311,8 @@ LLM-based code review prompts in `.critics/` catch architectural issues before c
 | `protocol.critic.md` | Protocol conformance (StorageBackend, VectorBackend) |
 | `architecture.critic.md` | Layer boundaries (cross-package imports) |
 | `session.critic.md` | Session hygiene (P0 assignment) |
+| `security.critic.md` | Trust model integrity (silent verification bypass, env var holes, lazy crypto imports) |
+| `jurisdiction.critic.md` | Jurisdiction isolation (missing filters, hardcoded jurisdictions, data leakage) |
 | `data.critic.md` | ETL data quality (schema violations, type mismatches) |
 | `docs.critic.md` | Documentation accuracy (stale paths, orphaned docs, bloat) |
 

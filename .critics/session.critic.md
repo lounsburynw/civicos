@@ -33,6 +33,7 @@ Before session ends, verify:
 4. **Handoff prepared?**
    - `docs/next_session_prompt.md` updated
    - P0 item prominently featured
+   - Handoff P0 matches an actual item in launch.json (not stale from a previous session)
 
 ## Output
 
@@ -50,29 +51,31 @@ Respond with JSON:
 ## Examples
 
 ### FAIL - No P0 Set
-```bash
-$ grep '"priority": 0' launch.json
-# (no output - no P0 assigned)
-```
+
+The verification script finds zero items with `priority == 0` and `status == "not_started"`.
+
+Note: `grep '"priority": 0' launch.json` counts ALL P0 items including completed ones.
+Use the verification script (which filters by status) for accurate results.
 
 ### FAIL - Multiple P0s
-```bash
-$ grep '"priority": 0' launch.json
-    "priority": 0,
-    "priority": 0,
-# Two P0 items - violates rule
-```
+
+The verification script finds 2+ items with `priority == 0` and `status == "not_started"`.
+
+### FAIL - Stale Handoff
+
+`docs/next_session_prompt.md` references a P0 item that no longer exists in `launch.json`,
+or references an item that has been completed. The handoff must match the actual checklist.
 
 ### PASS - Exactly One P0
-```bash
-$ grep '"priority": 0' launch.json
-    "priority": 0,
-# One P0 assigned, ready for next session
 
-$ cat docs/next_session_prompt.md
-# Recommended: [P0 item name]
+```bash
+# Verification script output:
+PASS: P0 = require_created_at_on_writes
+
+# Handoff matches:
+$ head -3 docs/next_session_prompt.md
+# Recommended: require_created_at_on_writes
 **Priority:** P0 (IMMEDIATE)
-...
 ```
 
 ## Verification Script
