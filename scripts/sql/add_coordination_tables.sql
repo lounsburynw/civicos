@@ -171,3 +171,22 @@ CREATE POLICY "Service role has full access to events_log"
 CREATE POLICY "Service role has full access to sync_cursors"
     ON coordination_sync_cursors FOR ALL
     USING (true);
+
+-- ============================================================================
+-- Peer health state - persisted across relay restarts
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS coordination_peer_health (
+    peer_url TEXT PRIMARY KEY,
+    healthy BOOLEAN NOT NULL DEFAULT TRUE,
+    consecutive_failures INTEGER NOT NULL DEFAULT 0,
+    last_health_check TIMESTAMP WITH TIME ZONE,
+    last_successful_sync TIMESTAMP WITH TIME ZONE,
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+
+ALTER TABLE coordination_peer_health ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Service role has full access to peer_health"
+    ON coordination_peer_health FOR ALL
+    USING (true);

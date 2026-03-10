@@ -679,6 +679,31 @@ class InMemoryIssuerRegistryStorage:
         return None
 
 
+class InMemoryPeerHealthStorage:
+    """In-memory peer health storage for testing."""
+
+    def __init__(self):
+        self._health: dict[str, dict] = {}
+
+    def load_peer_health(self, peer_url: str) -> dict | None:
+        return self._health.get(peer_url)
+
+    def save_peer_health(
+        self,
+        peer_url: str,
+        healthy: bool,
+        consecutive_failures: int,
+        last_health_check=None,
+        last_successful_sync=None,
+    ) -> None:
+        self._health[peer_url] = {
+            "healthy": healthy,
+            "consecutive_failures": consecutive_failures,
+            "last_health_check": last_health_check,
+            "last_successful_sync": last_successful_sync,
+        }
+
+
 class InMemoryStorage:
     """Combined in-memory storage for all relay data."""
 

@@ -62,6 +62,25 @@ class SyncStorage(Protocol):
         ...
 
 
+class PeerHealthStorage(Protocol):
+    """Protocol for persisting peer health state across restarts."""
+
+    def load_peer_health(self, peer_url: str) -> Optional[dict]:
+        """Load health state for a peer. Returns dict or None."""
+        ...
+
+    def save_peer_health(
+        self,
+        peer_url: str,
+        healthy: bool,
+        consecutive_failures: int,
+        last_health_check: Optional[datetime],
+        last_successful_sync: Optional[datetime],
+    ) -> None:
+        """Upsert peer health state."""
+        ...
+
+
 class SyncService:
     """
     Service for synchronizing voices and events with peer relays.
@@ -79,6 +98,7 @@ class SyncService:
         max_consecutive_failures: int = DEFAULT_MAX_CONSECUTIVE_FAILURES,
         issuer_pubkeys: Optional[dict[str, str]] = None,
         require_attestation: bool = False,
+        peer_health_storage: Optional[PeerHealthStorage] = None,
     ):
         self._identity = identity
         self._storage = storage
@@ -89,6 +109,17 @@ class SyncService:
         self._max_consecutive_failures = max_consecutive_failures
         self._issuer_pubkeys = issuer_pubkeys or {}
         self._require_attestation = require_attestation
+        self._peer_health_storage = peer_health_storage
+
+        # Load persisted health state for each peer
+        if peer_health_storage:
+            for peer in self._peers.values():
+                health = peer_health_storage.load_peer_health(peer.url)
+                if health:
+                    peer.healthy = health["healthy"]
+                    peer.consecutive_failures = health["consecutive_failures"]
+                    peer.last_health_check = health.get("last_health_check")
+                    peer.last_successful_sync = health.get("last_successful_sync")
 
     async def start(self) -> None:
         """Start background sync tasks."""
@@ -119,6 +150,7 @@ class SyncService:
                 if peer.consecutive_failures > 0:
                     peer.consecutive_failures = 0
                     logger.info(f"Peer {peer.url} recovered after successful sync")
+                self._save_peer_health(peer)
             except Exception as e:
                 logger.error(f"Sync error with {peer.url}: {e}")
                 self._record_peer_failure(peer)
@@ -149,10 +181,16 @@ class SyncService:
 
             data = VoiceSyncResponse(**response.json())
 
-            # Verify response signature if peer public key known
-            if peer.public_key:
-                # TODO: Implement signature verification
-                pass
+            # Verify sync response signature
+            data_hash = hashlib.sha256(
+                b"".join(v.signature.encode() for v in data.voices)
+            ).hexdigest()[:16]
+
+            if not self._verify_sync_response(
+                peer, data.relay_id, data.relay_signature, data_hash, data.cursor
+            ):
+                self._record_peer_failure(peer)
+                break  # Abort sync from this peer
 
             # Import voices
             for voice in data.voices:
@@ -176,6 +214,29 @@ class SyncService:
             rejected=total_rejected,
             duplicates=total_duplicates,
         )
+
+    def _verify_sync_response(
+        self,
+        peer: PeerConfig,
+        relay_id: str,
+        relay_signature: str,
+        data_hash: str,
+        cursor: Optional[str],
+    ) -> bool:
+        """Verify a sync response signature from a peer.
+
+        Returns True if verified or if peer has no public_key (backward compat).
+        Returns False if signature is invalid.
+        """
+        if not peer.public_key:
+            logger.debug(f"No public key for peer {peer.url}, skipping signature verification")
+            return True
+
+        message = SyncProtocol.sync_message(relay_id, data_hash, cursor or "end")
+        if not RelayIdentity.verify(message, relay_signature, peer.public_key):
+            logger.warning(f"Invalid sync response signature from {peer.url}")
+            return False
+        return True
 
     def _import_voice(self, voice: Voice) -> str:
         """Import a single voice with verification."""
@@ -272,6 +333,22 @@ class SyncService:
 
     def import_events(self, request: EventImportRequest) -> EventImportResponse:
         """Import events pushed by a peer."""
+        # Verify push signature if peer is known and has a public key
+        peer = self._peers.get(request.source_relay)
+        if peer and peer.public_key and request.signature:
+            data_hash = hashlib.sha256(
+                b"".join(
+                    f"{e.type.value}:{e.entity}:{e.timestamp.isoformat()}".encode()
+                    for e in request.events
+                )
+            ).hexdigest()[:16]
+
+            if not self._verify_sync_response(
+                peer, request.source_relay, request.signature, data_hash, "end"
+            ):
+                self._record_peer_failure(peer)
+                return EventImportResponse(accepted=0, rejected=len(request.events), duplicates=0)
+
         accepted = 0
         rejected = 0
         duplicates = 0
@@ -332,6 +409,7 @@ class SyncService:
                     logger.info(f"Peer {peer.url} health restored")
                 peer.consecutive_failures = 0
                 peer.healthy = True
+                self._save_peer_health(peer)
             else:
                 # Unexpected status (not 'healthy')
                 self._record_peer_failure(peer)
@@ -355,6 +433,19 @@ class SyncService:
                     f"{peer.consecutive_failures} consecutive failures"
                 )
                 peer.healthy = False
+
+        self._save_peer_health(peer)
+
+    def _save_peer_health(self, peer: PeerConfig) -> None:
+        """Persist peer health state if storage is configured."""
+        if self._peer_health_storage:
+            self._peer_health_storage.save_peer_health(
+                peer_url=peer.url,
+                healthy=peer.healthy,
+                consecutive_failures=peer.consecutive_failures,
+                last_health_check=peer.last_health_check,
+                last_successful_sync=peer.last_successful_sync,
+            )
 
     async def check_all_peers_health(self) -> dict[str, bool]:
         """
@@ -388,5 +479,6 @@ class SyncService:
             peer.healthy = True
             peer.consecutive_failures = 0
             logger.info(f"Manually reset health for peer: {peer_url}")
+            self._save_peer_health(peer)
             return True
         return False
