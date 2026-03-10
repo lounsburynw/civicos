@@ -17,17 +17,17 @@ Every Civic development session must end with exactly ONE P0 (immediate priority
 
 Before session ends, verify:
 
-1. **P0 count in pilot.json?**
-   - Run: `grep -c '"priority": 0' pilot.json`
+1. **P0 count in launch.json?**
+   - Run: `grep -c '"priority": 0' launch.json`
    - Should return exactly 1
 
 2. **P0 item has clear criteria?**
-   - Has `artifact` or `test` field
-   - Status is `not_ready`
+   - Has `description` or `test_file` field
+   - Status is `not_started`
    - Has actionable description
 
 3. **Previous P0 resolved?**
-   - Old P0 marked as `ready`
+   - Old P0 marked as `done`
    - Or explicitly carried over with reason
 
 4. **Handoff prepared?**
@@ -51,13 +51,13 @@ Respond with JSON:
 
 ### FAIL - No P0 Set
 ```bash
-$ grep '"priority": 0' pilot.json
+$ grep '"priority": 0' launch.json
 # (no output - no P0 assigned)
 ```
 
 ### FAIL - Multiple P0s
 ```bash
-$ grep '"priority": 0' pilot.json
+$ grep '"priority": 0' launch.json
     "priority": 0,
     "priority": 0,
 # Two P0 items - violates rule
@@ -65,7 +65,7 @@ $ grep '"priority": 0' pilot.json
 
 ### PASS - Exactly One P0
 ```bash
-$ grep '"priority": 0' pilot.json
+$ grep '"priority": 0' launch.json
     "priority": 0,
 # One P0 assigned, ready for next session
 
@@ -80,21 +80,18 @@ $ cat docs/next_session_prompt.md
 ```python
 import json
 
-with open('pilot.json') as f:
+with open('launch.json') as f:
     data = json.load(f)
 
 p0_items = []
-skip = ['version', 'phase', 'derived_from', 'last_updated', 'target', 'location', 'summary', 'category_order', 'description']
+skip = ['version', 'phase', 'last_updated', 'summary', 'category_order']
 
-for cat, items in data.items():
-    if cat in skip or not isinstance(items, dict):
+for cat, section in data.items():
+    if cat in skip or not isinstance(section, dict):
         continue
-    for sub, subitems in items.items():
-        if not isinstance(subitems, dict) or sub in skip:
-            continue
-        for item, info in subitems.items():
-            if isinstance(info, dict) and info.get('priority') == 0 and info.get('status') == 'not_ready':
-                p0_items.append(item)
+    for item in section.get('items', []):
+        if isinstance(item, dict) and item.get('priority') == 0 and item.get('status') == 'not_started':
+            p0_items.append(item['name'])
 
 if len(p0_items) == 0:
     print("FAIL: No P0 item set")

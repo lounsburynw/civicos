@@ -19,16 +19,14 @@ cat docs/next_session_prompt.md 2>/dev/null || echo "No context document found. 
 # Check if P0 has changed
 python3 -c "
 import json
-with open('pilot.json') as f:
+with open('launch.json') as f:
     cl = json.load(f)
-skip = ['version', 'phase', 'derived_from', 'last_updated', 'target', 'location', 'summary', 'category_order', 'description']
-for cat, items in cl.items():
-    if cat in skip or not isinstance(items, dict): continue
-    for sub, subitems in items.items():
-        if not isinstance(subitems, dict) or sub in skip: continue
-        for item, info in subitems.items():
-            if isinstance(info, dict) and info.get('status') == 'not_ready' and info.get('priority') == 0:
-                print(f'Current P0: {item}')
+skip = ['version', 'phase', 'last_updated', 'summary', 'category_order']
+for cat, section in cl.items():
+    if cat in skip or not isinstance(section, dict): continue
+    for item in section.get('items', []):
+        if isinstance(item, dict) and item.get('status') == 'not_started' and item.get('priority') == 0:
+            print(f'Current P0: {item[\"name\"]}')
 "
 ```
 

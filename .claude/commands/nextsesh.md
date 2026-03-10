@@ -4,11 +4,11 @@ Write a **recommended context** document for the next Claude Code session. The n
 
 ## P0 Requirement
 
-**CRITICAL: Before running /nextsesh, you MUST ensure exactly ONE P0 item exists in pilot.json.**
+**CRITICAL: Before running /nextsesh, you MUST ensure exactly ONE P0 item exists in launch.json.**
 
 If no P0 item exists:
 1. Identify the most important next task
-2. Update `pilot.json` to set that item's priority to 0
+2. Update `launch.json` to set that item's priority to 0
 3. Only then proceed with writing the handoff
 
 ## Guardrails
@@ -39,41 +39,38 @@ python3 -c "
 import json
 import sys
 
-with open('pilot.json') as f:
+with open('launch.json') as f:
     cl = json.load(f)
 
-skip = ['version', 'phase', 'derived_from', 'last_updated', 'target', 'location', 'summary', 'category_order', 'description']
+skip = ['version', 'phase', 'last_updated', 'summary', 'category_order']
 p0_items = []
 
-for cat, items in cl.items():
-    if cat in skip or not isinstance(items, dict): continue
-    for sub, subitems in items.items():
-        if not isinstance(subitems, dict) or sub in skip: continue
-        for item, info in subitems.items():
-            if isinstance(info, dict) and info.get('status') == 'not_ready' and info.get('priority') == 0:
-                p0_items.append({'name': item, 'cat': cat, 'sub': sub, 'info': info})
+for cat, section in cl.items():
+    if cat in skip or not isinstance(section, dict): continue
+    for item in section.get('items', []):
+        if isinstance(item, dict) and item.get('status') == 'not_started' and item.get('priority') == 0:
+            p0_items.append({'name': item['name'], 'cat': cat, 'info': item})
 
 if len(p0_items) == 0:
     print('ERROR: No P0 item set!')
     print('You MUST set exactly one P0 item before running /nextsesh.')
-    print('Update pilot.json to set priority: 0 on the most important next task.')
+    print('Update launch.json to set priority: 0 on the most important next task.')
     sys.exit(1)
 elif len(p0_items) > 1:
     print(f'ERROR: {len(p0_items)} P0 items found (should be exactly 1):')
     for p in p0_items:
         print(f'  - {p[\"name\"]}')
-    print('Fix pilot.json to have exactly one P0 item.')
+    print('Fix launch.json to have exactly one P0 item.')
     sys.exit(1)
 else:
     p = p0_items[0]
     print(f'P0 ITEM: {p[\"name\"]}')
-    print(f'Area: {p[\"cat\"]} > {p[\"sub\"]}')
-    print(f'Artifact: {p[\"info\"].get(\"artifact\", \"N/A\")}')
-    print(f'Note: {p[\"info\"].get(\"note\", \"N/A\")}')
+    print(f'Area: {p[\"cat\"]}')
+    print(f'Description: {p[\"info\"].get(\"description\", \"N/A\")}')
 "
 ```
 
-If this step fails, STOP and fix `pilot.json` before continuing.
+If this step fails, STOP and fix `launch.json` before continuing.
 
 2. **Read current state:**
 ```bash
