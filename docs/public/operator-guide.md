@@ -8,7 +8,8 @@ An **operator** is anyone who runs CivicOS services for a jurisdiction — a cit
 |--------------|----------|----------|
 | **MCP only** | MCP server | Publish civic data for AI assistants and developers |
 | **Relay only** | Relay | Coordinate community voices and actions |
-| **MCP + relay** | Both | Full civic data + coordination |
+| **Signer only** | Signer | Issue attestation codes for your organization (requires a relay to call it) |
+| **MCP + relay** | MCP server + relay | Full civic data + coordination |
 | **Full stack** | MCP + relay + signer | Full stack with your own attestation authority |
 
 Start with what you need. Each service is independently deployable.
