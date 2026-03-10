@@ -554,6 +554,9 @@ class R2Backend:
             **extra_args,
         )
 
+        # Log cost (Class A write operation)
+        self._log_cost('upload', len(data), key, content_type)
+
         # Return the R2 URL (not public unless configured)
         return f"r2://{self.account_id}/{self.bucket_name}/{key}"
 
@@ -563,12 +566,35 @@ class R2Backend:
 
         try:
             response = self.s3.get_object(Bucket=self.bucket_name, Key=key)
-            return response["Body"].read()
+            data = response["Body"].read()
+            # Log cost (Class B read operation)
+            self._log_cost('download', len(data), key)
+            return data
         except ClientError as e:
             error_code = e.response.get("Error", {}).get("Code", "Unknown")
             if error_code == "NoSuchKey":
                 raise KeyError(f"Object not found: {key}")
             raise
+
+    def _log_cost(
+        self, operation: str, bytes_transferred: int, key: str, content_type: Optional[str] = None
+    ) -> None:
+        """Log R2 operation cost. Never raises."""
+        try:
+            from civicos_services.core.cost_tracking import log_r2_cost
+
+            meta: Dict[str, Any] = {'key': key}
+            if content_type:
+                meta['content_type'] = content_type
+            log_r2_cost(
+                operation=operation,
+                bytes_transferred=bytes_transferred,
+                metadata=meta,
+            )
+        except ImportError:
+            pass
+        except Exception:
+            pass
 
     def exists(self, key: str) -> bool:
         """Check if object exists in R2."""

@@ -1341,26 +1341,27 @@ def run_transcription(
         items_failed = sum(1 for r in results if r.status == "error")
         total_cost = sum(r.cost_usd or 0.0 for r in results if r.status == "success")
 
-        # Store ETL cost record if we transcribed anything
+        # Log cost to operating_costs table for unified cost tracking
         if items_transcribed > 0 and cloud_mode:
             try:
-                from civicos.storage import get_storage_backend
+                from civicos_services.core.cost_tracking import log_assemblyai_cost
 
-                backend = get_storage_backend()
-                if backend.backend_type == "postgres":
-                    cost_id = backend.store_etl_cost(
-                        pipeline="transcribe",
-                        jurisdiction_id=jurisdiction_id,
-                        items_processed=items_transcribed,
-                        cost_usd=total_cost,
-                        duration_seconds=batch_duration,
-                        notes=f"Batch transcribed {items_transcribed} videos via AssemblyAI (parallel)",
-                    )
-                    logger.info(f"ETL cost recorded (id={cost_id}): ${total_cost:.2f}")
+                total_minutes = sum(
+                    r.duration_minutes or 0.0 for r in results if r.status == "success"
+                )
+                log_assemblyai_cost(
+                    audio_minutes=total_minutes,
+                    transcripts_processed=items_transcribed,
+                    jurisdiction_id=jurisdiction_id,
+                    metadata={
+                        'mode': 'batch_parallel',
+                        'batch_duration_seconds': round(batch_duration, 2),
+                    },
+                )
             except ImportError:
-                logger.debug("civic.storage not available for cost tracking")
+                logger.debug("civicos_services not available for cost tracking")
             except Exception as e:
-                logger.warning(f"Failed to record ETL cost: {e}")
+                logger.warning(f"Failed to log operating cost: {e}")
 
         # Summary
         logger.info("=" * 50)
@@ -1456,28 +1457,24 @@ def run_transcription(
         )
         save_checkpoint(checkpoint, checkpoint_path)
 
-    # Store ETL cost record if we transcribed anything
+    # Log cost to operating_costs table for unified cost tracking
     if items_transcribed > 0 and cloud_mode:
         try:
-            from civicos.storage import get_storage_backend
+            from civicos_services.core.cost_tracking import log_assemblyai_cost
 
-            backend = get_storage_backend()
-            if backend.backend_type == "postgres":
-                # Calculate duration from checkpoint timestamps if available
-                duration_seconds = None
-                cost_id = backend.store_etl_cost(
-                    pipeline="transcribe",
-                    jurisdiction_id=jurisdiction_id,
-                    items_processed=items_transcribed,
-                    cost_usd=total_cost,
-                    duration_seconds=duration_seconds,
-                    notes=f"Transcribed {items_transcribed} videos via AssemblyAI",
-                )
-                logger.info(f"ETL cost recorded (id={cost_id}): ${total_cost:.2f}")
+            total_minutes = sum(
+                r.duration_minutes or 0.0 for r in results if r.status == "success"
+            )
+            log_assemblyai_cost(
+                audio_minutes=total_minutes,
+                transcripts_processed=items_transcribed,
+                jurisdiction_id=jurisdiction_id,
+                metadata={'mode': 'sequential'},
+            )
         except ImportError:
-            logger.debug("civic.storage not available for cost tracking")
+            logger.debug("civicos_services not available for cost tracking")
         except Exception as e:
-            logger.warning(f"Failed to record ETL cost: {e}")
+            logger.warning(f"Failed to log operating cost: {e}")
 
     # Summary
     logger.info("=" * 50)

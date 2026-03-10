@@ -21348,3 +21348,36 @@ Previous session identified a crash in `scheduled_low_velocity_refresh` where `f
 
 ### P0 for Next Session
 provider_api_polling — Instrument remaining services (AssemblyAI, Supabase, R2) into operating_costs table
+
+## Session — 2026-03-09: provider_api_polling (P0)
+
+### Completed: Instrument all external services for cost tracking
+
+Added cost logging for the 3 remaining uninstrumented services:
+
+1. **AssemblyAI** (`log_assemblyai_cost()`): Calculates cost from audio duration + diarization.
+   - Migrated transcribe.py from `store_etl_cost()` to `log_assemblyai_cost()` (both batch and sequential modes).
+   - Pricing: $0.21/hr transcription + $0.02/hr diarization.
+
+2. **Cloudflare R2** (`log_r2_cost()`): Tracks per-operation costs (Class A writes, Class B reads).
+   - Instrumented R2Backend.upload() and R2Backend.download() in blob.py.
+   - Pricing: $4.50/M writes, $0.36/M reads.
+
+3. **Supabase** (`log_supabase_cost()`): Logs monthly fixed costs per project.
+   - Seeded March 2026 costs for main ($25) and relay ($25) projects.
+   - Pricing: $25/mo Pro base per project.
+
+4. **Reconciliation** (`reconcile_costs()`): Cross-references operating_costs table with cost_registry.yaml.
+   - New admin endpoint: GET /admin/cost-reconciliation
+   - Shows actual vs expected per service, flags gaps.
+
+### Files Modified
+- packages/civicos-services/src/civicos_services/core/cost_tracking.py (3 new functions + reconcile)
+- packages/civicos-extraction/src/civicos_extraction/cli/transcribe.py (migrated to log_assemblyai_cost)
+- packages/civicos/src/civicos/storage/blob.py (R2Backend cost tracking)
+- packages/civicos-services/src/civicos_services/servers/routers/admin.py (reconciliation endpoint)
+- docs/public/cost_registry.yaml (updated instrumentation status)
+- pilot.json (provider_api_polling → ready)
+
+### P0 for Next Session
+TBD — needs assignment before /nextsesh
