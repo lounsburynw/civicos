@@ -49,6 +49,10 @@ class Voice(BaseModel):
         default=None,
         description="Full kind-30850 Nostr event signed by the jurisdiction issuer"
     )
+    payment_proof: Optional[dict] = Field(
+        default=None,
+        description="Payment proof for acceptance policy (Phase 4)"
+    )
     revoked: bool = Field(default=False)
 
     model_config = {"frozen": True}

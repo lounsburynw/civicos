@@ -14,7 +14,7 @@ from civicos_relay.voice.models import Voice, Stance, VoiceCount, Action, Action
 from civicos_relay.voice.service import VoiceService
 from civicos_relay.voice.action_service import ActionService
 from civicos_relay.voice.civic_action_service import CivicActionService
-from civicos_relay.voice.crypto import KeyPair, sign_voice, verify_comment, verify_commitment, verify_completion, verify_withdrawal, verify_action_event
+from civicos_relay.voice.crypto import KeyPair, sign_voice, verify_comment, verify_commitment, verify_completion, verify_withdrawal, verify_action_event, verify_initiative
 from civicos_relay.relay.models import Initiative, InitiativeStatus
 from civicos_relay.relay.models import Subscription, MatchCriteria, DeliveryConfig, DeliveryMethod
 from civicos_relay.relay.service import RelayService
@@ -26,6 +26,7 @@ from civicos_relay.storage import InMemoryStorage, PostgresStorage
 from civicos_relay.delivery import EmailDelivery, EmailConfig
 from civicos_relay.attestation.service import AttestationService
 from civicos_relay.attestation.signer_client import SignerError
+from civicos_relay.server.acceptance import AcceptancePolicy
 
 logger = logging.getLogger(__name__)
 
@@ -39,6 +40,8 @@ class CastVoiceRequest(BaseModel):
     signature: str
     created_at: int = Field(description="Unix timestamp from the signed Nostr event")
     jurisdiction: Optional[str] = Field(default=None, description="Jurisdiction code for Nostr tag reconstruction")
+    attestation_proof: Optional[dict] = None
+    payment_proof: Optional[dict] = None
 
 
 class CommitActionRequest(BaseModel):
@@ -66,6 +69,9 @@ class CreateInitiativeRequest(BaseModel):
     coordination_url: Optional[str] = None
     public_key: str
     signature: str
+    created_at: int = Field(description="Unix timestamp from the signed Nostr event")
+    attestation_proof: Optional[dict] = None
+    payment_proof: Optional[dict] = None
 
 
 class CreateCivicActionRequest(BaseModel):
@@ -81,15 +87,15 @@ class CreateCivicActionRequest(BaseModel):
     deadline_context: Optional[str] = None
     public_key: str
     signature: str
-    created_at: Optional[int] = None
+    created_at: int = Field(description="Unix timestamp from the signed Nostr event")
 
 
 class CivicCommitRequest(BaseModel):
     """Request to commit to a civic action (Kind 30811)."""
     public_key: str
     signature: str
-    created_at: Optional[int] = None
-    jurisdiction: Optional[str] = None
+    created_at: int = Field(description="Unix timestamp from the signed Nostr event")
+    jurisdiction: str = Field(description="Jurisdiction code for Nostr tag reconstruction")
 
 
 class CivicCompleteRequest(BaseModel):
@@ -97,15 +103,15 @@ class CivicCompleteRequest(BaseModel):
     public_key: str
     signature: str
     evidence_type: str = "self_report"
-    created_at: Optional[int] = None
-    jurisdiction: Optional[str] = None
+    created_at: int = Field(description="Unix timestamp from the signed Nostr event")
+    jurisdiction: str = Field(description="Jurisdiction code for Nostr tag reconstruction")
 
 
 class CivicWithdrawRequest(BaseModel):
     """Request to withdraw a civic action commitment."""
     public_key: str
     signature: str
-    created_at: Optional[int] = None
+    created_at: int = Field(description="Unix timestamp from the signed Nostr event")
 
 
 class SubmitCommentRequest(BaseModel):
@@ -117,6 +123,8 @@ class SubmitCommentRequest(BaseModel):
     created_at: int = Field(description="Unix timestamp from the signed Nostr event")
     jurisdiction: Optional[str] = None
     stance: Optional[str] = None
+    attestation_proof: Optional[dict] = None
+    payment_proof: Optional[dict] = None
 
 
 class SubscribeRequest(BaseModel):
@@ -202,6 +210,10 @@ def get_attestation_service() -> AttestationService:
     return _relay_state["attestation_service"]
 
 
+def get_acceptance_policy() -> Optional[AcceptancePolicy]:
+    return _relay_state.get("acceptance_policy")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan - startup and shutdown."""
@@ -250,6 +262,13 @@ async def lifespan(app: FastAPI):
         attribution_storage=getattr(storage, 'attributions', None),
     )
 
+    # Initialize acceptance policy if enabled
+    if config.acceptance_policy_enabled:
+        policy = AcceptancePolicy(connection_url=relay_db_url)
+        policy.cleanup_old_limits()
+        _relay_state["acceptance_policy"] = policy
+        logger.info("Acceptance policy enabled")
+
     if config.sync_enabled:
         await _relay_state["sync_service"].start()
 
@@ -260,6 +279,18 @@ async def lifespan(app: FastAPI):
     # Shutdown
     await _relay_state["sync_service"].stop()
     logger.info("Relay stopped")
+
+
+def _check_acceptance(event_type: str, public_key: str, entity: str,
+                      attestation_proof=None, payment_proof=None):
+    """Check acceptance policy for a write event. No-op if policy is disabled."""
+    policy = get_acceptance_policy()
+    if policy is None:
+        return
+    result = policy.check(event_type, public_key, attestation_proof, payment_proof)
+    if not result.accepted:
+        raise HTTPException(status_code=402, detail=result.to_dict())
+    policy._record_metadata(public_key, entity, result.tier)
 
 
 def create_app() -> FastAPI:
@@ -306,6 +337,9 @@ def create_app() -> FastAPI:
         # Verify and store
         if not voice_service.verify(voice):
             raise HTTPException(status_code=400, detail="Invalid voice signature")
+
+        _check_acceptance("voice", request.public_key, request.entity,
+                          request.attestation_proof, request.payment_proof)
 
         # Check for existing voice and handle
         existing = voice_service._storage.get_voice(request.public_key, request.entity)
@@ -433,6 +467,9 @@ def create_app() -> FastAPI:
         if not verify_comment(comment):
             raise HTTPException(status_code=400, detail="Invalid comment signature")
 
+        _check_acceptance("comment", request.public_key, request.entity,
+                          request.attestation_proof, request.payment_proof)
+
         comment_storage.save_comment(comment)
         return comment
 
@@ -534,6 +571,16 @@ def create_app() -> FastAPI:
         import hashlib
         from datetime import datetime
 
+        if not verify_initiative(
+            request.public_key, request.signature,
+            request.jurisdiction, request.topic, request.created_at,
+        ):
+            raise HTTPException(status_code=400, detail="Invalid initiative signature")
+
+        _check_acceptance("initiative", request.public_key,
+                          f"initiative:{request.jurisdiction}:{request.topic}",
+                          request.attestation_proof, request.payment_proof)
+
         # Generate initiative ID
         desc_hash = hashlib.sha256(request.description.encode()).hexdigest()[:8]
         date_str = datetime.utcnow().strftime("%Y%m%d")
@@ -588,12 +635,14 @@ def create_app() -> FastAPI:
         """Create a civic action (Kind 30810)."""
         from datetime import datetime
 
-        if request.created_at:
-            if not verify_action_event(
-                request.public_key, request.signature,
-                request.initiative_id, request.action_type, request.created_at,
-            ):
-                raise HTTPException(status_code=403, detail="Invalid action event signature")
+        if not verify_action_event(
+            request.public_key, request.signature,
+            request.initiative_id, request.action_type, request.created_at,
+        ):
+            raise HTTPException(status_code=403, detail="Invalid action event signature")
+
+        _check_acceptance("action_create", request.public_key,
+                          f"action:{request.initiative_id}:{request.action_type}")
 
         deadline = None
         if request.deadline:
@@ -641,12 +690,13 @@ def create_app() -> FastAPI:
         civic_service: CivicActionService = Depends(get_civic_action_service),
     ):
         """Commit to a civic action (Kind 30811)."""
-        if request.created_at and request.jurisdiction:
-            if not verify_commitment(
-                request.public_key, request.signature,
-                action_id, request.jurisdiction, request.created_at,
-            ):
-                raise HTTPException(status_code=403, detail="Invalid commitment signature")
+        if not verify_commitment(
+            request.public_key, request.signature,
+            action_id, request.jurisdiction, request.created_at,
+        ):
+            raise HTTPException(status_code=403, detail="Invalid commitment signature")
+
+        _check_acceptance("action_commit", request.public_key, action_id)
 
         try:
             commitment = civic_service.commit_to_action(
@@ -665,12 +715,13 @@ def create_app() -> FastAPI:
         civic_service: CivicActionService = Depends(get_civic_action_service),
     ):
         """Complete a civic action (Kind 30812)."""
-        if request.created_at and request.jurisdiction:
-            if not verify_completion(
-                request.public_key, request.signature,
-                action_id, request.jurisdiction, request.created_at,
-            ):
-                raise HTTPException(status_code=403, detail="Invalid completion signature")
+        if not verify_completion(
+            request.public_key, request.signature,
+            action_id, request.jurisdiction, request.created_at,
+        ):
+            raise HTTPException(status_code=403, detail="Invalid completion signature")
+
+        _check_acceptance("action_complete", request.public_key, action_id)
 
         try:
             completion = civic_service.complete_action(
@@ -690,12 +741,13 @@ def create_app() -> FastAPI:
         civic_service: CivicActionService = Depends(get_civic_action_service),
     ):
         """Withdraw commitment to a civic action."""
-        if request.created_at:
-            if not verify_withdrawal(
-                request.public_key, request.signature,
-                action_id, request.created_at,
-            ):
-                raise HTTPException(status_code=403, detail="Invalid withdrawal signature")
+        if not verify_withdrawal(
+            request.public_key, request.signature,
+            action_id, request.created_at,
+        ):
+            raise HTTPException(status_code=403, detail="Invalid withdrawal signature")
+
+        _check_acceptance("action_complete", request.public_key, action_id)
 
         success = civic_service.withdraw_commitment(action_id, request.public_key)
         if not success:

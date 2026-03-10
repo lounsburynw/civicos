@@ -61,6 +61,9 @@ class RelayConfig(BaseModel):
     sync_enabled: bool = Field(default=True)
     sync_batch_size: int = Field(default=100)
 
+    # Acceptance policy
+    acceptance_policy_enabled: bool = Field(default=False)
+
     # Health check settings
     health_check_timeout: int = Field(
         default=10, description="Timeout in seconds for health checks"
@@ -95,6 +98,7 @@ class RelayConfig(BaseModel):
             port=int(os.environ.get("RELAY_PORT", "8003")),
             database_url=os.environ.get("DATABASE_URL"),
             sync_enabled=os.environ.get("RELAY_SYNC_ENABLED", "true").lower() == "true",
+            acceptance_policy_enabled=os.environ.get("RELAY_ACCEPTANCE_POLICY", "false").lower() == "true",
         )
 
     @classmethod
