@@ -4,7 +4,11 @@
   "jurisdiction_id": "county-marin",
   "base_url": "https://marin.granicus.com",
   "archives": {
-    "board_of_supervisors": "33"
+    "board_of_supervisors": "33",
+    "planning_commission": "3",
+    "budget_meetings": "5",
+    "flood_control": "9",
+    "housing_authority": "15"
   },
   "metadata": {
     "granicus_domain": "marin",

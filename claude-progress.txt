@@ -21276,3 +21276,39 @@ Previous session identified a crash in `scheduled_low_velocity_refresh` where `f
 - Deploy to Modal: `modal deploy scripts/modal_ingest.py`
 - Backfill federal_rules vectors: `modal run scripts/modal_ingest.py::index_vectors --jurisdiction federal-US --corpus federal_rules`
 - Run full low-velocity refresh to verify end-to-end
+
+## Session — 2026-03-09: Marin County Pipeline Integration (P0)
+
+### Changes Made
+
+**1. Refactored `fetch_meetings()` in `scripts/modal_ingest.py`:**
+- Replaced hardcoded `JURISDICTION_URLS` mapping with config-driven routing
+- Uses `ExtractionConfig.from_jurisdiction()` to auto-detect `source_type`
+- Routes to `ProudCityClient` (proudcity) or `GranicusSource` (granicus)
+- Refresh metadata now uses dynamic `source_type` instead of hardcoded "proudcity"
+- Any new source type just needs an ExtractionConfig JSON + client implementation
+
+**2. Fixed duplicate meeting IDs in `GranicusClient`:**
+- Granicus pages can list duplicate rows (e.g., English/Spanish audio entries)
+- Added `get_meetings()` override with ID-based deduplication
+- Reduced 103 raw events to 90 unique meetings
+
+**3. Expanded Marin County archives:**
+- Ran `discover_view_ids()` to find 6 governing bodies beyond BOS
+- Updated `county-marin.json` with: planning_commission (3), budget_meetings (5), flood_control (9), housing_authority (15)
+- Hid discovery artifact (`.marin-granicus-discovery.json`) to prevent config conflicts
+
+**4. Live-tested end-to-end ingestion:**
+- 120 Marin meetings stored in PostgreSQL across 9 meeting types
+- 80 new meetings, 10 verified from prior ingestion
+- BOS (65), Planning Commission (12), Housing Authority (12), Flood Control (11), Budget (6), others
+
+### Key Files Modified
+- `scripts/modal_ingest.py` — config-driven source routing in fetch_meetings()
+- `packages/civicos-extraction/src/civicos_extraction/clients/granicus.py` — dedup get_meetings()
+- `data/extraction/county-marin.json` — expanded archives (5 governing bodies)
+
+### Verification
+- 27/27 Granicus unit tests pass
+- 20/20 smoke tests pass
+- Live ingestion verified in PostgreSQL

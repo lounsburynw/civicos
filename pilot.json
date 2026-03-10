@@ -1526,6 +1526,14 @@
           "Automatic Modal secret creation (currently manual)",
           "Granicus extractor implementation for Berkeley"
         ]
+      },
+      "marin_county_pipeline_integration": {
+        "status": "ready",
+        "priority": 1,
+        "description": "Wire GranicusClient into modal_ingest.py, run end-to-end Marin County ingestion (meetings \u2192 PostgreSQL \u2192 vectors), test /onboard flow on a fresh jurisdiction, update docs",
+        "artifact": "Marin meetings in PostgreSQL + working /onboard flow",
+        "test_file": "packages/civicos-extraction/tests/test_granicus.py",
+        "note": "Pipeline wired: fetch_meetings() auto-detects source_type from ExtractionConfig. 120 Marin meetings ingested across 5 governing bodies (BOS, Planning, Budget, Flood Control, Housing Authority). Dedup fix for duplicate Granicus rows."
       }
     },
     "documentation": {
@@ -2511,7 +2519,7 @@
       },
       "index_corpus_stats_update": {
         "status": "ready",
-        "priority": 0,
+        "priority": 1,
         "description": "Update docs/index.md \u2014 minimal MkDocs landing page, could embed corpus stats from docs/public/README.md.",
         "artifact": "docs/index.md"
       },
@@ -2541,7 +2549,7 @@
       },
       "gitignore_build_artifacts": {
         "status": "ready",
-        "priority": 0,
+        "priority": 1,
         "description": "Add untracked build artifacts to .gitignore: extension/data/, test-results/, .wrangler/, registry/data/.",
         "artifact": ".gitignore"
       }

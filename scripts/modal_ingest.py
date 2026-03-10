@@ -1891,6 +1891,11 @@ def index_vectors(
             deleted = pgvector.delete_index(jurisdiction, ct)
             logger.info(f"  Deleted {deleted} existing vectors")
 
+        # Deferred indexing: drop HNSW index before bulk insert, rebuild after.
+        # With partitioned tables, this only affects the corpus_type partition,
+        # so other corpus types remain fully indexed and searchable.
+        pgvector.drop_hnsw_index(ct)
+
         # Fetch and expand documents to chunks
         if ct == "decisions":
             chunks = backend.get_decisions(jurisdiction)
@@ -1965,6 +1970,8 @@ def index_vectors(
 
         if not chunks:
             logger.warning(f"  No chunks found for {ct}")
+            # Rebuild index even if no new chunks (we dropped it above)
+            pgvector.rebuild_hnsw_index(ct)
             results[ct] = {"status": "skipped", "indexed": 0}
             continue
 
@@ -2001,13 +2008,18 @@ def index_vectors(
             total_failed = sum(r.get("failed", 0) for r in worker_results)
             num_batches = len(batches)
 
+        # Rebuild HNSW index after bulk inserts complete
+        logger.info(f"  Rebuilding HNSW index for {ct}...")
+        index_rebuilt = pgvector.rebuild_hnsw_index(ct)
+
         results[ct] = {
             "status": "success" if total_failed == 0 else "partial",
             "indexed": total_success,
             "failed": total_failed,
             "workers": num_batches,
+            "hnsw_rebuilt": index_rebuilt,
         }
-        logger.info(f"  Indexed {total_success} chunks ({total_failed} failed)")
+        logger.info(f"  Indexed {total_success} chunks ({total_failed} failed), HNSW {'rebuilt' if index_rebuilt else 'FAILED'}")
 
     elapsed = time.time() - start_time
     total_indexed = sum(r.get("indexed", 0) for r in results.values())
@@ -2042,10 +2054,13 @@ def fetch_meetings(
     dry_run: bool = False,
     auto_index: bool = False,
 ) -> dict:
-    """Fetch meetings from ProudCity API with optional incremental mode.
+    """Fetch meetings from configured source (ProudCity, Granicus, etc.).
+
+    Source type is auto-detected from the jurisdiction's ExtractionConfig
+    in data/extraction/{jurisdiction}.json.
 
     Args:
-        jurisdiction: Target jurisdiction (e.g., "city-san-rafael")
+        jurisdiction: Target jurisdiction (e.g., "city-san-rafael", "county-marin")
         days_past: Days to look back for meetings (default 30)
         days_ahead: Days to look ahead for meetings (default 90)
         incremental: If True, use refresh_metadata to determine date range
@@ -2062,43 +2077,47 @@ def fetch_meetings(
     start_time = time.time()
 
     from civicos.storage.postgres_backend import PostgresBackend
+    from civicos_extraction.clients.base import ExtractionConfig
 
     database_url = os.environ.get("DATABASE_URL")
     if not database_url:
         raise ValueError("DATABASE_URL not set")
 
     backend = PostgresBackend(database_url)
-    logger.info(f"[MEETINGS] Starting fetch: jurisdiction={jurisdiction}, incremental={incremental}")
+
+    # Load extraction config to determine source type
+    config = ExtractionConfig.from_jurisdiction(jurisdiction)
+    source_type = config.source_type
+    logger.info(f"[MEETINGS] Starting fetch: jurisdiction={jurisdiction}, source={source_type}, incremental={incremental}")
 
     # Determine date range
     if incremental:
-        metadata = backend.get_refresh_metadata(jurisdiction, "meetings", "proudcity")
+        metadata = backend.get_refresh_metadata(jurisdiction, "meetings", source_type)
         if metadata and metadata.get("last_fetch_at"):
             last_fetch = datetime.fromisoformat(metadata["last_fetch_at"])
             days_since = (datetime.now() - last_fetch).days
             days_past = min(days_past, max(7, days_since + 1))  # At least 7 days overlap
             logger.info(f"  Incremental mode: last fetch {days_since} days ago, fetching {days_past} days back")
 
-    # Fetch meetings using ProudCityClient
-    # Map jurisdiction to base_url (add more mappings as needed)
-    JURISDICTION_URLS = {
-        "city-san-rafael": "https://www.cityofsanrafael.org",
-    }
-    base_url = JURISDICTION_URLS.get(jurisdiction)
-    if not base_url:
-        raise ValueError(f"Unknown jurisdiction: {jurisdiction}. Add to JURISDICTION_URLS mapping.")
-
+    # Instantiate source-specific client based on extraction config
     try:
-        from civicos_extraction.clients.proudcity import ProudCityClient
-        client = ProudCityClient(
-            base_url=base_url,
-            jurisdiction_id=jurisdiction,
-        )
-        meetings = client.get_meetings(days_ahead=days_ahead, days_past=days_past)
+        if source_type == "proudcity":
+            from civicos_extraction.clients.proudcity import ProudCityClient
+            client = ProudCityClient(
+                base_url=config.base_url,
+                jurisdiction_id=jurisdiction,
+            )
+            meetings = client.get_meetings(days_ahead=days_ahead, days_past=days_past)
+        elif source_type == "granicus":
+            from civicos_extraction.clients.granicus import GranicusSource
+            source = GranicusSource(config)
+            meetings = source.get_meetings(days_ahead=days_ahead, days_past=days_past)
+        else:
+            raise ValueError(f"Unsupported source_type '{source_type}' for jurisdiction '{jurisdiction}'")
     except Exception as e:
         logger.error(f"Error fetching meetings: {e}")
         backend.update_refresh_metadata(
-            jurisdiction, "meetings", "proudcity",
+            jurisdiction, "meetings", source_type,
             status="failed", error_message=str(e)
         )
         raise
@@ -2125,7 +2144,7 @@ def fetch_meetings(
 
         # Update refresh metadata
         backend.update_refresh_metadata(
-            jurisdiction, "meetings", "proudcity",
+            jurisdiction, "meetings", source_type,
             items_fetched=len(meetings),
             items_stored=stored_count,
             status="completed",
@@ -3764,7 +3783,6 @@ def scheduled_high_velocity_refresh():
 
     for jid, config in jurisdictions.items():
         # Skip jurisdictions without high-velocity data sources
-        # (e.g., county-marin is financial context only, no meetings/issues/videos)
         source_type = config.get("source_type", "")
         if source_type in ("county", "financial"):
             logger.info(f"Skipping {jid} (source_type={source_type}, no high-velocity data)")
