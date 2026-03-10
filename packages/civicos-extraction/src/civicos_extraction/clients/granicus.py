@@ -369,6 +369,23 @@ class GranicusClient(BaseExtractor):
             raw_data=event,
         )
 
+    def get_meetings(
+        self, days_ahead: int = 90, days_past: int = 0
+    ) -> List[Meeting]:
+        """Get normalized meetings, deduplicated by ID.
+
+        Granicus pages can list duplicate rows for the same meeting
+        (e.g., separate English/Spanish audio entries). This override
+        deduplicates by meeting ID, keeping the first occurrence.
+        """
+        events = self.get_events(days_ahead=days_ahead, days_past=days_past)
+        seen: Dict[str, Meeting] = {}
+        for event in events:
+            meeting = self.normalize_event(event)
+            if meeting.id not in seen:
+                seen[meeting.id] = meeting
+        return list(seen.values())
+
     def health(self) -> HealthStatus:
         """Check source availability by fetching default view."""
         start_time = time.time()
