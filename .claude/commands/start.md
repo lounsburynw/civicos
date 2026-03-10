@@ -38,7 +38,7 @@ if [ -f "docs/next_session_prompt.md" ]; then
     echo "Review the above handoff. You may:"
     echo "1. Accept and work on the recommended item"
     echo "2. Modify the approach"
-    echo "3. Ignore and use pilot.json priorities instead"
+    echo "3. Ignore and use launch.json priorities instead"
 else
     echo "No handoff from previous session."
 fi
@@ -94,34 +94,49 @@ status_pending = {
     'implementation': 'not_implemented',
     'hardening': 'not_verified',
     'integration': 'not_tested',
-    'pilot': 'not_ready'
-}.get(current_phase, 'not_verified')
+    'pilot': 'not_ready',
+    'launch': 'not_started'
+}.get(current_phase, 'not_started')
 
 best = None
 best_priority = 999
 p0_items = []
 
-# Use category_order if defined, otherwise iterate as-is
+skip_keys = ['version', 'phase', 'last_updated', 'summary', 'category_order']
+
+# Support both launch.json (category.items[]) and legacy (nested dicts)
 category_order = checklist.get('category_order', [k for k in checklist.keys()])
-skip_keys = ['version', 'phase', 'derived_from', 'last_updated', 'target', 'location', 'summary', 'category_order']
 
 for category in category_order:
     if category in skip_keys or category not in checklist:
         continue
-    items = checklist[category]
-    if not isinstance(items, dict):
+    section = checklist[category]
+    if not isinstance(section, dict):
         continue
-    for subcategory, subitems in items.items():
-        if not isinstance(subitems, dict) or subcategory in ['description', 'target']:
-            continue
-        for item, info in subitems.items():
-            if isinstance(info, dict) and info.get('status') == status_pending:
-                priority = info.get('priority', 99)
+    # New format: section has 'items' list
+    if 'items' in section:
+        for item_info in section['items']:
+            if isinstance(item_info, dict) and item_info.get('status') == status_pending:
+                priority = item_info.get('priority', 99)
+                name = item_info.get('name', '?')
                 if priority == 0:
-                    p0_items.append(item)
+                    p0_items.append(name)
                 if priority < best_priority:
                     best_priority = priority
-                    best = {'item': item, 'category': category, 'subcategory': subcategory, 'priority': priority, 'info': info}
+                    best = {'item': name, 'category': category, 'priority': priority, 'info': item_info}
+    else:
+        # Legacy nested dict format
+        for subcategory, subitems in section.items():
+            if not isinstance(subitems, dict) or subcategory in ['description', 'target']:
+                continue
+            for item, info in subitems.items():
+                if isinstance(info, dict) and info.get('status') == status_pending:
+                    priority = info.get('priority', 99)
+                    if priority == 0:
+                        p0_items.append(item)
+                    if priority < best_priority:
+                        best_priority = priority
+                        best = {'item': item, 'category': category, 'priority': priority, 'info': info}
 
 # Warn if multiple P0 items (violates at-most-one rule)
 if len(p0_items) > 1:
@@ -133,13 +148,12 @@ if len(p0_items) > 1:
 if best:
     priority_label = {0: 'P0 (IMMEDIATE)', 1: 'P1', 2: 'P2', 3: 'P3'}.get(best['priority'], f'P{best[\"priority\"]}')
     print(f'RECOMMENDED: {best[\"item\"]}')
-    print(f'Area: {best[\"category\"]} > {best[\"subcategory\"]}')
+    print(f'Area: {best[\"category\"]}')
     print(f'Priority: {priority_label}')
+    print(f'Description: {best[\"info\"].get(\"description\", \"\")}')
     print(f'(You have discretion to choose a different item if justified)')
-    if 'test' in best['info']:
-        print(f'Test: {best[\"info\"][\"test\"]}')
-    if 'manual_step' in best['info']:
-        print(f'Manual step: {best[\"info\"][\"manual_step\"]}')
+    if 'test_file' in best['info'] and best['info']['test_file']:
+        print(f'Test: {best[\"info\"][\"test_file\"]}')
 else:
     print('All items complete for this phase!')
 "
@@ -209,6 +223,7 @@ pytest packages/civicos/tests/ -q  # full suite before commit
 | hardening | not_verified → verified | Automated test passes |
 | integration | not_tested → passing | Real data test passes |
 | pilot | not_ready → ready | Artifact/check complete |
+| launch | not_started → done | Implementation complete + tested |
 
 ## Step 5: Session End Protocol
 

@@ -29,11 +29,12 @@ Categories are grouped into **tracks** to prevent file conflicts:
 
 | Track | Categories | Typical Files |
 |-------|------------|---------------|
-| **data** | data_architecture, data_readiness, data_standards, data_integrity, ingestion_visibility | packages/civicos/, scripts/ingest_*.py |
-| **ops** | deployment_artifacts, monitoring_observability, admin_operations, rollback_procedures | scripts/, .github/, docs/critical/*DEPLOY* |
-| **infra** | test_infrastructure, pipeline_automation | tests/, conftest.py, .github/workflows/ |
-| **frontend** | frontend_refinement, user_documentation, city_onboarding | apps/civicos-workspace/, docs/user_guides/ |
-| **validation** | pilot_validation | Various (review only) |
+| **security** | security_fixes | packages/civicos-relay/src/civicos_relay/voice/crypto.py, server/app.py |
+| **observability** | observability | apps/civicos-mcp/modal_mcp.py, apps/civicos-relay/modal_relay.py, scripts/ |
+| **billing** | billing_payments | packages/civicos-services/src/civicos_services/core/stripe_billing.py |
+| **acceptance** | acceptance_policy | packages/civicos-relay/src/civicos_relay/server/acceptance.py, apps/civicos-extension/ |
+| **tokens** | token_issuance | New service, packages/civicos-relay/, apps/civicos-extension/ |
+| **operator** | operator_readiness | docs/public/, config/ |
 
 ```bash
 python3 << 'EOF'
@@ -42,11 +43,12 @@ import sys
 
 # Track definitions - categories that touch similar files
 TRACKS = {
-    'data': ['data_architecture', 'data_readiness', 'data_standards', 'data_integrity', 'ingestion_visibility'],
-    'ops': ['deployment_artifacts', 'monitoring_observability', 'admin_operations', 'rollback_procedures'],
-    'infra': ['test_infrastructure', 'pipeline_automation'],
-    'frontend': ['frontend_refinement', 'user_documentation', 'city_onboarding'],
-    'validation': ['pilot_validation']
+    'security': ['security_fixes'],
+    'observability': ['observability'],
+    'billing': ['billing_payments'],
+    'acceptance': ['acceptance_policy'],
+    'tokens': ['token_issuance'],
+    'operator': ['operator_readiness']
 }
 
 def get_track(category):
@@ -55,25 +57,22 @@ def get_track(category):
             return track
     return 'unknown'
 
-with open('pilot.json') as f:
+with open('launch.json') as f:
     cl = json.load(f)
 
-skip = ['version', 'phase', 'derived_from', 'last_updated', 'target', 'location', 'summary', 'category_order', 'description']
+skip = ['version', 'phase', 'last_updated', 'summary', 'category_order']
 
 # Find P0 item
 p0_item = None
 p0_track = None
 
-for cat, items in cl.items():
-    if cat in skip or not isinstance(items, dict):
+for cat, section in cl.items():
+    if cat in skip or not isinstance(section, dict):
         continue
-    for sub, subitems in items.items():
-        if not isinstance(subitems, dict) or sub in skip:
-            continue
-        for item, info in subitems.items():
-            if isinstance(info, dict) and info.get('status') == 'not_ready' and info.get('priority') == 0:
-                p0_item = {'name': item, 'category': cat, 'subcategory': sub, 'info': info}
-                p0_track = get_track(cat)
+    for item_info in section.get('items', []):
+        if isinstance(item_info, dict) and item_info.get('status') == 'not_started' and item_info.get('priority') == 0:
+            p0_item = {'name': item_info['name'], 'category': cat, 'info': item_info}
+            p0_track = get_track(cat)
 
 print('=' * 60)
 print('PARALLEL SESSION SETUP')
@@ -95,28 +94,24 @@ print('RECOMMENDED SECONDARY ITEMS')
 print('=' * 60)
 
 candidates = []
-for cat, items in cl.items():
-    if cat in skip or not isinstance(items, dict):
+for cat, section in cl.items():
+    if cat in skip or not isinstance(section, dict):
         continue
     track = get_track(cat)
     # Skip same track as P0
     if p0_track and track == p0_track:
         continue
-    for sub, subitems in items.items():
-        if not isinstance(subitems, dict) or sub in skip:
-            continue
-        for item, info in subitems.items():
-            if isinstance(info, dict) and info.get('status') == 'not_ready':
-                priority = info.get('priority', 99)
-                if priority > 0:  # Skip P0 items
-                    candidates.append({
-                        'name': item,
-                        'category': cat,
-                        'subcategory': sub,
-                        'track': track,
-                        'priority': priority,
-                        'info': info
-                    })
+    for item_info in section.get('items', []):
+        if isinstance(item_info, dict) and item_info.get('status') == 'not_started':
+            priority = item_info.get('priority', 99)
+            if priority > 0:  # Skip P0 items
+                candidates.append({
+                    'name': item_info['name'],
+                    'category': cat,
+                    'track': track,
+                    'priority': priority,
+                    'info': item_info
+                })
 
 # Sort by priority
 candidates.sort(key=lambda x: x['priority'])
@@ -127,7 +122,7 @@ if candidates:
     for i, c in enumerate(candidates[:5]):
         priority_label = f'P{c["priority"]}'
         print(f'\n{i+1}. [{priority_label}] {c["name"]}')
-        print(f'   Track: {c["track"].upper()} | {c["category"]} > {c["subcategory"]}')
+        print(f'   Track: {c["track"].upper()} | {c["category"]}')
         if c['info'].get('artifact'):
             artifact = c['info']['artifact'][:80] + '...' if len(c['info'].get('artifact', '')) > 80 else c['info'].get('artifact', '')
             print(f'   Artifact: {artifact}')
@@ -264,7 +259,7 @@ Before creating a PR, check if there are related items you should complete first
 # Check items in same category that are now unblocked
 python3 -c "
 import json
-with open('pilot.json') as f:
+with open('launch.json') as f:
     p = json.load(f)
 # Look for items in same subcategory with status='not_ready'
 "
@@ -361,7 +356,7 @@ git worktree prune
 
 1. Commit all changes to your feature branch
 2. Push branch: `git push -u origin $BRANCH_NAME`
-3. Update pilot.json status (if item complete)
+3. Update launch.json status (if item complete)
 4. Create PR or coordinate merge with P0 session
 5. Append to `claude-progress.txt` (in main repo):
    ```

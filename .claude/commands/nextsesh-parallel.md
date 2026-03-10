@@ -41,7 +41,7 @@ echo "Commits ahead of main:"
 git log main..HEAD --oneline 2>/dev/null || echo "(could not compare to main)"
 ```
 
-2. **Check item status in pilot.json:**
+2. **Check item status in launch.json:**
 ```bash
 python3 << 'EOF'
 import json
@@ -62,33 +62,31 @@ else:
     item_name = None
     print(f"Could not parse item from branch: {branch}")
 
-# Find item in pilot.json
-with open('pilot.json') as f:
+# Find item in launch.json
+with open('launch.json') as f:
     cl = json.load(f)
 
-skip = ['version', 'phase', 'derived_from', 'last_updated', 'target', 'location', 'summary', 'category_order', 'description']
+skip = ['version', 'phase', 'last_updated', 'summary', 'category_order']
 
 found = None
-for cat, items in cl.items():
-    if cat in skip or not isinstance(items, dict): continue
-    for sub, subitems in items.items():
-        if not isinstance(subitems, dict) or sub in skip: continue
-        for item, info in subitems.items():
-            if item_name and item == item_name:
-                found = {'name': item, 'cat': cat, 'sub': sub, 'info': info}
-                break
+for cat, section in cl.items():
+    if cat in skip or not isinstance(section, dict): continue
+    for item_info in section.get('items', []):
+        if isinstance(item_info, dict) and item_name and item_info.get('name') == item_name:
+            found = {'name': item_info['name'], 'cat': cat, 'info': item_info}
+            break
 
 if found:
     print(f"\nItem: {found['name']}")
-    print(f"Category: {found['cat']} > {found['sub']}")
+    print(f"Category: {found['cat']}")
     print(f"Status: {found['info'].get('status')}")
     print(f"Priority: P{found['info'].get('priority', '?')}")
-    if found['info'].get('status') == 'ready':
-        print("\n✓ Item already marked ready!")
+    if found['info'].get('status') == 'done':
+        print("\n✓ Item already marked done!")
     else:
-        print("\n⚠ Item still not_ready - update pilot.json if work is complete")
+        print("\n⚠ Item still not done - update launch.json if work is complete")
 else:
-    print(f"\nCould not find matching item in pilot.json")
+    print(f"\nCould not find matching item in launch.json")
     print("You may need to manually update the item status.")
 EOF
 ```
@@ -162,7 +160,7 @@ cat >> "$PROGRESS_FILE" << EOF
 ### Status
 - [ ] Pushed to origin
 - [ ] PR created / Ready for merge
-- [ ] pilot.json updated
+- [ ] launch.json updated
 
 EOF
 
@@ -175,7 +173,7 @@ echo "Edit the file to fill in the [List what was accomplished] section."
 Before ending the session, verify:
 - [ ] All changes committed to feature branch
 - [ ] Branch pushed to origin (or PR created)
-- [ ] pilot.json item status updated if complete
+- [ ] launch.json item status updated if complete
 - [ ] Session summary appended to claude-progress.txt
 
 ## Cleanup (After Merge)
