@@ -53,6 +53,12 @@ from civicos_extraction.clients.representatives import (
     extract_elected_officials_to_storage,
     ElectedOfficialStorageProtocol,
 )
+from civicos_extraction.clients.granicus import (
+    GranicusClient,
+    GranicusSource,
+    create_marin_county_client,
+    create_marin_county_source,
+)
 from civicos_extraction.clients.base import (
     BaseExtractor,
     Meeting,
@@ -136,6 +142,10 @@ __all__ = [
     "representative_to_elected_official",
     "extract_elected_officials_to_storage",
     "ElectedOfficialStorageProtocol",
+    "GranicusClient",
+    "GranicusSource",
+    "create_marin_county_client",
+    "create_marin_county_source",
     "BaseExtractor",
     "Meeting",
     "ExtractionConfig",

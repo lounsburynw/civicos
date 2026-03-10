@@ -227,6 +227,9 @@ class ExtractionConfig:
             # School districts use "name-schools.json" format
             base_name = jurisdiction_id.replace("school-", "")
             config_name = f"{base_name}-schools"
+        elif jurisdiction_id.startswith("county-") or jurisdiction_id.startswith("state-"):
+            # Counties and states use full ID: county-marin.json, state-california.json
+            config_name = jurisdiction_id
         else:
             # Cities use "name.json" format
             config_name = jurisdiction_id.replace("city-", "")

@@ -122,6 +122,26 @@ neighborhoods:
   - Bret Harte
 
 # =============================================================================
+# Ingestion Tiers
+# =============================================================================
+
+ingestion:
+  # Tier 1: Free
+  meetings: true
+  pdf_chunks: true
+  issues: true
+  municipal_code: true
+  # Tier 2: Low cost (LLM)
+  agenda_items: true
+  decisions: true
+  legislation: true
+  # Tier 3: Higher cost (audio)
+  transcription: true
+  diarization: true
+  # Tier 4: GPU
+  vector_indexing: true
+
+# =============================================================================
 # Tool Configuration
 # =============================================================================
 

@@ -1,0 +1,105 @@
+# Marin County Configuration
+#
+# County-level configuration for Marin County, California.
+# Parent jurisdiction for San Rafael and 10 other incorporated cities.
+
+# =============================================================================
+# Identity
+# =============================================================================
+
+jurisdiction_id: county-marin
+level: county
+display_name: Marin County
+
+# =============================================================================
+# Hierarchy
+# =============================================================================
+
+parent_jurisdictions:
+  - state-california
+  - country-united-states
+
+# =============================================================================
+# Contact Information
+# =============================================================================
+
+contact_info:
+  clerk_email: BOS@marincounty.gov
+  county_hall_address: "3501 Civic Center Drive, Suite 329, San Rafael CA 94903"
+  phone: "(415) 473-7331"
+  website: "https://www.marincounty.gov"
+  public_comment_deadline: "Noon the Monday before Tuesday Board meeting"
+  in_person_time_limit: "3 minutes"
+
+# =============================================================================
+# Governing Body
+# =============================================================================
+
+governing_body:
+  name: Marin County Board of Supervisors
+  members_title: Supervisors
+  meeting_schedule: "Tuesday, 9:00 AM"
+  meeting_location: "Board of Supervisors Chambers, 3501 Civic Center Drive"
+
+# =============================================================================
+# Data Sources
+# =============================================================================
+
+data_sources:
+  meetings:
+    source_type: granicus
+    base_url: https://marin.granicus.com
+    archives:
+      board_of_supervisors: "33"
+    metadata:
+      granicus_domain: marin
+      default_view_id: "36"
+
+# =============================================================================
+# Ingestion Tiers
+# =============================================================================
+
+ingestion:
+  # Tier 1: Free
+  meetings: true
+  pdf_chunks: true
+  issues: false           # No SeeClickFix for county yet
+  municipal_code: false   # County codes handled differently
+  # Tier 2: Low cost (LLM)
+  agenda_items: true
+  decisions: false        # Enable after transcripts available
+  legislation: true
+  # Tier 3: Higher cost (audio)
+  transcription: false    # Enable when ready (~$0.02/min)
+  diarization: false
+  # Tier 4: GPU
+  vector_indexing: true
+
+# =============================================================================
+# Financial Context
+# =============================================================================
+
+financial:
+  state: CA
+  county: Marin
+
+# =============================================================================
+# Metadata
+# =============================================================================
+
+metadata:
+  created: "2026-03-09"
+  population_2024: 260000
+  county_seat: San Rafael
+  incorporated_cities:
+    - Belvedere
+    - Corte Madera
+    - Fairfax
+    - Larkspur
+    - Mill Valley
+    - Novato
+    - Ross
+    - San Anselmo
+    - San Rafael
+    - Sausalito
+    - Tiburon
