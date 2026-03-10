@@ -182,7 +182,6 @@ If other operators already serve your jurisdiction, you can peer with them to sy
 - **Don't share databases** between MCP and relay. They have different data models and federation boundaries.
 - **Don't skip RLS.** Enable Row Level Security on production databases (`scripts/sql/enable_rls.sql`).
 - **Don't run the signer without a relay.** The signer signs attestations on behalf of the relay — it needs a relay to call it.
-- **Don't disable signature verification.** Setting `CIVICOS_ALLOW_UNSIGNED=true` in production defeats the trust model.
 
 ## Further Reading
 

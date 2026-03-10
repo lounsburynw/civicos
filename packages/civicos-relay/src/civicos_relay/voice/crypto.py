@@ -2,14 +2,17 @@
 
 Uses BIP-340 Schnorr signatures on secp256k1 (Nostr-compatible).
 The Personal MCP signs Nostr events; the relay verifies them.
+
+coincurve is a hard dependency — import fails fast if missing.
 """
 
 import hashlib
 import json
-import os
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Optional
+
+from coincurve import PrivateKey, PublicKeyXOnly
 
 from civicos_relay.voice.models import Voice, Stance, Comment, Feedback
 
@@ -23,17 +26,8 @@ def _schnorr_verify(pubkey_hex: str, sig_hex: str, msg_hex: str) -> bool:
         msg_hex: 32-byte message hash as hex (64 chars) — typically a Nostr event ID
     """
     try:
-        from coincurve import PublicKeyXOnly
         pk = PublicKeyXOnly(bytes.fromhex(pubkey_hex))
         return pk.verify(bytes.fromhex(sig_hex), bytes.fromhex(msg_hex))
-    except ImportError:
-        if os.environ.get("CIVICOS_ALLOW_UNSIGNED") == "1":
-            import logging
-            logging.getLogger(__name__).warning(
-                "coincurve not installed — BYPASSING signature verification (test only)"
-            )
-            return True
-        raise RuntimeError("coincurve is required for signature verification")
     except Exception:
         return False
 
@@ -60,7 +54,6 @@ class KeyPair:
     def generate(cls) -> "KeyPair":
         """Generate a new secp256k1 keypair."""
         import os
-        from coincurve import PublicKeyXOnly
         private_key = os.urandom(32)
         xonly_pk = PublicKeyXOnly.from_valid_secret(private_key)
         return cls(
@@ -76,7 +69,7 @@ def _voice_message(entity: str, stance: Stance) -> str:
 
 def sign_voice(keypair: KeyPair, entity: str, stance: Stance, jurisdiction: Optional[str] = None) -> Voice:
     """Create a signed voice (for testing only — real signing happens in Personal MCP)."""
-    from coincurve import PrivateKey
+
     now = datetime.utcnow()
     created_at = int(now.timestamp())
 
@@ -384,7 +377,7 @@ def sign_attestation_event(
 
     Returns a full signed Nostr event dict that the subject stores as proof.
     """
-    from coincurve import PrivateKey
+
 
     created_at = int(datetime.utcnow().timestamp())
     tags = [
@@ -478,7 +471,7 @@ def verify_signature(public_key_hex: str, signature_hex: str, message: str) -> b
 
 def sign_message(keypair: KeyPair, message: str) -> str:
     """Sign an arbitrary message with Schnorr (for testing only)."""
-    from coincurve import PrivateKey
+
     msg_hash = hashlib.sha256(message.encode("utf-8")).digest()
     pk = PrivateKey(bytes.fromhex(keypair.private_key_hex))
     return pk.sign_schnorr(msg_hash).hex()
