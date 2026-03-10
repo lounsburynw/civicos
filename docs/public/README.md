@@ -17,7 +17,7 @@ Identity is local-first, built on Nostr (secp256k1 Schnorr signatures). Private 
 | Surface | What it does | Who it's for |
 |---------|-------------|--------------|
 | [Browser extension](extension/setup.md) | Primary UI — civic dashboard, voice, identity | Residents |
-| [MCP server](mcp/setup.md) | 45+ read-only civic data tools for AI assistants | Claude, ChatGPT users |
+| [MCP server](mcp/setup.md) | 50+ read-only civic data tools for AI assistants | Claude, ChatGPT users |
 | REST API | Programmatic access to civic data | Developers |
 
 ## Architecture
@@ -67,11 +67,11 @@ Operators can independently run an **MCP server** (read-only civic data), a **re
 | [`civicos-services`](packages/civicos-services.md) | REST API server (FastAPI, 15 routers, 50+ endpoints) |
 | [`civicos-relay`](packages/civicos-relay.md) | Coordination — voice casting, subscriptions, relay sync |
 | [`civicos-signer`](packages/civicos-signer.md) | Portable attestation signing — lets organizations hold their own issuer keys |
-| [`civicos-extraction`](packages/civicos-extraction.md) | Platform parsers — Legistar, CivicClerk, ProudCity, SeeClickFix, LegiScan, and more |
+| [`civicos-extraction`](packages/civicos-extraction.md) | Platform parsers — Legistar, CivicClerk, ProudCity, Granicus, SeeClickFix, LegiScan, and more |
 | [`civicos-client`](packages/civicos-client.md) | TypeScript client — API wrapper, identity, AI provider management |
 | [`civicos-components`](packages/civicos-components.md) | Svelte UI components — meetings, decisions, budgets, maps |
 
-## Data (San Rafael Pilot)
+## Data (San Rafael Pilot, as of March 2026)
 
 | Corpus | Records | Source |
 |--------|---------|--------|
@@ -112,6 +112,7 @@ npm install && npm run dev
 - [Core API reference](api.md)
 - [Data dictionary](data-dictionary.md)
 - [Relay — attestation, trust, coordination](relay/overview.md)
+- [Nostr event schemas — build CivicOS clients in any language](relay/nostr-events.md)
 - [Federation — how relays and MCP servers peer across operators](relay/federation.md)
 - [Architecture decisions](decisions/vector_storage.md)
 - [Learning series](learning/README.md) — cryptographic foundations, Nostr, attestation

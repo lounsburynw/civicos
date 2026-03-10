@@ -4,7 +4,19 @@ TypeScript client library for the CivicOS REST API and coordination relay.
 
 **Location:** `packages/civicos-client/`
 
-Used by the browser extension and any TypeScript/JavaScript application.
+Used by the browser extension and any TypeScript/JavaScript application. Not yet published to npm — install from the monorepo:
+
+```bash
+# From the monorepo root
+cd packages/civicos-client
+npm install
+npm run build
+```
+
+For external projects, copy the built package or link it locally:
+```bash
+npm link ./packages/civicos-client
+```
 
 ## Core Classes
 

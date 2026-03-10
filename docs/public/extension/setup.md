@@ -4,9 +4,7 @@ The CivicOS browser extension is the primary user interface. It runs as a Chrome
 
 ## Install (End Users)
 
-*Chrome Web Store listing coming soon.*
-
-For now, install from source:
+The extension is currently distributed as a developer build. Install from source:
 
 1. Clone the repository and build:
    ```bash

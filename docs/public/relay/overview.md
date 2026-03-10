@@ -73,13 +73,24 @@ All relay interactions use **secp256k1 Schnorr signatures** (Nostr-compatible, B
 
 ## Acceptance Policy
 
-All relay write endpoints enforce an acceptance policy after signature verification. When enabled (`RELAY_ACCEPTANCE_POLICY=true`), writes are checked against a tiered system:
+All relay write endpoints enforce signature verification and an acceptance policy. Writes are checked against a tiered system:
 
-1. **Attested** — present a kind-30850 attestation proof for unlimited writes
-2. **Paid** — include a payment proof for unlimited writes
-3. **Rate-limited** — per-event-type daily limits (e.g., 50 voices/day, 20 comments/day)
+1. **Attested** — present a kind-30850 attestation proof for unlimited writes (Phase 3)
+2. **Paid** — include a payment proof for unlimited writes (Phase 4)
+3. **Rate-limited** — per-event-type daily limits (active now)
 
-If a write exceeds the rate limit without an attestation or payment proof, the relay returns **HTTP 402** with a body describing upgrade options:
+Default rate limits:
+
+| Event Type | Daily Limit |
+|------------|-------------|
+| voice | 50 |
+| comment | 20 |
+| initiative | 5 |
+| action_create | 10 |
+| action_commit | 20 |
+| action_complete | 20 |
+
+If a write exceeds the rate limit without an attestation or payment proof, the relay returns **HTTP 402** with upgrade options:
 
 ```json
 {
@@ -94,7 +105,82 @@ If a write exceeds the rate limit without an attestation or payment proof, the r
 }
 ```
 
-The acceptance policy is disabled by default. Write tools are not exposed in the MCP server — all writes go through the relay directly.
+Write tools are not exposed in the MCP server — all writes go through the relay directly.
+
+## HTTP Endpoints
+
+All endpoints are under the relay's base URL. Write endpoints require Nostr-signed request bodies; read endpoints are public.
+
+### Voice
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| POST | `/coordination/voice` | Signed + acceptance policy | Cast a stance on an entity |
+| GET | `/coordination/voice/counts/{entity}` | None | Get voice counts (support/oppose/watching) |
+| GET | `/coordination/voice/{entity}` | None | List all voices for an entity |
+
+### Comments
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| POST | `/coordination/comment` | Signed + acceptance policy | Submit a public comment |
+| GET | `/coordination/comments/{entity}` | None | List comments for an entity |
+| GET | `/coordination/comment/counts/{entity}` | None | Get comment count |
+
+### Initiatives
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| POST | `/coordination/initiative` | Signed + acceptance policy | Create a community initiative |
+| GET | `/coordination/initiatives/{jurisdiction}` | None | List initiatives (optional topic/status filter) |
+| GET | `/coordination/initiative/{initiative_id}` | None | Get initiative details |
+
+### Civic Actions
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| POST | `/coordination/civic-action` | Signed + acceptance policy | Create a civic action (kind 30810) |
+| GET | `/coordination/civic-actions/{initiative_id}` | None | List actions for an initiative |
+| GET | `/coordination/civic-action/{action_id}/progress` | None | Get progress metrics |
+| POST | `/coordination/civic-action/{action_id}/commit` | Signed + acceptance policy | Commit to an action (kind 30811) |
+| POST | `/coordination/civic-action/{action_id}/complete` | Signed + acceptance policy | Complete an action (kind 30812) |
+| POST | `/coordination/civic-action/{action_id}/withdraw` | Signed | Withdraw a commitment |
+
+### Subscriptions
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| POST | `/coordination/subscribe` | None | Subscribe to event notifications |
+| DELETE | `/coordination/subscribe/{subscription_id}` | None | Unsubscribe |
+
+### Attestation
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| POST | `/coordination/attestation/redeem` | Signed (kind-24242) | Redeem an attestation code |
+| POST | `/coordination/codes/batch` | Issuer-signed (kind-30851) | Upload batch of attestation codes |
+| POST | `/coordination/issuers/register` | Bearer token | Register a trusted issuer |
+
+### Feedback
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| POST | `/coordination/feedback` | Signed | Submit platform feedback (kind 1804) |
+| GET | `/coordination/feedback` | Admin | Query feedback by type/jurisdiction |
+
+### Federation & Sync
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| GET | `/coordination/sync/voices` | None | Export voices for peer sync (paginated) |
+| POST | `/coordination/sync/voices` | None | Import voices from a peer relay |
+| GET | `/coordination/provenance/{public_key}` | None | Get provenance data for a key |
+
+### Health
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| GET | `/health` | None | Health check with relay ID |
 
 ## Storage
 
@@ -109,6 +195,7 @@ Trusted organizations run their own signing services via [`civicos-signer`](../p
 
 ## Further Reading
 
+- [Nostr Event Schemas](nostr-events.md) — Complete tag structures for building CivicOS clients
 - [Attestation](attestation.md) — How gated attestation prevents spam and ensures genuine participation
 - [Trust Model](trust.md) — Adversary analysis, commitment logs, operator integrity
 - [Federation](federation.md) — Multi-operator peering, jurisdiction rollup, data sovereignty

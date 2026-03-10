@@ -26,6 +26,8 @@ open "$BASE/docs"
 
 ### Getting an API Key
 
+**Open tier** (30 req/min, limited tools): No key required for `city_pulse`, `get_voice_counts`, and a few other discovery tools.
+
 **Free tier** (60 req/min): Contact us via GitHub Issues.
 
 **Paid tiers**: Visit the billing endpoint to provision a key:
@@ -33,20 +35,21 @@ open "$BASE/docs"
 ```bash
 curl -X POST "$BASE/api/billing/checkout" \
   -H "Content-Type: application/json" \
-  -d '{"tier": "journalist", "email": "you@example.com"}'
+  -d '{"tier": "builder", "email": "you@example.com"}'
 ```
 
 Returns a Stripe checkout URL. After payment, your API key is emailed.
 
-| Tier | Rate Limit | Use Case |
-|------|-----------|----------|
-| **free** | 60 req/min | Personal use, exploration |
-| **builder** | 300 req/min | Application integrations, civic tech |
-| **organization** | 300 req/min | Nonprofits, civic orgs |
-| **city** | 600 req/min | Municipal staff, officials |
-| **admin** | 1,000 req/min | Platform operations |
+| Tier | Rate Limit | Use Case | Tools |
+|------|-----------|----------|-------|
+| **open** | 30 req/min | Discovery, dashboards | 6 tools (city_pulse, get_started, voice counts, relays, initiatives) |
+| **free** | 60 req/min | Personal use, exploration | + All read-only civic data (~30 tools) |
+| **builder** | 300 req/min | Application integrations, civic tech | + Participation tools (testimony, comment drafting, meeting prep) |
+| **organization** | 300 req/min | Nonprofits, civic orgs | Same as builder |
+| **city** | 600 req/min | Municipal staff, officials | Same as builder |
+| **admin** | 1,000 req/min | Platform operations | + Admin tools (data status, cost dashboard, key management) |
 
-All tiers have a 10,000 req/hour ceiling. LLM-powered endpoints (conversation, chat routing) are limited to 30 req/min regardless of tier.
+All tiers have a 10,000 req/hour ceiling. LLM-powered endpoints (conversation, chat routing) are limited to 30 req/min regardless of tier. See [MCP Tool Access by Tier](mcp/setup.md#tool-access-by-api-tier) for the complete tool-to-tier mapping.
 
 ## Authentication
 
@@ -468,7 +471,7 @@ All amounts are in **dollars** (not cents). Dates are ISO 8601 datetimes.
 
 See [Data Dictionary](data-dictionary.md) for complete field-level schemas of all return types.
 
-### San Rafael Pilot (current data)
+### San Rafael Pilot (as of March 2026)
 
 | Corpus | Records | Source |
 |--------|---------|--------|

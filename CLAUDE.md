@@ -514,7 +514,7 @@ modal app logs civicos-api
 - Never deploy to Fly.io or other platforms — Modal only.
 - Local file edits are not automatically included — code is bundled at deploy time.
 - Modal Secrets (`civicos-secrets`) store DATABASE_URL, OPENAI_API_KEY, etc. Check with `modal secret list`.
-- See `docs/critical/DEPLOYMENT_GUIDE.md` for full procedures.
+- See `docs/internal/deployment.md` for full procedures.
 
 ## UX Surfaces
 
@@ -538,7 +538,7 @@ npm run build        # Production build
 
 Load the extension in Chrome: `chrome://extensions` → Developer mode → Load unpacked → select `apps/civicos-extension/dist`.
 
-The extension uses Svelte, communicates with the CivicOS API, and manages local identity (Nostr keys) in browser storage. See `docs/critical/BROWSER_EXTENSION_ARCHITECTURE.md` for design details.
+The extension uses Svelte, communicates with the CivicOS API, and manages local identity (Nostr keys) in browser storage. See `docs/public/extension/development.md` for design details.
 
 ## Protocol (Nostr)
 
