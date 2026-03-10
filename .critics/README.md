@@ -14,6 +14,8 @@ Critics are specialized prompts that review code changes against Civic's pattern
 | `protocol.critic.md` | Protocol conformance | Missing methods, signature mismatches |
 | `architecture.critic.md` | Layer boundaries | Cross-layer imports, package violations, raw SQL |
 | `session.critic.md` | Session hygiene | Missing P0, multiple P0s, incomplete handoff |
+| `security.critic.md` | Trust model integrity | Silent verification bypass, env var security holes, lazy crypto imports |
+| `jurisdiction.critic.md` | Jurisdiction isolation | Missing jurisdiction_id filters, hardcoded jurisdictions, data leakage |
 | `data.critic.md` | ETL data quality | Schema violations, type mismatches, missing fields |
 | `docs.critic.md` | Documentation accuracy | Stale paths, orphaned docs, dead links, bloat |
 
@@ -22,7 +24,7 @@ Critics are specialized prompts that review code changes against Civic's pattern
 For data diagnostics, use the dedicated utilities instead of ad-hoc queries:
 - `/data-status` - Schema-aware corpus counts and gaps
 - `/vector-coverage` - Vector embedding coverage
-- `civic.diagnostics.DataStatus` - Programmatic access
+- `civicos.diagnostics.DataStatus` - Programmatic access
 
 ## Usage
 
@@ -36,7 +38,7 @@ For data diagnostics, use the dedicated utilities instead of ad-hoc queries:
 /critic pipeline
 
 # Run on specific files
-/critic protocol packages/civicos/src/civic/storage/
+/critic protocol packages/civicos/src/civicos/storage/
 ```
 
 ### Manual Review

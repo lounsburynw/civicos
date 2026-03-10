@@ -8,6 +8,8 @@ Run LLM-based code review on staged changes to catch architectural issues.
 - `/critic pipeline` - Run only pipeline critic
 - `/critic protocol` - Run only protocol critic
 - `/critic architecture` - Run only architecture critic
+- `/critic security` - Run only security critic
+- `/critic jurisdiction` - Run only jurisdiction critic
 - `/critic session` - Run only session critic
 
 ## Steps
@@ -52,6 +54,8 @@ Respond with JSON only:
 - Task: "Run pipeline critic" → reads `.critics/pipeline.critic.md`
 - Task: "Run protocol critic" → reads `.critics/protocol.critic.md`
 - Task: "Run architecture critic" → reads `.critics/architecture.critic.md`
+- Task: "Run security critic" → reads `.critics/security.critic.md`
+- Task: "Run jurisdiction critic" → reads `.critics/jurisdiction.critic.md`
 - Task: "Run session critic" → reads `.critics/session.critic.md`
 
 Use `model: "haiku"` for fast, cost-effective critic runs.
@@ -92,7 +96,7 @@ If user specifies a single critic (e.g., `/critic session`), only spawn one agen
 ## Benefits of Sub-Agent Approach
 
 - **Context efficient**: Critic files stay out of main context
-- **Parallel execution**: All 4 critics run simultaneously
+- **Parallel execution**: All critics run simultaneously
 - **Isolated analysis**: Each agent focuses on one concern
 - **Structured output**: JSON responses easy to aggregate
 

@@ -14,7 +14,7 @@ Critical invariant: Data MUST be persisted via StorageBackend BEFORE indexing. T
 
 ## Key Files
 
-- `packages/civicos-extraction/src/civic_extraction/pipeline.py` - Main Pipeline class
+- `packages/civicos-extraction/src/civicos_extraction/pipeline.py` - Main Pipeline class
 - `packages/civicos/src/civicos/storage/backend.py` - StorageBackend protocol
 - `packages/civicos/src/civicos/storage/vector.py` - VectorBackend protocol
 

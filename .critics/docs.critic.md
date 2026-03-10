@@ -14,7 +14,8 @@ CivicOS is designed for federated collaboration—multiple contributors (human a
 
 - `CLAUDE.md` - AI session instructions, slash commands, architecture overview
 - `README.md` - Human onboarding, setup instructions, project overview
-- `docs/critical/` - Essential architecture and operations docs
+- `docs/public/` - Public-facing docs (architecture, API, extension, MCP, packages)
+- `docs/internal/` - Internal ops docs (deployment, backup, ingestion, testing, rollback)
 - `.critics/` - Code review prompts including this one
 
 ## Check
@@ -26,9 +27,9 @@ Run when these files are in the changeset.
 **1. Explicit paths exist?**
 
 Only check paths that include directory separators (explicit paths), not bare filenames in tables:
-- `docs/critical/DEPLOYMENT_GUIDE.md` → check exists
+- `docs/internal/deployment.md` → check exists
 - `packages/civicos/src/civicos/civicos.py` → check exists
-- `DEPLOYMENT_GUIDE.md` (bare filename in table) → skip, implied prefix
+- `deployment.md` (bare filename in table) → skip, implied prefix
 
 **2. Slash commands match `.claude/commands/`?**
 
@@ -98,7 +99,7 @@ Run periodically or via `/critic docs --full`.
 Docs not referenced by full path from CLAUDE.md, README.md, or other docs:
 ```bash
 # Find docs not linked from anywhere (check full paths, not basenames)
-for f in $(find docs -name "*.md" -not -path "docs/archive/*"); do
+for f in $(find docs/public docs/internal -name "*.md" 2>/dev/null); do
   if ! grep -rq "$f" CLAUDE.md README.md docs/ --include="*.md" 2>/dev/null; then
     echo "Orphaned: $f"
   fi
@@ -143,15 +144,15 @@ Respond with JSON:
 
 CLAUDE.md contains:
 ```markdown
-See `docs/critical/DEPLOYMENT_GUIDE.md` for production setup.
+See `docs/internal/deployment.md` for production setup.
 ```
 
-But `docs/critical/DEPLOYMENT_GUIDE.md` doesn't exist.
+But the referenced file doesn't exist.
 
 ```json
 {
   "pass": false,
-  "issues": ["docs/critical/DEPLOYMENT_GUIDE.md referenced but doesn't exist"],
+  "issues": ["docs/internal/deployment.md referenced but doesn't exist"],
   "severity": "critical",
   "suggestions": ["Create the file or update the reference"]
 }
@@ -170,14 +171,14 @@ CLAUDE.md lists `/deploy` but `.claude/commands/deploy.md` doesn't exist.
 }
 ```
 
-### FAIL - Orphaned Critical Doc (warning)
+### FAIL - Orphaned Doc (warning)
 
-`docs/critical/OLD_FEATURE.md` exists but isn't referenced anywhere.
+`docs/internal/old_feature.md` exists but isn't referenced anywhere.
 
 ```json
 {
   "pass": false,
-  "issues": ["docs/critical/OLD_FEATURE.md is orphaned"],
+  "issues": ["docs/internal/old_feature.md is orphaned"],
   "severity": "warning",
   "suggestions": ["Move to docs/archive/ or add reference from CLAUDE.md"]
 }
@@ -385,7 +386,7 @@ To run full bloat detection:
 Or manually:
 ```bash
 # Find orphaned docs
-for f in $(find docs -name "*.md" -not -path "docs/archive/*"); do
+for f in $(find docs/public docs/internal -name "*.md" 2>/dev/null); do
   grep -rq "$f" CLAUDE.md README.md docs/ --include="*.md" 2>/dev/null || echo "Orphaned: $f"
 done
 ```
