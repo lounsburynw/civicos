@@ -110,13 +110,18 @@ Prompt content and AI responses are never written to logs or stored in the relay
 ## Rate Limiting
 
 - **Per-pubkey:** 20 requests per day (resets at UTC midnight)
-- **Global:** $5/day cost cap across all users (pilot constraint)
 - **Chat requests** count as 2x due to multi-turn tool use
 
 Rate limits are in-memory and reset on container restart — acceptable for pilot scale.
 
 ## Cost Model
 
-Each AI request costs approximately $0.01-0.02 in API costs. The relay absorbs this during pilot. For production, a credit-based system allows residents to purchase additional capacity while maintaining the privacy separation — credits are tied to pubkey, not identity.
+Each AI request costs approximately $0.01-0.02 in API costs. The relay absorbs this during pilot.
 
-A free tier (daily allowance without payment) preserves the principle that basic civic access doesn't require payment.
+### Current (Pilot)
+
+The relay pays API costs directly. The 20 req/day limit bounds exposure. No billing or credit system is active.
+
+### Planned (Production)
+
+A credit-based system will allow residents to purchase additional capacity while maintaining the privacy separation described above — credits are tied to pubkey, not identity. A free daily allowance will preserve the principle that basic civic access doesn't require payment. The credit ledger, Stripe webhook integration, and global cost cap ($5/day) are designed but not yet implemented.
