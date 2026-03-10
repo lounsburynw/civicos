@@ -39,6 +39,7 @@ import {
   createInitiativeTags,
   createCivicActionContent,
   createCivicActionTags,
+  createFeedbackTags,
 } from './events.js';
 
 export class ApiClient {
@@ -753,6 +754,52 @@ export class ApiClient {
       options?.target, options?.deadline, options?.targetCount,
       options?.template, options?.deadlineContext,
     );
+  }
+
+  // === Feedback ===
+
+  async submitFeedback(
+    feedbackType: 'bug' | 'feature' | 'general',
+    content: string,
+    jurisdiction: string,
+    publicKey: string,
+    signature: string,
+    createdAt: number,
+  ): Promise<boolean> {
+    try {
+      const relayUrl = await this.registry.getRelayUrl();
+      const response = await fetch(`${relayUrl}/coordination/feedback`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          feedback_type: feedbackType,
+          content,
+          public_key: publicKey,
+          signature,
+          created_at: createdAt,
+          jurisdiction,
+        }),
+      });
+      return response.ok;
+    } catch {
+      return false;
+    }
+  }
+
+  async castFeedback(
+    feedbackType: 'bug' | 'feature' | 'general',
+    content: string,
+    jurisdiction: string,
+  ): Promise<boolean> {
+    const signer = this.requireSigner();
+    const createdAt = Math.floor(Date.now() / 1000);
+    const signed = await signer.signEvent({
+      kind: CivicEventKinds.FEEDBACK,
+      tags: createFeedbackTags(feedbackType, jurisdiction),
+      content,
+      created_at: createdAt,
+    });
+    return this.submitFeedback(feedbackType, content, jurisdiction, signed.pubkey, signed.sig, createdAt);
   }
 
   // === Internal ===

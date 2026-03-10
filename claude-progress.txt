@@ -1,3 +1,43 @@
+## Session 29 — 2026-03-09: Relay-Backed Feedback Channel (P0)
+
+**Item:** feedback_channel
+**Status:** Complete.
+
+Implemented the full relay-backed feedback system per `docs/internal/user-feedback-spec.md`:
+
+1. **Nostr kind 1804** (regular event) + `Feedback` model in civicos-relay
+2. **`verify_feedback()`** in crypto.py — Schnorr signature verification for feedback events
+3. **SQL migration** (`scripts/sql/add_feedback.sql`) — `coordination_feedback` table on relay DB
+4. **`PostgresFeedbackStorage`** — save, rate-limit (10/hr/pubkey), query, count methods
+5. **REST endpoints** — `POST /coordination/feedback` (signed, rate-limited) + `GET` (admin-only)
+6. **Client API** — `submitFeedback()`, `castFeedback()` in api.ts + `createFeedbackTags()` in events.ts
+7. **`CivicFeedbackForm.svelte`** shared component — type selector, textarea, submit with success state
+8. **Extension integration** — feedback icon in side panel header, slide-down form panel
+9. **MCP admin tool** — `query_feedback` in tools/registry.py + handlers.py for operator access
+
+End-to-end tested: keypair generation → signing → verification → storage → retrieval all passing.
+Smoke tests: 20/20 passed. Extension builds clean. TypeScript compiles clean.
+
+### Files Modified
+- packages/civicos-relay/src/civicos_relay/nostr/kinds.py (CIVIC_FEEDBACK = 1804)
+- packages/civicos-relay/src/civicos_relay/voice/models.py (Feedback model)
+- packages/civicos-relay/src/civicos_relay/voice/crypto.py (verify_feedback)
+- packages/civicos-relay/src/civicos_relay/storage/postgres.py (PostgresFeedbackStorage)
+- packages/civicos-services/src/civicos_services/servers/routers/coordination.py (endpoints)
+- packages/civicos-client/src/events.ts (FEEDBACK kind + createFeedbackTags)
+- packages/civicos-client/src/api.ts (submitFeedback, castFeedback)
+- packages/civicos-components/src/components/CivicFeedbackForm.svelte (new component)
+- apps/civicos-extension/src/side-panel/SidePanel.svelte (FAB + form integration)
+- apps/civicos-mcp/tools/registry.py (query_feedback tool definition)
+- apps/civicos-mcp/tools/handlers.py (query_feedback handler)
+- apps/civicos-mcp/handlers/loader.py (ADMIN_TOOLS set)
+- apps/civicos-mcp/modal_mcp.py (handler binding)
+- scripts/sql/add_feedback.sql (migration)
+- pilot.json (feedback_channel → ready)
+
+### P0 for Next Session
+municipal_data_isolation — Verify municipal data is cleanly isolatable per jurisdiction for city-owned instances
+
 ## Session 28 — 2026-03-09: Docs Landing Page + Checklist Cleanup
 
 **Items:** index_corpus_stats_update, gitignore_build_artifacts, learning_choose_your_path

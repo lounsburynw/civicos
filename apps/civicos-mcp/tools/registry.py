@@ -756,6 +756,20 @@ TOOL_DEFINITIONS: dict[str, ToolDefinition] = {
             "required": ["_admin_token", "action"],
         },
     },
+    "query_feedback": {
+        "description": "Query user feedback submissions. Returns recent feedback items with counts by type.",
+        "requires_admin": True,
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "_admin_token": {"type": "string", "description": "Admin authentication token"},
+                "jurisdiction": {"type": "string", "description": "Jurisdiction ID (e.g., 'city-san-rafael')"},
+                "feedback_type": {"type": "string", "enum": ["bug", "feature", "general"], "description": "Filter by feedback type"},
+                "limit": {"type": "integer", "default": 20, "description": "Max items to return"},
+            },
+            "required": ["_admin_token", "jurisdiction"],
+        },
+    },
 }
 
 

@@ -162,6 +162,20 @@ Signed by relay's pubkey to establish notification provenance.
 """
 
 KEY_LINK_ATTESTATION = 1802
+
+CIVIC_FEEDBACK = 1804
+"""
+Civic Feedback - A user's feedback on the platform.
+
+Tags:
+- t: Feedback type ("bug" | "feature" | "general") (required)
+- j: Jurisdiction (required, e.g., "city-san-rafael")
+- v: Schema version (required, currently "1")
+
+Content: Free-text feedback body
+
+Regular event (not addressable) — allows multiple submissions per user.
+"""
 """
 Key Link Attestation - Links old CivicOS key to new Nostr key.
 
@@ -220,6 +234,16 @@ ENTITY_MEETING = "meeting"
 VALID_ENTITY_TYPES = {ENTITY_DECISION, ENTITY_INITIATIVE, ENTITY_AGENDA_ITEM, ENTITY_MEETING}
 
 # =============================================================================
+# Feedback Types
+# =============================================================================
+
+FEEDBACK_BUG = "bug"
+FEEDBACK_FEATURE = "feature"
+FEEDBACK_GENERAL = "general"
+
+VALID_FEEDBACK_TYPES = {FEEDBACK_BUG, FEEDBACK_FEATURE, FEEDBACK_GENERAL}
+
+# =============================================================================
 # Outcome Values
 # =============================================================================
 
@@ -266,4 +290,5 @@ def is_civic_kind(kind: int) -> bool:
         CIVIC_VOUCH,
         CIVIC_EVENT_NOTIFICATION,
         KEY_LINK_ATTESTATION,
+        CIVIC_FEEDBACK,
     }
