@@ -16,7 +16,17 @@ Use cases:
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Protocol, runtime_checkable
+from typing import Any, Callable, Dict, List, Optional, Protocol, runtime_checkable
+
+# Cost tracking hook — set by services layer at startup to avoid cross-layer imports.
+# Signature: (operation: str, bytes_transferred: int, metadata: dict) -> None
+_cost_hook: Optional[Callable[..., None]] = None
+
+
+def set_blob_cost_hook(hook: Callable[..., None]) -> None:
+    """Register a callback for blob operation cost tracking."""
+    global _cost_hook
+    _cost_hook = hook
 
 
 @dataclass
@@ -579,20 +589,14 @@ class R2Backend:
     def _log_cost(
         self, operation: str, bytes_transferred: int, key: str, content_type: Optional[str] = None
     ) -> None:
-        """Log R2 operation cost. Never raises."""
+        """Log R2 operation cost via registered hook. Never raises."""
+        if _cost_hook is None:
+            return
         try:
-            from civicos_services.core.cost_tracking import log_r2_cost
-
             meta: Dict[str, Any] = {'key': key}
             if content_type:
                 meta['content_type'] = content_type
-            log_r2_cost(
-                operation=operation,
-                bytes_transferred=bytes_transferred,
-                metadata=meta,
-            )
-        except ImportError:
-            pass
+            _cost_hook(operation=operation, bytes_transferred=bytes_transferred, metadata=meta)
         except Exception:
             pass
 
