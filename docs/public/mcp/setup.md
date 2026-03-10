@@ -1,6 +1,6 @@
 # MCP Server Setup
 
-The CivicOS MCP server exposes 50+ civic data tools for AI assistants like Claude and ChatGPT.
+The CivicOS MCP server exposes 45+ civic data tools for AI assistants like Claude and ChatGPT. Write operations (voices, initiatives, subscriptions) go through the [relay](../relay/overview.md) acceptance policy.
 
 ## Connect to Claude Desktop
 
@@ -58,16 +58,9 @@ Add to your Claude Desktop config (`~/Library/Application Support/Claude/claude_
 - `get_federal_expenditures` — Federal spending data
 - `search_budget` — City budget search
 
-### Coordination (5 tools)
+### Coordination (3 tools)
 - `get_voice_counts` — Voice aggregation by entity
-- `subscribe_to_topic` — Topic subscription
-- `prepare_voice` — Voice composition and signing
-- `broadcast_voice` — Submit voice
 - `list_relays` — Available relays
-
-### Initiatives (3 tools)
-- `prepare_initiative` — Initiative composition
-- `broadcast_initiative` — Submit initiative
 - `list_initiatives` — List initiatives
 
 ### Engagement (3 tools)
