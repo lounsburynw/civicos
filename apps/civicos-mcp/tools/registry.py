@@ -13,6 +13,7 @@ class ToolDefinition(TypedDict, total=False):
     description: str
     inputSchema: dict
     handler: Callable[[dict], str]  # Optional - set at runtime
+    requires_admin: bool  # If True, requires _admin_token arg
 
 
 # ─────────── Tool Definitions ───────────
@@ -685,6 +686,74 @@ TOOL_DEFINITIONS: dict[str, ToolDefinition] = {
                     "description": "Maximum number of initiatives to return (default 20, max 100)",
                 },
             },
+        },
+    },
+
+    # ─────────── Admin Tools ───────────
+    "admin_data_status": {
+        "description": "Get corpus counts, vector coverage, and indexing gaps for a jurisdiction. Returns summary and gap analysis.",
+        "requires_admin": True,
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "_admin_token": {"type": "string", "description": "Admin authentication token"},
+                "jurisdiction": {"type": "string", "description": "Override jurisdiction (defaults to server jurisdiction)"},
+            },
+            "required": ["_admin_token"],
+        },
+    },
+    "admin_vector_coverage": {
+        "description": "Get vector embedding coverage by corpus type. Shows indexed vs total counts per corpus.",
+        "requires_admin": True,
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "_admin_token": {"type": "string", "description": "Admin authentication token"},
+                "corpus_type": {"type": "string", "description": "Filter to specific corpus type (e.g., 'transcripts', 'decisions')"},
+            },
+            "required": ["_admin_token"],
+        },
+    },
+    "admin_system_health": {
+        "description": "Check backend connectivity (storage, vectors). Returns component status.",
+        "requires_admin": True,
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "_admin_token": {"type": "string", "description": "Admin authentication token"},
+            },
+            "required": ["_admin_token"],
+        },
+    },
+    "admin_cost_dashboard": {
+        "description": "Get operating costs by service and time period. Shows LLM and compute costs.",
+        "requires_admin": True,
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "_admin_token": {"type": "string", "description": "Admin authentication token"},
+                "period": {"type": "string", "default": "month", "description": "Time period: day, week, month"},
+                "service": {"type": "string", "description": "Filter by service name"},
+                "jurisdiction": {"type": "string", "description": "Filter by jurisdiction"},
+            },
+            "required": ["_admin_token"],
+        },
+    },
+    "manage_api_keys": {
+        "description": "Create, list, or revoke API keys. Actions: create (requires name, email), list, revoke (requires key_id).",
+        "requires_admin": True,
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "_admin_token": {"type": "string", "description": "Admin authentication token"},
+                "action": {"type": "string", "enum": ["create", "list", "revoke"], "description": "Action to perform"},
+                "name": {"type": "string", "description": "Key name (for create)"},
+                "email": {"type": "string", "description": "Contact email (for create)"},
+                "tier": {"type": "string", "default": "free", "description": "Key tier (for create)"},
+                "jurisdictions": {"type": "array", "items": {"type": "string"}, "description": "Allowed jurisdictions (for create)"},
+                "key_id": {"type": "string", "description": "Key ID (for revoke)"},
+            },
+            "required": ["_admin_token", "action"],
         },
     },
 }

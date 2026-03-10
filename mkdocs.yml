@@ -105,6 +105,7 @@ nav:
     - civicos-extraction (Parsers): public/packages/civicos-extraction.md
     - civicos-client (TypeScript): public/packages/civicos-client.md
     - civicos-components (Svelte UI): public/packages/civicos-components.md
+    - civicos-signer (Attestation Signing): public/packages/civicos-signer.md
 
   - ADRs:
     - Vector Storage: public/decisions/vector_storage.md

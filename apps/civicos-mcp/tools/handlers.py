@@ -3961,3 +3961,159 @@ def get_item_context(
     except Exception as e:
         logger.error(f"Context assembly error: {e}")
         return {"error": f"Assembly failed: {str(e)}"}
+
+
+# ─────────── Admin Tools ───────────
+
+
+def admin_data_status(
+    civic: CivicClient,
+    jurisdiction: str,
+    validate_input: ValidateInput,
+    logger: Logger,
+    args: dict,
+) -> dict:
+    """Get corpus counts, vector coverage, and indexing gaps."""
+    from civicos.diagnostics import DataStatus
+
+    target_jurisdiction = args.get("jurisdiction", jurisdiction)
+    ds = DataStatus(civic._storage, civic._vectors, target_jurisdiction)
+    report = ds.summary()
+    result = report.to_dict()
+    result["gaps"] = ds.gaps()
+    return result
+
+
+def admin_vector_coverage(
+    civic: CivicClient,
+    jurisdiction: str,
+    validate_input: ValidateInput,
+    logger: Logger,
+    args: dict,
+) -> dict:
+    """Get vector embedding coverage by corpus type."""
+    from civicos.diagnostics import VectorCoverage
+
+    vc = VectorCoverage(civic._storage, civic._vectors, jurisdiction)
+    by_corpus = vc.by_corpus()
+    corpus_type = args.get("corpus_type")
+    if corpus_type:
+        by_corpus = [c for c in by_corpus if c.get("corpus_type") == corpus_type]
+    return {
+        "by_corpus": by_corpus,
+        "total": vc.total(),
+    }
+
+
+def admin_system_health(
+    civic: CivicClient,
+    jurisdiction: str,
+    validate_input: ValidateInput,
+    logger: Logger,
+    args: dict,
+) -> dict:
+    """Check backend connectivity (storage, vectors)."""
+    components = {}
+
+    # Test storage backend
+    try:
+        count = civic._storage.get_decision_count(jurisdiction)
+        components["storage"] = {
+            "status": "healthy",
+            "backend": type(civic._storage).__name__,
+            "decision_count": count,
+        }
+    except Exception as e:
+        components["storage"] = {
+            "status": "unhealthy",
+            "backend": type(civic._storage).__name__,
+            "error": str(e),
+        }
+
+    # Test vector backend
+    if civic._vectors is not None:
+        try:
+            count = civic._vectors.count("meetings")
+            components["vectors"] = {
+                "status": "healthy",
+                "backend": type(civic._vectors).__name__,
+                "meetings_count": count,
+            }
+        except Exception as e:
+            components["vectors"] = {
+                "status": "unhealthy",
+                "backend": type(civic._vectors).__name__,
+                "error": str(e),
+            }
+    else:
+        components["vectors"] = {"status": "unavailable"}
+
+    all_healthy = all(
+        c.get("status") == "healthy"
+        for c in components.values()
+        if c.get("status") != "unavailable"
+    )
+    return {
+        "status": "healthy" if all_healthy else "degraded",
+        "jurisdiction": jurisdiction,
+        "components": components,
+    }
+
+
+def admin_cost_dashboard(
+    civic: CivicClient,
+    jurisdiction: str,
+    validate_input: ValidateInput,
+    logger: Logger,
+    args: dict,
+) -> dict:
+    """Get operating cost dashboard data."""
+    period = args.get("period", "month")
+    service = args.get("service")
+    target_jurisdiction = args.get("jurisdiction")
+    return civic.get_operating_cost_dashboard(
+        period=period,
+        service=service,
+        jurisdiction_id=target_jurisdiction,
+    )
+
+
+def manage_api_keys(
+    civic: CivicClient,
+    jurisdiction: str,
+    validate_input: ValidateInput,
+    logger: Logger,
+    args: dict,
+) -> dict:
+    """Create, list, or revoke API keys."""
+    from civicos_services.core.api_keys import ApiKeyStore
+
+    store = ApiKeyStore()
+    action = args["action"]
+
+    if action == "create":
+        name = args.get("name")
+        email = args.get("email")
+        if not name or not email:
+            return {"error": "create requires 'name' and 'email'"}
+        result = store.create_key(
+            name=name,
+            email=email,
+            tier=args.get("tier", "free"),
+            jurisdictions=args.get("jurisdictions"),
+        )
+        return result
+
+    elif action == "list":
+        keys = store.list_keys()
+        return {"keys": keys, "count": len(keys)}
+
+    elif action == "revoke":
+        key_id = args.get("key_id")
+        if not key_id:
+            return {"error": "revoke requires 'key_id'"}
+        success = store.revoke_key(key_id)
+        return {"revoked": success, "key_id": key_id}
+
+    else:
+        return {"error": f"Unknown action: {action}"}

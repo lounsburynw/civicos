@@ -128,6 +128,12 @@ mcp_image = (
 
 # ─────────── MCP SERVER CLASS ───────────
 
+import contextvars
+# Tier context for MCP Streamable HTTP requests (set by BearerAuthMiddleware)
+_mcp_request_tier: contextvars.ContextVar[str] = contextvars.ContextVar(
+    "_mcp_request_tier", default="open"
+)
+
 @app.cls(
     image=mcp_image,
     secrets=[modal.Secret.from_name(s) for s in SECRETS],
@@ -284,20 +290,50 @@ class MCPServer:
             "list_initiatives": handlers.list_initiatives,
             # Context Assembly (city level)
             "get_item_context": handlers.get_item_context,
+            # Admin Tools (all levels)
+            "admin_data_status": handlers.admin_data_status,
+            "admin_vector_coverage": handlers.admin_vector_coverage,
+            "admin_system_health": handlers.admin_system_health,
+            "admin_cost_dashboard": handlers.admin_cost_dashboard,
+            "manage_api_keys": handlers.manage_api_keys,
         }
 
         # Only bind handlers for tools enabled at this jurisdiction level
         for name, handler_fn in handler_map.items():
             if name in enabled_tools:
                 try:
-                    wrapped = self._wrap_handler(handler_fn)
+                    wrapped = self._wrap_handler(handler_fn, tool_name=name)
                     self.registry.bind_handler(name, wrapped)
                 except ValueError as e:
                     self.logger.warning(f"Could not bind handler {name}: {e}")
 
-    def _wrap_handler(self, handler_fn):
-        """Wrap a handler function to provide context."""
+    def _wrap_handler(self, handler_fn, tool_name=None):
+        """Wrap a handler function to provide context, admin auth, and tier enforcement."""
         def wrapped(args: dict) -> str:
+            import json
+
+            # Admin auth check (unchanged — admin tools use _admin_token)
+            if tool_name:
+                from tools.registry import TOOL_DEFINITIONS
+                tool_def = TOOL_DEFINITIONS.get(tool_name, {})
+                if tool_def.get("requires_admin"):
+                    admin_token = args.pop("_admin_token", None)
+                    expected = os.getenv("CIVICOS_ADMIN_TOKEN")
+                    if not expected or admin_token != expected:
+                        return json.dumps({"error": "Unauthorized"})
+
+            # Tier-based access check for MCP Streamable HTTP requests
+            if tool_name:
+                from civicos_services.core.api_keys import get_allowed_tools, min_tier_for_tool
+                tier = _mcp_request_tier.get("open")
+                allowed = get_allowed_tools(tier)
+                if tool_name not in allowed:
+                    required = min_tier_for_tool(tool_name)
+                    return json.dumps({
+                        "error": f"Tool '{tool_name}' requires '{required}' tier (current: '{tier}'). "
+                                 f"Pass Authorization: Bearer <api-key> or register at POST /api/register"
+                    })
+
             result = handler_fn(
                 self.civic,
                 self.jurisdiction,
@@ -306,7 +342,6 @@ class MCPServer:
                 args,
             )
             if isinstance(result, dict):
-                import json
                 return json.dumps(result, indent=2, default=str)
             return result
         return wrapped
@@ -314,7 +349,7 @@ class MCPServer:
     # ─────────── FastAPI App for all endpoints ───────────
 
     @modal.asgi_app()
-    def mcp_endpoint(self):
+    def mcp_endpoint(self):  # noqa: C901
         """
         Full FastAPI app with MCP and REST endpoints.
 
@@ -346,6 +381,9 @@ class MCPServer:
             lifespan=mcp_app.lifespan,
         )
 
+        # Set jurisdiction on app state for middleware access
+        app.state.jurisdiction = self.jurisdiction
+
         # Rewrite /mcp → /mcp/ internally to avoid Starlette's 307 redirect.
         # Without this, Cloudflare proxy gets a 307 pointing at Modal's host
         # (not the Cloudflare domain), causing error 1101.
@@ -363,6 +401,32 @@ class MCPServer:
 
         app.add_middleware(TrailingSlashMiddleware)
 
+        # Bearer auth middleware for MCP Streamable HTTP requests
+        # Extracts optional Bearer token and sets tier context for tool access control
+        class BearerAuthMiddleware:
+            def __init__(self, app: ASGIApp):
+                self.app = app
+            async def __call__(self, scope: Scope, receive: Receive, send: Send):
+                if scope["type"] == "http":
+                    headers = dict(scope.get("headers", []))
+                    auth = headers.get(b"authorization", b"").decode()
+                    if auth.startswith("Bearer ") and auth[7:].strip().startswith("cvk_live_"):
+                        raw_key = auth[7:].strip()
+                        from civicos_services.core.api_keys import get_api_key_store, resolve_tier
+                        store = get_api_key_store()
+                        if store and store.available:
+                            key_info = store.validate_key(raw_key)
+                            if key_info:
+                                token = _mcp_request_tier.set(resolve_tier(key_info.tier))
+                                try:
+                                    await self.app(scope, receive, send)
+                                finally:
+                                    _mcp_request_tier.reset(token)
+                                return
+                await self.app(scope, receive, send)
+
+        app.add_middleware(BearerAuthMiddleware)
+
         # CORS for Open WebUI and other clients
         app.add_middleware(
             CORSMiddleware,
@@ -373,7 +437,7 @@ class MCPServer:
         )
 
         # Mount REST API router
-        from rest_api import create_rest_router, create_keys_router
+        from rest_api import create_rest_router, create_keys_router, create_register_router
         rest_router = create_rest_router(
             self.registry,
             self.civic,
@@ -383,9 +447,13 @@ class MCPServer:
         )
         app.include_router(rest_router)
 
-        # Mount API key provisioning router
+        # Mount API key provisioning routers
         keys_router = create_keys_router(self.logger)
         app.include_router(keys_router)
+
+        # POST /api/register alias (spec-referenced path)
+        register_router = create_register_router(self.logger)
+        app.include_router(register_router)
 
         # FastMCP Streamable HTTP at /mcp
         app.mount("/mcp", mcp_app, name="mcp")
@@ -415,6 +483,7 @@ class MCPServer:
                 "health": "GET /health",
                 "rest_api": "/api/tools/*",
                 "create_key": "POST /api/keys/",
+                "register": "POST /api/register",
                 "openapi_spec": "/openapi.json",
             }
         }

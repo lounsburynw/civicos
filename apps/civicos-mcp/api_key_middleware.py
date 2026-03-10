@@ -15,7 +15,7 @@ from typing import Optional
 
 from fastapi import Depends, HTTPException, Request
 
-from civicos_services.core.api_keys import ApiKeyStore, ApiKeyInfo, TIER_CONFIG
+from civicos_services.core.api_keys import ApiKeyStore, ApiKeyInfo, TIER_CONFIG, resolve_tier
 
 logger = logging.getLogger(__name__)
 
@@ -120,8 +120,20 @@ async def require_api_key_or_rate_limit(request: Request) -> Optional[ApiKeyInfo
         # Update last_used (fire-and-forget)
         store.update_last_used(key_info.key_id)
 
-        # Stash for usage logging
+        # Stash tier and key info for downstream access control
+        request.state.auth_tier = resolve_tier(key_info.tier)
         request.state.api_key_info = key_info
+
+        # Jurisdiction scoping: reject if key is restricted to specific jurisdictions
+        if key_info.jurisdictions:
+            server_jurisdiction = getattr(request.app.state, "jurisdiction", None)
+            if server_jurisdiction and server_jurisdiction not in key_info.jurisdictions:
+                raise HTTPException(
+                    status_code=403,
+                    detail=f"API key not authorized for jurisdiction '{server_jurisdiction}'. "
+                           f"Allowed: {', '.join(key_info.jurisdictions)}",
+                )
+
         return key_info
 
     # No key provided — public access with IP-based rate limit
@@ -134,5 +146,6 @@ async def require_api_key_or_rate_limit(request: Request) -> Optional[ApiKeyInfo
             headers={"Retry-After": "60"},
         )
 
+    request.state.auth_tier = "open"
     request.state.api_key_info = None
     return None
