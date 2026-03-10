@@ -1557,21 +1557,21 @@
         "status": "ready",
         "priority": 2,
         "description": "Make unified config system actually reduce new city deployment effort. Currently config is ~20% of work; extractors, HUD mapping, and elections are ~80%.",
-        "rationale": "Session 29: E2E validated — Berkeley dry-run produces valid config, civicos-deploy --dry-run succeeds. /onboard skill created. Remaining scaling items (auto-HUD, election scrapers) deferred.",
+        "rationale": "Session 29: E2E validated \u2014 Berkeley dry-run produces valid config, civicos-deploy --dry-run succeeds. /onboard skill created. Remaining scaling items (auto-HUD, election scrapers) deferred.",
         "audit_reference": "docs/critical/CITY_DEPLOYMENT_AUDIT.md",
         "e2e_validation": {
           "session": 29,
           "test_city": "city-berkeley",
-          "civicos_onboard_dry_run": "pass — generates valid YAML with correct hierarchy, TODOs flagged",
-          "civicos_validate": "pass — all checks passed",
-          "civicos_deploy_dry_run": "pass — deployment plan generated",
-          "config_comparison": "Generated config matches existing Berkeley config structure; platform detection missed Granicus (expected — uses separate subdomain)",
+          "civicos_onboard_dry_run": "pass \u2014 generates valid YAML with correct hierarchy, TODOs flagged",
+          "civicos_validate": "pass \u2014 all checks passed",
+          "civicos_deploy_dry_run": "pass \u2014 deployment plan generated",
+          "config_comparison": "Generated config matches existing Berkeley config structure; platform detection missed Granicus (expected \u2014 uses separate subdomain)",
           "onboard_skill": "created .claude/commands/onboard.md"
         },
         "completed_in_session_28": [
           "civicos-onboard CLI: detect platform -> generate config -> validate -> next steps",
           "Config validation with helpful errors (already existed, verified working)",
-          "Removed hardcoded San Rafael check in CLI — now config-driven",
+          "Removed hardcoded San Rafael check in CLI \u2014 now config-driven",
           "SQL injection fix in api_keys.py (parameterized queries)",
           "Full onboarding toolchain: civicos-onboard -> civicos-validate -> civicos-deploy"
         ],
@@ -2426,49 +2426,49 @@
       "browser_extension_setup_guide": {
         "status": "ready",
         "priority": 1,
-        "description": "Already exists at docs/public/extension/setup.md — covers installation, identity, voice, settings, attestation. Artifact path was incorrect (docs/user_guides/ doesn't follow repo convention).",
+        "description": "Already exists at docs/public/extension/setup.md \u2014 covers installation, identity, voice, settings, attestation. Artifact path was incorrect (docs/user_guides/ doesn't follow repo convention).",
         "artifact": "docs/public/extension/setup.md"
       },
       "getting_started_rewrite": {
         "status": "ready",
         "priority": 1,
-        "description": "Already done — docs/public/README.md leads with browser extension, MCP secondary, REST API for developers. Original artifact path (docs/user_guides/) was stale.",
+        "description": "Already done \u2014 docs/public/README.md leads with browser extension, MCP secondary, REST API for developers. Original artifact path (docs/user_guides/) was stale.",
         "artifact": "docs/public/README.md"
       },
       "deployment_guide_rewrite": {
         "status": "ready",
         "priority": 1,
-        "description": "Already done — docs/internal/deployment.md is Modal-only with correct infrastructure table. Original docs/critical/ path was stale (reorganized to docs/internal/).",
+        "description": "Already done \u2014 docs/internal/deployment.md is Modal-only with correct infrastructure table. Original docs/critical/ path was stale (reorganized to docs/internal/).",
         "artifact": "docs/internal/deployment.md"
       },
       "rollback_procedures_update": {
         "status": "ready",
         "priority": 1,
-        "description": "Already done — docs/internal/rollback.md covers Modal, PostgreSQL, vectors, and extension rollback. Original docs/critical/ path was stale.",
+        "description": "Already done \u2014 docs/internal/rollback.md covers Modal, PostgreSQL, vectors, and extension rollback. Original docs/critical/ path was stale.",
         "artifact": "docs/internal/rollback.md"
       },
       "pilot_roadmap_update": {
         "status": "ready",
         "priority": 1,
-        "description": "Obsolete — docs/critical/PILOT_ROADMAP.md never existed. Pilot status is tracked in pilot.json and phase.json.",
+        "description": "Obsolete \u2014 docs/critical/PILOT_ROADMAP.md never existed. Pilot status is tracked in pilot.json and phase.json.",
         "artifact": "pilot.json"
       },
       "dashboard_vision_surface_update": {
         "status": "ready",
         "priority": 1,
-        "description": "Obsolete — docs/critical/CIVIC_DASHBOARD_VISION.md never existed. Browser extension is documented as primary surface in docs/public/README.md and CLAUDE.md.",
+        "description": "Obsolete \u2014 docs/critical/CIVIC_DASHBOARD_VISION.md never existed. Browser extension is documented as primary surface in docs/public/README.md and CLAUDE.md.",
         "artifact": "docs/public/README.md"
       },
       "openwebui_setup_archive": {
         "status": "ready",
         "priority": 1,
-        "description": "Obsolete — docs/user_guides/OPENWEBUI_SETUP.md never existed. Open WebUI is already marked deprecated in CLAUDE.md.",
+        "description": "Obsolete \u2014 docs/user_guides/OPENWEBUI_SETUP.md never existed. Open WebUI is already marked deprecated in CLAUDE.md.",
         "artifact": "n/a"
       },
       "admin_setup_flyio_removal": {
         "status": "ready",
         "priority": 1,
-        "description": "Obsolete — docs/user_guides/ADMIN_SETUP_GUIDE.md never existed. Deployment is Modal-only per docs/internal/deployment.md.",
+        "description": "Obsolete \u2014 docs/user_guides/ADMIN_SETUP_GUIDE.md never existed. Deployment is Modal-only per docs/internal/deployment.md.",
         "artifact": "docs/internal/deployment.md"
       }
     },
@@ -2476,59 +2476,59 @@
       "sqlite_chromadb_archive": {
         "status": "ready",
         "priority": 2,
-        "description": "Obsolete — docs/critical/SQLITE_CHROMADB_JOIN_PATTERNS.md never existed. SQLite/ChromaDB is already documented as dev-only in CLAUDE.md.",
+        "description": "Obsolete \u2014 docs/critical/SQLITE_CHROMADB_JOIN_PATTERNS.md never existed. SQLite/ChromaDB is already documented as dev-only in CLAUDE.md.",
         "artifact": "n/a"
       },
       "uptime_monitoring_modal": {
         "status": "ready",
         "priority": 2,
-        "description": "Obsolete — docs/critical/UPTIME_MONITORING.md never existed. Modal health endpoints documented in docs/internal/deployment.md.",
+        "description": "Obsolete \u2014 docs/critical/UPTIME_MONITORING.md never existed. Modal health endpoints documented in docs/internal/deployment.md.",
         "artifact": "docs/internal/deployment.md"
       },
       "backup_schedule_supabase": {
         "status": "ready",
         "priority": 2,
-        "description": "Already done — docs/internal/backup.md covers PostgreSQL and R2 backup with /db-backup and /blob-backup commands. Original path was stale.",
+        "description": "Already done \u2014 docs/internal/backup.md covers PostgreSQL and R2 backup with /db-backup and /blob-backup commands. Original path was stale.",
         "artifact": "docs/internal/backup.md"
       },
       "docker_compose_cleanup": {
         "status": "ready",
         "priority": 2,
-        "description": "Obsolete — docker-compose.yml does not exist. All services run on Modal.",
+        "description": "Obsolete \u2014 docker-compose.yml does not exist. All services run on Modal.",
         "artifact": "n/a"
       },
       "mcp_setup_package_fix": {
         "status": "ready",
         "priority": 2,
-        "description": "Obsolete — docs/user_guides/MCP_SETUP_GUIDE.md never existed. MCP setup is at docs/public/mcp/setup.md with correct package references.",
+        "description": "Obsolete \u2014 docs/user_guides/MCP_SETUP_GUIDE.md never existed. MCP setup is at docs/public/mcp/setup.md with correct package references.",
         "artifact": "docs/public/mcp/setup.md"
       },
       "faq_extension_section": {
         "status": "ready",
         "priority": 2,
-        "description": "Obsolete — docs/user_guides/FAQ.md never existed. Extension troubleshooting is covered in docs/public/extension/setup.md.",
+        "description": "Obsolete \u2014 docs/user_guides/FAQ.md never existed. Extension troubleshooting is covered in docs/public/extension/setup.md.",
         "artifact": "docs/public/extension/setup.md"
       },
       "index_corpus_stats_update": {
-        "status": "not_ready",
-        "priority": 2,
-        "description": "Update docs/index.md — minimal MkDocs landing page, could embed corpus stats from docs/public/README.md.",
+        "status": "ready",
+        "priority": 0,
+        "description": "Update docs/index.md \u2014 minimal MkDocs landing page, could embed corpus stats from docs/public/README.md.",
         "artifact": "docs/index.md"
       },
       "operating_costs_reconcile": {
         "status": "not_ready",
-        "priority": 2,
+        "priority": 0,
         "description": "Reconcile docs/private/operations/OPERATING_COSTS.md with actual billing. HOSTING_DECISION.md does not exist. Original artifact path was wrong.",
         "artifact": "docs/private/operations/OPERATING_COSTS.md"
       },
       "election_budget_reclassify": {
         "status": "ready",
         "priority": 2,
-        "description": "Obsolete — docs/critical/ELECTION_INTEGRATION.md and BUDGET_EXTRACTION.md never existed.",
+        "description": "Obsolete \u2014 docs/critical/ELECTION_INTEGRATION.md and BUDGET_EXTRACTION.md never existed.",
         "artifact": "n/a"
       },
       "learning_choose_your_path": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 2,
         "description": "Add role-based 'Choose Your Path' navigation to docs/public/learning/README.md (user vs admin vs developer). Correct path (was docs/learning/).",
         "artifact": "docs/public/learning/README.md"
@@ -2536,11 +2536,11 @@
       "verification_tutorial_update": {
         "status": "ready",
         "priority": 2,
-        "description": "Obsolete — docs/user_guides/VERIFICATION_TUTORIAL.md never existed.",
+        "description": "Obsolete \u2014 docs/user_guides/VERIFICATION_TUTORIAL.md never existed.",
         "artifact": "n/a"
       },
       "gitignore_build_artifacts": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 0,
         "description": "Add untracked build artifacts to .gitignore: extension/data/, test-results/, .wrangler/, registry/data/.",
         "artifact": ".gitignore"
