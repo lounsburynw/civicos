@@ -763,6 +763,87 @@ class PostgresSyncStorage:
             self._return_connection(conn)
 
 
+class PostgresPeerHealthStorage:
+    """Persist peer health state across relay restarts."""
+
+    def __init__(self, connection_url: str):
+        self._connection_url = connection_url
+        self._pool = None
+
+    def _get_connection(self):
+        if self._pool is None:
+            import psycopg2.pool
+            self._pool = psycopg2.pool.SimpleConnectionPool(
+                1, 10, self._connection_url
+            )
+        return self._pool.getconn()
+
+    def _return_connection(self, conn):
+        self._pool.putconn(conn)
+
+    def load_peer_health(self, peer_url: str) -> dict | None:
+        """Load health state for a peer. Returns dict or None."""
+        conn = self._get_connection()
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT healthy, consecutive_failures, last_health_check,
+                           last_successful_sync
+                    FROM coordination_peer_health
+                    WHERE peer_url = %s
+                    """,
+                    (peer_url,),
+                )
+                row = cur.fetchone()
+                if not row:
+                    return None
+                return {
+                    "healthy": row[0],
+                    "consecutive_failures": row[1],
+                    "last_health_check": row[2],
+                    "last_successful_sync": row[3],
+                }
+        finally:
+            self._return_connection(conn)
+
+    def save_peer_health(
+        self,
+        peer_url: str,
+        healthy: bool,
+        consecutive_failures: int,
+        last_health_check=None,
+        last_successful_sync=None,
+    ) -> None:
+        """Upsert peer health state."""
+        conn = self._get_connection()
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    INSERT INTO coordination_peer_health
+                    (peer_url, healthy, consecutive_failures, last_health_check,
+                     last_successful_sync, updated_at)
+                    VALUES (%s, %s, %s, %s, %s, NOW())
+                    ON CONFLICT (peer_url) DO UPDATE SET
+                        healthy = %s,
+                        consecutive_failures = %s,
+                        last_health_check = %s,
+                        last_successful_sync = %s,
+                        updated_at = NOW()
+                    """,
+                    (
+                        peer_url, healthy, consecutive_failures,
+                        last_health_check, last_successful_sync,
+                        healthy, consecutive_failures,
+                        last_health_check, last_successful_sync,
+                    ),
+                )
+                conn.commit()
+        finally:
+            self._return_connection(conn)
+
+
 class PostgresEventStorage:
     """PostgreSQL storage for coordination events."""
 
