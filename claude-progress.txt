@@ -21446,3 +21446,22 @@ TBD — needs assignment before /nextsesh
 - legislation (67K, m=16, ef=64): 29s
 - executive_orders (21K): 8s
 - All others (<15K each): <5s each
+
+=== Session 2026-03-10: require_created_at_on_writes (P0 security fix) ===
+
+**Completed:** require_created_at_on_writes — closed signature verification bypass
+
+**Changes:**
+- `models.py`: Made `created_at` required (not Optional) on Voice, Comment, Action models
+- `app.py`: Added `created_at: int` to CommitActionRequest/CompleteActionRequest
+- `app.py`: Added `_check_created_at()` clock skew validation (±5 min) to ALL write endpoints
+- `action_service.py`: Updated verify() to include created_at in canonical message (replay protection)
+- `action_service.py`: Updated record_commitment/record_completion to require created_at
+- `postgres.py/memory.py`: Updated storage backends to persist and retrieve created_at
+- `coordination.py` (civicos-services): Made created_at required on all request schemas
+- `test_sync.py`: Fixed tests to include created_at when constructing Voice objects
+- Created `scripts/sql/add_created_at_to_actions.sql` migration
+- Created `test_acceptance.py` with 20 tests covering models, schemas, clock skew, verification
+
+**Tests:** 343 passed, 16 skipped (all relay tests green)
+**Next P0:** http_ip_rate_limiting

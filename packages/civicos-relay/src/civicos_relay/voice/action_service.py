@@ -48,7 +48,7 @@ class ActionService:
         self._storage = storage
 
     def record_commitment(
-        self, action_id: str, public_key: str, signature: str
+        self, action_id: str, public_key: str, signature: str, created_at: int
     ) -> Action:
         """
         Record a commitment to an action.
@@ -69,6 +69,7 @@ class ActionService:
             action_type=ActionType.COMMITMENT,
             public_key=public_key,
             signature=signature,
+            created_at=created_at,
         )
         self._storage.save_action(action)
         return action
@@ -78,6 +79,7 @@ class ActionService:
         action_id: str,
         public_key: str,
         signature: str,
+        created_at: int,
         evidence_url: Optional[str] = None,
     ) -> Action:
         """
@@ -98,6 +100,7 @@ class ActionService:
             action_type=ActionType.COMPLETION,
             public_key=public_key,
             signature=signature,
+            created_at=created_at,
             evidence_url=evidence_url,
         )
         self._storage.save_action(action)
@@ -133,11 +136,12 @@ class ActionService:
         """
         Verify an action signature is valid.
 
-        Uses the same verification logic as voices.
+        Includes created_at in the canonical message to bind signatures to timestamps
+        and prevent replay attacks.
         """
         # Import here to avoid circular dependency
         from civicos_relay.voice.crypto import verify_signature
 
-        # Construct the canonical message
-        message = f"civicos:action:v1:{action.action_id}:{action.action_type.value}"
+        # Construct the canonical message (includes created_at to prevent replay)
+        message = f"civicos:action:v1:{action.action_id}:{action.action_type.value}:{action.created_at}"
         return verify_signature(action.public_key, action.signature, message)

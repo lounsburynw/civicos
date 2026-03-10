@@ -28,7 +28,7 @@
       {
         "name": "require_created_at_on_writes",
         "description": "All relay write endpoints must require created_at and reject writes without it. Currently Optional[int] = None, omitting it skips signature verification entirely.",
-        "status": "not_started",
+        "status": "done",
         "priority": 0,
         "source": "docs/internal/relay-acceptance-policy-spec.md (Phase 0, item 2)",
         "files": [
@@ -130,7 +130,7 @@
         "name": "http_ip_rate_limiting",
         "description": "Add HTTP-level per-IP rate limiting on relay before crypto verification. First line of defense against spam.",
         "status": "not_started",
-        "priority": 1,
+        "priority": 0,
         "source": "docs/internal/relay-acceptance-policy-spec.md (Phase 2)",
         "files": [
           "apps/civicos-relay/modal_relay.py"

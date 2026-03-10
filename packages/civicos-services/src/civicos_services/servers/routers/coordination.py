@@ -42,7 +42,7 @@ class CastVoiceRequest(BaseModel):
     stance: str = Field(description="Position: support, oppose, or watching")
     public_key: str = Field(description="Public key (hex-encoded)")
     signature: str = Field(description="Signature of entity+stance (hex-encoded)")
-    created_at: Optional[int] = Field(default=None, description="Unix timestamp from the signed Nostr event")
+    created_at: int = Field(description="Unix timestamp from the signed Nostr event")
     jurisdiction: Optional[str] = Field(default=None, description="Jurisdiction code for Nostr event reconstruction")
     attestation_proof: Optional[dict] = Field(default=None, description="Full kind-30850 Nostr event signed by jurisdiction issuer")
 
@@ -108,7 +108,7 @@ class CreateInitiativeRequest(BaseModel):
     coordination_url: Optional[str] = Field(default=None, description="Optional link to coordination channel (Signal, SimpleX, Matrix)")
     public_key: str = Field(description="Creator's public key (hex-encoded)")
     signature: str = Field(description="Signature of initiative data (hex-encoded)")
-    created_at: Optional[int] = Field(default=None, description="Unix timestamp from signed message")
+    created_at: int = Field(description="Unix timestamp from signed message")
 
 
 class InitiativeResponse(BaseModel):
@@ -135,7 +135,7 @@ class CommitActionRequest(BaseModel):
     action_id: str = Field(description="Action identifier")
     public_key: str = Field(description="Public key (hex-encoded)")
     signature: str = Field(description="Signature of action commitment (hex-encoded)")
-    created_at: Optional[int] = Field(default=None, description="Unix timestamp from signed event")
+    created_at: int = Field(description="Unix timestamp from signed event")
     jurisdiction: Optional[str] = Field(default=None, description="Jurisdiction for signature verification")
 
 
@@ -145,7 +145,7 @@ class CompleteActionRequest(BaseModel):
     public_key: str = Field(description="Public key (hex-encoded)")
     signature: str = Field(description="Signature of action completion (hex-encoded)")
     evidence_url: Optional[str] = Field(default=None, description="URL to evidence")
-    created_at: Optional[int] = Field(default=None, description="Unix timestamp from signed event")
+    created_at: int = Field(description="Unix timestamp from signed event")
     jurisdiction: Optional[str] = Field(default=None, description="Jurisdiction for signature verification")
 
 
@@ -208,7 +208,7 @@ class CivicCommitmentRequest(BaseModel):
     action_id: str = Field(default="", description="ID of the action event (may also come from URL path)")
     public_key: str = Field(description="Committer's public key (hex-encoded)")
     signature: str = Field(description="Signature of commitment (hex-encoded)")
-    created_at: Optional[int] = Field(default=None, description="Unix timestamp from signed event")
+    created_at: int = Field(description="Unix timestamp from signed event")
     jurisdiction: Optional[str] = Field(default=None, description="Jurisdiction for signature verification")
 
 
@@ -226,6 +226,7 @@ class CivicWithdrawRequest(BaseModel):
     """Request to withdraw a commitment to a civic action."""
     public_key: str = Field(description="Committer's public key (hex-encoded)")
     signature: str = Field(description="Signature of withdrawal (hex-encoded)")
+    created_at: int = Field(description="Unix timestamp from signed event")
 
 
 class CivicCompletionRequest(BaseModel):
@@ -235,7 +236,7 @@ class CivicCompletionRequest(BaseModel):
     signature: str = Field(description="Signature of completion (hex-encoded)")
     evidence_type: str = Field(description="Type of evidence: self_report, email_confirmation, etc.")
     evidence_content: Optional[str] = Field(default=None, description="Evidence URL or content")
-    created_at: Optional[int] = Field(default=None, description="Unix timestamp from signed event")
+    created_at: int = Field(description="Unix timestamp from signed event")
     jurisdiction: Optional[str] = Field(default=None, description="Jurisdiction for signature verification")
 
 
@@ -730,7 +731,7 @@ class RevokeVoiceRequest(BaseModel):
     entity: str = Field(description="Namespaced entity identifier")
     public_key: str = Field(description="Public key (hex-encoded)")
     signature: str = Field(description="Signature proving ownership of the key")
-    created_at: Optional[int] = Field(default=None, description="Unix timestamp")
+    created_at: int = Field(description="Unix timestamp from signed event")
 
 
 @router.post("/coordination/voice/revoke")
@@ -2796,7 +2797,7 @@ class SubmitFeedbackRequest(BaseModel):
     content: str = Field(description="Free-text feedback body")
     public_key: str = Field(description="Public key (hex-encoded)")
     signature: str = Field(description="Signature (hex-encoded)")
-    created_at: Optional[int] = Field(default=None, description="Unix timestamp from signed event")
+    created_at: int = Field(description="Unix timestamp from signed event")
     jurisdiction: Optional[str] = Field(default=None, description="Jurisdiction code")
 
 
