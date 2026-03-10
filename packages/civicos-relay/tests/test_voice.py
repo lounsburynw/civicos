@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 from civicos_relay.voice.models import Voice, Stance, VoiceCount
 from civicos_relay.voice.crypto import (
     KeyPair,
+    _schnorr_verify,
     sign_voice,
     verify_voice,
     sign_attestation_event,
@@ -190,6 +191,42 @@ class TestAttestationProof:
     def test_empty_dict(self):
         """Empty dict returns False."""
         assert verify_attestation_proof({}, "abc", "j", "def") is False
+
+
+class TestCoincurveHardDependency:
+    """Tests that coincurve is a hard dependency — no silent bypass."""
+
+    def test_module_imports_coincurve_at_top_level(self):
+        """crypto module imports coincurve at module level (fails fast if missing)."""
+        import civicos_relay.voice.crypto as crypto_mod
+        # Verify PublicKeyXOnly is available as a module-level name
+        assert hasattr(crypto_mod, 'PublicKeyXOnly')
+
+    def test_no_allow_unsigned_bypass(self):
+        """CIVICOS_ALLOW_UNSIGNED env var does NOT bypass verification."""
+        import os
+        old = os.environ.get("CIVICOS_ALLOW_UNSIGNED")
+        try:
+            os.environ["CIVICOS_ALLOW_UNSIGNED"] = "1"
+            # Invalid signature should still return False, not True
+            fake_pubkey = "a" * 64
+            fake_sig = "b" * 128
+            fake_msg = "c" * 64
+            assert _schnorr_verify(fake_pubkey, fake_sig, fake_msg) is False
+        finally:
+            if old is None:
+                os.environ.pop("CIVICOS_ALLOW_UNSIGNED", None)
+            else:
+                os.environ["CIVICOS_ALLOW_UNSIGNED"] = old
+
+    def test_invalid_signature_returns_false(self):
+        """Invalid signature data returns False (not an exception)."""
+        kp = KeyPair.generate()
+        assert _schnorr_verify(kp.public_key_hex, "00" * 64, "00" * 32) is False
+
+    def test_invalid_pubkey_returns_false(self):
+        """Invalid pubkey returns False."""
+        assert _schnorr_verify("00" * 32, "00" * 64, "00" * 32) is False
 
 
 class TestVoiceCount:

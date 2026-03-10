@@ -98,7 +98,6 @@ psql $RELAY_DATABASE_URL -f packages/civicos-relay/schema.sql
 
 ## Anti-patterns
 
-- **`CIVICOS_ALLOW_UNSIGNED=true`** — Do not set this in production. It disables signature verification on all relay writes.
 - **Shared databases** — Never point `DATABASE_URL` and `RELAY_DATABASE_URL` at the same database. Civic data and coordination data have different ownership and federation models.
 - **Signer key in relay env** — The relay should never hold a signer's private key. The signer is a separate service with its own process and credentials.
 - **Skipping RLS** — Production PostgreSQL databases should have Row Level Security enabled (`scripts/sql/enable_rls.sql`). Only `service_role` keys should access the database.
