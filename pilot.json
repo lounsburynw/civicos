@@ -2524,9 +2524,9 @@
         "artifact": "docs/index.md"
       },
       "operating_costs_reconcile": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 0,
-        "description": "Reconcile docs/private/operations/OPERATING_COSTS.md with actual billing. HOSTING_DECISION.md does not exist. Original artifact path was wrong.",
+        "description": "Reconciled with actual billing: 2 Supabase projects ($50), AssemblyAI transcription, 8 Modal apps, LegiScan. Total ~$95-175/mo. Fixed sustainability model link.",
         "artifact": "docs/private/operations/OPERATING_COSTS.md"
       },
       "election_budget_reclassify": {

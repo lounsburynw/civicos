@@ -74,17 +74,17 @@ Tier 1 — Free (always recommended):
   [ ] issues            SeeClickFix/311 issue sync
   [ ] municipal_code    Municipal code sync
 
-Tier 2 — Low cost (~$0.10-0.50/meeting, LLM-powered):
+Tier 2 — Low cost (Gemini Flash LLM, ~$0.02-0.15/meeting):
   [x] agenda_items      Agenda item extraction + actionability
-  [ ] decisions         Decision extraction from transcripts
-  [x] legislation       State/federal bill sync
+  [ ] decisions         Decision extraction from minutes
+  [x] legislation       State/federal bill sync (LegiScan free tier)
 
-Tier 3 — Higher cost (~$0.02/min audio):
-  [ ] transcription     Audio transcription (AssemblyAI)
-  [ ] diarization       Speaker diarization (requires transcription)
+Tier 3 — Transcription (AssemblyAI, ~$0.23/hr with diarization):
+  [ ] transcription     Audio transcription ($0.21/hr)
+  [ ] diarization       Speaker diarization (+$0.02/hr, requires transcription)
 
-Tier 4 — GPU (~$0.01/batch):
-  [x] vector_indexing   Semantic search embeddings
+Tier 4 — Vectors (Modal T4 GPU, ~$0.05-0.15/run):
+  [x] vector_indexing   Semantic search embeddings (fastembed)
 ```
 
 **Defaults by level:**
@@ -96,10 +96,31 @@ Transcription/diarization default to **off** for new jurisdictions (enable when 
 
 Write the `ingestion:` block to the jurisdiction YAML based on user choices.
 
-**Provide a cost estimate** based on what's known:
-- Count meetings from health check (e.g., "1,641 meetings available")
-- Estimate agenda extraction cost (meetings × ~$0.25)
-- Estimate transcription cost if enabled (meetings with audio × avg duration × $0.02/min)
+**Generate a cost estimate** using the cost estimator (reads verified prices from `cost_registry.yaml`):
+
+```python
+source civicos-env/bin/activate && python3 -c "
+from civicos_extraction.onboard import estimate_costs
+
+# Adjust meeting_count from health check, avg_meeting_hours from typical duration
+est = estimate_costs(
+    meeting_count=<MEETINGS_PER_MONTH>,
+    avg_meeting_hours=2.0,
+    tiers={
+        'transcription': <True/False>,
+        'diarization': <True/False>,
+        # ... any non-default tier settings
+    },
+    include_backfill=<ARCHIVE_COUNT or 0>,
+)
+print(est.format())
+"
+```
+
+Show the formatted estimate to the user. Key context:
+- AssemblyAI has a **185-hour free tier** (~92 meetings before charges)
+- Agenda/decision extraction uses **Gemini Flash** ($0.075/1M tokens), not OpenAI
+- Vector indexing uses **fastembed on T4 GPU**, not OpenAI embeddings
 
 ### Step 6: Validate
 
