@@ -1,0 +1,376 @@
+# CivicOS Cost Registry
+# Single source of truth for verified service pricing.
+# OPERATING_COSTS.md references these numbers.
+#
+# Confidence levels:
+#   exact      - verified against pricing page or billing dashboard
+#   observed   - measured from operating_costs table (actual spend)
+#   estimated  - calculated from unit prices + assumed usage patterns
+#   unverified - rough guess, not validated
+#
+# Update process: verify source URLs quarterly, reconcile against
+# operating_costs table, update last_verified dates.
+
+last_updated: "2026-03-09"
+
+# =============================================================================
+# Per-User Cost Model
+# =============================================================================
+# Derived from operating_costs table (11 observed user sessions, Jan-Feb 2026).
+# A single user query triggers 2-7 LLM calls (mode_detection + routing).
+#
+# This is the key insight: LLM query costs are negligible until hundreds
+# of active users. Infrastructure (Supabase, Modal) dominates.
+
+per_user_costs:
+  observed_cost_per_query: 0.0014      # avg across 11 sessions
+  confidence: observed
+  basis: "11 user sessions from operating_costs table, Jan-Feb 2026"
+  breakdown_per_query:
+    mode_detection:
+      model: "gpt-4o-mini"
+      avg_tokens: 690
+      avg_cost: 0.0004
+    routing_navigation:
+      model: "gemini-2.0-flash"
+      avg_tokens: 1360
+      avg_cost: 0.0001
+    routing_focus:
+      model: "gpt-4o-mini"
+      avg_tokens: 2270
+      avg_cost: 0.0014
+      frequency: "~20% of queries (complex only)"
+
+  projections:
+    - users: 1
+      queries_per_month: 20
+      llm_cost_per_month: 0.03
+      label: "Single pilot user"
+    - users: 10
+      queries_per_month: 200
+      llm_cost_per_month: 0.28
+      label: "Early adopters"
+    - users: 50
+      queries_per_month: 1000
+      llm_cost_per_month: 1.40
+      label: "Engaged community"
+    - users: 200
+      queries_per_month: 4000
+      llm_cost_per_month: 5.60
+      label: "Active city"
+    - users: 500
+      queries_per_month: 10000
+      llm_cost_per_month: 14.00
+      label: "Well-adopted city"
+    - users: 2000
+      queries_per_month: 40000
+      llm_cost_per_month: 56.00
+      label: "Large city, broad adoption"
+
+# =============================================================================
+# Service Pricing (unit prices, verified against pricing pages)
+# =============================================================================
+
+services:
+
+  modal:
+    description: "Serverless compute (API, MCP, relay, ingestion, vectors)"
+    pricing:
+      cpu_per_core_sec: 0.0000131
+      memory_per_gib_sec: 0.00000222
+      gpu_t4_per_sec: 0.000164
+      gpu_a10_per_sec: 0.000306
+      free_credits_per_month: 30.00  # Starter plan
+    source: "https://modal.com/pricing"
+    last_verified: "2026-03-09"
+    confidence: exact
+    actual_observed:
+      steady_state_monthly: 8.00     # fetch_municipal_code + weekly index_corpus
+      onetime_bulk_indexing: 141.00  # first-time corpus indexing (transcripts, chunks, issues)
+      dev_debug_waste: 51.00         # retried runs (4x municipal_code, 2x transcripts)
+      observation_period: "2026-01 to 2026-03"
+      confidence: observed
+      notes: >
+        Steady-state ~$8/mo is fully covered by $30/mo free credits.
+        Bulk indexing and dev iteration drove the $203 total.
+        Actual net cost after free credits: ~$0/mo steady-state.
+    monthly_estimate:
+      value: "$0"
+      basis: "Steady-state ~$8/mo, covered by $30/mo free credits. Spikes during onboarding/dev."
+      confidence: observed
+
+  supabase_main:
+    description: "PostgreSQL + pgvector — civic data (meetings, decisions, vectors)"
+    pricing:
+      pro_plan_base: 25.00
+      included_storage_gb: 8
+      included_maus: 100000
+      overage_storage_per_gb: 0.125
+    source: "https://supabase.com/pricing"
+    last_verified: "2026-03-09"
+    confidence: exact
+    notes: "Base is $25, real-world typically $35-75 with compute add-ons"
+    monthly_estimate:
+      value: "$25-50"
+      basis: "Pro base + possible compute add-on for connection pooling"
+      confidence: estimated
+
+  supabase_relay:
+    description: "PostgreSQL — coordination data (voices, actions, sync)"
+    pricing:
+      pro_plan_base: 25.00
+    source: "https://supabase.com/pricing"
+    last_verified: "2026-03-09"
+    confidence: exact
+    notes: "Lower usage than main DB, likely stays at base price"
+    monthly_estimate:
+      value: "$25"
+      basis: "Pro base, minimal compute"
+      confidence: estimated
+
+  cloudflare_r2:
+    description: "Blob storage for PDFs, audio files"
+    pricing:
+      storage_per_gb_month: 0.015
+      class_a_per_million: 4.50   # writes
+      class_b_per_million: 0.36   # reads
+      egress: 0.00                # free
+      free_tier_storage_gb: 10
+      free_tier_class_a: 1000000
+      free_tier_class_b: 10000000
+    source: "https://developers.cloudflare.com/r2/pricing/"
+    last_verified: "2026-03-09"
+    confidence: exact
+    monthly_estimate:
+      value: "$0-5"
+      basis: "~50GB PDFs + audio. Free tier covers small deployments."
+      confidence: estimated
+
+  llm_query:
+    description: "LLM costs for user queries (OpenAI + Gemini combined)"
+    pricing:
+      # Per-query cost observed from operating_costs table
+      avg_cost_per_query: 0.0014
+      queries_per_user_month: 20   # assumed for regular user
+    source: "operating_costs table (11 sessions, Jan-Feb 2026)"
+    last_verified: "2026-03-09"
+    confidence: observed
+    notes: >
+      Each query triggers mode_detection (gpt-4o-mini, $0.0004) +
+      routing_navigation (Gemini Flash, $0.0001), sometimes routing_focus ($0.0014).
+      Negligible until hundreds of active users.
+    monthly_estimate_by_users:
+      10_users: "$0.28"
+      50_users: "$1.40"
+      200_users: "$5.60"
+      500_users: "$14.00"
+
+  assemblyai:
+    description: "Meeting transcription with speaker diarization"
+    pricing:
+      universal_3_pro_per_hour: 0.21       # $0.0035/min
+      universal_2_per_hour: 0.15           # $0.0025/min
+      diarization_addon_per_hour: 0.02     # pre-recorded
+      diarization_streaming_per_hour: 0.12 # streaming (not used)
+      free_tier_hours: 185                 # pre-recorded
+    source: "https://www.assemblyai.com/pricing"
+    last_verified: "2026-03-09"
+    confidence: exact
+    notes: >
+      Per 2-hour meeting: ($0.21 + $0.02) * 2 = $0.46 with diarization.
+      Free tier covers ~92 meetings (185 hours).
+    monthly_estimate:
+      value: "$0-10"
+      basis: "20 meetings/mo * $0.46 = $9.20. Free tier covers first ~92 meetings."
+      confidence: exact
+
+  legiscan:
+    description: "State and federal legislation tracking"
+    pricing:
+      free_tier_queries_per_month: 30000
+      paid_tier: "annual, per-state pricing"
+    source: "https://legiscan.com/pricing"
+    last_verified: "2026-03-09"
+    confidence: exact
+    notes: "Free tier sufficient for single-state tracking. CA+US may exceed quota."
+    monthly_estimate:
+      value: "$0"
+      basis: "Free tier"
+      confidence: exact
+
+  domain_dns:
+    description: "Domain registration + Cloudflare DNS + Workers proxy"
+    monthly_estimate:
+      value: "$1"
+      basis: "Domain ~$10/yr, Cloudflare DNS free, Workers free tier"
+      confidence: exact
+
+# =============================================================================
+# Cost Profiles (by deployment type and user scale)
+# =============================================================================
+
+profiles:
+
+  # Infrastructure baseline — fixed costs regardless of users
+  read_mcp:
+    description: "Civic data queries via AI agents (no ingestion, no relay)"
+    fixed_costs:
+      supabase_main: "$25-50"
+      modal: "$0 (within free credits)"
+      cloudflare_r2: "$0-5"
+      domain_dns: "$1"
+    variable_costs:
+      llm_queries: "$0.0014/query"
+    by_users:
+      0_users: "$26-56"       # infrastructure only
+      10_users: "$26-56"      # +$0.28 LLM, rounds to same
+      50_users: "$27-57"      # +$1.40
+      200_users: "$32-62"     # +$5.60
+      500_users: "$40-70"     # +$14.00
+    confidence: estimated
+    notes: "LLM costs are negligible compared to Supabase baseline"
+
+  relay:
+    description: "Coordination layer (voices, actions, federation)"
+    fixed_costs:
+      supabase_relay: "$25"
+      modal: "$0 (within free credits)"
+    by_users:
+      any: "$25"
+    confidence: estimated
+    notes: "Relay cost is flat — Supabase Pro base regardless of usage"
+
+  ingestion_standard:
+    description: "Data pipeline without transcription (Tiers 1+2+4)"
+    fixed_costs:
+      modal_compute: "$0 (within free credits for steady-state)"
+    variable_costs:
+      per_meeting_llm: "$0.02-0.15"
+    by_meetings:
+      4_meetings: "$0.08-0.60"
+      10_meetings: "$0.20-1.50"
+      20_meetings: "$0.40-3.00"
+    confidence: estimated
+    notes: "Dominated by Gemini Flash LLM costs. Modal compute within free credits."
+
+  ingestion_with_transcription:
+    description: "Full pipeline with audio transcription (Tiers 1+2+3+4)"
+    variable_costs:
+      per_meeting_total: "$0.48-0.61"    # $0.02-0.15 LLM + $0.46 transcription
+    by_meetings:
+      4_meetings: "$1.92-2.44"
+      10_meetings: "$4.80-6.10"
+      20_meetings: "$9.60-12.20"
+    confidence: exact (transcription) + estimated (LLM)
+    notes: "AssemblyAI transcription dominates. 185hr free tier covers ~92 meetings."
+
+  # Combined profiles at different scales
+  full_stack:
+    description: "Everything: read + relay + full ingestion with transcription"
+    by_scale:
+      pilot:
+        users: 1-10
+        meetings: 10
+        monthly: "$56-67"
+        breakdown: "Supabase $50 + R2 $0-5 + DNS $1 + ingestion $5-6 + LLM ~$0"
+        confidence: estimated
+      small_city:
+        users: 50
+        meetings: 10
+        monthly: "$57-68"
+        breakdown: "Same as pilot — user LLM costs add ~$1.40"
+        confidence: estimated
+      active_city:
+        users: 200
+        meetings: 20
+        monthly: "$68-80"
+        breakdown: "Supabase $50 + R2 $5 + DNS $1 + ingestion $6-12 + LLM $6"
+        confidence: estimated
+      large_city:
+        users: 500
+        meetings: 20
+        monthly: "$76-88"
+        breakdown: "Supabase $50 + R2 $5 + DNS $1 + ingestion $6-12 + LLM $14"
+        confidence: estimated
+
+# =============================================================================
+# Per-Meeting Ingestion Costs
+# =============================================================================
+
+per_meeting_costs:
+
+  tier_1_free:
+    meeting_fetch: { cost: 0.00, api: "platform-specific", confidence: exact }
+    pdf_chunks: { cost: 0.00, api: "local PyMuPDF", confidence: exact }
+    issues: { cost: 0.00, api: "SeeClickFix", confidence: exact }
+    municipal_code: { cost: 0.00, api: "Municode", confidence: exact }
+
+  tier_2_llm:
+    agenda_extraction:
+      cost_range: "$0.01-0.05"
+      api: "Gemini 2.0 Flash (primary), gpt-4o-mini (fallback)"
+      basis: "~5K-20K tokens per meeting at $0.075-0.60/1M"
+      confidence: estimated
+    decision_extraction:
+      cost_range: "$0.01-0.10"
+      api: "Gemini 2.0 Flash (primary), gpt-4o (fallback for long docs)"
+      basis: "~10K-50K tokens per meeting at $0.075-2.50/1M"
+      confidence: estimated
+    legislation_sync:
+      cost: 0.00
+      api: "LegiScan (free tier)"
+      confidence: exact
+
+  tier_3_transcription:
+    transcription_with_diarization:
+      cost_per_2hr_meeting: 0.46
+      api: "AssemblyAI Universal-3 Pro + diarization"
+      basis: "($0.21 + $0.02) * 2 hours"
+      confidence: exact
+    audio_download:
+      cost: 0.00
+      api: "YouTube via yt-dlp"
+      confidence: exact
+      notes: "Bandwidth cost negligible. Datacenter IP blocking is the real issue."
+
+  tier_4_vectors:
+    vector_indexing:
+      cost_per_run: "$0.05-0.15"
+      api: "fastembed on Modal T4 GPU"
+      basis: "T4 at $0.59/hr, typical run 5-15 min"
+      confidence: estimated
+
+# =============================================================================
+# Actual Observed Costs (from operating_costs table)
+# =============================================================================
+# Cross-reference for validating estimates above.
+
+actual_observed:
+  period: "2026-01-13 to 2026-03-10"
+  total_logged: 203.44
+  services_instrumented: ["modal", "openai", "google"]
+  services_not_instrumented: ["assemblyai", "supabase", "cloudflare_r2"]
+
+  modal:
+    total: 203.42
+    steady_state_monthly: 8.00
+    onetime_bulk_indexing: 141.00
+    dev_debug_retries: 51.00
+    net_after_free_credits: 0.00     # $8/mo < $30/mo free
+    notes: "70% of cost was one-time or dev. Steady-state is free."
+
+  openai:
+    total: 0.013
+    calls: 27
+    avg_per_call: 0.0005
+    primary_task: "mode_detection"
+    model: "gpt-4o-mini"
+    notes: "Negligible. Used for mode detection in chat routing."
+
+  google:
+    total: 0.002
+    calls: 20
+    avg_per_call: 0.0001
+    primary_task: "routing_navigation"
+    model: "gemini-2.0-flash"
+    notes: "Even more negligible. Gemini Flash is extremely cheap."
