@@ -144,6 +144,7 @@ ADMIN_TOOLS = frozenset([
     "admin_system_health",
     "admin_cost_dashboard",
     "manage_api_keys",
+    "query_feedback",
 ])
 
 # Complete tool level mapping

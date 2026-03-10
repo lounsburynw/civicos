@@ -4,7 +4,7 @@ import json
 from datetime import datetime
 from typing import Optional, Union
 
-from civicos_relay.voice.models import Voice, Stance
+from civicos_relay.voice.models import Voice, Stance, Feedback
 from civicos_relay.relay.models import (
     Event,
     EventType,
@@ -2435,6 +2435,125 @@ class PostgresIssuerRegistryStorage:
             self._return_connection(conn)
 
 
+class PostgresFeedbackStorage:
+    """PostgreSQL storage for user feedback."""
+
+    def __init__(self, connection_url: str):
+        self._connection_url = connection_url
+        self._pool = None
+
+    def _get_connection(self):
+        if self._pool is None:
+            import psycopg2.pool
+            self._pool = psycopg2.pool.SimpleConnectionPool(
+                1, 10, self._connection_url
+            )
+        return self._pool.getconn()
+
+    def _return_connection(self, conn):
+        self._pool.putconn(conn)
+
+    def save_feedback(self, feedback: Feedback) -> int:
+        """Store a feedback record. Returns the generated ID."""
+        conn = self._get_connection()
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    INSERT INTO coordination_feedback
+                    (public_key, feedback_type, content, jurisdiction, signature, created_at)
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                    RETURNING id
+                    """,
+                    (
+                        feedback.public_key,
+                        feedback.feedback_type,
+                        feedback.content,
+                        feedback.jurisdiction,
+                        feedback.signature,
+                        feedback.created_at,
+                    ),
+                )
+                result = cur.fetchone()
+                conn.commit()
+                return result[0]
+        finally:
+            self._return_connection(conn)
+
+    def check_rate_limit(self, public_key: str, max_per_hour: int = 10) -> bool:
+        """Check if pubkey is under the rate limit. Returns True if allowed."""
+        conn = self._get_connection()
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT COUNT(*) FROM coordination_feedback
+                    WHERE public_key = %s AND received_at > NOW() - INTERVAL '1 hour'
+                    """,
+                    (public_key,),
+                )
+                count = cur.fetchone()[0]
+                return count < max_per_hour
+        finally:
+            self._return_connection(conn)
+
+    def get_feedback(
+        self,
+        jurisdiction: str,
+        feedback_type: str | None = None,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> list[dict]:
+        """Query feedback with optional filters."""
+        conn = self._get_connection()
+        try:
+            with conn.cursor() as cur:
+                query = """
+                    SELECT id, public_key, feedback_type, content, jurisdiction,
+                           created_at, received_at
+                    FROM coordination_feedback
+                    WHERE jurisdiction = %s
+                """
+                params: list = [jurisdiction]
+                if feedback_type:
+                    query += " AND feedback_type = %s"
+                    params.append(feedback_type)
+                query += " ORDER BY received_at DESC LIMIT %s OFFSET %s"
+                params.extend([limit, offset])
+                cur.execute(query, params)
+                return [
+                    {
+                        "id": row[0],
+                        "public_key": row[1],
+                        "feedback_type": row[2],
+                        "content": row[3],
+                        "jurisdiction": row[4],
+                        "created_at": row[5],
+                        "received_at": row[6].isoformat() if row[6] else None,
+                    }
+                    for row in cur.fetchall()
+                ]
+        finally:
+            self._return_connection(conn)
+
+    def get_feedback_count(
+        self, jurisdiction: str, feedback_type: str | None = None
+    ) -> int:
+        """Count feedback for a jurisdiction."""
+        conn = self._get_connection()
+        try:
+            with conn.cursor() as cur:
+                query = "SELECT COUNT(*) FROM coordination_feedback WHERE jurisdiction = %s"
+                params: list = [jurisdiction]
+                if feedback_type:
+                    query += " AND feedback_type = %s"
+                    params.append(feedback_type)
+                cur.execute(query, params)
+                return cur.fetchone()[0]
+        finally:
+            self._return_connection(conn)
+
+
 class PostgresStorage:
     """Combined PostgreSQL storage for all relay data."""
 
@@ -2454,3 +2573,4 @@ class PostgresStorage:
         self.attributions = PostgresAttributionStorage(connection_url)
         self.attestations = PostgresAttestationStorage(connection_url)
         self.issuers = PostgresIssuerRegistryStorage(connection_url)
+        self.feedback = PostgresFeedbackStorage(connection_url)

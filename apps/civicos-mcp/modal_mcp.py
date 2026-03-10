@@ -296,6 +296,7 @@ class MCPServer:
             "admin_system_health": handlers.admin_system_health,
             "admin_cost_dashboard": handlers.admin_cost_dashboard,
             "manage_api_keys": handlers.manage_api_keys,
+            "query_feedback": handlers.query_feedback,
         }
 
         # Only bind handlers for tools enabled at this jurisdiction level

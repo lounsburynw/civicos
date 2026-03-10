@@ -17,6 +17,8 @@ Endpoints:
 - GET /coordination/provenance/{public_key} - Get key provenance
 - GET /coordination/sync/voices - Export voices for peer sync
 - POST /coordination/sync/voices - Import voices from peer
+- POST /coordination/feedback - Submit feedback (signed, rate-limited)
+- GET /coordination/feedback - Query feedback (admin only)
 """
 
 import os
@@ -2783,3 +2785,141 @@ async def get_attestation_stats(jurisdiction: str):
     except Exception as e:
         logger.error(f"Error getting attestation stats: {e}")
         return AttestationStatsResponse()
+
+
+# === Feedback Endpoints ===
+
+
+class SubmitFeedbackRequest(BaseModel):
+    """Request to submit feedback (signed by client)."""
+    feedback_type: str = Field(description="Type: bug, feature, or general")
+    content: str = Field(description="Free-text feedback body")
+    public_key: str = Field(description="Public key (hex-encoded)")
+    signature: str = Field(description="Signature (hex-encoded)")
+    created_at: Optional[int] = Field(default=None, description="Unix timestamp from signed event")
+    jurisdiction: Optional[str] = Field(default=None, description="Jurisdiction code")
+
+
+class FeedbackResponse(BaseModel):
+    """Feedback submission response."""
+    id: int
+    received_at: str
+
+
+class FeedbackListResponse(BaseModel):
+    """Feedback query response."""
+    feedback: list[dict]
+    total: int
+
+
+def _get_feedback_storage():
+    """Get or create feedback storage instance."""
+    url = _get_relay_url()
+    if not url:
+        return None
+
+    if "feedback" not in _storage_instances:
+        try:
+            from civicos_relay.storage.postgres import PostgresFeedbackStorage
+            _storage_instances["feedback"] = PostgresFeedbackStorage(url)
+        except ImportError:
+            logger.warning("civicos-relay not available")
+            return None
+    return _storage_instances["feedback"]
+
+
+@router.post("/coordination/feedback", response_model=FeedbackResponse, status_code=201)
+async def submit_feedback(request: SubmitFeedbackRequest):
+    """
+    Submit user feedback.
+
+    Feedback is cryptographically signed by the client. The signature
+    verifies the content is authorized by the public key. Rate limited
+    to 10 submissions per hour per pubkey.
+    """
+    storage = _get_feedback_storage()
+    if not storage:
+        raise HTTPException(
+            status_code=503,
+            detail="Coordination service not configured (missing RELAY_DATABASE_URL)"
+        )
+
+    try:
+        from civicos_relay.voice.models import Feedback
+        from civicos_relay.voice.crypto import verify_feedback
+        from civicos_relay.nostr.kinds import VALID_FEEDBACK_TYPES
+
+        # Validate feedback type
+        if request.feedback_type not in VALID_FEEDBACK_TYPES:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid feedback_type: {request.feedback_type}. Must be bug, feature, or general"
+            )
+
+        # Validate content length
+        content = request.content.strip()
+        if len(content) < 10:
+            raise HTTPException(status_code=400, detail="Feedback content must be at least 10 characters")
+        if len(content) > 2000:
+            raise HTTPException(status_code=400, detail="Feedback content must be at most 2000 characters")
+
+        # Rate limit check
+        if not storage.check_rate_limit(request.public_key):
+            raise HTTPException(status_code=429, detail="Rate limit exceeded (10 per hour)")
+
+        # Create feedback model
+        feedback = Feedback(
+            feedback_type=request.feedback_type,
+            content=content,
+            public_key=request.public_key,
+            signature=request.signature,
+            created_at=request.created_at,
+            jurisdiction=request.jurisdiction,
+        )
+
+        # Verify signature
+        if not verify_feedback(feedback):
+            raise HTTPException(status_code=400, detail="Invalid feedback signature")
+
+        # Save
+        feedback_id = storage.save_feedback(feedback)
+
+        return FeedbackResponse(
+            id=feedback_id,
+            received_at=datetime.utcnow().isoformat(),
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error submitting feedback: {e}")
+        raise HTTPException(status_code=500, detail=f"Server error: {str(e)}")
+
+
+@router.get("/coordination/feedback", response_model=FeedbackListResponse)
+async def get_feedback(
+    jurisdiction: str,
+    feedback_type: Optional[str] = None,
+    limit: int = 50,
+    offset: int = 0,
+    api_key: Optional[str] = None,
+):
+    """
+    Query feedback for a jurisdiction. Requires admin API key.
+    """
+    # Admin auth check
+    expected_key = os.environ.get("CIVICOS_ADMIN_API_KEY")
+    if not expected_key or api_key != expected_key:
+        raise HTTPException(status_code=403, detail="Admin API key required")
+
+    storage = _get_feedback_storage()
+    if not storage:
+        raise HTTPException(status_code=503, detail="Coordination service not configured")
+
+    try:
+        items = storage.get_feedback(jurisdiction, feedback_type, limit, offset)
+        total = storage.get_feedback_count(jurisdiction, feedback_type)
+        return FeedbackListResponse(feedback=items, total=total)
+    except Exception as e:
+        logger.error(f"Error querying feedback: {e}")
+        raise HTTPException(status_code=500, detail=f"Server error: {str(e)}")

@@ -10,6 +10,7 @@ export const CivicEventKinds = {
   COMMITMENT: 30801,
   COMPLETION: 30802,
   COMMENT: 30803,
+  FEEDBACK: 1804,
   ACTION_EVENT: 30810,
   ACTION_COMMITMENT: 30811,
   ACTION_COMPLETION: 30812,
@@ -140,6 +141,19 @@ export function createCivicActionTags(
   return [
     ['d', `action:${initiativeId}:${actionType}`],
     ['initiative', initiativeId],
+  ];
+}
+
+// === Feedback events ===
+
+export function createFeedbackTags(
+  feedbackType: 'bug' | 'feature' | 'general',
+  jurisdiction: string,
+): string[][] {
+  return [
+    ['t', feedbackType],
+    ['j', jurisdiction],
+    ['v', '1'],
   ];
 }
 

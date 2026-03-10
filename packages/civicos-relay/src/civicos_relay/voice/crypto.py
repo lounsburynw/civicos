@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Optional
 
-from civicos_relay.voice.models import Voice, Stance, Comment
+from civicos_relay.voice.models import Voice, Stance, Comment, Feedback
 
 
 def _schnorr_verify(pubkey_hex: str, sig_hex: str, msg_hex: str) -> bool:
@@ -179,6 +179,42 @@ def verify_comment(comment: Comment) -> bool:
         content = comment.comment_text
 
         event_id = _compute_nostr_event_id(pubkey, created_at, 30803, tags, content)
+        return _schnorr_verify(pubkey, sig, event_id)
+    except Exception:
+        return False
+
+
+def verify_feedback(feedback: Feedback) -> bool:
+    """
+    Verify a feedback signature.
+
+    Feedback uses Nostr Kind 1804 (regular, not addressable).
+    The feedback content IS the event content.
+    Tags: [["t", feedback_type], ["j", jurisdiction], ["v", "1"]]
+    """
+    try:
+        pubkey = feedback.public_key
+        sig = feedback.signature
+
+        if not pubkey or not sig:
+            return False
+
+        if len(pubkey) != 64 or len(sig) != 128:
+            return False
+
+        if feedback.created_at is None:
+            return False
+
+        created_at = feedback.created_at
+
+        tags = [
+            ["t", feedback.feedback_type],
+            ["j", feedback.jurisdiction],
+            ["v", "1"],
+        ]
+        content = feedback.content
+
+        event_id = _compute_nostr_event_id(pubkey, created_at, 1804, tags, content)
         return _schnorr_verify(pubkey, sig, event_id)
     except Exception:
         return False

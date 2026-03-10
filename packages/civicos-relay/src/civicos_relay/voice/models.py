@@ -97,6 +97,28 @@ class Comment(BaseModel):
     model_config = {"frozen": True}
 
 
+class Feedback(BaseModel):
+    """
+    User feedback on the platform.
+
+    Feedback is a regular Nostr event (kind 1804) that allows multiple
+    submissions per user. Not addressable — users can submit many feedback items.
+    """
+
+    feedback_type: str = Field(description="Type: bug, feature, or general")
+    content: str = Field(description="Free-text feedback body")
+    public_key: str = Field(description="Public key (hex-encoded)")
+    signature: str = Field(description="Signature (hex-encoded)")
+    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    jurisdiction: Optional[str] = Field(default=None)
+    created_at: Optional[int] = Field(
+        default=None,
+        description="Unix timestamp from the signed Nostr event"
+    )
+
+    model_config = {"frozen": True}
+
+
 class CommentCount(BaseModel):
     """Aggregated comment count for an entity."""
 

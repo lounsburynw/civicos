@@ -4117,3 +4117,40 @@ def manage_api_keys(
 
     else:
         return {"error": f"Unknown action: {action}"}
+
+
+def query_feedback(
+    civic: CivicClient,
+    jurisdiction: str,
+    validate_input: ValidateInput,
+    logger: Logger,
+    args: dict,
+) -> dict:
+    """Query user feedback submissions."""
+    import os
+    from civicos_relay.storage.postgres import PostgresFeedbackStorage
+
+    relay_url = os.environ.get("RELAY_DATABASE_URL")
+    if not relay_url:
+        return {"error": "RELAY_DATABASE_URL not configured"}
+
+    target_jurisdiction = args.get("jurisdiction", jurisdiction)
+    feedback_type = args.get("feedback_type")
+    limit = args.get("limit", 20)
+
+    storage = PostgresFeedbackStorage(relay_url)
+    items = storage.get_feedback(target_jurisdiction, feedback_type, limit)
+    total = storage.get_feedback_count(target_jurisdiction, feedback_type)
+
+    # Count by type
+    type_counts = {}
+    for item in items:
+        ft = item["feedback_type"]
+        type_counts[ft] = type_counts.get(ft, 0) + 1
+
+    return {
+        "feedback": items,
+        "total": total,
+        "counts_by_type": type_counts,
+        "jurisdiction": target_jurisdiction,
+    }

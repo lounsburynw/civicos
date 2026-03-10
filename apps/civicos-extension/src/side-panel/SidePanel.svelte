@@ -21,6 +21,7 @@
   import CivicIdentityChip from '@civicos/components/src/components/CivicIdentityChip.svelte';
   import CivicReadOnlyPulse from '@civicos/components/src/components/CivicReadOnlyPulse.svelte';
   import CivicChatBar from '@civicos/components/src/components/CivicChatBar.svelte';
+  import CivicFeedbackForm from '@civicos/components/src/components/CivicFeedbackForm.svelte';
 
 
   // High-level orchestration session (stateless — recreated when AI config changes)
@@ -151,6 +152,15 @@
     const notes = journalText.trim();
     if (!notes) return undefined;
     return { journalNotes: notes.length > 2000 ? notes.slice(0, 2000) : notes };
+  }
+
+  // Feedback form state
+  let showFeedback = $state(false);
+
+  async function handleFeedback({ type, content }: { type: 'bug' | 'feature' | 'general'; content: string }) {
+    const jurisdiction = activeJurisdiction || 'city-san-rafael';
+    api.castFeedback(type, content, jurisdiction).catch(() => {});
+    showToast('Feedback sent — thank you!');
   }
 
   // Connector setup state
@@ -888,6 +898,11 @@
           <path d="M21 2v6h-6M3 12a9 9 0 0 1 15-6.7L21 8M3 22v-6h6M21 12a9 9 0 0 1-15 6.7L3 16" />
         </svg>
       </button>
+      <button class="icon-btn" onclick={() => showFeedback = !showFeedback} title="Send Feedback" class:active={showFeedback}>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+        </svg>
+      </button>
       <button class="icon-btn" onclick={openOptions} title="Settings">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <circle cx="12" cy="12" r="3" />
@@ -896,6 +911,20 @@
       </button>
     </div>
   </header>
+
+  <!-- Feedback form (slide-down panel) -->
+  {#if showFeedback}
+    <div class="feedback-panel">
+      <CivicFeedbackForm
+        jurisdiction={activeJurisdiction}
+        disabled={!identity?.isUnlocked}
+        onsubmit={handleFeedback}
+      />
+      {#if !identity?.isUnlocked}
+        <p class="feedback-hint">Unlock your identity in Settings to send feedback.</p>
+      {/if}
+    </div>
+  {/if}
 
   <!-- Active tab endpoint bar -->
   {#if activeTab === activeJurisdiction}
@@ -1669,6 +1698,18 @@
     padding: 16px 12px 8px;
     font-size: 12px;
     color: var(--civic-text-dim);
+  }
+
+  /* === Feedback Panel === */
+  .feedback-panel {
+    padding: 8px 4px;
+    border-bottom: 1px solid var(--civic-border-default);
+  }
+  .feedback-hint {
+    font-size: 10px;
+    color: var(--civic-text-dim);
+    text-align: center;
+    margin: 6px 0 0;
   }
 
   /* === Footer === */

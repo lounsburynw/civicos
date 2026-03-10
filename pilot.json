@@ -569,7 +569,7 @@
       },
       "municipal_data_isolation": {
         "status": "not_ready",
-        "priority": 3,
+        "priority": 0,
         "description": "Ensure municipal data (meetings, decisions, issues, transcripts) is cleanly isolatable per jurisdiction for city-owned instances.",
         "rationale": "Current schema already has jurisdiction_id. Verify no cross-jurisdiction dependencies exist.",
         "artifact": "Verification report + any necessary schema fixes",
@@ -2862,10 +2862,10 @@
         }
       ],
       "feedback_channel": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 0,
         "check": "Way for users to report issues",
-        "note": "Add feedback mechanism (GitHub link, email, or in-app form) for pilot users to report bugs"
+        "note": "Relay-backed feedback system: kind 1804, signed Nostr events, CivicFeedbackForm component, rate-limited endpoint"
       }
     },
     "distribution_channels": {
