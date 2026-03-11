@@ -4,7 +4,7 @@ Perform a comprehensive analysis of a specific checklist item using subagents.
 
 ## Usage
 
-When invoked with an item name (e.g., `/analyze-item vector_search_integration`), analyze that specific item. Otherwise, analyze the next priority item.
+When invoked with an item name (e.g., `/analyze-item mcp_usage_logging`), analyze that specific item. Otherwise, analyze the next priority item.
 
 ## Instructions
 
@@ -31,36 +31,54 @@ status_pending = {
     'implementation': 'not_implemented',
     'hardening': 'not_verified',
     'integration': 'not_tested',
-    'pilot': 'not_ready'
-}.get(current_phase, 'not_verified')
+    'pilot': 'not_ready',
+    'launch': 'not_started'
+}.get(current_phase, 'not_started')
 
 found = None
 best_priority = 999
 
-for category, items in checklist.items():
-    if not isinstance(items, dict) or category in ['version', 'phase', 'derived_from', 'last_updated', 'target', 'location']:
+skip_keys = ['version', 'phase', 'last_updated', 'summary', 'category_order']
+category_order = checklist.get('category_order', [k for k in checklist.keys()])
+
+for category in category_order:
+    if category in skip_keys or category not in checklist:
         continue
-    for subcategory, subitems in items.items():
-        if not isinstance(subitems, dict) or subcategory in ['description', 'target']:
-            continue
-        for item, info in subitems.items():
-            if isinstance(info, dict):
-                # If target specified, look for it
-                if target_item and target_item.lower() in item.lower():
-                    found = {'item': item, 'category': category, 'subcategory': subcategory, 'info': info, 'status': info.get('status')}
-                    break
-                # Otherwise find next priority pending item
-                elif not target_item and info.get('status') == status_pending:
-                    priority = info.get('priority', 99)
-                    if priority < best_priority:
-                        best_priority = priority
+    section = checklist[category]
+    if not isinstance(section, dict):
+        continue
+    if 'items' in section:
+        for item_info in section['items']:
+            if not isinstance(item_info, dict):
+                continue
+            name = item_info.get('name', '')
+            if target_item and target_item.lower() in name.lower():
+                found = {'item': name, 'category': category, 'info': item_info, 'status': item_info.get('status')}
+                break
+            elif not target_item and item_info.get('status') == status_pending:
+                priority = item_info.get('priority', 99)
+                if priority < best_priority:
+                    best_priority = priority
+                    found = {'item': name, 'category': category, 'info': item_info, 'status': item_info.get('status')}
+    else:
+        for subcategory, subitems in section.items():
+            if not isinstance(subitems, dict) or subcategory in ['description', 'target']:
+                continue
+            for item, info in subitems.items():
+                if isinstance(info, dict):
+                    if target_item and target_item.lower() in item.lower():
                         found = {'item': item, 'category': category, 'subcategory': subcategory, 'info': info, 'status': info.get('status')}
+                        break
+                    elif not target_item and info.get('status') == status_pending:
+                        priority = info.get('priority', 99)
+                        if priority < best_priority:
+                            best_priority = priority
+                            found = {'item': item, 'category': category, 'subcategory': subcategory, 'info': info, 'status': info.get('status')}
 
 if found:
     print(f'Item: {found[\"item\"]}')
     print(f'Status: {found[\"status\"]}')
     print(f'Category: {found[\"category\"]}')
-    print(f'Subcategory: {found[\"subcategory\"]}')
     print(f'Info: {json.dumps(found[\"info\"], indent=2)}')
 else:
     print('Item not found')
@@ -89,7 +107,7 @@ Return: File paths with key line numbers, implementation status, test coverage
 Analyze architectural context for: [ITEM NAME]
 
 Examine:
-- docs/critical/ for relevant architectural decisions
+- docs/public/ and docs/internal/ for relevant architectural decisions
 - How this item fits into the overall system
 - Dependencies on other components
 - Integration points
@@ -125,7 +143,7 @@ After receiving agent results, summarize:
 - Key files: [list with line numbers]
 
 ### Architecture Context
-- Patterns to follow: [from docs/critical/]
+- Patterns to follow: [from docs]
 - Dependencies: [what this relies on]
 - Integration points: [where this connects]
 

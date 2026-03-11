@@ -22,37 +22,52 @@ print(f'Checklist: {checklist_file}')
 with open(checklist_file) as f:
     checklist = json.load(f)
 
-# Find next item based on phase
 status_pending = {
     'implementation': 'not_implemented',
     'hardening': 'not_verified',
     'integration': 'not_tested',
-    'pilot': 'not_ready'
-}.get(current_phase, 'not_verified')
+    'pilot': 'not_ready',
+    'launch': 'not_started'
+}.get(current_phase, 'not_started')
 
 best = None
 best_priority = 999
 
-for category, items in checklist.items():
-    if not isinstance(items, dict) or category in ['version', 'phase', 'derived_from', 'last_updated', 'target', 'location']:
+skip_keys = ['version', 'phase', 'last_updated', 'summary', 'category_order']
+category_order = checklist.get('category_order', [k for k in checklist.keys()])
+
+for category in category_order:
+    if category in skip_keys or category not in checklist:
         continue
-    for subcategory, subitems in items.items():
-        if not isinstance(subitems, dict) or subcategory in ['description', 'target']:
-            continue
-        for item, info in subitems.items():
-            if isinstance(info, dict) and info.get('status') == status_pending:
-                priority = info.get('priority', 99)
+    section = checklist[category]
+    if not isinstance(section, dict):
+        continue
+    if 'items' in section:
+        for item_info in section['items']:
+            if isinstance(item_info, dict) and item_info.get('status') == status_pending:
+                priority = item_info.get('priority', 99)
+                name = item_info.get('name', '?')
                 if priority < best_priority:
                     best_priority = priority
-                    best = {'item': item, 'category': category, 'subcategory': subcategory, 'info': info}
+                    best = {'item': name, 'category': category, 'info': item_info}
+    else:
+        for subcategory, subitems in section.items():
+            if not isinstance(subitems, dict) or subcategory in ['description', 'target']:
+                continue
+            for item, info in subitems.items():
+                if isinstance(info, dict) and info.get('status') == status_pending:
+                    priority = info.get('priority', 99)
+                    if priority < best_priority:
+                        best_priority = priority
+                        best = {'item': item, 'category': category, 'info': info}
 
 if best:
     print(f'Next item: {best[\"item\"]}')
-    print(f'Area: {best[\"category\"]} > {best[\"subcategory\"]}')
-    if 'test' in best['info']:
-        print(f'Test: {best[\"info\"][\"test\"]}')
-    if 'manual_step' in best['info']:
-        print(f'Manual step: {best[\"info\"][\"manual_step\"]}')
+    print(f'Area: {best[\"category\"]}')
+    if best['info'].get('test_file'):
+        print(f'Test: {best[\"info\"][\"test_file\"]}')
+    if best['info'].get('files'):
+        print(f'Files: {best[\"info\"][\"files\"]}')
 "
 ```
 
@@ -62,7 +77,7 @@ if best:
 Task(subagent_type="Explore", prompt="""
 Explore the codebase to understand the current state for working on: [ITEM NAME]
 
-Area: [CATEGORY] > [SUBCATEGORY]
+Area: [CATEGORY]
 Phase: [CURRENT PHASE]
 
 Investigate:

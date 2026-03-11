@@ -11,6 +11,8 @@ Run LLM-based code review on staged changes to catch architectural issues.
 - `/critic security` - Run only security critic
 - `/critic jurisdiction` - Run only jurisdiction critic
 - `/critic session` - Run only session critic
+- `/critic data` - Run only data critic
+- `/critic docs` - Run only docs critic
 
 ## Steps
 
@@ -57,6 +59,8 @@ Respond with JSON only:
 - Task: "Run security critic" → reads `.critics/security.critic.md`
 - Task: "Run jurisdiction critic" → reads `.critics/jurisdiction.critic.md`
 - Task: "Run session critic" → reads `.critics/session.critic.md`
+- Task: "Run data critic" → reads `.critics/data.critic.md`
+- Task: "Run docs critic" → reads `.critics/docs.critic.md`
 
 Use `model: "haiku"` for fast, cost-effective critic runs.
 
@@ -72,6 +76,10 @@ Collect JSON responses from all agents. Format as summary table:
 | Pipeline | ✅ PASS | - | - |
 | Protocol | ✅ PASS | - | - |
 | Architecture | ⚠️ WARNING | warning | 1 issue |
+| Security | ✅ PASS | - | - |
+| Jurisdiction | ✅ PASS | - | - |
+| Data | ✅ PASS | - | - |
+| Docs | ✅ PASS | - | - |
 | Session | ❌ FAIL | critical | No P0 set |
 
 ## Issues Found
@@ -81,8 +89,8 @@ Collect JSON responses from all agents. Format as summary table:
 
 ## Summary
 
-Critics run: 4
-Passed: 3
+Critics run: 8
+Passed: 7
 Warnings: 0
 Failed: 1
 
