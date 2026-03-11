@@ -1,66 +1,66 @@
-# Recommended: Extension 402 Handling
+# Recommended: Onboard Mill Valley
 
 **Priority:** P0
-**Area:** acceptance_policy
+**Area:** federation_testbed
 **Date:** 2026-03-11
 
 > This is recommended context from the previous session. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
 
 ## Context
 
-The relay acceptance policy is fully wired: rate limiting, PoW mining (client-side), attestation verification, and monitoring (just completed). However, when the relay rejects a write with HTTP 402, the extension silently swallows the error. Users get no feedback about why their voice/comment was rejected, nor guidance on how to resolve it (get attested, wait for rate limit reset, etc.).
+The acceptance policy stack is now complete: rate limiting, PoW mining, attestation verification, monitoring, and 402 handling in the extension. All relay write paths (voice, comment, commit, complete, withdraw) return structured `WriteResult` with rejection details, and the UI surfaces user-friendly error messages.
+
+The next milestone is federation validation. Mill Valley is the first additional jurisdiction to onboard — same county (Marin), same platform (Granicus) as San Rafael. This tests the onboarding pipeline end-to-end and surfaces friction points before cross-county work.
 
 ## Recommended Task
 
-Update the browser extension and `civicos-client` to handle HTTP 402 responses from the relay. Parse the `PolicyResult` response body (which includes `tier`, `reason`, and `options` for upgrade paths) and surface it to the user.
+Run `/onboard` for Mill Valley (city-mill-valley, Granicus platform, Marin County). Document every manual step, friction point, and failure. The goal is both to get Mill Valley data flowing AND to build the onboarding checklist for future operators.
 
 ## Key Files
 
-- `packages/civicos-client/src/api.ts:224-243` — `submitVoice()` returns `response.ok` (boolean), discards 402 body
-- `packages/civicos-client/src/api.ts:627-654` — `castVoice()` calls `submitVoice()`, returns boolean
-- `apps/civicos-extension/src/side-panel/SidePanel.svelte:803` — `api.castVoice(...).catch(() => {})` — silently swallows all errors
-- `packages/civicos-relay/src/civicos_relay/server/acceptance.py:30-43` — `PolicyResult.to_dict()` defines the 402 response format:
-  ```json
-  {"accepted": false, "tier": "rejected", "reason": "...", "options": {"attestation": "...", "payment": "...", "retry": "..."}}
-  ```
-- `packages/civicos-relay/src/civicos_relay/server/app.py:326` — `raise HTTPException(status_code=402, detail=result.to_dict())`
+- `scripts/onboard.py` (or `/onboard` skill) — onboarding automation
+- `config/registry/` — jurisdiction registry (add Mill Valley entry)
+- `packages/civicos-extraction/` — Granicus parser (already works for San Rafael)
+- `data/checkpoints/` — ingestion checkpoints
+- `launch.json:346` — P0 item with full description
 
 ## Suggested Approach
 
-1. **Update `civicos-client` API methods** to return richer results (not just boolean):
-   - Change `submitVoice()`, `submitComment()` return type from `Promise<boolean>` to `Promise<{ok: boolean, rejection?: PolicyResult}>`
-   - On 402, parse response JSON and return the `PolicyResult` body
-   - Similarly update `castVoice()`, `castComment()` to propagate rejection info
-
-2. **Update extension SidePanel** to handle rejection:
-   - Replace `.catch(() => {})` with proper error handling
-   - On 402 rejection, show a user-friendly message based on `reason`:
-     - Rate limit: "Daily limit reached. Try again tomorrow."
-     - Rejected (no proof): "Authentication required. Get verified to continue."
-   - Show `options` from the response (attestation, retry guidance)
-
-3. **Consider a toast/notification component** in the extension for transient error messages
+1. Run `/onboard mill-valley` and follow the guided process
+2. Add Mill Valley to the jurisdiction registry (`config/registry/`)
+3. Configure Granicus extraction for Mill Valley's specific meeting types
+4. Run data ingestion: meetings, decisions, agendas
+5. Verify with `/data-status city-mill-valley`
+6. Document every manual step and friction point in a friction log
 
 ## Tests to Run
 
 ```bash
-# Client-side tests
-cd packages/civicos-client && npm test
+# Smoke test after onboarding
+pytest packages/civicos/tests/test_civicos.py -q --override-ini="addopts="
 
-# Relay acceptance tests (should still pass)
-pytest packages/civicos-relay/tests/test_acceptance_policy.py -v
+# Verify data access for new jurisdiction
+python3 -c "
+from dotenv import load_dotenv; load_dotenv()
+from civicos import CivicOS
+c = CivicOS('city-mill-valley')
+print(f'Backend: {type(c.storage).__name__}')
+print(f'Meetings: {c.storage.get_meeting_count(\"city-mill-valley\")}')
+"
 ```
 
 ## Success Criteria
 
-- [ ] `submitVoice()` and `submitComment()` return structured result (not just boolean) on 402
-- [ ] Extension shows user-friendly message when write is rejected (rate limit, no attestation)
-- [ ] Extension shows upgrade guidance (attestation option, retry timing)
-- [ ] Existing happy-path behavior unchanged (successful writes still work)
-- [ ] No regression in acceptance policy tests
+- [ ] Mill Valley added to jurisdiction registry
+- [ ] Granicus extraction configured and running for Mill Valley
+- [ ] Meetings, decisions, and/or agendas ingested into PostgreSQL
+- [ ] `/data-status city-mill-valley` shows non-zero counts
+- [ ] Friction log documenting manual steps and pain points
+- [ ] No regressions in San Rafael data
 
 ## Recent Completions
 
-- **Acceptance policy monitoring** (this session) — `_log_acceptance()` logs every decision, `get_acceptance_stats()` admin endpoint, `coordination_acceptance_logs` table in relay DB
-- **NIP-13 PoW mining** (prev session) — `castVoice()` and `castComment()` mine transparently when no attestation proof
+- **Extension 402 handling** (this session) — All relay write methods return `WriteResult` with rejection details. UI shows rate limit and verification messages. Centralized `parseWriteResult()` helper.
+- **Acceptance policy monitoring** (prev session) — `coordination_acceptance_logs` table, fire-and-forget logging, admin stats endpoint
+- **NIP-13 PoW mining** — Client-side proof-of-work for unattested writes
 - **Billing deferred** — Stripe items moved to P3, need usage data first
