@@ -1,4 +1,4 @@
-# Recommended: Onboard Mill Valley
+# Recommended: Onboard San Anselmo
 
 **Priority:** P0
 **Area:** federation_testbed
@@ -8,59 +8,71 @@
 
 ## Context
 
-The acceptance policy stack is now complete: rate limiting, PoW mining, attestation verification, monitoring, and 402 handling in the extension. All relay write paths (voice, comment, commit, complete, withdraw) return structured `WriteResult` with rejection details, and the UI surfaces user-friendly error messages.
+Mill Valley was successfully onboarded as the first federation test jurisdiction. Two code fixes were made to the Granicus parser during onboarding:
 
-The next milestone is federation validation. Mill Valley is the first additional jurisdiction to onboard — same county (Marin), same platform (Granicus) as San Rafael. This tests the onboarding pipeline end-to-end and surfaces friction points before cross-county work.
+1. **Platform detection** now tries view_ids 1-5 (was only trying 1)
+2. **Agenda link extraction** now scans cells for URL patterns (AgendaViewer, MinutesViewer) when column headers are empty
+
+These fixes should make San Anselmo's onboarding smoother — it's the same platform (Granicus), same county (Marin). This validates that the fixes are general, not Mill Valley-specific.
 
 ## Recommended Task
 
-Run `/onboard` for Mill Valley (city-mill-valley, Granicus platform, Marin County). Document every manual step, friction point, and failure. The goal is both to get Mill Valley data flowing AND to build the onboarding checklist for future operators.
+Run `/onboard` for San Anselmo. The flow should be faster now:
+
+1. Find San Anselmo's Granicus subdomain (try `sananselmo.granicus.com`, `cityofsananselmo.granicus.com`, or search)
+2. Run `onboard_jurisdiction(url, 'city-san-anselmo')`
+3. Review and fix body names in extraction config
+4. Create jurisdiction YAML, registry entries, aliases
+5. Ingest meetings and run agenda extraction
+6. Compare friction against Mill Valley friction log — are the fixes working?
 
 ## Key Files
 
-- `scripts/onboard.py` (or `/onboard` skill) — onboarding automation
-- `config/registry/` — jurisdiction registry (add Mill Valley entry)
-- `packages/civicos-extraction/` — Granicus parser (already works for San Rafael)
-- `data/checkpoints/` — ingestion checkpoints
-- `launch.json:346` — P0 item with full description
+- `packages/civicos-extraction/src/civicos_extraction/onboard.py` — Onboarding orchestration
+- `packages/civicos-extraction/src/civicos_extraction/platform_detection.py` — Fixed detection
+- `packages/civicos-extraction/src/civicos_extraction/clients/granicus.py` — Fixed parser
+- `docs/internal/onboarding-friction-log.md` — Mill Valley friction log (compare against)
+- `data/extraction/city-mill-valley.json` — Example extraction config
+- `data/jurisdictions/city-mill-valley.yaml` — Example jurisdiction YAML
 
-## Suggested Approach
+## Mill Valley Results (for comparison)
 
-1. Run `/onboard mill-valley` and follow the guided process
-2. Add Mill Valley to the jurisdiction registry (`config/registry/`)
-3. Configure Granicus extraction for Mill Valley's specific meeting types
-4. Run data ingestion: meetings, decisions, agendas
-5. Verify with `/data-status city-mill-valley`
-6. Document every manual step and friction point in a friction log
+| Metric | Mill Valley |
+|--------|-------------|
+| Meetings | 56 |
+| With agenda | 53 |
+| Agenda items | 310 |
+| Bodies | City Council, Planning, Parks & Rec |
+| Errors | 3 (empty Granicus pages) |
+| Friction points | 7 |
 
 ## Tests to Run
 
 ```bash
-# Smoke test after onboarding
-pytest packages/civicos/tests/test_civicos.py -q --override-ini="addopts="
+# Granicus parser tests (should still pass)
+pytest packages/civicos-extraction/tests/test_granicus.py -q --override-ini="addopts="
 
-# Verify data access for new jurisdiction
+# Verify both jurisdictions work
 python3 -c "
 from dotenv import load_dotenv; load_dotenv()
 from civicos import CivicOS
-c = CivicOS('city-mill-valley')
-print(f'Backend: {type(c.storage).__name__}')
-print(f'Meetings: {c.storage.get_meeting_count(\"city-mill-valley\")}')
+for j in ['city-mill-valley', 'city-san-anselmo']:
+    c = CivicOS(j)
+    meetings = c.storage.get_meetings(j)
+    print(f'{j}: {len(meetings)} meetings')
 "
 ```
 
 ## Success Criteria
 
-- [ ] Mill Valley added to jurisdiction registry
-- [ ] Granicus extraction configured and running for Mill Valley
-- [ ] Meetings, decisions, and/or agendas ingested into PostgreSQL
-- [ ] `/data-status city-mill-valley` shows non-zero counts
-- [ ] Friction log documenting manual steps and pain points
-- [ ] No regressions in San Rafael data
+- [ ] San Anselmo added to all registries
+- [ ] Meetings and agenda items ingested
+- [ ] Friction log updated with San Anselmo comparison
+- [ ] Fewer friction points than Mill Valley (fixes working)
+- [ ] No regressions in San Rafael or Mill Valley data
 
 ## Recent Completions
 
-- **Extension 402 handling** (this session) — All relay write methods return `WriteResult` with rejection details. UI shows rate limit and verification messages. Centralized `parseWriteResult()` helper.
-- **Acceptance policy monitoring** (prev session) — `coordination_acceptance_logs` table, fire-and-forget logging, admin stats endpoint
-- **NIP-13 PoW mining** — Client-side proof-of-work for unattested writes
-- **Billing deferred** — Stripe items moved to P3, need usage data first
+- **Mill Valley onboarded** (this session) — 56 meetings, 310 agenda items, 7 friction points documented
+- **Granicus parser fixes** — Detection tries view_ids 1-5, URL pattern fallback for agenda links
+- **Friction log** — `docs/internal/onboarding-friction-log.md`
