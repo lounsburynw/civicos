@@ -126,9 +126,10 @@
       {
         "name": "nip13_proof_of_work",
         "description": "Add NIP-13 proof-of-work requirement for rate-limited (free) tier writes. 20-bit target ~1s computation. Provides sybil resistance for the free tier.",
-        "status": "in_progress",
+        "status": "done",
         "priority": 2,
-        "notes": "_verify_pow() exists in acceptance.py but is not wired into check() flow yet",
+        "completed_in": "this session",
+        "notes": "_verify_pow wired into check() as tier 3, before rate limiting. Valid PoW bypasses rate limit. Configured per event type via pow_difficulty.",
         "source": "docs/internal/relay-acceptance-policy-spec.md (Phase 2)",
         "files": ["packages/civicos-relay/src/civicos_relay/server/acceptance.py"],
         "test_file": "packages/civicos-relay/tests/test_acceptance.py"

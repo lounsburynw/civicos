@@ -117,6 +117,60 @@ class TestAcceptancePolicy:
         assert AcceptancePolicy._verify_pow("00" * 32, 256)
 
 
+class TestProofOfWork:
+    def test_pow_bypasses_rate_limit(self):
+        """Valid PoW should accept even when rate limit is exhausted."""
+        policy = AcceptancePolicy(config={"voice": {"max_per_day": 1, "pow_difficulty": 3}})
+        # Exhaust rate limit
+        policy.check("voice", "a" * 64)
+        # Without PoW, should be rejected
+        result = policy.check("voice", "a" * 64)
+        assert not result.accepted
+        # With valid PoW (leading zero byte = 8 bits >= 3), should be accepted
+        result = policy.check("voice", "a" * 64, event_id="00" + "ff" * 31)
+        assert result.accepted
+        assert result.tier == "pow"
+
+    def test_invalid_pow_falls_through_to_rate_limit(self):
+        """Invalid PoW should fall through to rate limit check."""
+        policy = AcceptancePolicy(config={"voice": {"max_per_day": 5, "pow_difficulty": 3}})
+        # Invalid PoW (no leading zeros) but under rate limit — should still accept via rate limit
+        result = policy.check("voice", "a" * 64, event_id="ff" * 32)
+        assert result.accepted
+        assert result.tier == "rate_limited"
+
+    def test_pow_not_checked_when_no_difficulty(self):
+        """Event types without pow_difficulty should skip PoW check."""
+        policy = AcceptancePolicy(config={"initiative": {"max_per_day": 5, "pow_difficulty": None}})
+        result = policy.check("initiative", "a" * 64, event_id="00" * 32)
+        assert result.accepted
+        assert result.tier == "rate_limited"  # Not pow, because pow_difficulty is None
+
+    def test_pow_not_checked_when_no_event_id(self):
+        """No event_id provided should skip PoW and fall through to rate limit."""
+        policy = AcceptancePolicy(config={"voice": {"max_per_day": 5, "pow_difficulty": 3}})
+        result = policy.check("voice", "a" * 64)
+        assert result.accepted
+        assert result.tier == "rate_limited"
+
+    def test_pow_with_exact_difficulty_match(self):
+        """PoW with exactly the required bits should be accepted."""
+        # "00" = 8 leading zero bits, difficulty=8 should pass
+        policy = AcceptancePolicy(config={"voice": {"max_per_day": 1, "pow_difficulty": 8}})
+        policy.check("voice", "a" * 64)  # exhaust rate limit
+        result = policy.check("voice", "a" * 64, event_id="00" + "ff" * 31)
+        assert result.accepted
+        assert result.tier == "pow"
+
+    def test_pow_insufficient_difficulty_rejected(self):
+        """PoW below required difficulty should not count as valid PoW."""
+        # "00" = 8 leading zero bits, but difficulty=16 requires more
+        policy = AcceptancePolicy(config={"voice": {"max_per_day": 1, "pow_difficulty": 16}})
+        policy.check("voice", "a" * 64)  # exhaust rate limit
+        result = policy.check("voice", "a" * 64, event_id="00" + "ff" * 31)
+        assert not result.accepted  # PoW insufficient AND rate limit exhausted
+
+
 class TestAcceptancePolicyToDict:
     def test_402_response_format(self):
         policy = AcceptancePolicy(config={"voice": {"max_per_day": 1, "pow_difficulty": 3}})
