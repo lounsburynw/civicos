@@ -789,7 +789,7 @@ async def revoke_voice(request: RevokeVoiceRequest):
         )
 
     try:
-        if not request.public_key or not request.signature or request.created_at is None:
+        if not request.public_key or not request.signature:
             raise HTTPException(status_code=400, detail="Missing required fields")
 
         _check_created_at(request.created_at)
@@ -1088,15 +1088,7 @@ async def create_initiative(request: CreateInitiativeRequest):
 
         # Generate initiative ID
         initiative_id = _generate_initiative_id(request.jurisdiction, request.title)
-        timestamp = (
-            datetime.utcfromtimestamp(request.created_at)
-            if request.created_at is not None
-            else datetime.utcnow()
-        )
-
-        # Verify Nostr event signature
-        if request.created_at is None:
-            raise HTTPException(status_code=400, detail="created_at is required for signature verification")
+        timestamp = datetime.utcfromtimestamp(request.created_at)
 
         _check_created_at(request.created_at)
 
@@ -1685,8 +1677,6 @@ async def commit_action(request: CommitActionRequest):
         from civicos_relay.voice.action_service import ActionService
 
         # Verify Nostr event signature
-        if request.created_at is None:
-            raise HTTPException(status_code=400, detail="created_at is required for signature verification")
         _check_created_at(request.created_at)
         if not verify_commitment(
             request.public_key, request.signature,
@@ -1739,8 +1729,6 @@ async def complete_action(request: CompleteActionRequest):
         from civicos_relay.voice.action_service import ActionService
 
         # Verify Nostr event signature
-        if request.created_at is None:
-            raise HTTPException(status_code=400, detail="created_at is required for signature verification")
         _check_created_at(request.created_at)
         if not verify_completion(
             request.public_key, request.signature,
@@ -2117,8 +2105,6 @@ async def commit_to_civic_action(action_id: str, request: CivicCommitmentRequest
 
     try:
         # Verify Nostr event signature
-        if request.created_at is None:
-            raise HTTPException(status_code=400, detail="created_at is required for signature verification")
         _check_created_at(request.created_at)
         if not verify_commitment(
             request.public_key, request.signature,
@@ -2247,8 +2233,6 @@ async def complete_civic_action(action_id: str, request: CivicCompletionRequest)
             )
 
         # Verify Nostr event signature
-        if request.created_at is None:
-            raise HTTPException(status_code=400, detail="created_at is required for signature verification")
         _check_created_at(request.created_at)
         if not verify_completion(
             request.public_key, request.signature,
