@@ -4,10 +4,9 @@ platform_usage_daily, then deletes raw rows older than 90 days.
 
 Keeps the usage_logs table bounded regardless of traffic growth.
 
-Deploy:
-    modal deploy scripts/modal_usage_rollup.py
+The rollup runs automatically as part of daily ingest (scheduled_high_velocity_refresh).
+This script is kept for manual/ad-hoc runs:
 
-Run manually:
     modal run scripts/modal_usage_rollup.py::rollup_usage_logs
 """
 
@@ -20,10 +19,14 @@ logger = logging.getLogger(__name__)
 
 app = modal.App("civicos-usage-rollup")
 
+rollup_image = modal.Image.debian_slim(python_version="3.11").pip_install("psycopg2-binary>=2.9.0")
+
 
 @app.function(
+    image=rollup_image,
     secrets=[modal.Secret.from_name("civicos-platform")],
-    schedule=modal.Cron("0 3 * * *"),  # Daily at 3 AM UTC
+    # No cron — rollup runs as part of daily ingest (scheduled_high_velocity_refresh).
+    # This script is kept for manual runs: modal run scripts/modal_usage_rollup.py::rollup_usage_logs
     timeout=300,
 )
 def rollup_usage_logs():

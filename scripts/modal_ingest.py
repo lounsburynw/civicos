@@ -3707,6 +3707,7 @@ def scheduled_low_velocity_refresh():
         modal.Secret.from_name("civic-youtube-proxy"),  # Residential proxy for YouTube downloads
         modal.Secret.from_name("civic-openai"),  # For speaker estimation + agenda extraction
         modal.Secret.from_name("civic-notify"),  # Push notifications (ntfy or legacy Slack)
+        modal.Secret.from_name("civicos-platform"),  # PLATFORM_DATABASE_URL for usage rollup
     ],
     memory=4096,
     timeout=10800,  # 3 hours (transcription can take time)
@@ -3951,6 +3952,42 @@ def scheduled_high_velocity_refresh():
         logger.info(f"Pipeline summary: {summary['stages_succeeded']}/{summary['stages_succeeded'] + summary['stages_failed']} passed, sent={summary['notification_sent']}")
     except Exception as e:
         logger.warning(f"Failed to send pipeline summary notification: {e}")
+
+    # Usage log rollup: aggregate old logs into daily summaries
+    try:
+        import psycopg2
+        platform_url = os.environ.get("PLATFORM_DATABASE_URL")
+        if platform_url:
+            conn = psycopg2.connect(platform_url)
+            try:
+                with conn.cursor() as cur:
+                    cur.execute("""
+                        INSERT INTO platform_usage_daily (key_id, endpoint, date, request_count, avg_response_ms, error_count)
+                        SELECT key_id, endpoint, DATE(timestamp) as date,
+                            COUNT(*) as request_count,
+                            AVG(response_time_ms)::int as avg_response_ms,
+                            COUNT(*) FILTER (WHERE status_code >= 400) as error_count
+                        FROM platform_usage_logs
+                        WHERE timestamp < NOW() - INTERVAL '90 days' AND key_id IS NOT NULL
+                        GROUP BY key_id, endpoint, DATE(timestamp)
+                        ON CONFLICT (key_id, endpoint, date) DO UPDATE SET
+                            request_count = platform_usage_daily.request_count + EXCLUDED.request_count,
+                            avg_response_ms = ((platform_usage_daily.avg_response_ms * platform_usage_daily.request_count
+                                + EXCLUDED.avg_response_ms * EXCLUDED.request_count)
+                                / (platform_usage_daily.request_count + EXCLUDED.request_count))::int,
+                            error_count = platform_usage_daily.error_count + EXCLUDED.error_count
+                    """)
+                    aggregated = cur.rowcount
+                    cur.execute("DELETE FROM platform_usage_logs WHERE timestamp < NOW() - INTERVAL '90 days'")
+                    deleted = cur.rowcount
+                conn.commit()
+                logger.info(f"Usage rollup: aggregated={aggregated}, deleted={deleted}")
+            finally:
+                conn.close()
+        else:
+            logger.info("PLATFORM_DATABASE_URL not set, skipping usage rollup")
+    except Exception as e:
+        logger.warning(f"Usage rollup failed (non-fatal): {e}")
 
     return {
         "schedule": "high_velocity_daily",
