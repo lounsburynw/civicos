@@ -118,7 +118,7 @@
         "name": "http_ip_rate_limiting",
         "description": "Add HTTP-level per-IP rate limiting on relay before crypto verification. First line of defense against spam.",
         "status": "not_started",
-        "priority": 1,
+        "priority": 0,
         "source": "docs/internal/relay-acceptance-policy-spec.md (Phase 2)",
         "files": ["apps/civicos-relay/modal_relay.py"],
         "test_file": null
