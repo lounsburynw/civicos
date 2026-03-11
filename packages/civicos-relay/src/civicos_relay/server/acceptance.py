@@ -11,7 +11,7 @@ import hashlib
 import logging
 from collections import defaultdict
 from dataclasses import dataclass, field
-from datetime import date
+from datetime import date, datetime, timedelta, timezone
 from typing import Callable, Optional
 
 logger = logging.getLogger(__name__)
@@ -255,6 +255,124 @@ class AcceptancePolicy:
             logger.error("Rate limit DB check failed: %s", e)
             # Fail closed on DB errors — fall back to in-memory limiter
             return self._memory_limiter.check_and_increment(pubkey_hash, event_type, max_per_day)
+
+    def _log_acceptance(self, event_type: str, public_key: str, result: "PolicyResult"):
+        """Log acceptance decision for monitoring. Fire-and-forget, never raises."""
+        if not self._db_available:
+            return
+        pubkey_hash = self._hash_pubkey(public_key)
+        try:
+            conn = self._conn_factory()
+            try:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        """
+                        INSERT INTO coordination_acceptance_logs
+                            (event_type, acceptance_tier, accepted, reason, public_key_hash)
+                        VALUES (%s, %s, %s, %s, %s)
+                        """,
+                        (event_type, result.tier, result.accepted, result.reason, pubkey_hash),
+                    )
+                conn.commit()
+            finally:
+                conn.close()
+        except Exception as e:
+            logger.debug("Failed to log acceptance decision: %s", e)
+
+    def get_acceptance_stats(self, days: int = 7) -> dict:
+        """Query acceptance stats for monitoring dashboard.
+
+        Returns dict with:
+          - writes_by_tier: {tier: count} for accepted writes
+          - rejections_by_tier: {tier: count} for rejected writes
+          - daily_breakdown: [{date, tier, accepted, count}]
+          - rate_limit_hits: total rejected-due-to-rate-limit count
+        """
+        if not self._db_available:
+            return {"writes_by_tier": {}, "rejections_by_tier": {}, "daily_breakdown": [], "rate_limit_hits": 0}
+
+        since = datetime.now(timezone.utc) - timedelta(days=days)
+        try:
+            conn = self._conn_factory()
+            try:
+                with conn.cursor() as cur:
+                    # Tier breakdown
+                    cur.execute(
+                        """
+                        SELECT acceptance_tier, accepted, COUNT(*)
+                        FROM coordination_acceptance_logs
+                        WHERE timestamp >= %s
+                        GROUP BY acceptance_tier, accepted
+                        """,
+                        (since,),
+                    )
+                    writes_by_tier = {}
+                    rejections_by_tier = {}
+                    for tier, accepted, count in cur.fetchall():
+                        if accepted:
+                            writes_by_tier[tier] = count
+                        else:
+                            rejections_by_tier[tier] = count
+
+                    # Count rejections with rate limit in reason
+                    cur.execute(
+                        """
+                        SELECT COUNT(*)
+                        FROM coordination_acceptance_logs
+                        WHERE timestamp >= %s AND NOT accepted AND reason LIKE %s
+                        """,
+                        (since, "%rate limit%"),
+                    )
+                    rate_limit_hits = cur.fetchone()[0]
+
+                    # Daily breakdown
+                    cur.execute(
+                        """
+                        SELECT DATE(timestamp) as day, acceptance_tier, accepted, COUNT(*)
+                        FROM coordination_acceptance_logs
+                        WHERE timestamp >= %s
+                        GROUP BY day, acceptance_tier, accepted
+                        ORDER BY day
+                        """,
+                        (since,),
+                    )
+                    daily_breakdown = [
+                        {"date": str(row[0]), "tier": row[1], "accepted": row[2], "count": row[3]}
+                        for row in cur.fetchall()
+                    ]
+
+                    return {
+                        "writes_by_tier": writes_by_tier,
+                        "rejections_by_tier": rejections_by_tier,
+                        "daily_breakdown": daily_breakdown,
+                        "rate_limit_hits": rate_limit_hits,
+                    }
+            finally:
+                conn.close()
+        except Exception as e:
+            logger.warning("Failed to query acceptance stats: %s", e)
+            return {"writes_by_tier": {}, "rejections_by_tier": {}, "daily_breakdown": [], "rate_limit_hits": 0}
+
+    def cleanup_old_logs(self, days: int = 30):
+        """Delete acceptance logs older than N days."""
+        if not self._db_available:
+            return
+        try:
+            conn = self._conn_factory()
+            try:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        "DELETE FROM coordination_acceptance_logs WHERE timestamp < NOW() - MAKE_INTERVAL(days => %s)",
+                        (days,),
+                    )
+                    deleted = cur.rowcount
+                    conn.commit()
+                    if deleted > 0:
+                        logger.info("Cleaned up %d old acceptance log rows", deleted)
+            finally:
+                conn.close()
+        except Exception as e:
+            logger.warning("Acceptance log cleanup failed: %s", e)
 
     def _record_metadata(self, public_key: str, entity: str, tier: str):
         """Record write metadata for analytics."""

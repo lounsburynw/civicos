@@ -285,6 +285,7 @@ async def lifespan(app: FastAPI):
             issuer_lookup=issuer_lookup,
         )
         policy.cleanup_old_limits()
+        policy.cleanup_old_logs()
         _relay_state["acceptance_policy"] = policy
         logger.info("Acceptance policy enabled (with attestation verification)")
 
@@ -322,6 +323,8 @@ def _check_acceptance(event_type: str, public_key: str, entity: str,
     if policy is None:
         return
     result = policy.check(event_type, public_key, attestation_proof, payment_proof, event_id=event_id)
+    # Log every acceptance decision for monitoring (fire-and-forget)
+    policy._log_acceptance(event_type, public_key, result)
     if not result.accepted:
         raise HTTPException(status_code=402, detail=result.to_dict())
     policy._record_metadata(public_key, entity, result.tier)
@@ -878,6 +881,18 @@ def create_app() -> FastAPI:
             return result
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e))
+
+    @router.get("/admin/acceptance-stats")
+    async def acceptance_stats(
+        days: int = 7,
+        authorization: str = Header(default=""),
+    ):
+        """Query acceptance policy monitoring stats. Requires admin API key."""
+        _verify_relay_api_key(authorization)
+        policy = get_acceptance_policy()
+        if policy is None:
+            return {"error": "Acceptance policy not enabled", "stats": None}
+        return policy.get_acceptance_stats(days=min(days, 90))
 
     app.include_router(router)
     return app

@@ -278,3 +278,51 @@ class TestAcceptancePolicyToDict:
         assert body["accepted"] is False
         assert body["tier"] == "rejected"
         assert "retry" in body["options"]
+
+
+class TestAcceptanceLogging:
+    def test_log_acceptance_noop_without_db(self):
+        """_log_acceptance is a no-op when DB is not available (in-memory mode)."""
+        policy = AcceptancePolicy()
+        result = PolicyResult(accepted=True, tier="rate_limited", reason="ok")
+        # Should not raise
+        policy._log_acceptance("voice", "a" * 64, result)
+
+    def test_log_acceptance_fire_and_forget_on_db_error(self):
+        """_log_acceptance swallows exceptions (fire-and-forget pattern)."""
+        policy = AcceptancePolicy()
+        # Force db_available but with a broken connection factory
+        policy._db_available = True
+        policy._conn_factory = lambda: (_ for _ in ()).throw(Exception("connection failed"))
+        result = PolicyResult(accepted=True, tier="pow", reason="Valid PoW")
+        # Should not raise despite DB error
+        policy._log_acceptance("voice", "a" * 64, result)
+
+    def test_get_acceptance_stats_without_db(self):
+        """get_acceptance_stats returns empty structure when DB is not available."""
+        policy = AcceptancePolicy()
+        stats = policy.get_acceptance_stats()
+        assert stats == {"writes_by_tier": {}, "rejections_by_tier": {}, "daily_breakdown": [], "rate_limit_hits": 0}
+
+    def test_get_acceptance_stats_fire_and_forget_on_db_error(self):
+        """get_acceptance_stats returns empty structure on DB errors."""
+        policy = AcceptancePolicy()
+        policy._db_available = True
+        policy._conn_factory = lambda: (_ for _ in ()).throw(Exception("connection failed"))
+        stats = policy.get_acceptance_stats()
+        assert stats["writes_by_tier"] == {}
+        assert stats["rate_limit_hits"] == 0
+
+    def test_cleanup_old_logs_noop_without_db(self):
+        """cleanup_old_logs is a no-op when DB is not available."""
+        policy = AcceptancePolicy()
+        # Should not raise
+        policy.cleanup_old_logs()
+
+    def test_cleanup_old_logs_fire_and_forget_on_db_error(self):
+        """cleanup_old_logs swallows exceptions."""
+        policy = AcceptancePolicy()
+        policy._db_available = True
+        policy._conn_factory = lambda: (_ for _ in ()).throw(Exception("connection failed"))
+        # Should not raise
+        policy.cleanup_old_logs()
