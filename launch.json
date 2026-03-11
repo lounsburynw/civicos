@@ -81,11 +81,11 @@
       {
         "name": "external_cron_triggers",
         "description": "Migrate Modal cron schedules to GitHub Actions scheduled workflows hitting Modal HTTP endpoints. Removes 5-cron-job plan limit and decouples scheduling from compute.",
-        "status": "not_started",
+        "status": "done",
         "priority": 1,
         "files": ["scripts/modal_ingest.py", ".github/workflows/"],
         "test_file": null,
-        "notes": "trigger_ingest web endpoint already exists. Convert 4 Modal crons to GH Actions schedule triggers. Free for the repo. Blocked today by phantom 5th cron."
+        "notes": "Migrated 4 Modal crons to GH Actions workflows. Requires MODAL_TOKEN_ID + MODAL_TOKEN_SECRET repo secrets. Deploy modal_ingest.py to free cron slots."
       }
     ]
   },
@@ -96,8 +96,8 @@
       {
         "name": "stripe_key_delivery_automation",
         "description": "Automate API key delivery after Stripe checkout. Currently raw key is logged server-side and must be manually emailed. Options: email via SendGrid/SES, or show on a post-checkout page.",
-        "status": "not_started",
-        "priority": 1,
+        "status": "deferred",
+        "priority": 3,
         "files": ["packages/civicos-services/src/civicos_services/core/stripe_billing.py"],
         "test_file": null,
         "notes": "Webhook handler auto-provisions key but delivery is documented stub: 'raw_key delivery is manual for now'"
@@ -105,19 +105,19 @@
       {
         "name": "billing_endpoint_deployment",
         "description": "Verify /api/billing/checkout and /api/billing/webhook are reachable on the deployed MCP server. May need to mount billing router in modal_mcp.py.",
-        "status": "not_started",
-        "priority": 1,
+        "status": "deferred",
+        "priority": 3,
         "files": ["apps/civicos-mcp/modal_mcp.py", "packages/civicos-services/src/civicos_services/core/stripe_billing.py"],
         "test_file": null
       },
       {
         "name": "stripe_secrets_deployment",
         "description": "Verify STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, and STRIPE_PRICE_* are configured in Modal secrets.",
-        "status": "not_started",
-        "priority": 0,
+        "status": "deferred",
+        "priority": 3,
         "files": [],
         "test_file": null,
-        "notes": "Check with `modal secret list` and `modal secret get civicos-env`"
+        "notes": "Deferred: need usage data to decide billing model (flat subscription vs metered vs hybrid). Usage logging pipeline is live — collect data first, then set up Stripe with the right model. Also need to decide whether to use Stripe metered billing for read API. See relay-acceptance-policy-spec.md for write-side blinded token billing."
       }
     ]
   },

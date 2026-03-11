@@ -520,6 +520,7 @@ modal app logs civicos-api
 - Never deploy to Fly.io or other platforms — Modal only.
 - Local file edits are not automatically included — code is bundled at deploy time.
 - Modal Secrets (`civicos-secrets`) store DATABASE_URL, OPENAI_API_KEY, etc. Check with `modal secret list`.
+- **Scheduling**: Cron jobs run via **GitHub Actions**, NOT `modal.Cron()`. Modal's starter plan limits crons, so GH Actions triggers `modal run` instead. Workflows are in `.github/workflows/cron-*.yml`. Never add `schedule=modal.Cron(...)` to function decorators.
 - See `docs/internal/deployment.md` for full procedures.
 
 ## UX Surfaces

@@ -1,0 +1,98 @@
+# Election & Officials Refresh (monthly)
+#
+# Triggers Modal function for monthly election and elected officials data refresh.
+# Sources: Google Civic Information API, Congress.gov, LegiScan, curated local data.
+#
+# Replaces Modal cron: "0 3 1 * *" (monthly 1st 3 AM UTC / prev day 7 PM Pacific)
+#
+# Triggers:
+#   - Monthly on 1st at 3:00 AM UTC (previous day 7:00 PM Pacific)
+#   - Manual trigger via workflow_dispatch
+
+name: "Cron: Election Refresh"
+
+on:
+  schedule:
+    - cron: '0 3 1 * *'
+  workflow_dispatch:
+
+permissions:
+  issues: write
+  contents: read
+
+jobs:
+  run:
+    name: Election Refresh
+    runs-on: ubuntu-latest
+    timeout-minutes: 15  # Modal timeout (10 min) + 5 min buffer
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Modal CLI
+        run: pip install modal
+
+      - name: Trigger Modal function
+        env:
+          MODAL_TOKEN_ID: ${{ secrets.MODAL_TOKEN_ID }}
+          MODAL_TOKEN_SECRET: ${{ secrets.MODAL_TOKEN_SECRET }}
+        run: modal run scripts/modal_ingest.py::scheduled_election_refresh
+
+  notify-failure:
+    name: Create Alert Issue
+    runs-on: ubuntu-latest
+    needs: run
+    if: failure()
+
+    steps:
+      - name: Create or Update Issue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const today = new Date().toISOString().split('T')[0];
+            const title = `Cron failure: election-refresh - ${today}`;
+            const body = `## Cron Failure Alert
+
+            **Workflow:** Election Refresh
+            **Time:** ${new Date().toISOString()}
+            **Schedule:** Monthly 1st 3 AM UTC (prev day 7 PM Pacific)
+
+            The scheduled election and officials data refresh failed. This affects:
+            - Election data (Google Civic Information API)
+            - Federal representatives (Congress.gov)
+            - State legislators (LegiScan)
+
+            **Manual retry:**
+            \`\`\`bash
+            gh workflow run cron-election-refresh.yml
+            # or directly:
+            modal run scripts/modal_ingest.py::scheduled_election_refresh
+            \`\`\`
+
+            **Workflow Run:** [View logs](${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID})
+            `;
+
+            const issues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              labels: 'cron-failure',
+              state: 'open'
+            });
+
+            const existing = issues.data.find(i => i.title.includes('election-refresh'));
+            if (!existing) {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: title,
+                body: body,
+                labels: ['cron-failure', 'automated']
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: existing.number,
+                body: `## Recurrence - ${today}\n\n${body}`
+              });
+            }
