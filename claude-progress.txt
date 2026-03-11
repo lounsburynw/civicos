@@ -21493,3 +21493,22 @@ TBD — needs assignment before /nextsesh
 - `packages/civicos-relay/src/civicos_relay/server/app.py` — middleware wiring
 - `packages/civicos-relay/tests/test_ip_rate_limit.py` — 11 tests
 - `launch.json` — http_ip_rate_limiting marked done
+
+## Session: MCP Usage Logging (2026-03-11)
+
+### What was done
+1. **Added `UsageLoggingMiddleware`** — raw ASGI middleware in `modal_mcp.py` that logs all HTTP requests (endpoint, method, status code, latency, jurisdiction, key_id) to the Platform DB via fire-and-forget `call_soon`.
+2. **Added `civicos-platform` secret** to `get_secrets()` so the MCP Modal deployment has access to `PLATFORM_DATABASE_URL`.
+3. **Added `_mcp_request_key_id` context var** — set by `BearerAuthMiddleware` alongside `_mcp_request_tier`, captured in `send_wrapper` while auth context is still active.
+4. **launch.json** — `mcp_usage_logging` marked done.
+
+### Key design decisions
+- Raw ASGI middleware (not BaseHTTPMiddleware) — matches existing MCP middleware pattern
+- Captures key_id in `send_wrapper` callback (during `http.response.start`) to avoid context var reset race with BearerAuthMiddleware's finally block
+- Skips `/health`, `/docs`, `/redoc`, `/openapi.json`
+- Jurisdiction captured via closure from `self.jurisdiction`
+- Reuses `ApiKeyStore.log_usage()` — same fire-and-forget pattern as REST API
+
+### Key files changed
+- `apps/civicos-mcp/modal_mcp.py` — UsageLoggingMiddleware, _mcp_request_key_id context var, civicos-platform secret
+- `launch.json` — mcp_usage_logging marked done
