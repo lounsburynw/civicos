@@ -44,6 +44,7 @@ class CastVoiceRequest(BaseModel):
     jurisdiction: Optional[str] = Field(default=None, description="Jurisdiction code for Nostr tag reconstruction")
     attestation_proof: Optional[dict] = None
     payment_proof: Optional[dict] = None
+    event_id: Optional[str] = Field(default=None, description="Nostr event ID for NIP-13 proof-of-work verification")
 
 
 class CommitActionRequest(BaseModel):
@@ -129,6 +130,7 @@ class SubmitCommentRequest(BaseModel):
     stance: Optional[str] = None
     attestation_proof: Optional[dict] = None
     payment_proof: Optional[dict] = None
+    event_id: Optional[str] = Field(default=None, description="Nostr event ID for NIP-13 proof-of-work verification")
 
 
 class SubscribeRequest(BaseModel):
@@ -313,12 +315,13 @@ def _check_created_at(created_at: int) -> None:
 
 
 def _check_acceptance(event_type: str, public_key: str, entity: str,
-                      attestation_proof=None, payment_proof=None):
+                      attestation_proof=None, payment_proof=None,
+                      event_id: Optional[str] = None):
     """Check acceptance policy for a write event. No-op if policy is disabled."""
     policy = get_acceptance_policy()
     if policy is None:
         return
-    result = policy.check(event_type, public_key, attestation_proof, payment_proof)
+    result = policy.check(event_type, public_key, attestation_proof, payment_proof, event_id=event_id)
     if not result.accepted:
         raise HTTPException(status_code=402, detail=result.to_dict())
     policy._record_metadata(public_key, entity, result.tier)
@@ -378,7 +381,8 @@ def create_app() -> FastAPI:
             raise HTTPException(status_code=400, detail="Invalid voice signature")
 
         _check_acceptance("voice", request.public_key, request.entity,
-                          request.attestation_proof, request.payment_proof)
+                          request.attestation_proof, request.payment_proof,
+                          event_id=request.event_id)
 
         # Check for existing voice and handle
         existing = voice_service._storage.get_voice(request.public_key, request.entity)
@@ -517,7 +521,8 @@ def create_app() -> FastAPI:
             raise HTTPException(status_code=400, detail="Invalid comment signature")
 
         _check_acceptance("comment", request.public_key, request.entity,
-                          request.attestation_proof, request.payment_proof)
+                          request.attestation_proof, request.payment_proof,
+                          event_id=request.event_id)
 
         comment_storage.save_comment(comment)
         return comment

@@ -47,8 +47,8 @@ class PolicyResult:
 # max_per_day: rate limit for unauthenticated writes (None = no rate limit tier)
 # pow_difficulty: NIP-13 proof-of-work difficulty (leading zero bits)
 DEFAULT_POLICY = {
-    "voice": {"max_per_day": 50, "pow_difficulty": 3},
-    "comment": {"max_per_day": 20, "pow_difficulty": 3},
+    "voice": {"max_per_day": 50, "pow_difficulty": 16},
+    "comment": {"max_per_day": 20, "pow_difficulty": 16},
     "initiative": {"max_per_day": 5, "pow_difficulty": None},
     "action_create": {"max_per_day": 10, "pow_difficulty": None},
     "action_commit": {"max_per_day": 20, "pow_difficulty": None},

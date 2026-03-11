@@ -29,6 +29,7 @@ Endpoints (via Cloudflare proxy):
     federal.civicosproject.org/mcp
 """
 
+import logging
 import os
 import modal
 
@@ -439,7 +440,8 @@ class MCPServer:
                     from civicos_services.core.api_keys import get_api_key_store
                     store = get_api_key_store()
                     if store and store.available:
-                        _asyncio.get_event_loop().call_soon(
+                        _asyncio.get_event_loop().run_in_executor(
+                            None,
                             store.log_usage,
                             key_id,
                             path,
@@ -448,8 +450,8 @@ class MCPServer:
                             duration_ms,
                             _usage_jurisdiction,
                         )
-                except Exception:
-                    pass  # Never block response for usage logging
+                except Exception as e:
+                    logging.getLogger("civicos-mcp").debug("Usage logging failed: %s", e)
 
         # Rewrite /mcp → /mcp/ internally to avoid Starlette's 307 redirect.
         # Without this, Cloudflare proxy gets a 307 pointing at Modal's host

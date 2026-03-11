@@ -9,6 +9,7 @@ Usage:
     curl https://civicos--civicos-relay-relayserver-relay-endpoint.modal.run/health
 """
 
+import logging
 import modal
 
 app = modal.App("civicos-relay")
@@ -196,7 +197,8 @@ class RelayServer:
                     from api_keys import get_api_key_store
                     store = get_api_key_store()
                     if store and store.available:
-                        _asyncio.get_event_loop().call_soon(
+                        _asyncio.get_event_loop().run_in_executor(
+                            None,
                             store.log_usage,
                             None,  # key_id — relay uses Nostr signatures, not API keys
                             path,
@@ -205,8 +207,8 @@ class RelayServer:
                             duration_ms,
                             _usage_jurisdiction,
                         )
-                except Exception:
-                    pass  # Never block response for usage logging
+                except Exception as e:
+                    logging.getLogger("civicos-relay").debug("Usage logging failed: %s", e)
 
         fastapi_app.add_middleware(
             CORSMiddleware,
@@ -216,9 +218,15 @@ class RelayServer:
             allow_headers=["*"],
         )
 
+        # HTTP-level per-IP rate limiting (runs before crypto verification)
+        from civicos_relay.server.ip_rate_limit import IPRateLimitMiddleware, DEFAULT_IP_RATE_LIMIT, DEFAULT_IP_RATE_WINDOW
+        ip_limit = max(10, min(1000, int(os.environ.get("RELAY_IP_RATE_LIMIT", str(DEFAULT_IP_RATE_LIMIT)))))
+        ip_window = max(60, min(3600, int(os.environ.get("RELAY_IP_RATE_WINDOW", str(DEFAULT_IP_RATE_WINDOW)))))
+        fastapi_app.add_middleware(IPRateLimitMiddleware, max_requests=ip_limit, window_seconds=ip_window)
+
         # Usage logging — outermost middleware, runs after CORS
         # Middleware chain (outermost→innermost):
-        #   UsageLogging → CORS → route handler
+        #   UsageLogging → CORS → IPRateLimit → route handler
         fastapi_app.add_middleware(UsageLoggingMiddleware)
 
         # Mount coordination router — paths are already prefixed with /coordination/
