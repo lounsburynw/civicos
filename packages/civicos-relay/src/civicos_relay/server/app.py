@@ -264,10 +264,23 @@ async def lifespan(app: FastAPI):
 
     # Initialize acceptance policy if enabled
     if config.acceptance_policy_enabled:
-        policy = AcceptancePolicy(connection_url=relay_db_url)
+        issuer_storage = storage.issuers
+
+        def issuer_lookup(jurisdiction: str) -> Optional[str]:
+            """Look up trusted issuer pubkey for a jurisdiction."""
+            issuers = issuer_storage.get_issuers_for_jurisdiction(jurisdiction)
+            for issuer in issuers:
+                if issuer.get("verified") and not issuer.get("revoked"):
+                    return issuer["issuer_pubkey"]
+            return None
+
+        policy = AcceptancePolicy(
+            connection_url=relay_db_url,
+            issuer_lookup=issuer_lookup,
+        )
         policy.cleanup_old_limits()
         _relay_state["acceptance_policy"] = policy
-        logger.info("Acceptance policy enabled")
+        logger.info("Acceptance policy enabled (with attestation verification)")
 
     if config.sync_enabled:
         await _relay_state["sync_service"].start()
