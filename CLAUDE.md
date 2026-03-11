@@ -228,6 +228,8 @@ Historical docs from completed phases. Recoverable if needed.
 | `/visual-review [mode]` | Screenshot extension UX + review (review/diff/both) | No |
 | `/commit` | Run critics on staged changes, then commit | No |
 | `/nextsesh` | Prepare handoff notes (requires P0 set) | No |
+| `/deploy [service]` | Deploy services to Modal (api/mcp/relay/all/status) | No |
+| `/health [target]` | Health check all deployed services + DBs | No |
 | `/ingest-audio [jurisdiction] [limit]` | Download YouTube audio locally, upload to R2 | No |
 | `/db-backup [action]` | PostgreSQL backup (selective/full) | No |
 | `/vectors [action]` | Vector indexing on Modal GPU | No |

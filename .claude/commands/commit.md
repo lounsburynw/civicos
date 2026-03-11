@@ -19,6 +19,10 @@ Run `/critic` to check for architectural issues. This analyzes the staged diff a
 - `.critics/pipeline.critic.md` - ETL pattern issues
 - `.critics/protocol.critic.md` - Protocol conformance
 - `.critics/architecture.critic.md` - Layer boundaries
+- `.critics/security.critic.md` - Trust model integrity
+- `.critics/jurisdiction.critic.md` - Jurisdiction isolation
+- `.critics/data.critic.md` - ETL data quality
+- `.critics/docs.critic.md` - Documentation accuracy
 - `.critics/session.critic.md` - Session hygiene
 
 3. **Handle critic results:**

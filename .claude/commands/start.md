@@ -249,6 +249,8 @@ Before ending:
 | `/test [mode]` | Run tests (smoke/targeted/full/profile) | No |
 | `/critic [type]` | Run Civic-specific critics | No |
 | `/review [scope]` | Run pr-review-toolkit agents | Yes (agents) |
+| `/deploy [service]` | Deploy to Modal (api/mcp/relay/all/status) | No |
+| `/health [target]` | Health check deployed services + DBs | No |
 | `/commit` | Commit changes | No |
 | `/nextsesh` | Prepare handoff notes | No |
 

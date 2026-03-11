@@ -3,7 +3,7 @@ Launch the CivicOS development environment.
 ## What Gets Started
 
 1. **REST API** on http://localhost:8001 (backend — serves civic data)
-2. **Open WebUI** on http://localhost:5173 (primary frontend — hot reload)
+2. **WebSocket server** (optional, for real-time coordination)
 
 ## Steps
 
@@ -13,17 +13,16 @@ Start the API backend:
 ./scripts/dev.sh api
 ```
 
-Then, in parallel, start the Open WebUI frontend dev server:
+Optionally, start the WebSocket server in parallel:
 
 ```bash
-cd ~/projects/civicos-openwebui && npm run dev
+./scripts/dev.sh ws
 ```
 
 ## Verify
 
 - API health: http://localhost:8001/health
 - API docs: http://localhost:8001/docs
-- Frontend: http://localhost:5173
 
 ## Environment
 
@@ -37,20 +36,23 @@ The `./scripts/dev.sh` script automatically:
 
 - `GOOGLE_MAPS_API_KEY` - For address geocoding (must have Geocoding API enabled)
 
-## Docker (Production Testing Only)
+## Browser Extension (Primary UX Surface)
 
-Only rebuild Docker when testing the production build, not for development:
+For browser extension development:
 
 ```bash
-cd ~/projects/civicos-openwebui
-docker build -t civicos-openwebui:latest .
-docker stop civicos-openwebui && docker rm civicos-openwebui
-docker run -d --name civicos-openwebui -p 8080:8080 \
-  --env-file .env --restart unless-stopped civicos-openwebui:latest
+cd apps/civicos-extension && npm run dev          # Watch mode with hot reload
+# Then load unpacked from apps/civicos-extension/dist in chrome://extensions
+```
+
+## Open WebUI (Secondary Surface)
+
+```bash
+cd ~/projects/civicos-openwebui && npm run dev    # Dev server at localhost:5173
 ```
 
 ## Notes
 
+- The **browser extension** is the primary user surface
 - The Open WebUI fork is a **separate repo** (`~/projects/civicos-openwebui`, symlinked at `apps/civicos-openwebui-fork/`)
 - `apps/civicos-workspace/` is a **deprecated** Vue frontend — do not use
-- WebSocket server (`./scripts/dev.sh ws`) is optional for most development

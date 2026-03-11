@@ -80,7 +80,7 @@ print('=' * 60)
 
 if p0_item:
     print(f'\nCURRENT P0: {p0_item["name"]}')
-    print(f'Category: {p0_item["category"]} > {p0_item["subcategory"]}')
+    print(f'Category: {p0_item["category"]}')
     print(f'Track: {p0_track.upper()}')
     print(f'\nAVOID these tracks to prevent conflicts: {p0_track}')
 else:
@@ -123,9 +123,9 @@ if candidates:
         priority_label = f'P{c["priority"]}'
         print(f'\n{i+1}. [{priority_label}] {c["name"]}')
         print(f'   Track: {c["track"].upper()} | {c["category"]}')
-        if c['info'].get('artifact'):
-            artifact = c['info']['artifact'][:80] + '...' if len(c['info'].get('artifact', '')) > 80 else c['info'].get('artifact', '')
-            print(f'   Artifact: {artifact}')
+        desc = c['info'].get('description', '')
+        if desc:
+            print(f'   Description: {desc[:80]}{"..." if len(desc) > 80 else ""}')
 
     # Recommend top item
     top = candidates[0]
@@ -152,7 +152,7 @@ Once you've selected an item, create a worktree:
 ITEM_NAME="your-item-name"
 TRACK="track-name"
 BRANCH_NAME="feature/${TRACK}/${ITEM_NAME}"
-WORKTREE_DIR="../civic-${TRACK}"
+WORKTREE_DIR="../civicos-${TRACK}"
 
 # Check if worktree already exists
 if [ -d "$WORKTREE_DIR" ]; then
@@ -181,11 +181,11 @@ fi
 **Directory structure after setup:**
 ```
 ~/projects/
-├── civic/                  # Main repo (P0 session on main)
-├── civic-infra/            # Worktree for infra track
-├── civic-ops/              # Worktree for ops track
-├── civic-frontend/         # Worktree for frontend track
-└── civic-validation/       # Worktree for validation track
+├── civicos/                # Main repo (P0 session on main)
+├── civicos-observability/  # Worktree for observability track
+├── civicos-billing/        # Worktree for billing track
+├── civicos-operator/       # Worktree for operator track
+└── ...
 ```
 
 ## Step 4: Start Claude Code in Worktree
@@ -194,7 +194,7 @@ fi
 
 ```bash
 # In a NEW terminal window:
-cd ../civic-${TRACK}
+cd ../civicos-${TRACK}
 source civicos-env/bin/activate  # Activate venv (symlinked from main)
 claude
 ```
@@ -242,7 +242,7 @@ The worktree has its own:
 PRs automatically include new commits pushed to the source branch:
 ```bash
 # First item done - create PR
-gh pr create --draft --base main --head "$BRANCH_NAME" --title "feat: Eval framework improvements"
+gh pr create --draft --base main --head "$BRANCH_NAME" --title "feat: description"
 
 # Continue working on related items
 # ... more commits ...
@@ -251,21 +251,6 @@ git push  # PR automatically updates
 # All items done - mark ready for review
 gh pr ready
 ```
-
-### Batching Related Items
-
-Before creating a PR, check if there are related items you should complete first:
-```bash
-# Check items in same category that are now unblocked
-python3 -c "
-import json
-with open('launch.json') as f:
-    p = json.load(f)
-# Look for items in same subcategory with status='not_ready'
-"
-```
-
-**Example:** If you completed `llm_as_judge`, check if `hallucination_detection` (same category, was blocked) should also go in this PR.
 
 ## Step 7: Pre-Merge Review
 
@@ -282,15 +267,6 @@ git rebase origin/main
 # Run pr-review-toolkit agents
 /review
 ```
-
-**Review agents from pr-review-toolkit:**
-
-| Agent | When to Use |
-|-------|-------------|
-| `code-reviewer` | Always - checks CLAUDE.md adherence, bugs |
-| `pr-test-analyzer` | If you added/modified tests |
-| `silent-failure-hunter` | If you touched error handling |
-| `type-design-analyzer` | If you added new types/dataclasses |
 
 ## Step 8: Create/Finalize PR
 
@@ -309,16 +285,14 @@ gh pr create --base main --head "$BRANCH_NAME" \
 
 ## Test plan
 - [x] /critic passed
-- [x] /review passed
-
-🤖 Generated with Claude Code"
+- [x] /review passed"
 ```
 
 ## Step 9: Cleanup (After PR Merges)
 
 ```bash
 # From main repo directory
-git worktree remove ../civic-${TRACK}
+git worktree remove ../civicos-${TRACK}
 git branch -d "$BRANCH_NAME"  # Delete merged branch
 ```
 
@@ -333,11 +307,11 @@ If you accidentally touch files being modified by P0 session:
 
 | Scenario | Action |
 |----------|--------|
-| P0 on data track | Work on ops, infra, frontend, or validation |
-| P0 on frontend | Work on data, ops, or infra |
+| P0 on security track | Work on observability, billing, operator, etc. |
+| P0 on acceptance track | Work on observability, billing, operator, etc. |
 | No P0 set | Run `/start` instead to claim P0 |
 | Same-track work needed | Wait for P0 to complete, or coordinate |
-| Worktree already exists | `cd ../civic-{track}` and continue |
+| Worktree already exists | `cd ../civicos-{track}` and continue |
 
 ## Managing Worktrees
 
@@ -346,7 +320,7 @@ If you accidentally touch files being modified by P0 session:
 git worktree list
 
 # Remove a worktree (after merging)
-git worktree remove ../civic-${TRACK}
+git worktree remove ../civicos-${TRACK}
 
 # Prune stale worktree references
 git worktree prune
@@ -362,7 +336,7 @@ git worktree prune
    ```
    ## Session N (Parallel): [item_name]
    **Track:** [track]
-   **Worktree:** ../civic-[track]
+   **Worktree:** ../civicos-[track]
    **Branch:** feature/[track]/[item-name]
    **Status:** [complete/in-progress]
    [Brief summary]
