@@ -1,63 +1,40 @@
-# Recommended: Municipal Data Isolation
+# Recommended: Relay Usage Logging
 
 **Priority:** P0
-**Area:** data_architecture > data_federation
-**Date:** 2026-03-09
+**Area:** observability
+**Date:** 2026-03-11
 
 > This is recommended context from the previous session. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
 
 ## Context
 
-Previous session completed `feedback_channel` — full relay-backed feedback system with Nostr kind 1804, signed events, rate-limited endpoints, CivicFeedbackForm component, and MCP admin tool. Pilot is now at ~96% (24 items remaining, all P3). `municipal_data_isolation` is set as P0 because clean per-jurisdiction data isolation is a prerequisite for onboarding a second city.
+This session completed `mcp_usage_logging` — added UsageLoggingMiddleware (raw ASGI) to the MCP Modal server. The middleware logs all HTTP requests (endpoint, method, status code, latency, jurisdiction, key_id) to the Platform DB via fire-and-forget `call_soon`. Also added `civicos-platform` secret and `_mcp_request_key_id` context var.
+
+The relay server (`civicos-relay`) is the other production service and also has **no usage logging**. The same pattern can be applied.
 
 ## Recommended Task
 
-Verify that all municipal data (meetings, decisions, issues, transcripts, chunks, budget_items) is cleanly isolatable per jurisdiction. The current schema already has `jurisdiction_id` columns, but we need to confirm:
-1. No cross-jurisdiction dependencies exist in queries or joins
-2. A city-owned instance could run with only its own data
-3. Vector embeddings are jurisdiction-scoped (they are, via `jurisdiction` column)
-4. Coordination data (voices, comments, initiatives) is jurisdiction-filtered
-
-This is a verification + report task, not a large code change.
+Wire usage logging into the relay Modal server. The pattern is now proven in both the REST API server and the MCP server — adapt it for the relay's Starlette app.
 
 ## Key Files
 
-- `packages/civicos/src/civicos/storage/postgres_backend.py` — Main storage backend, all queries filter by jurisdiction
-- `packages/civicos/src/civicos/storage/pgvector_backend.py` — Vector storage, check jurisdiction scoping
-- `docs/internal/storage-schema.md` — Database table schemas
-- `packages/civicos-services/src/civicos_services/servers/routers/coordination.py` — Coordination endpoints, check jurisdiction filtering
-- `packages/civicos-relay/src/civicos_relay/storage/postgres.py` — Relay storage classes
+- `packages/civicos-relay/src/civicos_relay/server/app.py` — Relay Starlette app, needs middleware
+- `apps/civicos-mcp/modal_mcp.py:396-445` — Reference: MCP UsageLoggingMiddleware (just completed)
+- `packages/civicos-services/src/civicos_services/servers/api.py:342-378` — Reference: REST API middleware
+- `packages/civicos-services/src/civicos_services/core/api_keys.py:324-355` — `ApiKeyStore.log_usage()`
 
 ## Suggested Approach
 
-1. **Audit SQL queries** in `postgres_backend.py` — verify every query filters by `jurisdiction_id`
-2. **Audit vector queries** in `pgvector_backend.py` — verify embeddings are jurisdiction-scoped
-3. **Audit coordination tables** — voices, comments, initiatives, feedback all have jurisdiction columns
-4. **Check for shared/reference data** — legislation and federal programs are shared across jurisdictions by design (not municipal data)
-5. **Write verification report** — document findings, flag any issues, propose fixes if needed
-6. **Update pilot.json** — mark `municipal_data_isolation` as ready if verification passes
-
-## Tests to Run
-
-```bash
-# Smoke test (verify nothing broken)
-pytest packages/civicos/tests/test_civicos.py -q --override-ini="addopts="
-
-# Check data counts per jurisdiction
-python3 -c "
-from dotenv import load_dotenv; load_dotenv()
-from civicos import CivicOS, DataStatus
-c = CivicOS('city-san-rafael')
-status = DataStatus(c.storage, c._vectors, 'city-san-rafael')
-print(status.summary())
-"
-```
+1. Read `app.py` to understand the relay's middleware chain and app structure
+2. Check if the relay Modal deployment already has `civicos-platform` secret
+3. Add UsageLoggingMiddleware (adapt from MCP pattern — may use BaseHTTPMiddleware or raw ASGI)
+4. Wire into middleware chain
+5. Test relay endpoints still work
 
 ## Success Criteria
 
-- [ ] All municipal data queries filter by jurisdiction_id (verified via code audit)
-- [ ] Vector embeddings are jurisdiction-scoped
-- [ ] Coordination tables have jurisdiction filtering
-- [ ] Shared reference data (legislation, federal programs) correctly identified as non-municipal
-- [ ] Verification report written (can be brief, in claude-progress.txt)
-- [ ] `municipal_data_isolation` marked ready in pilot.json
+- [ ] Usage logging middleware wired into relay server
+- [ ] `civicos-platform` secret available in relay deployment
+- [ ] Usage logs written for relay requests (coordination, AI proxy endpoints)
+- [ ] Fire-and-forget pattern (logging failures never block responses)
+- [ ] `relay_usage_logging` marked done in launch.json

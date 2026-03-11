@@ -169,9 +169,11 @@ Interactive docs are available at `https://your-domain/docs` (Swagger UI). See [
 
 ## Data Ingestion
 
-An empty database returns empty results. CivicOS includes platform parsers for common civic data sources (Legistar, ProudCity, Granicus, SeeClickFix, LegiScan, Municode), but ingestion is jurisdiction-specific and requires configuration for your city's data sources.
+An empty database returns empty results. CivicOS includes platform parsers for common civic data sources (Legistar, ProudCity, Granicus, CivicClerk, SeeClickFix, LegiScan, Municode), but ingestion is jurisdiction-specific and requires configuration for your city's data sources.
 
-See `docs/internal/ingestion.md` for the ingestion pipeline. Data ingestion is a significant operational task — plan for it as a separate workstream.
+For cities on a supported platform, adding a new city is **configuration, not code** — a YAML config, a registry entry, and an ingestion run. Estimated effort: half a day to one day.
+
+See the full [Data Ingestion guide](data-ingestion.md) for the pipeline architecture, supported platforms, step-by-step instructions for adding a city, and effort estimates.
 
 ## Federation
 

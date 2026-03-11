@@ -106,9 +106,12 @@ npm install && npm run dev
 
 ## Links
 
+- [Architecture overview](architecture.md) — the three-layer system at a glance
+- [What's live](status.md) — current production status of all services and features
 - [Quick start for builders](quickstart-api.md) — zero to querying civic data in 10 minutes
 - [Building agents](building-agents.md) — build AI agents on CivicOS (read, write, patterns)
 - [Operator guide](operator-guide.md) — run your own CivicOS instance
+- [Data ingestion](data-ingestion.md) — adding a new city, supported platforms, pipeline architecture
 - [Extension setup](extension/setup.md)
 - [Extension development](extension/development.md)
 - [MCP server setup](mcp/setup.md)
@@ -118,4 +121,4 @@ npm install && npm run dev
 - [Nostr event schemas — build CivicOS clients in any language](relay/nostr-events.md)
 - [Federation — how relays and MCP servers peer across operators](relay/federation.md)
 - [Architecture decisions](decisions/vector_storage.md)
-- [Learning series](learning/README.md) — cryptographic foundations, Nostr, attestation
+- [Architecture deep dives](learning/README.md) — cryptographic foundations, Nostr, attestation

@@ -21447,21 +21447,68 @@ TBD — needs assignment before /nextsesh
 - executive_orders (21K): 8s
 - All others (<15K each): <5s each
 
-=== Session 2026-03-10: require_created_at_on_writes (P0 security fix) ===
+## Session — 2026-03-11: Acceptance Policy PoW + Attestation Wiring
 
-**Completed:** require_created_at_on_writes — closed signature verification bypass
+**Items:** nip13_proof_of_work, wire_attestation_verification
+**Status:** Complete.
 
-**Changes:**
-- `models.py`: Made `created_at` required (not Optional) on Voice, Comment, Action models
-- `app.py`: Added `created_at: int` to CommitActionRequest/CompleteActionRequest
-- `app.py`: Added `_check_created_at()` clock skew validation (±5 min) to ALL write endpoints
-- `action_service.py`: Updated verify() to include created_at in canonical message (replay protection)
-- `action_service.py`: Updated record_commitment/record_completion to require created_at
-- `postgres.py/memory.py`: Updated storage backends to persist and retrieve created_at
-- `coordination.py` (civicos-services): Made created_at required on all request schemas
-- `test_sync.py`: Fixed tests to include created_at when constructing Voice objects
-- Created `scripts/sql/add_created_at_to_actions.sql` migration
-- Created `test_acceptance.py` with 20 tests covering models, schemas, clock skew, verification
+### What was done
+1. **NIP-13 Proof-of-Work wired into check()** — `_verify_pow` now runs as tier 3 (before rate limit). Valid PoW bypasses rate limit. Configured per event type via `pow_difficulty` in policy config.
+2. **Attestation verification wired into check()** — `_verify_attestation` extracts jurisdiction from j-tag, looks up trusted issuer via `issuer_lookup` callable, delegates to `verify_attestation_proof()` for full Schnorr signature verification.
+3. **app.py lifespan** provides `issuer_lookup` from `storage.issuers` — filters for verified, non-revoked issuers.
+4. **157 lines of new tests** in `test_acceptance_policy.py` — attestation verification (6 tests), proof-of-work (6 tests).
 
-**Tests:** 343 passed, 16 skipped (all relay tests green)
-**Next P0:** http_ip_rate_limiting
+### Acceptance policy tier order (now complete):
+1. Attestation proof → unlimited (kind-30850 from trusted issuer)
+2. Payment proof → unlimited (Phase 4 stub)
+3. Proof-of-work → bypass rate limit (NIP-13)
+4. Rate limit → per-event-type daily limit
+
+### Key files changed
+- `packages/civicos-relay/src/civicos_relay/server/acceptance.py` — PoW tier 3, attestation verification, IssuerLookup type
+- `packages/civicos-relay/src/civicos_relay/server/app.py` — issuer_lookup closure in lifespan
+- `packages/civicos-relay/tests/test_acceptance_policy.py` — 12 new tests
+- `launch.json` — nip13_proof_of_work and wire_attestation_verification marked done
+
+### P0 for Next Session
+`http_ip_rate_limiting` — HTTP-level per-IP rate limiting before crypto verification
+
+## Session: HTTP IP Rate Limiting (2026-03-11)
+
+### What was done
+1. **Created `ip_rate_limit.py` middleware** — `InMemoryIPRateLimiter` with sliding-window counter per IP, `IPRateLimitMiddleware` (Starlette `BaseHTTPMiddleware`) that blocks excessive POST requests to `/coordination/*` endpoints.
+2. **Wired into `app.py`** — middleware added between CORS and routing, configurable via `RELAY_IP_RATE_LIMIT` (default 100) and `RELAY_IP_RATE_WINDOW` (default 3600s) env vars.
+3. **11 tests** in `test_ip_rate_limit.py` — unit tests for limiter (under/over limit, IP independence, window expiry, cleanup) and integration tests for middleware (GET passthrough, POST rate limiting, non-coordination passthrough, 429 response format).
+4. **launch.json** — `http_ip_rate_limiting` marked done.
+
+### Key design decisions
+- In-memory only (no DB) — IP-level limiting is a coarse defense; IPs are ephemeral
+- Sliding window (not daily) — more responsive to burst traffic than per-day counters
+- POST-only on `/coordination/*` — reads pass through unconditionally
+- Returns HTTP 429 (not 402) — distinct from the pubkey-level acceptance policy (402)
+- Configurable via environment variables — no code changes needed for tuning
+
+### Key files changed
+- `packages/civicos-relay/src/civicos_relay/server/ip_rate_limit.py` — new middleware
+- `packages/civicos-relay/src/civicos_relay/server/app.py` — middleware wiring
+- `packages/civicos-relay/tests/test_ip_rate_limit.py` — 11 tests
+- `launch.json` — http_ip_rate_limiting marked done
+
+## Session: MCP Usage Logging (2026-03-11)
+
+### What was done
+1. **Added `UsageLoggingMiddleware`** — raw ASGI middleware in `modal_mcp.py` that logs all HTTP requests (endpoint, method, status code, latency, jurisdiction, key_id) to the Platform DB via fire-and-forget `call_soon`.
+2. **Added `civicos-platform` secret** to `get_secrets()` so the MCP Modal deployment has access to `PLATFORM_DATABASE_URL`.
+3. **Added `_mcp_request_key_id` context var** — set by `BearerAuthMiddleware` alongside `_mcp_request_tier`, captured in `send_wrapper` while auth context is still active.
+4. **launch.json** — `mcp_usage_logging` marked done.
+
+### Key design decisions
+- Raw ASGI middleware (not BaseHTTPMiddleware) — matches existing MCP middleware pattern
+- Captures key_id in `send_wrapper` callback (during `http.response.start`) to avoid context var reset race with BearerAuthMiddleware's finally block
+- Skips `/health`, `/docs`, `/redoc`, `/openapi.json`
+- Jurisdiction captured via closure from `self.jurisdiction`
+- Reuses `ApiKeyStore.log_usage()` — same fire-and-forget pattern as REST API
+
+### Key files changed
+- `apps/civicos-mcp/modal_mcp.py` — UsageLoggingMiddleware, _mcp_request_key_id context var, civicos-platform secret
+- `launch.json` — mcp_usage_logging marked done

@@ -62,6 +62,9 @@ def get_secrets(jurisdiction: str) -> list[str]:
     # Attestation issuer keypair for signing kind-30850 events
     secrets.append("civicos-attestation")  # CIVICOS_ATTESTATION_PRIVATE_KEY
 
+    # Platform DB for usage logging
+    secrets.append("civicos-platform")  # PLATFORM_DATABASE_URL
+
     return secrets
 
 def get_min_containers(jurisdiction: str) -> int:
@@ -132,6 +135,10 @@ import contextvars
 # Tier context for MCP Streamable HTTP requests (set by BearerAuthMiddleware)
 _mcp_request_tier: contextvars.ContextVar[str] = contextvars.ContextVar(
     "_mcp_request_tier", default="open"
+)
+# Key ID context for usage logging (set by BearerAuthMiddleware)
+_mcp_request_key_id: contextvars.ContextVar[str | None] = contextvars.ContextVar(
+    "_mcp_request_key_id", default=None
 )
 
 @app.cls(
@@ -385,11 +392,69 @@ class MCPServer:
         # Set jurisdiction on app state for middleware access
         app.state.jurisdiction = self.jurisdiction
 
+        # Raw ASGI middleware definitions
+        from starlette.types import ASGIApp, Receive, Scope, Send
+        import time as _time
+        import asyncio as _asyncio
+
+        # Usage logging middleware — fire-and-forget, never blocks responses
+        _usage_jurisdiction = self.jurisdiction  # capture for closure
+
+        class UsageLoggingMiddleware:
+            """Log API usage to Platform DB. Captures status code from response headers."""
+            SKIP_PATHS = {"/health", "/docs", "/redoc", "/openapi.json"}
+
+            def __init__(self, app: ASGIApp):
+                self.app = app
+
+            async def __call__(self, scope: Scope, receive: Receive, send: Send):
+                if scope["type"] != "http":
+                    await self.app(scope, receive, send)
+                    return
+
+                path = scope.get("path", "")
+                if path in self.SKIP_PATHS:
+                    await self.app(scope, receive, send)
+                    return
+
+                start = _time.time()
+                status_code = None
+                key_id = None
+
+                async def send_wrapper(message):
+                    nonlocal status_code, key_id
+                    if message["type"] == "http.response.start":
+                        status_code = message.get("status")
+                        # Capture key_id now, while BearerAuth context is still active
+                        key_id = _mcp_request_key_id.get(None)
+                    await send(message)
+
+                await self.app(scope, receive, send_wrapper)
+
+                duration_ms = int((_time.time() - start) * 1000)
+                method = scope.get("method", "GET")
+
+                # Fire-and-forget usage log
+                try:
+                    from civicos_services.core.api_keys import get_api_key_store
+                    store = get_api_key_store()
+                    if store and store.available:
+                        _asyncio.get_event_loop().call_soon(
+                            store.log_usage,
+                            key_id,
+                            path,
+                            method,
+                            status_code,
+                            duration_ms,
+                            _usage_jurisdiction,
+                        )
+                except Exception:
+                    pass  # Never block response for usage logging
+
         # Rewrite /mcp → /mcp/ internally to avoid Starlette's 307 redirect.
         # Without this, Cloudflare proxy gets a 307 pointing at Modal's host
         # (not the Cloudflare domain), causing error 1101.
         # Uses raw ASGI middleware (not BaseHTTPMiddleware) to avoid scope issues.
-        from starlette.types import ASGIApp, Receive, Scope, Send
 
         class TrailingSlashMiddleware:
             def __init__(self, app: ASGIApp):
@@ -418,11 +483,13 @@ class MCPServer:
                         if store and store.available:
                             key_info = store.validate_key(raw_key)
                             if key_info:
-                                token = _mcp_request_tier.set(resolve_tier(key_info.tier))
+                                tier_token = _mcp_request_tier.set(resolve_tier(key_info.tier))
+                                key_token = _mcp_request_key_id.set(key_info.key_id)
                                 try:
                                     await self.app(scope, receive, send)
                                 finally:
-                                    _mcp_request_tier.reset(token)
+                                    _mcp_request_tier.reset(tier_token)
+                                    _mcp_request_key_id.reset(key_token)
                                 return
                 await self.app(scope, receive, send)
 
@@ -436,6 +503,11 @@ class MCPServer:
             allow_methods=["*"],
             allow_headers=["*"],
         )
+
+        # Usage logging — outermost middleware, runs after auth sets key_id context
+        # Middleware chain (outermost→innermost):
+        #   UsageLogging → CORS → BearerAuth → TrailingSlash → route handler
+        app.add_middleware(UsageLoggingMiddleware)
 
         # Mount REST API router
         from rest_api import create_rest_router, create_keys_router, create_register_router
