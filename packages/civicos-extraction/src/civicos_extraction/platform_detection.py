@@ -204,21 +204,24 @@ def _detect_granicus(base_url: str, client_name: str, timeout: int) -> tuple[flo
         metadata["detection_mode"] = "direct"
 
         try:
-            test_url = f"https://{subdomain}.granicus.com/ViewPublisher.php?view_id=1"
             headers = {"User-Agent": "Civic-Platform-Detection/1.0"}
-            response = requests.get(test_url, headers=headers, timeout=timeout)
-            metadata["status_code"] = response.status_code
+            # Try view_ids 1-5 since some jurisdictions don't use view_id=1
+            for view_id in range(1, 6):
+                test_url = f"https://{subdomain}.granicus.com/ViewPublisher.php?view_id={view_id}"
+                response = requests.get(test_url, headers=headers, timeout=timeout)
+                metadata["status_code"] = response.status_code
+                metadata["detected_view_id"] = view_id
 
-            if response.status_code == 200:
-                soup = BeautifulSoup(response.text, "html.parser")
-                tables = soup.find_all("table")
-                metadata["table_count"] = len(tables)
-                if tables:
-                    return 0.95, metadata
-                else:
-                    return 0.70, metadata
-            else:
-                return 0.0, metadata
+                if response.status_code == 200:
+                    soup = BeautifulSoup(response.text, "html.parser")
+                    tables = soup.find_all("table")
+                    metadata["table_count"] = len(tables)
+                    if tables:
+                        return 0.95, metadata
+                    else:
+                        return 0.70, metadata
+            # All view_ids returned non-200
+            return 0.0, metadata
 
         except requests.exceptions.Timeout:
             metadata["error"] = "Timeout"

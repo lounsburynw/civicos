@@ -345,19 +345,19 @@
       {
         "name": "onboard_mill_valley",
         "description": "Run /onboard for Mill Valley (Granicus, Marin County). Document every manual step, friction point, and failure as onboarding checklist items.",
-        "status": "not_started",
-        "priority": 0,
+        "status": "done",
+        "priority": 1,
         "phase": "A",
         "source": "federation testbed — same-county validation",
         "files": ["data/extraction/city-mill-valley.json", "data/jurisdictions/city-mill-valley.yaml"],
         "test_file": null,
-        "notes": "Granicus — same platform as San Rafael. Lowest friction test. Add to config/registry.json."
+        "notes": "Done 2026-03-11. 56 meetings, 310 agenda items in Postgres. 7 friction points documented in docs/internal/onboarding-friction-log.md. Fixed: Granicus detection (view_id 1-5), agenda link extraction (URL pattern fallback)."
       },
       {
         "name": "onboard_san_anselmo",
         "description": "Run /onboard for San Anselmo (Granicus, Marin County). Second same-platform onboarding validates repeatability of the flow.",
         "status": "not_started",
-        "priority": 2,
+        "priority": 0,
         "phase": "A",
         "source": "federation testbed — same-county validation",
         "files": ["data/extraction/city-san-anselmo.json", "data/jurisdictions/city-san-anselmo.yaml"],
@@ -401,7 +401,7 @@
       {
         "name": "onboarding_friction_log",
         "description": "Capture all manual steps, failures, and workarounds from Phase A onboarding. Convert to /onboard improvements and operator guide updates.",
-        "status": "not_started",
+        "status": "done",
         "priority": 2,
         "phase": "A",
         "source": "federation testbed — turnkey onboarding",

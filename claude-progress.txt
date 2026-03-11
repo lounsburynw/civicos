@@ -1,3 +1,35 @@
+## Session 32 — 2026-03-11: Onboard Mill Valley (P0)
+
+**Item:** onboard_mill_valley
+**Status:** Complete.
+
+### What was done
+1. **Granicus detection fix** — `platform_detection.py` now tries view_ids 1-5 instead of just 1. Mill Valley uses view_id=2.
+2. **Agenda link extraction fix** — `granicus.py` parser now falls back to URL pattern scanning when column headers are empty (AgendaViewer, MinutesViewer patterns). Went from 0 to 53/56 meetings with agendas.
+3. **Extraction config** — `data/extraction/city-mill-valley.json` created via `onboard_jurisdiction()`.
+4. **Jurisdiction YAML** — `data/jurisdictions/city-mill-valley.yaml` with contact info, governing body, geography.
+5. **Registry entries** — Added to `config/registry.json`, `JurisdictionRegistry` (civicos-config), and jurisdiction aliases.
+6. **Meeting ingestion** — 56 meetings stored in PostgreSQL (2025-03-24 to 2026-03-31).
+7. **Agenda extraction** — 310 agenda items across 48 meetings via LLM extraction (~12 min, ~$13).
+8. **Friction log** — `docs/internal/onboarding-friction-log.md` documents 7 friction points with fixes/workarounds.
+
+### Key files changed
+- `packages/civicos-extraction/src/civicos_extraction/platform_detection.py` — Granicus detection fix
+- `packages/civicos-extraction/src/civicos_extraction/clients/granicus.py` — Agenda link fallback
+- `data/extraction/city-mill-valley.json` — Extraction config
+- `data/jurisdictions/city-mill-valley.yaml` — Jurisdiction config
+- `config/registry.json` — Service routing
+- `packages/civicos-config/src/civicos_config/jurisdiction.py` — JurisdictionRegistry
+- `packages/civicos/src/civicos/_internal/jurisdiction.py` — Aliases
+- `docs/internal/onboarding-friction-log.md` — Friction log
+- `launch.json` — onboard_mill_valley done, onboard_san_anselmo set as next P0
+
+### Data in PostgreSQL
+- 56 meetings (City Council 21, Planning 23, Parks & Rec 9, Other 3)
+- 53 with agenda URLs, 39 with minutes URLs
+- 310 agenda items extracted
+- 0 decisions, 0 transcripts, 0 vectors (future tiers)
+
 ## Session 29 — 2026-03-09: Relay-Backed Feedback Channel (P0)
 
 **Item:** feedback_channel
