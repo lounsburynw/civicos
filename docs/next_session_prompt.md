@@ -1,4 +1,4 @@
-# Recommended: Onboard San Anselmo
+# Recommended: Turnkey Onboarding
 
 **Priority:** P0
 **Area:** federation_testbed
@@ -8,55 +8,62 @@
 
 ## Context
 
-Mill Valley was successfully onboarded as the first federation test jurisdiction. Two code fixes were made to the Granicus parser during onboarding:
+Three Marin County jurisdictions are now onboarded (San Rafael, Mill Valley, San Anselmo). Onboarding friction dropped 57% between Mill Valley and San Anselmo, but 3 friction points still require manual work every time:
 
-1. **Platform detection** now tries view_ids 1-5 (was only trying 1)
-2. **Agenda link extraction** now scans cells for URL patterns (AgendaViewer, MinutesViewer) when column headers are empty
+- **F1 (HIGH):** Granicus subdomain not guessable — requires web search (e.g., `sananselmo-ca.granicus.com`, `cityofmillvalley.granicus.com`)
+- **F5 (MEDIUM):** Three registry files need manual edits per jurisdiction
 
-These fixes should make San Anselmo's onboarding smoother — it's the same platform (Granicus), same county (Marin). This validates that the fixes are general, not Mill Valley-specific.
+Fixing these makes onboarding nearly zero-touch: provide a city name, get everything generated.
 
 ## Recommended Task
 
-Run `/onboard` for San Anselmo. The flow should be faster now:
+### Part 1: Granicus Subdomain Discovery (F1)
 
-1. Find San Anselmo's Granicus subdomain (try `sananselmo.granicus.com`, `cityofsananselmo.granicus.com`, or search)
-2. Run `onboard_jurisdiction(url, 'city-san-anselmo')`
-3. Review and fix body names in extraction config
-4. Create jurisdiction YAML, registry entries, aliases
-5. Ingest meetings and run agenda extraction
-6. Compare friction against Mill Valley friction log — are the fixes working?
+Add pattern-based subdomain discovery to `onboard_jurisdiction()`. Try common patterns before requiring manual URL:
+
+- `{city}.granicus.com` (e.g., `millvalley`)
+- `cityof{city}.granicus.com` (e.g., `cityofmillvalley`)
+- `{city}-{state}.granicus.com` (e.g., `sananselmo-ca`)
+- `{city}{state}.granicus.com` (e.g., `sananselmoca`)
+
+Test each with a HEAD request to `ViewPublisher.php?view_id=1` through `view_id=8`. First 200 response wins.
+
+### Part 2: Registry Generation from YAML (F5)
+
+Currently 3 files need manual edits per jurisdiction:
+1. `config/registry.json` — service routing
+2. `packages/civicos-config/src/civicos_config/jurisdiction.py` — JurisdictionRegistry
+3. `packages/civicos/src/civicos/_internal/jurisdiction.py` — aliases
+
+Generate all three from the jurisdiction YAML (`data/jurisdictions/{id}.yaml`). Options:
+- **A)** Build script that reads YAMLs and writes/patches the three files
+- **B)** Runtime loader that reads YAMLs directly (eliminates static files)
+- **C)** `onboard_jurisdiction()` generates the YAML and patches registries as part of its flow
+
+Option C is probably best — keeps the existing static files but automates their creation.
 
 ## Key Files
 
-- `packages/civicos-extraction/src/civicos_extraction/onboard.py` — Onboarding orchestration
-- `packages/civicos-extraction/src/civicos_extraction/platform_detection.py` — Fixed detection
-- `packages/civicos-extraction/src/civicos_extraction/clients/granicus.py` — Fixed parser
-- `docs/internal/onboarding-friction-log.md` — Mill Valley friction log (compare against)
-- `data/extraction/city-mill-valley.json` — Example extraction config
-- `data/jurisdictions/city-mill-valley.yaml` — Example jurisdiction YAML
-
-## Mill Valley Results (for comparison)
-
-| Metric | Mill Valley |
-|--------|-------------|
-| Meetings | 56 |
-| With agenda | 53 |
-| Agenda items | 310 |
-| Bodies | City Council, Planning, Parks & Rec |
-| Errors | 3 (empty Granicus pages) |
-| Friction points | 7 |
+- `packages/civicos-extraction/src/civicos_extraction/onboard.py` — `onboard_jurisdiction()` entry point
+- `packages/civicos-extraction/src/civicos_extraction/platform_detection.py:206-228` — Granicus detection (tries view_ids 1-5)
+- `config/registry.json` — Service routing (see `city-san-anselmo` entry for pattern)
+- `packages/civicos-config/src/civicos_config/jurisdiction.py:109-138` — JurisdictionRegistry (see `san_anselmo` and `mill_valley` entries)
+- `packages/civicos/src/civicos/_internal/jurisdiction.py:55-65` — Aliases dict
+- `data/jurisdictions/city-san-anselmo.yaml` — Example jurisdiction YAML (has all needed fields)
+- `data/jurisdictions/city-mill-valley.yaml` — Another example
+- `docs/internal/onboarding-friction-log.md` — Full friction documentation
 
 ## Tests to Run
 
 ```bash
-# Granicus parser tests (should still pass)
+# Granicus parser tests
 pytest packages/civicos-extraction/tests/test_granicus.py -q --override-ini="addopts="
 
-# Verify both jurisdictions work
+# Verify all jurisdictions still work after registry changes
 python3 -c "
 from dotenv import load_dotenv; load_dotenv()
 from civicos import CivicOS
-for j in ['city-mill-valley', 'city-san-anselmo']:
+for j in ['city-san-rafael', 'city-mill-valley', 'city-san-anselmo']:
     c = CivicOS(j)
     meetings = c.storage.get_meetings(j)
     print(f'{j}: {len(meetings)} meetings')
@@ -65,14 +72,13 @@ for j in ['city-mill-valley', 'city-san-anselmo']:
 
 ## Success Criteria
 
-- [ ] San Anselmo added to all registries
-- [ ] Meetings and agenda items ingested
-- [ ] Friction log updated with San Anselmo comparison
-- [ ] Fewer friction points than Mill Valley (fixes working)
-- [ ] No regressions in San Rafael or Mill Valley data
+- [ ] `onboard_jurisdiction("San Anselmo, CA")` (or similar) finds Granicus URL without manual search
+- [ ] Registry entries generated automatically (registry.json, JurisdictionRegistry, aliases)
+- [ ] Existing jurisdictions unaffected (San Rafael, Mill Valley, San Anselmo all still work)
+- [ ] Friction log updated with improvements
 
 ## Recent Completions
 
-- **Mill Valley onboarded** (this session) — 56 meetings, 310 agenda items, 7 friction points documented
-- **Granicus parser fixes** — Detection tries view_ids 1-5, URL pattern fallback for agenda links
-- **Friction log** — `docs/internal/onboarding-friction-log.md`
+- **San Anselmo onboarded** — 169 meetings, 564+ agenda items, 28 body types, 0 code fixes needed
+- **Mill Valley onboarded** — 56 meetings, 310 agenda items, 2 code fixes (now generalized)
+- **Friction log** — `docs/internal/onboarding-friction-log.md` with Mill Valley vs San Anselmo comparison

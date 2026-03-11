@@ -1,4 +1,4 @@
-# Onboarding Friction Log: Mill Valley
+# Onboarding Friction Log
 
 **Date:** 2026-03-11
 **Jurisdiction:** city-mill-valley (Granicus, Marin County)
@@ -109,3 +109,63 @@ Mill Valley is the first jurisdiction onboarded after San Rafael. Same county (M
 | With minutes URL | 39 |
 | Body types | City Council (21), Planning (23), Parks & Rec (9), Other (3) |
 | Agenda items (first 7 meetings) | ~40+ items |
+
+---
+
+## San Anselmo
+
+**Date:** 2026-03-11
+**Jurisdiction:** city-san-anselmo (Granicus, Marin County)
+**Operator:** Claude Code session (automated)
+
+### Summary
+
+San Anselmo is the second federation test jurisdiction. Same county (Marin), same platform (Granicus). Validated that Mill Valley's code fixes (F2, F3) generalize to other Granicus jurisdictions.
+
+**Result:** Smooth onboarding — no new code fixes required.
+
+### Friction Points Encountered
+
+| Mill Valley Issue | San Anselmo Status | Notes |
+|---|---|---|
+| **F1: Subdomain not guessable** | STILL PRESENT | Subdomain is `sananselmo-ca` (not `sananselmo`). Required web search. |
+| **F2: Detection only tries view_id=1** | FIXED (validated) | View ID 8 detected successfully via probing 1-5+ range. |
+| **F3: Agenda links not extracted** | FIXED (validated) | 133/169 meetings have agenda URLs (79%). URL pattern fallback working. |
+| **F4: Auto-discovered body names** | STILL PRESENT | `discover_view_ids()` returned empty — used `all_bodies` manually. |
+| **F5: Three registry files** | STILL PRESENT | Same 3-file manual edit process. |
+| **F6: openai not in venv** | N/A | Already installed from Mill Valley session. |
+| **F7: source activate** | N/A | Using `civicos-env/bin/python3` directly. |
+
+**New friction points:** None! The Mill Valley fixes generalized correctly.
+
+### Comparison
+
+| Metric | Mill Valley | San Anselmo | Delta |
+|--------|-------------|-------------|-------|
+| Meetings | 56 | 169 | +201% |
+| With agenda | 53 (95%) | 133 (79%) | -16pp (more future meetings) |
+| With minutes | 39 (70%) | 93 (55%) | -15pp |
+| Body types | 3 | 28 | +833% (much richer civic structure) |
+| Agenda items (first 10) | ~40 | 48 | Similar density |
+| Code fixes needed | 2 | 0 | Fixes generalized |
+| Friction points | 7 | 3 (all pre-existing) | -57% |
+| Manual time | ~10m | ~5m | -50% |
+
+### Key Observations
+
+1. **Fixes generalized** — Both F2 (view_id probing) and F3 (URL pattern fallback) worked without modification.
+2. **Richer civic structure** — San Anselmo has 28 distinct body types vs Mill Valley's 3, providing a better test of the extraction pipeline's flexibility.
+3. **Dual platform** — San Anselmo has both Granicus (meetings) and Legistar (21 bodies via API). Platform detection correctly identified Granicus as source_type.
+4. **Faster process** — With Mill Valley's lessons learned, onboarding took roughly half the manual time.
+
+### Data Quality Results
+
+| Metric | Count |
+|--------|-------|
+| Meetings extracted | 169 |
+| Date range | 2025-03-18 to 2026-12-08 |
+| With agenda URL | 133 (79%) |
+| With minutes URL | 93 (55%) |
+| Body types | 28 distinct |
+| Agenda items (first 10 meetings) | 48 |
+| Agenda items (full) | TBD (extraction in progress) |

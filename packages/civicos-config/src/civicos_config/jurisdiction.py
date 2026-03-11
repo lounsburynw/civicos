@@ -121,6 +121,21 @@ _REGISTRY: Dict[str, JurisdictionConfig] = {
         granicus_config=GranicusConfig(subdomain="cityofmillvalley", view_id=2),
     ),
 
+    # ---------- San Anselmo (federation test) ----------
+    "san_anselmo": JurisdictionConfig(
+        jurisdiction_id="city-san-anselmo",
+        agent_type="granicus",
+        meeting_urls=["https://sananselmo-ca.granicus.com/ViewPublisher.php?view_id=8"],
+        contact_email="townclerk@townofsananselmo.org",
+        timezone="America/Los_Angeles",
+        website="https://www.townofsananselmo.org",
+        meeting_calendar_url="https://sananselmo-ca.granicus.com/ViewPublisher.php?view_id=8",
+        display_name="San Anselmo",
+        hall_name="San Anselmo Town Hall",
+        domains=("townofsananselmo.org",),
+        granicus_config=GranicusConfig(subdomain="sananselmo-ca", view_id=8),
+    ),
+
     # ---------- Marin County ----------
     "marin_county": JurisdictionConfig(
         jurisdiction_id="marin-county",
