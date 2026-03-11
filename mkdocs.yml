@@ -78,11 +78,14 @@ extra:
 nav:
   - Home:
     - Overview: index.md
+    - Architecture: public/architecture.md
     - Quick Start: public/quickstart-api.md
     - Building Agents: public/building-agents.md
+    - What's Live: public/status.md
 
   - Operators:
     - Guide: public/operator-guide.md
+    - Data Ingestion: public/data-ingestion.md
     - Environment Variables: public/operator-env-reference.md
     - Federation Setup: public/operator-federation.md
 
@@ -121,7 +124,7 @@ nav:
     - Data Source Federation: public/decisions/data_source_federation.md
     - Federation Domains: public/decisions/federation_domain_architecture.md
 
-  - Learning:
+  - Architecture Deep Dives:
     - public/learning/README.md
     - Cryptographic Foundations: public/learning/01_CRYPTOGRAPHIC_FOUNDATIONS.md
     - Nostr & the Relay: public/learning/02_NOSTR_AND_THE_RELAY.md

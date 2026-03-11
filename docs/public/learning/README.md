@@ -1,6 +1,6 @@
-# CivicOS Learning Modules
+# Architecture Deep Dives
 
-Self-contained documents for learning the CivicOS architecture from first principles. Each module can be pasted into NotebookLM or Claude.ai as context for interactive learning.
+Self-contained documents for understanding the CivicOS architecture from first principles. Each module can be pasted into NotebookLM or Claude.ai as context for interactive exploration.
 
 ## Modules
 
