@@ -4,42 +4,31 @@ CivicOS is a three-layer system: civic data, a coordination relay, and edge agen
 
 ## The Three Layers
 
-```mermaid
-graph TB
-    subgraph Edge ["Edge Agents"]
-        EXT[Browser Extension<br/><small>Svelte 5</small>]
-        MCP_CLIENT[AI Assistants<br/><small>Claude, ChatGPT via MCP</small>]
-        API_CLIENT[Developer Apps<br/><small>REST API clients</small>]
-    end
-
-    subgraph Services ["Service Layer"]
-        REST[REST API<br/><small>FastAPI · 50+ endpoints</small>]
-        MCP[MCP Server<br/><small>JSON-RPC · 50+ tools</small>]
-        RELAY[Relay<br/><small>FastAPI · coordination</small>]
-        SIGNER[Signer<br/><small>attestation authority</small>]
-    end
-
-    subgraph Data ["Data Layer"]
-        PG[(PostgreSQL + pgvector<br/><small>civic records + embeddings</small>)]
-        RELAY_DB[(Relay DB<br/><small>voices, actions, attestations</small>)]
-        R2[Cloudflare R2<br/><small>PDFs, audio blobs</small>]
-    end
-
-    subgraph Ingestion ["Ingestion"]
-        ETL[civicos-extraction<br/><small>platform parsers</small>]
-    end
-
-    EXT --> REST
-    EXT --> RELAY
-    MCP_CLIENT --> MCP
-    API_CLIENT --> REST
-
-    REST --> PG
-    MCP --> PG
-    RELAY --> RELAY_DB
-    RELAY --> SIGNER
-
-    ETL --> PG
+```
+┌──────────────────────── Edge Agents ────────────────────────┐
+│  Browser Extension      AI Assistants       Developer Apps  │
+│  (Svelte 5)             (Claude, ChatGPT)   (REST clients)  │
+└───────┬─────────────────────┬───────────────────┬───────────┘
+        │                     │                   │
+        v                     v                   v
+┌──────────────────────── Service Layer ──────────────────────┐
+│  REST API         MCP Server        Relay         Signer    │
+│  (FastAPI)        (JSON-RPC)        (FastAPI)     (signing) │
+│  50+ endpoints    50+ tools         coordination  attesting │
+└───────┬────────────────┬────────────┬───────────────────────┘
+        │                │            │
+        v                v            v
+┌───────────────────┐ ┌────────────────────┐ ┌────────────────┐
+│  PostgreSQL       │ │  Relay DB          │ │  Cloudflare R2 │
+│  + pgvector       │ │  (voices, actions, │ │  (PDFs, audio) │
+│  (civic records + │ │   attestations)    │ │                │
+│   embeddings)     │ │                    │ │                │
+└─────────▲─────────┘ └────────────────────┘ └────────────────┘
+          │
+┌─────────┴─────────┐
+│ civicos-extraction │
+│ (platform parsers) │
+└───────────────────┘
 ```
 
 ### Layer 1: Civic Data

@@ -17,33 +17,30 @@ FETCH → NORMALIZE → VALIDATE → STORE
 
 After storage, a separate indexing step generates vector embeddings for semantic search.
 
-```mermaid
-graph LR
-    subgraph Sources ["Data Sources"]
-        WEB[City Websites]
-        API_SRC[Government APIs]
-        PDF[Agenda PDFs]
-        YT[YouTube<br/>Meeting Video]
-    end
-
-    subgraph Extract ["civicos-extraction"]
-        PARSER[Platform Parsers<br/><small>Legistar, Granicus,<br/>ProudCity, CivicClerk, ...</small>]
-    end
-
-    subgraph Store ["Storage"]
-        PG[(PostgreSQL)]
-        VEC[(pgvector<br/>embeddings)]
-        R2[R2 Blobs<br/><small>PDFs, audio</small>]
-    end
-
-    WEB --> PARSER
-    API_SRC --> PARSER
-    PDF --> PARSER
-    YT --> PARSER
-    PARSER --> PG
-    PG --> VEC
-    PDF --> R2
-    YT --> R2
+```
+┌─────────────────┐
+│   Data Sources   │
+│                  │
+│  City Websites   │
+│  Government APIs │──────┐
+│  Agenda PDFs     │      │
+│  YouTube Video   │      │
+└─────────────────┘      │
+                          v
+                 ┌──────────────────┐
+                 │ civicos-extraction│
+                 │ (platform parsers)│
+                 │ Legistar, Granicus│
+                 │ ProudCity, ...    │
+                 └────────┬─────────┘
+                          │
+            ┌─────────────┼─────────────┐
+            v             v             v
+     ┌────────────┐ ┌──────────┐ ┌───────────┐
+     │ PostgreSQL │ │ pgvector │ │ R2 Blobs  │
+     │ (records)  │ │(semantic │ │ (PDFs,    │
+     │            │ │ search)  │ │  audio)   │
+     └────────────┘ └──────────┘ └───────────┘
 ```
 
 ## Supported Platforms
