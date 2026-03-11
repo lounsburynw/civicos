@@ -1,6 +1,7 @@
 """Tests for relay acceptance policy (rate limiting and tiered access)."""
 
 import pytest
+from unittest.mock import patch
 from civicos_relay.server.acceptance import AcceptancePolicy, PolicyResult, InMemoryRateLimiter, DEFAULT_POLICY
 
 
@@ -68,11 +69,10 @@ class TestAcceptancePolicy:
         assert not result.accepted
         assert "Unknown" in result.reason
 
-    def test_attestation_stub_always_fails(self):
-        """Phase 3 stub: attestation proof is always rejected, falls through to rate limit."""
+    def test_attestation_without_issuer_lookup_falls_through(self):
+        """Without issuer_lookup, attestation proof falls through to rate limit."""
         policy = AcceptancePolicy()
         result = policy.check("voice", "a" * 64, attestation_proof={"kind": 30850})
-        # Should still be accepted via rate limit since attestation stub fails
         assert result.accepted
         assert result.tier == "rate_limited"
 
@@ -115,6 +115,157 @@ class TestAcceptancePolicy:
         assert not AcceptancePolicy._verify_pow("ff" * 32, 1)
         assert not AcceptancePolicy._verify_pow(None, 1)
         assert AcceptancePolicy._verify_pow("00" * 32, 256)
+
+
+def _make_attestation_proof(jurisdiction="city-san-rafael", subject_pubkey="a" * 64, issuer_pubkey="b" * 64):
+    """Helper to create a realistic-looking attestation proof dict."""
+    return {
+        "id": "cc" * 32,
+        "pubkey": issuer_pubkey,
+        "created_at": 1700000000,
+        "kind": 30850,
+        "tags": [
+            ["d", f"attest:{jurisdiction}:{subject_pubkey}"],
+            ["p", subject_pubkey],
+            ["j", jurisdiction],
+            ["type", "physical"],
+        ],
+        "content": f"civicos:attestation:v1:{jurisdiction}:physical:1700000000",
+        "sig": "dd" * 32,
+    }
+
+
+class TestAttestationVerification:
+    def test_valid_attestation_accepts_as_attested(self):
+        """Valid attestation proof with issuer lookup should accept as tier='attested'."""
+        issuer_pubkey = "b" * 64
+        lookup = lambda j: issuer_pubkey if j == "city-san-rafael" else None
+        policy = AcceptancePolicy(
+            config={"voice": {"max_per_day": 1, "pow_difficulty": 3}},
+            issuer_lookup=lookup,
+        )
+        proof = _make_attestation_proof()
+        with patch("civicos_relay.voice.crypto.verify_attestation_proof", return_value=True) as mock_verify:
+            result = policy.check("voice", "a" * 64, attestation_proof=proof)
+        assert result.accepted
+        assert result.tier == "attested"
+        mock_verify.assert_called_once_with(proof, "a" * 64, "city-san-rafael", issuer_pubkey)
+
+    def test_attestation_bypasses_exhausted_rate_limit(self):
+        """Valid attestation should bypass rate limit even when quota exhausted."""
+        lookup = lambda j: "b" * 64
+        policy = AcceptancePolicy(
+            config={"voice": {"max_per_day": 1, "pow_difficulty": 3}},
+            issuer_lookup=lookup,
+        )
+        policy.check("voice", "a" * 64)  # exhaust rate limit
+        result = policy.check("voice", "a" * 64)
+        assert not result.accepted  # confirm exhausted
+
+        proof = _make_attestation_proof()
+        with patch("civicos_relay.voice.crypto.verify_attestation_proof", return_value=True):
+            result = policy.check("voice", "a" * 64, attestation_proof=proof)
+        assert result.accepted
+        assert result.tier == "attested"
+
+    def test_no_issuer_lookup_falls_through(self):
+        """Without issuer_lookup configured, attestation always falls through."""
+        policy = AcceptancePolicy(config={"voice": {"max_per_day": 5, "pow_difficulty": 3}})
+        proof = _make_attestation_proof()
+        result = policy.check("voice", "a" * 64, attestation_proof=proof)
+        assert result.accepted
+        assert result.tier == "rate_limited"
+
+    def test_unknown_jurisdiction_falls_through(self):
+        """Attestation for unknown jurisdiction falls through to lower tiers."""
+        lookup = lambda j: None  # no issuers
+        policy = AcceptancePolicy(
+            config={"voice": {"max_per_day": 5, "pow_difficulty": 3}},
+            issuer_lookup=lookup,
+        )
+        proof = _make_attestation_proof(jurisdiction="unknown-city")
+        result = policy.check("voice", "a" * 64, attestation_proof=proof)
+        assert result.accepted
+        assert result.tier == "rate_limited"
+
+    def test_missing_jurisdiction_tag_falls_through(self):
+        """Attestation proof without j-tag falls through to lower tiers."""
+        lookup = lambda j: "b" * 64
+        policy = AcceptancePolicy(
+            config={"voice": {"max_per_day": 5, "pow_difficulty": 3}},
+            issuer_lookup=lookup,
+        )
+        proof = {"kind": 30850, "tags": [["p", "a" * 64]], "pubkey": "b" * 64}
+        result = policy.check("voice", "a" * 64, attestation_proof=proof)
+        assert result.accepted
+        assert result.tier == "rate_limited"
+
+    def test_crypto_verification_failure_falls_through(self):
+        """If crypto verification fails, falls through to lower tiers."""
+        lookup = lambda j: "b" * 64
+        policy = AcceptancePolicy(
+            config={"voice": {"max_per_day": 5, "pow_difficulty": 3}},
+            issuer_lookup=lookup,
+        )
+        proof = _make_attestation_proof()
+        with patch("civicos_relay.voice.crypto.verify_attestation_proof", return_value=False):
+            result = policy.check("voice", "a" * 64, attestation_proof=proof)
+        assert result.accepted
+        assert result.tier == "rate_limited"
+
+
+class TestProofOfWork:
+    def test_pow_bypasses_rate_limit(self):
+        """Valid PoW should accept even when rate limit is exhausted."""
+        policy = AcceptancePolicy(config={"voice": {"max_per_day": 1, "pow_difficulty": 3}})
+        # Exhaust rate limit
+        policy.check("voice", "a" * 64)
+        # Without PoW, should be rejected
+        result = policy.check("voice", "a" * 64)
+        assert not result.accepted
+        # With valid PoW (leading zero byte = 8 bits >= 3), should be accepted
+        result = policy.check("voice", "a" * 64, event_id="00" + "ff" * 31)
+        assert result.accepted
+        assert result.tier == "pow"
+
+    def test_invalid_pow_falls_through_to_rate_limit(self):
+        """Invalid PoW should fall through to rate limit check."""
+        policy = AcceptancePolicy(config={"voice": {"max_per_day": 5, "pow_difficulty": 3}})
+        # Invalid PoW (no leading zeros) but under rate limit — should still accept via rate limit
+        result = policy.check("voice", "a" * 64, event_id="ff" * 32)
+        assert result.accepted
+        assert result.tier == "rate_limited"
+
+    def test_pow_not_checked_when_no_difficulty(self):
+        """Event types without pow_difficulty should skip PoW check."""
+        policy = AcceptancePolicy(config={"initiative": {"max_per_day": 5, "pow_difficulty": None}})
+        result = policy.check("initiative", "a" * 64, event_id="00" * 32)
+        assert result.accepted
+        assert result.tier == "rate_limited"  # Not pow, because pow_difficulty is None
+
+    def test_pow_not_checked_when_no_event_id(self):
+        """No event_id provided should skip PoW and fall through to rate limit."""
+        policy = AcceptancePolicy(config={"voice": {"max_per_day": 5, "pow_difficulty": 3}})
+        result = policy.check("voice", "a" * 64)
+        assert result.accepted
+        assert result.tier == "rate_limited"
+
+    def test_pow_with_exact_difficulty_match(self):
+        """PoW with exactly the required bits should be accepted."""
+        # "00" = 8 leading zero bits, difficulty=8 should pass
+        policy = AcceptancePolicy(config={"voice": {"max_per_day": 1, "pow_difficulty": 8}})
+        policy.check("voice", "a" * 64)  # exhaust rate limit
+        result = policy.check("voice", "a" * 64, event_id="00" + "ff" * 31)
+        assert result.accepted
+        assert result.tier == "pow"
+
+    def test_pow_insufficient_difficulty_rejected(self):
+        """PoW below required difficulty should not count as valid PoW."""
+        # "00" = 8 leading zero bits, but difficulty=16 requires more
+        policy = AcceptancePolicy(config={"voice": {"max_per_day": 1, "pow_difficulty": 16}})
+        policy.check("voice", "a" * 64)  # exhaust rate limit
+        result = policy.check("voice", "a" * 64, event_id="00" + "ff" * 31)
+        assert not result.accepted  # PoW insufficient AND rate limit exhausted
 
 
 class TestAcceptancePolicyToDict:
