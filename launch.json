@@ -44,17 +44,17 @@
       {
         "name": "mcp_usage_logging",
         "description": "Wire usage_logging_middleware into MCP Modal server. Add civicos-platform secret to Modal deployment. Currently the only production service serving traffic has no usage logging.",
-        "status": "not_started",
+        "status": "done",
         "priority": 0,
         "files": ["apps/civicos-mcp/modal_mcp.py"],
         "test_file": null,
-        "notes": "Need to add civicos-platform Modal secret, import usage logging middleware, mount before route handlers"
+        "notes": "Added UsageLoggingMiddleware (raw ASGI), civicos-platform secret, _mcp_request_key_id context var. Fire-and-forget pattern via call_soon."
       },
       {
         "name": "relay_usage_logging",
         "description": "Add usage logging to relay Modal server for coordination and AI proxy endpoints.",
         "status": "not_started",
-        "priority": 2,
+        "priority": 0,
         "files": ["apps/civicos-relay/modal_relay.py"],
         "test_file": null
       },
