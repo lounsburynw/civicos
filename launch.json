@@ -77,6 +77,15 @@
         "source": "docs/internal/relay-acceptance-policy-spec.md (Phase 2)",
         "files": ["packages/civicos-relay/src/civicos_relay/server/acceptance.py"],
         "test_file": null
+      },
+      {
+        "name": "external_cron_triggers",
+        "description": "Migrate Modal cron schedules to GitHub Actions scheduled workflows hitting Modal HTTP endpoints. Removes 5-cron-job plan limit and decouples scheduling from compute.",
+        "status": "not_started",
+        "priority": 1,
+        "files": ["scripts/modal_ingest.py", ".github/workflows/"],
+        "test_file": null,
+        "notes": "trigger_ingest web endpoint already exists. Convert 4 Modal crons to GH Actions schedule triggers. Free for the repo. Blocked today by phantom 5th cron."
       }
     ]
   },
