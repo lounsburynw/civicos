@@ -184,6 +184,7 @@ class CreateCivicActionEventRequest(BaseModel):
     target_count: Optional[int] = Field(default=None, description="Target number of completions")
     deadline_context: Optional[str] = Field(default=None, description="Why this deadline matters")
     coordination_url: Optional[str] = Field(default=None, description="Link to coordination channel (Signal, SimpleX, Matrix)")
+    created_at: int = Field(description="Unix timestamp when the action was created (required for signature verification)")
 
 
 class CivicActionEventResponse(BaseModel):
@@ -1866,6 +1867,14 @@ async def create_civic_action_event(request: CreateCivicActionEventRequest):
 
     try:
         from civicos_relay.voice.models import CivicActionType
+        from civicos_relay.voice.crypto import verify_action_event
+
+        # Verify signature before doing anything else
+        if not verify_action_event(
+            request.public_key, request.signature,
+            request.initiative_id, request.action_type, request.created_at,
+        ):
+            raise HTTPException(status_code=403, detail="Invalid action event signature")
 
         # Validate action type
         try:

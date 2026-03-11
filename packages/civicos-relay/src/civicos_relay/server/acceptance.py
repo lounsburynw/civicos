@@ -253,8 +253,8 @@ class AcceptancePolicy:
                 conn.close()
         except Exception as e:
             logger.error("Rate limit DB check failed: %s", e)
-            # Fail open on DB errors to avoid blocking all writes
-            return True
+            # Fail closed on DB errors — fall back to in-memory limiter
+            return self._memory_limiter.check_and_increment(pubkey_hash, event_type, max_per_day)
 
     def _record_metadata(self, public_key: str, entity: str, tier: str):
         """Record write metadata for analytics."""
