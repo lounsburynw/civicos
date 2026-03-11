@@ -3447,7 +3447,7 @@ def extract_transcripts(
     ],
     memory=4096,
     timeout=14400,  # 4 hours
-    schedule=modal.Cron("0 3 * * 0"),  # Weekly on Sunday at 3 AM UTC (7 PM Pacific Sat)
+    # Schedule moved to GitHub Actions: .github/workflows/cron-low-velocity-refresh.yml
 )
 def scheduled_low_velocity_refresh():
     """Weekly scheduled refresh for low-velocity corpora (municipal code, legislation, decisions).
@@ -3711,7 +3711,7 @@ def scheduled_low_velocity_refresh():
     ],
     memory=4096,
     timeout=10800,  # 3 hours (transcription can take time)
-    schedule=modal.Cron("0 14 * * *"),  # Daily at 2 PM UTC = 6 AM Pacific
+    # Schedule moved to GitHub Actions: .github/workflows/cron-high-velocity-refresh.yml
 )
 def scheduled_high_velocity_refresh():
     """Daily scheduled refresh for high-velocity corpora (meetings, issues, transcripts, chunks, agenda items).
@@ -4016,7 +4016,7 @@ def scheduled_high_velocity_refresh():
     ],
     memory=4096,  # Higher memory for transcript extraction
     timeout=3600,  # 1 hour (transcription can take time if triggered)
-    schedule=modal.Cron("0 14,22,2,6 * * *"),  # Every ~4h: 6AM, 2PM, 6PM, 10PM Pacific
+    # Schedule moved to GitHub Actions: .github/workflows/cron-meetings-poll.yml
 )
 def scheduled_meetings_poll():
     """Lightweight meetings-only poll that triggers downstream extraction reactively.
@@ -4168,7 +4168,7 @@ def scheduled_meetings_poll():
     ],
     memory=4096,
     timeout=600,  # 10 minutes
-    schedule=modal.Cron("0 3 1 * *"),  # Monthly on 1st at 3 AM UTC (7 PM Pacific prev day)
+    # Schedule moved to GitHub Actions: .github/workflows/cron-election-refresh.yml
 )
 def scheduled_election_refresh():
     """Monthly scheduled refresh for election and elected officials data.

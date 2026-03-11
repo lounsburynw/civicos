@@ -1,0 +1,98 @@
+# Low-Velocity Data Refresh (weekly)
+#
+# Triggers Modal function for weekly refresh of slow-changing corpora:
+#   municipal code, legislation, decisions
+#
+# Replaces Modal cron: "0 3 * * 0" (weekly Sunday 3 AM UTC / Sat 7 PM Pacific)
+#
+# Triggers:
+#   - Weekly on Sunday at 3:00 AM UTC (Saturday 7:00 PM Pacific)
+#   - Manual trigger via workflow_dispatch
+
+name: "Cron: Low-Velocity Refresh"
+
+on:
+  schedule:
+    - cron: '0 3 * * 0'
+  workflow_dispatch:
+
+permissions:
+  issues: write
+  contents: read
+
+jobs:
+  run:
+    name: Low-Velocity Refresh
+    runs-on: ubuntu-latest
+    timeout-minutes: 245  # Modal timeout (4h) + 5 min buffer
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Modal CLI
+        run: pip install modal
+
+      - name: Trigger Modal function
+        env:
+          MODAL_TOKEN_ID: ${{ secrets.MODAL_TOKEN_ID }}
+          MODAL_TOKEN_SECRET: ${{ secrets.MODAL_TOKEN_SECRET }}
+        run: modal run scripts/modal_ingest.py::scheduled_low_velocity_refresh
+
+  notify-failure:
+    name: Create Alert Issue
+    runs-on: ubuntu-latest
+    needs: run
+    if: failure()
+
+    steps:
+      - name: Create or Update Issue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const today = new Date().toISOString().split('T')[0];
+            const title = `Cron failure: low-velocity-refresh - ${today}`;
+            const body = `## Cron Failure Alert
+
+            **Workflow:** Low-Velocity Refresh
+            **Time:** ${new Date().toISOString()}
+            **Schedule:** Weekly Sunday 3 AM UTC (Sat 7 PM Pacific)
+
+            The scheduled low-velocity data refresh failed. This affects:
+            - Municipal code sync
+            - Legislation sync
+            - Decision extraction
+
+            **Manual retry:**
+            \`\`\`bash
+            gh workflow run cron-low-velocity-refresh.yml
+            # or directly:
+            modal run scripts/modal_ingest.py::scheduled_low_velocity_refresh
+            \`\`\`
+
+            **Workflow Run:** [View logs](${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID})
+            `;
+
+            const issues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              labels: 'cron-failure',
+              state: 'open'
+            });
+
+            const existing = issues.data.find(i => i.title.includes('low-velocity-refresh'));
+            if (!existing) {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: title,
+                body: body,
+                labels: ['cron-failure', 'automated']
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: existing.number,
+                body: `## Recurrence - ${today}\n\n${body}`
+              });
+            }

@@ -1,0 +1,101 @@
+# High-Velocity Data Refresh (daily)
+#
+# Triggers Modal function for daily incremental data refresh:
+#   meetings, issues, transcripts, chunks, agenda items, vectors
+#
+# Replaces Modal cron: "0 14 * * *" (daily 2 PM UTC / 6 AM Pacific)
+#
+# Triggers:
+#   - Daily at 2:00 PM UTC (6:00 AM Pacific)
+#   - Manual trigger via workflow_dispatch
+
+name: "Cron: High-Velocity Refresh"
+
+on:
+  schedule:
+    - cron: '0 14 * * *'
+  workflow_dispatch:
+
+permissions:
+  issues: write
+  contents: read
+
+jobs:
+  run:
+    name: High-Velocity Refresh
+    runs-on: ubuntu-latest
+    timeout-minutes: 185  # Modal timeout (3h) + 5 min buffer
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Modal CLI
+        run: pip install modal
+
+      - name: Trigger Modal function
+        env:
+          MODAL_TOKEN_ID: ${{ secrets.MODAL_TOKEN_ID }}
+          MODAL_TOKEN_SECRET: ${{ secrets.MODAL_TOKEN_SECRET }}
+        run: modal run scripts/modal_ingest.py::scheduled_high_velocity_refresh
+
+  notify-failure:
+    name: Create Alert Issue
+    runs-on: ubuntu-latest
+    needs: run
+    if: failure()
+
+    steps:
+      - name: Create or Update Issue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const today = new Date().toISOString().split('T')[0];
+            const title = `Cron failure: high-velocity-refresh - ${today}`;
+            const body = `## Cron Failure Alert
+
+            **Workflow:** High-Velocity Refresh
+            **Time:** ${new Date().toISOString()}
+            **Schedule:** Daily 2 PM UTC (6 AM Pacific)
+
+            The scheduled high-velocity data refresh failed. This affects:
+            - Meeting scraping
+            - Issue fetching
+            - Transcript extraction
+            - Chunk extraction
+            - Agenda item extraction
+            - Vector indexing
+
+            **Manual retry:**
+            \`\`\`bash
+            gh workflow run cron-high-velocity-refresh.yml
+            # or directly:
+            modal run scripts/modal_ingest.py::scheduled_high_velocity_refresh
+            \`\`\`
+
+            **Workflow Run:** [View logs](${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID})
+            `;
+
+            const issues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              labels: 'cron-failure',
+              state: 'open'
+            });
+
+            const existing = issues.data.find(i => i.title.includes('high-velocity-refresh'));
+            if (!existing) {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: title,
+                body: body,
+                labels: ['cron-failure', 'automated']
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: existing.number,
+                body: `## Recurrence - ${today}\n\n${body}`
+              });
+            }
