@@ -9,7 +9,8 @@
     "billing_payments",
     "acceptance_policy",
     "token_issuance",
-    "operator_readiness"
+    "operator_readiness",
+    "federation_testbed"
   ],
 
   "security_fixes": {
@@ -175,6 +176,27 @@
         "test_file": "packages/civicos-relay/tests/test_acceptance_policy.py"
       },
       {
+        "name": "config_driven_rate_limits",
+        "description": "Move DEFAULT_POLICY from hardcoded module-level constant to per-jurisdiction configuration (config file or DB table). Currently every relay instance has identical rate limits and PoW difficulty regardless of jurisdiction.",
+        "status": "not_started",
+        "priority": 2,
+        "source": "architectural review — scaling prerequisite",
+        "spec": "docs/internal/config-driven-rate-limits-spec.md",
+        "files": ["packages/civicos-relay/src/civicos_relay/server/acceptance.py"],
+        "test_file": "packages/civicos-relay/tests/test_acceptance.py",
+        "notes": "Blocks multi-city: different jurisdictions will need different rate limits. Load from config/relay_policies.json with RELAY_POLICY_FILE env var override."
+      },
+      {
+        "name": "extension_pow_generation",
+        "description": "Add NIP-13 proof-of-work generation to browser extension for free-tier writes. Server-side PoW verification is wired but no client generates it — dead code path until this ships.",
+        "status": "not_started",
+        "priority": 2,
+        "source": "architectural review — completes PoW tier",
+        "files": ["apps/civicos-extension/src/"],
+        "test_file": null,
+        "notes": "Generate leading zero bits on event ID before submission. ~1s computation at 20-bit target. Should happen transparently when user has no attestation or tokens."
+      },
+      {
         "name": "attestation_expiry",
         "description": "Add attestation expiry check: created_at + validity_period > now. Recommend 1-year validity. Design revocation mechanism (blocklist of revoked attestation event IDs).",
         "status": "not_started",
@@ -204,6 +226,7 @@
         "status": "not_started",
         "priority": 2,
         "source": "docs/internal/relay-acceptance-policy-spec.md (Phase 4)",
+        "spec": "docs/internal/blind-signature-spec.md",
         "files": [],
         "test_file": null,
         "notes": "Use secp256k1 blind signatures, not Cashu (deferred due to pre-1.0 status and regulatory risk)"
@@ -283,12 +306,174 @@
         "test_file": null
       },
       {
+        "name": "shared_connection_pool_utility",
+        "description": "Extract shared PostgreSQL connection pooling utility used by both civicos and civicos-relay. Currently duplicated with different strategies (retry-based in civicos, SimpleConnectionPool in civicos-relay).",
+        "status": "not_started",
+        "priority": 3,
+        "source": "architectural review — DRY infrastructure",
+        "files": [
+          "packages/civicos/src/civicos/storage/postgres_backend.py",
+          "packages/civicos-relay/src/civicos_relay/storage/postgres.py"
+        ],
+        "test_file": null,
+        "notes": "Unify retry logic and pool management. Could live in a shared utility module or lightweight package. Both packages currently work — this is cleanup, not a fix."
+      },
+      {
         "name": "operator_relay_dockerfile",
         "description": "Dockerfile for self-hosted relay deployment. Operator guide currently documents uvicorn command only.",
         "status": "not_started",
         "priority": 3,
         "files": [],
         "test_file": null
+      }
+    ]
+  },
+
+  "federation_testbed": {
+    "description": "Private multi-city deployment for federation design and turnkey onboarding validation. Phase A: same-county (Marin), Phase B: cross-county (Berkeley/Alameda)",
+    "items": [
+      {
+        "name": "onboard_mill_valley",
+        "description": "Run /onboard for Mill Valley (Granicus, Marin County). Document every manual step, friction point, and failure as onboarding checklist items.",
+        "status": "not_started",
+        "priority": 2,
+        "phase": "A",
+        "source": "federation testbed — same-county validation",
+        "files": ["data/extraction/city-mill-valley.json", "data/jurisdictions/city-mill-valley.yaml"],
+        "test_file": null,
+        "notes": "Granicus — same platform as San Rafael. Lowest friction test. Add to config/registry.json."
+      },
+      {
+        "name": "onboard_san_anselmo",
+        "description": "Run /onboard for San Anselmo (Granicus, Marin County). Second same-platform onboarding validates repeatability of the flow.",
+        "status": "not_started",
+        "priority": 2,
+        "phase": "A",
+        "source": "federation testbed — same-county validation",
+        "files": ["data/extraction/city-san-anselmo.json", "data/jurisdictions/city-san-anselmo.yaml"],
+        "test_file": null,
+        "notes": "Granicus — validates onboarding is repeatable, not just one-off."
+      },
+      {
+        "name": "deploy_marin_test_relays",
+        "description": "Deploy 2 additional relay instances on Modal for Mill Valley and San Anselmo. Private, not public-facing. Validates multi-relay deployment.",
+        "status": "not_started",
+        "priority": 2,
+        "phase": "A",
+        "source": "federation testbed — multi-relay infrastructure",
+        "files": ["packages/civicos-relay/src/civicos_relay/server/app.py"],
+        "test_file": null,
+        "notes": "Same relay code, different jurisdiction config. Modal makes this cheap (serverless)."
+      },
+      {
+        "name": "issue_test_attestations",
+        "description": "Generate issuer keypairs for Mill Valley and San Anselmo. Register in issuer_registry. Test multi-issuer attestation verification across relays.",
+        "status": "not_started",
+        "priority": 2,
+        "phase": "A",
+        "source": "federation testbed — multi-issuer trust",
+        "files": ["config/registry.json", "packages/civicos-signer/"],
+        "test_file": null,
+        "notes": "Tests the issuer_lookup callable with 3 jurisdictions. Validates that attestation proofs are portable across relays."
+      },
+      {
+        "name": "cross_marin_query_prototype",
+        "description": "Prototype cross-jurisdiction queries within Marin County. Test what_happened() and what_applies() across San Rafael + Mill Valley + San Anselmo with shared county context.",
+        "status": "not_started",
+        "priority": 2,
+        "phase": "A",
+        "source": "federation testbed — query federation",
+        "spec": "docs/internal/cross-jurisdiction-query-spec.md",
+        "files": ["packages/civicos/src/civicos/civicos.py"],
+        "test_file": null,
+        "notes": "Same county parent — shared legislation context. Tests relevance when sibling cities share regional bodies (TAM, MMWD, Marin Transit)."
+      },
+      {
+        "name": "onboarding_friction_log",
+        "description": "Capture all manual steps, failures, and workarounds from Phase A onboarding. Convert to /onboard improvements and operator guide updates.",
+        "status": "not_started",
+        "priority": 2,
+        "phase": "A",
+        "source": "federation testbed — turnkey onboarding",
+        "files": [".claude/commands/onboard.md", "docs/public/"],
+        "test_file": null,
+        "notes": "This is the real deliverable of Phase A — a battle-tested onboarding flow, not a theoretical one."
+      },
+      {
+        "name": "onboard_berkeley",
+        "description": "Run /onboard for Berkeley (Legistar, Alameda County). First cross-county, cross-platform onboarding. Requires county-alameda parent jurisdiction.",
+        "status": "not_started",
+        "priority": 2,
+        "phase": "B",
+        "source": "federation testbed — cross-county validation",
+        "files": ["data/extraction/city-berkeley.json", "data/jurisdictions/city-berkeley.yaml"],
+        "test_file": null,
+        "notes": "Legistar platform — different extraction pipeline than Granicus. Must also onboard county-alameda as parent jurisdiction for what_applies() to work."
+      },
+      {
+        "name": "onboard_county_alameda",
+        "description": "Onboard Alameda County as parent jurisdiction for Berkeley. Required for cross-county legislation context in what_applies().",
+        "status": "not_started",
+        "priority": 2,
+        "phase": "B",
+        "source": "federation testbed — cross-county parent",
+        "files": ["data/extraction/county-alameda.json", "data/jurisdictions/county-alameda.yaml", "config/registry.json"],
+        "test_file": null,
+        "notes": "county-marin already exists. This is the second county — validates that parent_jurisdictions chain works across county boundaries."
+      },
+      {
+        "name": "cross_county_query_prototype",
+        "description": "Prototype cross-county queries: Berkeley (Alameda) vs San Rafael (Marin). Test relevance filtering — when are cross-county results useful vs noise?",
+        "status": "not_started",
+        "priority": 2,
+        "phase": "B",
+        "source": "federation testbed — cross-county federation",
+        "spec": "docs/internal/cross-county-relevance-spec.md",
+        "files": ["packages/civicos/src/civicos/civicos.py"],
+        "test_file": null,
+        "notes": "Key question: a San Rafael user doesn't care about EBMUD. How does the query layer filter by relevance across county boundaries? State legislation is shared; county/regional is not."
+      },
+      {
+        "name": "pagination_protocol_update",
+        "description": "Add limit/offset parameters to StorageBackend.get_*() methods. Informed by real cross-jurisdiction query patterns from testbed.",
+        "status": "not_started",
+        "priority": 2,
+        "phase": "B",
+        "source": "architectural review — federation prerequisite",
+        "spec": "docs/internal/pagination-protocol-spec.md",
+        "files": [
+          "packages/civicos/src/civicos/storage/backend.py",
+          "packages/civicos/src/civicos/storage/postgres_backend.py",
+          "packages/civicos/src/civicos/storage/sqlite_backend.py"
+        ],
+        "test_file": null,
+        "notes": "Mechanical change but touches every backend implementation. Easier to do now with 2 backends than later with N. Prerequisite for FederatedDataSource fan-out."
+      },
+      {
+        "name": "multi_issuer_lookup",
+        "description": "Update issuer_lookup signature from (jurisdiction) -> Optional[str] to (jurisdiction) -> List[TrustedIssuer] with validity windows and trust levels. Informed by testbed findings.",
+        "status": "not_started",
+        "priority": 2,
+        "phase": "B",
+        "source": "architectural review — federation prerequisite",
+        "spec": "docs/internal/multi-issuer-lookup-spec.md",
+        "files": [
+          "packages/civicos-relay/src/civicos_relay/server/acceptance.py",
+          "packages/civicos-relay/src/civicos_relay/server/app.py"
+        ],
+        "test_file": "packages/civicos-relay/tests/test_acceptance_policy.py",
+        "notes": "Current single-pubkey return is too simple for cross-county trust. With 3 test issuers, can validate the new signature before going live."
+      },
+      {
+        "name": "federation_adr",
+        "description": "Write Architecture Decision Record documenting federation boundaries: which protocols change, which stay, execution model for cross-jurisdiction queries, and trust chain design.",
+        "status": "not_started",
+        "priority": 3,
+        "phase": "B",
+        "source": "architectural review — documentation",
+        "files": ["docs/public/decisions/"],
+        "test_file": null,
+        "notes": "Written after testbed findings, not before. This ADR should reflect what was learned, not what was assumed."
       }
     ]
   }
