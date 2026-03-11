@@ -341,8 +341,9 @@ def create_app() -> FastAPI:
     )
 
     # HTTP-level per-IP rate limiting (runs before crypto verification)
-    ip_limit = int(os.environ.get("RELAY_IP_RATE_LIMIT", str(DEFAULT_IP_RATE_LIMIT)))
-    ip_window = int(os.environ.get("RELAY_IP_RATE_WINDOW", str(DEFAULT_IP_RATE_WINDOW)))
+    # Clamp to sane bounds: 10-1000 requests, 60s-1h window
+    ip_limit = max(10, min(1000, int(os.environ.get("RELAY_IP_RATE_LIMIT", str(DEFAULT_IP_RATE_LIMIT)))))
+    ip_window = max(60, min(3600, int(os.environ.get("RELAY_IP_RATE_WINDOW", str(DEFAULT_IP_RATE_WINDOW)))))
     app.add_middleware(IPRateLimitMiddleware, max_requests=ip_limit, window_seconds=ip_window)
 
     # Health on root (not behind /coordination)

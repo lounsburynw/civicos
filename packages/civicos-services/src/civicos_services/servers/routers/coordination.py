@@ -23,13 +23,54 @@ Endpoints:
 
 import os
 import logging
+import time
 from datetime import datetime
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
+from civicos_relay.voice.crypto import (
+    verify_action_event,
+    verify_comment,
+    verify_commitment,
+    verify_completion,
+    verify_feedback,
+    verify_initiative,
+    verify_signature,
+    verify_voice,
+    verify_withdrawal,
+    verify_attestation_proof,
+    verify_attestation_request,
+    sign_attestation_event,
+    KeyPair,
+    _compute_nostr_event_id,
+    _schnorr_verify,
+)
+from civicos_relay.voice.models import (
+    CivicActionType,
+    Comment,
+    EvidenceType,
+    Feedback,
+    OutcomeType,
+    Stance,
+    Voice,
+)
+
 logger = logging.getLogger(__name__)
+
+_CLOCK_SKEW_TOLERANCE = 300  # 5 minutes
+
+
+def _check_created_at(created_at: int) -> None:
+    """Reject writes with timestamps too far from server time (clock skew protection)."""
+    now = int(time.time())
+    drift = abs(now - created_at)
+    if drift > _CLOCK_SKEW_TOLERANCE:
+        raise HTTPException(
+            status_code=400,
+            detail=f"created_at timestamp is {drift}s from server time (max {_CLOCK_SKEW_TOLERANCE}s)",
+        )
 
 router = APIRouter()
 
@@ -554,7 +595,6 @@ def _get_attestation_issuer_keypair():
             logger.warning("CIVICOS_ATTESTATION_PRIVATE_KEY not set")
             return None
         try:
-            from civicos_relay.voice.crypto import KeyPair
             from coincurve import PublicKeyXOnly
             xonly_pk = PublicKeyXOnly.from_valid_secret(bytes.fromhex(private_key_hex))
             _storage_instances["attestation_keypair"] = KeyPair(
@@ -639,10 +679,9 @@ async def cast_voice(request: CastVoiceRequest):
             detail="Coordination service not configured (missing RELAY_DATABASE_URL)"
         )
 
-    try:
-        from civicos_relay.voice.models import Voice, Stance
-        from civicos_relay.voice.crypto import verify_voice
+    _check_created_at(request.created_at)
 
+    try:
         # Validate stance
         try:
             stance = Stance(request.stance)
@@ -678,7 +717,6 @@ async def cast_voice(request: CastVoiceRequest):
                 detail="attestation_proof required"
             )
 
-        from civicos_relay.voice.crypto import verify_attestation_proof
         issuer_keypair = _get_attestation_issuer_keypair()
         if not issuer_keypair:
             raise HTTPException(status_code=503, detail="Attestation issuer not configured")
@@ -751,10 +789,10 @@ async def revoke_voice(request: RevokeVoiceRequest):
         )
 
     try:
-        from civicos_relay.voice.crypto import _compute_nostr_event_id, _schnorr_verify
-
         if not request.public_key or not request.signature or request.created_at is None:
             raise HTTPException(status_code=400, detail="Missing required fields")
+
+        _check_created_at(request.created_at)
 
         # Verify signature: client signed a revoke event (kind 30800)
         tags = [["d", request.entity]]
@@ -1022,7 +1060,6 @@ def _verify_initiative_signature(
 ) -> bool:
     """Verify initiative signature using ECDSA P-256."""
     try:
-        from civicos_relay.voice.crypto import verify_signature
         return verify_signature(public_key, signature, message)
     except ImportError:
         logger.error("civicos-relay crypto module not available")
@@ -1061,7 +1098,8 @@ async def create_initiative(request: CreateInitiativeRequest):
         if request.created_at is None:
             raise HTTPException(status_code=400, detail="created_at is required for signature verification")
 
-        from civicos_relay.voice.crypto import verify_initiative
+        _check_created_at(request.created_at)
+
         if not verify_initiative(
             request.public_key, request.signature,
             request.jurisdiction, request.topic, request.created_at,
@@ -1403,7 +1441,6 @@ async def import_voices(request: VoiceImportRequestAPI):
     try:
         from civicos_relay.sync import SyncService
         from civicos_relay.sync.protocol import VoiceImportRequest
-        from civicos_relay.voice.models import Voice, Stance
 
         # Create sync service
         sync_service = SyncService(identity, storage, [])
@@ -1646,11 +1683,11 @@ async def commit_action(request: CommitActionRequest):
 
     try:
         from civicos_relay.voice.action_service import ActionService
-        from civicos_relay.voice.crypto import verify_commitment
 
         # Verify Nostr event signature
         if request.created_at is None:
             raise HTTPException(status_code=400, detail="created_at is required for signature verification")
+        _check_created_at(request.created_at)
         if not verify_commitment(
             request.public_key, request.signature,
             request.action_id, request.jurisdiction or "city-san-rafael", request.created_at,
@@ -1700,11 +1737,11 @@ async def complete_action(request: CompleteActionRequest):
 
     try:
         from civicos_relay.voice.action_service import ActionService
-        from civicos_relay.voice.crypto import verify_completion
 
         # Verify Nostr event signature
         if request.created_at is None:
             raise HTTPException(status_code=400, detail="created_at is required for signature verification")
+        _check_created_at(request.created_at)
         if not verify_completion(
             request.public_key, request.signature,
             request.action_id, request.jurisdiction or "city-san-rafael", request.created_at,
@@ -1865,10 +1902,9 @@ async def create_civic_action_event(request: CreateCivicActionEventRequest):
             detail="Civic action service not configured"
         )
 
-    try:
-        from civicos_relay.voice.models import CivicActionType
-        from civicos_relay.voice.crypto import verify_action_event
+    _check_created_at(request.created_at)
 
+    try:
         # Verify signature before doing anything else
         if not verify_action_event(
             request.public_key, request.signature,
@@ -2080,11 +2116,10 @@ async def commit_to_civic_action(action_id: str, request: CivicCommitmentRequest
         )
 
     try:
-        from civicos_relay.voice.crypto import verify_commitment
-
         # Verify Nostr event signature
         if request.created_at is None:
             raise HTTPException(status_code=400, detail="created_at is required for signature verification")
+        _check_created_at(request.created_at)
         if not verify_commitment(
             request.public_key, request.signature,
             action_id, request.jurisdiction or "city-san-rafael", request.created_at,
@@ -2136,14 +2171,16 @@ async def withdraw_civic_action_commitment(action_id: str, request: CivicWithdra
             detail="Civic action service not configured"
         )
 
-    try:
-        from civicos_relay.voice.crypto import verify_signature
+    _check_created_at(request.created_at)
 
-        # Verify signature (same message format as commitment)
-        message = f"civicos:withdraw:v1:{action_id}"
-        if not verify_signature(request.public_key, request.signature, message):
+    try:
+        # Verify withdrawal signature (must match relay's verify_withdrawal)
+        if not verify_withdrawal(
+            request.public_key, request.signature,
+            action_id, request.created_at,
+        ):
             raise HTTPException(
-                status_code=400,
+                status_code=403,
                 detail="Invalid withdrawal signature"
             )
 
@@ -2199,9 +2236,6 @@ async def complete_civic_action(action_id: str, request: CivicCompletionRequest)
         )
 
     try:
-        from civicos_relay.voice.crypto import verify_completion
-        from civicos_relay.voice.models import EvidenceType
-
         # Validate evidence type
         try:
             evidence_type = EvidenceType(request.evidence_type)
@@ -2215,6 +2249,7 @@ async def complete_civic_action(action_id: str, request: CivicCompletionRequest)
         # Verify Nostr event signature
         if request.created_at is None:
             raise HTTPException(status_code=400, detail="created_at is required for signature verification")
+        _check_created_at(request.created_at)
         if not verify_completion(
             request.public_key, request.signature,
             action_id, request.jurisdiction or "city-san-rafael", request.created_at,
@@ -2344,8 +2379,6 @@ async def report_initiative_outcome(initiative_id: str, request: ReportOutcomeRe
         raise HTTPException(status_code=503, detail="Action service not available")
 
     try:
-        from civicos_relay.voice.models import OutcomeType
-
         try:
             outcome_type = OutcomeType(request.outcome)
         except ValueError:
@@ -2527,10 +2560,9 @@ async def submit_comment(request: SubmitCommentRequest):
             detail="Comment service not configured (missing RELAY_DATABASE_URL)"
         )
 
-    try:
-        from civicos_relay.voice.models import Comment
-        from civicos_relay.voice.crypto import verify_comment
+    _check_created_at(request.created_at)
 
+    try:
         comment = Comment(
             entity=request.entity,
             comment_text=request.comment_text,
@@ -2552,7 +2584,6 @@ async def submit_comment(request: SubmitCommentRequest):
                 detail="attestation_proof required"
             )
 
-        from civicos_relay.voice.crypto import verify_attestation_proof
         issuer_keypair = _get_attestation_issuer_keypair()
         if not issuer_keypair:
             raise HTTPException(status_code=503, detail="Attestation issuer not configured")
@@ -2684,7 +2715,6 @@ async def redeem_attestation(request: RedeemAttestationRequest):
 
     # 1. Verify signature
     try:
-        from civicos_relay.voice.crypto import verify_attestation_request
         if not verify_attestation_request(
             request.public_key, request.signature, request.code, request.created_at
         ):
@@ -2724,7 +2754,6 @@ async def redeem_attestation(request: RedeemAttestationRequest):
 
     # 6. Sign attestation event
     try:
-        from civicos_relay.voice.crypto import sign_attestation_event
         attestation_event = sign_attestation_event(
             issuer_keypair, request.public_key, jurisdiction
         )
@@ -2854,9 +2883,9 @@ async def submit_feedback(request: SubmitFeedbackRequest):
             detail="Coordination service not configured (missing RELAY_DATABASE_URL)"
         )
 
+    _check_created_at(request.created_at)
+
     try:
-        from civicos_relay.voice.models import Feedback
-        from civicos_relay.voice.crypto import verify_feedback
         from civicos_relay.nostr.kinds import VALID_FEEDBACK_TYPES
 
         # Validate feedback type
