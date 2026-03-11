@@ -21472,3 +21472,24 @@ TBD — needs assignment before /nextsesh
 
 ### P0 for Next Session
 `http_ip_rate_limiting` — HTTP-level per-IP rate limiting before crypto verification
+
+## Session: HTTP IP Rate Limiting (2026-03-11)
+
+### What was done
+1. **Created `ip_rate_limit.py` middleware** — `InMemoryIPRateLimiter` with sliding-window counter per IP, `IPRateLimitMiddleware` (Starlette `BaseHTTPMiddleware`) that blocks excessive POST requests to `/coordination/*` endpoints.
+2. **Wired into `app.py`** — middleware added between CORS and routing, configurable via `RELAY_IP_RATE_LIMIT` (default 100) and `RELAY_IP_RATE_WINDOW` (default 3600s) env vars.
+3. **11 tests** in `test_ip_rate_limit.py` — unit tests for limiter (under/over limit, IP independence, window expiry, cleanup) and integration tests for middleware (GET passthrough, POST rate limiting, non-coordination passthrough, 429 response format).
+4. **launch.json** — `http_ip_rate_limiting` marked done.
+
+### Key design decisions
+- In-memory only (no DB) — IP-level limiting is a coarse defense; IPs are ephemeral
+- Sliding window (not daily) — more responsive to burst traffic than per-day counters
+- POST-only on `/coordination/*` — reads pass through unconditionally
+- Returns HTTP 429 (not 402) — distinct from the pubkey-level acceptance policy (402)
+- Configurable via environment variables — no code changes needed for tuning
+
+### Key files changed
+- `packages/civicos-relay/src/civicos_relay/server/ip_rate_limit.py` — new middleware
+- `packages/civicos-relay/src/civicos_relay/server/app.py` — middleware wiring
+- `packages/civicos-relay/tests/test_ip_rate_limit.py` — 11 tests
+- `launch.json` — http_ip_rate_limiting marked done
