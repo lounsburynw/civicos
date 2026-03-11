@@ -1,53 +1,50 @@
-# Recommended: HTTP IP Rate Limiting
+# Recommended: MCP Usage Logging
 
 **Priority:** P0
-**Area:** acceptance_policy
+**Area:** observability
 **Date:** 2026-03-11
 
 > This is recommended context from the previous session. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
 
 ## Context
 
-This session completed two acceptance policy items: `nip13_proof_of_work` (wired `_verify_pow` into `check()` as tier 3, valid PoW bypasses rate limit) and `wire_attestation_verification` (wired `_verify_attestation` to extract jurisdiction from j-tag, look up issuer via `issuer_lookup` callable, call `verify_attestation_proof()`). The acceptance policy now has all four tiers operational: attestation > payment (stub) > PoW > rate limit.
+This session completed `http_ip_rate_limiting` — added per-IP rate limiting middleware to the relay (sliding-window in-memory counter, 100 req/hr default, POST-only on `/coordination/*`, returns 429). All 11 tests pass.
 
-The next security priority is HTTP-level per-IP rate limiting — a coarse first line of defense that runs *before* any crypto verification, protecting the relay from brute-force spam.
+The MCP server is currently the only production service serving traffic and has **no usage logging**. The API server (`civicos-services`) already has a working `usage_logging_middleware` that can be adapted.
 
 ## Recommended Task
 
-Add per-IP rate limiting middleware to the relay's FastAPI/Starlette app. This should be a lightweight check at the HTTP layer (before request body parsing or Nostr event verification). The spec is in the relay acceptance policy doc.
+Wire usage logging into the MCP Modal server so we can track request volumes, latencies, and errors. The pattern already exists in the API server — it just needs to be adapted for the MCP server's deployment.
 
 ## Key Files
 
-- `packages/civicos-relay/src/civicos_relay/server/app.py` — FastAPI app, lifespan, middleware setup
-- `packages/civicos-relay/src/civicos_relay/server/acceptance.py` — Current acceptance policy (per-pubkey rate limiting exists here, `InMemoryRateLimiter` is a useful pattern)
-- `docs/internal/relay-acceptance-policy-spec.md` — Full spec, Phase 2 section covers IP rate limiting
-- `packages/civicos-relay/src/civicos_relay/modal_relay.py` — Modal deployment entry point
+- `apps/civicos-mcp/modal_mcp.py` — MCP Modal deployment entry point, needs middleware
+- `packages/civicos-services/src/civicos_services/servers/api.py:342` — Existing `usage_logging_middleware` (fire-and-forget to Platform DB)
+- `packages/civicos-services/src/civicos_services/servers/api.py:387` — How it's wired into the middleware chain
+- `scripts/sql/add_platform_billing.sql` — Platform DB schema (where usage logs go)
+- `scripts/modal_usage_rollup.py` — Cron job that rolls up usage data
 
 ## Suggested Approach
 
-1. Read `docs/internal/relay-acceptance-policy-spec.md` Phase 2 section for requirements
-2. Add ASGI middleware or Starlette `Middleware` to `app.py` that tracks request counts per IP
-3. Use in-memory counter (similar to `InMemoryRateLimiter` in `acceptance.py`) — no DB needed
-4. Apply to write endpoints only (POST routes), not reads
-5. Return 429 Too Many Requests when limit exceeded
-6. Make limits configurable via `RelayConfig` or policy config
-7. Add tests
+1. Read the existing `usage_logging_middleware` in `api.py:342-380` to understand the pattern
+2. Read `modal_mcp.py` to understand MCP server structure and current middleware setup
+3. Add `civicos-platform` to the Modal secrets list in `get_secrets()` (the platform DB connection)
+4. Import or adapt the usage logging middleware for MCP endpoints
+5. Wire it into the MCP app's middleware chain
+6. Verify the `civicos-platform` Modal secret exists: `modal secret list | grep platform`
+7. Test locally if possible, otherwise verify via deployment logs
 
 ## Tests to Run
 
 ```bash
-# Existing acceptance policy tests (should still pass)
-pytest packages/civicos-relay/tests/test_acceptance_policy.py -v --override-ini="addopts="
-
-# Smoke test
+# Smoke test (should still pass)
 pytest packages/civicos/tests/test_civicos.py -q --override-ini="addopts="
 ```
 
 ## Success Criteria
 
-- [ ] Per-IP rate limiting middleware added to relay app
-- [ ] Runs before crypto/Nostr verification (HTTP layer)
-- [ ] Only affects write endpoints
-- [ ] Returns 429 with appropriate message
-- [ ] Tests cover basic rate limiting and bypass for reads
-- [ ] `http_ip_rate_limiting` marked done in launch.json
+- [ ] `usage_logging_middleware` wired into MCP Modal server
+- [ ] `civicos-platform` secret added to MCP Modal deployment
+- [ ] Usage logs written for MCP tool calls (endpoint, latency, status code)
+- [ ] Fire-and-forget pattern (logging failures never block responses)
+- [ ] `mcp_usage_logging` marked done in launch.json
