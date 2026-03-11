@@ -21595,3 +21595,29 @@ TBD — needs assignment before /nextsesh
 - `packages/civicos-relay/tests/test_acceptance_policy.py` — 6 new monitoring tests
 - `scripts/sql/add_acceptance_monitoring.sql` — New table schema
 - `launch.json` — acceptance_policy_monitoring done, extension_402_handling set as next P0
+
+## Session — 2026-03-11 (Extension 402 Handling)
+
+### What was done
+1. **WriteResult type** — Added `WriteResult` interface to civicos-client: `{ok: boolean, rejection?: {tier, reason, options}}`. Replaces bare `boolean` returns from all relay write methods.
+2. **parseWriteResult() helper** — Centralized 402 response parsing in `ApiClient`. Handles JSON extraction with fallback for malformed responses.
+3. **All relay write methods updated** — `submitVoice`, `submitComment`, `commitToCivicAction`, `completeCivicAction`, `withdrawCivicAction` + their `cast*` wrappers all return `WriteResult`.
+4. **Extension SidePanel** — `castVoice()` call updated from `.catch(() => {})` to `.then()` with rejection handling. Shows "Daily voice limit reached" or "verification may be required" via toast.
+5. **Components updated** — `CivicAgendaView`, `CivicReadOnlyPulse` (comment submission), `CivicInitiativeView` (commit/complete/withdraw) all show rejection-specific error messages.
+6. **Removed console.error** — Action methods no longer log errors to console (was leaking internal state).
+
+### Key design decisions
+- Single `parseWriteResult()` helper avoids duplicating 402 parsing across 5 submit methods
+- Handles both `body.detail.reason` (FastAPI format) and `body.reason` (direct format) for relay compatibility
+- Fallback `{ok: false}` for non-402 failures (500s, network errors) — no rejection details needed
+- Toast duration extended to 6000ms for rejection messages (vs 4000ms default) for readability
+
+### Key files changed
+- `packages/civicos-client/src/types.ts` — WriteResult interface
+- `packages/civicos-client/src/api.ts` — parseWriteResult(), 8 method signature changes
+- `packages/civicos-client/src/index.ts` — Export WriteResult
+- `apps/civicos-extension/src/side-panel/SidePanel.svelte` — Voice rejection handling
+- `packages/civicos-components/src/components/CivicAgendaView.svelte` — Comment rejection
+- `packages/civicos-components/src/components/CivicReadOnlyPulse.svelte` — Comment rejection
+- `packages/civicos-components/src/components/CivicInitiativeView.svelte` — Action rejection
+- `launch.json` — extension_402_handling done, onboard_mill_valley set as next P0

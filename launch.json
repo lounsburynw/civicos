@@ -218,7 +218,7 @@
       {
         "name": "extension_402_handling",
         "description": "Update extension to handle HTTP 402 responses from relay gracefully. Show UX guidance for attestation or payment options.",
-        "status": "not_started",
+        "status": "done",
         "priority": 0,
         "source": "docs/internal/relay-acceptance-policy-spec.md (Phase 2)",
         "files": ["apps/civicos-extension/src/"],
@@ -346,7 +346,7 @@
         "name": "onboard_mill_valley",
         "description": "Run /onboard for Mill Valley (Granicus, Marin County). Document every manual step, friction point, and failure as onboarding checklist items.",
         "status": "not_started",
-        "priority": 2,
+        "priority": 0,
         "phase": "A",
         "source": "federation testbed — same-county validation",
         "files": ["data/extraction/city-mill-valley.json", "data/jurisdictions/city-mill-valley.yaml"],
