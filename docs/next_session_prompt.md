@@ -1,4 +1,4 @@
-# Recommended: MCP Usage Logging
+# Recommended: Relay Usage Logging
 
 **Priority:** P0
 **Area:** observability
@@ -8,43 +8,33 @@
 
 ## Context
 
-This session completed `http_ip_rate_limiting` — added per-IP rate limiting middleware to the relay (sliding-window in-memory counter, 100 req/hr default, POST-only on `/coordination/*`, returns 429). All 11 tests pass.
+This session completed `mcp_usage_logging` — added UsageLoggingMiddleware (raw ASGI) to the MCP Modal server. The middleware logs all HTTP requests (endpoint, method, status code, latency, jurisdiction, key_id) to the Platform DB via fire-and-forget `call_soon`. Also added `civicos-platform` secret and `_mcp_request_key_id` context var.
 
-The MCP server is currently the only production service serving traffic and has **no usage logging**. The API server (`civicos-services`) already has a working `usage_logging_middleware` that can be adapted.
+The relay server (`civicos-relay`) is the other production service and also has **no usage logging**. The same pattern can be applied.
 
 ## Recommended Task
 
-Wire usage logging into the MCP Modal server so we can track request volumes, latencies, and errors. The pattern already exists in the API server — it just needs to be adapted for the MCP server's deployment.
+Wire usage logging into the relay Modal server. The pattern is now proven in both the REST API server and the MCP server — adapt it for the relay's Starlette app.
 
 ## Key Files
 
-- `apps/civicos-mcp/modal_mcp.py` — MCP Modal deployment entry point, needs middleware
-- `packages/civicos-services/src/civicos_services/servers/api.py:342` — Existing `usage_logging_middleware` (fire-and-forget to Platform DB)
-- `packages/civicos-services/src/civicos_services/servers/api.py:387` — How it's wired into the middleware chain
-- `scripts/sql/add_platform_billing.sql` — Platform DB schema (where usage logs go)
-- `scripts/modal_usage_rollup.py` — Cron job that rolls up usage data
+- `packages/civicos-relay/src/civicos_relay/server/app.py` — Relay Starlette app, needs middleware
+- `apps/civicos-mcp/modal_mcp.py:396-445` — Reference: MCP UsageLoggingMiddleware (just completed)
+- `packages/civicos-services/src/civicos_services/servers/api.py:342-378` — Reference: REST API middleware
+- `packages/civicos-services/src/civicos_services/core/api_keys.py:324-355` — `ApiKeyStore.log_usage()`
 
 ## Suggested Approach
 
-1. Read the existing `usage_logging_middleware` in `api.py:342-380` to understand the pattern
-2. Read `modal_mcp.py` to understand MCP server structure and current middleware setup
-3. Add `civicos-platform` to the Modal secrets list in `get_secrets()` (the platform DB connection)
-4. Import or adapt the usage logging middleware for MCP endpoints
-5. Wire it into the MCP app's middleware chain
-6. Verify the `civicos-platform` Modal secret exists: `modal secret list | grep platform`
-7. Test locally if possible, otherwise verify via deployment logs
-
-## Tests to Run
-
-```bash
-# Smoke test (should still pass)
-pytest packages/civicos/tests/test_civicos.py -q --override-ini="addopts="
-```
+1. Read `app.py` to understand the relay's middleware chain and app structure
+2. Check if the relay Modal deployment already has `civicos-platform` secret
+3. Add UsageLoggingMiddleware (adapt from MCP pattern — may use BaseHTTPMiddleware or raw ASGI)
+4. Wire into middleware chain
+5. Test relay endpoints still work
 
 ## Success Criteria
 
-- [ ] `usage_logging_middleware` wired into MCP Modal server
-- [ ] `civicos-platform` secret added to MCP Modal deployment
-- [ ] Usage logs written for MCP tool calls (endpoint, latency, status code)
+- [ ] Usage logging middleware wired into relay server
+- [ ] `civicos-platform` secret available in relay deployment
+- [ ] Usage logs written for relay requests (coordination, AI proxy endpoints)
 - [ ] Fire-and-forget pattern (logging failures never block responses)
-- [ ] `mcp_usage_logging` marked done in launch.json
+- [ ] `relay_usage_logging` marked done in launch.json
