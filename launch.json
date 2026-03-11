@@ -356,13 +356,13 @@
       {
         "name": "onboard_san_anselmo",
         "description": "Run /onboard for San Anselmo (Granicus, Marin County). Second same-platform onboarding validates repeatability of the flow.",
-        "status": "not_started",
-        "priority": 0,
+        "status": "done",
+        "priority": 1,
         "phase": "A",
         "source": "federation testbed — same-county validation",
-        "files": ["data/extraction/city-san-anselmo.json", "data/jurisdictions/city-san-anselmo.yaml"],
+        "files": ["data/extraction/san-anselmo.json", "data/jurisdictions/city-san-anselmo.yaml"],
         "test_file": null,
-        "notes": "Granicus — validates onboarding is repeatable, not just one-off."
+        "notes": "Done 2026-03-11. 169 meetings, 337+ agenda items (extraction continuing). 28 body types. 0 new code fixes needed — Mill Valley fixes generalized. 3 pre-existing friction points remain (F1, F4, F5). Friction log updated."
       },
       {
         "name": "deploy_marin_test_relays",
@@ -408,6 +408,23 @@
         "files": [".claude/commands/onboard.md", "docs/public/"],
         "test_file": null,
         "notes": "This is the real deliverable of Phase A — a battle-tested onboarding flow, not a theoretical one."
+      },
+      {
+        "name": "turnkey_onboarding",
+        "description": "Fix F1 (Granicus subdomain discovery) and F5 (registry generation from YAML) to make onboarding nearly turnkey. Provide a city name, get config + registrations generated automatically.",
+        "status": "not_started",
+        "priority": 0,
+        "phase": "A",
+        "source": "federation testbed — turnkey onboarding",
+        "files": [
+          "packages/civicos-extraction/src/civicos_extraction/onboard.py",
+          "packages/civicos-extraction/src/civicos_extraction/platform_detection.py",
+          "config/registry.json",
+          "packages/civicos-config/src/civicos_config/jurisdiction.py",
+          "packages/civicos/src/civicos/_internal/jurisdiction.py"
+        ],
+        "test_file": null,
+        "notes": "F1: Try common Granicus subdomain patterns (city, cityof+city, city-state). F5: Generate registry.json, JurisdictionRegistry, and aliases from jurisdiction YAML."
       },
       {
         "name": "onboard_berkeley",

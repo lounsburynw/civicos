@@ -42,6 +42,12 @@
       "display_name": "Mill Valley",
       "modal_app_name": "civicos-mill-valley",
       "parent_jurisdictions": ["county-marin", "state-california", "country-united-states"]
+    },
+    "city-san-anselmo": {
+      "domain": "san-anselmo.civicosproject.org",
+      "display_name": "San Anselmo",
+      "modal_app_name": "civicos-san-anselmo",
+      "parent_jurisdictions": ["county-marin", "state-california", "country-united-states"]
     }
   },
 

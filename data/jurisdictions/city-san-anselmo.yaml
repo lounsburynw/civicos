@@ -1,0 +1,129 @@
+# San Anselmo Town Configuration
+#
+# Unified configuration for Town of San Anselmo, California.
+# Second federation test jurisdiction (same county as San Rafael and Mill Valley).
+
+# =============================================================================
+# Identity
+# =============================================================================
+
+jurisdiction_id: city-san-anselmo
+level: town
+display_name: San Anselmo
+
+# =============================================================================
+# Hierarchy
+# =============================================================================
+
+parent_jurisdictions:
+  - county-marin
+  - state-california
+  - country-united-states
+
+# =============================================================================
+# Contact Information
+# =============================================================================
+
+contact_info:
+  clerk_email: townclerk@townofsananselmo.org
+  city_hall_address: "525 San Anselmo Avenue, San Anselmo CA 94960"
+  phone: "(415) 258-4600"
+  website: "https://www.townofsananselmo.org"
+  public_comment_deadline: null
+  in_person_time_limit: null
+  public_comment_subject: null
+
+# =============================================================================
+# Governing Body
+# =============================================================================
+
+governing_body:
+  name: San Anselmo Town Council
+  members_title: Mayor and Council Members
+  meeting_schedule: "Second and fourth Tuesday, 7:00 PM"
+  meeting_location: "Council Chambers, 525 San Anselmo Avenue"
+
+# =============================================================================
+# Data Sources
+# =============================================================================
+
+data_sources:
+  # Meeting extraction (Granicus platform)
+  meetings:
+    source_type: granicus
+    base_url: https://sananselmo-ca.granicus.com
+    archives:
+      all_bodies: "8"
+    metadata:
+      granicus_domain: sananselmo-ca
+      default_view_id: "8"
+      notes: "View 8 is main publisher with all bodies. Also has Legistar API (21 bodies)."
+
+  # Issue tracking
+  issues: null
+
+  # Municipal code
+  municipal_code: null
+
+# =============================================================================
+# Financial Context
+# =============================================================================
+
+financial:
+  state: CA
+  county: Marin
+
+federal_programs:
+  hud_grantee: Marin County
+  hud_relationship: consortium
+  notes: "San Anselmo receives HUD funds via Marin County Urban County Program"
+
+# =============================================================================
+# Geography
+# =============================================================================
+
+zip_codes:
+  - "94960"
+
+neighborhoods:
+  - Downtown San Anselmo
+  - Sleepy Hollow
+  - San Anselmo Hub
+  - Red Hill
+  - Brookside
+
+# =============================================================================
+# Ingestion Tiers
+# =============================================================================
+
+ingestion:
+  # Tier 1: Free
+  meetings: true
+  pdf_chunks: true
+  issues: false
+  municipal_code: false
+  # Tier 2: Low cost (LLM)
+  agenda_items: true
+  decisions: true
+  legislation: true
+  # Tier 3: Higher cost (audio)
+  transcription: false
+  diarization: false
+  # Tier 4: GPU
+  vector_indexing: true
+
+# =============================================================================
+# Tool Configuration
+# =============================================================================
+
+tools_enabled: null
+tool_overrides: {}
+
+# =============================================================================
+# Metadata
+# =============================================================================
+
+metadata:
+  created: "2026-03-11"
+  updated: "2026-03-11"
+  notes: "Second federation test jurisdiction. Same county and platform (Granicus) as Mill Valley."

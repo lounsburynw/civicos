@@ -21653,3 +21653,35 @@ TBD — needs assignment before /nextsesh
 - `packages/civicos-components/src/components/CivicReadOnlyPulse.svelte` — Comment rejection
 - `packages/civicos-components/src/components/CivicInitiativeView.svelte` — Action rejection
 - `launch.json` — extension_402_handling done, onboard_mill_valley set as next P0
+
+## Session — 2026-03-11 (onboard_san_anselmo)
+
+### Completed: onboard_san_anselmo (P0 → done)
+
+Onboarded San Anselmo as second federation test jurisdiction (Granicus, Marin County).
+
+**Results:**
+- 169 meetings ingested into PostgreSQL
+- 493+ agenda items extracted (extraction still running at session end)
+- 28 distinct body types (vs Mill Valley's 3)
+- Date range: 2025-03-18 to 2026-12-08
+- 0 new code fixes needed — Mill Valley's Granicus parser fixes generalized
+
+**Files created/modified:**
+- `data/extraction/san-anselmo.json` — Extraction config (view_id=8)
+- `data/jurisdictions/city-san-anselmo.yaml` — Jurisdiction config
+- `config/registry.json` — Added city-san-anselmo entry
+- `packages/civicos-config/src/civicos_config/jurisdiction.py` — JurisdictionRegistry entry
+- `packages/civicos/src/civicos/_internal/jurisdiction.py` — Aliases (san-anselmo, sananselmo)
+- `docs/internal/onboarding-friction-log.md` — Added San Anselmo comparison section
+- `launch.json` — onboard_san_anselmo done, turnkey_onboarding added as next P0
+
+**Friction comparison:**
+- Mill Valley: 7 friction points, 2 code fixes
+- San Anselmo: 3 friction points (all pre-existing), 0 code fixes
+- Manual time reduced from ~10m to ~5m
+
+**Tests:** 27 Granicus parser tests pass, 20 smoke tests pass, all 3 jurisdictions responding
+
+### Next P0: turnkey_onboarding
+Fix F1 (Granicus subdomain discovery) and F5 (registry generation from YAML) to make onboarding nearly turnkey.

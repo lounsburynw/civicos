@@ -57,6 +57,11 @@ _JURISDICTION_ALIASES = {
     "mill-valley-ca": "city-mill-valley",
     "millvalley": "city-mill-valley",
 
+    # San Anselmo (federation test)
+    "san-anselmo": "city-san-anselmo",
+    "san-anselmo-ca": "city-san-anselmo",
+    "sananselmo": "city-san-anselmo",
+
     # Sonoma County (not city-sonoma)
     "sonoma": "sonoma-county",
     "sonoma-ca": "sonoma-county",
