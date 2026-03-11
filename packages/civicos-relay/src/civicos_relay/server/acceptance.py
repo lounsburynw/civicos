@@ -1,7 +1,10 @@
-"""Relay acceptance policy — rate limiting and tiered access for write endpoints.
+"""Relay acceptance policy — tiered access control for write endpoints.
 
-Phase 2 implements rate_limit tier only. Attestation (Phase 3) and payment
-(Phase 4) tiers return stubs that always fail, falling through to rate_limit.
+Tiers checked in order:
+1. Attestation proof → unlimited (Phase 3 stub — always fails through)
+2. Payment proof → unlimited (Phase 4 stub — always fails through)
+3. Proof-of-work → bypass rate limit (NIP-13, active for voice/comment)
+4. Rate limit → per-event-type daily limit
 """
 
 import hashlib
@@ -81,7 +84,8 @@ class AcceptancePolicy:
     Checks writes against a tiered policy:
     1. Attestation proof → unlimited (Phase 3 stub — always fails)
     2. Payment proof → unlimited (Phase 4 stub — always fails)
-    3. Rate limit → per-event-type daily limit
+    3. Proof-of-work → bypass rate limit (NIP-13 leading zero bits)
+    4. Rate limit → per-event-type daily limit
     """
 
     def __init__(self, config: Optional[dict] = None, connection_url: Optional[str] = None):
@@ -134,7 +138,13 @@ class AcceptancePolicy:
             if self._verify_payment(payment_proof):
                 return PolicyResult(accepted=True, tier="paid", reason="Valid payment proof")
 
-        # Tier 3: Rate limit
+        # Tier 3: Proof-of-work (bypasses rate limit if valid)
+        pow_difficulty = config.get("pow_difficulty")
+        if pow_difficulty is not None and event_id is not None:
+            if self._verify_pow(event_id, pow_difficulty):
+                return PolicyResult(accepted=True, tier="pow", reason=f"Valid proof-of-work ({pow_difficulty} bits)")
+
+        # Tier 4: Rate limit
         max_per_day = config.get("max_per_day")
         if max_per_day is not None:
             pubkey_hash = self._hash_pubkey(public_key)
