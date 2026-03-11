@@ -22,6 +22,7 @@ import type {
   CommentCounts,
   CommentSynthesis,
   ContextBundle,
+  WriteResult,
 } from './types.js';
 import { minePoW } from './pow.js';
 import {
@@ -220,7 +221,7 @@ export class ApiClient {
     createdAt: number,
     attestationProof?: Record<string, unknown>,
     eventId?: string,
-  ): Promise<boolean> {
+  ): Promise<WriteResult> {
     try {
       const relayUrl = await this.registry.getRelayUrl();
       const response = await fetch(`${relayUrl}/coordination/voice`, {
@@ -237,9 +238,9 @@ export class ApiClient {
           event_id: eventId ?? null,
         }),
       });
-      return response.ok;
+      return this.parseWriteResult(response);
     } catch {
-      return false;
+      return { ok: false };
     }
   }
 
@@ -315,7 +316,7 @@ export class ApiClient {
     signature: string,
     createdAt: number,
     jurisdiction: string,
-  ): Promise<boolean> {
+  ): Promise<WriteResult> {
     try {
       const relayUrl = await this.registry.getRelayUrl();
       const response = await fetch(
@@ -331,13 +332,9 @@ export class ApiClient {
           }),
         },
       );
-      if (!response.ok) {
-        console.error('[CivicOS] commitToCivicAction failed:', response.status, await response.text());
-      }
-      return response.ok;
-    } catch (err) {
-      console.error('[CivicOS] commitToCivicAction error:', err);
-      return false;
+      return this.parseWriteResult(response);
+    } catch {
+      return { ok: false };
     }
   }
 
@@ -348,7 +345,7 @@ export class ApiClient {
     createdAt: number,
     jurisdiction: string,
     evidenceType = 'self_report',
-  ): Promise<boolean> {
+  ): Promise<WriteResult> {
     try {
       const relayUrl = await this.registry.getRelayUrl();
       const response = await fetch(
@@ -365,13 +362,9 @@ export class ApiClient {
           }),
         },
       );
-      if (!response.ok) {
-        console.error('[CivicOS] completeCivicAction failed:', response.status, await response.text());
-      }
-      return response.ok;
-    } catch (err) {
-      console.error('[CivicOS] completeCivicAction error:', err);
-      return false;
+      return this.parseWriteResult(response);
+    } catch {
+      return { ok: false };
     }
   }
 
@@ -380,7 +373,7 @@ export class ApiClient {
     publicKey: string,
     signature: string,
     createdAt: number,
-  ): Promise<boolean> {
+  ): Promise<WriteResult> {
     try {
       const relayUrl = await this.registry.getRelayUrl();
       const response = await fetch(
@@ -395,13 +388,9 @@ export class ApiClient {
           }),
         },
       );
-      if (!response.ok) {
-        console.error('[CivicOS] withdrawCivicAction failed:', response.status, await response.text());
-      }
-      return response.ok;
-    } catch (err) {
-      console.error('[CivicOS] withdrawCivicAction error:', err);
-      return false;
+      return this.parseWriteResult(response);
+    } catch {
+      return { ok: false };
     }
   }
 
@@ -548,7 +537,7 @@ export class ApiClient {
     stance?: string,
     attestationProof?: Record<string, unknown>,
     eventId?: string,
-  ): Promise<boolean> {
+  ): Promise<WriteResult> {
     try {
       const relayUrl = await this.registry.getRelayUrl();
       const response = await fetch(`${relayUrl}/coordination/comment`, {
@@ -566,9 +555,9 @@ export class ApiClient {
           event_id: eventId ?? null,
         }),
       });
-      return response.ok;
+      return this.parseWriteResult(response);
     } catch {
-      return false;
+      return { ok: false };
     }
   }
 
@@ -629,7 +618,7 @@ export class ApiClient {
     stance: 'support' | 'oppose' | 'watching',
     jurisdiction: string,
     attestationProof?: Record<string, unknown>,
-  ): Promise<boolean> {
+  ): Promise<WriteResult> {
     const signer = this.requireSigner();
     const pubkey = await signer.getPublicKey();
     const createdAt = Math.floor(Date.now() / 1000);
@@ -671,7 +660,7 @@ export class ApiClient {
     jurisdiction: string,
     stance?: string,
     attestationProof?: Record<string, unknown>,
-  ): Promise<boolean> {
+  ): Promise<WriteResult> {
     const signer = this.requireSigner();
     const pubkey = await signer.getPublicKey();
     const createdAt = Math.floor(Date.now() / 1000);
@@ -695,7 +684,7 @@ export class ApiClient {
     return this.submitComment(entityId, commentText, signed.pubkey, signed.sig, createdAt, jurisdiction, stance, attestationProof, signed.id);
   }
 
-  async castCommitment(actionId: string, jurisdiction: string): Promise<boolean> {
+  async castCommitment(actionId: string, jurisdiction: string): Promise<WriteResult> {
     const signer = this.requireSigner();
     const createdAt = Math.floor(Date.now() / 1000);
     const signed = await signer.signEvent({
@@ -711,7 +700,7 @@ export class ApiClient {
     actionId: string,
     jurisdiction: string,
     evidenceType = 'self_report',
-  ): Promise<boolean> {
+  ): Promise<WriteResult> {
     const signer = this.requireSigner();
     const createdAt = Math.floor(Date.now() / 1000);
     const signed = await signer.signEvent({
@@ -723,7 +712,7 @@ export class ApiClient {
     return this.completeCivicAction(actionId, signed.pubkey, signed.sig, createdAt, jurisdiction, evidenceType);
   }
 
-  async castWithdrawal(actionId: string): Promise<boolean> {
+  async castWithdrawal(actionId: string): Promise<WriteResult> {
     const signer = this.requireSigner();
     const createdAt = Math.floor(Date.now() / 1000);
     const signed = await signer.signEvent({
@@ -832,6 +821,20 @@ export class ApiClient {
   }
 
   // === Internal ===
+
+  private async parseWriteResult(response: Response): Promise<WriteResult> {
+    if (response.ok) return { ok: true };
+    if (response.status === 402) {
+      try {
+        const body = await response.json();
+        const detail = body.detail ?? body;
+        return { ok: false, rejection: { tier: detail.tier, reason: detail.reason, options: detail.options } };
+      } catch {
+        return { ok: false, rejection: { tier: 'rejected', reason: 'Write rejected (402)' } };
+      }
+    }
+    return { ok: false };
+  }
 
   private async apiRequest<T>(path: string, options?: RequestInit): Promise<T> {
     const baseUrl = await this.registry.getMcpUrl();

@@ -393,9 +393,12 @@
     actionInProgress = new Set(actionInProgress);
 
     try {
-      const ok = await api.castCommitment(action.id, jurisdiction);
-      if (!ok) {
-        ontoast?.('Failed to commit. Relay may be unreachable.');
+      const result = await api.castCommitment(action.id, jurisdiction);
+      if (!result.ok) {
+        const msg = result.rejection?.reason.includes('rate limit')
+          ? 'Daily action limit reached. Try again tomorrow.'
+          : result.rejection ? 'Action not accepted — verification may be required.' : 'Failed to commit. Relay may be unreachable.';
+        ontoast?.(msg);
         actionInProgress.delete(action.id);
         actionInProgress = new Set(actionInProgress);
         return;
@@ -429,9 +432,12 @@
     actionInProgress = new Set(actionInProgress);
 
     try {
-      const ok = await api.castCompletion(action.id, jurisdiction);
-      if (!ok) {
-        ontoast?.('Failed to mark action complete. Relay may be unreachable.');
+      const result = await api.castCompletion(action.id, jurisdiction);
+      if (!result.ok) {
+        const msg = result.rejection?.reason.includes('rate limit')
+          ? 'Daily action limit reached. Try again tomorrow.'
+          : result.rejection ? 'Action not accepted — verification may be required.' : 'Failed to mark action complete. Relay may be unreachable.';
+        ontoast?.(msg);
         actionInProgress.delete(action.id);
         actionInProgress = new Set(actionInProgress);
         return;
@@ -463,9 +469,12 @@
     actionInProgress = new Set(actionInProgress);
 
     try {
-      const ok = await api.castWithdrawal(action.id);
-      if (!ok) {
-        ontoast?.('Failed to withdraw. Relay may be unreachable.');
+      const result = await api.castWithdrawal(action.id);
+      if (!result.ok) {
+        const msg = result.rejection?.reason.includes('rate limit')
+          ? 'Daily action limit reached. Try again tomorrow.'
+          : result.rejection ? 'Withdrawal not accepted — verification may be required.' : 'Failed to withdraw. Relay may be unreachable.';
+        ontoast?.(msg);
         actionInProgress.delete(action.id);
         actionInProgress = new Set(actionInProgress);
         return;

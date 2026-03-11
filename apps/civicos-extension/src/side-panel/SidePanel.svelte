@@ -800,8 +800,17 @@
 
     // Sign and submit (fire-and-forget — stance is persisted locally regardless)
     const jurisdiction = overrideJurisdiction || pulseData?.jurisdiction || activeJurisdiction;
-    api.castVoice(entityId, stance, jurisdiction, attestationProof).catch(() => {
-      // Relay submission failed — local stance persists, will sync on next load
+    api.castVoice(entityId, stance, jurisdiction, attestationProof).then((result) => {
+      if (!result.ok && result.rejection) {
+        const reason = result.rejection.reason;
+        if (reason.includes('rate limit')) {
+          showToast('Daily voice limit reached. Try again tomorrow.', 6000);
+        } else {
+          showToast('Voice not synced — verification may be required.', 6000);
+        }
+      }
+    }).catch(() => {
+      // Network error — local stance persists, will sync on next load
     });
 
     votingInProgress.delete(entityId);

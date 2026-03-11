@@ -43,6 +43,7 @@ export type {
   TestimonySection,
   ContextMetadata,
   ToolResponse,
+  WriteResult,
   CommentPeriod,
   LegislativeHearing,
   GovernorsDeskBill,
