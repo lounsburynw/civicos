@@ -499,9 +499,9 @@
 
     try {
       const userStance = userStances.get(entityId);
-      const ok = await api.castComment(entityId, draft, jurisdiction, userStance);
+      const result = await api.castComment(entityId, draft, jurisdiction, userStance);
 
-      if (ok) {
+      if (result.ok) {
         const pubkey = identity?.publicKey || '';
         const newComment: Comment = {
           entity: entityId,
@@ -528,7 +528,10 @@
         threadDrafts.delete(entityId);
         threadDrafts = new Map(threadDrafts);
       } else {
-        threadErrors.set(entityId, 'Failed to submit comment');
+        const msg = result.rejection?.reason.includes('rate limit')
+          ? 'Daily comment limit reached. Try again tomorrow.'
+          : result.rejection ? 'Comment not accepted — verification may be required.' : 'Failed to submit comment';
+        threadErrors.set(entityId, msg);
         threadErrors = new Map(threadErrors);
       }
     } catch {

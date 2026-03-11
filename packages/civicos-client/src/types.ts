@@ -341,6 +341,17 @@ export interface ContextMetadata {
   assembly_time_ms: number;
 }
 
+// === Relay write result ===
+
+export interface WriteResult {
+  ok: boolean;
+  rejection?: {
+    tier: string;
+    reason: string;
+    options?: Record<string, string>;
+  };
+}
+
 // === API wrapper response ===
 
 export interface ToolResponse<T = unknown> {
