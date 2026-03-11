@@ -21553,3 +21553,22 @@ TBD — needs assignment before /nextsesh
 - `scripts/modal_usage_rollup.py` — removed cron, added psycopg2 image
 - `scripts/modal_vectors.py` — removed redundant weekly cron schedule
 - `launch.json` — deploy_usage_rollup done, stripe_secrets_deployment P0
+
+## Session — 2026-03-11 (PoW mining + billing deferral)
+
+### What was done
+1. **NIP-13 PoW mining** — Added `minePoW()` to `civicos-client/src/pow.ts`. castVoice() and castComment() mine transparently when no attestation proof. 16-bit difficulty, ~650ms avg. Cross-verified against Python server-side `_verify_pow()`. 11 tests pass.
+2. **Billing items deferred** — `stripe_secrets_deployment`, `stripe_key_delivery_automation`, `billing_endpoint_deployment` moved to P3. Reasoning: need usage data to decide billing model (flat subscription vs metered vs hybrid). Two separate billing surfaces identified: Stripe metered for read API, blinded tokens for relay writes.
+3. **launch.json** — `extension_pow_generation` marked done, `acceptance_policy_monitoring` set as next P0.
+
+### Key design decisions
+- PoW mining lives in `civicos-client` (not loom-core) so any client gets it automatically
+- Added `@noble/hashes` as dependency (same lib used by loom-core)
+- Mining uses nonce tag `['nonce', counter, target]` per NIP-13 spec
+- Skips mining when attestation proof is present (attested tier doesn't need PoW)
+
+### Key files changed
+- `packages/civicos-client/src/pow.ts` — minePoW(), countLeadingZeroBits()
+- `packages/civicos-client/src/pow.test.ts` — 11 tests
+- `packages/civicos-client/src/api.ts` — castVoice(), castComment() integration
+- `launch.json` — billing deferred, PoW done, monitoring P0

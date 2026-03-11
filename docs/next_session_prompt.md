@@ -1,61 +1,55 @@
-# Recommended: Stripe Secrets Deployment
+# Recommended: Acceptance Policy Monitoring
 
 **Priority:** P0
-**Area:** billing_payments
+**Area:** observability
 **Date:** 2026-03-11
 
 > This is recommended context from the previous session. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
 
 ## Context
 
-The usage logging and rollup pipeline is now complete — all three services (API, MCP, Relay) log requests to the Platform DB, and a daily rollup runs as part of `scheduled_high_velocity_refresh`. The next step in the billing pipeline is deploying Stripe secrets so the checkout/webhook endpoints can function.
+The relay acceptance policy is now fully wired: rate limiting, PoW verification (server + client), attestation verification, and write metadata tracking. However there's no observability into how it's performing. With usage logging live on all three services (API, MCP, Relay), the write-side acceptance policy is the missing piece for the "observe usage to inform pricing" strategy.
 
 ## Recommended Task
 
-Configure Stripe API keys and price IDs in Modal secrets so the billing endpoints can process payments. This is a prerequisite for `billing_endpoint_deployment` and `stripe_key_delivery_automation` (both P1).
+Add monitoring for relay acceptance policy: rejections by tier, rate limit hits/day, total writes by tier. This feeds into the billing model decision (deferred — needs usage data first).
 
 ## Key Files
 
-- `.env.example:316-330` — Stripe env var names and descriptions
-- `packages/civicos-services/src/civicos_services/core/stripe_billing.py` — Stripe billing logic (checkout, webhooks)
-- `packages/civicos-services/src/civicos_services/core/api_keys.py` — API key provisioning (called after Stripe checkout)
-- `apps/civicos-mcp/modal_mcp.py` — MCP server where billing endpoints need to be mounted
-- `launch.json:104-111` — This item's checklist entry
+- `packages/civicos-relay/src/civicos_relay/server/acceptance.py` — `AcceptancePolicy.check()` returns `PolicyResult` with `accepted`, `tier`, `reason`
+- `packages/civicos-relay/src/civicos_relay/server/app.py:360-391` — voice endpoint calls `_check_acceptance()`
+- `scripts/sql/add_platform_billing.sql` — Platform DB schema (usage_logs table already exists)
+- `packages/civicos-services/src/civicos_services/core/api_keys.py` — `ApiKeyStore.log_usage()` for fire-and-forget logging pattern
 
 ## Suggested Approach
 
-1. Check if Stripe account exists: does the user have `STRIPE_SECRET_KEY` already?
-2. If yes, create Modal secret: `modal secret create civicos-stripe STRIPE_SECRET_KEY=sk_... STRIPE_WEBHOOK_SECRET=whsec_... STRIPE_PRICE_JOURNALIST=price_... STRIPE_PRICE_ORGANIZATION=price_... STRIPE_PRICE_CITY=price_... STRIPE_PRICE_API=price_...`
-3. If no, guide user through Stripe Dashboard setup (create products/prices first)
-4. Verify secret exists: `modal secret list | grep stripe`
-5. Add secrets to local `.env` for dev testing
-6. Mark `stripe_secrets_deployment` done in `launch.json`
-7. Optionally continue to `billing_endpoint_deployment` (P1) — mount billing router in `modal_mcp.py`
+1. Add acceptance policy outcome logging to Platform DB — log tier, accepted/rejected, reason, event_type per write
+2. Could reuse `platform_usage_logs` table (already has endpoint, status_code) or add a new `platform_acceptance_logs` table
+3. Wire into `_check_acceptance()` in app.py — fire-and-forget pattern (same as read-side usage logging)
+4. Add a rollup query or admin endpoint for: rejections/day by tier, writes/day by tier, rate limit hits/day
+5. Consider adding to the daily rollup in `scripts/modal_ingest.py` (already runs usage rollup)
 
 ## Tests to Run
 
 ```bash
-# No automated test — verify via:
-modal secret list | grep stripe
-# Then optionally test billing import:
-python3 -c "from civicos_services.core.stripe_billing import create_checkout_session; print('Import OK')"
+pytest packages/civicos-relay/tests/test_acceptance_policy.py -v
+pytest packages/civicos-relay/tests/test_acceptance.py -v
 ```
 
 ## Success Criteria
 
-- [ ] Stripe secrets configured in Modal (`civicos-stripe` or added to `civicos-env`)
-- [ ] Stripe env vars added to local `.env`
-- [ ] `stripe_secrets_deployment` marked done in `launch.json`
+- [ ] Acceptance policy outcomes logged to Platform DB (tier, accepted, reason, event_type)
+- [ ] Fire-and-forget pattern (logging failure doesn't block writes)
+- [ ] Admin can query write volume by tier and rejection reasons
+- [ ] Existing acceptance tests still pass
 
-## What Changed This Session (uncommitted)
+## Recent Completions
 
-1. `scripts/modal_ingest.py` — Added `civicos-platform` secret + usage rollup logic to daily high-velocity refresh
-2. `scripts/modal_usage_rollup.py` — Removed cron (now runs via ingest), added psycopg2 image for manual runs
-3. `scripts/modal_vectors.py` — Removed redundant weekly cron (daily ingest covers vector indexing)
-4. `launch.json` — `deploy_usage_rollup` marked done, `stripe_secrets_deployment` set as P0
+- **NIP-13 PoW mining** (this session) — `civicos-client/src/pow.ts`, castVoice/castComment mine transparently
+- **External cron triggers** (parallel session) — Modal crons migrated to GitHub Actions workflows
+- **Billing deferred** — Stripe items moved to P3, need usage data for pricing model decision
 
 ## Infrastructure Notes
 
 - **Platform DB**: Supabase project `axhmnnvefrtliyszbuou` (us-west-1), pooler URL required for Modal (IPv6 not supported)
-- **Modal cron limit**: 5 crons max on current plan. 4 are in `civic-ingest`, 1 slot freed by removing `civic-vectors` cron. There may be a phantom 5th cron Modal is counting — if you need another cron slot, investigate via Modal GUI or contact support.
-- **Stale MCP apps**: `civicos-marin-county` (19d idle), `civicos-federal` (20d), `civicos-california` (20d), `civicos-personal-mcp` (30d), `civicos-mcp-apps` (30d) — safe to stop if resources needed, but they're just idle web endpoints.
+- **Modal crons**: Now run via GitHub Actions (`.github/workflows/cron-*.yml`), not `modal.Cron()`
