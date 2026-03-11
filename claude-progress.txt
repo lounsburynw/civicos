@@ -21446,3 +21446,29 @@ TBD — needs assignment before /nextsesh
 - legislation (67K, m=16, ef=64): 29s
 - executive_orders (21K): 8s
 - All others (<15K each): <5s each
+
+## Session — 2026-03-11: Acceptance Policy PoW + Attestation Wiring
+
+**Items:** nip13_proof_of_work, wire_attestation_verification
+**Status:** Complete.
+
+### What was done
+1. **NIP-13 Proof-of-Work wired into check()** — `_verify_pow` now runs as tier 3 (before rate limit). Valid PoW bypasses rate limit. Configured per event type via `pow_difficulty` in policy config.
+2. **Attestation verification wired into check()** — `_verify_attestation` extracts jurisdiction from j-tag, looks up trusted issuer via `issuer_lookup` callable, delegates to `verify_attestation_proof()` for full Schnorr signature verification.
+3. **app.py lifespan** provides `issuer_lookup` from `storage.issuers` — filters for verified, non-revoked issuers.
+4. **157 lines of new tests** in `test_acceptance_policy.py` — attestation verification (6 tests), proof-of-work (6 tests).
+
+### Acceptance policy tier order (now complete):
+1. Attestation proof → unlimited (kind-30850 from trusted issuer)
+2. Payment proof → unlimited (Phase 4 stub)
+3. Proof-of-work → bypass rate limit (NIP-13)
+4. Rate limit → per-event-type daily limit
+
+### Key files changed
+- `packages/civicos-relay/src/civicos_relay/server/acceptance.py` — PoW tier 3, attestation verification, IssuerLookup type
+- `packages/civicos-relay/src/civicos_relay/server/app.py` — issuer_lookup closure in lifespan
+- `packages/civicos-relay/tests/test_acceptance_policy.py` — 12 new tests
+- `launch.json` — nip13_proof_of_work and wire_attestation_verification marked done
+
+### P0 for Next Session
+`http_ip_rate_limiting` — HTTP-level per-IP rate limiting before crypto verification
