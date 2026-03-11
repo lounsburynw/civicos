@@ -52,6 +52,11 @@ _JURISDICTION_ALIASES = {
     "berkeley": "city-berkeley",
     "berkeley-ca": "city-berkeley",
 
+    # Mill Valley (federation test)
+    "mill-valley": "city-mill-valley",
+    "mill-valley-ca": "city-mill-valley",
+    "millvalley": "city-mill-valley",
+
     # Sonoma County (not city-sonoma)
     "sonoma": "sonoma-county",
     "sonoma-ca": "sonoma-county",

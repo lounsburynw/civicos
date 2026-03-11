@@ -106,6 +106,21 @@ _REGISTRY: Dict[str, JurisdictionConfig] = {
         ),
     ),
 
+    # ---------- Mill Valley (federation test) ----------
+    "mill_valley": JurisdictionConfig(
+        jurisdiction_id="city-mill-valley",
+        agent_type="granicus",
+        meeting_urls=["https://cityofmillvalley.granicus.com/ViewPublisher.php?view_id=2"],
+        contact_email="cityclerk@cityofmillvalley.org",
+        timezone="America/Los_Angeles",
+        website="https://www.cityofmillvalley.org",
+        meeting_calendar_url="https://cityofmillvalley.granicus.com/ViewPublisher.php?view_id=2",
+        display_name="Mill Valley",
+        hall_name="Mill Valley City Hall",
+        domains=("cityofmillvalley.org",),
+        granicus_config=GranicusConfig(subdomain="cityofmillvalley", view_id=2),
+    ),
+
     # ---------- Marin County ----------
     "marin_county": JurisdictionConfig(
         jurisdiction_id="marin-county",

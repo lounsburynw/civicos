@@ -36,6 +36,12 @@
       "display_name": "Berkeley",
       "modal_app_name": "civicos-berkeley",
       "parent_jurisdictions": ["state-california", "country-united-states"]
+    },
+    "city-mill-valley": {
+      "domain": "mill-valley.civicosproject.org",
+      "display_name": "Mill Valley",
+      "modal_app_name": "civicos-mill-valley",
+      "parent_jurisdictions": ["county-marin", "state-california", "country-united-states"]
     }
   },
 

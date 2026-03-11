@@ -183,10 +183,23 @@ class GranicusClient(BaseExtractor):
                     if not parsed_date:
                         continue
 
-                    # Extract links
+                    # Extract links (header-based or fallback to URL pattern scan)
                     agenda_url = self._extract_link(cells, agenda_idx)
                     minutes_url = self._extract_link(cells, minutes_idx)
                     packet_url = self._extract_link(cells, packet_idx)
+
+                    # Fallback: scan cells for known Granicus URL patterns
+                    # when headers are empty (common in Mill Valley-style layouts)
+                    if not agenda_url or not minutes_url:
+                        for cell in cells:
+                            for link in cell.find_all("a", href=True):
+                                href = link["href"]
+                                if not agenda_url and "AgendaViewer" in href:
+                                    agenda_url = self._make_absolute_url(href)
+                                elif not minutes_url and "MinutesViewer" in href:
+                                    minutes_url = self._make_absolute_url(href)
+                                elif not packet_url and "MetaViewer" in href:
+                                    packet_url = self._make_absolute_url(href)
 
                     event = {
                         "title": title,

@@ -1,0 +1,101 @@
+[
+  {
+    "meeting_id": "granicus-city-mill-valley-2-20250324-city-council",
+    "meeting_title": "City Council",
+    "meeting_date": "2025-03-24",
+    "meeting_page_url": "https://cityofmillvalley.granicus.com/AgendaViewer.php?view_id=2&clip_id=2042",
+    "pdf_url": null,
+    "status": "error",
+    "parse_failure_reason": null,
+    "error": "No module named 'openai'",
+    "timestamp": "2026-03-11T13:02:26.013640"
+  },
+  {
+    "meeting_id": "granicus-city-mill-valley-2-20250325-planning-commission-meeting-canceled",
+    "meeting_title": "Planning Commission Meeting - Canceled",
+    "meeting_date": "2025-03-25",
+    "meeting_page_url": "https://cityofmillvalley.granicus.com/AgendaViewer.php?view_id=2&clip_id=2043",
+    "pdf_url": null,
+    "status": "error",
+    "parse_failure_reason": null,
+    "error": "No module named 'openai'",
+    "timestamp": "2026-03-11T13:02:26.013646"
+  },
+  {
+    "meeting_id": "granicus-city-mill-valley-2-20250408-planning-commission-meeting",
+    "meeting_title": "Planning Commission Meeting",
+    "meeting_date": "2025-04-08",
+    "meeting_page_url": "https://cityofmillvalley.granicus.com/AgendaViewer.php?view_id=2&clip_id=2044",
+    "pdf_url": null,
+    "status": "error",
+    "parse_failure_reason": null,
+    "error": "No module named 'openai'",
+    "timestamp": "2026-03-11T13:02:26.013648"
+  },
+  {
+    "meeting_id": "granicus-city-mill-valley-2-20250421-city-council",
+    "meeting_title": "City Council",
+    "meeting_date": "2025-04-21",
+    "meeting_page_url": "https://cityofmillvalley.granicus.com/AgendaViewer.php?view_id=2&clip_id=2047",
+    "pdf_url": null,
+    "status": "error",
+    "parse_failure_reason": null,
+    "error": "No module named 'openai'",
+    "timestamp": "2026-03-11T13:03:00.236680"
+  },
+  {
+    "meeting_id": "granicus-city-mill-valley-2-20250422-planning-commission-meeting",
+    "meeting_title": "Planning Commission Meeting",
+    "meeting_date": "2025-04-22",
+    "meeting_page_url": "https://cityofmillvalley.granicus.com/AgendaViewer.php?view_id=2&clip_id=2048",
+    "pdf_url": null,
+    "status": "error",
+    "parse_failure_reason": null,
+    "error": "No module named 'openai'",
+    "timestamp": "2026-03-11T13:03:00.236689"
+  },
+  {
+    "meeting_id": "granicus-city-mill-valley-2-20250505-city-council",
+    "meeting_title": "City Council",
+    "meeting_date": "2025-05-05",
+    "meeting_page_url": "https://cityofmillvalley.granicus.com/AgendaViewer.php?view_id=2&clip_id=2050",
+    "pdf_url": null,
+    "status": "error",
+    "parse_failure_reason": null,
+    "error": "No module named 'openai'",
+    "timestamp": "2026-03-11T13:03:00.236691"
+  },
+  {
+    "meeting_id": "granicus-city-mill-valley-2-20260112-city-council",
+    "meeting_title": "City Council",
+    "meeting_date": "2026-01-12",
+    "meeting_page_url": "https://cityofmillvalley.granicus.com/AgendaViewer.php?view_id=2&clip_id=2149",
+    "pdf_url": "https://cityofmillvalley.granicus.com/AgendaViewer.php?view_id=2&clip_id=2149",
+    "status": "error",
+    "parse_failure_reason": null,
+    "error": "name 'pdf_url' is not defined",
+    "timestamp": "2026-03-11T13:17:27.330315"
+  },
+  {
+    "meeting_id": "granicus-city-mill-valley-2-20260126-municipal-services-tax-study-committee-meeting-1-v",
+    "meeting_title": "Municipal Services Tax Study Committee Meeting #1 Video",
+    "meeting_date": "2026-01-26",
+    "meeting_page_url": "https://cityofmillvalley.granicus.com/AgendaViewer.php?view_id=2&clip_id=2151",
+    "pdf_url": "https://cityofmillvalley.granicus.com/AgendaViewer.php?view_id=2&clip_id=2151",
+    "status": "error",
+    "parse_failure_reason": null,
+    "error": "name 'pdf_url' is not defined",
+    "timestamp": "2026-03-11T13:17:27.330327"
+  },
+  {
+    "meeting_id": "granicus-city-mill-valley-2-20260223-municipal-services-tax-study-committee-meeting-2-v",
+    "meeting_title": "Municipal Services Tax Study Committee Meeting #2 Video",
+    "meeting_date": "2026-02-23",
+    "meeting_page_url": "https://cityofmillvalley.granicus.com/AgendaViewer.php?view_id=2&clip_id=2162",
+    "pdf_url": "https://cityofmillvalley.granicus.com/AgendaViewer.php?view_id=2&clip_id=2162",
+    "status": "error",
+    "parse_failure_reason": null,
+    "error": "name 'pdf_url' is not defined",
+    "timestamp": "2026-03-11T13:17:27.330332"
+  }
+]
