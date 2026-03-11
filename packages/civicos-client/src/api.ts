@@ -218,6 +218,7 @@ export class ApiClient {
     signature: string,
     createdAt: number,
     attestationProof?: Record<string, unknown>,
+    eventId?: string,
   ): Promise<boolean> {
     try {
       const relayUrl = await this.registry.getRelayUrl();
@@ -232,6 +233,7 @@ export class ApiClient {
           created_at: createdAt,
           jurisdiction,
           attestation_proof: attestationProof ?? null,
+          event_id: eventId ?? null,
         }),
       });
       return response.ok;
@@ -544,6 +546,7 @@ export class ApiClient {
     jurisdiction: string,
     stance?: string,
     attestationProof?: Record<string, unknown>,
+    eventId?: string,
   ): Promise<boolean> {
     try {
       const relayUrl = await this.registry.getRelayUrl();
@@ -559,6 +562,7 @@ export class ApiClient {
           jurisdiction,
           stance: stance || null,
           attestation_proof: attestationProof ?? null,
+          event_id: eventId ?? null,
         }),
       });
       return response.ok;
@@ -633,7 +637,7 @@ export class ApiClient {
       content: createVoiceContent(entityId, stance, createdAt),
       created_at: createdAt,
     });
-    return this.submitVoice(entityId, stance, jurisdiction, signed.pubkey, signed.sig, createdAt, attestationProof);
+    return this.submitVoice(entityId, stance, jurisdiction, signed.pubkey, signed.sig, createdAt, attestationProof, signed.id);
   }
 
   async castRevokeVoice(entityId: string): Promise<boolean> {
@@ -663,7 +667,7 @@ export class ApiClient {
       content: commentText,
       created_at: createdAt,
     });
-    return this.submitComment(entityId, commentText, signed.pubkey, signed.sig, createdAt, jurisdiction, stance, attestationProof);
+    return this.submitComment(entityId, commentText, signed.pubkey, signed.sig, createdAt, jurisdiction, stance, attestationProof, signed.id);
   }
 
   async castCommitment(actionId: string, jurisdiction: string): Promise<boolean> {

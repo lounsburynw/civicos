@@ -101,10 +101,21 @@ class IPRateLimitMiddleware(BaseHTTPMiddleware):
             max_requests, window_seconds,
         )
 
+    @staticmethod
+    def _get_client_ip(request: Request) -> str:
+        """Extract real client IP, respecting proxy headers."""
+        forwarded = request.headers.get("x-forwarded-for")
+        if forwarded:
+            return forwarded.split(",")[0].strip()
+        real_ip = request.headers.get("x-real-ip")
+        if real_ip:
+            return real_ip.strip()
+        return request.client.host if request.client else "unknown"
+
     async def dispatch(self, request: Request, call_next):
         # Only rate-limit POST requests to coordination write endpoints
         if request.method == "POST" and request.url.path.startswith("/coordination/"):
-            client_ip = request.client.host if request.client else "unknown"
+            client_ip = self._get_client_ip(request)
             if not self._limiter.is_allowed(client_ip):
                 logger.warning("IP rate limit exceeded: %s on %s", client_ip, request.url.path)
                 return JSONResponse(
