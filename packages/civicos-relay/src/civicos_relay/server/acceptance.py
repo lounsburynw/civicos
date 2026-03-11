@@ -1,7 +1,7 @@
 """Relay acceptance policy — tiered access control for write endpoints.
 
 Tiers checked in order:
-1. Attestation proof → unlimited (Phase 3 stub — always fails through)
+1. Attestation proof → unlimited (verifies kind-30850 Nostr event from trusted issuer)
 2. Payment proof → unlimited (Phase 4 stub — always fails through)
 3. Proof-of-work → bypass rate limit (NIP-13, active for voice/comment)
 4. Rate limit → per-event-type daily limit
@@ -12,9 +12,12 @@ import logging
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import date
-from typing import Optional
+from typing import Callable, Optional
 
 logger = logging.getLogger(__name__)
+
+# Type for issuer registry lookup: (jurisdiction) -> issuer_pubkey or None
+IssuerLookup = Callable[[str], Optional[str]]
 
 
 @dataclass
@@ -82,16 +85,22 @@ class AcceptancePolicy:
     """Acceptance policy enforcer for relay write endpoints.
 
     Checks writes against a tiered policy:
-    1. Attestation proof → unlimited (Phase 3 stub — always fails)
+    1. Attestation proof → unlimited (verifies kind-30850 signed by trusted issuer)
     2. Payment proof → unlimited (Phase 4 stub — always fails)
     3. Proof-of-work → bypass rate limit (NIP-13 leading zero bits)
     4. Rate limit → per-event-type daily limit
     """
 
-    def __init__(self, config: Optional[dict] = None, connection_url: Optional[str] = None):
+    def __init__(
+        self,
+        config: Optional[dict] = None,
+        connection_url: Optional[str] = None,
+        issuer_lookup: Optional[IssuerLookup] = None,
+    ):
         self._config = config or DEFAULT_POLICY
         self._connection_url = connection_url
         self._db_available = False
+        self._issuer_lookup = issuer_lookup
 
         if connection_url:
             try:
@@ -128,7 +137,7 @@ class AcceptancePolicy:
             # Unknown event type — reject
             return PolicyResult(accepted=False, tier="rejected", reason=f"Unknown event type: {event_type}")
 
-        # Tier 1: Attestation proof (Phase 3 stub)
+        # Tier 1: Attestation proof (kind-30850 from trusted issuer)
         if attestation_proof is not None:
             if self._verify_attestation(attestation_proof, public_key):
                 return PolicyResult(accepted=True, tier="attested", reason="Valid attestation proof")
@@ -165,8 +174,37 @@ class AcceptancePolicy:
         )
 
     def _verify_attestation(self, proof: dict, public_key: str) -> bool:
-        """Verify attestation proof. Phase 3 stub — always returns False."""
-        return False
+        """Verify kind-30850 attestation proof from a trusted jurisdiction issuer.
+
+        Extracts jurisdiction from the proof's 'j' tag, looks up the trusted
+        issuer pubkey, then delegates to verify_attestation_proof() for full
+        cryptographic verification (event ID, Schnorr signature, tag matching).
+        """
+        if self._issuer_lookup is None:
+            return False
+
+        try:
+            # Extract jurisdiction from proof's j-tag
+            tags = proof.get("tags", [])
+            jurisdiction = next(
+                (t[1] for t in tags if len(t) >= 2 and t[0] == "j"), None
+            )
+            if not jurisdiction:
+                logger.debug("Attestation proof missing jurisdiction tag")
+                return False
+
+            # Look up trusted issuer for this jurisdiction
+            issuer_pubkey = self._issuer_lookup(jurisdiction)
+            if not issuer_pubkey:
+                logger.debug("No trusted issuer for jurisdiction: %s", jurisdiction)
+                return False
+
+            # Full cryptographic verification
+            from civicos_relay.voice.crypto import verify_attestation_proof
+            return verify_attestation_proof(proof, public_key, jurisdiction, issuer_pubkey)
+        except Exception:
+            logger.warning("Attestation verification failed", exc_info=True)
+            return False
 
     def _verify_payment(self, proof: dict) -> bool:
         """Verify payment proof. Phase 4 stub — always returns False."""

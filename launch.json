@@ -161,14 +161,17 @@
       {
         "name": "wire_attestation_verification",
         "description": "Wire existing verify_attestation_proof() into acceptance policy check on all write endpoints. Look up trusted issuer pubkey from issuer_registry table.",
-        "status": "not_started",
+        "status": "done",
         "priority": 1,
+        "completed_in": "this session",
+        "notes": "_verify_attestation wired to extract jurisdiction from j-tag, look up issuer via issuer_lookup callable, then call verify_attestation_proof(). app.py lifespan provides issuer_lookup from storage.issuers. Falls through gracefully when no issuer_lookup configured.",
         "source": "docs/internal/relay-acceptance-policy-spec.md (Phase 3)",
         "files": [
           "packages/civicos-relay/src/civicos_relay/server/acceptance.py",
-          "packages/civicos-relay/src/civicos_relay/voice/crypto.py"
+          "packages/civicos-relay/src/civicos_relay/voice/crypto.py",
+          "packages/civicos-relay/src/civicos_relay/server/app.py"
         ],
-        "test_file": "packages/civicos-relay/tests/test_acceptance.py"
+        "test_file": "packages/civicos-relay/tests/test_acceptance_policy.py"
       },
       {
         "name": "attestation_expiry",
