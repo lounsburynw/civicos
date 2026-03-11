@@ -98,7 +98,7 @@ acceptance_policy:
       max_per_key_per_day: 100   # Higher — they're paying per action
     rate_limit:
       max_per_key_per_day: 3     # Taste tier — enough to try, not to spam
-      pow_difficulty: 20
+      pow_difficulty: 16
   comment:
     require_one_of: [attestation, payment, rate_limit]
     attested_limit:
@@ -107,7 +107,7 @@ acceptance_policy:
       max_per_key_per_day: 50
     rate_limit:
       max_per_key_per_day: 3
-      pow_difficulty: 20
+      pow_difficulty: 16
   initiative:
     require_one_of: [attestation, payment]
     attested_limit:
@@ -123,7 +123,7 @@ acceptance_policy:
       max_per_key_per_day: 100
     rate_limit:
       max_per_key_per_day: 10
-      pow_difficulty: 20
+      pow_difficulty: 16
   action_complete:
     require_one_of: [attestation, payment, rate_limit]
     attested_limit:
@@ -132,7 +132,7 @@ acceptance_policy:
       max_per_key_per_day: 100
     rate_limit:
       max_per_key_per_day: 10
-      pow_difficulty: 20
+      pow_difficulty: 16
   feedback:
     require_one_of: [rate_limit]
     rate_limit:
@@ -191,7 +191,7 @@ No proof required. The relay tracks writes per pubkey per day and accepts up to 
 
 **Sybil resistance caveat:** Per-pubkey rate limiting alone provides zero sybil resistance. Generating secp256k1 keypairs is free and instant — an attacker can create 1,000 keys in under a second, each getting 3 free voices/day. This tier is a UX on-ramp, not a security boundary.
 
-**Mitigation: NIP-13 proof of work.** Require a minimum difficulty on the Nostr event ID hash for rate-limited tier writes (e.g., 20-bit target ≈ 1 second of computation). This is:
+**Mitigation: NIP-13 proof of work.** Require a minimum difficulty on the Nostr event ID hash for rate-limited tier writes (16-bit target ≈ 50ms on modern hardware, ~65K average hashes). This is:
 - Computationally cheap to verify on the relay
 - Expensive to mass-produce across thousands of sybil keys
 - Aligned with the Nostr ecosystem (NIP-13 is a recognized standard)
@@ -454,7 +454,7 @@ These must be fixed before the acceptance policy is implemented — there's no p
 1. **Pricing** — per-voice flat fee? Per-jurisdiction pricing? USD-pegged or sats? (Deferred to Phase 4 design.)
 2. **Acceptance tier visibility** — should `acceptance_tier` be returned in API responses, or kept relay-internal? Returning it enables client filtering but leaks metadata about user behavior (e.g., "this pubkey attended an attestation event"). Recommendation: return tier in API responses but strip attestation `created_at` timestamps to reduce deanonymization surface.
 3. **Attestation validity period** — 1 year recommended. Shorter periods increase attestation event frequency (operational burden); longer periods reduce revocation effectiveness.
-4. **NIP-13 difficulty target** — 20-bit recommended (~1 second computation). Needs benchmarking on typical user devices (mobile browsers).
+4. ~~**NIP-13 difficulty target**~~ → **Resolved.** 16-bit implemented (≈50ms on modern hardware). Chosen over 20-bit to avoid penalizing mobile browsers. Server-side wired: `event_id` passed through `CastVoiceRequest`/`SubmitCommentRequest` → `_check_acceptance()` → `AcceptancePolicy.check()`. Client passes natural event hash (`signed.id`); dedicated NIP-13 nonce mining deferred.
 5. **Existing voice migration** — voices already stored without `acceptance_tier` need a default. Recommend backfilling as `"legacy"` tier (distinct from the three active tiers).
 
 ## Review Findings Tracker
