@@ -73,7 +73,7 @@
         "name": "acceptance_policy_monitoring",
         "description": "Add monitoring for relay acceptance policy: rejections by tier, rate limit hits/day, total writes by tier.",
         "status": "not_started",
-        "priority": 2,
+        "priority": 0,
         "source": "docs/internal/relay-acceptance-policy-spec.md (Phase 2)",
         "files": ["packages/civicos-relay/src/civicos_relay/server/acceptance.py"],
         "test_file": null
@@ -198,12 +198,12 @@
       {
         "name": "extension_pow_generation",
         "description": "Add NIP-13 proof-of-work generation to browser extension for free-tier writes. Server-side PoW verification is wired but no client generates it — dead code path until this ships.",
-        "status": "not_started",
+        "status": "done",
         "priority": 2,
         "source": "architectural review — completes PoW tier",
-        "files": ["apps/civicos-extension/src/"],
-        "test_file": null,
-        "notes": "Generate leading zero bits on event ID before submission. ~1s computation at 20-bit target. Should happen transparently when user has no attestation or tokens."
+        "files": ["packages/civicos-client/src/pow.ts", "packages/civicos-client/src/api.ts"],
+        "test_file": "packages/civicos-client/src/pow.test.ts",
+        "notes": "minePoW() in civicos-client adds NIP-13 nonce tag. castVoice() and castComment() mine transparently when no attestation proof. 16-bit difficulty, ~650ms avg on desktop. Cross-verified against Python server-side _verify_pow(). Extension builds clean."
       },
       {
         "name": "attestation_expiry",
