@@ -29,8 +29,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Modal CLI
-        run: pip install modal
+      - name: Install Modal CLI and local packages
+        run: |
+          pip install modal
+          pip install -e packages/civicos-config
+          pip install -e packages/civicos
+          pip install -e packages/civicos-extraction
+          pip install -e packages/civicos-services
 
       - name: Trigger Modal function
         env:
