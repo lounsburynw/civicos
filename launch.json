@@ -1,7 +1,7 @@
 {
   "version": "1.0",
   "phase": "launch",
-  "last_updated": "2026-03-10",
+  "last_updated": "2026-03-11",
   "summary": "Launch readiness: billing infrastructure, acceptance policy enforcement, token issuance, operator tooling, observability",
   "category_order": [
     "security_fixes",
@@ -18,20 +18,22 @@
       {
         "name": "coincurve_import_hard_fail",
         "description": "Make coincurve ImportError a hard failure in production. Currently silently disables ALL signature verification — _schnorr_verify() returns True for any input if library missing.",
-        "status": "not_started",
+        "status": "done",
         "priority": 0,
         "source": "docs/internal/relay-acceptance-policy-spec.md (Phase 0, item 1)",
         "files": ["packages/civicos-relay/src/civicos_relay/voice/crypto.py"],
-        "test_file": "packages/civicos-relay/tests/test_crypto.py"
+        "test_file": "packages/civicos-relay/tests/test_crypto.py",
+        "completed_in": "88d056c"
       },
       {
         "name": "require_created_at_on_writes",
         "description": "All relay write endpoints must require created_at and reject writes without it. Currently Optional[int] = None, omitting it skips signature verification entirely.",
-        "status": "not_started",
+        "status": "done",
         "priority": 0,
         "source": "docs/internal/relay-acceptance-policy-spec.md (Phase 0, item 2)",
         "files": ["packages/civicos-relay/src/civicos_relay/server/app.py"],
-        "test_file": "packages/civicos-relay/tests/test_acceptance.py"
+        "test_file": "packages/civicos-relay/tests/test_acceptance.py",
+        "completed_in": "7beb779"
       }
     ]
   },
@@ -124,8 +126,9 @@
       {
         "name": "nip13_proof_of_work",
         "description": "Add NIP-13 proof-of-work requirement for rate-limited (free) tier writes. 20-bit target ~1s computation. Provides sybil resistance for the free tier.",
-        "status": "not_started",
+        "status": "in_progress",
         "priority": 2,
+        "notes": "_verify_pow() exists in acceptance.py but is not wired into check() flow yet",
         "source": "docs/internal/relay-acceptance-policy-spec.md (Phase 2)",
         "files": ["packages/civicos-relay/src/civicos_relay/server/acceptance.py"],
         "test_file": "packages/civicos-relay/tests/test_acceptance.py"
@@ -133,22 +136,26 @@
       {
         "name": "relay_write_metadata_table",
         "description": "Create relay_write_metadata table to store acceptance_tier per write. Avoids modifying frozen Voice model. Clients can filter/weight by tier.",
-        "status": "not_started",
+        "status": "done",
         "priority": 2,
         "source": "docs/internal/relay-acceptance-policy-spec.md (Model Changes)",
         "files": ["packages/civicos-relay/schema.sql"],
-        "test_file": null
+        "test_file": null,
+        "completed_in": "7beb779",
+        "notes": "Implemented as coordination_write_metadata table"
       },
       {
         "name": "attestation_proof_on_requests",
         "description": "Add attestation_proof field to CastVoiceRequest and other write request schemas. Currently missing — prerequisite for attestation enforcement.",
-        "status": "not_started",
+        "status": "done",
         "priority": 1,
         "source": "docs/internal/relay-acceptance-policy-spec.md (Phase 3)",
         "files": [
           "packages/civicos-services/src/civicos_services/servers/routers/coordination.py"
         ],
-        "test_file": "packages/civicos-relay/tests/test_acceptance.py"
+        "test_file": "packages/civicos-relay/tests/test_acceptance.py",
+        "completed_in": "7beb779",
+        "notes": "attestation_proof added to Voice model and request schemas"
       },
       {
         "name": "wire_attestation_verification",
@@ -209,14 +216,16 @@
       {
         "name": "payment_proof_on_models",
         "description": "Add payment_proof: Optional[dict] to Voice, Comment, CivicActionEvent, CivicCommitment, CivicCompletion models and their request schemas.",
-        "status": "not_started",
+        "status": "done",
         "priority": 2,
         "source": "docs/internal/relay-acceptance-policy-spec.md (Model Changes)",
         "files": [
           "packages/civicos-relay/src/civicos_relay/voice/models.py",
           "packages/civicos-services/src/civicos_services/servers/routers/coordination.py"
         ],
-        "test_file": "packages/civicos-relay/tests/test_acceptance.py"
+        "test_file": "packages/civicos-relay/tests/test_acceptance.py",
+        "completed_in": "7beb779",
+        "notes": "payment_proof added to Voice model"
       },
       {
         "name": "token_verification_in_policy",
