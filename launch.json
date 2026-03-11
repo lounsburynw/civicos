@@ -72,11 +72,12 @@
       {
         "name": "acceptance_policy_monitoring",
         "description": "Add monitoring for relay acceptance policy: rejections by tier, rate limit hits/day, total writes by tier.",
-        "status": "not_started",
+        "status": "done",
         "priority": 0,
         "source": "docs/internal/relay-acceptance-policy-spec.md (Phase 2)",
-        "files": ["packages/civicos-relay/src/civicos_relay/server/acceptance.py"],
-        "test_file": null
+        "files": ["packages/civicos-relay/src/civicos_relay/server/acceptance.py", "packages/civicos-relay/src/civicos_relay/server/app.py"],
+        "test_file": "packages/civicos-relay/tests/test_acceptance_policy.py",
+        "notes": "coordination_acceptance_logs table in relay DB logs every acceptance decision (fire-and-forget). Admin endpoint GET /coordination/admin/acceptance-stats?days=7 returns writes/rejections by tier, daily breakdown, rate limit hits. cleanup_old_logs(30) runs on startup. Schema: scripts/sql/add_acceptance_monitoring.sql."
       },
       {
         "name": "external_cron_triggers",
@@ -218,7 +219,7 @@
         "name": "extension_402_handling",
         "description": "Update extension to handle HTTP 402 responses from relay gracefully. Show UX guidance for attestation or payment options.",
         "status": "not_started",
-        "priority": 2,
+        "priority": 0,
         "source": "docs/internal/relay-acceptance-policy-spec.md (Phase 2)",
         "files": ["apps/civicos-extension/src/"],
         "test_file": null

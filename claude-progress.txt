@@ -21572,3 +21572,26 @@ TBD — needs assignment before /nextsesh
 - `packages/civicos-client/src/pow.test.ts` — 11 tests
 - `packages/civicos-client/src/api.ts` — castVoice(), castComment() integration
 - `launch.json` — billing deferred, PoW done, monitoring P0
+
+## Session — 2026-03-11 (Acceptance Policy Monitoring)
+
+### What was done
+1. **Acceptance monitoring schema** — Created `coordination_acceptance_logs` table in relay DB (`scripts/sql/add_acceptance_monitoring.sql`). Logs every acceptance decision with timestamp, event_type, tier, accepted, reason, pubkey_hash. Applied to production relay DB.
+2. **Fire-and-forget logging** — Added `_log_acceptance()` to `AcceptancePolicy`. Logs both accepted and rejected decisions. Never raises, logs at debug level on failure.
+3. **Stats query method** — Added `get_acceptance_stats(days)` returning writes_by_tier, rejections_by_tier, daily_breakdown, rate_limit_hits.
+4. **Admin endpoint** — `GET /coordination/admin/acceptance-stats?days=7` (requires relay API key). Returns monitoring stats.
+5. **Log cleanup** — `cleanup_old_logs(30)` runs on relay startup alongside existing `cleanup_old_limits()`.
+6. **Tests** — 6 new tests verifying fire-and-forget behavior (no-ops without DB, swallows exceptions).
+
+### Key design decisions
+- Logs live in relay DB (not platform DB) — same DB as `coordination_write_metadata` and `coordination_rate_limits`
+- Logs EVERY decision (not just rejections) — enables tier distribution analysis
+- Rate limit hits identified by `reason LIKE '%rate limit%'` in stats query
+- Admin endpoint capped at 90 days max
+
+### Key files changed
+- `packages/civicos-relay/src/civicos_relay/server/acceptance.py` — _log_acceptance(), get_acceptance_stats(), cleanup_old_logs()
+- `packages/civicos-relay/src/civicos_relay/server/app.py` — Wire logging in _check_acceptance(), add admin endpoint
+- `packages/civicos-relay/tests/test_acceptance_policy.py` — 6 new monitoring tests
+- `scripts/sql/add_acceptance_monitoring.sql` — New table schema
+- `launch.json` — acceptance_policy_monitoring done, extension_402_handling set as next P0
