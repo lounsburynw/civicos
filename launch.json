@@ -45,7 +45,7 @@
         "name": "mcp_usage_logging",
         "description": "Wire usage_logging_middleware into MCP Modal server. Add civicos-platform secret to Modal deployment. Currently the only production service serving traffic has no usage logging.",
         "status": "not_started",
-        "priority": 1,
+        "priority": 0,
         "files": ["apps/civicos-mcp/modal_mcp.py"],
         "test_file": null,
         "notes": "Need to add civicos-platform Modal secret, import usage logging middleware, mount before route handlers"
@@ -117,11 +117,11 @@
       {
         "name": "http_ip_rate_limiting",
         "description": "Add HTTP-level per-IP rate limiting on relay before crypto verification. First line of defense against spam.",
-        "status": "not_started",
+        "status": "done",
         "priority": 0,
         "source": "docs/internal/relay-acceptance-policy-spec.md (Phase 2)",
-        "files": ["apps/civicos-relay/modal_relay.py"],
-        "test_file": null
+        "files": ["packages/civicos-relay/src/civicos_relay/server/ip_rate_limit.py"],
+        "test_file": "packages/civicos-relay/tests/test_ip_rate_limit.py"
       },
       {
         "name": "nip13_proof_of_work",

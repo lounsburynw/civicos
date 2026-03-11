@@ -27,6 +27,7 @@ from civicos_relay.delivery import EmailDelivery, EmailConfig
 from civicos_relay.attestation.service import AttestationService
 from civicos_relay.attestation.signer_client import SignerError
 from civicos_relay.server.acceptance import AcceptancePolicy
+from civicos_relay.server.ip_rate_limit import IPRateLimitMiddleware, DEFAULT_IP_RATE_LIMIT, DEFAULT_IP_RATE_WINDOW
 
 logger = logging.getLogger(__name__)
 
@@ -321,6 +322,11 @@ def create_app() -> FastAPI:
         allow_methods=["GET", "POST"],
         allow_headers=["*"],
     )
+
+    # HTTP-level per-IP rate limiting (runs before crypto verification)
+    ip_limit = int(os.environ.get("RELAY_IP_RATE_LIMIT", str(DEFAULT_IP_RATE_LIMIT)))
+    ip_window = int(os.environ.get("RELAY_IP_RATE_WINDOW", str(DEFAULT_IP_RATE_WINDOW)))
+    app.add_middleware(IPRateLimitMiddleware, max_requests=ip_limit, window_seconds=ip_window)
 
     # Health on root (not behind /coordination)
     @app.get("/health", response_model=HealthResponse)
