@@ -47,6 +47,12 @@ relay_image = (
         "config/registry.json",
         remote_path="/app/registry.json",
     )
+    # API key store — usage logging only (no key validation on relay).
+    # Self-contained: only depends on psycopg2 (already in image).
+    .add_local_file(
+        "packages/civicos-services/src/civicos_services/core/api_keys.py",
+        remote_path="/app/api_keys.py",
+    )
 )
 
 
@@ -56,6 +62,7 @@ relay_image = (
         modal.Secret.from_name("civicos-env"),
         modal.Secret.from_name("civicos-attestation"),
         modal.Secret.from_name("civic-anthropic"),
+        modal.Secret.from_name("civicos-platform"),  # PLATFORM_DATABASE_URL for usage logging
     ],
     timeout=300,
     min_containers=0,
@@ -96,8 +103,11 @@ class RelayServer:
     @modal.asgi_app()
     def relay_endpoint(self):
         import os
+        import time as _time
+        import asyncio as _asyncio
         from fastapi import FastAPI
         from fastapi.middleware.cors import CORSMiddleware
+        from starlette.types import ASGIApp, Receive, Scope, Send
 
         # Import the coordination router (mounted as /app/coordination.py)
         from coordination import router as coordination_router
@@ -146,6 +156,58 @@ class RelayServer:
             version="1.0.0",
         )
 
+        # Usage logging middleware — fire-and-forget, never blocks responses.
+        # Relay has no API key auth (uses Nostr signatures), so key_id is always None.
+        _usage_jurisdiction = jurisdiction  # capture for closure
+
+        class UsageLoggingMiddleware:
+            """Log API usage to Platform DB. Captures status code from response headers."""
+            SKIP_PATHS = {"/health", "/docs", "/redoc", "/openapi.json"}
+
+            def __init__(self, app: ASGIApp):
+                self.app = app
+
+            async def __call__(self, scope: Scope, receive: Receive, send: Send):
+                if scope["type"] != "http":
+                    await self.app(scope, receive, send)
+                    return
+
+                path = scope.get("path", "")
+                if path in self.SKIP_PATHS:
+                    await self.app(scope, receive, send)
+                    return
+
+                start = _time.time()
+                status_code = None
+
+                async def send_wrapper(message):
+                    nonlocal status_code
+                    if message["type"] == "http.response.start":
+                        status_code = message.get("status")
+                    await send(message)
+
+                await self.app(scope, receive, send_wrapper)
+
+                duration_ms = int((_time.time() - start) * 1000)
+                method = scope.get("method", "GET")
+
+                # Fire-and-forget usage log
+                try:
+                    from api_keys import get_api_key_store
+                    store = get_api_key_store()
+                    if store and store.available:
+                        _asyncio.get_event_loop().call_soon(
+                            store.log_usage,
+                            None,  # key_id — relay uses Nostr signatures, not API keys
+                            path,
+                            method,
+                            status_code,
+                            duration_ms,
+                            _usage_jurisdiction,
+                        )
+                except Exception:
+                    pass  # Never block response for usage logging
+
         fastapi_app.add_middleware(
             CORSMiddleware,
             allow_origins=["*"],
@@ -153,6 +215,11 @@ class RelayServer:
             allow_methods=["*"],
             allow_headers=["*"],
         )
+
+        # Usage logging — outermost middleware, runs after CORS
+        # Middleware chain (outermost→innermost):
+        #   UsageLogging → CORS → route handler
+        fastapi_app.add_middleware(UsageLoggingMiddleware)
 
         # Mount coordination router — paths are already prefixed with /coordination/
         fastapi_app.include_router(coordination_router)

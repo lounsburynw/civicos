@@ -53,16 +53,17 @@
       {
         "name": "relay_usage_logging",
         "description": "Add usage logging to relay Modal server for coordination and AI proxy endpoints.",
-        "status": "not_started",
-        "priority": 0,
+        "status": "done",
+        "priority": 1,
         "files": ["apps/civicos-relay/modal_relay.py"],
-        "test_file": null
+        "test_file": null,
+        "notes": "Added UsageLoggingMiddleware (raw ASGI), mounted api_keys.py, civicos-platform secret. Fire-and-forget pattern via call_soon. key_id always None (relay uses Nostr signatures)."
       },
       {
         "name": "deploy_usage_rollup",
         "description": "Verify modal_usage_rollup.py is deployed as a cron job and the platform DB has the schema applied.",
         "status": "not_started",
-        "priority": 2,
+        "priority": 0,
         "files": ["scripts/modal_usage_rollup.py", "scripts/sql/add_platform_billing.sql"],
         "test_file": null,
         "notes": "Job exists but may not be deployed. Verify with `modal app list`."

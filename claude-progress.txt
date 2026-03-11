@@ -21512,3 +21512,22 @@ TBD — needs assignment before /nextsesh
 ### Key files changed
 - `apps/civicos-mcp/modal_mcp.py` — UsageLoggingMiddleware, _mcp_request_key_id context var, civicos-platform secret
 - `launch.json` — mcp_usage_logging marked done
+
+## Session: Relay Usage Logging (2026-03-10)
+
+### What was done
+1. **Added `UsageLoggingMiddleware`** — raw ASGI middleware in `modal_relay.py` that logs all HTTP requests (endpoint, method, status code, latency, jurisdiction) to the Platform DB via fire-and-forget `call_soon`.
+2. **Mounted `api_keys.py`** — self-contained file (only depends on psycopg2) mounted at `/app/api_keys.py` for `get_api_key_store()` and `log_usage()`.
+3. **Added `civicos-platform` secret** to relay's Modal secrets list for `PLATFORM_DATABASE_URL` access.
+4. **launch.json** — `relay_usage_logging` marked done, `deploy_usage_rollup` set as next P0.
+
+### Key design decisions
+- Raw ASGI middleware (not BaseHTTPMiddleware) — matches MCP middleware pattern
+- `key_id` always `None` — relay uses Nostr signatures, not API keys
+- Skips `/health`, `/docs`, `/redoc`, `/openapi.json`
+- Jurisdiction captured via closure from `CIVICOS_JURISDICTION` env var
+- Reuses `ApiKeyStore.log_usage()` — same fire-and-forget pattern as REST API and MCP
+
+### Key files changed
+- `apps/civicos-relay/modal_relay.py` — UsageLoggingMiddleware, api_keys.py mount, civicos-platform secret
+- `launch.json` — relay_usage_logging done, deploy_usage_rollup P0
