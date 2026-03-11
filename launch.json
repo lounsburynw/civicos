@@ -63,11 +63,11 @@
       {
         "name": "deploy_usage_rollup",
         "description": "Verify modal_usage_rollup.py is deployed as a cron job and the platform DB has the schema applied.",
-        "status": "not_started",
+        "status": "done",
         "priority": 0,
-        "files": ["scripts/modal_usage_rollup.py", "scripts/sql/add_platform_billing.sql"],
+        "files": ["scripts/modal_usage_rollup.py", "scripts/sql/add_platform_billing.sql", "scripts/modal_ingest.py"],
         "test_file": null,
-        "notes": "Job exists but may not be deployed. Verify with `modal app list`."
+        "notes": "Platform DB (Supabase axhmnnvefrtliyszbuou, us-west-1) created with 3 tables. Rollup runs as part of daily ingest (scheduled_high_velocity_refresh) to avoid Modal 5-cron limit. Standalone script kept for manual runs. civic-vectors cron removed (redundant with daily ingest)."
       },
       {
         "name": "acceptance_policy_monitoring",
@@ -105,7 +105,7 @@
         "name": "stripe_secrets_deployment",
         "description": "Verify STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, and STRIPE_PRICE_* are configured in Modal secrets.",
         "status": "not_started",
-        "priority": 1,
+        "priority": 0,
         "files": [],
         "test_file": null,
         "notes": "Check with `modal secret list` and `modal secret get civicos-env`"

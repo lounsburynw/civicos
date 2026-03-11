@@ -21531,3 +21531,25 @@ TBD — needs assignment before /nextsesh
 ### Key files changed
 - `apps/civicos-relay/modal_relay.py` — UsageLoggingMiddleware, api_keys.py mount, civicos-platform secret
 - `launch.json` — relay_usage_logging done, deploy_usage_rollup P0
+
+## Session: Deploy Usage Rollup (2026-03-11)
+
+### What was done
+1. **Created Platform DB** — New Supabase project `axhmnnvefrtliyszbuou` (us-west-1) with 3 tables: `platform_api_keys`, `platform_usage_logs`, `platform_usage_daily`. Schema applied from `scripts/sql/add_platform_billing.sql`.
+2. **Created `civicos-platform` Modal secret** — Uses pooler URL (IPv4) since Modal containers can't reach Supabase via IPv6.
+3. **Added usage rollup to daily ingest** — Rollup logic added to end of `scheduled_high_velocity_refresh` in `modal_ingest.py`. Avoids Modal 5-cron limit.
+4. **Removed redundant `civic-vectors` weekly cron** — Daily ingest already handles vector indexing.
+5. **Updated standalone rollup script** — `modal_usage_rollup.py` kept for manual runs (no cron), added psycopg2 image.
+6. **Verified rollup works** — Manual `modal run scripts/modal_usage_rollup.py::rollup_usage_logs` completed successfully.
+7. **launch.json** — `deploy_usage_rollup` marked done, `stripe_secrets_deployment` set as next P0.
+
+### Key design decisions
+- Rollup folded into daily ingest rather than standalone cron due to Modal 5-cron limit
+- Platform DB uses pooler URL (`aws-1-us-west-1.pooler.supabase.com:6543`) for Modal compatibility
+- Rollup failure is non-fatal (try/except with warning log) — doesn't block data ingestion
+
+### Key files changed
+- `scripts/modal_ingest.py` — civicos-platform secret, usage rollup logic in daily refresh
+- `scripts/modal_usage_rollup.py` — removed cron, added psycopg2 image
+- `scripts/modal_vectors.py` — removed redundant weekly cron schedule
+- `launch.json` — deploy_usage_rollup done, stripe_secrets_deployment P0

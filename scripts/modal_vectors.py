@@ -382,17 +382,17 @@ def get_stats(jurisdiction: str = "city-san-rafael") -> dict:
     return stats
 
 
-# Scheduled function for weekly refresh
 @app.function(
     image=civic_image,
     secrets=[modal.Secret.from_name("civic-db")],
     gpu="T4",
     memory=8192,  # 8GB — sufficient for incremental refresh
     timeout=3600,
-    schedule=modal.Cron("0 6 * * 0"),  # Weekly on Sunday at 6 AM UTC
+    # Cron removed — daily ingest (modal_ingest.py) already handles vector indexing.
+    # Run manually: modal run scripts/modal_vectors.py::scheduled_refresh
 )
 def scheduled_refresh():
-    """Weekly scheduled vector refresh."""
+    """Manual vector refresh (cron removed — daily ingest covers this)."""
     import logging
 
     logging.basicConfig(level=logging.INFO)

@@ -1,60 +1,61 @@
-# Recommended: Deploy Usage Rollup
+# Recommended: Stripe Secrets Deployment
 
 **Priority:** P0
-**Area:** observability
+**Area:** billing_payments
 **Date:** 2026-03-11
 
 > This is recommended context from the previous session. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
 
 ## Context
 
-Usage logging middleware is now wired into all three production services (REST API, MCP, Relay). Each logs per-request data (endpoint, method, status, latency, jurisdiction, key_id) to `platform_usage_logs` in the Platform DB via `ApiKeyStore.log_usage()`. The final piece is deploying the usage rollup cron job that aggregates raw logs into daily summaries for billing and dashboards.
+The usage logging and rollup pipeline is now complete — all three services (API, MCP, Relay) log requests to the Platform DB, and a daily rollup runs as part of `scheduled_high_velocity_refresh`. The next step in the billing pipeline is deploying Stripe secrets so the checkout/webhook endpoints can function.
 
 ## Recommended Task
 
-Deploy `scripts/modal_usage_rollup.py` as a Modal cron job and verify the Platform DB has all required tables. The script exists but is NOT currently deployed (`modal app list` shows no rollup app). The SQL schema file also exists but may not be applied to the Platform DB yet.
+Configure Stripe API keys and price IDs in Modal secrets so the billing endpoints can process payments. This is a prerequisite for `billing_endpoint_deployment` and `stripe_key_delivery_automation` (both P1).
 
 ## Key Files
 
-- `scripts/modal_usage_rollup.py` -- Rollup cron job (aggregates `platform_usage_logs` into daily summaries)
-- `scripts/sql/add_platform_billing.sql` -- Platform DB schema (usage_logs, rollup tables, billing tables)
-- `packages/civicos-services/src/civicos_services/core/api_keys.py:324-355` -- `log_usage()` that writes raw logs
-- `apps/civicos-mcp/modal_mcp.py:403-452` -- MCP UsageLoggingMiddleware (reference)
-- `apps/civicos-relay/modal_relay.py:163-209` -- Relay UsageLoggingMiddleware (just added)
+- `.env.example:316-330` — Stripe env var names and descriptions
+- `packages/civicos-services/src/civicos_services/core/stripe_billing.py` — Stripe billing logic (checkout, webhooks)
+- `packages/civicos-services/src/civicos_services/core/api_keys.py` — API key provisioning (called after Stripe checkout)
+- `apps/civicos-mcp/modal_mcp.py` — MCP server where billing endpoints need to be mounted
+- `launch.json:104-111` — This item's checklist entry
 
 ## Suggested Approach
 
-1. Read `scripts/modal_usage_rollup.py` to understand the rollup logic and Modal cron schedule
-2. Read `scripts/sql/add_platform_billing.sql` to understand required tables
-3. Check if Platform DB tables exist: connect via `PLATFORM_DATABASE_URL` and list tables
-4. If tables missing, apply the SQL schema
-5. Deploy the rollup cron: `modal deploy scripts/modal_usage_rollup.py`
-6. Verify deployment: `modal app list | grep rollup`
-7. Optionally trigger a manual run to verify it works: `modal run scripts/modal_usage_rollup.py`
-8. Mark `deploy_usage_rollup` done in `launch.json`
+1. Check if Stripe account exists: does the user have `STRIPE_SECRET_KEY` already?
+2. If yes, create Modal secret: `modal secret create civicos-stripe STRIPE_SECRET_KEY=sk_... STRIPE_WEBHOOK_SECRET=whsec_... STRIPE_PRICE_JOURNALIST=price_... STRIPE_PRICE_ORGANIZATION=price_... STRIPE_PRICE_CITY=price_... STRIPE_PRICE_API=price_...`
+3. If no, guide user through Stripe Dashboard setup (create products/prices first)
+4. Verify secret exists: `modal secret list | grep stripe`
+5. Add secrets to local `.env` for dev testing
+6. Mark `stripe_secrets_deployment` done in `launch.json`
+7. Optionally continue to `billing_endpoint_deployment` (P1) — mount billing router in `modal_mcp.py`
 
 ## Tests to Run
 
 ```bash
-# No dedicated test file — verify via:
-modal app list | grep rollup                    # Cron is deployed
-modal run scripts/modal_usage_rollup.py         # Manual trigger works
+# No automated test — verify via:
+modal secret list | grep stripe
+# Then optionally test billing import:
+python3 -c "from civicos_services.core.stripe_billing import create_checkout_session; print('Import OK')"
 ```
 
 ## Success Criteria
 
-- [ ] Platform DB has all required tables from `add_platform_billing.sql`
-- [ ] `modal_usage_rollup.py` deployed as a Modal cron job
-- [ ] Manual trigger completes without errors
-- [ ] `deploy_usage_rollup` marked done in `launch.json`
+- [ ] Stripe secrets configured in Modal (`civicos-stripe` or added to `civicos-env`)
+- [ ] Stripe env vars added to local `.env`
+- [ ] `stripe_secrets_deployment` marked done in `launch.json`
 
 ## What Changed This Session (uncommitted)
 
-1. `apps/civicos-relay/modal_relay.py` -- UsageLoggingMiddleware, api_keys.py mount, civicos-platform secret
-2. `launch.json` -- `relay_usage_logging` done, `deploy_usage_rollup` set as P0
+1. `scripts/modal_ingest.py` — Added `civicos-platform` secret + usage rollup logic to daily high-velocity refresh
+2. `scripts/modal_usage_rollup.py` — Removed cron (now runs via ingest), added psycopg2 image for manual runs
+3. `scripts/modal_vectors.py` — Removed redundant weekly cron (daily ingest covers vector indexing)
+4. `launch.json` — `deploy_usage_rollup` marked done, `stripe_secrets_deployment` set as P0
 
-## Remaining Security Audit Warnings (informational, not blocking)
+## Infrastructure Notes
 
-- Coordination router has no acceptance policy enforcement (relay has it, services router doesn't)
-- `/coordination/attest` endpoint has its own inline clock skew check rather than using shared `_check_created_at()`
-- IP rate limiting is in-memory only -- on multi-container Modal, each container has its own counter
+- **Platform DB**: Supabase project `axhmnnvefrtliyszbuou` (us-west-1), pooler URL required for Modal (IPv6 not supported)
+- **Modal cron limit**: 5 crons max on current plan. 4 are in `civic-ingest`, 1 slot freed by removing `civic-vectors` cron. There may be a phantom 5th cron Modal is counting — if you need another cron slot, investigate via Modal GUI or contact support.
+- **Stale MCP apps**: `civicos-marin-county` (19d idle), `civicos-federal` (20d), `civicos-california` (20d), `civicos-personal-mcp` (30d), `civicos-mcp-apps` (30d) — safe to stop if resources needed, but they're just idle web endpoints.
