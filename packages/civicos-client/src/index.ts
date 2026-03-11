@@ -67,6 +67,10 @@ export {
   createCivicActionTags,
 } from './events.js';
 
+// NIP-13 proof-of-work mining
+export { minePoW, countLeadingZeroBits } from './pow.js';
+export type { MinableEvent } from './pow.js';
+
 // Session — high-level orchestration
 export { CivicSession } from './session.js';
 export type { PulseBundle, CommentThread, InitiativeDetail } from './session.js';

@@ -23,6 +23,7 @@ import type {
   CommentSynthesis,
   ContextBundle,
 } from './types.js';
+import { minePoW } from './pow.js';
 import {
   CivicEventKinds,
   createVoiceContent,
@@ -630,10 +631,22 @@ export class ApiClient {
     attestationProof?: Record<string, unknown>,
   ): Promise<boolean> {
     const signer = this.requireSigner();
+    const pubkey = await signer.getPublicKey();
     const createdAt = Math.floor(Date.now() / 1000);
+    let tags = createVoiceTags(entityId, jurisdiction, stance);
+
+    // Mine NIP-13 proof-of-work for unattested writes (16-bit difficulty)
+    if (!attestationProof) {
+      const mined = minePoW(
+        { pubkey, created_at: createdAt, kind: CivicEventKinds.VOICE, tags, content: createVoiceContent(entityId, stance, createdAt) },
+        16,
+      );
+      if (mined) tags = mined.tags;
+    }
+
     const signed = await signer.signEvent({
       kind: CivicEventKinds.VOICE,
-      tags: createVoiceTags(entityId, jurisdiction, stance),
+      tags,
       content: createVoiceContent(entityId, stance, createdAt),
       created_at: createdAt,
     });
@@ -660,10 +673,22 @@ export class ApiClient {
     attestationProof?: Record<string, unknown>,
   ): Promise<boolean> {
     const signer = this.requireSigner();
+    const pubkey = await signer.getPublicKey();
     const createdAt = Math.floor(Date.now() / 1000);
+    let tags = createCommentTags(entityId, jurisdiction, stance);
+
+    // Mine NIP-13 proof-of-work for unattested writes (16-bit difficulty)
+    if (!attestationProof) {
+      const mined = minePoW(
+        { pubkey, created_at: createdAt, kind: CivicEventKinds.COMMENT, tags, content: commentText },
+        16,
+      );
+      if (mined) tags = mined.tags;
+    }
+
     const signed = await signer.signEvent({
       kind: CivicEventKinds.COMMENT,
-      tags: createCommentTags(entityId, jurisdiction, stance),
+      tags,
       content: commentText,
       created_at: createdAt,
     });
