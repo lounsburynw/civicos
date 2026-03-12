@@ -92,7 +92,7 @@ class TestDetectionResult:
 class TestDetectLegistar:
     """Test Legistar detection strategy."""
 
-    @patch('civic_extraction.platform_detection.requests.get')
+    @patch('civicos_extraction.platform_detection.requests.get')
     def test_legistar_detected(self, mock_get):
         """Test successful Legistar detection."""
         mock_response = MagicMock()
@@ -109,7 +109,7 @@ class TestDetectLegistar:
         assert metadata["body_count"] == 2
         assert metadata["status_code"] == 200
 
-    @patch('civic_extraction.platform_detection.requests.get')
+    @patch('civicos_extraction.platform_detection.requests.get')
     def test_legistar_not_found(self, mock_get):
         """Test Legistar 404 response."""
         mock_response = MagicMock()
@@ -121,7 +121,7 @@ class TestDetectLegistar:
         assert confidence == 0.0
         assert metadata["status_code"] == 404
 
-    @patch('civic_extraction.platform_detection.requests.get')
+    @patch('civicos_extraction.platform_detection.requests.get')
     def test_legistar_timeout(self, mock_get):
         """Test Legistar timeout handling."""
         mock_get.side_effect = requests.exceptions.Timeout()
@@ -131,7 +131,7 @@ class TestDetectLegistar:
         assert confidence == 0.0
         assert metadata["error"] == "Timeout"
 
-    @patch('civic_extraction.platform_detection.requests.get')
+    @patch('civicos_extraction.platform_detection.requests.get')
     def test_legistar_invalid_json(self, mock_get):
         """Test Legistar invalid JSON response."""
         mock_response = MagicMock()
@@ -148,7 +148,7 @@ class TestDetectLegistar:
 class TestDetectCivicClerk:
     """Test CivicClerk detection strategy."""
 
-    @patch('civic_extraction.platform_detection.requests.get')
+    @patch('civicos_extraction.platform_detection.requests.get')
     def test_civicclerk_detected_odata(self, mock_get):
         """Test successful CivicClerk detection with OData format."""
         mock_response = MagicMock()
@@ -165,7 +165,7 @@ class TestDetectCivicClerk:
         assert confidence == 0.95
         assert metadata["board_count"] == 1
 
-    @patch('civic_extraction.platform_detection.requests.get')
+    @patch('civicos_extraction.platform_detection.requests.get')
     def test_civicclerk_detected_list(self, mock_get):
         """Test CivicClerk detection with direct list response."""
         mock_response = MagicMock()
@@ -181,7 +181,7 @@ class TestDetectCivicClerk:
         assert confidence == 0.90
         assert metadata["board_count"] == 1
 
-    @patch('civic_extraction.platform_detection.requests.get')
+    @patch('civicos_extraction.platform_detection.requests.get')
     def test_civicclerk_not_found(self, mock_get):
         """Test CivicClerk 404 response."""
         mock_response = MagicMock()
@@ -196,7 +196,7 @@ class TestDetectCivicClerk:
 class TestDetectProudCity:
     """Test ProudCity detection strategy."""
 
-    @patch('civic_extraction.platform_detection.requests.get')
+    @patch('civicos_extraction.platform_detection.requests.get')
     def test_proudcity_detected_many_types(self, mock_get):
         """Test ProudCity detection with many meeting types."""
         mock_response = MagicMock()
@@ -221,7 +221,7 @@ class TestDetectProudCity:
         assert metadata["meeting_type_count"] >= 5
         assert "city-council" in metadata["discovered_meeting_types"]
 
-    @patch('civic_extraction.platform_detection.requests.get')
+    @patch('civicos_extraction.platform_detection.requests.get')
     def test_proudcity_detected_few_types(self, mock_get):
         """Test ProudCity detection with 2-4 meeting types."""
         mock_response = MagicMock()
@@ -241,7 +241,7 @@ class TestDetectProudCity:
         assert confidence == 0.75
         assert metadata["meeting_type_count"] == 2
 
-    @patch('civic_extraction.platform_detection.requests.get')
+    @patch('civicos_extraction.platform_detection.requests.get')
     def test_proudcity_detected_one_type(self, mock_get):
         """Test ProudCity detection with only one meeting type."""
         mock_response = MagicMock()
@@ -260,7 +260,7 @@ class TestDetectProudCity:
         assert confidence == 0.50
         assert metadata["meeting_type_count"] == 1
 
-    @patch('civic_extraction.platform_detection.requests.get')
+    @patch('civicos_extraction.platform_detection.requests.get')
     def test_proudcity_not_detected(self, mock_get):
         """Test ProudCity not detected when no archives found."""
         mock_response = MagicMock()
@@ -273,7 +273,7 @@ class TestDetectProudCity:
         assert confidence == 0.0
         assert metadata["meeting_type_count"] == 0
 
-    @patch('civic_extraction.platform_detection.requests.get')
+    @patch('civicos_extraction.platform_detection.requests.get')
     def test_proudcity_page_not_found(self, mock_get):
         """Test ProudCity with 404 response."""
         mock_response = MagicMock()
@@ -289,9 +289,9 @@ class TestDetectProudCity:
 class TestDetectPlatform:
     """Test main detect_platform function."""
 
-    @patch('civic_extraction.platform_detection._detect_legistar')
-    @patch('civic_extraction.platform_detection._detect_civicclerk')
-    @patch('civic_extraction.platform_detection._detect_proudcity')
+    @patch('civicos_extraction.platform_detection._detect_legistar')
+    @patch('civicos_extraction.platform_detection._detect_civicclerk')
+    @patch('civicos_extraction.platform_detection._detect_proudcity')
     def test_detects_legistar(self, mock_pc, mock_cc, mock_leg):
         """Test Legistar is detected when API responds."""
         mock_leg.return_value = (0.95, {"body_count": 5})
@@ -304,9 +304,9 @@ class TestDetectPlatform:
         assert result.confidence == 0.95
         assert result.platform_name == "Legistar"
 
-    @patch('civic_extraction.platform_detection._detect_legistar')
-    @patch('civic_extraction.platform_detection._detect_civicclerk')
-    @patch('civic_extraction.platform_detection._detect_proudcity')
+    @patch('civicos_extraction.platform_detection._detect_legistar')
+    @patch('civicos_extraction.platform_detection._detect_civicclerk')
+    @patch('civicos_extraction.platform_detection._detect_proudcity')
     def test_detects_civicclerk(self, mock_pc, mock_cc, mock_leg):
         """Test CivicClerk is detected when API responds."""
         mock_leg.return_value = (0.0, {})
@@ -318,9 +318,9 @@ class TestDetectPlatform:
         assert result.source_type == "civicclerk"
         assert result.confidence == 0.95
 
-    @patch('civic_extraction.platform_detection._detect_legistar')
-    @patch('civic_extraction.platform_detection._detect_civicclerk')
-    @patch('civic_extraction.platform_detection._detect_proudcity')
+    @patch('civicos_extraction.platform_detection._detect_legistar')
+    @patch('civicos_extraction.platform_detection._detect_civicclerk')
+    @patch('civicos_extraction.platform_detection._detect_proudcity')
     def test_detects_proudcity(self, mock_pc, mock_cc, mock_leg):
         """Test ProudCity is detected when scraping finds archives."""
         mock_leg.return_value = (0.0, {})
@@ -332,9 +332,9 @@ class TestDetectPlatform:
         assert result.source_type == "proudcity"
         assert result.confidence == 0.90
 
-    @patch('civic_extraction.platform_detection._detect_legistar')
-    @patch('civic_extraction.platform_detection._detect_civicclerk')
-    @patch('civic_extraction.platform_detection._detect_proudcity')
+    @patch('civicos_extraction.platform_detection._detect_legistar')
+    @patch('civicos_extraction.platform_detection._detect_civicclerk')
+    @patch('civicos_extraction.platform_detection._detect_proudcity')
     def test_no_platform_detected(self, mock_pc, mock_cc, mock_leg):
         """Test no platform detected returns appropriate result."""
         mock_leg.return_value = (0.0, {})
@@ -347,9 +347,9 @@ class TestDetectPlatform:
         assert result.confidence == 0.0
         assert "No platform detected" in result.errors
 
-    @patch('civic_extraction.platform_detection._detect_legistar')
-    @patch('civic_extraction.platform_detection._detect_civicclerk')
-    @patch('civic_extraction.platform_detection._detect_proudcity')
+    @patch('civicos_extraction.platform_detection._detect_legistar')
+    @patch('civicos_extraction.platform_detection._detect_civicclerk')
+    @patch('civicos_extraction.platform_detection._detect_proudcity')
     def test_highest_confidence_wins(self, mock_pc, mock_cc, mock_leg):
         """Test highest confidence platform is selected."""
         mock_leg.return_value = (0.50, {})  # Low confidence
@@ -362,9 +362,9 @@ class TestDetectPlatform:
         assert result.source_type == "proudcity"
         assert result.confidence == 0.90
 
-    @patch('civic_extraction.platform_detection._detect_legistar')
-    @patch('civic_extraction.platform_detection._detect_civicclerk')
-    @patch('civic_extraction.platform_detection._detect_proudcity')
+    @patch('civicos_extraction.platform_detection._detect_legistar')
+    @patch('civicos_extraction.platform_detection._detect_civicclerk')
+    @patch('civicos_extraction.platform_detection._detect_proudcity')
     def test_custom_jurisdiction_id(self, mock_pc, mock_cc, mock_leg):
         """Test custom jurisdiction_id is used."""
         mock_leg.return_value = (0.0, {})
@@ -382,7 +382,7 @@ class TestDetectPlatform:
 class TestDetectPlatformBatch:
     """Test batch platform detection."""
 
-    @patch('civic_extraction.platform_detection.detect_platform')
+    @patch('civicos_extraction.platform_detection.detect_platform')
     def test_batch_detection(self, mock_detect):
         """Test batch detection calls detect_platform for each URL."""
         mock_detect.side_effect = [
@@ -399,7 +399,7 @@ class TestDetectPlatformBatch:
         assert results["https://www.cityofberkeley.info"].source_type == "legistar"
         assert results["https://elcerrito.ca.gov"].source_type == "civicclerk"
 
-    @patch('civic_extraction.platform_detection.detect_platform')
+    @patch('civicos_extraction.platform_detection.detect_platform')
     def test_batch_handles_errors(self, mock_detect):
         """Test batch detection handles errors gracefully."""
         mock_detect.side_effect = [
