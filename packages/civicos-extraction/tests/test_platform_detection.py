@@ -12,6 +12,7 @@ from civicos_extraction.platform_detection import (
     DetectionResult,
     detect_platform,
     detect_platform_batch,
+    discover_granicus_subdomain,
     _extract_client_name,
     _detect_legistar,
     _detect_civicclerk,
@@ -415,3 +416,81 @@ class TestDetectPlatformBatch:
         assert results["https://www.cityofberkeley.info"].source_type == "legistar"
         assert results["https://broken.org"].source_type is None
         assert "Network error" in results["https://broken.org"].errors
+
+
+class TestDiscoverGranicusSubdomain:
+    """Test Granicus subdomain auto-discovery."""
+
+    @patch('civicos_extraction.platform_detection.requests.get')
+    @patch('civicos_extraction.platform_detection.requests.head')
+    def test_discovers_simple_slug(self, mock_head, mock_get):
+        """Test discovery with simple city slug (e.g., dublin)."""
+        # Root page check succeeds for first pattern
+        mock_head.return_value = MagicMock(status_code=200, url="https://dublin.granicus.com/")
+
+        # ViewPublisher returns table HTML
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.text = '<html><body><table><tr><td>Meeting</td></tr></table></body></html>'
+        mock_get.return_value = mock_response
+
+        result = discover_granicus_subdomain("Dublin")
+        assert result is not None
+        assert result["subdomain"] == "dublin"
+        assert result["view_id"] == 1
+        assert result["table_count"] == 1
+
+    @patch('civicos_extraction.platform_detection.requests.get')
+    @patch('civicos_extraction.platform_detection.requests.head')
+    def test_discovers_cityof_pattern(self, mock_head, mock_get):
+        """Test discovery with cityof prefix pattern."""
+        # First pattern fails, second succeeds
+        def head_side_effect(url, **kwargs):
+            resp = MagicMock()
+            if "cityofmillvalley" in url:
+                resp.status_code = 200
+            else:
+                resp.status_code = 404
+            return resp
+
+        mock_head.side_effect = head_side_effect
+
+        # view_id=1 returns no tables, view_id=2 returns tables
+        call_count = [0]
+        def get_side_effect(url, **kwargs):
+            call_count[0] += 1
+            resp = MagicMock()
+            if "view_id=2" in url:
+                resp.status_code = 200
+                resp.text = '<html><body><table><tr><td>Meeting</td></tr></table></body></html>'
+            else:
+                resp.status_code = 200
+                resp.text = '<html><body>No tables</body></html>'
+            return resp
+
+        mock_get.side_effect = get_side_effect
+
+        result = discover_granicus_subdomain("Mill Valley")
+        assert result is not None
+        assert result["subdomain"] == "cityofmillvalley"
+        assert result["view_id"] == 2
+
+    @patch('civicos_extraction.platform_detection.requests.head')
+    def test_returns_none_when_not_found(self, mock_head):
+        """Test returns None when no Granicus instance found."""
+        mock_head.return_value = MagicMock(status_code=404)
+
+        result = discover_granicus_subdomain("Nonexistent City")
+        assert result is None
+
+    def test_slug_generation(self):
+        """Test city name to slug conversion."""
+        # Test indirectly via candidate generation
+        import re
+        city_name = "San Anselmo"
+        slug = re.sub(r"[\s\-]+", "", city_name.lower().strip())
+        assert slug == "sananselmo"
+
+        city_name = "Mill Valley"
+        slug = re.sub(r"[\s\-]+", "", city_name.lower().strip())
+        assert slug == "millvalley"

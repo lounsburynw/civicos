@@ -12,17 +12,18 @@
     "operator_readiness",
     "federation_testbed"
   ],
-
   "security_fixes": {
     "description": "Fix existing security vulnerabilities that undermine the trust model (Phase 0 from acceptance policy spec)",
     "items": [
       {
         "name": "coincurve_import_hard_fail",
-        "description": "Make coincurve ImportError a hard failure in production. Currently silently disables ALL signature verification — _schnorr_verify() returns True for any input if library missing.",
+        "description": "Make coincurve ImportError a hard failure in production. Currently silently disables ALL signature verification \u2014 _schnorr_verify() returns True for any input if library missing.",
         "status": "done",
         "priority": 0,
         "source": "docs/internal/relay-acceptance-policy-spec.md (Phase 0, item 1)",
-        "files": ["packages/civicos-relay/src/civicos_relay/voice/crypto.py"],
+        "files": [
+          "packages/civicos-relay/src/civicos_relay/voice/crypto.py"
+        ],
         "test_file": "packages/civicos-relay/tests/test_crypto.py",
         "completed_in": "88d056c"
       },
@@ -32,13 +33,14 @@
         "status": "done",
         "priority": 0,
         "source": "docs/internal/relay-acceptance-policy-spec.md (Phase 0, item 2)",
-        "files": ["packages/civicos-relay/src/civicos_relay/server/app.py"],
+        "files": [
+          "packages/civicos-relay/src/civicos_relay/server/app.py"
+        ],
         "test_file": "packages/civicos-relay/tests/test_acceptance.py",
         "completed_in": "7beb779"
       }
     ]
   },
-
   "observability": {
     "description": "Usage logging and metrics across all deployed services",
     "items": [
@@ -47,7 +49,9 @@
         "description": "Wire usage_logging_middleware into MCP Modal server. Add civicos-platform secret to Modal deployment. Currently the only production service serving traffic has no usage logging.",
         "status": "done",
         "priority": 0,
-        "files": ["apps/civicos-mcp/modal_mcp.py"],
+        "files": [
+          "apps/civicos-mcp/modal_mcp.py"
+        ],
         "test_file": null,
         "notes": "Added UsageLoggingMiddleware (raw ASGI), civicos-platform secret, _mcp_request_key_id context var. Fire-and-forget pattern via call_soon."
       },
@@ -56,7 +60,9 @@
         "description": "Add usage logging to relay Modal server for coordination and AI proxy endpoints.",
         "status": "done",
         "priority": 1,
-        "files": ["apps/civicos-relay/modal_relay.py"],
+        "files": [
+          "apps/civicos-relay/modal_relay.py"
+        ],
         "test_file": null,
         "notes": "Added UsageLoggingMiddleware (raw ASGI), mounted api_keys.py, civicos-platform secret. Fire-and-forget pattern via call_soon. key_id always None (relay uses Nostr signatures)."
       },
@@ -65,7 +71,11 @@
         "description": "Verify modal_usage_rollup.py is deployed as a cron job and the platform DB has the schema applied.",
         "status": "done",
         "priority": 0,
-        "files": ["scripts/modal_usage_rollup.py", "scripts/sql/add_platform_billing.sql", "scripts/modal_ingest.py"],
+        "files": [
+          "scripts/modal_usage_rollup.py",
+          "scripts/sql/add_platform_billing.sql",
+          "scripts/modal_ingest.py"
+        ],
         "test_file": null,
         "notes": "Platform DB (Supabase axhmnnvefrtliyszbuou, us-west-1) created with 3 tables. Rollup runs as part of daily ingest (scheduled_high_velocity_refresh) to avoid Modal 5-cron limit. Standalone script kept for manual runs. civic-vectors cron removed (redundant with daily ingest)."
       },
@@ -75,7 +85,10 @@
         "status": "done",
         "priority": 0,
         "source": "docs/internal/relay-acceptance-policy-spec.md (Phase 2)",
-        "files": ["packages/civicos-relay/src/civicos_relay/server/acceptance.py", "packages/civicos-relay/src/civicos_relay/server/app.py"],
+        "files": [
+          "packages/civicos-relay/src/civicos_relay/server/acceptance.py",
+          "packages/civicos-relay/src/civicos_relay/server/app.py"
+        ],
         "test_file": "packages/civicos-relay/tests/test_acceptance_policy.py",
         "notes": "coordination_acceptance_logs table in relay DB logs every acceptance decision (fire-and-forget). Admin endpoint GET /coordination/admin/acceptance-stats?days=7 returns writes/rejections by tier, daily breakdown, rate limit hits. cleanup_old_logs(30) runs on startup. Schema: scripts/sql/add_acceptance_monitoring.sql."
       },
@@ -84,13 +97,15 @@
         "description": "Migrate Modal cron schedules to GitHub Actions scheduled workflows hitting Modal HTTP endpoints. Removes 5-cron-job plan limit and decouples scheduling from compute.",
         "status": "done",
         "priority": 1,
-        "files": ["scripts/modal_ingest.py", ".github/workflows/"],
+        "files": [
+          "scripts/modal_ingest.py",
+          ".github/workflows/"
+        ],
         "test_file": null,
         "notes": "Migrated 4 Modal crons to GH Actions workflows. Requires MODAL_TOKEN_ID + MODAL_TOKEN_SECRET repo secrets. Deploy modal_ingest.py to free cron slots."
       }
     ]
   },
-
   "billing_payments": {
     "description": "Stripe billing pipeline for API key provisioning (read access)",
     "items": [
@@ -99,7 +114,9 @@
         "description": "Automate API key delivery after Stripe checkout. Currently raw key is logged server-side and must be manually emailed. Options: email via SendGrid/SES, or show on a post-checkout page.",
         "status": "deferred",
         "priority": 3,
-        "files": ["packages/civicos-services/src/civicos_services/core/stripe_billing.py"],
+        "files": [
+          "packages/civicos-services/src/civicos_services/core/stripe_billing.py"
+        ],
         "test_file": null,
         "notes": "Webhook handler auto-provisions key but delivery is documented stub: 'raw_key delivery is manual for now'"
       },
@@ -108,7 +125,10 @@
         "description": "Verify /api/billing/checkout and /api/billing/webhook are reachable on the deployed MCP server. May need to mount billing router in modal_mcp.py.",
         "status": "deferred",
         "priority": 3,
-        "files": ["apps/civicos-mcp/modal_mcp.py", "packages/civicos-services/src/civicos_services/core/stripe_billing.py"],
+        "files": [
+          "apps/civicos-mcp/modal_mcp.py",
+          "packages/civicos-services/src/civicos_services/core/stripe_billing.py"
+        ],
         "test_file": null
       },
       {
@@ -118,13 +138,12 @@
         "priority": 3,
         "files": [],
         "test_file": null,
-        "notes": "Deferred: need usage data to decide billing model (flat subscription vs metered vs hybrid). Usage logging pipeline is live — collect data first, then set up Stripe with the right model. Also need to decide whether to use Stripe metered billing for read API. See relay-acceptance-policy-spec.md for write-side blinded token billing."
+        "notes": "Deferred: need usage data to decide billing model (flat subscription vs metered vs hybrid). Usage logging pipeline is live \u2014 collect data first, then set up Stripe with the right model. Also need to decide whether to use Stripe metered billing for read API. See relay-acceptance-policy-spec.md for write-side blinded token billing."
       }
     ]
   },
-
   "acceptance_policy": {
-    "description": "Relay acceptance policy enforcement — attestation verification and rate limiting hardening (Phases 2-3 from spec)",
+    "description": "Relay acceptance policy enforcement \u2014 attestation verification and rate limiting hardening (Phases 2-3 from spec)",
     "items": [
       {
         "name": "http_ip_rate_limiting",
@@ -132,7 +151,9 @@
         "status": "done",
         "priority": 0,
         "source": "docs/internal/relay-acceptance-policy-spec.md (Phase 2)",
-        "files": ["packages/civicos-relay/src/civicos_relay/server/ip_rate_limit.py"],
+        "files": [
+          "packages/civicos-relay/src/civicos_relay/server/ip_rate_limit.py"
+        ],
         "test_file": "packages/civicos-relay/tests/test_ip_rate_limit.py"
       },
       {
@@ -143,7 +164,9 @@
         "completed_in": "this session",
         "notes": "_verify_pow wired into check() as tier 3, before rate limiting. Valid PoW bypasses rate limit. Configured per event type via pow_difficulty.",
         "source": "docs/internal/relay-acceptance-policy-spec.md (Phase 2)",
-        "files": ["packages/civicos-relay/src/civicos_relay/server/acceptance.py"],
+        "files": [
+          "packages/civicos-relay/src/civicos_relay/server/acceptance.py"
+        ],
         "test_file": "packages/civicos-relay/tests/test_acceptance.py"
       },
       {
@@ -152,14 +175,16 @@
         "status": "done",
         "priority": 2,
         "source": "docs/internal/relay-acceptance-policy-spec.md (Model Changes)",
-        "files": ["packages/civicos-relay/schema.sql"],
+        "files": [
+          "packages/civicos-relay/schema.sql"
+        ],
         "test_file": null,
         "completed_in": "7beb779",
         "notes": "Implemented as coordination_write_metadata table"
       },
       {
         "name": "attestation_proof_on_requests",
-        "description": "Add attestation_proof field to CastVoiceRequest and other write request schemas. Currently missing — prerequisite for attestation enforcement.",
+        "description": "Add attestation_proof field to CastVoiceRequest and other write request schemas. Currently missing \u2014 prerequisite for attestation enforcement.",
         "status": "done",
         "priority": 1,
         "source": "docs/internal/relay-acceptance-policy-spec.md (Phase 3)",
@@ -190,19 +215,24 @@
         "description": "Move DEFAULT_POLICY from hardcoded module-level constant to per-jurisdiction configuration (config file or DB table). Currently every relay instance has identical rate limits and PoW difficulty regardless of jurisdiction.",
         "status": "not_started",
         "priority": 2,
-        "source": "architectural review — scaling prerequisite",
+        "source": "architectural review \u2014 scaling prerequisite",
         "spec": "docs/internal/config-driven-rate-limits-spec.md",
-        "files": ["packages/civicos-relay/src/civicos_relay/server/acceptance.py"],
+        "files": [
+          "packages/civicos-relay/src/civicos_relay/server/acceptance.py"
+        ],
         "test_file": "packages/civicos-relay/tests/test_acceptance.py",
         "notes": "Blocks multi-city: different jurisdictions will need different rate limits. Load from config/relay_policies.json with RELAY_POLICY_FILE env var override."
       },
       {
         "name": "extension_pow_generation",
-        "description": "Add NIP-13 proof-of-work generation to browser extension for free-tier writes. Server-side PoW verification is wired but no client generates it — dead code path until this ships.",
+        "description": "Add NIP-13 proof-of-work generation to browser extension for free-tier writes. Server-side PoW verification is wired but no client generates it \u2014 dead code path until this ships.",
         "status": "done",
         "priority": 2,
-        "source": "architectural review — completes PoW tier",
-        "files": ["packages/civicos-client/src/pow.ts", "packages/civicos-client/src/api.ts"],
+        "source": "architectural review \u2014 completes PoW tier",
+        "files": [
+          "packages/civicos-client/src/pow.ts",
+          "packages/civicos-client/src/api.ts"
+        ],
         "test_file": "packages/civicos-client/src/pow.test.ts",
         "notes": "minePoW() in civicos-client adds NIP-13 nonce tag. castVoice() and castComment() mine transparently when no attestation proof. 16-bit difficulty, ~650ms avg on desktop. Cross-verified against Python server-side _verify_pow(). Extension builds clean."
       },
@@ -212,7 +242,9 @@
         "status": "not_started",
         "priority": 2,
         "source": "docs/internal/relay-acceptance-policy-spec.md (Phase 3)",
-        "files": ["packages/civicos-relay/src/civicos_relay/server/acceptance.py"],
+        "files": [
+          "packages/civicos-relay/src/civicos_relay/server/acceptance.py"
+        ],
         "test_file": "packages/civicos-relay/tests/test_acceptance.py"
       },
       {
@@ -221,14 +253,15 @@
         "status": "done",
         "priority": 0,
         "source": "docs/internal/relay-acceptance-policy-spec.md (Phase 2)",
-        "files": ["apps/civicos-extension/src/"],
+        "files": [
+          "apps/civicos-extension/src/"
+        ],
         "test_file": null
       }
     ]
   },
-
   "token_issuance": {
-    "description": "Blinded token payment system for relay writes — privacy-preserving per-action billing (Phase 4 from spec)",
+    "description": "Blinded token payment system for relay writes \u2014 privacy-preserving per-action billing (Phase 4 from spec)",
     "items": [
       {
         "name": "blind_signature_scheme_design",
@@ -271,7 +304,9 @@
         "status": "not_started",
         "priority": 2,
         "source": "docs/internal/relay-acceptance-policy-spec.md (Phase 4)",
-        "files": ["packages/civicos-relay/src/civicos_relay/server/acceptance.py"],
+        "files": [
+          "packages/civicos-relay/src/civicos_relay/server/acceptance.py"
+        ],
         "test_file": "packages/civicos-relay/tests/test_acceptance.py"
       },
       {
@@ -280,7 +315,9 @@
         "status": "not_started",
         "priority": 2,
         "source": "docs/internal/relay-acceptance-policy-spec.md (Phase 4)",
-        "files": ["apps/civicos-extension/src/"],
+        "files": [
+          "apps/civicos-extension/src/"
+        ],
         "test_file": null
       },
       {
@@ -289,21 +326,24 @@
         "status": "not_started",
         "priority": 3,
         "source": "docs/internal/relay-acceptance-policy-spec.md (Phase 4)",
-        "files": ["apps/civicos-extension/src/"],
+        "files": [
+          "apps/civicos-extension/src/"
+        ],
         "test_file": null
       }
     ]
   },
-
   "operator_readiness": {
     "description": "Tooling and documentation for external operators to run CivicOS instances",
     "items": [
       {
         "name": "data_ingestion_guide",
-        "description": "Public-facing guide for operators to ingest data for their jurisdiction. Currently noted as a gap in operator-guide.md — links to internal docs only.",
+        "description": "Public-facing guide for operators to ingest data for their jurisdiction. Currently noted as a gap in operator-guide.md \u2014 links to internal docs only.",
         "status": "not_started",
         "priority": 2,
-        "files": ["docs/public/"],
+        "files": [
+          "docs/public/"
+        ],
         "test_file": null,
         "notes": "Ingestion is jurisdiction-specific and complex. May need per-platform quickstarts (Legistar, ProudCity, Granicus)."
       },
@@ -312,7 +352,9 @@
         "description": "Document and test the PR workflow for adding new jurisdictions to config/registry.json. Include CI validation of registry format.",
         "status": "not_started",
         "priority": 3,
-        "files": ["config/registry.json"],
+        "files": [
+          "config/registry.json"
+        ],
         "test_file": null
       },
       {
@@ -320,13 +362,13 @@
         "description": "Extract shared PostgreSQL connection pooling utility used by both civicos and civicos-relay. Currently duplicated with different strategies (retry-based in civicos, SimpleConnectionPool in civicos-relay).",
         "status": "not_started",
         "priority": 3,
-        "source": "architectural review — DRY infrastructure",
+        "source": "architectural review \u2014 DRY infrastructure",
         "files": [
           "packages/civicos/src/civicos/storage/postgres_backend.py",
           "packages/civicos-relay/src/civicos_relay/storage/postgres.py"
         ],
         "test_file": null,
-        "notes": "Unify retry logic and pool management. Could live in a shared utility module or lightweight package. Both packages currently work — this is cleanup, not a fix."
+        "notes": "Unify retry logic and pool management. Could live in a shared utility module or lightweight package. Both packages currently work \u2014 this is cleanup, not a fix."
       },
       {
         "name": "operator_relay_dockerfile",
@@ -338,7 +380,6 @@
       }
     ]
   },
-
   "federation_testbed": {
     "description": "Private multi-city deployment for federation design and turnkey onboarding validation. Phase A: same-county (Marin), Phase B: cross-county (Berkeley/Alameda)",
     "items": [
@@ -348,8 +389,11 @@
         "status": "done",
         "priority": 1,
         "phase": "A",
-        "source": "federation testbed — same-county validation",
-        "files": ["data/extraction/city-mill-valley.json", "data/jurisdictions/city-mill-valley.yaml"],
+        "source": "federation testbed \u2014 same-county validation",
+        "files": [
+          "data/extraction/city-mill-valley.json",
+          "data/jurisdictions/city-mill-valley.yaml"
+        ],
         "test_file": null,
         "notes": "Done 2026-03-11. 56 meetings, 310 agenda items in Postgres. 7 friction points documented in docs/internal/onboarding-friction-log.md. Fixed: Granicus detection (view_id 1-5), agenda link extraction (URL pattern fallback)."
       },
@@ -359,10 +403,13 @@
         "status": "done",
         "priority": 1,
         "phase": "A",
-        "source": "federation testbed — same-county validation",
-        "files": ["data/extraction/san-anselmo.json", "data/jurisdictions/city-san-anselmo.yaml"],
+        "source": "federation testbed \u2014 same-county validation",
+        "files": [
+          "data/extraction/san-anselmo.json",
+          "data/jurisdictions/city-san-anselmo.yaml"
+        ],
         "test_file": null,
-        "notes": "Done 2026-03-11. 169 meetings, 337+ agenda items (extraction continuing). 28 body types. 0 new code fixes needed — Mill Valley fixes generalized. 3 pre-existing friction points remain (F1, F4, F5). Friction log updated."
+        "notes": "Done 2026-03-11. 169 meetings, 337+ agenda items (extraction continuing). 28 body types. 0 new code fixes needed \u2014 Mill Valley fixes generalized. 3 pre-existing friction points remain (F1, F4, F5). Friction log updated."
       },
       {
         "name": "deploy_marin_test_relays",
@@ -370,8 +417,10 @@
         "status": "not_started",
         "priority": 2,
         "phase": "A",
-        "source": "federation testbed — multi-relay infrastructure",
-        "files": ["packages/civicos-relay/src/civicos_relay/server/app.py"],
+        "source": "federation testbed \u2014 multi-relay infrastructure",
+        "files": [
+          "packages/civicos-relay/src/civicos_relay/server/app.py"
+        ],
         "test_file": null,
         "notes": "Same relay code, different jurisdiction config. Modal makes this cheap (serverless)."
       },
@@ -381,8 +430,11 @@
         "status": "not_started",
         "priority": 2,
         "phase": "A",
-        "source": "federation testbed — multi-issuer trust",
-        "files": ["config/registry.json", "packages/civicos-signer/"],
+        "source": "federation testbed \u2014 multi-issuer trust",
+        "files": [
+          "config/registry.json",
+          "packages/civicos-signer/"
+        ],
         "test_file": null,
         "notes": "Tests the issuer_lookup callable with 3 jurisdictions. Validates that attestation proofs are portable across relays."
       },
@@ -390,13 +442,15 @@
         "name": "cross_marin_query_prototype",
         "description": "Prototype cross-jurisdiction queries within Marin County. Test what_happened() and what_applies() across San Rafael + Mill Valley + San Anselmo with shared county context.",
         "status": "not_started",
-        "priority": 2,
+        "priority": 0,
         "phase": "A",
-        "source": "federation testbed — query federation",
+        "source": "federation testbed \u2014 query federation",
         "spec": "docs/internal/cross-jurisdiction-query-spec.md",
-        "files": ["packages/civicos/src/civicos/civicos.py"],
+        "files": [
+          "packages/civicos/src/civicos/civicos.py"
+        ],
         "test_file": null,
-        "notes": "Same county parent — shared legislation context. Tests relevance when sibling cities share regional bodies (TAM, MMWD, Marin Transit)."
+        "notes": "Same county parent \u2014 shared legislation context. Tests relevance when sibling cities share regional bodies (TAM, MMWD, Marin Transit)."
       },
       {
         "name": "onboarding_friction_log",
@@ -404,18 +458,21 @@
         "status": "done",
         "priority": 2,
         "phase": "A",
-        "source": "federation testbed — turnkey onboarding",
-        "files": [".claude/commands/onboard.md", "docs/public/"],
+        "source": "federation testbed \u2014 turnkey onboarding",
+        "files": [
+          ".claude/commands/onboard.md",
+          "docs/public/"
+        ],
         "test_file": null,
-        "notes": "This is the real deliverable of Phase A — a battle-tested onboarding flow, not a theoretical one."
+        "notes": "This is the real deliverable of Phase A \u2014 a battle-tested onboarding flow, not a theoretical one."
       },
       {
         "name": "turnkey_onboarding",
         "description": "Fix F1 (Granicus subdomain discovery) and F5 (registry generation from YAML) to make onboarding nearly turnkey. Provide a city name, get config + registrations generated automatically.",
-        "status": "not_started",
+        "status": "done",
         "priority": 0,
         "phase": "A",
-        "source": "federation testbed — turnkey onboarding",
+        "source": "federation testbed \u2014 turnkey onboarding",
         "files": [
           "packages/civicos-extraction/src/civicos_extraction/onboard.py",
           "packages/civicos-extraction/src/civicos_extraction/platform_detection.py",
@@ -423,8 +480,8 @@
           "packages/civicos-config/src/civicos_config/jurisdiction.py",
           "packages/civicos/src/civicos/_internal/jurisdiction.py"
         ],
-        "test_file": null,
-        "notes": "F1: Try common Granicus subdomain patterns (city, cityof+city, city-state). F5: Generate registry.json, JurisdictionRegistry, and aliases from jurisdiction YAML."
+        "test_file": "packages/civicos-extraction/tests/test_platform_detection.py packages/civicos-extraction/tests/test_generate_registries.py",
+        "notes": "F1: discover_granicus_subdomain() tries 5 URL patterns with root-page validation. F5: scripts/generate_registries.py reads YAMLs and patches all 3 registry files. onboard_jurisdiction() now accepts city_name param."
       },
       {
         "name": "onboard_berkeley",
@@ -432,10 +489,13 @@
         "status": "not_started",
         "priority": 2,
         "phase": "B",
-        "source": "federation testbed — cross-county validation",
-        "files": ["data/extraction/city-berkeley.json", "data/jurisdictions/city-berkeley.yaml"],
+        "source": "federation testbed \u2014 cross-county validation",
+        "files": [
+          "data/extraction/city-berkeley.json",
+          "data/jurisdictions/city-berkeley.yaml"
+        ],
         "test_file": null,
-        "notes": "Legistar platform — different extraction pipeline than Granicus. Must also onboard county-alameda as parent jurisdiction for what_applies() to work."
+        "notes": "Legistar platform \u2014 different extraction pipeline than Granicus. Must also onboard county-alameda as parent jurisdiction for what_applies() to work."
       },
       {
         "name": "onboard_county_alameda",
@@ -443,20 +503,26 @@
         "status": "not_started",
         "priority": 2,
         "phase": "B",
-        "source": "federation testbed — cross-county parent",
-        "files": ["data/extraction/county-alameda.json", "data/jurisdictions/county-alameda.yaml", "config/registry.json"],
+        "source": "federation testbed \u2014 cross-county parent",
+        "files": [
+          "data/extraction/county-alameda.json",
+          "data/jurisdictions/county-alameda.yaml",
+          "config/registry.json"
+        ],
         "test_file": null,
-        "notes": "county-marin already exists. This is the second county — validates that parent_jurisdictions chain works across county boundaries."
+        "notes": "county-marin already exists. This is the second county \u2014 validates that parent_jurisdictions chain works across county boundaries."
       },
       {
         "name": "cross_county_query_prototype",
-        "description": "Prototype cross-county queries: Berkeley (Alameda) vs San Rafael (Marin). Test relevance filtering — when are cross-county results useful vs noise?",
+        "description": "Prototype cross-county queries: Berkeley (Alameda) vs San Rafael (Marin). Test relevance filtering \u2014 when are cross-county results useful vs noise?",
         "status": "not_started",
         "priority": 2,
         "phase": "B",
-        "source": "federation testbed — cross-county federation",
+        "source": "federation testbed \u2014 cross-county federation",
         "spec": "docs/internal/cross-county-relevance-spec.md",
-        "files": ["packages/civicos/src/civicos/civicos.py"],
+        "files": [
+          "packages/civicos/src/civicos/civicos.py"
+        ],
         "test_file": null,
         "notes": "Key question: a San Rafael user doesn't care about EBMUD. How does the query layer filter by relevance across county boundaries? State legislation is shared; county/regional is not."
       },
@@ -466,7 +532,7 @@
         "status": "not_started",
         "priority": 2,
         "phase": "B",
-        "source": "architectural review — federation prerequisite",
+        "source": "architectural review \u2014 federation prerequisite",
         "spec": "docs/internal/pagination-protocol-spec.md",
         "files": [
           "packages/civicos/src/civicos/storage/backend.py",
@@ -482,7 +548,7 @@
         "status": "not_started",
         "priority": 2,
         "phase": "B",
-        "source": "architectural review — federation prerequisite",
+        "source": "architectural review \u2014 federation prerequisite",
         "spec": "docs/internal/multi-issuer-lookup-spec.md",
         "files": [
           "packages/civicos-relay/src/civicos_relay/server/acceptance.py",
@@ -497,8 +563,10 @@
         "status": "not_started",
         "priority": 3,
         "phase": "B",
-        "source": "architectural review — documentation",
-        "files": ["docs/public/decisions/"],
+        "source": "architectural review \u2014 documentation",
+        "files": [
+          "docs/public/decisions/"
+        ],
         "test_file": null,
         "notes": "Written after testbed findings, not before. This ADR should reflect what was learned, not what was assumed."
       }

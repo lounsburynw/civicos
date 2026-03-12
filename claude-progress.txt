@@ -21685,3 +21685,41 @@ Onboarded San Anselmo as second federation test jurisdiction (Granicus, Marin Co
 
 ### Next P0: turnkey_onboarding
 Fix F1 (Granicus subdomain discovery) and F5 (registry generation from YAML) to make onboarding nearly turnkey.
+
+## Session: 2026-03-11 — Turnkey Onboarding (P0)
+
+**Item:** turnkey_onboarding
+**Status:** DONE
+
+### What was done:
+
+**Part 1: Granicus Subdomain Discovery (F1 — FIXED)**
+- Added `discover_granicus_subdomain(city_name, state)` to `platform_detection.py`
+- Tries 5 URL patterns: {slug}, cityof{slug}, {slug}-{state}, townof{slug}, {slug}{state}
+- Uses root-page HEAD request to validate subdomain exists before probing view_ids
+- Verified against all 4 known Granicus cities (Dublin, Mill Valley, San Anselmo, Campbell)
+- Integrated into `onboard_jurisdiction()` via new `city_name` parameter
+
+**Part 2: Registry Generation from YAML (F5 — FIXED)**
+- Created `scripts/generate_registries.py` — reads `data/jurisdictions/*.yaml` and patches:
+  1. `config/registry.json` (JSON merge)
+  2. `packages/civicos-config/src/civicos_config/jurisdiction.py` (code generation)
+  3. `packages/civicos/src/civicos/_internal/jurisdiction.py` (aliases + display names)
+- Supports --check (dry run), --yaml (specific jurisdiction)
+- Integrated into `onboard_jurisdiction()` via `generate_yaml` and `generate_registries` params
+
+**Tests:**
+- 4 new tests in test_platform_detection.py (TestDiscoverGranicusSubdomain)
+- 10 new tests in test_generate_registries.py
+- All existing tests still pass (27 Granicus, smoke tests)
+- All 3 jurisdictions verified (San Rafael: 90, Mill Valley: 56, San Anselmo: 169 meetings)
+
+**Files modified:**
+- `packages/civicos-extraction/src/civicos_extraction/platform_detection.py` — discover_granicus_subdomain()
+- `packages/civicos-extraction/src/civicos_extraction/onboard.py` — city_name support, YAML gen, registry gen
+- `packages/civicos-extraction/src/civicos_extraction/__init__.py` — export new function
+- `scripts/generate_registries.py` — NEW: registry generation script
+- `packages/civicos-extraction/tests/test_platform_detection.py` — new tests
+- `packages/civicos-extraction/tests/test_generate_registries.py` — NEW: registry gen tests
+- `docs/internal/onboarding-friction-log.md` — documented resolutions
+- `launch.json` — turnkey_onboarding marked done

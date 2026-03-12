@@ -68,6 +68,7 @@ from civicos_extraction.platform_detection import (
     DetectionResult,
     detect_platform,
     detect_platform_batch,
+    discover_granicus_subdomain,
 )
 from civicos_extraction.manifest import (
     IngestionManifest,
@@ -114,6 +115,7 @@ __all__ = [
     "DetectionResult",
     "detect_platform",
     "detect_platform_batch",
+    "discover_granicus_subdomain",
     "MeetingValidator",
     "MeetingValidationResult",
     "BatchValidationResult",
