@@ -449,6 +449,84 @@ def detect_platform(
     )
 
 
+def discover_granicus_subdomain(
+    city_name: str,
+    state: str = "ca",
+    timeout: int = 8,
+    max_view_id: int = 8,
+) -> Optional[Dict[str, Any]]:
+    """
+    Discover a Granicus subdomain by trying common URL patterns.
+
+    Given a city name like "San Anselmo" and state "CA", tries patterns:
+    - sananselmo.granicus.com
+    - cityofsananselmo.granicus.com
+    - townofsananselmo.granicus.com
+    - sananselmo-ca.granicus.com
+
+    For each pattern, probes ViewPublisher.php with view_id 1 through max_view_id.
+    Returns on first successful hit (200 with HTML tables).
+
+    Args:
+        city_name: City name (e.g., "San Anselmo", "Mill Valley")
+        state: Two-letter state code (default: "ca")
+        timeout: HTTP request timeout in seconds
+        max_view_id: Maximum view_id to probe (default: 8)
+
+    Returns:
+        Dict with keys: subdomain, view_id, url, table_count
+        None if no Granicus instance found
+    """
+    state = state.lower().strip()
+    # Normalize city name: lowercase, remove spaces/hyphens
+    slug = re.sub(r"[\s\-]+", "", city_name.lower().strip())
+
+    # Common Granicus subdomain patterns (ordered by frequency)
+    candidates = [
+        slug,                         # e.g., dublin, millvalley
+        f"cityof{slug}",              # e.g., cityofmillvalley, cityofcampbell
+        f"{slug}-{state}",            # e.g., sananselmo-ca
+        f"townof{slug}",              # e.g., townofsananselmo
+        f"{slug}{state}",             # e.g., sananselmoca
+    ]
+
+    headers = {"User-Agent": "Civic-Platform-Detection/1.0"}
+
+    for subdomain in candidates:
+        # First check if subdomain exists by probing root page
+        try:
+            root_url = f"https://{subdomain}.granicus.com/"
+            root_resp = requests.head(root_url, headers=headers, timeout=timeout, allow_redirects=True)
+            if root_resp.status_code != 200:
+                continue  # Subdomain doesn't exist, try next pattern
+        except requests.exceptions.RequestException:
+            continue
+
+        # Subdomain exists — probe view_ids to find one with meeting tables
+        for view_id in range(1, max_view_id + 1):
+            test_url = f"https://{subdomain}.granicus.com/ViewPublisher.php?view_id={view_id}"
+            try:
+                response = requests.get(test_url, headers=headers, timeout=timeout)
+                if response.status_code == 200:
+                    soup = BeautifulSoup(response.text, "html.parser")
+                    tables = soup.find_all("table")
+                    if tables:
+                        logger.info(
+                            f"Granicus discovered: {subdomain}.granicus.com view_id={view_id} "
+                            f"({len(tables)} tables)"
+                        )
+                        return {
+                            "subdomain": subdomain,
+                            "view_id": view_id,
+                            "url": test_url,
+                            "table_count": len(tables),
+                        }
+            except requests.exceptions.RequestException:
+                continue
+
+    return None
+
+
 def detect_platform_batch(
     urls: List[str],
     timeout: int = 10

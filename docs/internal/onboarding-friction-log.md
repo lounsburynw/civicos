@@ -169,3 +169,55 @@ San Anselmo is the second federation test jurisdiction. Same county (Marin), sam
 | Body types | 28 distinct |
 | Agenda items (first 10 meetings) | 48 |
 | Agenda items (full) | TBD (extraction in progress) |
+
+---
+
+## Turnkey Onboarding Improvements (2026-03-11)
+
+### F1 Resolution: Granicus Subdomain Discovery
+
+**Status:** FIXED
+
+Added `discover_granicus_subdomain(city_name, state)` to `platform_detection.py`. Tries common subdomain patterns:
+- `{slug}` (e.g., `dublin`)
+- `cityof{slug}` (e.g., `cityofmillvalley`)
+- `{slug}-{state}` (e.g., `sananselmo-ca`)
+- `townof{slug}` (e.g., `townofsananselmo`)
+- `{slug}{state}` (e.g., `sananselmoca`)
+
+First validates subdomain exists via root page HEAD request, then probes view_ids 1-8 for meeting tables.
+
+**Verified against all known Granicus cities:**
+- Dublin → `dublin` (view_id=1)
+- Mill Valley → `cityofmillvalley` (view_id=2)
+- San Anselmo → `sananselmo-ca` (view_id=4)
+- Campbell → `cityofcampbell` (view_id=2)
+
+**Integration:** `onboard_jurisdiction()` now accepts `city_name` parameter — no URL required for Granicus jurisdictions.
+
+### F5 Resolution: Registry Generation from YAML
+
+**Status:** FIXED
+
+Created `scripts/generate_registries.py` that reads `data/jurisdictions/*.yaml` and patches all 3 registry files:
+1. `config/registry.json` — adds jurisdiction entry with domain, display_name, modal_app_name
+2. `jurisdiction.py` — adds JurisdictionConfig entry with agent_type, URLs, granicus_config
+3. `_internal/jurisdiction.py` — adds aliases and display names
+
+**Usage:**
+```bash
+python scripts/generate_registries.py            # Patch all registries
+python scripts/generate_registries.py --check    # Dry-run
+python scripts/generate_registries.py --yaml city-foo  # Specific YAML only
+```
+
+### Updated Friction Summary
+
+| Issue | Before | After |
+|-------|--------|-------|
+| **F1: Granicus URL** | Web search required | Auto-discovered from city name |
+| **F2: view_id detection** | Fixed in Mill Valley session | Fixed |
+| **F3: Agenda links** | Fixed in Mill Valley session | Fixed |
+| **F4: Body names** | Manual rename needed | Still manual (low priority) |
+| **F5: Registry files** | 3 manual edits | Auto-generated from YAML |
+| **Estimated manual time** | ~5-10m | ~2m (review YAML + verify) |
