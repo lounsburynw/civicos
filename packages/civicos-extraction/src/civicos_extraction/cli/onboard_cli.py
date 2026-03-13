@@ -81,7 +81,22 @@ def add_onboard_parser(subparsers):
     parser.add_argument(
         "--full",
         action="store_true",
-        help="Turnkey mode: generate YAML, run pipeline, index vectors, load legislation + municipal code",
+        help="Turnkey mode: generate YAML, run pipeline, extract chunks + agenda items, load issues + legislation + municipal code, index vectors",
+    )
+    parser.add_argument(
+        "--skip-chunks",
+        action="store_true",
+        help="Skip PDF chunk extraction (only relevant with --full)",
+    )
+    parser.add_argument(
+        "--skip-agenda",
+        action="store_true",
+        help="Skip agenda item extraction (only relevant with --full)",
+    )
+    parser.add_argument(
+        "--skip-issues",
+        action="store_true",
+        help="Skip 311 issues loading (only relevant with --full)",
     )
     parser.add_argument(
         "--dry-run",
@@ -109,6 +124,20 @@ def run_onboard(args) -> int:
         args.index_vectors = True
         args.load_legislation = True
         args.load_municipal_code = True
+        if not args.skip_chunks:
+            args.extract_chunks = True
+        if not args.skip_agenda:
+            args.extract_agenda_items = True
+        if not args.skip_issues:
+            args.load_issues = True
+
+    # Ensure these attrs exist even when --full not used
+    if not hasattr(args, 'extract_chunks'):
+        args.extract_chunks = False
+    if not hasattr(args, 'extract_agenda_items'):
+        args.extract_agenda_items = False
+    if not hasattr(args, 'load_issues'):
+        args.load_issues = False
 
     # Dry run: just show what would happen
     if args.dry_run:
@@ -129,6 +158,9 @@ def run_onboard(args) -> int:
         print(f"  Vectors:  {'yes' if args.index_vectors else 'no'}")
         print(f"  Legislation: {'yes' if args.load_legislation else 'no'}")
         print(f"  Municipal code: {'yes' if args.load_municipal_code else 'no'}")
+        print(f"  Chunks:     {'yes' if args.extract_chunks else 'no'}")
+        print(f"  Agenda items: {'yes' if args.extract_agenda_items else 'no'}")
+        print(f"  Issues:     {'yes' if args.load_issues else 'no'}")
         print("\nSteps that would run:")
         print("  1. Detect platform (network)")
         print("  2. Discover meeting bodies (network)")
@@ -147,6 +179,13 @@ def run_onboard(args) -> int:
             print("  ... Load state legislation (LegiScan API)")
         if args.load_municipal_code:
             print("  ... Load municipal code (Municode API)")
+        if args.extract_chunks:
+            print("  ... Extract PDF chunks (free, PDF parsing)")
+        if args.extract_agenda_items:
+            print("  ... Extract agenda items (LLM, ~$0.02-0.15/meeting)")
+        if args.load_issues:
+            print("  ... Load 311 issues (best-effort, SeeClickFix)")
+        print("  ... Print data status report")
         return 0
 
     # Progress callback for CLI output
@@ -169,6 +208,9 @@ def run_onboard(args) -> int:
         index_vectors=args.index_vectors,
         load_legislation=args.load_legislation,
         load_municipal_code=args.load_municipal_code,
+        extract_chunks=args.extract_chunks,
+        extract_agenda_items=args.extract_agenda_items,
+        load_issues=args.load_issues,
         on_progress=on_progress,
     )
 
