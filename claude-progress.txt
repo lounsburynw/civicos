@@ -1,7 +1,7 @@
 ## Session 38 — 2026-03-13: Turnkey Onboarding Phase 3 — Coverage Improvements (P1)
 
 **Item:** turnkey_onboarding_coverage
-**Status:** Complete — chunks, municipal code (title + section + chapter fallback) all working.
+**Status:** Complete — all fixes validated end-to-end on Berkeley.
 
 ### Changes Made
 
@@ -20,18 +20,34 @@
 - Fix 3 — Section inference: `_infer_section_pattern()` handles non-standard numbering (e.g., `1-3.1`)
 - Result: Alameda went from 0 → 3,227 sections. Only 23 API calls (was 458 before).
 
-**3. New tests: test_municipal_pattern_inference.py (19 tests, all passing)**
+**3. LLM-first pattern inference (municipal.py)**
+- Restructured to LLM-first with hardcoded fallback (was reversed)
+- Fixed import path: `civicos_services.core.llm_provider` (was wrong)
+- Added flexible TITLE pattern: case-insensitive, roman/arabic, optional period
+- Fixes Austin TX ("TITLE 1. -") and Salem OR ("TITLE II -")
+- Validated: Pasadena, Alameda, Austin, Houston, Salem all pass
+
+**4. New tests: test_municipal_pattern_inference.py (22 tests, all passing)**
+
+### Berkeley E2E Validation
+Full onboarding re-run after fixes:
+- Platform detection: ✓ Granicus (95%), 2 bodies
+- Meetings: ✓ 10 extracted
+- Chunks: ✓ **117 chunks from 6/7 meetings** (was 8 from 1/7 before fix)
+  - All 6 AgendaViewer.php URLs followed through redirect to berkeleyca.gov
+  - Agenda PDFs found via pattern matching, downloaded with session cookies
+- Issues: ✓ 5,000 SeeClickFix issues
+- Legislation: ✓ 4,794 CA bills
+- Vectors: ✓ 5,010 embeddings
+- Municipal code: ✗ Berkeley not on Municode API (known, not fixable)
+- Bug found: stale checkpoint from prior failed run caused chunks to skip — cleared and re-ran
 
 ### Key Findings
 - Berkeley Granicus → redirects to berkeleyca.gov (Drupal) where PDFs are in static HTML
 - Playwright not needed — static HTML scraping works after redirect handling
 - Berkeley NOT on Municode API despite having a library page
 - Alameda: CHAPTER > ARTICLE > Section structure; CodesContent on top-level node returns all nested sections
-
-### Remaining for Turnkey Coverage
-- Validate agenda extraction: `civicos-extract agenda --jurisdiction city-berkeley --limit 2 --cloud`
-- Full Berkeley re-test with chunks fix
-- Multi-city validation sweep
+- Stale checkpoints can mask failures — checkpoints record failed items as "processed"
 
 ## Session 36 — 2026-03-13: Query Interface Operators — Integration Tests & RRF Calibration (P0)
 

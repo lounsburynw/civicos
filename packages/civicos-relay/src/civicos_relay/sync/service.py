@@ -174,7 +174,7 @@ class SyncService:
             )
 
             response = await self._client.get(
-                f"{peer.url}/sync/voices",
+                f"{peer.url}/coordination/sync/voices",
                 params=request.model_dump(exclude_none=True),
             )
             response.raise_for_status()
