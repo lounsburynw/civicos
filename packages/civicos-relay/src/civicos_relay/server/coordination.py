@@ -1415,6 +1415,43 @@ class VoiceImportResponseAPI(BaseModel):
     duplicates: int
 
 
+@router.post("/coordination/sync/trigger")
+async def trigger_sync(
+    api_key: Optional[str] = None,
+    authorization: Optional[str] = Header(default=None),
+):
+    """
+    Admin: trigger an immediate sync from all configured peers.
+
+    Returns sync results per peer. Requires admin API key.
+    """
+    _require_admin_key(api_key, authorization)
+
+    try:
+        from civicos_relay.server.app import get_sync_service
+        sync_service = get_sync_service()
+    except (ImportError, KeyError):
+        raise HTTPException(status_code=503, detail="Sync service not available")
+
+    results = {}
+    for url, peer in sync_service._peers.items():
+        if not peer.enabled:
+            results[url] = {"status": "disabled"}
+            continue
+        try:
+            result = await sync_service.sync_from_peer(peer)
+            results[url] = {
+                "status": "ok",
+                "accepted": result.accepted,
+                "rejected": result.rejected,
+                "duplicates": result.duplicates,
+            }
+        except Exception as e:
+            results[url] = {"status": "error", "detail": str(e)}
+
+    return {"peers": results}
+
+
 @router.get("/coordination/sync/voices", response_model=VoiceSyncResponseAPI)
 async def export_voices(
     since: Optional[str] = None,

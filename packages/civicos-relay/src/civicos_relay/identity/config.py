@@ -83,11 +83,12 @@ class RelayConfig(BaseModel):
         peers = []
         # Parse RELAY_PEERS as comma-separated URLs (simple format for env)
         peers_str = os.environ.get("RELAY_PEERS", "")
+        sync_interval = int(os.environ.get("RELAY_SYNC_INTERVAL", "300"))
         if peers_str:
             for url in peers_str.split(","):
                 url = url.strip()
                 if url:
-                    peers.append(PeerConfig(url=url, namespaces=["*"]))
+                    peers.append(PeerConfig(url=url, namespaces=["*"], sync_interval=sync_interval))
 
         return cls(
             relay_id=os.environ.get("RELAY_ID", "relay.local"),
