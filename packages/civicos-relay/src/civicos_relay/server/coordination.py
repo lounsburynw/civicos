@@ -27,7 +27,7 @@ import time
 from datetime import datetime
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Header, HTTPException
 from pydantic import BaseModel, Field
 
 from civicos_relay.voice.crypto import (
@@ -400,6 +400,43 @@ class AttestationStatsResponse(BaseModel):
     total_codes_redeemed: int = 0
 
 
+class RegisterIssuerRequest(BaseModel):
+    """Request to register an attestation issuer."""
+    issuer_pubkey: str = Field(description="Issuer's public key (64-char hex)")
+    jurisdiction: str = Field(description="Jurisdiction code (e.g. city-mill-valley)")
+    organization: str = Field(description="Organization name")
+    signing_url: str = Field(description="URL of issuer's signing service")
+    bearer_token: str = Field(description="Bearer token for the signing service")
+    allowed_types: list[str] = Field(default=["physical"], description="Allowed attestation types")
+
+
+class RegisterIssuerResponse(BaseModel):
+    """Response after registering an issuer."""
+    issuer_id: str
+    status: str
+    organization: str
+    jurisdiction: str
+
+
+class CodeBatchRequest(BaseModel):
+    """Request to submit a batch of issuer-signed attestation codes."""
+    signed_event: dict = Field(description="Kind-30851 Nostr event with signed code batch")
+
+
+class CodeBatchResponse(BaseModel):
+    """Response after accepting a code batch."""
+    count: int
+    total_submitted: int
+    batch_id: str
+    jurisdiction: str
+    issuer_id: str
+
+
+class IssuerListResponse(BaseModel):
+    """List of issuers for a jurisdiction."""
+    issuers: list[dict]
+
+
 class CivicActionProgressResponse(BaseModel):
     """Progress for a civic action event."""
     action_id: str
@@ -610,6 +647,42 @@ def _get_attestation_issuer_keypair():
             logger.error(f"Failed to load attestation keypair: {e}")
             return None
     return _storage_instances["attestation_keypair"]
+
+
+def _get_issuer_storage():
+    """Get or create issuer registry storage instance."""
+    if "issuer_registry" not in _storage_instances:
+        url = _get_relay_url()
+        if url:
+            try:
+                from civicos_relay.storage.postgres import PostgresIssuerRegistryStorage
+                _storage_instances["issuer_registry"] = PostgresIssuerRegistryStorage(url)
+                logger.info("Using PostgresIssuerRegistryStorage for issuer registry")
+            except ImportError:
+                logger.warning("civicos-relay postgres not available for issuer registry")
+                return None
+        else:
+            try:
+                from civicos_relay.storage.memory import InMemoryIssuerRegistryStorage
+                _storage_instances["issuer_registry"] = InMemoryIssuerRegistryStorage()
+            except ImportError:
+                logger.warning("civicos-relay not available for issuer registry")
+                return None
+    return _storage_instances["issuer_registry"]
+
+
+def _get_attestation_service():
+    """Get or create AttestationService instance."""
+    if "attestation_service" not in _storage_instances:
+        attestation_storage = _get_attestation_storage()
+        issuer_storage = _get_issuer_storage()
+        if not attestation_storage or not issuer_storage:
+            return None
+        from civicos_relay.attestation.service import AttestationService
+        _storage_instances["attestation_service"] = AttestationService(
+            attestation_storage, issuer_storage
+        )
+    return _storage_instances["attestation_service"]
 
 
 def _get_civic_action_service():
@@ -2814,6 +2887,148 @@ async def get_attestation_stats(jurisdiction: str):
     except Exception as e:
         logger.error(f"Error getting attestation stats: {e}")
         return AttestationStatsResponse()
+
+
+# === Issuer Registry Endpoints ===
+
+
+def _require_admin_key(api_key: Optional[str] = None, authorization: Optional[str] = None):
+    """Validate admin API key from query param or Authorization header. Raises 403 if invalid."""
+    expected = os.environ.get("CIVICOS_ADMIN_API_KEY")
+    if not expected:
+        raise HTTPException(status_code=403, detail="Admin API key required")
+
+    # Check query param first, then Authorization: Bearer header
+    provided = api_key
+    if not provided and authorization and authorization.startswith("Bearer "):
+        provided = authorization[7:]
+
+    if provided != expected:
+        raise HTTPException(status_code=403, detail="Admin API key required")
+
+
+@router.post("/coordination/issuers/register", response_model=RegisterIssuerResponse)
+async def register_issuer(
+    request: RegisterIssuerRequest,
+    api_key: Optional[str] = None,
+    authorization: Optional[str] = Header(default=None),
+):
+    """
+    Register a new attestation issuer with the relay.
+
+    Requires admin API key (query param or Authorization: Bearer header).
+    Issuer starts as unverified — must be explicitly verified via the admin
+    endpoint before codes can be accepted.
+    """
+    _require_admin_key(api_key, authorization)
+
+    service = _get_attestation_service()
+    if not service:
+        raise HTTPException(status_code=503, detail="Attestation service not configured")
+
+    try:
+        result = service.register_issuer(request.model_dump())
+        return RegisterIssuerResponse(**result)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error registering issuer: {e}")
+        raise HTTPException(status_code=500, detail=f"Server error: {str(e)}")
+
+
+@router.get("/coordination/issuers/{jurisdiction}", response_model=IssuerListResponse)
+async def list_issuers(jurisdiction: str):
+    """List all non-revoked issuers for a jurisdiction."""
+    service = _get_attestation_service()
+    if not service:
+        raise HTTPException(status_code=503, detail="Attestation service not configured")
+
+    try:
+        issuers = service.list_issuers(jurisdiction)
+        return IssuerListResponse(issuers=issuers)
+    except Exception as e:
+        logger.error(f"Error listing issuers: {e}")
+        raise HTTPException(status_code=500, detail=f"Server error: {str(e)}")
+
+
+@router.post("/coordination/admin/issuer/{issuer_id}/verify")
+async def verify_issuer(
+    issuer_id: str,
+    api_key: Optional[str] = None,
+    authorization: Optional[str] = Header(default=None),
+):
+    """Admin: mark an issuer as verified (trusted to issue codes)."""
+    _require_admin_key(api_key, authorization)
+
+    service = _get_attestation_service()
+    if not service:
+        raise HTTPException(status_code=503, detail="Attestation service not configured")
+
+    try:
+        success = service.verify_issuer(issuer_id)
+        if not success:
+            raise HTTPException(status_code=404, detail=f"Issuer not found: {issuer_id}")
+        return {"success": True, "issuer_id": issuer_id, "status": "verified"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error verifying issuer: {e}")
+        raise HTTPException(status_code=500, detail=f"Server error: {str(e)}")
+
+
+@router.post("/coordination/admin/issuer/{issuer_id}/revoke")
+async def revoke_issuer(
+    issuer_id: str,
+    api_key: Optional[str] = None,
+    authorization: Optional[str] = Header(default=None),
+):
+    """Admin: revoke an issuer (codes from this issuer will no longer be accepted)."""
+    _require_admin_key(api_key, authorization)
+
+    service = _get_attestation_service()
+    if not service:
+        raise HTTPException(status_code=503, detail="Attestation service not configured")
+
+    try:
+        success = service.revoke_issuer(issuer_id)
+        if not success:
+            raise HTTPException(status_code=404, detail=f"Issuer not found: {issuer_id}")
+        return {"success": True, "issuer_id": issuer_id, "status": "revoked"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error revoking issuer: {e}")
+        raise HTTPException(status_code=500, detail=f"Server error: {str(e)}")
+
+
+@router.post("/coordination/codes/batch", response_model=CodeBatchResponse)
+async def accept_code_batch(
+    request: CodeBatchRequest,
+    api_key: Optional[str] = None,
+    authorization: Optional[str] = Header(default=None),
+):
+    """
+    Accept a batch of issuer-signed attestation codes.
+
+    The signed_event is a kind-30851 Nostr event containing codes signed
+    by a registered issuer. The issuer must be verified before codes are accepted.
+
+    Requires admin API key (query param or Authorization: Bearer header).
+    """
+    _require_admin_key(api_key, authorization)
+
+    service = _get_attestation_service()
+    if not service:
+        raise HTTPException(status_code=503, detail="Attestation service not configured")
+
+    try:
+        result = service.accept_code_batch(request.signed_event)
+        return CodeBatchResponse(**result)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error accepting code batch: {e}")
+        raise HTTPException(status_code=500, detail=f"Server error: {str(e)}")
 
 
 # === Feedback Endpoints ===

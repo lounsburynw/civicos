@@ -460,6 +460,44 @@ def verify_attestation_proof(
         return False
 
 
+def verify_code_batch(event: dict, issuer_pubkey: str) -> bool:
+    """
+    Verify a kind-30851 code batch event signed by an issuer.
+
+    Checks:
+    1. Kind is 30851
+    2. Signed by the expected issuer
+    3. Event ID matches recomputed hash
+    4. Schnorr signature is valid
+    5. Content parses as a JSON list of strings
+    """
+    try:
+        if not isinstance(event, dict):
+            return False
+        if event.get("kind") != 30851:
+            return False
+        if event.get("pubkey") != issuer_pubkey:
+            return False
+
+        computed_id = _compute_nostr_event_id(
+            event["pubkey"], event["created_at"], 30851,
+            event.get("tags", []), event.get("content", ""),
+        )
+        if computed_id != event.get("id"):
+            return False
+
+        if not _schnorr_verify(event["pubkey"], event["sig"], event["id"]):
+            return False
+
+        codes = json.loads(event["content"])
+        if not isinstance(codes, list) or not all(isinstance(c, str) for c in codes):
+            return False
+
+        return True
+    except (KeyError, TypeError, ValueError):
+        return False
+
+
 def verify_signature(public_key_hex: str, signature_hex: str, message: str) -> bool:
     """Verify an arbitrary Schnorr signature over a message."""
     try:

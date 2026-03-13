@@ -22155,3 +22155,42 @@ Ran `civicos-extract onboard --city "Berkeley" --state CA --full` — completed 
 
 ### Next P0: issue_test_attestations
 Generate issuer keypairs for Mill Valley and San Anselmo, register in issuer_registry, test cross-relay attestation verification.
+
+### Session — 2026-03-13: issue_test_attestations (P0, DONE)
+
+**Completed:** Full attestation infrastructure across federation test relays.
+
+**What was built:**
+1. **Missing relay endpoints** added to coordination router:
+   - `POST /coordination/issuers/register` — register attestation issuers (admin-auth)
+   - `GET /coordination/issuers/{jurisdiction}` — list issuers
+   - `POST /coordination/admin/issuer/{id}/verify` — verify issuers
+   - `POST /coordination/admin/issuer/{id}/revoke` — revoke issuers
+   - `POST /coordination/codes/batch` — accept issuer-signed code batches
+   - All endpoints support both query param and `Authorization: Bearer` header auth
+
+2. **verify_code_batch()** moved to relay's crypto module (eliminates civicos_signer dependency in Docker image)
+
+3. **Issuer keypairs generated** for Mill Valley and San Anselmo
+   - Configs in `config/federation/` (gitignored, contains private keys)
+   - `scripts/setup_federation_issuers.py` — generate/register/codes/status tool
+
+4. **Live deployment verified:**
+   - Mill Valley: issuer registered + verified, 10 codes pushed, attestation redemption works
+   - San Anselmo: issuer registered + verified, 10 codes pushed, attestation redemption works
+   - Both relays issue kind-30850 Schnorr-signed attestation events
+
+5. **Database migrations** on Neon: attestation_codes, attestations (+ revoked column), issuer_registry tables
+
+**Tests:** 386 relay tests pass (including 14 new endpoint tests)
+
+**Files modified:**
+- `packages/civicos-relay/src/civicos_relay/server/coordination.py` — new endpoints + helpers
+- `packages/civicos-relay/src/civicos_relay/voice/crypto.py` — verify_code_batch()
+- `packages/civicos-relay/src/civicos_relay/attestation/service.py` — removed civicos_signer import
+- `packages/civicos-relay/tests/test_issuer_endpoints.py` — new (14 tests)
+- `scripts/setup_federation_issuers.py` — new (federation issuer tooling)
+- `config/federation/` — new (gitignored, issuer configs)
+
+### Next P0: multi_issuer_lookup
+Update issuer_lookup from (jurisdiction) -> Optional[str] to support multiple issuers per jurisdiction for cross-relay attestation verification.

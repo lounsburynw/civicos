@@ -451,8 +451,8 @@
       {
         "name": "issue_test_attestations",
         "description": "Generate issuer keypairs for Mill Valley and San Anselmo. Register in issuer_registry. Test multi-issuer attestation verification across relays.",
-        "status": "not_started",
-        "priority": 0,
+        "status": "done",
+        "priority": 99,
         "phase": "A",
         "source": "federation testbed \u2014 multi-issuer trust",
         "files": [
@@ -589,7 +589,7 @@
         "name": "multi_issuer_lookup",
         "description": "Update issuer_lookup signature from (jurisdiction) -> Optional[str] to (jurisdiction) -> List[TrustedIssuer] with validity windows and trust levels. Informed by testbed findings.",
         "status": "not_started",
-        "priority": 2,
+        "priority": 0,
         "phase": "B",
         "source": "architectural review \u2014 federation prerequisite",
         "spec": "docs/internal/multi-issuer-lookup-spec.md",
