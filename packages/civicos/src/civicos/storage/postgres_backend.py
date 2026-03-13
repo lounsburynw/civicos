@@ -3938,8 +3938,20 @@ class PostgresBackend:
             for issue in issues:
                 provider = issue.get('provider')
                 external_id = issue.get('external_id')
+                title = issue.get('title', '').strip()
                 if not provider or not external_id:
                     continue  # Skip issues without required fields
+                if not title:
+                    logger.warning(f"Skipping issue {provider}:{external_id} — missing title")
+                    continue
+
+                # Validate coordinates: both present or both NULL
+                lat = issue.get('latitude')
+                lng = issue.get('longitude')
+                if (lat is None) != (lng is None):
+                    logger.warning(f"Issue {provider}:{external_id} has partial coordinates — clearing both")
+                    lat = None
+                    lng = None
 
                 # Generate namespaced issue ID
                 # Format: issue:{jurisdiction}:{provider}:{external_id}
@@ -3981,13 +3993,13 @@ class PostgresBackend:
                     jurisdiction_id,
                     provider,
                     external_id,
-                    issue.get('title', ''),
+                    title,
                     issue.get('description', ''),
                     issue.get('issue_type'),
                     issue.get('status', 'open'),
                     issue.get('address'),
-                    issue.get('latitude'),
-                    issue.get('longitude'),
+                    lat,
+                    lng,
                     created_at.isoformat() if isinstance(created_at, datetime) else created_at,
                     updated_at.isoformat() if isinstance(updated_at, datetime) else updated_at,
                     closed_at.isoformat() if isinstance(closed_at, datetime) else closed_at,
