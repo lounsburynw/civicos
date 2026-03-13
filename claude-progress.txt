@@ -22210,3 +22210,13 @@ Generate issuer keypairs for Mill Valley and San Anselmo, register in issuer_reg
 
 ### Next P0: multi_issuer_lookup
 Update issuer_lookup from (jurisdiction) -> Optional[str] to support multiple issuers per jurisdiction for cross-relay attestation verification.
+
+**Peer sync wiring (continued):**
+- Fixed sync URL path mismatch: `/sync/voices` → `/coordination/sync/voices`
+- Added `RELAY_SYNC_INTERVAL` env var (default 300s, set to 60s on test relays)
+- Added `POST /coordination/sync/trigger` admin endpoint for manual sync
+- Set `RELAY_PEERS` on both relays (bidirectional: MV ↔ SA)
+- Fixed missing columns on Neon: `jurisdiction`, `created_at`, `attestation_proof` on coordination_voices
+- Successfully cast an attested voice on Mill Valley
+- Triggered sync from San Anselmo → Mill Valley: connection works, voices export
+- **Remaining issue:** Voice export response missing `created_at` field, causes Pydantic validation error in sync import. Fix: update VoiceSyncResponseAPI or the export query to include created_at.
