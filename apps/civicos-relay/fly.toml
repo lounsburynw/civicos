@@ -1,0 +1,33 @@
+# Fly.io deployment for CivicOS Relay
+#
+# This is a template — copy and customize per jurisdiction:
+#   cp fly.toml fly.city-mill-valley.toml
+#   Edit app name and CIVICOS_JURISDICTION, then:
+#   fly deploy -c apps/civicos-relay/fly.city-mill-valley.toml
+#
+# Or use the deploy script:
+#   ./scripts/deploy-relay.sh city-mill-valley fly
+
+app = "civicos-relay-mill-valley"
+primary_region = "sjc"
+
+[build]
+  dockerfile = "apps/civicos-relay/Dockerfile"
+
+[env]
+  CIVICOS_JURISDICTION = "city-mill-valley"
+  RELAY_PORT = "8003"
+  RELAY_ACCEPTANCE_POLICY = "true"
+  RELAY_SYNC_ENABLED = "true"
+
+[http_service]
+  internal_port = 8003
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+
+[[vm]]
+  memory = "256mb"
+  cpu_kind = "shared"
+  cpus = 1
