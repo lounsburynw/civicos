@@ -574,7 +574,7 @@ class TestDiscoverCivicClerkSubdomain:
         }
         mock_get.return_value = mock_response
 
-        result = discover_civicclerk_subdomain("El Cerrito")
+        result = discover_civicclerk_subdomain("El Cerrito", state="ca")
         assert result is not None
         assert result["subdomain"] == "elcerritoca"
         assert result["board_count"] == 1
@@ -733,7 +733,13 @@ class TestStateAbbrevToSlug:
         assert _state_abbrev_to_slug("or") == "oregon"
 
     def test_unknown_abbrev(self):
-        assert _state_abbrev_to_slug("ZZ") == ""
+        assert _state_abbrev_to_slug("ZZ") == "zz"
+
+    def test_uk_england(self):
+        assert _state_abbrev_to_slug("ENG") == "england"
+
+    def test_uk_scotland(self):
+        assert _state_abbrev_to_slug("SCT") == "scotland"
 
 
 def _mock_geocode_response(city, county, state_long, state_abbrev, zip_code):
@@ -1065,3 +1071,202 @@ class TestCanadianProvinces:
         """US states are checked first and still work."""
         assert _state_abbrev_to_slug("CA") == "california"
         assert _state_abbrev_to_slug("TX") == "texas"
+
+
+# ── State=None Behavior Tests ──────────────────────────────────
+
+
+class TestStateNoneBehavior:
+    """Test that discovery functions work with state=None."""
+
+    @patch('civicos_extraction.platform_detection.requests.get')
+    def test_legistar_discovers_without_state(self, mock_get):
+        """Legistar discovery works without state (fewer candidates)."""
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = [
+            {"BodyId": 1, "BodyName": "City Council"},
+        ]
+        mock_get.return_value = mock_response
+
+        result = discover_legistar_client("Berkeley", state=None)
+        assert result is not None
+        assert result["client_name"] == "berkeley"
+
+    @patch('civicos_extraction.platform_detection.requests.get')
+    def test_civicclerk_discovers_without_state(self, mock_get):
+        """CivicClerk discovery works without state."""
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {"value": [{"BoardId": 1}]}
+        mock_get.return_value = mock_response
+
+        result = discover_civicclerk_subdomain("Hayward", state=None)
+        assert result is not None
+        assert result["subdomain"] == "hayward"
+
+    @patch('civicos_extraction.platform_detection.requests.get')
+    @patch('civicos_extraction.platform_detection.requests.head')
+    def test_granicus_discovers_without_state(self, mock_head, mock_get):
+        """Granicus discovery works without state (no state-suffix candidates)."""
+        mock_head.return_value = MagicMock(status_code=200)
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.text = '<html><body><table><tr><td>Meeting</td></tr></table></body></html>'
+        mock_get.return_value = mock_response
+
+        result = discover_granicus_subdomain("Dublin", state=None)
+        assert result is not None
+        assert result["subdomain"] == "dublin"
+
+    def test_onboard_requires_state_with_city_name(self):
+        """onboard_jurisdiction errors when city_name given without state."""
+        from civicos_extraction.onboard import onboard_jurisdiction
+        result = onboard_jurisdiction("", city_name="Berkeley", state=None)
+        assert not result.success
+        assert "state is required" in result.errors[0]
+
+
+# ── International Support Tests ──────────────────────────────────
+
+
+class TestInternationalErrorMessages:
+    """Test international city handling."""
+
+    @patch('civicos_extraction.platform_detection.discover_legistar_client')
+    @patch('civicos_extraction.platform_detection.discover_civicclerk_subdomain')
+    @patch('civicos_extraction.platform_detection.discover_granicus_subdomain')
+    @patch('civicos_extraction.platform_detection._detect_proudcity')
+    def test_intl_city_returns_none(self, mock_pc, mock_gran, mock_cc, mock_leg):
+        """International city with no US platform returns None."""
+        mock_leg.return_value = None
+        mock_cc.return_value = None
+        mock_gran.return_value = None
+        mock_pc.return_value = (0.0, {"meeting_type_count": 0})
+
+        result = discover_platform("Manchester", state="ENG")
+        assert result is None
+
+
+# ── Source Factory Tests ─────────────────────────────────────────
+
+
+class TestSourceFactory:
+    """Test create_source factory from clients.factory."""
+
+    def test_granicus_source(self):
+        """Factory creates GranicusSource for granicus type."""
+        from civicos_extraction.clients.factory import create_source
+        from civicos_extraction.clients.base import ExtractionConfig
+
+        config = ExtractionConfig(
+            source_id="granicus-test",
+            source_type="granicus",
+            jurisdiction_id="city-test",
+            base_url="https://test.granicus.com",
+            metadata={"granicus_domain": "test"},
+        )
+        source = create_source(config)
+        assert source is not None
+
+    def test_unsupported_type_raises(self):
+        """Factory raises ValueError for unsupported source_type."""
+        from civicos_extraction.clients.factory import create_source
+        from civicos_extraction.clients.base import ExtractionConfig
+
+        config = ExtractionConfig(
+            source_id="unknown-test",
+            source_type="unknown_platform",
+            jurisdiction_id="city-test",
+            base_url="https://example.com",
+        )
+        with pytest.raises(ValueError, match="Unsupported source_type"):
+            create_source(config)
+
+
+# ── Pipeline Handoff Tests ───────────────────────────────────────
+
+
+class TestOnboardPipelineHandoff:
+    """Test run_pipeline parameter in onboard_jurisdiction."""
+
+    def test_progress_callback_invoked(self):
+        """Progress callback is called during onboarding."""
+        from civicos_extraction.onboard import onboard_jurisdiction
+
+        steps = []
+
+        def on_progress(step, message):
+            steps.append(step)
+
+        with patch("civicos_extraction.onboard.detect_platform") as mock_detect:
+            mock_detect.return_value = MagicMock(
+                source_type="proudcity",
+                source_id="proudcity-city-test",
+                confidence=0.9,
+                platform_name="ProudCity",
+                metadata={},
+                to_dict=lambda: {"source_type": "proudcity", "confidence": 0.9},
+            )
+            with patch("civicos_extraction.onboard._discover_proudcity") as mock_disc:
+                mock_disc.return_value = {
+                    "config": {
+                        "source_id": "proudcity-city-test",
+                        "source_type": "proudcity",
+                        "jurisdiction_id": "city-test",
+                        "base_url": "https://test.org",
+                        "archives": {"council": "/council-meetings/"},
+                    },
+                    "discovered_bodies": {"council": "/council-meetings/"},
+                }
+                result = onboard_jurisdiction(
+                    url="https://test.org",
+                    jurisdiction_id="city-test",
+                    on_progress=on_progress,
+                )
+                assert result.success
+                assert "discover" in steps
+                assert "save" in steps
+
+
+# ── CLI Onboard Tests ────────────────────────────────────────────
+
+
+class TestOnboardCLI:
+    """Test onboard CLI argument parsing."""
+
+    def test_city_without_state_errors(self):
+        """--city without --state should return error."""
+        from civicos_extraction.cli.onboard_cli import add_onboard_parser, run_onboard
+        import argparse
+
+        parser = argparse.ArgumentParser()
+        subparsers = parser.add_subparsers(dest="command")
+        add_onboard_parser(subparsers)
+
+        args = parser.parse_args(["onboard", "--city", "Berkeley"])
+        assert run_onboard(args) == 1
+
+    def test_neither_url_nor_city_errors(self):
+        """Neither --url nor --city should return error."""
+        from civicos_extraction.cli.onboard_cli import add_onboard_parser, run_onboard
+        import argparse
+
+        parser = argparse.ArgumentParser()
+        subparsers = parser.add_subparsers(dest="command")
+        add_onboard_parser(subparsers)
+
+        args = parser.parse_args(["onboard"])
+        assert run_onboard(args) == 1
+
+    def test_dry_run_returns_zero(self):
+        """--dry-run should succeed without network calls."""
+        from civicos_extraction.cli.onboard_cli import add_onboard_parser, run_onboard
+        import argparse
+
+        parser = argparse.ArgumentParser()
+        subparsers = parser.add_subparsers(dest="command")
+        add_onboard_parser(subparsers)
+
+        args = parser.parse_args(["onboard", "--city", "Berkeley", "--state", "CA", "--dry-run"])
+        assert run_onboard(args) == 0

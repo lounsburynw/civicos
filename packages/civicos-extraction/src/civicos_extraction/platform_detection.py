@@ -29,6 +29,20 @@ from bs4 import BeautifulSoup
 
 logger = logging.getLogger(__name__)
 
+# Maximum view_id to probe when detecting/discovering Granicus instances
+_DEFAULT_MAX_VIEW_ID = 8
+
+# US/Canadian state/province codes used for generating subdomain candidates
+_KNOWN_STATE_CODES = {
+    "al", "ak", "az", "ar", "ca", "co", "ct", "de", "fl", "ga", "hi", "id",
+    "il", "in", "ia", "ks", "ky", "la", "me", "md", "ma", "mi", "mn", "ms",
+    "mo", "mt", "ne", "nv", "nh", "nj", "nm", "ny", "nc", "nd", "oh", "ok",
+    "or", "pa", "ri", "sc", "sd", "tn", "tx", "ut", "vt", "va", "wa", "wv",
+    "wi", "wy", "dc",
+    # Canadian provinces
+    "ab", "bc", "mb", "nb", "nl", "ns", "nt", "nu", "on", "pe", "qc", "sk", "yt",
+}
+
 
 @dataclass
 class DetectionResult:
@@ -212,8 +226,8 @@ def _detect_granicus(base_url: str, client_name: str, timeout: int) -> tuple[flo
 
         try:
             headers = {"User-Agent": "Civic-Platform-Detection/1.0"}
-            # Try view_ids 1-5 since some jurisdictions don't use view_id=1
-            for view_id in range(1, 6):
+            # Try view_ids since some jurisdictions don't use view_id=1
+            for view_id in range(1, _DEFAULT_MAX_VIEW_ID + 1):
                 test_url = f"https://{subdomain}.granicus.com/ViewPublisher.php?view_id={view_id}"
                 response = requests.get(test_url, headers=headers, timeout=timeout)
                 metadata["status_code"] = response.status_code
@@ -289,8 +303,8 @@ def _detect_proudcity(base_url: str, timeout: int) -> tuple[float, Dict[str, Any
         # Parse HTML and look for meeting archive links
         soup = BeautifulSoup(response.content, 'html.parser')
 
-        # ProudCity pattern: links ending in -meetings/ or -hearings/
-        archive_pattern = re.compile(r'/([a-z0-9-]+)-(meetings|hearings)/?$')
+        # ProudCity pattern: links ending in -meetings/, -hearings/, etc.
+        archive_pattern = re.compile(r'/([a-z0-9-]+)-(meetings|hearings|boards|committees|events|agendas|minutes)/?$')
         discovered_types: List[str] = []
 
         for link in soup.find_all('a', href=True):
@@ -398,12 +412,11 @@ def detect_platform(
 
     # 3. Try CivicClerk (API-based)
     # Try common subdomain patterns
-    state_suffix = state.lower().strip() if state else "ca"
-    civicclerk_subdomains = [
-        client_name,
-        f"{client_name}{state_suffix}",  # e.g., elcerritoca, austintx
-        client_name.replace("city", ""),  # cityof... -> ...
-    ]
+    civicclerk_subdomains = [client_name]
+    if state:
+        state_suffix = state.lower().strip()
+        civicclerk_subdomains.append(f"{client_name}{state_suffix}")  # e.g., elcerritoca, austintx
+    civicclerk_subdomains.append(client_name.replace("city", ""))  # cityof... -> ...
     for subdomain in civicclerk_subdomains:
         if not subdomain:
             continue
@@ -460,9 +473,9 @@ def detect_platform(
 
 def discover_granicus_subdomain(
     city_name: str,
-    state: str = "ca",
+    state: Optional[str] = None,
     timeout: int = 8,
-    max_view_id: int = 8,
+    max_view_id: int = _DEFAULT_MAX_VIEW_ID,
 ) -> Optional[Dict[str, Any]]:
     """
     Discover a Granicus subdomain by trying common URL patterns.
@@ -486,7 +499,6 @@ def discover_granicus_subdomain(
         Dict with keys: subdomain, view_id, url, table_count
         None if no Granicus instance found
     """
-    state = state.lower().strip()
     # Normalize city name: lowercase, remove spaces/hyphens
     slug = re.sub(r"[\s\-]+", "", city_name.lower().strip())
 
@@ -494,10 +506,12 @@ def discover_granicus_subdomain(
     candidates = [
         slug,                         # e.g., dublin, millvalley
         f"cityof{slug}",              # e.g., cityofmillvalley, cityofcampbell
-        f"{slug}-{state}",            # e.g., sananselmo-ca
         f"townof{slug}",              # e.g., townofsananselmo
-        f"{slug}{state}",             # e.g., sananselmoca
     ]
+    if state:
+        state = state.lower().strip()
+        candidates.insert(2, f"{slug}-{state}")   # e.g., sananselmo-ca
+        candidates.append(f"{slug}{state}")        # e.g., sananselmoca
 
     headers = {"User-Agent": "Civic-Platform-Detection/1.0"}
 
@@ -538,7 +552,7 @@ def discover_granicus_subdomain(
 
 def discover_legistar_client(
     city_name: str,
-    state: str = "ca",
+    state: Optional[str] = None,
     timeout: int = 8,
 ) -> Optional[Dict[str, Any]]:
     """
@@ -554,25 +568,26 @@ def discover_legistar_client(
 
     Args:
         city_name: City name (e.g., "Berkeley", "Oakland")
-        state: Two-letter state code (default: "ca")
+        state: Two-letter state/province code (optional)
         timeout: HTTP request timeout in seconds
 
     Returns:
         Dict with keys: client_name, body_count, url
         None if no Legistar instance found
     """
-    state = state.lower().strip()
     slug = re.sub(r"[\s\-]+", "", city_name.lower().strip())
 
     candidates = [
         slug,                    # e.g., berkeley
-        f"{slug}-{state}",       # e.g., berkeley-ca
         f"cityof{slug}",        # e.g., cityofberkeley
         f"countyof{slug}",      # e.g., countyofmarin
         f"townof{slug}",        # e.g., townofsananselmo
-        f"{slug}{state}",       # e.g., berkeleyca (no hyphen)
         f"{slug}city",          # e.g., berkeleycity
     ]
+    if state:
+        state = state.lower().strip()
+        candidates.insert(1, f"{slug}-{state}")   # e.g., berkeley-ca
+        candidates.append(f"{slug}{state}")        # e.g., berkeleyca (no hyphen)
 
     for client_name in candidates:
         api_url = f"https://webapi.legistar.com/v1/{client_name}/bodies"
@@ -601,7 +616,7 @@ def discover_legistar_client(
 
 def discover_civicclerk_subdomain(
     city_name: str,
-    state: str = "ca",
+    state: Optional[str] = None,
     timeout: int = 8,
 ) -> Optional[Dict[str, Any]]:
     """
@@ -617,24 +632,25 @@ def discover_civicclerk_subdomain(
 
     Args:
         city_name: City name (e.g., "El Cerrito", "Hayward")
-        state: Two-letter state code (default: "ca")
+        state: Two-letter state/province code (optional)
         timeout: HTTP request timeout in seconds
 
     Returns:
         Dict with keys: subdomain, board_count, url
         None if no CivicClerk instance found
     """
-    state = state.lower().strip()
     slug = re.sub(r"[\s\-]+", "", city_name.lower().strip())
 
     candidates = [
-        f"{slug}{state}",        # e.g., elcerritoca, austintx
         slug,                    # e.g., elcerrito
         f"cityof{slug}",        # e.g., cityofelcerrito
-        f"cityof{slug}{state}", # e.g., cityofelcerritoca
         f"townof{slug}",        # e.g., townofelcerrito
-        f"townof{slug}{state}", # e.g., townofelcerritoca
     ]
+    if state:
+        state = state.lower().strip()
+        candidates.insert(0, f"{slug}{state}")         # e.g., elcerritoca, austintx
+        candidates.append(f"cityof{slug}{state}")      # e.g., cityofelcerritoca
+        candidates.append(f"townof{slug}{state}")      # e.g., townofelcerritoca
 
     headers = {
         "Accept": "application/json",
@@ -678,7 +694,7 @@ def discover_civicclerk_subdomain(
 
 def discover_platform(
     city_name: str,
-    state: str = "ca",
+    state: Optional[str] = None,
     timeout: int = 8,
 ) -> Optional[Dict[str, Any]]:
     """
@@ -736,8 +752,9 @@ def discover_platform(
         f"https://www.{slug}.org",
         f"https://{slug}.org",
         f"https://www.{slug}.gov",
-        f"https://{slug}.{state}.gov",
     ]
+    if state:
+        proudcity_urls.append(f"https://{slug}.{state.lower()}.gov")
     # Add hyphenated variants for multi-word cities (e.g., "san-rafael" vs "sanrafael")
     if hyphenated != slug:
         proudcity_urls.extend([

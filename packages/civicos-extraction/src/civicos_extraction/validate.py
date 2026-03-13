@@ -125,24 +125,8 @@ def _load_config(jurisdiction_id: str, config: Optional[Dict[str, Any]] = None):
 
 def _create_source_from_config(config):
     """Create platform-specific source/client from ExtractionConfig."""
-    source_type = config.source_type
-
-    if source_type == "granicus":
-        from civicos_extraction.clients.granicus import GranicusSource
-        return GranicusSource(config)
-    elif source_type == "proudcity":
-        from civicos_extraction.clients.proudcity import ProudCitySource
-        return ProudCitySource(config)
-    elif source_type == "legistar":
-        from civicos_extraction.clients.legistar import LegistarClient
-        client_name = config.metadata.get("client_name", config.jurisdiction_id)
-        return LegistarClient(client_name, config.jurisdiction_id)
-    elif source_type == "civicclerk":
-        from civicos_extraction.clients.civicclerk import CivicClerkClient
-        subdomain = config.metadata.get("subdomain", config.jurisdiction_id)
-        return CivicClerkClient(subdomain, config.jurisdiction_id)
-    else:
-        raise ValueError(f"Unsupported source_type: {source_type}")
+    from civicos_extraction.clients.factory import create_source
+    return create_source(config)
 
 
 def _run_tier1(source, config) -> TierResult:

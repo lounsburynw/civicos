@@ -25,7 +25,7 @@ import re
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 import requests
 
@@ -276,6 +276,7 @@ class OnboardResult:
     next_steps: List[str] = field(default_factory=list)
     errors: List[str] = field(default_factory=list)
     validation: Optional[Any] = None  # ValidationReport from validate.py
+    pipeline_result: Optional[Any] = None  # PipelineResult from pipeline.py
 
 
 def _infer_jurisdiction_id(url: str) -> Optional[str]:
@@ -412,19 +413,28 @@ _CANADIAN_PROVINCES = {
 }
 
 
+_UK_NATIONS = {
+    "ENG": "England", "SCT": "Scotland", "WLS": "Wales", "NIR": "Northern Ireland",
+}
+
+
 def _state_abbrev_to_slug(abbrev: str) -> str:
-    """Convert state/province abbreviation to jurisdiction slug (e.g., 'CA' -> 'california', 'ON' -> 'ontario')."""
-    name = _US_STATES.get(abbrev.upper(), "")
+    """Convert state/province/nation abbreviation to jurisdiction slug (e.g., 'CA' -> 'california', 'ON' -> 'ontario', 'ENG' -> 'england')."""
+    upper = abbrev.upper()
+    name = _US_STATES.get(upper, "")
     if not name:
-        name = _CANADIAN_PROVINCES.get(abbrev.upper(), "")
+        name = _CANADIAN_PROVINCES.get(upper, "")
     if not name:
-        return ""
+        name = _UK_NATIONS.get(upper, "")
+    if not name:
+        # Unknown code: return lowercased as-is (usable slug)
+        return abbrev.lower().replace(" ", "-")
     return name.lower().replace(" ", "-")
 
 
 def geocode_city(
     city_name: str,
-    state: str = "CA",
+    state: str = "",
     api_key: Optional[str] = None,
 ) -> Optional[Dict[str, Any]]:
     """
@@ -683,10 +693,13 @@ def onboard_jurisdiction(
     jurisdiction_id: Optional[str] = None,
     output_dir: str = "data/extraction",
     city_name: Optional[str] = None,
-    state: str = "ca",
+    state: Optional[str] = None,
+    level: str = "city",
     generate_yaml: bool = False,
     generate_registries: bool = False,
     validate: int = 0,
+    run_pipeline: bool = False,
+    on_progress: Optional[Callable[[str, str], None]] = None,
 ) -> OnboardResult:
     """
     Onboard a new jurisdiction from a URL or city name.
@@ -698,15 +711,19 @@ def onboard_jurisdiction(
     4. Generate ExtractionConfig JSON
     5. Save to output_dir
     6. Optionally generate jurisdiction YAML and patch registries
+    7. Optionally run extraction pipeline
 
     Args:
         url: City/county website or platform URL (can be empty if city_name given)
         jurisdiction_id: Optional jurisdiction ID. Inferred from URL/city_name if not provided.
         output_dir: Directory to save config JSON (default: data/extraction)
         city_name: City name for auto-discovery (e.g., "San Anselmo")
-        state: Two-letter state code for auto-discovery (default: "ca")
+        state: Two-letter state/province code (required when city_name is provided)
+        level: Jurisdiction level for ID prefix (default: "city")
         generate_yaml: If True, generate jurisdiction YAML file
         generate_registries: If True, run registry generation after YAML creation
+        run_pipeline: If True, run extraction pipeline after config generation
+        on_progress: Optional callback(step, message) for progress reporting
 
     Returns:
         OnboardResult with config, discovered bodies, and next steps
@@ -714,12 +731,24 @@ def onboard_jurisdiction(
     errors: List[str] = []
     pre_discovered: Optional[Dict[str, Any]] = None
 
+    def _progress(step: str, message: str) -> None:
+        if on_progress:
+            on_progress(step, message)
+
+    # Validate: state is required when city_name is provided
+    if city_name and not state:
+        return OnboardResult(
+            success=False,
+            errors=["state is required when city_name is provided (e.g., state='CA')"],
+        )
+
     # Step 0: If city_name given without URL, auto-discover platform
     if city_name and not url:
         from civicos_extraction.platform_detection import (
             discover_platform as _discover_platform_fn,
         )
 
+        _progress("detect", f"Auto-discovering platform for '{city_name}, {state.upper()}'...")
         logger.info(f"Auto-discovering platform for '{city_name}, {state.upper()}'...")
         discovery = _discover_platform_fn(city_name, state=state)
         if discovery:
@@ -748,14 +777,21 @@ def onboard_jurisdiction(
                 ],
             )
 
+    _progress("discover", f"Platform detected, running discovery...")
+
     # Infer jurisdiction_id if not provided
     if not jurisdiction_id:
         if city_name:
             # Build from city_name: "San Anselmo" -> "city-san-anselmo"
             slug = re.sub(r"\s+", "-", city_name.strip().lower())
-            jurisdiction_id = f"city-{slug}"
+            jurisdiction_id = f"{level}-{slug}"
         else:
-            jurisdiction_id = _infer_jurisdiction_id(url)
+            inferred = _infer_jurisdiction_id(url)
+            # Prefix with level if the inferred ID doesn't already have one
+            if inferred and not re.match(r"^(city|county|town|district|state)-", inferred):
+                jurisdiction_id = f"{level}-{inferred}"
+            else:
+                jurisdiction_id = inferred
             if not jurisdiction_id:
                 return OnboardResult(
                     success=False,
@@ -882,6 +918,8 @@ def onboard_jurisdiction(
     config = discovery_result["config"]
     discovered_bodies = discovery_result.get("discovered_bodies", {})
 
+    _progress("save", f"Saving config for {jurisdiction_id}...")
+
     # Step 3: Save config
     from civicos_extraction.config import get_config_dir
 
@@ -906,6 +944,7 @@ def onboard_jurisdiction(
     # Step 3.5: Geocoding enrichment (if city_name available)
     geo_data: Optional[Dict[str, Any]] = None
     if city_name:
+        _progress("geocode", f"Geocoding {city_name}...")
         geo_data = geocode_city(city_name, state=state)
         if geo_data:
             logger.info(
@@ -991,12 +1030,49 @@ def onboard_jurisdiction(
     # Step 7: Optional validation pipeline
     validation_report = None
     if validate > 0:
+        _progress("validate", f"Running tier-{validate} validation...")
         try:
             from civicos_extraction.validate import validate_jurisdiction as _validate
             validation_report = _validate(jurisdiction_id, tier=validate, config=config)
             logger.info(f"Validation complete: highest tier passed = {validation_report.highest_tier_passed}")
         except Exception as e:
             errors.append(f"Validation failed: {e}")
+
+    # Step 8: Optional pipeline run
+    pipeline_result_obj = None
+    if run_pipeline:
+        _progress("pipeline", f"Running extraction pipeline for {jurisdiction_id}...")
+        try:
+            from civicos_extraction.clients.base import ExtractionConfig
+            from civicos_extraction.clients.factory import create_source
+            from civicos_extraction.pipeline import Pipeline
+
+            extraction_config = ExtractionConfig.from_file(str(config_path))
+            source = create_source(extraction_config)
+
+            # Create storage backend
+            from dotenv import load_dotenv as _load_dotenv
+            _load_dotenv()
+            database_url = os.environ.get("DATABASE_URL")
+            if database_url:
+                from civicos.storage.postgres_backend import PostgresBackend
+                storage = PostgresBackend()
+            else:
+                from civicos.storage.sqlite_backend import SQLiteBackend
+                storage = SQLiteBackend()
+
+            pipeline = Pipeline(source=source, jurisdiction_id=jurisdiction_id, storage_target=storage)
+            pipeline_result_obj = pipeline.run(days_ahead=90, days_past=30)
+            logger.info(f"Pipeline complete: success={pipeline_result_obj.success}")
+
+            # Update next steps to reflect pipeline ran
+            next_steps = [
+                f"Config saved at {config_path}",
+                f"Pipeline ran: {'success' if pipeline_result_obj.success else 'failed'}",
+                "Check data: civic-extract data-status --jurisdiction " + jurisdiction_id,
+            ]
+        except Exception as e:
+            errors.append(f"Pipeline failed: {e}")
 
     return OnboardResult(
         success=True,
@@ -1007,4 +1083,5 @@ def onboard_jurisdiction(
         discovered_bodies=discovered_bodies,
         next_steps=next_steps,
         validation=validation_report,
+        pipeline_result=pipeline_result_obj,
     )
