@@ -72,9 +72,12 @@ Pattern Requirements:
 - Support em-dash (—), en-dash (–), and hyphen (-) separators
 """
 
+import logging
 import re
 import time
 from dataclasses import dataclass
+
+logger = logging.getLogger(__name__)
 from html import unescape
 from pathlib import Path
 from typing import Iterator, Optional, Callable
@@ -454,6 +457,15 @@ class MunicipalCodeCorpus:
             heading = node.get("Heading", "")
             if self._title_pattern.match(heading) and node.get("HasChildren", False):
                 titles.append(node)
+
+        if not titles:
+            headings = [n.get("Heading", "") for n in toc[:5]]
+            logger.warning(
+                f"No TOC nodes matched title pattern for {self._jurisdiction_id}. "
+                f"TOC has {len(toc)} nodes. First headings: {headings}. "
+                f"Pattern: {self._title_pattern.pattern}"
+            )
+            return
 
         if title_ids:
             titles = [t for t in titles if t["Id"] in title_ids]
