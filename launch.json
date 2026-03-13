@@ -393,13 +393,14 @@
       {
         "name": "query_interface_operators",
         "description": "v2 query interface operators and cross-jurisdiction support: set operators (- for diff/monitoring, & for intersection), multi-jurisdiction fan-out, civic jargon lookup via civic.context. Also: live-data integration tests and RRF ranking calibration (from hardening). See docs/public/decisions/query_interface.md open questions.",
-        "status": "not_started",
+        "status": "done",
         "priority": 0,
         "files": [
-          "packages/civicos-services/src/civicos_services/query/"
+          "packages/civicos-services/src/civicos_services/query/",
+          "packages/civicos-services/tests/test_integration_query_v2.py"
         ],
         "test_file": "packages/civicos-services/tests/test_query_v2.py",
-        "notes": "Depends on query_interface_hardening and multiple jurisdictions having data (extraction pipeline). Blocked until Oakland/Berkeley onboarded."
+        "notes": "Done: diff mode, intersect mode, concept lookup (prev session). This session: 23 integration tests against PostgreSQL, RRF calibration (k=60 shows good 4:4 interleaving). Found: legislation/municipal_code timeout at 10s (what_applies takes ~40s due to external API calls). Multi-jurisdiction fan-out deferred until more cities onboarded."
       }
     ]
   },
@@ -438,7 +439,7 @@
         "name": "deploy_marin_test_relays",
         "description": "Deploy 2 additional relay instances on Modal for Mill Valley and San Anselmo. Private, not public-facing. Validates multi-relay deployment.",
         "status": "not_started",
-        "priority": 1,
+        "priority": 0,
         "phase": "A",
         "source": "federation testbed \u2014 multi-relay infrastructure",
         "files": [

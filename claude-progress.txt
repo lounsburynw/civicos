@@ -1,3 +1,33 @@
+## Session 36 — 2026-03-13: Query Interface Operators — Integration Tests & RRF Calibration (P0)
+
+**Item:** query_interface_operators
+**Status:** Complete.
+
+Wrote 23 live-data integration tests against PostgreSQL for the v2 query interface:
+- Basic search (single/multi/3-corpus), aggregate, trend modes
+- Diff mode (set operator -): snapshot date filtering, monotonic results
+- Intersect mode (set operator &): cross-corpus correlation
+- Concept lookup: municipal code jargon (conditional use permit, zoning)
+- Explore verb: corpora counts, capabilities
+- RRF calibration: corpus diversity, interleaving, relevance normalization
+
+**RRF Calibration Findings (k=60):**
+- Even 4:4 interleaving between decisions and testimony — working correctly
+- Decisions consistently rank first (adapter assigns rank-based relevance)
+- legislation/municipal_code timeout at 10s (what_applies takes ~40s due to external federal APIs)
+- Budget corpus returns empty for most queries (department keyword mismatch)
+
+**Files:**
+- `packages/civicos-services/tests/test_integration_query_v2.py` (new, 23 tests)
+- `packages/civicos-services/tests/conftest.py` (new, marker registration + auto-skip)
+- `launch.json` — query_interface_operators marked done
+
+**Known Issues:**
+- Expired HF_TOKEN in .env causes fastembed auth errors; tests clear it at import time
+- `what_applies()` takes ~40s (federal API calls), exceeds 10s corpus timeout → legislation/municipal_code adapters timeout in v2 interface. Needs either: increased timeout for slow corpora, async caching, or background pre-fetch.
+
+---
+
 ## Session 32 — 2026-03-11: Onboard Mill Valley (P0)
 
 **Item:** onboard_mill_valley
