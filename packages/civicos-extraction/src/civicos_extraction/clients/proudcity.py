@@ -43,25 +43,8 @@ class ProudCityClient(BaseExtractor):
     - Rate limiting
     """
 
-    # Default archive paths for common meeting types
-    # Keep in sync with data/extraction/san-rafael.json
-    DEFAULT_ARCHIVES = {
-        'city_council': '/city-council-meetings/',
-        'planning_commission': '/planning-commission-meetings/',
-        'fire_commission': '/fire-commission-meetings/',
-        'tax_oversight': '/voter-approved-tax-oversight-committee-meetings/',
-        'zoning_administrator': '/zoning-administrator-hearings/',
-        'council_subcommittees': '/council-subcommittee-meetings/',
-        'ada_access_advisory_committee': '/ada-access-advisory-committee-meetings/',
-        'bicycle_pedestrian_advisory_committee': '/bicycle-pedestrian-advisory-committee-meetings/',
-        'board_of_library_trustees': '/board-of-library-trustees-meetings/',
-        'design_review_board': '/design-review-board-hearings/',
-        'paac': '/paac-meetings/',
-        'park_and_recreation_commission': '/park-and-recreation-commission-meetings/',
-        'pickleweed_advisory_committee': '/pickleweed-advisory-committee-meetings/',
-        'public_art_review_board': '/public-art-review-board-meetings/',
-        'board_and_commission': '/board-and-commission-meetings/',
-    }
+    # Archives are discovered at onboarding time via discover_meeting_types()
+    DEFAULT_ARCHIVES: Dict[str, str] = {}
 
     def __init__(
         self,
@@ -400,7 +383,7 @@ class ProudCityClient(BaseExtractor):
         discovered = {}
 
         # Find all links ending in -meetings/ or -hearings/
-        archive_pattern = re.compile(r'^/([a-z0-9-]+)-(meetings|hearings)/?$')
+        archive_pattern = re.compile(r'^/([a-z0-9-]+)-(meetings|hearings|boards|committees|events|agendas|minutes)/?$')
 
         for link in soup.find_all('a', href=True):
             href = link.get('href', '')

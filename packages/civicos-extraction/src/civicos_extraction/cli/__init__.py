@@ -113,6 +113,7 @@ from civicos_extraction.cli.legislative import add_legislative_parser, run_legis
 from civicos_extraction.cli.manifest_cli import add_manifest_parser, run_manifest
 from civicos_extraction.cli.monitor import add_monitor_parser, run_monitor
 from civicos_extraction.cli.municipal_code import add_municipal_code_parser, run_municipal_code
+from civicos_extraction.cli.onboard_cli import add_onboard_parser, run_onboard
 from civicos_extraction.cli.research import add_research_parser, run_research
 from civicos_extraction.cli.seeclickfix import add_seeclickfix_parser, run_seeclickfix
 from civicos_extraction.cli.snapshot_cli import add_snapshot_parser, run_snapshot
@@ -157,6 +158,7 @@ def main() -> int:
     add_manifest_parser(subparsers)
     add_monitor_parser(subparsers)
     add_municipal_code_parser(subparsers)
+    add_onboard_parser(subparsers)
     add_research_parser(subparsers)
     add_seeclickfix_parser(subparsers)
     add_snapshot_parser(subparsers)
@@ -200,6 +202,8 @@ def main() -> int:
         return run_monitor(args)
     elif args.command == "municipal-code":
         return run_municipal_code(args)
+    elif args.command == "onboard":
+        return run_onboard(args)
     elif args.command == "research":
         return run_research(args)
     elif args.command == "seeclickfix":
