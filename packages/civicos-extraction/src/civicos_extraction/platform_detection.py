@@ -141,45 +141,52 @@ def _detect_civicclerk(subdomain: str, timeout: int) -> tuple[float, Dict[str, A
     """
     Attempt CivicClerk detection by testing OData API endpoint.
 
+    Tries Events endpoint first (always available), falls back to Boards.
+
     Returns:
         Tuple of (confidence, metadata)
     """
-    api_url = f"https://{subdomain}.api.civicclerk.com/v1/Boards?$top=1"
-    metadata: Dict[str, Any] = {"api_url": api_url}
+    headers = {
+        "Accept": "application/json",
+        "Origin": "https://portal.civicclerk.com",
+    }
+    metadata: Dict[str, Any] = {}
 
-    try:
-        headers = {"Accept": "application/json"}
-        response = requests.get(api_url, headers=headers, timeout=timeout)
-        metadata["status_code"] = response.status_code
+    for endpoint in ["Events?$top=1", "Boards?$top=1"]:
+        api_url = f"https://{subdomain}.api.civicclerk.com/v1/{endpoint}"
+        metadata["api_url"] = api_url
 
-        if response.status_code == 200:
-            try:
-                data = response.json()
-                # CivicClerk uses OData format with 'value' key
-                if isinstance(data, dict) and "value" in data:
-                    boards = data.get("value", [])
-                    metadata["board_count"] = len(boards)
-                    # High confidence: valid OData response
-                    return 0.95, metadata
-                elif isinstance(data, list):
-                    # Some endpoints return direct list
-                    metadata["board_count"] = len(data)
-                    return 0.90, metadata
-            except ValueError:
-                metadata["error"] = "Invalid JSON response"
-                return 0.0, metadata
-        elif response.status_code == 404:
-            return 0.0, metadata
-        else:
-            metadata["error"] = f"Unexpected status: {response.status_code}"
-            return 0.0, metadata
+        try:
+            response = requests.get(api_url, headers=headers, timeout=timeout)
+            metadata["status_code"] = response.status_code
 
-    except requests.exceptions.Timeout:
-        metadata["error"] = "Timeout"
-        return 0.0, metadata
-    except requests.exceptions.RequestException as e:
-        metadata["error"] = str(e)
-        return 0.0, metadata
+            if response.status_code == 200:
+                try:
+                    data = response.json()
+                    if isinstance(data, dict) and "value" in data:
+                        count = len(data.get("value", []))
+                        metadata["board_count"] = count
+                        return 0.95, metadata
+                    elif isinstance(data, list):
+                        metadata["board_count"] = len(data)
+                        return 0.90, metadata
+                except ValueError:
+                    metadata["error"] = "Invalid JSON response"
+                    continue
+            elif response.status_code == 404:
+                continue  # Try next endpoint
+            else:
+                metadata["error"] = f"Unexpected status: {response.status_code}"
+                continue
+
+        except requests.exceptions.Timeout:
+            metadata["error"] = "Timeout"
+            continue
+        except requests.exceptions.RequestException as e:
+            metadata["error"] = str(e)
+            continue
+
+    return 0.0, metadata
 
 
 def _detect_granicus(base_url: str, client_name: str, timeout: int) -> tuple[float, Dict[str, Any]]:
@@ -523,6 +530,216 @@ def discover_granicus_subdomain(
                         }
             except requests.exceptions.RequestException:
                 continue
+
+    return None
+
+
+def discover_legistar_client(
+    city_name: str,
+    state: str = "ca",
+    timeout: int = 8,
+) -> Optional[Dict[str, Any]]:
+    """
+    Discover a Legistar client name by trying common API patterns.
+
+    Given a city name like "Berkeley" and state "CA", tries patterns:
+    - berkeley (slug)
+    - berkeley-ca (slug-state)
+    - cityofberkeley (cityof prefix)
+
+    For each pattern, probes webapi.legistar.com/v1/{candidate}/bodies.
+    Returns on first successful hit (200 with JSON array).
+
+    Args:
+        city_name: City name (e.g., "Berkeley", "Oakland")
+        state: Two-letter state code (default: "ca")
+        timeout: HTTP request timeout in seconds
+
+    Returns:
+        Dict with keys: client_name, body_count, url
+        None if no Legistar instance found
+    """
+    state = state.lower().strip()
+    slug = re.sub(r"[\s\-]+", "", city_name.lower().strip())
+
+    candidates = [
+        slug,                    # e.g., berkeley
+        f"{slug}-{state}",       # e.g., berkeley-ca
+        f"cityof{slug}",        # e.g., cityofberkeley
+    ]
+
+    for client_name in candidates:
+        api_url = f"https://webapi.legistar.com/v1/{client_name}/bodies"
+        try:
+            response = requests.get(api_url, timeout=timeout)
+            if response.status_code == 200:
+                try:
+                    data = response.json()
+                    if isinstance(data, list) and len(data) > 0:
+                        logger.info(
+                            f"Legistar discovered: {client_name} "
+                            f"({len(data)} bodies)"
+                        )
+                        return {
+                            "client_name": client_name,
+                            "body_count": len(data),
+                            "url": api_url,
+                        }
+                except ValueError:
+                    continue
+        except requests.exceptions.RequestException:
+            continue
+
+    return None
+
+
+def discover_civicclerk_subdomain(
+    city_name: str,
+    state: str = "ca",
+    timeout: int = 8,
+) -> Optional[Dict[str, Any]]:
+    """
+    Discover a CivicClerk subdomain by trying common API patterns.
+
+    Given a city name like "El Cerrito" and state "CA", tries patterns:
+    - elcerritoca (slug+state)
+    - elcerrito (slug)
+    - cityofelcerrito (cityof prefix)
+
+    For each pattern, probes {candidate}.api.civicclerk.com/v1/Events.
+    Returns on first successful hit (200 with OData response).
+
+    Args:
+        city_name: City name (e.g., "El Cerrito", "Hayward")
+        state: Two-letter state code (default: "ca")
+        timeout: HTTP request timeout in seconds
+
+    Returns:
+        Dict with keys: subdomain, board_count, url
+        None if no CivicClerk instance found
+    """
+    state = state.lower().strip()
+    slug = re.sub(r"[\s\-]+", "", city_name.lower().strip())
+
+    candidates = [
+        f"{slug}{state}",        # e.g., elcerritoca
+        slug,                    # e.g., elcerrito
+        f"cityof{slug}",        # e.g., cityofelcerrito
+    ]
+
+    headers = {
+        "Accept": "application/json",
+        "Origin": "https://portal.civicclerk.com",
+    }
+
+    for subdomain in candidates:
+        # Try Events first (always available), then Boards (sometimes 404)
+        for endpoint in ["Events?$top=1", "Boards"]:
+            api_url = f"https://{subdomain}.api.civicclerk.com/v1/{endpoint}"
+            try:
+                response = requests.get(api_url, headers=headers, timeout=timeout)
+                if response.status_code == 200:
+                    try:
+                        data = response.json()
+                        count = 0
+                        if isinstance(data, dict) and "value" in data:
+                            count = len(data.get("value", []))
+                        elif isinstance(data, list):
+                            count = len(data)
+                        else:
+                            continue
+
+                        if count > 0:
+                            logger.info(
+                                f"CivicClerk discovered: {subdomain} "
+                                f"({count} items via {endpoint})"
+                            )
+                            return {
+                                "subdomain": subdomain,
+                                "board_count": count,
+                                "url": f"https://{subdomain}.api.civicclerk.com/v1",
+                            }
+                    except ValueError:
+                        continue
+            except requests.exceptions.RequestException:
+                continue
+
+    return None
+
+
+def discover_platform(
+    city_name: str,
+    state: str = "ca",
+    timeout: int = 8,
+) -> Optional[Dict[str, Any]]:
+    """
+    Discover the civic platform for a city by trying all known platforms.
+
+    Tries Legistar, CivicClerk, and Granicus discovery in order of API
+    speed. Falls back to ProudCity website guessing if API probes fail.
+
+    Args:
+        city_name: City name (e.g., "Berkeley", "El Cerrito", "Dublin")
+        state: Two-letter state code (default: "ca")
+        timeout: HTTP request timeout in seconds
+
+    Returns:
+        Dict with keys: platform, confidence, details
+        - platform: "legistar", "civicclerk", "granicus", or "proudcity"
+        - confidence: 0.0-1.0
+        - details: platform-specific discovery results
+        None if no platform found
+    """
+    slug = re.sub(r"[\s\-]+", "", city_name.lower().strip())
+
+    # 1. Try Legistar (fastest — single API call per candidate)
+    legistar = discover_legistar_client(city_name, state=state, timeout=timeout)
+    if legistar:
+        return {
+            "platform": "legistar",
+            "confidence": 0.95,
+            "details": legistar,
+        }
+
+    # 2. Try CivicClerk (fast — single API call per candidate)
+    civicclerk = discover_civicclerk_subdomain(city_name, state=state, timeout=timeout)
+    if civicclerk:
+        return {
+            "platform": "civicclerk",
+            "confidence": 0.95,
+            "details": civicclerk,
+        }
+
+    # 3. Try Granicus (slower — probes root + view_ids)
+    granicus = discover_granicus_subdomain(city_name, state=state, timeout=timeout)
+    if granicus:
+        return {
+            "platform": "granicus",
+            "confidence": 0.95,
+            "details": granicus,
+        }
+
+    # 4. Try ProudCity (slowest — guess website URL, then scrape)
+    proudcity_urls = [
+        f"https://www.cityof{slug}.org",
+        f"https://cityof{slug}.org",
+        f"https://www.{slug}.org",
+        f"https://{slug}.org",
+    ]
+    for url in proudcity_urls:
+        try:
+            pc_confidence, pc_meta = _detect_proudcity(url, timeout=timeout)
+            if pc_confidence >= 0.50:
+                return {
+                    "platform": "proudcity",
+                    "confidence": pc_confidence,
+                    "details": {
+                        "url": url,
+                        **pc_meta,
+                    },
+                }
+        except Exception:
+            continue
 
     return None
 
