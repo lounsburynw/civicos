@@ -291,6 +291,11 @@ def _infer_jurisdiction_id(url: str) -> Optional[str]:
     if match:
         return match.group(1)
 
+    # Simbli: srcs.simbli.com or simbli.eboardsolutions.com?S=... → subdomain
+    match = re.match(r"https?://([^.]+)\.simbli\.com", url)
+    if match:
+        return match.group(1)
+
     # General city sites: cityofsanrafael.org → san-rafael
     from civicos_extraction.platform_detection import _extract_client_name
 
@@ -401,6 +406,27 @@ def _discover_escribe(url: str, jurisdiction_id: str) -> Dict[str, Any]:
     return {
         "config": config,
         "discovered_bodies": archives,
+    }
+
+
+def _discover_simbli(url: str, jurisdiction_id: str) -> Dict[str, Any]:
+    """Run Simbli-specific discovery.
+
+    Simbli uses Playwright for extraction, so discovery is lightweight —
+    we just confirm the URL is valid and build config.
+    """
+    config = {
+        "source_id": f"simbli-{jurisdiction_id}",
+        "source_type": "simbli",
+        "jurisdiction_id": jurisdiction_id,
+        "base_url": url,
+        "archives": {},
+        "metadata": {"board_url": url},
+    }
+
+    return {
+        "config": config,
+        "discovered_bodies": {},
     }
 
 
@@ -853,6 +879,8 @@ def onboard_jurisdiction(
                 url = f"https://{subdomain}.api.civicclerk.com/v1/Boards"
             elif platform == "escribe":
                 url = details.get("url", "")
+            elif platform == "simbli":
+                url = details.get("board_url", "")
             elif platform == "proudcity":
                 url = details.get("url", "")
         else:
@@ -952,6 +980,11 @@ def onboard_jurisdiction(
                 discovery_result = _discover_escribe(url, jurisdiction_id)
             except Exception as e:
                 errors.append(f"eScribe discovery failed: {e}")
+        elif platform == "simbli":
+            try:
+                discovery_result = _discover_simbli(url, jurisdiction_id)
+            except Exception as e:
+                errors.append(f"Simbli discovery failed: {e}")
         elif platform == "proudcity":
             try:
                 discovery_result = _discover_proudcity(url, jurisdiction_id)
@@ -977,7 +1010,7 @@ def onboard_jurisdiction(
                 detection=detection_dict,
                 errors=[
                     f"No platform detected (confidence: {detection.confidence:.0%}). "
-                    "Supported platforms: granicus, legistar, civicclerk, escribe, proudcity."
+                    "Supported platforms: granicus, legistar, civicclerk, escribe, simbli, proudcity."
                 ],
                 next_steps=[
                     "Check that the URL is correct",
@@ -990,6 +1023,8 @@ def onboard_jurisdiction(
                 discovery_result = _discover_granicus(url, jurisdiction_id)
             elif detection.source_type == "escribe":
                 discovery_result = _discover_escribe(url, jurisdiction_id)
+            elif detection.source_type == "simbli":
+                discovery_result = _discover_simbli(url, jurisdiction_id)
             elif detection.source_type == "proudcity":
                 discovery_result = _discover_proudcity(url, jurisdiction_id)
             else:

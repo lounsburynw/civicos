@@ -21877,3 +21877,21 @@ CA bundle missing Cloudflare intermediate cert). curl confirms API works. Will w
 in production (Modal) and CI.
 
 **Regressions:** None — all 96 existing tests still pass
+
+### Continuation: Simbli Discovery Integration
+
+Wired existing SimbliClient into the discovery/factory/onboard chain.
+
+**Changes:**
+- `simbli.py` — Made SimbliClient subclass BaseExtractor, added get_events() + normalize_event()
+- `factory.py` — Added simbli dispatch
+- `platform_detection.py` — Added _detect_simbli(), discover_simbli_instance(), integrated into detect_platform() and discover_platform()
+- `onboard.py` — Added _discover_simbli(), Simbli paths in both flows, jurisdiction inference for simbli.com URLs
+
+**Detection strategy:** Simbli uses Incapsula WAF, so detection uses requests (GET) to check for
+"simbli"/"eboardsolutions" markers. WAF blocks (403/503) and challenge pages still count as positive
+detection (0.70-0.80 confidence). Actual extraction uses Playwright (existing client).
+
+**Tests:** 120/120 pass (109 previous + 11 new Simbli tests)
+
+**Platform coverage now: 6/6** — Granicus, Legistar, CivicClerk, eScribe, Simbli, ProudCity

@@ -588,6 +588,20 @@
         ],
         "test_file": null,
         "notes": "Written after testbed findings, not before. This ADR should reflect what was learned, not what was assumed."
+      },
+      {
+        "name": "simbli_discovery_integration",
+        "description": "Wire existing SimbliClient into discovery chain (factory, platform_detection, onboard). Make BaseExtractor-compatible. Simbli serves school boards via Playwright-based scraping at simbli.eboardsolutions.com.",
+        "status": "done",
+        "priority": 99,
+        "test_file": "packages/civicos-extraction/tests/test_platform_detection.py"
+      },
+      {
+        "name": "universal_adapter_design",
+        "description": "Design session: LLM-powered universal adapter for cities with custom platforms (Portland, NYC). Research declarative scraping configs, LLM-inferred selectors, failure modes. Output: ADR + prototype design.",
+        "status": "not_started",
+        "priority": 1,
+        "test_file": ""
       }
     ]
   }

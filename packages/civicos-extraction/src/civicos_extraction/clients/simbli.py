@@ -15,11 +15,11 @@ Designed for San Rafael City Schools (SRCS) but generalizable to other Simbli di
 import logging
 import time
 import re
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Dict, List, Literal, Optional, Any, Protocol, runtime_checkable
 
-from civicos_extraction.clients.base import HealthStatus, ValidationResult, Meeting
+from civicos_extraction.clients.base import BaseExtractor, HealthStatus, ValidationResult, Meeting
 
 if TYPE_CHECKING:
     from playwright.sync_api import Page, Browser, BrowserContext
@@ -66,7 +66,7 @@ class SimbliMeeting:
         )
 
 
-class SimbliClient:
+class SimbliClient(BaseExtractor):
     """
     Simbli/eBoard school board meeting client.
 
@@ -98,8 +98,8 @@ class SimbliClient:
             headless: Run browser in headless mode (default True)
             request_delay: Delay between requests in seconds (default 2.0)
         """
+        super().__init__(jurisdiction_id)
         self.board_url = board_url
-        self.jurisdiction_id = jurisdiction_id
         self.headless = headless
         self.request_delay = request_delay
         self._browser: Optional["Browser"] = None
@@ -125,6 +125,66 @@ class SimbliClient:
     def source_type(self) -> str:
         """Type of source."""
         return "simbli"
+
+    def get_events(
+        self,
+        days_ahead: int = 90,
+        days_past: int = 0,
+    ) -> List[Dict[str, Any]]:
+        """
+        Get raw events from Simbli.
+
+        Wraps get_meetings() and converts SimbliMeeting objects to dicts
+        for BaseExtractor compatibility.
+        """
+        since_date = date.today() - timedelta(days=days_past) if days_past > 0 else None
+        simbli_meetings = self.get_meetings(since=since_date)
+        return [
+            {
+                "id": m.id,
+                "title": m.title,
+                "meeting_datetime": m.meeting_datetime.isoformat(),
+                "meeting_type": m.meeting_type,
+                "agenda_url": m.agenda_url,
+                "minutes_url": m.minutes_url,
+                "location": m.location,
+                "source_url": m.source_url,
+                "simbli_mid": m.simbli_mid,
+                "attachments": m.attachments,
+            }
+            for m in simbli_meetings
+        ]
+
+    def normalize_event(self, event: Dict[str, Any]) -> Meeting:
+        """Normalize a raw Simbli event dict to Meeting format."""
+        meeting_datetime = datetime.now()
+        dt_str = event.get("meeting_datetime", "")
+        if dt_str:
+            try:
+                meeting_datetime = datetime.fromisoformat(dt_str)
+            except ValueError:
+                pass
+
+        raw_data = {}
+        if event.get("simbli_mid"):
+            raw_data["simbli_mid"] = event["simbli_mid"]
+        if event.get("attachments"):
+            raw_data["attachments"] = event["attachments"]
+
+        return Meeting(
+            id=event.get("id", ""),
+            title=event.get("title", "Board Meeting"),
+            meeting_datetime=meeting_datetime,
+            jurisdiction_id=self.jurisdiction_id,
+            meeting_type=event.get("meeting_type", "regular"),
+            status="confirmed",
+            location=event.get("location"),
+            agenda_url=event.get("agenda_url"),
+            minutes_url=event.get("minutes_url"),
+            source_platform="simbli",
+            source_url=event.get("source_url"),
+            raw_data=raw_data if raw_data else None,
+        )
 
     def _init_browser(self):
         """Initialize Playwright browser with stealth settings to bypass Incapsula."""

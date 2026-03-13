@@ -379,6 +379,54 @@ def _detect_escribe(instance_name: str, timeout: int) -> tuple[float, Dict[str, 
         return 0.0, metadata
 
 
+def _detect_simbli(board_url: str, timeout: int) -> tuple[float, Dict[str, Any]]:
+    """
+    Attempt Simbli detection by probing eboardsolutions.com.
+
+    Simbli uses Incapsula WAF which blocks most automated requests,
+    but we can still detect the platform by checking if the URL resolves
+    and the response contains Simbli markers.
+
+    Returns:
+        Tuple of (confidence, metadata)
+    """
+    metadata: Dict[str, Any] = {"board_url": board_url}
+
+    try:
+        response = requests.get(
+            board_url,
+            headers={"User-Agent": "Civic-Platform-Detection/1.0"},
+            timeout=timeout,
+            allow_redirects=True,
+        )
+        metadata["status_code"] = response.status_code
+
+        if response.status_code == 200:
+            content_lower = response.text.lower()
+            # Simbli pages contain characteristic markers even through WAF
+            if "simbli" in content_lower or "eboardsolutions" in content_lower:
+                metadata["confirmed"] = True
+                return 0.95, metadata
+            # WAF challenge pages still indicate Simbli is there
+            if "incapsula" in content_lower or "imperva" in content_lower:
+                metadata["confirmed"] = "waf_detected"
+                return 0.80, metadata
+            return 0.0, metadata
+        elif response.status_code in [403, 503]:
+            # WAF blocking — still indicates Simbli exists
+            metadata["waf_blocked"] = True
+            return 0.70, metadata
+        else:
+            return 0.0, metadata
+
+    except requests.exceptions.Timeout:
+        metadata["error"] = "Timeout"
+        return 0.0, metadata
+    except requests.exceptions.RequestException as e:
+        metadata["error"] = str(e)
+        return 0.0, metadata
+
+
 def detect_platform(
     base_url: str,
     jurisdiction_id: Optional[str] = None,
@@ -494,7 +542,22 @@ def detect_platform(
             metadata=escribe_meta,
         )
 
-    # 5. Try ProudCity (scraping-based, slowest)
+    # 5. Try Simbli (eboardsolutions.com — school boards)
+    simbli_match = re.match(r"https?://[^/]*eboardsolutions\.com", base_url)
+    if simbli_match:
+        simbli_confidence, simbli_meta = _detect_simbli(base_url, timeout)
+        all_metadata["simbli"] = simbli_meta
+        if simbli_confidence > best_confidence:
+            best_confidence = simbli_confidence
+            best_result = DetectionResult(
+                source_type="simbli",
+                source_id=f"simbli-{jurisdiction_id}",
+                platform_name="Simbli",
+                confidence=simbli_confidence,
+                metadata=simbli_meta,
+            )
+
+    # 6. Try ProudCity (scraping-based, slowest)
     pc_confidence, pc_meta = _detect_proudcity(base_url, timeout)
     all_metadata["proudcity"] = pc_meta
     if pc_confidence > best_confidence:
@@ -794,6 +857,54 @@ def discover_escribe_instance(
     return None
 
 
+def discover_simbli_instance(
+    district_name: str,
+    state: Optional[str] = None,
+    timeout: int = 8,
+) -> Optional[Dict[str, Any]]:
+    """
+    Discover a Simbli instance by trying common URL patterns.
+
+    Simbli instances are at simbli.eboardsolutions.com with district-specific
+    S= parameters. Discovery probes the meeting listing page.
+
+    Args:
+        district_name: School district name (e.g., "San Rafael City Schools")
+        state: Two-letter state code (optional)
+        timeout: HTTP request timeout in seconds
+
+    Returns:
+        Dict with keys: board_url, district_name
+        None if no Simbli instance found
+    """
+    # Simbli uses eboardsolutions.com with various subdomain patterns
+    slug = re.sub(r"[\s\-]+", "", district_name.lower().strip())
+
+    # Common Simbli URL patterns
+    # Most districts use simbli.eboardsolutions.com with an S= parameter
+    # Some use custom subdomains like srcs.simbli.com
+    candidates = [
+        slug,                    # e.g., srcs
+        f"{slug}usd",          # e.g., sanleandrousd
+    ]
+    if state:
+        state_lower = state.lower().strip()
+        candidates.append(f"{slug}{state_lower}")  # e.g., srcsca
+
+    # Try subdomain patterns: {name}.simbli.com
+    for candidate in candidates:
+        board_url = f"https://{candidate}.simbli.com/index.php"
+        confidence, meta = _detect_simbli(board_url, timeout)
+        if confidence >= 0.70:
+            logger.info(f"Simbli discovered: {board_url}")
+            return {
+                "board_url": board_url,
+                "district_name": district_name,
+            }
+
+    return None
+
+
 def discover_platform(
     city_name: str,
     state: Optional[str] = None,
@@ -855,7 +966,16 @@ def discover_platform(
             "details": escribe,
         }
 
-    # 5. Try ProudCity (slowest — guess website URL, then scrape)
+    # 5. Try Simbli (school boards at eboardsolutions.com)
+    simbli = discover_simbli_instance(city_name, state=state, timeout=timeout)
+    if simbli:
+        return {
+            "platform": "simbli",
+            "confidence": 0.95,
+            "details": simbli,
+        }
+
+    # 6. Try ProudCity (slowest — guess website URL, then scrape)
     hyphenated = re.sub(r"[\s]+", "-", city_name.lower().strip())
     proudcity_urls = [
         f"https://www.cityof{slug}.org",
