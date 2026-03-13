@@ -530,6 +530,18 @@ class MCPServer:
         register_router = create_register_router(self.logger)
         app.include_router(register_router)
 
+        # Mount v2 query interface
+        try:
+            from civicos_services.query import create_v2_router
+            v2_router = create_v2_router(
+                self.civic, self.jurisdiction,
+                registry=self.registry, logger_override=self.logger,
+            )
+            app.include_router(v2_router)
+            self.logger.info("v2 query interface mounted at /api/v2/civic/")
+        except Exception as e:
+            self.logger.warning(f"Could not mount v2 query interface: {e}")
+
         # FastMCP Streamable HTTP at /mcp
         app.mount("/mcp", mcp_app, name="mcp")
 
