@@ -1,62 +1,79 @@
-# Recommended: Universal Adapter Design Session
+# Recommended: Query Interface Operators
 
-**Priority:** P0 (`universal_adapter_design`)
-**Area:** federation_testbed
+**Priority:** P0 (`query_interface_operators`)
+**Area:** operator_readiness
 **Date:** 2026-03-13
 
-> Design session — research + ADR, not implementation. The goal is a design document, not code.
+> This is recommended context from the previous session. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
 
 ## Context
 
-All 6 known meeting platforms are now in the auto-discovery chain (Granicus, Legistar, CivicClerk, eScribe, Simbli, ProudCity). But major cities like Portland and NYC use custom platforms that require bespoke client development. This session designs an LLM-powered universal adapter to handle the long tail.
+The v2 unified query interface was hardened this session — cursor pagination, aggregate mode, and trend mode are all implemented with 88 passing tests. The next step is set operators (`-` for diff/monitoring, `&` for intersection) and civic jargon lookup, which are the remaining deferred items from the ADR. Also carries forward: live-data integration tests and RRF ranking calibration.
 
-Additionally, the existing Simbli client (`clients/simbli.py`) uses hardcoded regex and CSS selectors built for one district (SRCS). It's a concrete example of brittle extraction that the universal adapter should replace.
+## What Was Built This Session
 
-## The Problem
+- **Cursor pagination**: stateless base64-encoded per-corpus offsets, `SearchRequest.cursor` → planner → adapters → `ResponseMeta.cursor`
+- **Aggregate mode**: `mode: "aggregate"` returns `AggregateEntry` (count, earliest, latest) per corpus
+- **Trend mode**: `mode: "trend"` returns `TrendBucket` (year-month period + count per corpus)
+- **All 11 adapters** accept `offset` parameter for pagination
+- **MCP schema** updated with `mode` + `cursor` params
 
-- Portland OR: custom system at `portland.gov/council/agenda/all`
-- NYC: custom system
-- Any city with budget to build their own site
-- Simbli client: works for SRCS but regex-based parsing won't generalize across districts
+## Recommended Task
 
-## Existing Pattern to Extend
+Implement query composition operators and civic jargon lookup per the ADR spec (`docs/public/decisions/query_interface.md:293-308`).
 
-We already use LLMs for extraction config generation:
-- `clients/granicus.py` — LLM generates column maps from raw HTML (`generate_column_map()`)
-- `clients/granicus.py` — LLM generates body names from view data (`generate_body_names()`)
-- Both produce structured config that the client then uses deterministically
+### 1. Set operators (highest priority)
 
-This pattern (LLM generates config, client uses config) is the foundation to extend.
+The ADR defines three operators mirroring SQL composition:
 
-## Key Questions to Answer
+| Operator | Meaning | Example |
+|----------|---------|---------|
+| `+` (UNION) | Combine results | Already implicit in multi-corpus |
+| `-` (EXCEPT) | What's new/gone | `search(today) - search(last_week)` = diff |
+| `&` (INTERSECT) | Cross-corpus match | `decisions & testimony` = decisions with testimony |
 
-1. Can we define a **declarative scraping config** (CSS selectors, URL patterns, pagination rules, date formats) that a generic client interprets?
-2. How much can the LLM **reliably infer** from a cold URL vs. needing human hints?
-3. What's the **failure mode** — does it degrade gracefully or silently return garbage?
-4. Is declarative config worth the complexity vs. just writing a bespoke client per major city?
-5. Should the LLM run at **onboard time** (one-shot config generation) or at **extraction time** (per-page parsing)?
+Design decision needed: should operators be expressed as a `compare` field on `SearchRequest` (e.g., `compare: {op: "-", cursor: <previous>}`) or as a separate verb (`civic.compare`)?
 
-## Suggested Approach
+### 2. Civic jargon lookup
 
-1. Read `clients/granicus.py` LLM integration (~lines 200-300) for the existing pattern
-2. Read `clients/simbli.py` to understand what "brittle extraction" looks like
-3. Research: how do tools like Firecrawl, Jina Reader, or browser-use handle arbitrary page parsing?
-4. Design the adapter architecture (ADR format)
-5. Prototype the config schema (what fields? what's required vs. optional?)
-6. Write the ADR to `docs/public/decisions/`
+"What is a conditional use permit?" doesn't map to search — it's a definition lookup. Extend `civic.context` to accept `concept` as an alternative to `ref`, pulling from `municipal_code` corpus.
+
+### 3. Live-data integration tests (carried forward)
+
+Current 88 tests use mocks. Need tests against real PostgreSQL:
+- `civic.search(query="housing", corpus=["decisions", "legislation"])` returns merged results
+- `civic.explore(what="corpora")` counts match `/data-status`
+- Pattern: `test_integration_query_v2.py` alongside existing `test_integration_rag_san_rafael.py`
+
+### 4. RRF ranking calibration (carried forward)
+
+Test 5-10 real queries across 3+ corpora. Check if high-relevance results from small corpora get buried. Consider corpus-specific k values or caller-supplied weights (`corpus: {"decisions": 2.0}`).
 
 ## Key Files
 
-- `clients/granicus.py:200-300` — Existing LLM config generation pattern
-- `clients/simbli.py` — Brittle regex example to improve
-- `clients/base.py:413` — BaseExtractor ABC (adapter must conform)
-- `docs/public/decisions/` — Where ADRs live
+- `packages/civicos-services/src/civicos_services/query/models.py:40` — SearchMode enum (add operator-related types here)
+- `packages/civicos-services/src/civicos_services/query/models.py:97` — SearchRequest (add compare/operator fields)
+- `packages/civicos-services/src/civicos_services/query/verbs.py:37` — execute_search (add operator logic)
+- `packages/civicos-services/src/civicos_services/query/verbs.py:264` — execute_context / parse_ref (extend for concept lookup)
+- `packages/civicos-services/src/civicos_services/query/merger.py:18` — RRF (may need intersection logic)
+- `packages/civicos-services/tests/test_query_v2.py` — 88 tests (add operator + jargon tests)
+- `docs/public/decisions/query_interface.md:293-308` — ADR spec for operators and jargon
+
+## Tests to Run
+
+```bash
+# Existing v2 tests (should stay green throughout)
+pytest packages/civicos-services/tests/test_query_v2.py -q --override-ini="addopts="
+
+# Core smoke tests (regression check)
+pytest packages/civicos/tests/test_civicos.py -q --override-ini="addopts="
+```
 
 ## Success Criteria
 
-- [ ] ADR written documenting the universal adapter design
-- [ ] Config schema defined (fields, types, examples)
-- [ ] Decision on onboard-time vs. extraction-time LLM usage
-- [ ] Simbli identified as first migration candidate
-- [ ] Portland OR used as test case for cold-URL inference
-- [ ] Failure modes documented with mitigation strategies
+- [ ] Set operator `-` (diff) implemented and tested
+- [ ] Set operator `&` (intersect) implemented and tested
+- [ ] `civic.context(concept="conditional use permit")` returns definition from municipal_code
+- [ ] Live-data integration tests pass against PostgreSQL
+- [ ] RRF ranking verified with 5+ real queries
+- [ ] All 88+ existing tests still pass

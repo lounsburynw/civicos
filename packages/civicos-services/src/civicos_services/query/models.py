@@ -37,6 +37,12 @@ class CorpusName(str, Enum):
     packets = "packets"
 
 
+class SearchMode(str, Enum):
+    search = "search"          # Find matching items (default)
+    aggregate = "aggregate"    # Counts/statistics per corpus
+    trend = "trend"            # Temporal patterns (time-bucketed counts)
+
+
 class SearchDepth(str, Enum):
     minimal = "minimal"      # IDs + titles
     standard = "standard"    # + summaries
@@ -104,7 +110,8 @@ class SearchRequest(BaseModel):
     location: Optional[str] = Field(None, description="Geographic filter")
     limit: int = Field(10, ge=1, le=100, description="Max results across all corpora")
     depth: SearchDepth = SearchDepth.standard
-    # mode and cursor deferred to hardening
+    mode: "SearchMode" = Field(SearchMode.search, description="search (items), aggregate (counts), trend (temporal)")
+    cursor: Optional[str] = Field(None, description="Opaque pagination cursor from previous response")
 
 
 class UpcomingRequest(BaseModel):
@@ -141,9 +148,30 @@ class ExploreRequest(BaseModel):
 
 # === Response Models ===
 
+class AggregateEntry(BaseModel):
+    """One corpus's aggregate stats."""
+    corpus: str
+    count: int = 0
+    earliest: Optional[str] = None
+    latest: Optional[str] = None
+
+
+class TrendBucket(BaseModel):
+    """One time bucket in a trend."""
+    period: str  # e.g. "2025-06" (year-month)
+    count: int = 0
+    corpus: str = ""
+
+
 class SearchResponse(BaseModel):
-    """civic.search response."""
+    """civic.search response. Shape depends on mode:
+    - search: results list
+    - aggregate: aggregates list (results empty)
+    - trend: trends list (results empty)
+    """
     results: List[CivicResult] = Field(default_factory=list)
+    aggregates: Optional[List[AggregateEntry]] = None
+    trends: Optional[List[TrendBucket]] = None
     meta: ResponseMeta = Field(default_factory=ResponseMeta)
 
 
@@ -179,6 +207,7 @@ class CorpusQuery(BaseModel):
     method: str  # CivicOS method name
     params: Dict[str, Any] = Field(default_factory=dict)
     per_corpus_limit: int = 5
+    offset: int = 0  # For cursor-based pagination
 
 
 class QueryPlan(BaseModel):

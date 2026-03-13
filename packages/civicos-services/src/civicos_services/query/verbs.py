@@ -14,19 +14,22 @@ from civicos_services.query.models import (
     SCHEMA_VERSION,
     ActRequest,
     ActResponse,
+    AggregateEntry,
     CivicResult,
     ContextRequest,
     ContextResponse,
     ExploreRequest,
     ExploreResponse,
     ResponseMeta,
+    SearchMode,
     SearchRequest,
     SearchResponse,
+    TrendBucket,
     UpcomingRequest,
     UpcomingResponse,
 )
 from civicos_services.query.adapters import ADAPTER_REGISTRY, get_adapter, list_corpus_names
-from civicos_services.query.planner import plan_search
+from civicos_services.query.planner import plan_search, encode_cursor
 from civicos_services.query.merger import reciprocal_rank_fusion
 
 logger = logging.getLogger(__name__)
@@ -41,7 +44,13 @@ async def execute_search(
     civic,
     jurisdiction: str,
 ) -> SearchResponse:
-    """Execute a multi-corpus search with parallel fan-out and RRF merging."""
+    """Execute a multi-corpus search with parallel fan-out and RRF merging.
+
+    Supports three modes:
+    - search: standard result list with optional cursor pagination
+    - aggregate: per-corpus counts/statistics
+    - trend: time-bucketed counts per corpus
+    """
     start = time.monotonic()
 
     plan = plan_search(
@@ -52,9 +61,11 @@ async def execute_search(
         until=request.until,
         location=request.location,
         depth=request.depth.value,
+        cursor=request.cursor,
     )
 
     jid = request.jurisdiction or jurisdiction
+    mode = request.mode
 
     # Fan out to adapters in parallel
     corpus_results: Dict[str, List[CivicResult]] = {}
@@ -69,12 +80,19 @@ async def execute_search(
 
         c_start = time.monotonic()
         try:
+            # For aggregate/trend, fetch more results to get full counts/dates
+            fetch_limit = cq.per_corpus_limit if mode == SearchMode.search else 100
+
             # Run sync adapter in executor with timeout
             loop = asyncio.get_event_loop()
             results = await asyncio.wait_for(
                 loop.run_in_executor(
                     None,
-                    lambda: adapter.search(civic, jid, request.query, cq.per_corpus_limit, **cq.params),
+                    lambda: adapter.search(
+                        civic, jid, request.query, fetch_limit,
+                        offset=cq.offset if mode == SearchMode.search else 0,
+                        **cq.params,
+                    ),
                 ),
                 timeout=CORPUS_TIMEOUT_S,
             )
@@ -99,23 +117,58 @@ async def execute_search(
         corpus_status[corpus_name] = status
         corpus_counts[corpus_name] = len(corpus_result_list)
 
-    # Merge results via RRF
+    total_time = int((time.monotonic() - start) * 1000)
+    meta = ResponseMeta(
+        schema_version=SCHEMA_VERSION,
+        query_time_ms=total_time,
+        corpora_searched=list(corpus_results.keys()),
+        corpus_counts=corpus_counts,
+        corpus_times_ms=corpus_times,
+        corpus_status=corpus_status,
+        total_results=sum(corpus_counts.values()),
+    )
+
+    # === Mode: aggregate ===
+    if mode == SearchMode.aggregate:
+        aggregates = []
+        for corpus_name, result_list in corpus_results.items():
+            dates = [r.date for r in result_list if r.date]
+            aggregates.append(AggregateEntry(
+                corpus=corpus_name,
+                count=len(result_list),
+                earliest=min(dates) if dates else None,
+                latest=max(dates) if dates else None,
+            ))
+        return SearchResponse(aggregates=aggregates, meta=meta)
+
+    # === Mode: trend ===
+    if mode == SearchMode.trend:
+        buckets: Dict[str, Dict[str, int]] = {}  # {period: {corpus: count}}
+        for corpus_name, result_list in corpus_results.items():
+            for r in result_list:
+                period = r.date[:7] if r.date and len(r.date) >= 7 else "unknown"
+                if period not in buckets:
+                    buckets[period] = {}
+                buckets[period][corpus_name] = buckets[period].get(corpus_name, 0) + 1
+
+        trends = []
+        for period in sorted(buckets.keys()):
+            for corpus_name, count in sorted(buckets[period].items()):
+                trends.append(TrendBucket(period=period, count=count, corpus=corpus_name))
+        return SearchResponse(trends=trends, meta=meta)
+
+    # === Mode: search (default) ===
     merged = reciprocal_rank_fusion(corpus_results, global_limit=request.limit)
 
-    total_time = int((time.monotonic() - start) * 1000)
+    # Build next cursor if any corpus returned a full page
+    next_offsets = {}
+    for cq in plan.corpus_queries:
+        returned = len(corpus_results.get(cq.corpus, []))
+        if returned >= cq.per_corpus_limit:
+            next_offsets[cq.corpus] = cq.offset + returned
+    meta.cursor = encode_cursor(next_offsets)
 
-    return SearchResponse(
-        results=merged,
-        meta=ResponseMeta(
-            schema_version=SCHEMA_VERSION,
-            query_time_ms=total_time,
-            corpora_searched=list(corpus_results.keys()),
-            corpus_counts=corpus_counts,
-            corpus_times_ms=corpus_times,
-            corpus_status=corpus_status,
-            total_results=sum(corpus_counts.values()),
-        ),
-    )
+    return SearchResponse(results=merged, meta=meta)
 
 
 # === civic.upcoming ===
