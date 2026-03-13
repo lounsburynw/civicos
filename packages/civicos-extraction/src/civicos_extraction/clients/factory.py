@@ -33,5 +33,9 @@ def create_source(config):
         from civicos_extraction.clients.civicclerk import CivicClerkClient
         subdomain = config.metadata.get("subdomain", config.jurisdiction_id)
         return CivicClerkClient(subdomain, config.jurisdiction_id)
+    elif source_type == "escribe":
+        from civicos_extraction.clients.escribe import EScribeClient
+        instance_name = config.metadata.get("instance_name", config.base_url)
+        return EScribeClient(instance_name, config.jurisdiction_id)
     else:
         raise ValueError(f"Unsupported source_type: {source_type}")
