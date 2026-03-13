@@ -324,8 +324,11 @@ def _discover_granicus(url: str, jurisdiction_id: str) -> Dict[str, Any]:
 
     # Step 3: Generate column map via LLM (one-time, ~$0.0001)
     column_map = None
+    column_map_provenance = None
     try:
-        column_map = client.generate_column_map(view_id=default_view_id)
+        mapping_result = client.generate_column_map(view_id=default_view_id)
+        column_map = mapping_result["column_map"]
+        column_map_provenance = mapping_result.get("provenance")
         logger.info(f"Column map generated: {column_map}")
     except Exception as e:
         logger.warning(f"Column map generation failed (will use header detection): {e}")
@@ -337,6 +340,8 @@ def _discover_granicus(url: str, jurisdiction_id: str) -> Dict[str, Any]:
     }
     if column_map:
         metadata["column_map"] = column_map
+    if column_map_provenance:
+        metadata["column_map_provenance"] = column_map_provenance
     if body_name_provenance:
         metadata["body_name_provenance"] = body_name_provenance
 
