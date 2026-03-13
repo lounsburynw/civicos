@@ -62,6 +62,11 @@ logger = logging.getLogger(__name__)
 _CLOCK_SKEW_TOLERANCE = 300  # 5 minutes
 
 
+def _default_jurisdiction() -> str:
+    """Get default jurisdiction from environment. Never hardcode a specific city."""
+    return os.environ.get("CIVICOS_JURISDICTION", "city-san-rafael")
+
+
 def _check_created_at(created_at: int) -> None:
     """Reject writes with timestamps too far from server time (clock skew protection)."""
     now = int(time.time())
@@ -1680,7 +1685,7 @@ async def commit_action(request: CommitActionRequest):
         _check_created_at(request.created_at)
         if not verify_commitment(
             request.public_key, request.signature,
-            request.action_id, request.jurisdiction or "city-san-rafael", request.created_at,
+            request.action_id, request.jurisdiction or _default_jurisdiction(), request.created_at,
         ):
             raise HTTPException(
                 status_code=400,
@@ -1732,7 +1737,7 @@ async def complete_action(request: CompleteActionRequest):
         _check_created_at(request.created_at)
         if not verify_completion(
             request.public_key, request.signature,
-            request.action_id, request.jurisdiction or "city-san-rafael", request.created_at,
+            request.action_id, request.jurisdiction or _default_jurisdiction(), request.created_at,
             request.evidence_url,
         ):
             raise HTTPException(
@@ -2108,7 +2113,7 @@ async def commit_to_civic_action(action_id: str, request: CivicCommitmentRequest
         _check_created_at(request.created_at)
         if not verify_commitment(
             request.public_key, request.signature,
-            action_id, request.jurisdiction or "city-san-rafael", request.created_at,
+            action_id, request.jurisdiction or _default_jurisdiction(), request.created_at,
         ):
             raise HTTPException(
                 status_code=400,
@@ -2236,7 +2241,7 @@ async def complete_civic_action(action_id: str, request: CivicCompletionRequest)
         _check_created_at(request.created_at)
         if not verify_completion(
             request.public_key, request.signature,
-            action_id, request.jurisdiction or "city-san-rafael", request.created_at,
+            action_id, request.jurisdiction or _default_jurisdiction(), request.created_at,
             request.evidence_content,
         ):
             raise HTTPException(
@@ -2762,10 +2767,11 @@ async def redeem_attestation(request: RedeemAttestationRequest):
 
 
 @router.get("/coordination/attestation/{public_key}", response_model=AttestationResponse)
-async def get_attestation_status(public_key: str, jurisdiction: str = "city-san-rafael"):
+async def get_attestation_status(public_key: str, jurisdiction: Optional[str] = None):
     """
     Check attestation status for a pubkey.
     """
+    jurisdiction = jurisdiction or _default_jurisdiction()
     storage = _get_attestation_storage()
     if not storage:
         return AttestationResponse(attested=False)
