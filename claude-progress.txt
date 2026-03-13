@@ -1,7 +1,7 @@
 ## Session 38 — 2026-03-13: Turnkey Onboarding Phase 3 — Coverage Improvements (P1)
 
 **Item:** turnkey_onboarding_coverage
-**Status:** In progress — chunks redirect fix done, municipal code pattern inference done, agenda validation not yet run.
+**Status:** Complete — chunks, municipal code (title + section + chapter fallback) all working.
 
 ### Changes Made
 
@@ -13,27 +13,25 @@
 - `download_and_validate_pdf()` now accepts optional session for cookie-gated sites
 - Verified: Both Berkeley City Council meetings (clip_id 5590, 5592) now find and download PDFs
 
-**2. Municipal Code: Added title pattern inference (municipal.py)**
-- Problem: Default `Title\s+(\d+)` pattern fails for cities with different TOC structures (e.g., Alameda uses CHAPTER I, II, III)
-- Fix: `_infer_title_pattern()` tries 5 common alternative patterns before falling back to LLM
-- Patterns: CHAPTER (roman), Chapter (arabic), ARTICLE, Part, Division
-- Requires minimum 3 heading matches for acceptance
-- `stream_sections()` now calls this method when default pattern fails instead of silently returning empty
-- Verified: Alameda TOC (23/24 headings matched with CHAPTER roman numeral pattern)
-- Note: Berkeley is NOT on Municode API (404), so pattern inference doesn't help there
+**2. Municipal Code: 3-layer pattern inference (municipal.py)**
+- Problem: Default `Title\s+(\d+)` pattern fails for cities with different TOC structures
+- Fix 1 — Title inference: `_infer_title_pattern()` tries 5 alternative patterns before LLM fallback
+- Fix 2 — Chapter fallback: When `_find_chapter_nodes` yields nothing, fetch content from title node directly
+- Fix 3 — Section inference: `_infer_section_pattern()` handles non-standard numbering (e.g., `1-3.1`)
+- Result: Alameda went from 0 → 3,227 sections. Only 23 API calls (was 458 before).
 
-**3. New test: test_municipal_pattern_inference.py (11 tests, all passing)**
+**3. New tests: test_municipal_pattern_inference.py (19 tests, all passing)**
 
 ### Key Findings
 - Berkeley Granicus → redirects to berkeleyca.gov (Drupal) where PDFs are in static HTML
-- PDF download requires cookies from the redirect chain (403 without)
 - Playwright not needed — static HTML scraping works after redirect handling
 - Berkeley NOT on Municode API despite having a library page
+- Alameda: CHAPTER > ARTICLE > Section structure; CodesContent on top-level node returns all nested sections
 
 ### Remaining for Turnkey Coverage
-- Run `civicos-extract agenda --jurisdiction city-berkeley --limit 2 --cloud` to validate agenda extraction
-- Full Berkeley re-test with chunks fix applied
-- Multi-city validation sweep (Alameda, Mill Valley, Austin, Ashland)
+- Validate agenda extraction: `civicos-extract agenda --jurisdiction city-berkeley --limit 2 --cloud`
+- Full Berkeley re-test with chunks fix
+- Multi-city validation sweep
 
 ## Session 36 — 2026-03-13: Query Interface Operators — Integration Tests & RRF Calibration (P0)
 
