@@ -1,4 +1,4 @@
-# Recommended: Query Interface Operators
+# Recommended: Query Interface Operators (continued)
 
 **Priority:** P0 (`query_interface_operators`)
 **Area:** operator_readiness
@@ -8,72 +8,79 @@
 
 ## Context
 
-The v2 unified query interface was hardened this session — cursor pagination, aggregate mode, and trend mode are all implemented with 88 passing tests. The next step is set operators (`-` for diff/monitoring, `&` for intersection) and civic jargon lookup, which are the remaining deferred items from the ADR. Also carries forward: live-data integration tests and RRF ranking calibration.
+This session implemented the core operator features for the v2 query interface: diff mode (`-`), intersect mode (`&`), and civic jargon lookup via `civic.context(concept=...)`. All are working with 112 tests passing. The remaining work on this P0 item is: live-data integration tests against PostgreSQL and RRF ranking calibration with real queries.
 
 ## What Was Built This Session
 
-- **Cursor pagination**: stateless base64-encoded per-corpus offsets, `SearchRequest.cursor` → planner → adapters → `ResponseMeta.cursor`
-- **Aggregate mode**: `mode: "aggregate"` returns `AggregateEntry` (count, earliest, latest) per corpus
-- **Trend mode**: `mode: "trend"` returns `TrendBucket` (year-month period + count per corpus)
-- **All 11 adapters** accept `offset` parameter for pagination
-- **MCP schema** updated with `mode` + `cursor` params
+- **Diff mode** (`mode: "diff"` + `snapshot_date`): filters results to items dated after the snapshot. Validated with ISO format. Handles edge cases (undated items, on-snapshot-date exclusion, datetime normalization).
+- **Intersect mode** (`mode: "intersect"` + `intersect_corpus`): parallel search on secondary corpora, matches by date overlap or significant title words (>= 6 chars to avoid false positives on common civic terms).
+- **Concept lookup** (`civic.context(concept="conditional use permit")`): searches municipal_code corpus, returns matching sections with excerpts. Mutually exclusive with `ref` via model_validator.
+- **Hardening pass**: snapshot_date ISO validation, intersect error logging (mirrors run_corpus pattern), null guards on adapter and request.ref, async executor + timeout on concept lookup.
+- **MCP schema** updated for all new fields.
+- **ADR** (query_interface.md) open questions 1 & 2 marked resolved.
 
 ## Recommended Task
 
-Implement query composition operators and civic jargon lookup per the ADR spec (`docs/public/decisions/query_interface.md:293-308`).
+Complete the remaining items to close out this P0:
 
-### 1. Set operators (highest priority)
+### 1. Live-data integration tests (highest priority)
 
-The ADR defines three operators mirroring SQL composition:
+Current 112 tests all use mocks. Need tests against real PostgreSQL to validate the full stack:
 
-| Operator | Meaning | Example |
-|----------|---------|---------|
-| `+` (UNION) | Combine results | Already implicit in multi-corpus |
-| `-` (EXCEPT) | What's new/gone | `search(today) - search(last_week)` = diff |
-| `&` (INTERSECT) | Cross-corpus match | `decisions & testimony` = decisions with testimony |
+```python
+# Pattern: test_integration_query_v2.py alongside test_integration_rag_san_rafael.py
+# Must load .env for DATABASE_URL
 
-Design decision needed: should operators be expressed as a `compare` field on `SearchRequest` (e.g., `compare: {op: "-", cursor: <previous>}`) or as a separate verb (`civic.compare`)?
+# Test cases:
+# - civic.search(query="housing", corpus=["decisions", "legislation"]) returns merged results
+# - civic.search(query="housing", corpus=["decisions"], mode="diff", snapshot_date="2025-01-01") returns recent items
+# - civic.search(query="housing", corpus=["decisions"], mode="intersect", intersect_corpus=["testimony"]) returns correlated items
+# - civic.context(concept="conditional use permit") returns municipal code sections
+# - civic.explore(what="corpora") counts match /data-status
+# - civic.search mode="aggregate" counts are non-zero for populated corpora
+```
 
-### 2. Civic jargon lookup
+### 2. RRF ranking calibration
 
-"What is a conditional use permit?" doesn't map to search — it's a definition lookup. Extend `civic.context` to accept `concept` as an alternative to `ref`, pulling from `municipal_code` corpus.
+Test 5-10 real queries across 3+ corpora. Check if high-relevance results from small corpora get buried by larger corpora. Current RRF uses k=60 uniformly.
 
-### 3. Live-data integration tests (carried forward)
+Questions to answer:
+- Does a highly relevant decision get outranked by mediocre legislation results?
+- Should `corpus_weights` be added to SearchRequest? (ADR open question #3)
+- Are there queries where the top-5 results are all from one corpus despite multi-corpus search?
 
-Current 88 tests use mocks. Need tests against real PostgreSQL:
-- `civic.search(query="housing", corpus=["decisions", "legislation"])` returns merged results
-- `civic.explore(what="corpora")` counts match `/data-status`
-- Pattern: `test_integration_query_v2.py` alongside existing `test_integration_rag_san_rafael.py`
+### 3. Multi-jurisdiction fan-out (stretch)
 
-### 4. RRF ranking calibration (carried forward)
-
-Test 5-10 real queries across 3+ corpora. Check if high-relevance results from small corpora get buried. Consider corpus-specific k values or caller-supplied weights (`corpus: {"decisions": 2.0}`).
+Not yet implemented. Would allow `civic.search(query="housing", jurisdiction=["city-san-rafael", "county-marin"])`. Lower priority than integration tests and calibration.
 
 ## Key Files
 
-- `packages/civicos-services/src/civicos_services/query/models.py:40` — SearchMode enum (add operator-related types here)
-- `packages/civicos-services/src/civicos_services/query/models.py:97` — SearchRequest (add compare/operator fields)
-- `packages/civicos-services/src/civicos_services/query/verbs.py:37` — execute_search (add operator logic)
-- `packages/civicos-services/src/civicos_services/query/verbs.py:264` — execute_context / parse_ref (extend for concept lookup)
-- `packages/civicos-services/src/civicos_services/query/merger.py:18` — RRF (may need intersection logic)
-- `packages/civicos-services/tests/test_query_v2.py` — 88 tests (add operator + jargon tests)
-- `docs/public/decisions/query_interface.md:293-308` — ADR spec for operators and jargon
+- `packages/civicos-services/src/civicos_services/query/models.py` — SearchRequest, SearchMode, ContextRequest (all updated this session)
+- `packages/civicos-services/src/civicos_services/query/verbs.py` — execute_search (diff/intersect at lines 131-232), _execute_concept_lookup (lines 530-600)
+- `packages/civicos-services/src/civicos_services/query/merger.py:18` — RRF with k=60 (calibration target)
+- `packages/civicos-services/tests/test_query_v2.py` — 112 tests (add integration tests here or in new file)
+- `packages/civicos/tests/test_integration_rag_san_rafael.py` — existing integration test pattern to follow
+- `docs/public/decisions/query_interface.md:307` — ADR open question #3 (corpus weights)
 
 ## Tests to Run
 
 ```bash
-# Existing v2 tests (should stay green throughout)
+# Existing v2 tests (must stay green)
 pytest packages/civicos-services/tests/test_query_v2.py -q --override-ini="addopts="
 
-# Core smoke tests (regression check)
+# Core smoke tests
 pytest packages/civicos/tests/test_civicos.py -q --override-ini="addopts="
+
+# Integration tests (once written)
+pytest packages/civicos-services/tests/test_integration_query_v2.py -q --override-ini="addopts="
 ```
 
 ## Success Criteria
 
-- [ ] Set operator `-` (diff) implemented and tested
-- [ ] Set operator `&` (intersect) implemented and tested
-- [ ] `civic.context(concept="conditional use permit")` returns definition from municipal_code
+- [x] Set operator `-` (diff) implemented and tested
+- [x] Set operator `&` (intersect) implemented and tested
+- [x] `civic.context(concept="...")` returns definition from municipal_code
 - [ ] Live-data integration tests pass against PostgreSQL
 - [ ] RRF ranking verified with 5+ real queries
-- [ ] All 88+ existing tests still pass
+- [ ] All 112+ existing tests still pass
+- [ ] P0 item marked done (or remaining work re-scoped)
