@@ -12,7 +12,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Any, Dict, List, Optional, Union
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 SCHEMA_VERSION = "2025.1"
@@ -41,6 +41,8 @@ class SearchMode(str, Enum):
     search = "search"          # Find matching items (default)
     aggregate = "aggregate"    # Counts/statistics per corpus
     trend = "trend"            # Temporal patterns (time-bucketed counts)
+    diff = "diff"              # What's new since a snapshot date (EXCEPT)
+    intersect = "intersect"    # Items appearing across multiple corpora (INTERSECT)
 
 
 class SearchDepth(str, Enum):
@@ -110,8 +112,21 @@ class SearchRequest(BaseModel):
     location: Optional[str] = Field(None, description="Geographic filter")
     limit: int = Field(10, ge=1, le=100, description="Max results across all corpora")
     depth: SearchDepth = SearchDepth.standard
-    mode: "SearchMode" = Field(SearchMode.search, description="search (items), aggregate (counts), trend (temporal)")
+    mode: "SearchMode" = Field(SearchMode.search, description="search (items), aggregate (counts), trend (temporal), diff (new since snapshot), intersect (cross-corpus)")
     cursor: Optional[str] = Field(None, description="Opaque pagination cursor from previous response")
+    snapshot_date: Optional[str] = Field(None, description="ISO date for diff mode — returns items newer than this date")
+    intersect_corpus: Optional[List[str]] = Field(None, description="For intersect mode — secondary corpora to join against")
+
+    @field_validator("snapshot_date")
+    @classmethod
+    def validate_snapshot_date(cls, v):
+        if v is not None:
+            from datetime import date
+            try:
+                date.fromisoformat(v[:10])
+            except (ValueError, TypeError):
+                raise ValueError(f"snapshot_date must be ISO format (YYYY-MM-DD), got: {v!r}")
+        return v
 
 
 class UpcomingRequest(BaseModel):
@@ -126,10 +141,19 @@ class UpcomingRequest(BaseModel):
 
 
 class ContextRequest(BaseModel):
-    """civic.context request."""
-    ref: str = Field(..., description="Opaque ref from a search/upcoming result")
+    """civic.context request — item context (ref) or civic jargon lookup (concept)."""
+    ref: Optional[str] = Field(None, description="Opaque ref from a search/upcoming result")
+    concept: Optional[str] = Field(None, description="Civic term to look up (e.g., 'conditional use permit')")
     depth: str = Field("standard", description="minimal, standard, or deep")
     sections: Optional[List[str]] = Field(None, description="Sections to include (omit for all)")
+
+    @model_validator(mode="after")
+    def ref_or_concept(self):
+        if not self.ref and not self.concept:
+            raise ValueError("Either 'ref' or 'concept' must be provided")
+        if self.ref and self.concept:
+            raise ValueError("Provide 'ref' or 'concept', not both")
+        return self
 
 
 class ActRequest(BaseModel):

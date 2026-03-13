@@ -21965,3 +21965,45 @@ Implemented three core hardening features for the v2 unified query interface:
 
 **Tests:** 88 passing (69 existing + 19 new)
 - TestCursorEncoding (4), TestPagination (4), TestAggregateMode (3), TestTrendMode (3), TestSearchMode (3), misc (2)
+
+## Session — 2026-03-13: Query Interface Operators (P0)
+
+**Item:** query_interface_operators
+**Status:** Core features implemented, tests passing
+
+### What was built
+
+**1. Diff mode (`-` operator / EXCEPT)**
+- `mode: "diff"` + `snapshot_date` on SearchRequest
+- Filters results to items dated after the snapshot date
+- Solves monitoring use case: "what's new since 2025-06-01?"
+- Handles edge cases: undated items excluded, items on snapshot date excluded
+
+**2. Intersect mode (`&` operator / INTERSECT)**
+- `mode: "intersect"` + `intersect_corpus` on SearchRequest
+- Executes parallel search on primary and secondary corpora
+- Matches by date overlap (same day) or title word overlap (tokens > 3 chars)
+- Solves cross-corpus joins: "decisions that have testimony about housing"
+
+**3. Civic jargon/concept lookup**
+- `civic.context(concept="conditional use permit")` — new path in execute_context
+- Searches municipal_code corpus via MunicipalCodeAdapter
+- Returns structured response: concept, found, sections (with ref, title, excerpt, section_number)
+- ContextRequest now uses model_validator: exactly one of ref or concept required
+
+**Files modified:**
+- `query/models.py` — SearchMode enum (+diff, +intersect), SearchRequest (+snapshot_date, +intersect_corpus), ContextRequest (ref optional, +concept, +validator)
+- `query/verbs.py` — execute_search diff/intersect mode branches, execute_context concept branch, _execute_concept_lookup helper
+- `apps/civicos-mcp/server.py` — MCP schema updated for new fields
+- `docs/public/decisions/query_interface.md` — ADR open questions 1 & 2 marked resolved
+
+**Tests:** 107 passing (88 existing + 19 new)
+- TestDiffMode (5): requires snapshot_date, returns new items, excludes on-date, skips undated, multi-corpus
+- TestIntersectMode (4): requires intersect_corpus, date overlap, title overlap, no match
+- TestConceptLookup (6): validation (requires one of ref/concept, rejects both), returns sections, not found, structure, ref still works
+- TestSearchModeExtensions (4): diff/intersect mode strings, snapshot_date field, intersect_corpus field
+
+**Remaining from checklist:**
+- Live-data integration tests against PostgreSQL
+- RRF ranking calibration with real queries
+- Multi-jurisdiction fan-out

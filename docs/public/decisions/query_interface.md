@@ -292,17 +292,12 @@ GraphQL requires callers to know the schema — specifying exact fields defeats 
 
 Raised during review, deferred to implementation:
 
-1. **Query operators for composition.** "What changed since I last checked?" is a real civic use case (tracking a rezoning through hearings). None of the 5 verbs express temporal diffing. A candidate approach: set operators that compose queries, mirroring how SQL's composable primitives (UNION, INTERSECT, EXCEPT) work under the hood.
+1. **~~Query operators for composition.~~** RESOLVED. Implemented as `mode` extensions on `SearchRequest`:
+    - `mode: "diff"` + `snapshot_date`: returns items dated after the snapshot (EXCEPT). Solves monitoring: "what's new since I last checked?"
+    - `mode: "intersect"` + `intersect_corpus`: returns primary results with date/title overlap in secondary corpora (INTERSECT). Solves cross-corpus joins: "decisions that have testimony."
+    - `+` (UNION) remains implicit in multi-corpus search.
 
-    | Operator | SQL analog | Civic meaning | Example |
-    |----------|-----------|---------------|---------|
-    | `+` | UNION | Combine result sets | Already implicit in multi-corpus |
-    | `-` | EXCEPT | What's new / what's gone | `search(today) - search(last_week)` = diff |
-    | `&` | INTERSECT | Items across corpora | `decisions & testimony` = decisions with testimony |
-
-    The `-` operator solves monitoring: `civic.search(query="rezoning", minus={"snapshot": "2025-03-01"})` returns only items since the snapshot. The `&` operator solves cross-corpus joins: `civic.search(query="housing", corpus="decisions", intersect="testimony")` returns decisions that have public testimony — a server-side join the agent currently can't express. This adds expressiveness without new verbs, but increases query plan complexity (the planner must understand relational joins between corpora, not just parallel fan-out). Alternative approaches: a `changes_since` parameter, a 6th verb `civic.watch`, or webhooks via `civic.act(action="subscribe")`.
-
-2. **Civic jargon explanation.** "What is a conditional use permit?" doesn't map to any verb — it's not a search, it's a definition lookup. `civic.context` currently takes item refs, not conceptual queries. Could be extended to accept `ref` or `concept` as mutually exclusive parameters, pulling from `municipal_code` corpus.
+2. **~~Civic jargon explanation.~~** RESOLVED. `civic.context` now accepts `concept` as an alternative to `ref`. `civic.context(concept="conditional use permit")` searches the `municipal_code` corpus and returns matching sections with excerpts. Mutually exclusive with `ref` (model validation enforces).
 
 3. **Cross-corpus ranking calibration.** Reciprocal rank fusion is a reasonable starting point, but vector similarity scores across different embedding spaces may need corpus-specific weighting. Consider allowing callers to pass corpus weights: `corpus: {"decisions": 2.0, "legislation": 1.0}` (object form as alternative to array form).
 
