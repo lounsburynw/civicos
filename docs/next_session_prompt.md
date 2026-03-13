@@ -1,86 +1,68 @@
-# Recommended: Query Interface Operators (continued)
+# Recommended: Deploy Marin Test Relays
 
-**Priority:** P0 (`query_interface_operators`)
-**Area:** operator_readiness
+**Priority:** P0 (`deploy_marin_test_relays`)
+**Area:** federation_testbed (Phase A)
 **Date:** 2026-03-13
 
 > This is recommended context from the previous session. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
 
 ## Context
 
-This session implemented the core operator features for the v2 query interface: diff mode (`-`), intersect mode (`&`), and civic jargon lookup via `civic.context(concept=...)`. All are working with 112 tests passing. The remaining work on this P0 item is: live-data integration tests against PostgreSQL and RRF ranking calibration with real queries.
+Mill Valley and San Anselmo have been onboarded (meetings + agenda items in PostgreSQL). The next federation step is deploying separate relay instances for these jurisdictions on Modal. This validates multi-relay deployment — same code, different jurisdiction config. These are private, not public-facing.
 
-## What Was Built This Session
+The existing San Rafael relay is deployed at `apps/civicos-relay/modal_relay.py`. The task is to deploy 2 additional instances.
 
-- **Diff mode** (`mode: "diff"` + `snapshot_date`): filters results to items dated after the snapshot. Validated with ISO format. Handles edge cases (undated items, on-snapshot-date exclusion, datetime normalization).
-- **Intersect mode** (`mode: "intersect"` + `intersect_corpus`): parallel search on secondary corpora, matches by date overlap or significant title words (>= 6 chars to avoid false positives on common civic terms).
-- **Concept lookup** (`civic.context(concept="conditional use permit")`): searches municipal_code corpus, returns matching sections with excerpts. Mutually exclusive with `ref` via model_validator.
-- **Hardening pass**: snapshot_date ISO validation, intersect error logging (mirrors run_corpus pattern), null guards on adapter and request.ref, async executor + timeout on concept lookup.
-- **MCP schema** updated for all new fields.
-- **ADR** (query_interface.md) open questions 1 & 2 marked resolved.
+## What Was Completed This Session
+
+`query_interface_operators` (P0) is done:
+- 23 live-data integration tests against PostgreSQL (all passing)
+- RRF calibration: k=60 shows good 4:4 interleaving between corpora
+- Known issue: legislation/municipal_code timeout at 10s (what_applies takes ~40s)
 
 ## Recommended Task
 
-Complete the remaining items to close out this P0:
+Deploy 2 additional relay instances on Modal for Mill Valley and San Anselmo.
 
-### 1. Live-data integration tests (highest priority)
+### Approach Options
 
-Current 112 tests all use mocks. Need tests against real PostgreSQL to validate the full stack:
+1. **Separate Modal apps** — one `modal_relay.py` per jurisdiction (simplest, some duplication)
+2. **Parameterized single app** — one `modal_relay.py` that accepts jurisdiction via env var or Modal secret
+3. **Multi-jurisdiction single app** — one app serving all jurisdictions (most complex)
 
-```python
-# Pattern: test_integration_query_v2.py alongside test_integration_rag_san_rafael.py
-# Must load .env for DATABASE_URL
-
-# Test cases:
-# - civic.search(query="housing", corpus=["decisions", "legislation"]) returns merged results
-# - civic.search(query="housing", corpus=["decisions"], mode="diff", snapshot_date="2025-01-01") returns recent items
-# - civic.search(query="housing", corpus=["decisions"], mode="intersect", intersect_corpus=["testimony"]) returns correlated items
-# - civic.context(concept="conditional use permit") returns municipal code sections
-# - civic.explore(what="corpora") counts match /data-status
-# - civic.search mode="aggregate" counts are non-zero for populated corpora
-```
-
-### 2. RRF ranking calibration
-
-Test 5-10 real queries across 3+ corpora. Check if high-relevance results from small corpora get buried by larger corpora. Current RRF uses k=60 uniformly.
-
-Questions to answer:
-- Does a highly relevant decision get outranked by mediocre legislation results?
-- Should `corpus_weights` be added to SearchRequest? (ADR open question #3)
-- Are there queries where the top-5 results are all from one corpus despite multi-corpus search?
-
-### 3. Multi-jurisdiction fan-out (stretch)
-
-Not yet implemented. Would allow `civic.search(query="housing", jurisdiction=["city-san-rafael", "county-marin"])`. Lower priority than integration tests and calibration.
+Option 2 is likely best — keeps code DRY while Modal handles isolation.
 
 ## Key Files
 
-- `packages/civicos-services/src/civicos_services/query/models.py` — SearchRequest, SearchMode, ContextRequest (all updated this session)
-- `packages/civicos-services/src/civicos_services/query/verbs.py` — execute_search (diff/intersect at lines 131-232), _execute_concept_lookup (lines 530-600)
-- `packages/civicos-services/src/civicos_services/query/merger.py:18` — RRF with k=60 (calibration target)
-- `packages/civicos-services/tests/test_query_v2.py` — 112 tests (add integration tests here or in new file)
-- `packages/civicos/tests/test_integration_rag_san_rafael.py` — existing integration test pattern to follow
-- `docs/public/decisions/query_interface.md:307` — ADR open question #3 (corpus weights)
+- `apps/civicos-relay/modal_relay.py` — Existing San Rafael relay deployment
+- `packages/civicos-relay/src/civicos_relay/server/app.py` — Relay server application
+- `packages/civicos-relay/src/civicos_relay/server/acceptance.py` — Acceptance policy
+- `docs/internal/deployment.md` — Modal deployment procedures
+- `data/jurisdictions/city-mill-valley.yaml` — Mill Valley jurisdiction config
+- `data/jurisdictions/city-san-anselmo.yaml` — San Anselmo jurisdiction config
+
+## Suggested Approach
+
+1. Read `apps/civicos-relay/modal_relay.py` to understand the current deployment pattern
+2. Read `docs/internal/deployment.md` for Modal deployment procedures
+3. Check Modal secrets: `modal secret list` (need `civicos-secrets` or similar)
+4. Create parameterized deployment (jurisdiction via env var or separate Modal apps)
+5. Deploy with `modal deploy` and validate with health checks
+6. Test that each relay serves its jurisdiction's data correctly
 
 ## Tests to Run
 
 ```bash
-# Existing v2 tests (must stay green)
-pytest packages/civicos-services/tests/test_query_v2.py -q --override-ini="addopts="
-
-# Core smoke tests
+# Smoke tests (should stay green)
 pytest packages/civicos/tests/test_civicos.py -q --override-ini="addopts="
 
-# Integration tests (once written)
-pytest packages/civicos-services/tests/test_integration_query_v2.py -q --override-ini="addopts="
+# Health check after deployment
+/health relay
 ```
 
 ## Success Criteria
 
-- [x] Set operator `-` (diff) implemented and tested
-- [x] Set operator `&` (intersect) implemented and tested
-- [x] `civic.context(concept="...")` returns definition from municipal_code
-- [ ] Live-data integration tests pass against PostgreSQL
-- [ ] RRF ranking verified with 5+ real queries
-- [ ] All 112+ existing tests still pass
-- [ ] P0 item marked done (or remaining work re-scoped)
+- [ ] Mill Valley relay deployed on Modal (private, not public-facing)
+- [ ] San Anselmo relay deployed on Modal (private, not public-facing)
+- [ ] Each relay serves correct jurisdiction data
+- [ ] Health checks pass for all 3 relays (San Rafael + 2 new)
+- [ ] Deployment documented (how to add more jurisdictions)
