@@ -15,7 +15,9 @@ from .threads import router as threads_router
 from .legislative import router as legislative_router
 from .conversations import router as conversations_router
 from .drafts import router as drafts_router
-from .coordination import router as coordination_router
+# Coordination router lives in civicos_relay package (canonical location).
+# Re-exported here for backward compatibility with local dev server (api.py).
+from civicos_relay.server.coordination import router as coordination_router
 from .nostr import router as nostr_router
 from .registry import router as registry_router
 from .context import router as context_router

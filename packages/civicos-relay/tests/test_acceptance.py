@@ -80,7 +80,7 @@ class TestRequestSchemasRequireCreatedAt:
 
     def test_commit_action_request_requires_created_at(self):
         """CommitActionRequest rejects missing created_at."""
-        from civicos_relay.server.app import CommitActionRequest
+        from civicos_relay.server.coordination import CommitActionRequest
         with pytest.raises(ValidationError, match="created_at"):
             CommitActionRequest(
                 action_id="action:test",
@@ -90,7 +90,7 @@ class TestRequestSchemasRequireCreatedAt:
 
     def test_complete_action_request_requires_created_at(self):
         """CompleteActionRequest rejects missing created_at."""
-        from civicos_relay.server.app import CompleteActionRequest
+        from civicos_relay.server.coordination import CompleteActionRequest
         with pytest.raises(ValidationError, match="created_at"):
             CompleteActionRequest(
                 action_id="action:test",
@@ -100,7 +100,7 @@ class TestRequestSchemasRequireCreatedAt:
 
     def test_cast_voice_request_requires_created_at(self):
         """CastVoiceRequest rejects missing created_at."""
-        from civicos_relay.server.app import CastVoiceRequest
+        from civicos_relay.server.coordination import CastVoiceRequest
         with pytest.raises(ValidationError, match="created_at"):
             CastVoiceRequest(
                 entity="test:entity",
@@ -111,7 +111,7 @@ class TestRequestSchemasRequireCreatedAt:
 
     def test_submit_comment_request_requires_created_at(self):
         """SubmitCommentRequest rejects missing created_at."""
-        from civicos_relay.server.app import SubmitCommentRequest
+        from civicos_relay.server.coordination import SubmitCommentRequest
         with pytest.raises(ValidationError, match="created_at"):
             SubmitCommentRequest(
                 entity="test:entity",
@@ -122,7 +122,7 @@ class TestRequestSchemasRequireCreatedAt:
 
     def test_create_initiative_request_requires_created_at(self):
         """CreateInitiativeRequest rejects missing created_at."""
-        from civicos_relay.server.app import CreateInitiativeRequest
+        from civicos_relay.server.coordination import CreateInitiativeRequest
         with pytest.raises(ValidationError, match="created_at"):
             CreateInitiativeRequest(
                 jurisdiction="city-test",
@@ -139,14 +139,14 @@ class TestClockSkewValidation:
 
     def test_check_created_at_valid(self):
         """Current timestamp passes clock skew check."""
-        from civicos_relay.server.app import _check_created_at
+        from civicos_relay.server.coordination import _check_created_at
         # Should not raise
         _check_created_at(int(time.time()))
 
     def test_check_created_at_future(self):
         """Timestamp 10 minutes in the future fails."""
         from fastapi import HTTPException
-        from civicos_relay.server.app import _check_created_at
+        from civicos_relay.server.coordination import _check_created_at
         with pytest.raises(HTTPException) as exc_info:
             _check_created_at(int(time.time()) + 600)
         assert exc_info.value.status_code == 400
@@ -154,14 +154,14 @@ class TestClockSkewValidation:
     def test_check_created_at_past(self):
         """Timestamp 10 minutes in the past fails."""
         from fastapi import HTTPException
-        from civicos_relay.server.app import _check_created_at
+        from civicos_relay.server.coordination import _check_created_at
         with pytest.raises(HTTPException) as exc_info:
             _check_created_at(int(time.time()) - 600)
         assert exc_info.value.status_code == 400
 
     def test_check_created_at_within_tolerance(self):
         """Timestamp 4 minutes off passes (within 5-minute tolerance)."""
-        from civicos_relay.server.app import _check_created_at
+        from civicos_relay.server.coordination import _check_created_at
         # 4 minutes in the past — should pass
         _check_created_at(int(time.time()) - 240)
         # 4 minutes in the future — should pass
