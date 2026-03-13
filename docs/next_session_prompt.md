@@ -1,84 +1,87 @@
-# Recommended: Turnkey Onboarding
+# Recommended: Add eScribe Platform Client
 
-**Priority:** P0
+**Priority:** P0 (`escribe_client`)
 **Area:** federation_testbed
-**Date:** 2026-03-11
+**Date:** 2026-03-13
 
 > This is recommended context from the previous session. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
 
 ## Context
 
-Three Marin County jurisdictions are now onboarded (San Rafael, Mill Valley, San Anselmo). Onboarding friction dropped 57% between Mill Valley and San Anselmo, but 3 friction points still require manual work every time:
+This session made onboarding fully turnkey and generalizable across US cities, counties, states, Canadian provinces, and UK councils (96 tests, 5 jurisdiction types validated E2E). Stress testing found **one platform coverage gap: Portland, OR uses eScribe**, which we don't have a client for. All other major US cities land on Granicus, Legistar, CivicClerk, or ProudCity.
 
-- **F1 (HIGH):** Granicus subdomain not guessable — requires web search (e.g., `sananselmo-ca.granicus.com`, `cityofmillvalley.granicus.com`)
-- **F5 (MEDIUM):** Three registry files need manual edits per jurisdiction
-
-Fixing these makes onboarding nearly zero-touch: provide a city name, get everything generated.
+The existing abstraction (`BaseExtractor` + factory + discovery) is already designed for this — adding a new platform is a well-defined task with no new abstractions needed.
 
 ## Recommended Task
 
-### Part 1: Granicus Subdomain Discovery (F1)
+Implement an eScribe client following the existing patterns. Four pieces:
 
-Add pattern-based subdomain discovery to `onboard_jurisdiction()`. Try common patterns before requiring manual URL:
+### 1. Client: `clients/escribe.py` (~200 lines)
+- Subclass `BaseExtractor` (defined at `clients/base.py:413`)
+- Implement `get_events()`, `normalize_event()`, `platform_name`, `health()`, `validate()`
+- Research eScribe's meeting API endpoints (Portland's instance)
+- Reference existing clients for patterns:
+  - `clients/granicus.py:49` — `GranicusClient(BaseExtractor)` (most complete example)
+  - `clients/legistar.py:24` — `LegistarClient(BaseExtractor)` (simpler API client)
 
-- `{city}.granicus.com` (e.g., `millvalley`)
-- `cityof{city}.granicus.com` (e.g., `cityofmillvalley`)
-- `{city}-{state}.granicus.com` (e.g., `sananselmo-ca`)
-- `{city}{state}.granicus.com` (e.g., `sananselmoca`)
+### 2. Factory: `clients/factory.py:36`
+- Add `elif source_type == "escribe":` case (2 lines, follows existing pattern)
 
-Test each with a HEAD request to `ViewPublisher.php?view_id=1` through `view_id=8`. First 200 response wins.
+### 3. Discovery: `platform_detection.py`
+- Add `discover_escribe_instance(city_name, state)` function
+- Register in `discover_platform()` orchestrator alongside Legistar/CivicClerk/Granicus/ProudCity
 
-### Part 2: Registry Generation from YAML (F5)
-
-Currently 3 files need manual edits per jurisdiction:
-1. `config/registry.json` — service routing
-2. `packages/civicos-config/src/civicos_config/jurisdiction.py` — JurisdictionRegistry
-3. `packages/civicos/src/civicos/_internal/jurisdiction.py` — aliases
-
-Generate all three from the jurisdiction YAML (`data/jurisdictions/{id}.yaml`). Options:
-- **A)** Build script that reads YAMLs and writes/patches the three files
-- **B)** Runtime loader that reads YAMLs directly (eliminates static files)
-- **C)** `onboard_jurisdiction()` generates the YAML and patches registries as part of its flow
-
-Option C is probably best — keeps the existing static files but automates their creation.
+### 4. Onboard integration: `onboard.py`
+- Add eScribe case to the pre-discovered platform handling (~820-870)
+- Add `_discover_escribe()` helper (follows `_discover_granicus()` pattern at line 295)
 
 ## Key Files
 
-- `packages/civicos-extraction/src/civicos_extraction/onboard.py` — `onboard_jurisdiction()` entry point
-- `packages/civicos-extraction/src/civicos_extraction/platform_detection.py:206-228` — Granicus detection (tries view_ids 1-5)
-- `config/registry.json` — Service routing (see `city-san-anselmo` entry for pattern)
-- `packages/civicos-config/src/civicos_config/jurisdiction.py:109-138` — JurisdictionRegistry (see `san_anselmo` and `mill_valley` entries)
-- `packages/civicos/src/civicos/_internal/jurisdiction.py:55-65` — Aliases dict
-- `data/jurisdictions/city-san-anselmo.yaml` — Example jurisdiction YAML (has all needed fields)
-- `data/jurisdictions/city-mill-valley.yaml` — Another example
-- `docs/internal/onboarding-friction-log.md` — Full friction documentation
+- `clients/base.py:413` — `BaseExtractor` ABC (the contract to implement)
+- `clients/base.py:245` — `DataSource` protocol (health/validate)
+- `clients/base.py:294` — `Meeting` dataclass (normalization target)
+- `clients/factory.py` — source factory (add escribe case)
+- `clients/granicus.py:49` — best reference client implementation
+- `platform_detection.py` — discovery functions (add escribe discovery)
+- `onboard.py:820-870` — platform-specific onboard paths (add escribe case)
+
+All paths relative to `packages/civicos-extraction/src/civicos_extraction/`.
+
+## Suggested Approach
+
+1. **Research eScribe API** — find Portland's eScribe instance URL, understand their meeting/event endpoints
+2. **Write `clients/escribe.py`** — implement `BaseExtractor` with `get_events()` and `normalize_event()`
+3. **Add to factory** — 2-line addition to `factory.py`
+4. **Add discovery** — `discover_escribe_instance()` in `platform_detection.py`
+5. **Add onboard path** — `_discover_escribe()` in `onboard.py`
+6. **Test** — verify `discover_platform("Portland", state="OR")` now finds eScribe
+7. **E2E** — `onboard_jurisdiction(city_name="Portland", state="OR", level="city", generate_yaml=True)`
 
 ## Tests to Run
 
 ```bash
-# Granicus parser tests
-pytest packages/civicos-extraction/tests/test_granicus.py -q --override-ini="addopts="
+# Platform detection + onboarding tests (96 currently passing)
+pytest packages/civicos-extraction/tests/test_platform_detection.py -q --override-ini="addopts="
 
-# Verify all jurisdictions still work after registry changes
+# Regression: existing jurisdictions
 python3 -c "
 from dotenv import load_dotenv; load_dotenv()
 from civicos import CivicOS
 for j in ['city-san-rafael', 'city-mill-valley', 'city-san-anselmo']:
     c = CivicOS(j)
-    meetings = c.storage.get_meetings(j)
-    print(f'{j}: {len(meetings)} meetings')
-"
+    print(f'{j}: {len(c.storage.get_meetings(j))} meetings')"
 ```
 
 ## Success Criteria
 
-- [ ] `onboard_jurisdiction("San Anselmo, CA")` (or similar) finds Granicus URL without manual search
-- [ ] Registry entries generated automatically (registry.json, JurisdictionRegistry, aliases)
-- [ ] Existing jurisdictions unaffected (San Rafael, Mill Valley, San Anselmo all still work)
-- [ ] Friction log updated with improvements
+- [ ] `discover_platform("Portland", state="OR")` returns `{"platform": "escribe", ...}`
+- [ ] `EScribeClient` implements `BaseExtractor` with `get_events()`, `normalize_event()`, `health()`, `validate()`
+- [ ] `factory.py` dispatches `source_type="escribe"` correctly
+- [ ] Portland onboards end-to-end: `onboard_jurisdiction(city_name="Portland", state="OR")`
+- [ ] All 96 existing tests still pass
+- [ ] All 3 existing jurisdictions still work
 
-## Recent Completions
+## Known Issues
 
-- **San Anselmo onboarded** — 169 meetings, 564+ agenda items, 28 body types, 0 code fixes needed
-- **Mill Valley onboarded** — 56 meetings, 310 agenda items, 2 code fixes (now generalized)
-- **Friction log** — `docs/internal/onboarding-friction-log.md` with Mill Valley vs San Anselmo comparison
+- **Legistar API intermittent 500s** — Berkeley/SF return 500. Oakland/Dublin work. Legistar's issue.
+- **CivicClerk meeting titles generic** — El Cerrito returns "Meeting" for all entries

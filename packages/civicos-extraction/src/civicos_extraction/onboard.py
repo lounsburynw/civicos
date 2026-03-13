@@ -613,8 +613,14 @@ def _generate_jurisdiction_yaml(
     county: str = "",
     zip_code: str = "",
     state_abbrev: str = "CA",
+    country: str = "United States",
 ) -> str:
-    """Generate jurisdiction YAML content from onboarding results."""
+    """Generate jurisdiction YAML content from onboarding results.
+
+    Level-aware: produces correct parent chains, financial fields, and contact
+    info for cities, counties, states, provinces, councils, and districts
+    across US, Canada, UK, and other countries — without caller cleanup.
+    """
     try:
         import yaml
     except ImportError:
@@ -627,12 +633,38 @@ def _generate_jurisdiction_yaml(
     metadata = config.get("metadata", {})
     archives = config.get("archives", {})
 
-    # Derive state slug from abbreviation for fallback
+    # Build parent_jurisdictions with level- and country-awareness
+    # - Filter self-references (e.g., county-alameda shouldn't be its own parent)
+    # - Build sensible fallback chain based on level and country
+    country_slug = country.strip().lower().replace(" ", "-") if country else "united-states"
     state_slug = _state_abbrev_to_slug(state_abbrev)
-    parents = parent_jurisdictions or ([f"state-{state_slug}"] if state_slug else []) + ["country-united-states"]
 
-    # County name for financial section (strip " County" suffix)
-    county_short = re.sub(r"\s*County$", "", county).strip() if county else None
+    # Country-aware state/province prefix
+    if country == "Canada":
+        region_prefix = "province"
+    else:
+        region_prefix = "state"
+
+    if parent_jurisdictions:
+        parents = [p for p in parent_jurisdictions if p != jurisdiction_id]
+    elif level in ("state", "province"):
+        parents = [f"country-{country_slug}"]
+    elif level in ("county", "city", "town", "district", "council"):
+        region_part = [f"{region_prefix}-{state_slug}"] if state_slug else []
+        parents = region_part + [f"country-{country_slug}"]
+    else:
+        parents = [f"country-{country_slug}"]
+
+    # County name for financial section — level-aware
+    # For counties, this field is redundant (the jurisdiction IS the county), so omit it
+    if level == "county":
+        county_short = None
+    else:
+        county_short = re.sub(r"\s*County$", "", county).strip() if county else None
+
+    # Zip code is meaningless for counties/states/provinces (they span many)
+    if level in ("county", "state", "province"):
+        zip_code = ""
 
     # Build meetings data source
     meetings_source: Dict[str, Any] = {
@@ -697,7 +729,7 @@ def onboard_jurisdiction(
     level: str = "city",
     generate_yaml: bool = False,
     generate_registries: bool = False,
-    validate: int = 0,
+    validate: int = 1,
     run_pipeline: bool = False,
     on_progress: Optional[Callable[[str, str], None]] = None,
 ) -> OnboardResult:
@@ -742,6 +774,16 @@ def onboard_jurisdiction(
             errors=["state is required when city_name is provided (e.g., state='CA')"],
         )
 
+    # Upfront API key checks — warn before doing network work
+    _openai_key = os.environ.get("OPENAI_API_KEY")
+    _google_key = os.environ.get("GOOGLE_MAPS_API_KEY")
+    if not _openai_key:
+        _progress("warn", "No OPENAI_API_KEY — body names will be generic (view_N) and column maps skipped")
+        logger.warning("No OPENAI_API_KEY set — LLM body naming and column mapping will use fallbacks")
+    if generate_yaml and not _google_key:
+        _progress("warn", "No GOOGLE_MAPS_API_KEY — YAML will have empty hierarchy (no geocoding)")
+        logger.warning("No GOOGLE_MAPS_API_KEY set — jurisdiction YAML will lack geocoded hierarchy")
+
     # Step 0: If city_name given without URL, auto-discover platform
     if city_name and not url:
         from civicos_extraction.platform_detection import (
@@ -783,13 +825,17 @@ def onboard_jurisdiction(
     if not jurisdiction_id:
         if city_name:
             # Build from city_name: "San Anselmo" -> "city-san-anselmo"
-            slug = re.sub(r"\s+", "-", city_name.strip().lower())
+            # Strip level-word suffixes to avoid "county-alameda-county"
+            clean_name = re.sub(r"\s+(City|County|Town|District|State|Province|Council)$", "", city_name.strip(), flags=re.IGNORECASE)
+            slug = re.sub(r"\s+", "-", clean_name.strip().lower())
             jurisdiction_id = f"{level}-{slug}"
         else:
             inferred = _infer_jurisdiction_id(url)
             # Prefix with level if the inferred ID doesn't already have one
-            if inferred and not re.match(r"^(city|county|town|district|state)-", inferred):
-                jurisdiction_id = f"{level}-{inferred}"
+            if inferred and not re.match(r"^(city|county|town|district|state|province|council)-", inferred):
+                # Strip trailing level words from domain slugs: "traviscounty" -> "travis"
+                clean = re.sub(r"(city|county|town|district|state|province|council)$", "", inferred, flags=re.IGNORECASE).rstrip("-")
+                jurisdiction_id = f"{level}-{clean}" if clean else f"{level}-{inferred}"
             else:
                 jurisdiction_id = inferred
             if not jurisdiction_id:
@@ -956,18 +1002,21 @@ def onboard_jurisdiction(
     # Step 4: Generate jurisdiction YAML (optional)
     yaml_path = None
     if generate_yaml:
-        display_name = city_name or jurisdiction_id.replace("city-", "").replace("-", " ").title()
+        # Strip any level prefix (city-, county-, state-, etc.) from jurisdiction_id for display
+        display_name = city_name or re.sub(r"^(city|county|town|district|state|province|council)-", "", jurisdiction_id).replace("-", " ").title()
 
         # Use geocoding data if available
         parent_jurisdictions = None
         county = ""
         zip_code = ""
+        geo_country = "United States"
         state_abbrev = state.upper() if state else ""
         if geo_data:
             parent_jurisdictions = geo_data.get("parent_jurisdictions")
             county = geo_data.get("county", "")
             zip_code = geo_data.get("zip_code", "")
             state_abbrev = geo_data.get("state_abbrev", state_abbrev)
+            geo_country = geo_data.get("country", geo_country)
 
         yaml_content = _generate_jurisdiction_yaml(
             jurisdiction_id=jurisdiction_id,
@@ -975,9 +1024,11 @@ def onboard_jurisdiction(
             config=config,
             website=config.get("base_url", ""),
             parent_jurisdictions=parent_jurisdictions,
+            level=level,
             county=county,
             zip_code=zip_code,
             state_abbrev=state_abbrev,
+            country=geo_country,
         )
         yaml_dir = Path(__file__).parents[4] / "data" / "jurisdictions"
         yaml_dir.mkdir(parents=True, exist_ok=True)
@@ -1025,8 +1076,21 @@ def onboard_jurisdiction(
     ])
 
     if not discovered_bodies:
-        next_steps.insert(0, "WARNING: No bodies discovered — add archives manually to config before extraction")
         errors.append("No meeting bodies discovered. Config will have empty archives.")
+        return OnboardResult(
+            success=False,
+            jurisdiction_id=jurisdiction_id,
+            detection=detection_dict,
+            config=config,
+            config_path=str(config_path),
+            discovered_bodies={},
+            errors=errors,
+            next_steps=[
+                "Add archives manually to config before extraction",
+                "Try a different URL or platform",
+                f"Config saved at {config_path} (needs manual archives)",
+            ],
+        )
 
     # Step 7: Optional validation pipeline
     validation_report = None

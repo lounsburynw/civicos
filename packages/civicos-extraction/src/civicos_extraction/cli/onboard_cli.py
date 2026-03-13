@@ -53,7 +53,7 @@ def add_onboard_parser(subparsers):
     parser.add_argument(
         "--validate",
         type=int,
-        default=0,
+        default=1,
         metavar="N",
         help="Run N-tier validation after config generation (1-5)",
     )
