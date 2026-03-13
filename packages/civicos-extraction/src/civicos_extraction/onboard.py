@@ -800,6 +800,9 @@ def onboard_jurisdiction(
     generate_registries: bool = False,
     validate: int = 1,
     run_pipeline: bool = False,
+    index_vectors: bool = False,
+    load_legislation: bool = False,
+    load_municipal_code: bool = False,
     on_progress: Optional[Callable[[str, str], None]] = None,
 ) -> OnboardResult:
     """
@@ -1158,8 +1161,9 @@ def onboard_jurisdiction(
         next_steps.append("Run: python scripts/generate_registries.py")
 
     next_steps.extend([
-        "Run health check: source.health()",
-        "Test extraction: source.get_meetings(days_ahead=30)",
+        f"Run extraction: civic-extract discover --jurisdiction {jurisdiction_id}",
+        f"Run pipeline: civic-extract onboard --url <url> -j {jurisdiction_id} --run-pipeline",
+        f"Index vectors: civic-extract onboard --url <url> -j {jurisdiction_id} --run-pipeline --index-vectors",
     ])
 
     if not discovered_bodies:
@@ -1225,6 +1229,78 @@ def onboard_jurisdiction(
             ]
         except Exception as e:
             errors.append(f"Pipeline failed: {e}")
+
+    # Step 9: Optional vector indexing
+    vector_indexed = False
+    if index_vectors:
+        _progress("vectors", f"Indexing vectors for {jurisdiction_id}...")
+        try:
+            from civicos_extraction.cli.vectors import run_vector_indexing
+
+            results = run_vector_indexing(
+                jurisdiction_id=jurisdiction_id,
+                corpus_type="all",
+                provider_type="fastembed",
+            )
+            if results:
+                total = sum(r.documents_indexed for r in results)
+                vector_indexed = True
+                logger.info(f"Vector indexing complete: {total} embeddings created")
+                next_steps.append(f"Vectors indexed: {total} embeddings across all corpora")
+            else:
+                errors.append("Vector indexing returned no results")
+        except Exception as e:
+            errors.append(f"Vector indexing failed: {e}")
+
+    # Step 10: Optional legislation loading
+    if load_legislation:
+        # Derive state code from function param or geocoding
+        leg_state = state.upper() if state else ""
+        if not leg_state:
+            logger.warning("Cannot load legislation — no state provided")
+        elif not os.environ.get("LEGISCAN_API_KEY"):
+            logger.warning("Cannot load legislation — LEGISCAN_API_KEY not set")
+            next_steps.append("Set LEGISCAN_API_KEY and run: civic-extract legislative --state " + leg_state.lower() + " --topic all --bulk --cloud")
+        else:
+            _progress("legislation", f"Loading {leg_state} legislation from LegiScan...")
+            try:
+                from civicos_extraction.cli.legislative import bulk_ingest_legislation
+                result_code = bulk_ingest_legislation(state=leg_state.lower(), dry_run=False)
+                if result_code == 0:
+                    logger.info(f"Legislation loaded for {leg_state}")
+                    next_steps.append(f"Legislation loaded for {leg_state}")
+                else:
+                    errors.append(f"Legislation loading returned exit code {result_code}")
+            except Exception as e:
+                errors.append(f"Legislation loading failed: {e}")
+
+    # Step 11: Optional municipal code loading
+    if load_municipal_code:
+        _progress("municipal_code", f"Loading municipal code for {jurisdiction_id}...")
+        try:
+            from civicos._internal.legal.corpus.municipal import MunicipalCodeCorpus
+            from civicos.storage import get_storage_backend
+
+            corpus = MunicipalCodeCorpus.for_jurisdiction(jurisdiction_id)
+            sections = list(corpus.stream_sections())
+            if sections:
+                backend = get_storage_backend()
+                backend.store_municipal_code(jurisdiction_id, sections)
+                logger.info(f"Municipal code loaded: {len(sections)} sections")
+                next_steps.append(f"Municipal code loaded: {len(sections)} sections")
+            else:
+                errors.append("Municipal code: no sections found on Municode")
+        except Exception as e:
+            errors.append(f"Municipal code loading failed: {e}")
+
+    # If pipeline ran but vectors weren't indexed, remind user
+    if run_pipeline and not index_vectors and not vector_indexed:
+        next_steps.append(
+            f"Index vectors: civic-extract onboard --url <url> -j {jurisdiction_id} --index-vectors"
+        )
+        next_steps.append(
+            "Without vectors, what_happened() and semantic search won't work"
+        )
 
     return OnboardResult(
         success=True,

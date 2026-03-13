@@ -6,6 +6,7 @@ Usage:
     civic-extract onboard --city "Mill Valley" --state CA --dry-run
     civic-extract onboard --url https://millvalley.granicus.com --validate 1
     civic-extract onboard --url https://millvalley.granicus.com --run-pipeline
+    civic-extract onboard --city "Berkeley" --state CA --full
 """
 
 import sys
@@ -63,6 +64,26 @@ def add_onboard_parser(subparsers):
         help="Run extraction pipeline after config generation",
     )
     parser.add_argument(
+        "--index-vectors",
+        action="store_true",
+        help="Run vector indexing after extraction (enables semantic search)",
+    )
+    parser.add_argument(
+        "--load-legislation",
+        action="store_true",
+        help="Load state legislation from LegiScan (requires LEGISCAN_API_KEY)",
+    )
+    parser.add_argument(
+        "--load-municipal-code",
+        action="store_true",
+        help="Load municipal code from Municode API",
+    )
+    parser.add_argument(
+        "--full",
+        action="store_true",
+        help="Turnkey mode: generate YAML, run pipeline, index vectors, load legislation + municipal code",
+    )
+    parser.add_argument(
         "--dry-run",
         action="store_true",
         help="Show what would happen without making changes",
@@ -81,6 +102,14 @@ def run_onboard(args) -> int:
         print("Error: --state is required when --city is provided", file=sys.stderr)
         return 1
 
+    # --full enables all pipeline steps
+    if args.full:
+        args.generate_yaml = True
+        args.run_pipeline = True
+        args.index_vectors = True
+        args.load_legislation = True
+        args.load_municipal_code = True
+
     # Dry run: just show what would happen
     if args.dry_run:
         print("Dry run mode — no changes will be made\n")
@@ -93,9 +122,13 @@ def run_onboard(args) -> int:
             print(f"  ID:      {args.jurisdiction_id}")
         print(f"  Level:   {args.level}")
         print(f"  Output:  {args.output_dir}")
+        print(f"  Full:    {'yes' if args.full else 'no'}")
         print(f"  YAML:    {'yes' if args.generate_yaml else 'no'}")
         print(f"  Validate: tier {args.validate}" if args.validate else "  Validate: no")
         print(f"  Pipeline: {'yes' if args.run_pipeline else 'no'}")
+        print(f"  Vectors:  {'yes' if args.index_vectors else 'no'}")
+        print(f"  Legislation: {'yes' if args.load_legislation else 'no'}")
+        print(f"  Municipal code: {'yes' if args.load_municipal_code else 'no'}")
         print("\nSteps that would run:")
         print("  1. Detect platform (network)")
         print("  2. Discover meeting bodies (network)")
@@ -108,6 +141,12 @@ def run_onboard(args) -> int:
             print(f"  ... Run tier-{args.validate} validation")
         if args.run_pipeline:
             print("  ... Run extraction pipeline")
+        if args.index_vectors:
+            print("  ... Index vectors (all corpora, fastembed)")
+        if args.load_legislation:
+            print("  ... Load state legislation (LegiScan API)")
+        if args.load_municipal_code:
+            print("  ... Load municipal code (Municode API)")
         return 0
 
     # Progress callback for CLI output
@@ -127,6 +166,9 @@ def run_onboard(args) -> int:
         generate_yaml=args.generate_yaml,
         validate=args.validate,
         run_pipeline=args.run_pipeline,
+        index_vectors=args.index_vectors,
+        load_legislation=args.load_legislation,
+        load_municipal_code=args.load_municipal_code,
         on_progress=on_progress,
     )
 

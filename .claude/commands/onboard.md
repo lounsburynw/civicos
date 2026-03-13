@@ -156,10 +156,23 @@ Show the user what was created:
 - `data/extraction/{jurisdiction_id}.json` — extraction config
 - `data/jurisdictions/{jurisdiction_id}.yaml` — jurisdiction config
 
-And what to do next:
-- `/ingest meetings --jurisdiction {jurisdiction_id}` — start meeting extraction
-- `/ingest agendas --jurisdiction {jurisdiction_id}` — extract agenda items
+**Turnkey option** — if the user wants everything in one shot:
+```bash
+civic-extract onboard --city "{city}" --state {ST} --full
+```
+`--full` enables: YAML generation, extraction pipeline, vector indexing, legislation loading, and municipal code loading.
+
+**Individual flags** (if the user wants control):
+- `--run-pipeline` — extract meetings to PostgreSQL
+- `--index-vectors` — create vector embeddings (enables semantic search)
+- `--load-legislation` — load state legislation from LegiScan (requires `LEGISCAN_API_KEY`)
+- `--load-municipal-code` — load municipal code from Municode API
+- `--generate-yaml` — generate jurisdiction YAML file
+
+**Manual steps after onboarding:**
 - Enable transcription when ready (update `ingestion.transcription: true`)
+- Deploy to Modal for scheduled refresh: `modal deploy scripts/modal_ingest.py`
+- Update extension registry: `cd apps/civicos-registry && npx wrangler deploy`
 
 ## Notes
 
