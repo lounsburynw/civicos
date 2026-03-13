@@ -275,6 +275,7 @@ class OnboardResult:
     discovered_bodies: Optional[Dict[str, str]] = None
     next_steps: List[str] = field(default_factory=list)
     errors: List[str] = field(default_factory=list)
+    validation: Optional[Any] = None  # ValidationReport from validate.py
 
 
 def _infer_jurisdiction_id(url: str) -> Optional[str]:
@@ -576,6 +577,7 @@ def onboard_jurisdiction(
     state: str = "ca",
     generate_yaml: bool = False,
     generate_registries: bool = False,
+    validate: int = 0,
 ) -> OnboardResult:
     """
     Onboard a new jurisdiction from a URL or city name.
@@ -869,6 +871,16 @@ def onboard_jurisdiction(
     if not discovered_bodies:
         next_steps.insert(0, "No bodies discovered automatically — add archives manually to config")
 
+    # Step 7: Optional validation pipeline
+    validation_report = None
+    if validate > 0:
+        try:
+            from civicos_extraction.validate import validate_jurisdiction as _validate
+            validation_report = _validate(jurisdiction_id, tier=validate, config=config)
+            logger.info(f"Validation complete: highest tier passed = {validation_report.highest_tier_passed}")
+        except Exception as e:
+            errors.append(f"Validation failed: {e}")
+
     return OnboardResult(
         success=True,
         jurisdiction_id=jurisdiction_id,
@@ -877,4 +889,5 @@ def onboard_jurisdiction(
         config_path=str(config_path),
         discovered_bodies=discovered_bodies,
         next_steps=next_steps,
+        validation=validation_report,
     )

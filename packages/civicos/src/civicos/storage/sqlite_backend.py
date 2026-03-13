@@ -1718,7 +1718,7 @@ class SQLiteBackend:
         as_of: Optional[datetime] = None,
     ) -> int:
         """
-        Store agenda items (stub for SQLite - agenda items use Postgres in production).
+        Store agenda items with temporal versioning.
 
         Args:
             meeting_id: Meeting ID these agenda items belong to
@@ -1726,9 +1726,64 @@ class SQLiteBackend:
             as_of: Timestamp for versioning
 
         Returns:
-            Number of items stored (0 for SQLite stub)
+            Number of items stored
         """
-        return 0
+        as_of = as_of or datetime.now()
+
+        conn = sqlite3.connect(self._db_path)
+        self._ensure_schema(conn)
+        cursor = conn.cursor()
+
+        try:
+            # Close previous versions for this meeting
+            cursor.execute("""
+                UPDATE agenda_items
+                SET valid_to = ?
+                WHERE meeting_id = ?
+                  AND valid_to IS NULL
+            """, (as_of.isoformat(), meeting_id))
+
+            # Insert new versions
+            for item in agenda_items:
+                item_id = item.get('id') or f"{meeting_id}-{item.get('item_number', item.get('item_ref', 'unknown'))}"
+
+                project_types = item.get('project_types', [])
+                project_type = project_types[0] if project_types else item.get('project_type')
+
+                cursor.execute("""
+                    INSERT INTO agenda_items (
+                        id, meeting_id, item_number, title, description,
+                        project_type, actionability, impact_level,
+                        financial_impact_cents, summary, why_it_matters,
+                        participation_guide,
+                        extracted_at, valid_from, valid_to, full_data
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?)
+                """, (
+                    item_id,
+                    meeting_id,
+                    item.get('item_number') or item.get('item_ref'),
+                    item.get('title'),
+                    item.get('description'),
+                    project_type,
+                    item.get('actionability') or ('actionable' if item.get('actionable') else 'informational'),
+                    item.get('impact_level'),
+                    item.get('financial_impact_cents'),
+                    item.get('summary'),
+                    item.get('why_it_matters') or item.get('actionable_reason'),
+                    item.get('participation_guide') or item.get('public_comment_info'),
+                    as_of.isoformat(),
+                    as_of.isoformat(),
+                    json.dumps(item, cls=DateTimeEncoder),
+                ))
+
+            conn.commit()
+            return len(agenda_items)
+
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
 
     def get_agenda_items(
         self,
@@ -1736,23 +1791,114 @@ class SQLiteBackend:
         jurisdiction_id: Optional[str] = None,
         as_of: Optional[datetime] = None,
         limit: Optional[int] = None,
+        offset: int = 0,
     ) -> List[Dict[str, Any]]:
         """
-        Retrieve agenda items (stub for SQLite - agenda items use Postgres in production).
+        Retrieve agenda items with optional filtering.
+
+        Args:
+            meeting_id: Filter by specific meeting ID
+            jurisdiction_id: Filter by jurisdiction (requires join with meetings)
+            as_of: Point-in-time query (for temporal versioning)
+            limit: Maximum number of items to return
+            offset: Number of items to skip
 
         Returns:
-            Empty list (SQLite stub)
+            List of agenda item dictionaries
         """
-        return []
+        as_of = as_of or datetime.now()
+
+        conn = sqlite3.connect(self._db_path)
+        self._ensure_schema(conn)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+
+        try:
+            if meeting_id:
+                query = """
+                    SELECT * FROM agenda_items
+                    WHERE meeting_id = ?
+                      AND valid_from <= ?
+                      AND (valid_to IS NULL OR valid_to > ?)
+                    ORDER BY item_number, id ASC
+                """
+                params: list = [meeting_id, as_of.isoformat(), as_of.isoformat()]
+            elif jurisdiction_id:
+                query = """
+                    SELECT a.* FROM agenda_items a
+                    JOIN meetings m ON a.meeting_id = m.id
+                    WHERE m.jurisdiction_id = ?
+                      AND a.valid_from <= ?
+                      AND (a.valid_to IS NULL OR a.valid_to > ?)
+                      AND m.valid_to IS NULL
+                    ORDER BY m.meeting_datetime DESC, a.item_number, a.id ASC
+                """
+                params = [jurisdiction_id, as_of.isoformat(), as_of.isoformat()]
+            else:
+                query = """
+                    SELECT * FROM agenda_items
+                    WHERE valid_from <= ?
+                      AND (valid_to IS NULL OR valid_to > ?)
+                    ORDER BY meeting_id, item_number, id ASC
+                """
+                params = [as_of.isoformat(), as_of.isoformat()]
+
+            if limit:
+                query += " LIMIT ?"
+                params.append(int(limit))
+
+            if offset > 0:
+                query += " OFFSET ?"
+                params.append(int(offset))
+
+            cursor.execute(query, params)
+            rows = cursor.fetchall()
+
+            items = []
+            for row in rows:
+                item = dict(row)
+                if item.get('full_data'):
+                    try:
+                        item['full_data'] = json.loads(item['full_data'])
+                    except json.JSONDecodeError:
+                        pass
+                items.append(item)
+
+            return items
+        finally:
+            conn.close()
 
     def get_agenda_item_count(self, jurisdiction_id: Optional[str] = None) -> int:
         """
-        Get agenda item count (stub for SQLite - agenda items use Postgres in production).
+        Get count of current (non-closed) agenda items.
+
+        Args:
+            jurisdiction_id: Optional jurisdiction filter
 
         Returns:
-            0 (SQLite stub)
+            Number of active agenda items
         """
-        return 0
+        conn = sqlite3.connect(self._db_path)
+        self._ensure_schema(conn)
+        cursor = conn.cursor()
+
+        try:
+            if jurisdiction_id:
+                cursor.execute("""
+                    SELECT COUNT(*) FROM agenda_items a
+                    JOIN meetings m ON a.meeting_id = m.id
+                    WHERE m.jurisdiction_id = ?
+                      AND a.valid_to IS NULL
+                      AND m.valid_to IS NULL
+                """, (jurisdiction_id,))
+            else:
+                cursor.execute("""
+                    SELECT COUNT(*) FROM agenda_items
+                    WHERE valid_to IS NULL
+                """)
+            return cursor.fetchone()[0]
+        finally:
+            conn.close()
 
     # ========== Issue Methods (SESSION 385) ==========
     # Note: Issues are primarily stored in Postgres for production.
