@@ -1,94 +1,62 @@
-# Recommended: Deploy Marin Test Relays
+# Recommended: Universal Adapter Design Session
 
-**Priority:** P0 (`deploy_marin_test_relays`)
+**Priority:** P0 (`universal_adapter_design`)
 **Area:** federation_testbed
 **Date:** 2026-03-13
 
-> This is recommended context from the previous session. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
+> Design session — research + ADR, not implementation. The goal is a design document, not code.
 
 ## Context
 
-Mill Valley and San Anselmo have been onboarded (data extracted, configs generated). The relay is already multi-jurisdiction — it serves all cities through one endpoint and routes by `jurisdiction` field. "Deploying test relays" actually means deploying **MCP servers** for each city and configuring attestation, since the relay itself needs no changes.
+All 6 known meeting platforms are now in the auto-discovery chain (Granicus, Legistar, CivicClerk, eScribe, Simbli, ProudCity). But major cities like Portland and NYC use custom platforms that require bespoke client development. This session designs an LLM-powered universal adapter to handle the long tail.
 
-Both jurisdictions are already registered in `config/registry.json` (lines 40-51) with `modal_app_name` set.
+Additionally, the existing Simbli client (`clients/simbli.py`) uses hardcoded regex and CSS selectors built for one district (SRCS). It's a concrete example of brittle extraction that the universal adapter should replace.
 
-## Recommended Task
+## The Problem
 
-Deploy MCP server instances for Mill Valley and San Anselmo on Modal, generate attestation keypairs, and verify end-to-end relay routing.
+- Portland OR: custom system at `portland.gov/council/agenda/all`
+- NYC: custom system
+- Any city with budget to build their own site
+- Simbli client: works for SRCS but regex-based parsing won't generalize across districts
 
-### 1. Deploy MCP Servers (~2 commands each)
-```bash
-CIVICOS_JURISDICTION=city-mill-valley modal deploy apps/civicos-mcp/modal_mcp.py
-CIVICOS_JURISDICTION=city-san-anselmo modal deploy apps/civicos-mcp/modal_mcp.py
-```
+## Existing Pattern to Extend
 
-### 2. Generate Attestation Keypairs
-Generate issuer keypairs for each city and update `config/registry.json` with `attestation_issuer_pubkey`.
+We already use LLMs for extraction config generation:
+- `clients/granicus.py` — LLM generates column maps from raw HTML (`generate_column_map()`)
+- `clients/granicus.py` — LLM generates body names from view data (`generate_body_names()`)
+- Both produce structured config that the client then uses deterministically
 
-### 3. Redeploy Relay (picks up new MCP endpoints)
-```bash
-modal deploy apps/civicos-relay/modal_relay.py
-```
+This pattern (LLM generates config, client uses config) is the foundation to extend.
 
-### 4. Verify Cross-Jurisdiction Routing
-Test that the relay routes AI proxy requests to the correct jurisdiction's MCP server.
+## Key Questions to Answer
 
-## Key Files
-
-- `apps/civicos-relay/modal_relay.py:131-153` — AI proxy jurisdiction routing (reads registry.json)
-- `apps/civicos-relay/modal_relay.py:46-50` — registry.json mount into Modal image
-- `apps/civicos-mcp/modal_mcp.py:36-79` — MCP per-jurisdiction deployment + secrets
-- `config/registry.json:40-51` — Mill Valley & San Anselmo already registered
-- `packages/civicos/src/civicos/registry.py:181-195` — Modal app name derivation
-- `packages/civicos-relay/src/civicos_relay/voice/crypto.py` — Attestation signing (secp256k1)
-- `docs/internal/deployment.md` — Deployment procedures & secrets inventory
-
-## Architecture Notes
-
-- **Relay is single-instance, multi-jurisdiction** — jurisdiction is data, not deployment artifact
-- **MCP servers are per-jurisdiction** — each gets its own Modal app
-- **Shared database:** RELAY_DATABASE_URL (`lvfikysdbdkpxemssuxa` us-west-1) stores all coordination data with `jurisdiction` field
-- **Existing secrets:** `civicos-marin-county-env` already exists for Marin jurisdictions
-- **San Rafael attestation pubkey** already configured: `a8a87b73...` (registry.json:14)
+1. Can we define a **declarative scraping config** (CSS selectors, URL patterns, pagination rules, date formats) that a generic client interprets?
+2. How much can the LLM **reliably infer** from a cold URL vs. needing human hints?
+3. What's the **failure mode** — does it degrade gracefully or silently return garbage?
+4. Is declarative config worth the complexity vs. just writing a bespoke client per major city?
+5. Should the LLM run at **onboard time** (one-shot config generation) or at **extraction time** (per-page parsing)?
 
 ## Suggested Approach
 
-1. Check `modal app list` and `modal secret list` for current state
-2. Deploy Mill Valley MCP: `CIVICOS_JURISDICTION=city-mill-valley modal deploy apps/civicos-mcp/modal_mcp.py`
-3. Deploy San Anselmo MCP: `CIVICOS_JURISDICTION=city-san-anselmo modal deploy apps/civicos-mcp/modal_mcp.py`
-4. Verify MCP endpoints respond: `curl https://civicos--civicos-mill-valley-...modal.run/api/tools`
-5. Generate attestation keypairs (check `scripts/` for generation script)
-6. Update `config/registry.json` with pubkeys
-7. Redeploy relay: `modal deploy apps/civicos-relay/modal_relay.py`
-8. Test: relay routes `/api/ai/chat` with `jurisdiction: "city-mill-valley"` correctly
+1. Read `clients/granicus.py` LLM integration (~lines 200-300) for the existing pattern
+2. Read `clients/simbli.py` to understand what "brittle extraction" looks like
+3. Research: how do tools like Firecrawl, Jina Reader, or browser-use handle arbitrary page parsing?
+4. Design the adapter architecture (ADR format)
+5. Prototype the config schema (what fields? what's required vs. optional?)
+6. Write the ADR to `docs/public/decisions/`
 
-## Tests to Run
+## Key Files
 
-```bash
-# Relay tests
-pytest packages/civicos-relay/tests/ -q --override-ini="addopts="
-
-# Verify existing jurisdictions still work
-python3 -c "
-from dotenv import load_dotenv; load_dotenv()
-from civicos import CivicOS
-for j in ['city-san-rafael', 'city-mill-valley', 'city-san-anselmo']:
-    c = CivicOS(j)
-    print(f'{j}: {len(c.storage.get_meetings(j))} meetings')"
-
-# Health check after deploy
-/health
-```
+- `clients/granicus.py:200-300` — Existing LLM config generation pattern
+- `clients/simbli.py` — Brittle regex example to improve
+- `clients/base.py:413` — BaseExtractor ABC (adapter must conform)
+- `docs/public/decisions/` — Where ADRs live
 
 ## Success Criteria
 
-- [ ] `modal app list` shows `civicos-mill-valley` and `civicos-san-anselmo` MCP apps running
-- [ ] Each MCP endpoint returns tools at `/api/tools`
-- [ ] Attestation issuer pubkeys set in `config/registry.json` for both cities
-- [ ] Relay routes AI requests to correct jurisdiction MCP server
-- [ ] Existing San Rafael relay functionality unaffected
-
-## Known Issues
-
-- **Local SSL cert issue** — anaconda Python's CA bundle is outdated. External HTTPS calls to some hosts (eScribe) fail locally but work on Modal/CI. Other clients (Legistar, Granicus) work fine locally.
-- **Legistar API intermittent 500s** — Berkeley/SF. Not related to relay work.
+- [ ] ADR written documenting the universal adapter design
+- [ ] Config schema defined (fields, types, examples)
+- [ ] Decision on onboard-time vs. extraction-time LLM usage
+- [ ] Simbli identified as first migration candidate
+- [ ] Portland OR used as test case for cold-URL inference
+- [ ] Failure modes documented with mitigation strategies
