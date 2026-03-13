@@ -464,6 +464,10 @@ def extract_pdf_urls_from_meeting_page(meeting_page_url: str) -> dict[str, Optio
     When agenda_url points to an HTML meeting page (not a direct PDF),
     this function scrapes the page to find links to actual PDFs.
 
+    Handles redirects (e.g., Granicus AgendaViewer.php → city Drupal site)
+    by tracking the final URL for correct relative link resolution.
+    Uses a session with browser-like headers to handle cookie-gated sites.
+
     Args:
         meeting_page_url: URL of the meeting page (HTML)
 
@@ -471,20 +475,48 @@ def extract_pdf_urls_from_meeting_page(meeting_page_url: str) -> dict[str, Optio
         Dict with 'agenda_packet_url' and 'minutes_url' (both may be None)
     """
     from bs4 import BeautifulSoup
+    from urllib.parse import urlparse
 
     result = {
         'agenda_packet_url': None,
         'minutes_url': None,
     }
 
+    # Use a session to persist cookies across redirects (some city sites
+    # require cookies set during the redirect chain to serve PDFs)
+    session = requests.Session()
+    session.headers.update({
+        'User-Agent': (
+            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) '
+            'AppleWebKit/537.36 (KHTML, like Gecko) '
+            'Chrome/120.0.0.0 Safari/537.36'
+        ),
+    })
+
     try:
-        response = requests.get(meeting_page_url, timeout=30)
+        response = session.get(meeting_page_url, timeout=30)
         response.raise_for_status()
     except requests.exceptions.RequestException as e:
         logger.error(f"Failed to fetch meeting page: {e}")
         return result
 
+    # Use the final URL after redirects for resolving relative links
+    # (e.g., Granicus AgendaViewer.php redirects to berkeleyca.gov)
+    final_url = response.url
+    if final_url != meeting_page_url:
+        logger.info(f"  Redirected to: {final_url[:80]}")
+    parsed_final = urlparse(final_url)
+    base_url = f"{parsed_final.scheme}://{parsed_final.netloc}"
+
     soup = BeautifulSoup(response.content, 'html.parser')
+
+    def make_absolute(href: str) -> Optional[str]:
+        """Resolve a potentially relative URL against the final base URL."""
+        if href.startswith('http'):
+            return href
+        if href.startswith('/'):
+            return f"{base_url}{href}"
+        return None
 
     # Extract all PDF URLs from the page
     pdf_urls = []
@@ -493,37 +525,30 @@ def extract_pdf_urls_from_meeting_page(meeting_page_url: str) -> dict[str, Optio
     for link in soup.find_all('a', href=True):
         href = link.get('href', '')
         if '.pdf' in href.lower():
-            # Make absolute URL
-            if href.startswith('http'):
-                pdf_urls.append(href)
-            elif href.startswith('/'):
-                # Extract base URL from meeting_page_url
-                from urllib.parse import urlparse
-                parsed = urlparse(meeting_page_url)
-                base_url = f"{parsed.scheme}://{parsed.netloc}"
-                pdf_urls.append(f"{base_url}{href}")
+            abs_url = make_absolute(href)
+            if abs_url:
+                pdf_urls.append(abs_url)
 
     # Embeds and iframes
     for tag in soup.find_all(['embed', 'iframe']):
         src = tag.get('src', '')
         if '.pdf' in src.lower():
-            if src.startswith('http'):
-                pdf_urls.append(src)
-            elif src.startswith('/'):
-                from urllib.parse import urlparse
-                parsed = urlparse(meeting_page_url)
-                base_url = f"{parsed.scheme}://{parsed.netloc}"
-                pdf_urls.append(f"{base_url}{src}")
+            abs_url = make_absolute(src)
+            if abs_url:
+                pdf_urls.append(abs_url)
 
     logger.debug(f"Found {len(pdf_urls)} PDF links on meeting page")
 
-    # Pattern match for agenda packet
+    # Pattern match for agenda packet (ordered by specificity)
     import re
     agenda_packet_patterns = [
         r'agenda-packet.*\.pdf',
         r'full.*packet.*\.pdf',
         r'complete.*agenda.*\.pdf',
         r'packet.*\d{4}-\d{2}-\d{2}.*\.pdf',
+        # City website patterns (e.g., "2026-02-24 Agenda - Council.pdf")
+        # Handles URL-encoded spaces (%20) in hrefs
+        r'\d{4}-\d{2}-\d{2}[%20\s_-]+(?:Special[%20\s_-]+)?Agenda',
     ]
 
     for pattern in agenda_packet_patterns:
@@ -542,21 +567,24 @@ def extract_pdf_urls_from_meeting_page(meeting_page_url: str) -> dict[str, Optio
             for link in agenda_packet_tab.find_all('a', href=True):
                 href = link.get('href', '')
                 if '.pdf' in href.lower():
-                    if href.startswith('http'):
-                        result['agenda_packet_url'] = href
-                    elif href.startswith('/'):
-                        from urllib.parse import urlparse
-                        parsed = urlparse(meeting_page_url)
-                        base_url = f"{parsed.scheme}://{parsed.netloc}"
-                        result['agenda_packet_url'] = f"{base_url}{href}"
-                    logger.info(f"  Found agenda packet in tab: {result['agenda_packet_url'][:80]}...")
-                    break
+                    abs_url = make_absolute(href)
+                    if abs_url:
+                        result['agenda_packet_url'] = abs_url
+                        logger.info(f"  Found agenda packet in tab: {abs_url[:80]}...")
+                        break
+
+    # Fallback: if no pattern matched but we have PDF links,
+    # use the first PDF (often the agenda on city sites)
+    if not result['agenda_packet_url'] and pdf_urls:
+        result['agenda_packet_url'] = pdf_urls[0]
+        logger.info(f"  Using first PDF link as agenda: {pdf_urls[0][:80]}...")
 
     # Pattern match for minutes
     minutes_patterns = [
         r'cc-minutes.*\d{4}-\d{2}-\d{2}.*\.pdf',
         r'minutes-\d{4}-\d{2}-\d{2}.*\.pdf',
         r'\d{8}-cc-minutes.*\.pdf',
+        r'\d{4}-\d{2}-\d{2}[%20\s_-]*(?:.*?)[Mm]inutes.*\.pdf',
     ]
 
     for pattern in minutes_patterns:
@@ -574,19 +602,22 @@ def extract_pdf_urls_from_meeting_page(meeting_page_url: str) -> dict[str, Optio
             for link in minutes_tab.find_all('a', href=True):
                 href = link.get('href', '')
                 if '.pdf' in href.lower():
-                    if href.startswith('http'):
-                        result['minutes_url'] = href
-                    elif href.startswith('/'):
-                        from urllib.parse import urlparse
-                        parsed = urlparse(meeting_page_url)
-                        base_url = f"{parsed.scheme}://{parsed.netloc}"
-                        result['minutes_url'] = f"{base_url}{href}"
-                    break
+                    abs_url = make_absolute(href)
+                    if abs_url:
+                        result['minutes_url'] = abs_url
+                        break
+
+    # Store the session for downstream PDF downloads
+    result['_session'] = session
 
     return result
 
 
-def download_and_validate_pdf(url: str, timeout: int = 60) -> DownloadResult:
+def download_and_validate_pdf(
+    url: str,
+    timeout: int = 60,
+    session: Optional[requests.Session] = None,
+) -> DownloadResult:
     """
     Download a PDF from URL with full validation.
 
@@ -595,13 +626,15 @@ def download_and_validate_pdf(url: str, timeout: int = 60) -> DownloadResult:
     Args:
         url: URL of the PDF
         timeout: Request timeout in seconds
+        session: Optional requests.Session with cookies/headers from prior
+                 page scraping (needed for cookie-gated city sites)
 
     Returns:
         DownloadResult with content, validation status, and any warnings
     """
     try:
-        response = requests.get(url, timeout=timeout)
-        response.raise_for_status()
+        requester = session or requests
+        response = requester.get(url, timeout=timeout)
 
         content_type = response.headers.get("Content-Type", "")
         content = response.content
@@ -789,8 +822,11 @@ def extract_chunks_from_meeting(
                         break
 
                 # Strategy 2: Scrape the HTML meeting page for PDF links
+                # (handles redirects, e.g. Granicus → city Drupal site)
+                scrape_session = None
                 if not actual_pdf_url:
                     pdf_urls = extract_pdf_urls_from_meeting_page(agenda_url)
+                    scrape_session = pdf_urls.pop('_session', None)
                     actual_pdf_url = pdf_urls.get('agenda_packet_url')
                     if not actual_pdf_url:
                         actual_pdf_url = pdf_urls.get('minutes_url')
@@ -808,9 +844,11 @@ def extract_chunks_from_meeting(
                         error="No PDF links found on meeting page",
                     )
 
-                # Download the actual PDF
+                # Download the actual PDF (pass session for cookie-gated sites)
                 logger.info(f"  Downloading actual PDF: {actual_pdf_url[:60]}...")
-                download_result = download_and_validate_pdf(actual_pdf_url)
+                download_result = download_and_validate_pdf(
+                    actual_pdf_url, session=scrape_session
+                )
                 if not download_result.content:
                     return ChunksResult(
                         meeting_id=meeting_id,

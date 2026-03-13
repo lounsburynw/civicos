@@ -193,6 +193,90 @@ class MunicipalCodeCorpus:
         pattern_str = jur_info.get(key, default)
         return re.compile(pattern_str)
 
+    def _infer_title_pattern(self, headings: list[str]) -> Optional[re.Pattern]:
+        """Infer a title pattern from TOC headings using an LLM.
+
+        When the default title pattern doesn't match any headings, this method
+        sends sample headings to an LLM to identify the top-level structure
+        and generate a matching regex.
+
+        Returns a compiled regex with 2 capture groups (number, name), or None.
+        """
+        if not headings:
+            return None
+
+        # Try common alternative patterns first (cheaper than LLM)
+        alternative_patterns = [
+            # "CHAPTER I - GENERAL" (roman numerals)
+            r'CHAPTER\s+([IVXLCDM]+)\s*[—–-]\s*(.+)',
+            # "Chapter 1 - General" (arabic, top-level)
+            r'Chapter\s+(\d+)\s*[—–-]\s*(.+)',
+            # "ARTICLE I - GENERAL" (roman numerals)
+            r'ARTICLE\s+([IVXLCDM]+)\s*[—–-]\s*(.+)',
+            # "Part 1 - General" or "PART I - GENERAL"
+            r'(?:Part|PART)\s+(\w+)\s*[—–-]\s*(.+)',
+            # "Division 1 - General"
+            r'Division\s+(\d+)\s*[—–-]\s*(.+)',
+        ]
+
+        for pattern_str in alternative_patterns:
+            pattern = re.compile(pattern_str)
+            matches = sum(1 for h in headings if pattern.match(h))
+            if matches >= 3:
+                logger.info(
+                    f"Matched {matches}/{len(headings)} headings with "
+                    f"alternative pattern: {pattern_str}"
+                )
+                return pattern
+
+        # Fall back to LLM inference
+        try:
+            from civicos._internal.llm import get_model_for_task
+        except ImportError:
+            logger.debug("LLM not available for pattern inference")
+            return None
+
+        sample = headings[:30]
+        prompt = (
+            "These are headings from a municipal code table of contents. "
+            "Identify which headings represent top-level divisions "
+            "(like Titles, Chapters, Articles, or Parts — NOT charter, "
+            "supplement tables, or ordinances).\n\n"
+            + "\n".join(f"- {h}" for h in sample)
+            + "\n\nReturn ONLY a Python regex string with exactly 2 capture "
+            "groups: (number_or_id, name). The regex should match the "
+            "top-level division headings. Support em-dash (—), en-dash (–), "
+            "and hyphen (-) as separators. Example: "
+            r"r'Title\s+(\d+)\s*[—–-]\s*(.+)'"
+            "\n\nReturn ONLY the regex, no explanation."
+        )
+
+        try:
+            model = get_model_for_task("fast")
+            response = model.complete(prompt)
+            pattern_str = response.strip().strip("'\"").strip("r'").strip("'")
+            # Remove r prefix if present
+            if pattern_str.startswith("r'") or pattern_str.startswith('r"'):
+                pattern_str = pattern_str[2:-1]
+            pattern = re.compile(pattern_str)
+            # Validate: must match at least 3 headings
+            matches = sum(1 for h in headings if pattern.match(h))
+            if matches >= 3:
+                logger.info(
+                    f"LLM inferred pattern matched {matches}/{len(headings)} "
+                    f"headings: {pattern_str}"
+                )
+                return pattern
+            else:
+                logger.warning(
+                    f"LLM pattern matched only {matches} headings, discarding: "
+                    f"{pattern_str}"
+                )
+                return None
+        except Exception as e:
+            logger.warning(f"LLM pattern inference failed: {e}")
+            return None
+
     @classmethod
     def for_jurisdiction(cls, jurisdiction_id: str, **kwargs) -> "MunicipalCodeCorpus":
         """
@@ -431,6 +515,93 @@ class MunicipalCodeCorpus:
                     child["Id"], job_id, product_id, max_depth - 1
                 )
 
+    def _infer_section_pattern(self, doc_headings: list[str]) -> Optional[re.Pattern]:
+        """Infer a section pattern from document headings.
+
+        Called when the default section pattern doesn't match any docs
+        returned by CodesContent. Tries common alternative formats.
+
+        Returns a compiled regex with 2 capture groups (number, title), or None.
+        """
+        if not doc_headings:
+            return None
+
+        alternative_patterns = [
+            # "1-3.1 - Name" (Alameda-style: dash-separated with optional sub-number)
+            r'(\d+-\d+(?:\.\d+)?[A-Za-z]?)\s*[—–-]\s*(.+)',
+            # "§ 1-2-3 - Name"
+            r'§\s*(\d+-\d+-\d+)\s*[—–-]\s*(.+)',
+            # "Sec. 1-23 - Name"
+            r'Sec\.\s*(\d+-\d+)\s*[—–-]\s*(.+)',
+            # "1.02.030 - Name" (standard but with different separator)
+            r'(\d+\.\d+\.\d+)\s*[—–-]\s*(.+)',
+        ]
+
+        for pattern_str in alternative_patterns:
+            pattern = re.compile(pattern_str)
+            matches = sum(1 for h in doc_headings if pattern.match(h))
+            if matches >= 3:
+                logger.info(
+                    f"Inferred section pattern ({matches}/{len(doc_headings)} "
+                    f"matches): {pattern_str}"
+                )
+                return pattern
+
+        return None
+
+    def _yield_sections_from_docs(
+        self,
+        docs: list[dict],
+        chapter: str,
+        chapter_title: str,
+        title_number: str,
+        title_name: str,
+    ) -> Iterator[MunicipalCodeSection]:
+        """Extract sections from CodesContent docs.
+
+        Tries the configured section pattern first. If nothing matches,
+        infers a section pattern from the doc headings.
+        """
+        # Collect headings to check pattern match rate
+        headings = [doc.get("Title", "") for doc in docs]
+
+        # Try configured pattern first
+        section_pattern = self._section_pattern
+        matched = sum(1 for h in headings if section_pattern.match(h))
+
+        if matched == 0 and len(headings) > 3:
+            # No matches — try to infer a section pattern
+            inferred = self._infer_section_pattern(headings)
+            if inferred:
+                section_pattern = inferred
+                # Cache for subsequent calls
+                self._section_pattern = inferred
+
+        for doc in docs:
+            doc_id = doc.get("Id", "")
+            heading = doc.get("Title", "")
+            html_content = doc.get("Content", "")
+
+            section_match = section_pattern.match(heading)
+            if section_match:
+                section_number = section_match.group(1)
+                section_title = section_match.group(2).strip()
+
+                full_text = self._html_to_text(html_content)
+                ordinance_history = self._extract_ordinance_history(html_content)
+
+                yield MunicipalCodeSection(
+                    section_number=section_number,
+                    section_title=section_title,
+                    full_text=full_text,
+                    chapter=chapter,
+                    chapter_title=chapter_title,
+                    title_number=title_number,
+                    title_name=title_name,
+                    node_id=doc_id,
+                    ordinance_history=ordinance_history,
+                )
+
     def stream_sections(
         self,
         title_ids: Optional[list[str]] = None,
@@ -459,13 +630,28 @@ class MunicipalCodeCorpus:
                 titles.append(node)
 
         if not titles:
-            headings = [n.get("Heading", "") for n in toc[:5]]
-            logger.warning(
-                f"No TOC nodes matched title pattern for {self._jurisdiction_id}. "
-                f"TOC has {len(toc)} nodes. First headings: {headings}. "
-                f"Pattern: {self._title_pattern.pattern}"
-            )
-            return
+            # Try LLM-based pattern inference before giving up
+            headings = [n.get("Heading", "") for n in toc if n.get("HasChildren", False)]
+            inferred = self._infer_title_pattern(headings)
+            if inferred:
+                logger.info(
+                    f"Inferred title pattern for {self.jurisdiction_id}: "
+                    f"{inferred.pattern}"
+                )
+                self._title_pattern = inferred
+                for node in toc:
+                    heading = node.get("Heading", "")
+                    if self._title_pattern.match(heading) and node.get("HasChildren", False):
+                        titles.append(node)
+
+            if not titles:
+                all_headings = [n.get("Heading", "") for n in toc[:10]]
+                logger.warning(
+                    f"No TOC nodes matched title pattern for {self.jurisdiction_id}. "
+                    f"TOC has {len(toc)} nodes. Headings: {all_headings}. "
+                    f"Pattern: {self._title_pattern.pattern}"
+                )
+                return
 
         if title_ids:
             titles = [t for t in titles if t["Id"] in title_ids]
@@ -484,7 +670,20 @@ class MunicipalCodeCorpus:
                 title_name = title_heading
 
             # Find chapter nodes (handles nested structures like Title > Division > Chapter)
-            for chapter_node in self._find_chapter_nodes(title_id, job_id, product_id):
+            chapter_nodes = list(self._find_chapter_nodes(title_id, job_id, product_id))
+
+            if not chapter_nodes:
+                # Fallback: fetch content directly from the title node.
+                # Many codes (e.g., Alameda) have sections directly under the
+                # top-level division, with no intermediate "Chapter" layer.
+                # CodesContent on the title node returns all nested sections.
+                logger.debug(
+                    f"No chapter nodes found under {title_heading}, "
+                    "fetching content from title node directly"
+                )
+                chapter_nodes = [title_node]
+
+            for chapter_node in chapter_nodes:
                 chapter_id = chapter_node["Id"]
                 chapter_heading = chapter_node.get("Heading", "")
 
@@ -497,7 +696,7 @@ class MunicipalCodeCorpus:
                     current_chapter = ""
                     current_chapter_title = chapter_heading
 
-                # Fetch content at chapter level (not title level)
+                # Fetch content at chapter level (or title level for fallback)
                 content = self._fetch(
                     "CodesContent",
                     {"jobId": job_id, "productId": product_id, "nodeId": chapter_id},
@@ -505,34 +704,10 @@ class MunicipalCodeCorpus:
 
                 docs = content.get("Docs", [])
 
-                for doc in docs:
-                    doc_id = doc.get("Id", "")
-                    heading = doc.get("Title", "")
-                    html_content = doc.get("Content", "")
-
-                    # Section detection using configurable pattern
-                    section_match = self._section_pattern.match(heading)
-                    if section_match:
-                        section_number = section_match.group(1)
-                        section_title = section_match.group(2).strip()
-
-                        # Extract text and ordinance history
-                        full_text = self._html_to_text(html_content)
-                        ordinance_history = self._extract_ordinance_history(
-                            html_content
-                        )
-
-                        yield MunicipalCodeSection(
-                            section_number=section_number,
-                            section_title=section_title,
-                            full_text=full_text,
-                            chapter=current_chapter,
-                            chapter_title=current_chapter_title,
-                            title_number=title_number,
-                            title_name=title_name,
-                            node_id=doc_id,
-                            ordinance_history=ordinance_history,
-                        )
+                yield from self._yield_sections_from_docs(
+                    docs, current_chapter, current_chapter_title,
+                    title_number, title_name,
+                )
 
     def get_sections_list(
         self,
