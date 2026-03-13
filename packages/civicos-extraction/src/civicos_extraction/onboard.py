@@ -803,6 +803,9 @@ def onboard_jurisdiction(
     index_vectors: bool = False,
     load_legislation: bool = False,
     load_municipal_code: bool = False,
+    extract_chunks: bool = False,
+    extract_agenda_items: bool = False,
+    load_issues: bool = False,
     on_progress: Optional[Callable[[str, str], None]] = None,
 ) -> OnboardResult:
     """
@@ -1293,6 +1296,72 @@ def onboard_jurisdiction(
         except Exception as e:
             errors.append(f"Municipal code loading failed: {e}")
 
+    # Step 12: Optional chunk extraction (PDF parsing, free)
+    if extract_chunks and run_pipeline:
+        _progress("chunks", f"Extracting PDF chunks for {jurisdiction_id}...")
+        try:
+            from civicos_extraction.cli.chunks import run_chunk_extraction
+
+            chunk_results = run_chunk_extraction(
+                jurisdiction_id=jurisdiction_id,
+                cloud=bool(os.environ.get("DATABASE_URL")),
+            )
+            if chunk_results:
+                total_chunks = sum(r.chunks_count for r in chunk_results if r.status == "success")
+                logger.info(f"Chunk extraction complete: {total_chunks} chunks from {len(chunk_results)} meetings")
+                next_steps.append(f"Chunks extracted: {total_chunks} chunks")
+            else:
+                logger.info("No meetings with agendas found for chunk extraction")
+        except Exception as e:
+            errors.append(f"Chunk extraction failed: {e}")
+
+    # Step 13: Optional agenda item extraction (LLM-powered)
+    if extract_agenda_items and run_pipeline:
+        _progress("agenda_items", f"Extracting agenda items for {jurisdiction_id}...")
+        try:
+            from civicos_extraction.cli.agenda import run_agenda_extraction
+
+            agenda_results = run_agenda_extraction(
+                jurisdiction_id=jurisdiction_id,
+                cloud=bool(os.environ.get("DATABASE_URL")),
+            )
+            if agenda_results:
+                total_items = sum(r.items_count for r in agenda_results if r.status == "success")
+                logger.info(f"Agenda extraction complete: {total_items} items from {len(agenda_results)} meetings")
+                next_steps.append(f"Agenda items extracted: {total_items} items")
+            else:
+                logger.info("No meetings found for agenda item extraction")
+        except Exception as e:
+            errors.append(f"Agenda item extraction failed: {e}")
+
+    # Step 14: Optional 311 issues loading (best-effort)
+    if load_issues:
+        _progress("issues", f"Loading 311 issues for {jurisdiction_id} (best-effort)...")
+        try:
+            from civicos_extraction.cli.issues import derive_place_url, fetch_and_store_issues
+
+            place_url = derive_place_url(jurisdiction_id)
+            cloud = bool(os.environ.get("DATABASE_URL"))
+
+            result_code = fetch_and_store_issues(
+                jurisdiction_id=jurisdiction_id,
+                provider="seeclickfix",
+                place_url=place_url,
+                status=None,
+                max_pages=50,
+                per_page=100,
+                cloud=cloud,
+                output_dir="data/pilot",
+            )
+            if result_code == 0:
+                logger.info(f"311 issues loaded for {jurisdiction_id}")
+                next_steps.append("311 issues loaded (SeeClickFix)")
+            else:
+                logger.warning(f"No 311 issues found for {jurisdiction_id} — this is normal if the city doesn't use SeeClickFix")
+        except Exception as e:
+            # Best-effort: log warning, don't fail onboarding
+            logger.warning(f"311 issues loading skipped: {e} — this is normal if the city doesn't use SeeClickFix")
+
     # If pipeline ran but vectors weren't indexed, remind user
     if run_pipeline and not index_vectors and not vector_indexed:
         next_steps.append(
@@ -1301,6 +1370,53 @@ def onboard_jurisdiction(
         next_steps.append(
             "Without vectors, what_happened() and semantic search won't work"
         )
+
+    # Post-onboard data status report
+    if run_pipeline:
+        _progress("status", "Generating data status report...")
+        try:
+            from dotenv import load_dotenv as _ld
+            _ld()
+            from civicos import CivicOS
+            from civicos.diagnostics import DataStatus, format_data_status
+
+            c = CivicOS(jurisdiction_id)
+            status = DataStatus(c.storage, c._vectors, jurisdiction_id)
+            report = status.summary()
+
+            # Print summary
+            logger.info("")
+            logger.info("=" * 62)
+            logger.info(f"  DATA STATUS: {jurisdiction_id}")
+            logger.info("=" * 62)
+            for corpus_type, count in sorted(report.corpus_counts.items()):
+                if count.storage_count > 0:
+                    logger.info(f"  {count.display_name:<20} {count.storage_count:>8} docs")
+            logger.info(f"  {'─' * 30}")
+            logger.info(f"  {'Total':.<20} {report.total_storage_docs:>8} docs")
+            if report.total_vector_docs > 0:
+                logger.info(f"  {'Vectors':.<20} {report.total_vector_docs:>8} embeddings")
+            logger.info("")
+
+            # Surface what's missing with guidance
+            missing = []
+            if report.corpus_counts.get("decisions", None) and report.corpus_counts["decisions"].storage_count == 0:
+                missing.append("decisions (run weekly LLM extraction after meetings accumulate)")
+            if report.corpus_counts.get("transcripts", None) and report.corpus_counts["transcripts"].storage_count == 0:
+                missing.append("transcripts (opt-in, ~$0.23/hr via /ingest-audio)")
+            if missing:
+                logger.info("  Expected missing data:")
+                for m in missing:
+                    logger.info(f"    - {m}")
+                logger.info("")
+            logger.info("=" * 62)
+        except Exception as e:
+            logger.warning(f"Data status report skipped: {e}")
+
+    # Deployment next-steps guidance
+    if run_pipeline:
+        next_steps.append(f"To enable scheduled refresh: modal deploy scripts/modal_ingest.py")
+        next_steps.append(f"To update extension registry: cd apps/civicos-registry && npx wrangler deploy")
 
     return OnboardResult(
         success=True,
