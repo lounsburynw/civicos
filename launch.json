@@ -381,20 +381,20 @@
       {
         "name": "query_interface_hardening",
         "description": "Harden v2 query interface: cursor pagination, aggregate/trend modes, live-data integration tests, ranking calibration. See docs/public/decisions/query_interface.md deferred items.",
-        "status": "not_started",
+        "status": "done",
         "priority": 0,
         "files": [
           "packages/civicos-services/src/civicos_services/query/",
           "packages/civicos-services/tests/test_query_v2.py"
         ],
         "test_file": "packages/civicos-services/tests/test_query_v2.py",
-        "notes": "Cursor pagination is highest priority (blocks real agent usage). Aggregate/trend modes enable monitoring patterns. Live-data tests need DATABASE_URL."
+        "notes": "Done: cursor pagination (stateless base64 offsets), aggregate mode (counts + date ranges), trend mode (year-month buckets), 19 new tests (88 total). Remaining: live-data integration tests and RRF ranking calibration moved to query_interface_operators."
       },
       {
         "name": "query_interface_operators",
-        "description": "v2 query interface operators and cross-jurisdiction support: set operators (- for diff/monitoring, & for intersection), multi-jurisdiction fan-out, civic jargon lookup via civic.context. See docs/public/decisions/query_interface.md open questions.",
+        "description": "v2 query interface operators and cross-jurisdiction support: set operators (- for diff/monitoring, & for intersection), multi-jurisdiction fan-out, civic jargon lookup via civic.context. Also: live-data integration tests and RRF ranking calibration (from hardening). See docs/public/decisions/query_interface.md open questions.",
         "status": "not_started",
-        "priority": 2,
+        "priority": 0,
         "files": [
           "packages/civicos-services/src/civicos_services/query/"
         ],

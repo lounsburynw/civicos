@@ -10,9 +10,12 @@ Replaces 50+ individual tools with:
 """
 
 from civicos_services.query.models import (
+    AggregateEntry,
     CivicResult,
+    SearchMode,
     SearchRequest,
     SearchResponse,
+    TrendBucket,
     UpcomingRequest,
     UpcomingResponse,
     ContextRequest,
@@ -26,9 +29,12 @@ from civicos_services.query.models import (
 from civicos_services.query.router import create_v2_router
 
 __all__ = [
+    "AggregateEntry",
     "CivicResult",
+    "SearchMode",
     "SearchRequest",
     "SearchResponse",
+    "TrendBucket",
     "UpcomingRequest",
     "UpcomingResponse",
     "ContextRequest",

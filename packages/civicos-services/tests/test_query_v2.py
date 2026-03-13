@@ -978,3 +978,263 @@ async def _run_act(req, civic, call_handler):
 async def _run_explore(req, civic):
     from civicos_services.query.verbs import execute_explore
     return await execute_explore(req, civic, "city-san-rafael")
+
+
+# === Cursor / Pagination Tests ===
+
+class TestCursorEncoding:
+    def test_encode_decode_roundtrip(self):
+        from civicos_services.query.planner import encode_cursor, decode_cursor
+        offsets = {"decisions": 5, "legislation": 3}
+        cursor = encode_cursor(offsets)
+        assert cursor is not None
+        decoded = decode_cursor(cursor)
+        assert decoded == offsets
+
+    def test_encode_empty_returns_none(self):
+        from civicos_services.query.planner import encode_cursor
+        assert encode_cursor({}) is None
+        assert encode_cursor({"decisions": 0}) is None
+
+    def test_decode_none_returns_empty(self):
+        from civicos_services.query.planner import decode_cursor
+        assert decode_cursor(None) == {}
+        assert decode_cursor("") == {}
+
+    def test_decode_invalid_returns_empty(self):
+        from civicos_services.query.planner import decode_cursor
+        assert decode_cursor("not-valid-base64!!!") == {}
+        assert decode_cursor("dGVzdA==") == {}  # decodes to "test", not JSON dict
+
+    def test_planner_distributes_offsets(self):
+        from civicos_services.query.planner import plan_search, encode_cursor
+        cursor = encode_cursor({"decisions": 5})
+        plan = plan_search(
+            query="housing", corpus=["decisions", "legislation"],
+            limit=10, cursor=cursor,
+        )
+        offsets = {cq.corpus: cq.offset for cq in plan.corpus_queries}
+        assert offsets["decisions"] == 5
+        assert offsets["legislation"] == 0
+
+
+class TestPagination:
+    def test_adapter_offset_skips_results(self):
+        adapter = DecisionsAdapter()
+        civic = MagicMock()
+        civic.what_happened.return_value = [
+            MockDecision(id=f"dec-{i}", title=f"Decision {i}") for i in range(10)
+        ]
+        # No offset: get first 3
+        r0 = adapter.search(civic, "city-test", "housing", limit=3, offset=0)
+        assert len(r0) == 3
+        assert r0[0].ref.endswith("dec-0")
+
+        # Offset=3: skip first 3
+        r1 = adapter.search(civic, "city-test", "housing", limit=3, offset=3)
+        assert len(r1) == 3
+        assert r1[0].ref.endswith("dec-3")
+
+    def test_adapter_offset_beyond_results_returns_empty(self):
+        adapter = DecisionsAdapter()
+        civic = MagicMock()
+        civic.what_happened.return_value = [MockDecision()]
+        results = adapter.search(civic, "city-test", "housing", limit=5, offset=10)
+        assert results == []
+
+    def test_search_returns_cursor_when_full_page(self):
+        """If a corpus returns a full page, the response should include a cursor."""
+        civic = MagicMock()
+        # Return exactly per_corpus_limit results so cursor is generated
+        civic.what_happened.return_value = [
+            MockDecision(id=f"dec-{i}", title=f"Decision {i}") for i in range(10)
+        ]
+
+        req = SearchRequest(query="housing", corpus=["decisions"], limit=5)
+        resp = asyncio.get_event_loop().run_until_complete(
+            _run_search(req, civic)
+        )
+        # With limit=5 and 1 corpus, per_corpus = max(3, ceil(5/1)) = 5
+        # Adapter returns 5 results (full page) → cursor should be set
+        assert resp.meta.cursor is not None
+
+    def test_search_no_cursor_when_results_exhausted(self):
+        """If all corpora return fewer results than per_corpus_limit, no cursor."""
+        civic = MagicMock()
+        civic.what_happened.return_value = [MockDecision()]  # only 1 result
+
+        req = SearchRequest(query="housing", corpus=["decisions"], limit=10)
+        resp = asyncio.get_event_loop().run_until_complete(
+            _run_search(req, civic)
+        )
+        assert resp.meta.cursor is None
+
+    def test_cursor_pagination_second_page(self):
+        """Using cursor from first page should offset the second page."""
+        from civicos_services.query.planner import encode_cursor
+
+        civic = MagicMock()
+        all_decisions = [
+            MockDecision(id=f"dec-{i}", title=f"Decision {i}") for i in range(20)
+        ]
+        civic.what_happened.return_value = all_decisions
+
+        # Second page with offset=5 for decisions
+        cursor = encode_cursor({"decisions": 5})
+        req = SearchRequest(query="housing", corpus=["decisions"], limit=5, cursor=cursor)
+        resp = asyncio.get_event_loop().run_until_complete(
+            _run_search(req, civic)
+        )
+        # Results should start from offset 5
+        assert resp.results[0].ref.endswith("dec-5")
+
+
+# === Aggregate Mode Tests ===
+
+class TestAggregateMode:
+    def test_aggregate_returns_counts(self):
+        from civicos_services.query.models import SearchMode
+        civic = make_mock_civic()
+
+        req = SearchRequest(
+            query="housing", corpus=["decisions", "legislation"],
+            mode=SearchMode.aggregate,
+        )
+        resp = asyncio.get_event_loop().run_until_complete(
+            _run_search(req, civic)
+        )
+        assert resp.results == []
+        assert resp.aggregates is not None
+        assert len(resp.aggregates) == 2
+
+        by_corpus = {a.corpus: a for a in resp.aggregates}
+        assert "decisions" in by_corpus
+        assert by_corpus["decisions"].count >= 1
+
+    def test_aggregate_includes_date_range(self):
+        from civicos_services.query.models import SearchMode
+        civic = MagicMock()
+        civic.what_happened.return_value = [
+            MockDecision(id="dec-1", date=datetime(2025, 1, 15)),
+            MockDecision(id="dec-2", date=datetime(2025, 6, 15)),
+        ]
+
+        req = SearchRequest(
+            query="housing", corpus=["decisions"],
+            mode=SearchMode.aggregate,
+        )
+        resp = asyncio.get_event_loop().run_until_complete(
+            _run_search(req, civic)
+        )
+        agg = resp.aggregates[0]
+        assert agg.count == 2
+        assert agg.earliest.startswith("2025-01-15")
+        assert agg.latest.startswith("2025-06-15")
+
+    def test_aggregate_empty_corpus(self):
+        from civicos_services.query.models import SearchMode
+        civic = MagicMock()
+        civic.what_happened.return_value = []
+
+        req = SearchRequest(
+            query="nothing", corpus=["decisions"],
+            mode=SearchMode.aggregate,
+        )
+        resp = asyncio.get_event_loop().run_until_complete(
+            _run_search(req, civic)
+        )
+        assert resp.aggregates[0].count == 0
+        assert resp.aggregates[0].earliest is None
+
+
+# === Trend Mode Tests ===
+
+class TestTrendMode:
+    def test_trend_returns_time_buckets(self):
+        from civicos_services.query.models import SearchMode
+        civic = MagicMock()
+        civic.what_happened.return_value = [
+            MockDecision(id="dec-1", date=datetime(2025, 1, 10)),
+            MockDecision(id="dec-2", date=datetime(2025, 1, 20)),
+            MockDecision(id="dec-3", date=datetime(2025, 3, 5)),
+        ]
+
+        req = SearchRequest(
+            query="housing", corpus=["decisions"],
+            mode=SearchMode.trend,
+        )
+        resp = asyncio.get_event_loop().run_until_complete(
+            _run_search(req, civic)
+        )
+        assert resp.results == []
+        assert resp.trends is not None
+        assert len(resp.trends) >= 2  # At least 2 months
+
+        by_period = {t.period: t.count for t in resp.trends}
+        assert by_period.get("2025-01") == 2
+        assert by_period.get("2025-03") == 1
+
+    def test_trend_multi_corpus(self):
+        from civicos_services.query.models import SearchMode
+        civic = MagicMock()
+        civic.what_happened.return_value = [
+            MockDecision(id="dec-1", date=datetime(2025, 2, 1)),
+        ]
+        civic.search_issues.return_value = [
+            {"id": "iss-1", "summary": "Pothole", "status": "open",
+             "issue_type": "Road", "address": "123 Main", "created_at": "2025-02-15"},
+        ]
+
+        req = SearchRequest(
+            query="road", corpus=["decisions", "issues"],
+            mode=SearchMode.trend,
+        )
+        resp = asyncio.get_event_loop().run_until_complete(
+            _run_search(req, civic)
+        )
+        assert resp.trends is not None
+        feb_trends = [t for t in resp.trends if t.period == "2025-02"]
+        assert len(feb_trends) == 2  # one for decisions, one for issues
+
+    def test_trend_no_dates_goes_to_unknown(self):
+        from civicos_services.query.models import SearchMode
+        civic = MagicMock()
+
+        # Use a sentinel date object that's falsy to the adapter's `if d.date` check
+        @dataclass
+        class NoDatedDecision:
+            id: str = "dec-1"
+            title: str = "Undated"
+            date: object = None
+            outcome: str = "Approved"
+            body: str = "Council"
+            votes: dict = None
+
+        civic.what_happened.return_value = [NoDatedDecision()]
+
+        req = SearchRequest(
+            query="housing", corpus=["decisions"],
+            mode=SearchMode.trend,
+        )
+        resp = asyncio.get_event_loop().run_until_complete(
+            _run_search(req, civic)
+        )
+        # date=None should produce "unknown" period
+        assert any(t.period == "unknown" for t in resp.trends)
+
+
+# === SearchMode enum Tests ===
+
+class TestSearchMode:
+    def test_default_mode_is_search(self):
+        from civicos_services.query.models import SearchMode
+        req = SearchRequest(query="test", corpus=["decisions"])
+        assert req.mode == SearchMode.search
+
+    def test_mode_from_string(self):
+        req = SearchRequest(query="test", corpus=["decisions"], mode="aggregate")
+        assert req.mode.value == "aggregate"
+
+    def test_cursor_field_optional(self):
+        req = SearchRequest(query="test", corpus=["decisions"])
+        assert req.cursor is None

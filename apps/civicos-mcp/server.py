@@ -418,6 +418,8 @@ def _get_v2_tool_definitions() -> list:
                     "location": {"type": "string", "description": "Geographic filter"},
                     "limit": {"type": "integer", "description": "Max results (default 10)", "default": 10},
                     "depth": {"type": "string", "enum": ["minimal", "standard", "deep"], "default": "standard"},
+                    "mode": {"type": "string", "enum": ["search", "aggregate", "trend"], "description": "search (items), aggregate (counts/stats), trend (temporal patterns)", "default": "search"},
+                    "cursor": {"type": "string", "description": "Opaque pagination cursor from a previous response"},
                 },
                 "required": ["query", "corpus"],
             },

@@ -21931,3 +21931,37 @@ Implemented the universal adapter from the ADR design.
 - `platform_detection.py` — Added `_detect_universal()` as last-resort fallback (confidence 0.30-0.50)
 
 **Test results:** 155/155 pass (120 existing + 35 new)
+
+### Session: Query Interface Hardening (2026-03-13)
+
+**Item:** query_interface_hardening (P0)
+**Status:** DONE
+
+Implemented three core hardening features for the v2 unified query interface:
+
+**1. Cursor-based pagination**
+- Stateless cursor: base64-encoded JSON of per-corpus offsets (`{"decisions":5,"legislation":5}`)
+- `encode_cursor()` / `decode_cursor()` in planner.py
+- Cursor flows: SearchRequest.cursor → planner → per-corpus offset → adapters → next cursor in response
+- All 11 adapters updated with `offset` parameter
+- Response includes cursor when any corpus returns a full page
+
+**2. Aggregate mode** (`mode: "aggregate"`)
+- Returns `AggregateEntry` per corpus: count, earliest date, latest date
+- No individual results returned — lightweight for dashboards/monitoring
+
+**3. Trend mode** (`mode: "trend"`)
+- Returns `TrendBucket` entries: year-month period + count per corpus
+- Items without dates bucketed as "unknown"
+- Multi-corpus trends in same response
+
+**Files modified:**
+- `query/models.py` — SearchMode enum, cursor/mode on SearchRequest, AggregateEntry, TrendBucket, SearchResponse.aggregates/trends, CorpusQuery.offset
+- `query/planner.py` — encode_cursor(), decode_cursor(), plan_search cursor param
+- `query/adapters.py` — all 11 adapters accept offset parameter
+- `query/verbs.py` — execute_search handles 3 modes, cursor generation
+- `query/__init__.py` — exports new types
+- `apps/civicos-mcp/server.py` — MCP schema updated with mode + cursor params
+
+**Tests:** 88 passing (69 existing + 19 new)
+- TestCursorEncoding (4), TestPagination (4), TestAggregateMode (3), TestTrendMode (3), TestSearchMode (3), misc (2)
