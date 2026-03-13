@@ -1,6 +1,6 @@
-# Recommended: Add eScribe Platform Client
+# Recommended: Deploy Marin Test Relays
 
-**Priority:** P0 (`escribe_client`)
+**Priority:** P0 (`deploy_marin_test_relays`)
 **Area:** federation_testbed
 **Date:** 2026-03-13
 
@@ -8,80 +8,87 @@
 
 ## Context
 
-This session made onboarding fully turnkey and generalizable across US cities, counties, states, Canadian provinces, and UK councils (96 tests, 5 jurisdiction types validated E2E). Stress testing found **one platform coverage gap: Portland, OR uses eScribe**, which we don't have a client for. All other major US cities land on Granicus, Legistar, CivicClerk, or ProudCity.
+Mill Valley and San Anselmo have been onboarded (data extracted, configs generated). The relay is already multi-jurisdiction — it serves all cities through one endpoint and routes by `jurisdiction` field. "Deploying test relays" actually means deploying **MCP servers** for each city and configuring attestation, since the relay itself needs no changes.
 
-The existing abstraction (`BaseExtractor` + factory + discovery) is already designed for this — adding a new platform is a well-defined task with no new abstractions needed.
+Both jurisdictions are already registered in `config/registry.json` (lines 40-51) with `modal_app_name` set.
 
 ## Recommended Task
 
-Implement an eScribe client following the existing patterns. Four pieces:
+Deploy MCP server instances for Mill Valley and San Anselmo on Modal, generate attestation keypairs, and verify end-to-end relay routing.
 
-### 1. Client: `clients/escribe.py` (~200 lines)
-- Subclass `BaseExtractor` (defined at `clients/base.py:413`)
-- Implement `get_events()`, `normalize_event()`, `platform_name`, `health()`, `validate()`
-- Research eScribe's meeting API endpoints (Portland's instance)
-- Reference existing clients for patterns:
-  - `clients/granicus.py:49` — `GranicusClient(BaseExtractor)` (most complete example)
-  - `clients/legistar.py:24` — `LegistarClient(BaseExtractor)` (simpler API client)
+### 1. Deploy MCP Servers (~2 commands each)
+```bash
+CIVICOS_JURISDICTION=city-mill-valley modal deploy apps/civicos-mcp/modal_mcp.py
+CIVICOS_JURISDICTION=city-san-anselmo modal deploy apps/civicos-mcp/modal_mcp.py
+```
 
-### 2. Factory: `clients/factory.py:36`
-- Add `elif source_type == "escribe":` case (2 lines, follows existing pattern)
+### 2. Generate Attestation Keypairs
+Generate issuer keypairs for each city and update `config/registry.json` with `attestation_issuer_pubkey`.
 
-### 3. Discovery: `platform_detection.py`
-- Add `discover_escribe_instance(city_name, state)` function
-- Register in `discover_platform()` orchestrator alongside Legistar/CivicClerk/Granicus/ProudCity
+### 3. Redeploy Relay (picks up new MCP endpoints)
+```bash
+modal deploy apps/civicos-relay/modal_relay.py
+```
 
-### 4. Onboard integration: `onboard.py`
-- Add eScribe case to the pre-discovered platform handling (~820-870)
-- Add `_discover_escribe()` helper (follows `_discover_granicus()` pattern at line 295)
+### 4. Verify Cross-Jurisdiction Routing
+Test that the relay routes AI proxy requests to the correct jurisdiction's MCP server.
 
 ## Key Files
 
-- `clients/base.py:413` — `BaseExtractor` ABC (the contract to implement)
-- `clients/base.py:245` — `DataSource` protocol (health/validate)
-- `clients/base.py:294` — `Meeting` dataclass (normalization target)
-- `clients/factory.py` — source factory (add escribe case)
-- `clients/granicus.py:49` — best reference client implementation
-- `platform_detection.py` — discovery functions (add escribe discovery)
-- `onboard.py:820-870` — platform-specific onboard paths (add escribe case)
+- `apps/civicos-relay/modal_relay.py:131-153` — AI proxy jurisdiction routing (reads registry.json)
+- `apps/civicos-relay/modal_relay.py:46-50` — registry.json mount into Modal image
+- `apps/civicos-mcp/modal_mcp.py:36-79` — MCP per-jurisdiction deployment + secrets
+- `config/registry.json:40-51` — Mill Valley & San Anselmo already registered
+- `packages/civicos/src/civicos/registry.py:181-195` — Modal app name derivation
+- `packages/civicos-relay/src/civicos_relay/voice/crypto.py` — Attestation signing (secp256k1)
+- `docs/internal/deployment.md` — Deployment procedures & secrets inventory
 
-All paths relative to `packages/civicos-extraction/src/civicos_extraction/`.
+## Architecture Notes
+
+- **Relay is single-instance, multi-jurisdiction** — jurisdiction is data, not deployment artifact
+- **MCP servers are per-jurisdiction** — each gets its own Modal app
+- **Shared database:** RELAY_DATABASE_URL (`lvfikysdbdkpxemssuxa` us-west-1) stores all coordination data with `jurisdiction` field
+- **Existing secrets:** `civicos-marin-county-env` already exists for Marin jurisdictions
+- **San Rafael attestation pubkey** already configured: `a8a87b73...` (registry.json:14)
 
 ## Suggested Approach
 
-1. **Research eScribe API** — find Portland's eScribe instance URL, understand their meeting/event endpoints
-2. **Write `clients/escribe.py`** — implement `BaseExtractor` with `get_events()` and `normalize_event()`
-3. **Add to factory** — 2-line addition to `factory.py`
-4. **Add discovery** — `discover_escribe_instance()` in `platform_detection.py`
-5. **Add onboard path** — `_discover_escribe()` in `onboard.py`
-6. **Test** — verify `discover_platform("Portland", state="OR")` now finds eScribe
-7. **E2E** — `onboard_jurisdiction(city_name="Portland", state="OR", level="city", generate_yaml=True)`
+1. Check `modal app list` and `modal secret list` for current state
+2. Deploy Mill Valley MCP: `CIVICOS_JURISDICTION=city-mill-valley modal deploy apps/civicos-mcp/modal_mcp.py`
+3. Deploy San Anselmo MCP: `CIVICOS_JURISDICTION=city-san-anselmo modal deploy apps/civicos-mcp/modal_mcp.py`
+4. Verify MCP endpoints respond: `curl https://civicos--civicos-mill-valley-...modal.run/api/tools`
+5. Generate attestation keypairs (check `scripts/` for generation script)
+6. Update `config/registry.json` with pubkeys
+7. Redeploy relay: `modal deploy apps/civicos-relay/modal_relay.py`
+8. Test: relay routes `/api/ai/chat` with `jurisdiction: "city-mill-valley"` correctly
 
 ## Tests to Run
 
 ```bash
-# Platform detection + onboarding tests (96 currently passing)
-pytest packages/civicos-extraction/tests/test_platform_detection.py -q --override-ini="addopts="
+# Relay tests
+pytest packages/civicos-relay/tests/ -q --override-ini="addopts="
 
-# Regression: existing jurisdictions
+# Verify existing jurisdictions still work
 python3 -c "
 from dotenv import load_dotenv; load_dotenv()
 from civicos import CivicOS
 for j in ['city-san-rafael', 'city-mill-valley', 'city-san-anselmo']:
     c = CivicOS(j)
     print(f'{j}: {len(c.storage.get_meetings(j))} meetings')"
+
+# Health check after deploy
+/health
 ```
 
 ## Success Criteria
 
-- [ ] `discover_platform("Portland", state="OR")` returns `{"platform": "escribe", ...}`
-- [ ] `EScribeClient` implements `BaseExtractor` with `get_events()`, `normalize_event()`, `health()`, `validate()`
-- [ ] `factory.py` dispatches `source_type="escribe"` correctly
-- [ ] Portland onboards end-to-end: `onboard_jurisdiction(city_name="Portland", state="OR")`
-- [ ] All 96 existing tests still pass
-- [ ] All 3 existing jurisdictions still work
+- [ ] `modal app list` shows `civicos-mill-valley` and `civicos-san-anselmo` MCP apps running
+- [ ] Each MCP endpoint returns tools at `/api/tools`
+- [ ] Attestation issuer pubkeys set in `config/registry.json` for both cities
+- [ ] Relay routes AI requests to correct jurisdiction MCP server
+- [ ] Existing San Rafael relay functionality unaffected
 
 ## Known Issues
 
-- **Legistar API intermittent 500s** — Berkeley/SF return 500. Oakland/Dublin work. Legistar's issue.
-- **CivicClerk meeting titles generic** — El Cerrito returns "Meeting" for all entries
+- **Local SSL cert issue** — anaconda Python's CA bundle is outdated. External HTTPS calls to some hosts (eScribe) fail locally but work on Modal/CI. Other clients (Legistar, Granicus) work fine locally.
+- **Legistar API intermittent 500s** — Berkeley/SF. Not related to relay work.

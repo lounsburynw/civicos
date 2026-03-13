@@ -15,10 +15,12 @@ from civicos_extraction.platform_detection import (
     discover_granicus_subdomain,
     discover_legistar_client,
     discover_civicclerk_subdomain,
+    discover_escribe_instance,
     discover_platform,
     _extract_client_name,
     _detect_legistar,
     _detect_civicclerk,
+    _detect_escribe,
     _detect_proudcity,
 )
 
@@ -1523,3 +1525,192 @@ class TestOnboardCLI:
 
         args = parser.parse_args(["onboard", "--city", "Berkeley", "--state", "CA", "--dry-run"])
         assert run_onboard(args) == 0
+
+
+class TestDetectEScribe:
+    """Test eScribe detection strategy."""
+
+    @patch('civicos_extraction.platform_detection.requests.get')
+    def test_escribe_detected(self, mock_get):
+        """Test successful eScribe detection."""
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.text = '<html>escribemeetings GetCalendarMeetings</html>'
+        mock_get.return_value = mock_response
+
+        confidence, metadata = _detect_escribe("nationalcity", timeout=5)
+
+        assert confidence == 0.95
+        assert metadata["instance_name"] == "nationalcity"
+        assert metadata["confirmed"] is True
+
+    @patch('civicos_extraction.platform_detection.requests.get')
+    def test_escribe_not_found(self, mock_get):
+        """Test eScribe 404 response."""
+        mock_response = MagicMock()
+        mock_response.status_code = 404
+        mock_get.return_value = mock_response
+
+        confidence, metadata = _detect_escribe("nonexistent", timeout=5)
+
+        assert confidence == 0.0
+
+    @patch('civicos_extraction.platform_detection.requests.get')
+    def test_escribe_timeout(self, mock_get):
+        """Test eScribe timeout handling."""
+        mock_get.side_effect = requests.exceptions.Timeout()
+
+        confidence, metadata = _detect_escribe("nationalcity", timeout=5)
+
+        assert confidence == 0.0
+        assert metadata["error"] == "Timeout"
+
+    @patch('civicos_extraction.platform_detection.requests.get')
+    def test_escribe_page_exists_but_not_escribe(self, mock_get):
+        """Test page exists but doesn't look like eScribe."""
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.text = '<html>Some other page</html>'
+        mock_get.return_value = mock_response
+
+        confidence, metadata = _detect_escribe("something", timeout=5)
+
+        assert confidence == 0.60
+        assert metadata["confirmed"] is False
+
+
+class TestDiscoverEScribeInstance:
+    """Test eScribe instance discovery."""
+
+    @patch('civicos_extraction.platform_detection._detect_escribe')
+    def test_discover_escribe_slug(self, mock_detect):
+        """Test discovery with simple slug."""
+        mock_detect.return_value = (0.95, {"instance_name": "ottawa", "confirmed": True})
+
+        result = discover_escribe_instance("Ottawa", state="ON")
+
+        assert result is not None
+        assert result["instance_name"] == "ottawa"
+        assert "escribemeetings.com" in result["url"]
+
+    @patch('civicos_extraction.platform_detection._detect_escribe')
+    def test_discover_escribe_not_found(self, mock_detect):
+        """Test discovery fails when no instance found."""
+        mock_detect.return_value = (0.0, {"error": "Not found"})
+
+        result = discover_escribe_instance("Nonexistent City", state="CA")
+
+        assert result is None
+
+    @patch('civicos_extraction.platform_detection._detect_escribe')
+    def test_discover_escribe_multi_word_city(self, mock_detect):
+        """Test discovery with multi-word city name."""
+        # First candidate (slug) fails, second (hyphenated) succeeds
+        mock_detect.side_effect = [
+            (0.0, {}),  # nationalcity
+            (0.0, {}),  # nationalcityca
+            (0.0, {}),  # national-city
+            (0.95, {"instance_name": "cityofnationalcity", "confirmed": True}),
+        ]
+
+        result = discover_escribe_instance("National City", state="CA")
+
+        assert result is not None
+
+
+class TestEScribeClient:
+    """Test EScribeClient normalization and structure."""
+
+    def test_client_instantiation(self):
+        """Test client creates with correct properties."""
+        from civicos_extraction.clients.escribe import EScribeClient
+
+        client = EScribeClient("nationalcity", "city-national-city")
+        assert client.platform_name == "escribe"
+        assert client.source_id == "escribe-nationalcity"
+        assert client.source_type == "escribe"
+        assert "escribemeetings.com" in client.base_url
+
+    def test_normalize_event(self):
+        """Test event normalization to Meeting dataclass."""
+        from civicos_extraction.clients.escribe import EScribeClient
+
+        client = EScribeClient("nationalcity", "city-national-city")
+
+        event = {
+            "ID": "abc-123",
+            "MeetingName": "City Council Meeting",
+            "StartDate": "2026/03/03 16:00:00",
+            "Location": "City Hall",
+            "MeetingPassed": False,
+            "HasAgenda": True,
+            "Url": "/Meeting?Id=abc-123",
+            "MeetingDocumentLink": [
+                {"Type": "Agenda", "Title": "Agenda (PDF)", "Url": "/FileStream.ashx?DocumentId=100"},
+            ],
+        }
+
+        meeting = client.normalize_event(event)
+        assert meeting.title == "City Council Meeting"
+        assert meeting.meeting_type == "city_council"
+        assert meeting.status == "scheduled"
+        assert meeting.source_platform == "escribe"
+        assert meeting.jurisdiction_id == "city-national-city"
+        assert "FileStream.ashx" in meeting.agenda_url
+        assert meeting.location == "City Hall"
+
+    def test_normalize_completed_meeting(self):
+        """Test completed meeting has correct status."""
+        from civicos_extraction.clients.escribe import EScribeClient
+
+        client = EScribeClient("ottawa", "city-ottawa")
+
+        event = {
+            "MeetingName": "Planning Commission",
+            "StartDate": "2025/01/15 10:00:00",
+            "MeetingPassed": True,
+            "MeetingDocumentLink": [],
+        }
+
+        meeting = client.normalize_event(event)
+        assert meeting.status == "completed"
+        assert meeting.meeting_type == "planning_commission"
+
+    def test_factory_creates_escribe(self):
+        """Test factory dispatches escribe correctly."""
+        from civicos_extraction.clients.factory import create_source
+        from civicos_extraction.clients.base import ExtractionConfig
+
+        config = ExtractionConfig(
+            source_id="escribe-city-ottawa",
+            source_type="escribe",
+            jurisdiction_id="city-ottawa",
+            base_url="https://pub-ottawa.escribemeetings.com",
+            metadata={"instance_name": "ottawa"},
+        )
+        source = create_source(config)
+        assert source.platform_name == "escribe"
+        assert source.source_type == "escribe"
+
+    def test_infer_jurisdiction_from_escribe_url(self):
+        """Test jurisdiction inference from eScribe URLs."""
+        from civicos_extraction.onboard import _infer_jurisdiction_id
+
+        jid = _infer_jurisdiction_id("https://pub-nationalcity.escribemeetings.com")
+        assert jid == "nationalcity"
+
+        jid = _infer_jurisdiction_id("https://pub-ottawa.escribemeetings.com")
+        assert jid == "ottawa"
+
+    def test_meeting_type_inference(self):
+        """Test meeting type inference from title strings."""
+        from civicos_extraction.clients.escribe import EScribeClient
+
+        client = EScribeClient("test", "city-test")
+
+        assert client._infer_meeting_type("City Council Meeting") == "city_council"
+        assert client._infer_meeting_type("Planning Commission") == "planning_commission"
+        assert client._infer_meeting_type("Zoning Board of Appeals") == "zoning_board"
+        assert client._infer_meeting_type("Finance Committee") == "committee"
+        assert client._infer_meeting_type("Library Board") == "board"
+        assert client._infer_meeting_type("Special Session") == "other"

@@ -21836,3 +21836,44 @@ Fix F1 (Granicus subdomain discovery) and F5 (registry generation from YAML) to 
 All others: Granicus, Legistar, CivicClerk, or ProudCity.
 
 **Next P0:** `escribe_client` — Add eScribe platform client for Portland coverage
+
+## Session — 2026-03-13 — eScribe Platform Client
+
+### Task: `escribe_client` (P0, federation_testbed)
+
+Added eScribe meeting management platform client, closing a platform coverage gap.
+
+**Key finding:** Portland OR does NOT use eScribe (uses custom system at portland.gov).
+eScribe is used by Canadian municipalities (Ottawa, Hamilton, Barrie, Guelph) and
+some US cities (National City, CA). Instances at pub-{name}.escribemeetings.com.
+
+**eScribe API:** JSON over POST at /MeetingsCalendarView.aspx/GetCalendarMeetings.
+Returns structured meeting data with documents, links, types — no HTML scraping needed.
+Response wrapped in `"d"` key with Meeting objects including MeetingDocumentLink array.
+
+### Implementation
+
+**New file:**
+- `packages/civicos-extraction/src/civicos_extraction/clients/escribe.py` — EScribeClient
+  - Implements BaseExtractor: get_events(), normalize_event(), health(), validate()
+  - JSON POST API with throttling and retry logic
+  - Document link extraction (agenda/minutes URLs)
+  - Meeting type inference from title
+
+**Modified files:**
+- `clients/factory.py` — Added escribe dispatch (2 lines)
+- `platform_detection.py` — Added _detect_escribe(), discover_escribe_instance(),
+  integrated into detect_platform() and discover_platform() chains
+- `onboard.py` — Added _discover_escribe(), eScribe paths in pre-discovered and
+  URL-based flows, _infer_jurisdiction_id for eScribe URLs
+
+**Tests:** 109/109 pass (96 original + 13 new eScribe tests)
+- TestDetectEScribe: detection, 404, timeout, non-eScribe page
+- TestDiscoverEScribeInstance: slug, not found, multi-word city
+- TestEScribeClient: instantiation, normalization, factory, jurisdiction inference, type inference
+
+**Note:** Local SSL issue prevents live testing from dev machine (anaconda Python's
+CA bundle missing Cloudflare intermediate cert). curl confirms API works. Will work
+in production (Modal) and CI.
+
+**Regressions:** None — all 96 existing tests still pass

@@ -415,7 +415,7 @@
         "name": "deploy_marin_test_relays",
         "description": "Deploy 2 additional relay instances on Modal for Mill Valley and San Anselmo. Private, not public-facing. Validates multi-relay deployment.",
         "status": "not_started",
-        "priority": 2,
+        "priority": 0,
         "phase": "A",
         "source": "federation testbed \u2014 multi-relay infrastructure",
         "files": [
@@ -517,10 +517,10 @@
       {
         "name": "escribe_client",
         "description": "Add eScribe platform client to close the last platform coverage gap (Portland, OR). Implement BaseExtractor, add to factory + platform_detection discovery. Enables turnkey onboarding for eScribe-based jurisdictions.",
-        "status": "not_started",
-        "priority": 0,
+        "status": "done",
+        "priority": 99,
         "phase": "B",
-        "source": "platform coverage gap — Portland OR uses eScribe, only unsupported platform found in stress testing",
+        "source": "platform coverage gap \u2014 Portland OR uses eScribe, only unsupported platform found in stress testing",
         "files": [
           "packages/civicos-extraction/src/civicos_extraction/clients/escribe.py",
           "packages/civicos-extraction/src/civicos_extraction/clients/factory.py",
@@ -529,7 +529,7 @@
           "packages/civicos-extraction/src/civicos_extraction/onboard.py"
         ],
         "test_file": "packages/civicos-extraction/tests/test_platform_detection.py",
-        "notes": "Portland OR is the only major US city that failed platform discovery. eScribe is used by Portland and other Pacific NW cities. Existing abstraction (BaseExtractor + factory + discovery) is already generalizable — just needs a new client implementation."
+        "notes": "Portland OR is the only major US city that failed platform discovery. eScribe is used by Portland and other Pacific NW cities. Existing abstraction (BaseExtractor + factory + discovery) is already generalizable \u2014 just needs a new client implementation."
       },
       {
         "name": "cross_county_query_prototype",

@@ -341,6 +341,44 @@ def _detect_proudcity(base_url: str, timeout: int) -> tuple[float, Dict[str, Any
         return 0.0, metadata
 
 
+def _detect_escribe(instance_name: str, timeout: int) -> tuple[float, Dict[str, Any]]:
+    """
+    Attempt eScribe detection by probing the calendar API.
+
+    Returns:
+        Tuple of (confidence, metadata)
+    """
+    base_url = f"https://pub-{instance_name}.escribemeetings.com"
+    metadata: Dict[str, Any] = {"instance_name": instance_name, "base_url": base_url}
+
+    try:
+        # Probe the calendar page — if it returns 200, instance exists
+        response = requests.get(
+            f"{base_url}/MeetingsCalendarView.aspx",
+            headers={"User-Agent": "Civic-Platform-Detection/1.0"},
+            timeout=timeout,
+        )
+        metadata["status_code"] = response.status_code
+
+        if response.status_code == 200:
+            # Verify it's actually eScribe by checking for characteristic content
+            if "escribemeetings" in response.text.lower() or "GetCalendarMeetings" in response.text:
+                metadata["confirmed"] = True
+                return 0.95, metadata
+            # Page exists but doesn't look like eScribe
+            metadata["confirmed"] = False
+            return 0.60, metadata
+        else:
+            return 0.0, metadata
+
+    except requests.exceptions.Timeout:
+        metadata["error"] = "Timeout"
+        return 0.0, metadata
+    except requests.exceptions.RequestException as e:
+        metadata["error"] = str(e)
+        return 0.0, metadata
+
+
 def detect_platform(
     base_url: str,
     jurisdiction_id: Optional[str] = None,
@@ -437,7 +475,26 @@ def detect_platform(
         # Record that we tried CivicClerk but found nothing
         all_metadata["civicclerk"] = {"subdomain_tested": civicclerk_subdomains, "found": False}
 
-    # 4. Try ProudCity (scraping-based, slowest)
+    # 4. Try eScribe (probe escribemeetings.com)
+    # Check if URL is already an eScribe URL
+    escribe_match = re.match(r"https?://pub-([^.]+)\.escribemeetings\.com", base_url)
+    if escribe_match:
+        escribe_instance = escribe_match.group(1)
+    else:
+        escribe_instance = client_name
+    escribe_confidence, escribe_meta = _detect_escribe(escribe_instance, timeout)
+    all_metadata["escribe"] = escribe_meta
+    if escribe_confidence > best_confidence:
+        best_confidence = escribe_confidence
+        best_result = DetectionResult(
+            source_type="escribe",
+            source_id=f"escribe-{escribe_instance}",
+            platform_name="eScribe",
+            confidence=escribe_confidence,
+            metadata=escribe_meta,
+        )
+
+    # 5. Try ProudCity (scraping-based, slowest)
     pc_confidence, pc_meta = _detect_proudcity(base_url, timeout)
     all_metadata["proudcity"] = pc_meta
     if pc_confidence > best_confidence:
@@ -692,6 +749,51 @@ def discover_civicclerk_subdomain(
     return None
 
 
+def discover_escribe_instance(
+    city_name: str,
+    state: Optional[str] = None,
+    timeout: int = 8,
+) -> Optional[Dict[str, Any]]:
+    """
+    Discover an eScribe instance by trying common URL patterns.
+
+    eScribe instances are at pub-{instance}.escribemeetings.com.
+    Tries patterns like: nationalcity, cityofnationalcity, etc.
+
+    Args:
+        city_name: City name (e.g., "National City", "Ottawa")
+        state: Two-letter state/province code (optional)
+        timeout: HTTP request timeout in seconds
+
+    Returns:
+        Dict with keys: instance_name, url
+        None if no eScribe instance found
+    """
+    slug = re.sub(r"[\s\-]+", "", city_name.lower().strip())
+    hyphenated = re.sub(r"[\s]+", "-", city_name.lower().strip())
+
+    candidates = [
+        slug,                    # e.g., nationalcity, ottawa
+        hyphenated,              # e.g., national-city
+        f"cityof{slug}",        # e.g., cityofnationalcity
+        f"townof{slug}",
+    ]
+    if state:
+        state_lower = state.lower().strip()
+        candidates.insert(1, f"{slug}{state_lower}")  # e.g., nationalcityca
+
+    for instance_name in candidates:
+        confidence, meta = _detect_escribe(instance_name, timeout)
+        if confidence >= 0.60:
+            logger.info(f"eScribe discovered: pub-{instance_name}.escribemeetings.com")
+            return {
+                "instance_name": instance_name,
+                "url": f"https://pub-{instance_name}.escribemeetings.com",
+            }
+
+    return None
+
+
 def discover_platform(
     city_name: str,
     state: Optional[str] = None,
@@ -700,8 +802,8 @@ def discover_platform(
     """
     Discover the civic platform for a city by trying all known platforms.
 
-    Tries Legistar, CivicClerk, and Granicus discovery in order of API
-    speed. Falls back to ProudCity website guessing if API probes fail.
+    Tries Legistar, CivicClerk, Granicus, eScribe, and ProudCity discovery
+    in order of API speed.
 
     Args:
         city_name: City name (e.g., "Berkeley", "El Cerrito", "Dublin")
@@ -710,7 +812,7 @@ def discover_platform(
 
     Returns:
         Dict with keys: platform, confidence, details
-        - platform: "legistar", "civicclerk", "granicus", or "proudcity"
+        - platform: "legistar", "civicclerk", "granicus", "escribe", or "proudcity"
         - confidence: 0.0-1.0
         - details: platform-specific discovery results
         None if no platform found
@@ -744,7 +846,16 @@ def discover_platform(
             "details": granicus,
         }
 
-    # 4. Try ProudCity (slowest — guess website URL, then scrape)
+    # 4. Try eScribe (probes escribemeetings.com)
+    escribe = discover_escribe_instance(city_name, state=state, timeout=timeout)
+    if escribe:
+        return {
+            "platform": "escribe",
+            "confidence": 0.95,
+            "details": escribe,
+        }
+
+    # 5. Try ProudCity (slowest — guess website URL, then scrape)
     hyphenated = re.sub(r"[\s]+", "-", city_name.lower().strip())
     proudcity_urls = [
         f"https://www.cityof{slug}.org",

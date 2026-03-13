@@ -286,6 +286,11 @@ def _infer_jurisdiction_id(url: str) -> Optional[str]:
     if match:
         return match.group(1)
 
+    # eScribe: pub-nationalcity.escribemeetings.com → nationalcity
+    match = re.match(r"https?://pub-([^.]+)\.escribemeetings\.com", url)
+    if match:
+        return match.group(1)
+
     # General city sites: cityofsanrafael.org → san-rafael
     from civicos_extraction.platform_detection import _extract_client_name
 
@@ -358,6 +363,44 @@ def _discover_granicus(url: str, jurisdiction_id: str) -> Dict[str, Any]:
     return {
         "config": config,
         "discovered_bodies": discovered,
+    }
+
+
+def _discover_escribe(url: str, jurisdiction_id: str) -> Dict[str, Any]:
+    """Run eScribe-specific discovery."""
+    from civicos_extraction.clients.escribe import EScribeClient
+
+    # Extract instance name from URL: pub-{instance}.escribemeetings.com
+    match = re.match(r"https?://pub-([^.]+)\.escribemeetings\.com", url)
+    instance_name = match.group(1) if match else ""
+
+    client = EScribeClient(
+        instance_name=instance_name,
+        jurisdiction_id=jurisdiction_id,
+    )
+
+    # Discover meeting types
+    archives = {}
+    try:
+        meeting_types = client.get_meeting_types()
+        for mt in meeting_types:
+            slug = re.sub(r"[^a-z0-9]+", "_", mt.lower()).strip("_")
+            archives[slug] = mt
+    except Exception as e:
+        logger.warning(f"eScribe meeting type discovery failed: {e}")
+
+    config = {
+        "source_id": f"escribe-{jurisdiction_id}",
+        "source_type": "escribe",
+        "jurisdiction_id": jurisdiction_id,
+        "base_url": url,
+        "archives": archives,
+        "metadata": {"instance_name": instance_name},
+    }
+
+    return {
+        "config": config,
+        "discovered_bodies": archives,
     }
 
 
@@ -808,6 +851,8 @@ def onboard_jurisdiction(
             elif platform == "civicclerk":
                 subdomain = details["subdomain"]
                 url = f"https://{subdomain}.api.civicclerk.com/v1/Boards"
+            elif platform == "escribe":
+                url = details.get("url", "")
             elif platform == "proudcity":
                 url = details.get("url", "")
         else:
@@ -902,6 +947,11 @@ def onboard_jurisdiction(
                     },
                     "discovered_bodies": {},
                 }
+        elif platform == "escribe":
+            try:
+                discovery_result = _discover_escribe(url, jurisdiction_id)
+            except Exception as e:
+                errors.append(f"eScribe discovery failed: {e}")
         elif platform == "proudcity":
             try:
                 discovery_result = _discover_proudcity(url, jurisdiction_id)
@@ -927,7 +977,7 @@ def onboard_jurisdiction(
                 detection=detection_dict,
                 errors=[
                     f"No platform detected (confidence: {detection.confidence:.0%}). "
-                    "Supported platforms: granicus, legistar, civicclerk, proudcity."
+                    "Supported platforms: granicus, legistar, civicclerk, escribe, proudcity."
                 ],
                 next_steps=[
                     "Check that the URL is correct",
@@ -938,6 +988,8 @@ def onboard_jurisdiction(
         try:
             if detection.source_type == "granicus":
                 discovery_result = _discover_granicus(url, jurisdiction_id)
+            elif detection.source_type == "escribe":
+                discovery_result = _discover_escribe(url, jurisdiction_id)
             elif detection.source_type == "proudcity":
                 discovery_result = _discover_proudcity(url, jurisdiction_id)
             else:
