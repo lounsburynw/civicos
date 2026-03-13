@@ -962,12 +962,12 @@ def onboard_jurisdiction(
         parent_jurisdictions = None
         county = ""
         zip_code = ""
-        state_abbrev = state.upper()
+        state_abbrev = state.upper() if state else ""
         if geo_data:
             parent_jurisdictions = geo_data.get("parent_jurisdictions")
             county = geo_data.get("county", "")
             zip_code = geo_data.get("zip_code", "")
-            state_abbrev = geo_data.get("state_abbrev", state.upper())
+            state_abbrev = geo_data.get("state_abbrev", state_abbrev)
 
         yaml_content = _generate_jurisdiction_yaml(
             jurisdiction_id=jurisdiction_id,
@@ -1025,7 +1025,8 @@ def onboard_jurisdiction(
     ])
 
     if not discovered_bodies:
-        next_steps.insert(0, "No bodies discovered automatically — add archives manually to config")
+        next_steps.insert(0, "WARNING: No bodies discovered — add archives manually to config before extraction")
+        errors.append("No meeting bodies discovered. Config will have empty archives.")
 
     # Step 7: Optional validation pipeline
     validation_report = None
@@ -1056,7 +1057,7 @@ def onboard_jurisdiction(
             database_url = os.environ.get("DATABASE_URL")
             if database_url:
                 from civicos.storage.postgres_backend import PostgresBackend
-                storage = PostgresBackend()
+                storage = PostgresBackend(database_url)
             else:
                 from civicos.storage.sqlite_backend import SQLiteBackend
                 storage = SQLiteBackend()
