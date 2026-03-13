@@ -4,15 +4,61 @@ Modal deployment for CivicOS Coordination Relay.
 Hosts the coordination endpoints (voice, subscriptions, initiatives, sync)
 and AI proxy endpoints (draft, chat) as a publicly reachable service.
 
+Parameterized by jurisdiction — the same code deploys separate relay instances
+for each jurisdiction, enabling federation testing.
+
 Usage:
+    # Deploy San Rafael relay (default)
     modal deploy apps/civicos-relay/modal_relay.py
-    curl https://civicos--civicos-relay-relayserver-relay-endpoint.modal.run/health
+
+    # Deploy Mill Valley relay
+    CIVICOS_JURISDICTION=city-mill-valley modal deploy apps/civicos-relay/modal_relay.py
+
+    # Deploy San Anselmo relay
+    CIVICOS_JURISDICTION=city-san-anselmo modal deploy apps/civicos-relay/modal_relay.py
+
+Naming convention:
+    city-san-rafael   -> App: civicos-relay (default, backward-compatible)
+    city-mill-valley  -> App: civicos-relay-mill-valley
+    city-san-anselmo  -> App: civicos-relay-san-anselmo
 """
 
 import logging
+import os
 import modal
 
-app = modal.App("civicos-relay")
+# ─────────── JURISDICTION CONFIGURATION ───────────
+
+JURISDICTION = os.getenv("CIVICOS_JURISDICTION", "city-san-rafael")
+
+
+def get_relay_app_name(jurisdiction: str) -> str:
+    """Derive Modal app name for relay from jurisdiction ID.
+
+    The default relay (San Rafael) keeps the name 'civicos-relay' for
+    backward compatibility. Other jurisdictions get 'civicos-relay-{city}'.
+    """
+    if jurisdiction == "city-san-rafael":
+        return "civicos-relay"
+    # Strip the level prefix (city-, county-, etc.) for the suffix
+    parts = jurisdiction.split("-", 1)
+    suffix = parts[1] if len(parts) > 1 else jurisdiction
+    return f"civicos-relay-{suffix}"
+
+
+def get_relay_secrets(jurisdiction: str) -> list[str]:
+    """Get list of Modal secret names for this relay instance."""
+    secrets = ["civicos-env"]  # Shared DB credentials (RELAY_DATABASE_URL, DATABASE_URL)
+    secrets.append("civicos-attestation")  # Attestation keypair
+    secrets.append("civic-anthropic")  # AI proxy
+    secrets.append("civicos-platform")  # PLATFORM_DATABASE_URL for usage logging
+    return secrets
+
+
+APP_NAME = get_relay_app_name(JURISDICTION)
+SECRETS = get_relay_secrets(JURISDICTION)
+
+app = modal.App(APP_NAME)
 
 relay_image = (
     modal.Image.debian_slim(python_version="3.11")
@@ -30,14 +76,7 @@ relay_image = (
         "httpx>=0.24.0",
     )
     .add_local_python_source("civicos_relay")
-    # The coordination router lives in civicos_services but has zero
-    # internal civicos_services imports — it only needs civicos_relay,
-    # fastapi, and pydantic. We mount the single file directly.
-    .add_local_file(
-        "packages/civicos-services/src/civicos_services/servers/routers/coordination.py",
-        remote_path="/app/coordination.py",
-    )
-    # AI proxy router — same pattern: self-contained, only needs
+    # AI proxy router — self-contained, only needs
     # civicos_relay (for crypto), anthropic, httpx, fastapi, pydantic.
     .add_local_file(
         "packages/civicos-services/src/civicos_services/servers/routers/ai_proxy.py",
@@ -59,12 +98,7 @@ relay_image = (
 
 @app.cls(
     image=relay_image,
-    secrets=[
-        modal.Secret.from_name("civicos-env"),
-        modal.Secret.from_name("civicos-attestation"),
-        modal.Secret.from_name("civic-anthropic"),
-        modal.Secret.from_name("civicos-platform"),  # PLATFORM_DATABASE_URL for usage logging
-    ],
+    secrets=[modal.Secret.from_name(s) for s in SECRETS],
     timeout=300,
     min_containers=0,
 )
@@ -106,17 +140,32 @@ class RelayServer:
         import os
         import time as _time
         import asyncio as _asyncio
-        from fastapi import FastAPI
-        from fastapi.middleware.cors import CORSMiddleware
         from starlette.types import ASGIApp, Receive, Scope, Send
 
-        # Import the coordination router (mounted as /app/coordination.py)
-        from coordination import router as coordination_router
+        # Use the relay package's own create_app() — includes all coordination
+        # endpoints, lifespan, middleware, and health check.
+        from civicos_relay.server.app import create_app
+        fastapi_app = create_app()
 
-        # Import the AI proxy router (mounted as /app/ai_proxy.py)
+        # Override health endpoint to include Modal-specific fields
+        jurisdiction = os.environ.get("CIVICOS_JURISDICTION", "city-san-rafael")
+
+        @fastapi_app.get("/health", tags=["Health"])
+        async def health():
+            return {
+                "status": "healthy",
+                "service": "civicos-relay",
+                "jurisdiction": jurisdiction,
+                "platform": "modal",
+                "relay_db_configured": bool(os.environ.get("RELAY_DATABASE_URL")),
+                "mcp_url_configured": bool(os.environ.get("CIVICOS_MCP_URL")),
+                "ai_proxy": True,
+            }
+
+        # --- AI proxy (Modal-only addition) ---
+
         from ai_proxy import router as ai_proxy_router, configure_ai_proxy
 
-        # Build attestation checker using relay's direct DB access
         def check_attestation(public_key: str, jurisdiction: str) -> bool:
             try:
                 from civicos_relay.storage.postgres import PostgresAttestationStorage
@@ -139,10 +188,8 @@ class RelayServer:
                 if domain:
                     jurisdiction_endpoints[jid] = f"https://{domain}"
         except Exception:
-            pass  # Fall back to CIVICOS_MCP_URL only
+            pass
 
-        # Configure AI proxy with jurisdiction routing
-        jurisdiction = os.environ.get("CIVICOS_JURISDICTION", "city-san-rafael")
         mcp_url = os.environ.get("CIVICOS_MCP_URL", "")
         if mcp_url or jurisdiction_endpoints:
             configure_ai_proxy(
@@ -152,17 +199,14 @@ class RelayServer:
                 jurisdiction_endpoints=jurisdiction_endpoints,
             )
 
-        fastapi_app = FastAPI(
-            title="CivicOS Coordination Relay",
-            version="1.0.0",
-        )
+        fastapi_app.include_router(ai_proxy_router, prefix="/api", tags=["AI Proxy"])
 
-        # Usage logging middleware — fire-and-forget, never blocks responses.
-        # Relay has no API key auth (uses Nostr signatures), so key_id is always None.
-        _usage_jurisdiction = jurisdiction  # capture for closure
+        # --- Usage logging middleware (Modal-only addition) ---
+
+        _usage_jurisdiction = jurisdiction
 
         class UsageLoggingMiddleware:
-            """Log API usage to Platform DB. Captures status code from response headers."""
+            """Log API usage to Platform DB. Fire-and-forget, never blocks."""
             SKIP_PATHS = {"/health", "/docs", "/redoc", "/openapi.json"}
 
             def __init__(self, app: ASGIApp):
@@ -192,7 +236,6 @@ class RelayServer:
                 duration_ms = int((_time.time() - start) * 1000)
                 method = scope.get("method", "GET")
 
-                # Fire-and-forget usage log
                 try:
                     from api_keys import get_api_key_store
                     store = get_api_key_store()
@@ -200,7 +243,7 @@ class RelayServer:
                         _asyncio.get_event_loop().run_in_executor(
                             None,
                             store.log_usage,
-                            None,  # key_id — relay uses Nostr signatures, not API keys
+                            None,
                             path,
                             method,
                             status_code,
@@ -210,51 +253,29 @@ class RelayServer:
                 except Exception as e:
                     logging.getLogger("civicos-relay").debug("Usage logging failed: %s", e)
 
-        fastapi_app.add_middleware(
-            CORSMiddleware,
-            allow_origins=["*"],
-            allow_credentials=True,
-            allow_methods=["*"],
-            allow_headers=["*"],
-        )
-
-        # HTTP-level per-IP rate limiting (runs before crypto verification)
-        from civicos_relay.server.ip_rate_limit import IPRateLimitMiddleware, DEFAULT_IP_RATE_LIMIT, DEFAULT_IP_RATE_WINDOW
-        ip_limit = max(10, min(1000, int(os.environ.get("RELAY_IP_RATE_LIMIT", str(DEFAULT_IP_RATE_LIMIT)))))
-        ip_window = max(60, min(3600, int(os.environ.get("RELAY_IP_RATE_WINDOW", str(DEFAULT_IP_RATE_WINDOW)))))
-        fastapi_app.add_middleware(IPRateLimitMiddleware, max_requests=ip_limit, window_seconds=ip_window)
-
-        # Usage logging — outermost middleware, runs after CORS
-        # Middleware chain (outermost→innermost):
-        #   UsageLogging → CORS → IPRateLimit → route handler
         fastapi_app.add_middleware(UsageLoggingMiddleware)
-
-        # Mount coordination router — paths are already prefixed with /coordination/
-        fastapi_app.include_router(coordination_router)
-
-        # Mount AI proxy router at /api prefix
-        fastapi_app.include_router(ai_proxy_router, prefix="/api", tags=["AI Proxy"])
-
-        @fastapi_app.get("/health")
-        async def health():
-            return {
-                "status": "healthy",
-                "service": "civicos-relay",
-                "platform": "modal",
-                "relay_db_configured": bool(os.environ.get("RELAY_DATABASE_URL")),
-                "mcp_url_configured": bool(os.environ.get("CIVICOS_MCP_URL")),
-                "ai_proxy": True,
-            }
 
         return fastapi_app
 
 
 @app.local_entrypoint()
 def main():
-    print("CivicOS Coordination Relay")
+    print("CivicOS Coordination Relay - Parameterized Deployment")
     print()
-    print("Deploy:")
+    print(f"Current configuration:")
+    print(f"  Jurisdiction: {JURISDICTION}")
+    print(f"  App name:     {APP_NAME}")
+    print(f"  Secrets:      {', '.join(SECRETS)}")
+    print()
+    print("Deploy commands:")
+    print("  # San Rafael (default)")
     print("  modal deploy apps/civicos-relay/modal_relay.py")
+    print()
+    print("  # Mill Valley")
+    print("  CIVICOS_JURISDICTION=city-mill-valley modal deploy apps/civicos-relay/modal_relay.py")
+    print()
+    print("  # San Anselmo")
+    print("  CIVICOS_JURISDICTION=city-san-anselmo modal deploy apps/civicos-relay/modal_relay.py")
     print()
     print("Endpoints:")
     print("  GET  /health")
