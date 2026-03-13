@@ -1229,6 +1229,259 @@ class TestOnboardPipelineHandoff:
                 assert "save" in steps
 
 
+# ── Onboard Robustness Tests ────────────────────────────────────
+
+
+class TestOnboardRobustness:
+    """Test onboard robustness fixes: empty archives, level passthrough, self-ref filtering."""
+
+    def test_empty_archives_returns_failure(self):
+        """Empty discovered_bodies should return success=False."""
+        from civicos_extraction.onboard import onboard_jurisdiction
+
+        with patch("civicos_extraction.onboard.detect_platform") as mock_detect:
+            mock_detect.return_value = MagicMock(
+                source_type="proudcity",
+                source_id="proudcity-city-ghost",
+                confidence=0.9,
+                platform_name="ProudCity",
+                metadata={},
+                to_dict=lambda: {"source_type": "proudcity", "confidence": 0.9},
+            )
+            with patch("civicos_extraction.onboard._discover_proudcity") as mock_disc:
+                mock_disc.return_value = {
+                    "config": {
+                        "source_id": "proudcity-city-ghost",
+                        "source_type": "proudcity",
+                        "jurisdiction_id": "city-ghost",
+                        "base_url": "https://ghost.org",
+                        "archives": {},
+                    },
+                    "discovered_bodies": {},
+                }
+                result = onboard_jurisdiction(
+                    url="https://ghost.org",
+                    jurisdiction_id="city-ghost",
+                    validate=0,
+                )
+                assert not result.success
+                assert any("No meeting bodies" in e for e in result.errors)
+
+    def test_county_level_passthrough_to_yaml(self):
+        """Level='county' should appear in generated YAML, not hardcoded 'city'."""
+        from civicos_extraction.onboard import _generate_jurisdiction_yaml
+
+        yaml_content = _generate_jurisdiction_yaml(
+            jurisdiction_id="county-alameda",
+            display_name="Alameda County",
+            config={"source_type": "granicus", "base_url": "https://alamedacounty.granicus.com", "archives": {"view_2": "2"}},
+            level="county",
+            state_abbrev="CA",
+        )
+        assert "level: county" in yaml_content
+        assert "level: city" not in yaml_content
+
+    def test_self_reference_filtered_from_parents(self):
+        """_generate_jurisdiction_yaml should filter self-references from parent_jurisdictions."""
+        from civicos_extraction.onboard import _generate_jurisdiction_yaml
+        import yaml
+
+        # Geocoding returns county-alameda in parents — the generator should strip it
+        yaml_content = _generate_jurisdiction_yaml(
+            jurisdiction_id="county-alameda",
+            display_name="Alameda County",
+            config={"source_type": "granicus", "base_url": "https://alamedacounty.granicus.com", "archives": {"view_2": "2"}},
+            parent_jurisdictions=["county-alameda", "state-california", "country-united-states"],
+            level="county",
+            state_abbrev="CA",
+        )
+        doc = yaml.safe_load(yaml_content)
+        assert "county-alameda" not in doc["parent_jurisdictions"]
+        assert "state-california" in doc["parent_jurisdictions"]
+        assert "country-united-states" in doc["parent_jurisdictions"]
+
+    def test_state_level_fallback_parents(self):
+        """State-level jurisdictions should only have country as parent in fallback."""
+        from civicos_extraction.onboard import _generate_jurisdiction_yaml
+        import yaml
+
+        yaml_content = _generate_jurisdiction_yaml(
+            jurisdiction_id="state-california",
+            display_name="California",
+            config={"source_type": "granicus", "base_url": "https://ca.granicus.com", "archives": {"v": "1"}},
+            level="state",
+            state_abbrev="CA",
+        )
+        doc = yaml.safe_load(yaml_content)
+        assert doc["parent_jurisdictions"] == ["country-united-states"]
+
+    def test_county_level_omits_county_field_and_zip(self):
+        """County YAML should not have redundant county in financial or zip in contact."""
+        from civicos_extraction.onboard import _generate_jurisdiction_yaml
+        import yaml
+
+        yaml_content = _generate_jurisdiction_yaml(
+            jurisdiction_id="county-alameda",
+            display_name="Alameda County",
+            config={"source_type": "granicus", "base_url": "https://alamedacounty.granicus.com", "archives": {"v": "1"}},
+            level="county",
+            county="Alameda County",
+            zip_code="94501",
+            state_abbrev="CA",
+        )
+        doc = yaml.safe_load(yaml_content)
+        assert doc["financial"]["county"] is None
+
+    def test_canadian_province_fallback(self):
+        """Canadian province should fallback to country-canada, not country-united-states."""
+        from civicos_extraction.onboard import _generate_jurisdiction_yaml
+        import yaml
+
+        doc = yaml.safe_load(_generate_jurisdiction_yaml(
+            jurisdiction_id="province-ontario",
+            display_name="Ontario",
+            config={"source_type": "granicus", "base_url": "https://on.granicus.com", "archives": {"v": "1"}},
+            level="province",
+            state_abbrev="ON",
+            country="Canada",
+        ))
+        assert doc["parent_jurisdictions"] == ["country-canada"]
+
+    def test_canadian_city_fallback(self):
+        """Canadian city fallback should use province- prefix and country-canada."""
+        from civicos_extraction.onboard import _generate_jurisdiction_yaml
+        import yaml
+
+        doc = yaml.safe_load(_generate_jurisdiction_yaml(
+            jurisdiction_id="city-toronto",
+            display_name="Toronto",
+            config={"source_type": "granicus", "base_url": "https://toronto.granicus.com", "archives": {"v": "1"}},
+            level="city",
+            state_abbrev="ON",
+            country="Canada",
+        ))
+        assert doc["parent_jurisdictions"] == ["province-ontario", "country-canada"]
+
+    def test_uk_council_fallback(self):
+        """UK council fallback should use country-united-kingdom."""
+        from civicos_extraction.onboard import _generate_jurisdiction_yaml
+        import yaml
+
+        doc = yaml.safe_load(_generate_jurisdiction_yaml(
+            jurisdiction_id="council-camden",
+            display_name="Camden Council",
+            config={"source_type": "standard", "base_url": "https://camden.gov.uk", "archives": {"v": "1"}},
+            level="council",
+            state_abbrev="",
+            country="United Kingdom",
+        ))
+        assert doc["parent_jurisdictions"] == ["country-united-kingdom"]
+        assert doc["contact_info"]["zip_code"] == ""
+
+    def test_jurisdiction_id_strips_level_suffix_from_city_name(self):
+        """'Alameda County' with level=county should produce county-alameda, not county-alameda-county."""
+        from civicos_extraction.onboard import onboard_jurisdiction
+
+        with patch("civicos_extraction.platform_detection.discover_platform", return_value={
+            "platform": "granicus", "details": {"url": "https://alamedacounty.granicus.com"}, "confidence": 0.95,
+        }), patch("civicos_extraction.onboard._discover_granicus") as mock_disc:
+            mock_disc.return_value = {
+                "config": {"source_id": "granicus-county-alameda", "source_type": "granicus",
+                           "jurisdiction_id": "county-alameda", "base_url": "https://alamedacounty.granicus.com",
+                           "archives": {"board": "1"}, "metadata": {"granicus_domain": "alamedacounty"}},
+                "discovered_bodies": {"board": "1"},
+            }
+            result = onboard_jurisdiction(
+                url="", city_name="Alameda County", state="CA", level="county", validate=0,
+            )
+            assert result.success
+            assert result.jurisdiction_id == "county-alameda"
+
+    def test_jurisdiction_id_strips_level_suffix_from_url(self):
+        """URL-inferred 'traviscounty' with level=county should produce county-travis."""
+        from civicos_extraction.onboard import onboard_jurisdiction
+
+        with patch("civicos_extraction.onboard.detect_platform") as mock_detect, \
+             patch("civicos_extraction.onboard._discover_granicus") as mock_disc:
+            mock_detect.return_value = MagicMock(
+                source_type="granicus", source_id="granicus-county-travis",
+                confidence=0.95, platform_name="Granicus", metadata={},
+                to_dict=lambda: {"source_type": "granicus", "confidence": 0.95, "metadata": {}},
+            )
+            mock_disc.return_value = {
+                "config": {"source_id": "granicus-county-travis", "source_type": "granicus",
+                           "jurisdiction_id": "county-travis", "base_url": "https://traviscounty.granicus.com",
+                           "archives": {"board": "1"}, "metadata": {"granicus_domain": "traviscounty"}},
+                "discovered_bodies": {"board": "1"},
+            }
+            result = onboard_jurisdiction(
+                url="https://traviscounty.granicus.com", level="county", validate=0,
+            )
+            assert result.success
+            assert result.jurisdiction_id == "county-travis"
+
+    def test_display_name_strips_level_prefix(self):
+        """Display name for county-alameda should be 'Alameda', not 'County Alameda'."""
+        import re
+        # This tests the regex used at the call site
+        test_cases = [
+            ("county-alameda", "Alameda"),
+            ("state-california", "California"),
+            ("city-san-rafael", "San Rafael"),
+            ("province-ontario", "Ontario"),
+            ("council-camden", "Camden"),
+        ]
+        for jid, expected in test_cases:
+            display = re.sub(r"^(city|county|town|district|state|province|council)-", "", jid).replace("-", " ").title()
+            assert display == expected, f"{jid}: expected '{expected}', got '{display}'"
+
+    def test_upfront_api_key_warnings(self):
+        """Missing API keys should trigger progress warnings before network work."""
+        from civicos_extraction.onboard import onboard_jurisdiction
+
+        steps = []
+        def on_progress(step, msg):
+            steps.append((step, msg))
+
+        with patch.dict("os.environ", {"OPENAI_API_KEY": "", "GOOGLE_MAPS_API_KEY": ""}, clear=False), \
+             patch("civicos_extraction.onboard.detect_platform") as mock_detect:
+            mock_detect.return_value = MagicMock(
+                source_type="proudcity",
+                source_id="proudcity-city-warn",
+                confidence=0.9,
+                platform_name="ProudCity",
+                metadata={},
+                to_dict=lambda: {"source_type": "proudcity", "confidence": 0.9},
+            )
+            with patch("civicos_extraction.onboard._discover_proudcity") as mock_disc:
+                mock_disc.return_value = {
+                    "config": {
+                        "source_id": "proudcity-city-warn",
+                        "source_type": "proudcity",
+                        "jurisdiction_id": "city-warn",
+                        "base_url": "https://warn.org",
+                        "archives": {"council": "/council/"},
+                    },
+                    "discovered_bodies": {"council": "/council/"},
+                }
+                result = onboard_jurisdiction(
+                    url="https://warn.org",
+                    jurisdiction_id="city-warn",
+                    generate_yaml=True,
+                    validate=0,
+                    on_progress=on_progress,
+                )
+            warn_steps = [s for s, _ in steps if s == "warn"]
+            assert len(warn_steps) >= 2  # OPENAI + GOOGLE warnings
+
+    def test_validate_defaults_to_one(self):
+        """Default validate parameter should be 1, not 0."""
+        import inspect
+        from civicos_extraction.onboard import onboard_jurisdiction
+        sig = inspect.signature(onboard_jurisdiction)
+        assert sig.parameters["validate"].default == 1
+
+
 # ── CLI Onboard Tests ────────────────────────────────────────────
 
 

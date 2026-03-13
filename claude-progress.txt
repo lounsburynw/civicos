@@ -21790,3 +21790,49 @@ Fix F1 (Granicus subdomain discovery) and F5 (registry generation from YAML) to 
 - `packages/civicos-extraction/tests/test_platform_detection.py` — 13 new tests
 
 **Next P0:** `onboard_county_alameda` — Onboard Alameda County as parent jurisdiction for Berkeley
+
+## Session — 2026-03-13: onboard_county_alameda (P0) + Onboarding Generalizability
+
+**Goal:** Onboard Alameda County + make onboarding fully turnkey and generalizable across levels/countries
+
+**Completed:**
+
+### Part 1: Robustness Fixes
+1. Upfront API key warnings — warns about missing OPENAI_API_KEY/GOOGLE_MAPS_API_KEY before network work
+2. Default validate=1 — both onboard.py and CLI now default to tier-1 validation
+3. Empty archives → failure — returns success=False instead of silently succeeding
+
+### Part 2: Level/Country Generalizability
+4. `_generate_jurisdiction_yaml` made level- and country-aware:
+   - `level` parameter passthrough (was hardcoded 'city')
+   - Self-reference filtering in parent_jurisdictions (county-alameda won't list itself as parent)
+   - Country-aware fallback chains: US (state-X), Canada (province-X), UK (country-united-kingdom)
+   - County/state omit redundant financial.county and contact_info.zip_code
+5. `jurisdiction_id` inference strips level-word suffixes: "Alameda County" + county → county-alameda (not county-alameda-county)
+6. URL-inferred IDs strip trailing level words: traviscounty → county-travis
+7. `display_name` fallback strips all level prefixes (was only stripping city-)
+8. Level prefix regex includes province/council
+
+### Part 3: Alameda County Onboarded
+- 6 Granicus bodies discovered, config + YAML generated
+- Correct: level=county, parents=[state-california, country-united-states], no self-ref
+
+### E2E Validation
+- 5 jurisdiction types pass end-to-end: US city (Berkeley), US county (Alameda), US city/TX (Austin), Canadian city (Toronto), UK council (Camden)
+- All produce correct IDs, parent chains, levels, no self-references
+
+**Tests:** 96/96 pass (83 original + 13 new)
+**Regressions:** All 3 existing jurisdictions verified (San Rafael 95, Mill Valley 56, San Anselmo 169 meetings)
+
+**Files modified:**
+- `packages/civicos-extraction/src/civicos_extraction/onboard.py` — level/country awareness, ID inference, robustness
+- `packages/civicos-extraction/src/civicos_extraction/cli/onboard_cli.py` — validate default
+- `packages/civicos-extraction/tests/test_platform_detection.py` — 13 new tests
+- `data/extraction/county-alameda.json` — NEW config
+- `data/jurisdictions/county-alameda.yaml` — NEW jurisdiction YAML
+- `launch.json` — marked onboard_county_alameda done, added escribe_client as next P0
+
+**Platform coverage audit:** Portland OR is the only major US city where discovery failed (uses eScribe).
+All others: Granicus, Legistar, CivicClerk, or ProudCity.
+
+**Next P0:** `escribe_client` — Add eScribe platform client for Portland coverage
