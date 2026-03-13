@@ -60,6 +60,7 @@ class GranicusClient(BaseExtractor):
         jurisdiction_id: str,
         view_ids: Optional[Dict[str, str]] = None,
         default_view_id: str = "1",
+        column_map: Optional[Dict[str, int]] = None,
     ):
         """
         Initialize Granicus client.
@@ -69,12 +70,15 @@ class GranicusClient(BaseExtractor):
             jurisdiction_id: Jurisdiction ID (e.g., 'county-marin')
             view_ids: Mapping of body_name → view_id string
             default_view_id: Default view_id for health checks and discovery
+            column_map: LLM-generated column mapping (e.g., {"name": 0, "date": 1}).
+                If provided, bypasses header-based detection in _parse_table.
         """
         super().__init__(jurisdiction_id)
         self.granicus_domain = granicus_domain
         self.base_url = f"https://{granicus_domain}.granicus.com"
         self.view_ids = view_ids or {}
         self.default_view_id = default_view_id
+        self.column_map = column_map
         self._last_request_time = 0.0
         self.session = requests.Session()
         self.session.headers.update({
@@ -100,6 +104,110 @@ class GranicusClient(BaseExtractor):
         if elapsed < 1.0:
             time.sleep(1.0 - elapsed)
         self._last_request_time = time.time()
+
+    def generate_column_map(self, view_id: Optional[str] = None) -> Dict[str, int]:
+        """
+        Use LLM to infer column mapping from a sample HTML page.
+
+        Fetches one ViewPublisher page, sends the first table's HTML to the LLM,
+        and returns a mapping like {"name": 0, "date": 1, "agenda": 3}.
+
+        This runs once during onboarding. The result is saved in the extraction
+        config so _parse_table can use it deterministically without LLM calls.
+
+        Args:
+            view_id: View ID to sample (uses first discovered view if not given)
+
+        Returns:
+            Dict mapping column role to zero-based index
+        """
+        import json as _json
+
+        from civicos_services.core.llm_provider import get_model_for_task
+
+        # Find a view_id with content
+        vid = view_id or self.default_view_id
+        if not view_id and self.view_ids:
+            vid = next(iter(self.view_ids.values()))
+
+        response = self._fetch_view(vid)
+        if not response:
+            raise RuntimeError(f"Could not fetch view_id={vid}")
+
+        soup = BeautifulSoup(response.text, "html.parser")
+
+        # Get the largest table (most likely the meeting list)
+        tables = soup.find_all("table")
+        if not tables:
+            raise RuntimeError(f"No tables found at view_id={vid}")
+
+        target_table = max(tables, key=lambda t: len(t.find_all("tr")))
+        num_columns = max(
+            len(row.find_all(["th", "td"]))
+            for row in target_table.find_all("tr")
+        )
+
+        # Send first 8 rows to keep token count low
+        rows = target_table.find_all("tr")[:8]
+        sample_html = "<table>\n"
+        for row in rows:
+            sample_html += str(row) + "\n"
+        sample_html += "</table>"
+
+        provider = get_model_for_task("navigation")
+
+        prompt = f"""Analyze this HTML table from a government meeting listing page.
+Identify which zero-based column index contains each of these fields:
+- "name": the meeting title/name (e.g., "City Council Meeting")
+- "date": the meeting date (e.g., "Mar 10, 2026")
+- "duration": meeting duration if present
+- "agenda": agenda link/document
+- "minutes": minutes link/document
+- "video": video link
+
+Return ONLY a JSON object mapping field names to column indices.
+Only include fields that are actually present. Example:
+{{"name": 0, "date": 1, "agenda": 3}}
+
+HTML:
+{sample_html}"""
+
+        result = provider.complete(
+            messages=[{"role": "user", "content": prompt}]
+        )
+        text = result.content.strip()
+
+        # Extract JSON from response (may be wrapped in ```json blocks)
+        json_match = re.search(r"\{[^}]+\}", text)
+        if not json_match:
+            raise RuntimeError(f"LLM did not return valid JSON: {text[:200]}")
+
+        column_map = _json.loads(json_match.group())
+
+        # Validate: all values must be ints within column bounds
+        valid_fields = {"name", "date", "duration", "agenda", "minutes", "video", "packet"}
+        validated = {}
+        for key, val in column_map.items():
+            if key not in valid_fields:
+                logger.warning(f"Ignoring unknown column field '{key}' from LLM")
+                continue
+            if not isinstance(val, int) or val < 0 or val >= num_columns:
+                logger.warning(
+                    f"Ignoring out-of-bounds column index {val} for '{key}' "
+                    f"(table has {num_columns} columns)"
+                )
+                continue
+            validated[key] = val
+
+        if "name" not in validated or "date" not in validated:
+            raise RuntimeError(
+                f"LLM column map missing required fields (name, date): {column_map}"
+            )
+
+        logger.info(
+            f"Generated column map for {self.granicus_domain}: {validated}"
+        )
+        return validated
 
     def _fetch_view(self, view_id: str, timeout: int = 30) -> Optional[requests.Response]:
         """Fetch a ViewPublisher page with rate limiting."""
@@ -147,13 +255,28 @@ class GranicusClient(BaseExtractor):
                 for th in header_row.find_all(["th", "td"])
             ]
 
-            name_idx = self._find_column_index(headers, ["name", "meeting"])
-            date_idx = self._find_column_index(headers, ["date", "when"])
-            agenda_idx = self._find_column_index(headers, ["agenda", "agenda link"])
-            minutes_idx = self._find_column_index(headers, ["minutes"])
-            packet_idx = self._find_column_index(
-                headers, ["packet", "agenda packet", "documents"]
-            )
+            # Use LLM-generated column_map if available, otherwise detect from headers
+            if self.column_map:
+                name_idx = self.column_map.get("name")
+                date_idx = self.column_map.get("date")
+                agenda_idx = self.column_map.get("agenda")
+                minutes_idx = self.column_map.get("minutes")
+                packet_idx = self.column_map.get("packet")
+            else:
+                name_idx = self._find_column_index(headers, ["name", "meeting"])
+                date_idx = self._find_column_index(headers, ["date", "when"])
+                agenda_idx = self._find_column_index(headers, ["agenda", "agenda link"])
+                minutes_idx = self._find_column_index(headers, ["minutes"])
+                packet_idx = self._find_column_index(
+                    headers, ["packet", "agenda packet", "documents"]
+                )
+
+                # Positional fallback: if headers are empty/generic,
+                # assume column 0 = name, column 1 = date
+                if name_idx is None and date_idx is None and len(headers) >= 2:
+                    if all(h == "" for h in headers[:2]):
+                        name_idx = 0
+                        date_idx = 1
 
             for row in rows[1:]:
                 cells = row.find_all("td")
