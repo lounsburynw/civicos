@@ -34,17 +34,12 @@ Usage:
 import os
 from typing import Optional, List
 from ..providers.base import LLMProvider
-from ..providers.openai_provider import OpenAIProvider
-from ..providers.openai_compatible_provider import (
-    GroqProvider,
-    OllamaProvider,
-    PerplexityProvider,
-    OpenRouterProvider
-)
 from ..providers.google_provider import GoogleProvider
-from ..providers.groq_responses_provider import GroqResponsesProvider
-# Lazy import for optional providers that require extra dependencies
-# from ..providers.anthropic_provider import AnthropicProvider  # Only import when needed
+# Lazy imports for providers that require optional dependencies (openai, anthropic)
+# OpenAIProvider, GroqProvider, OllamaProvider, PerplexityProvider, OpenRouterProvider
+#   → imported inside get_provider() / get_provider_with_model() (require `openai` package)
+# AnthropicProvider → imported inside get_provider() (requires `anthropic` package)
+# GroqResponsesProvider → imported inside get_provider() (requires `openai` package)
 
 # Import model registry for model-first architecture (Session 74)
 from .model_registry import (
@@ -82,27 +77,32 @@ def get_provider(provider_name: Optional[str] = None) -> LLMProvider:
     provider_name = provider_name or os.getenv('LLM_PROVIDER', 'openai')
     provider_name = provider_name.lower()
 
-    # Route to appropriate provider
+    # Route to appropriate provider (lazy imports for optional deps)
     if provider_name == 'openai':
+        from ..providers.openai_provider import OpenAIProvider
         return OpenAIProvider()
 
     elif provider_name == 'google' or provider_name == 'gemini':
         return GoogleProvider()
 
     elif provider_name == 'groq':
+        from ..providers.openai_compatible_provider import GroqProvider
         return GroqProvider()
 
     elif provider_name == 'groq-responses':
-        # Groq Responses API for structured outputs (beta)
+        from ..providers.groq_responses_provider import GroqResponsesProvider
         return GroqResponsesProvider()
 
     elif provider_name == 'ollama':
+        from ..providers.openai_compatible_provider import OllamaProvider
         return OllamaProvider()
 
     elif provider_name == 'perplexity':
+        from ..providers.openai_compatible_provider import PerplexityProvider
         return PerplexityProvider()
 
     elif provider_name == 'openrouter':
+        from ..providers.openai_compatible_provider import OpenRouterProvider
         return OpenRouterProvider()
 
     elif provider_name == 'anthropic':
@@ -479,22 +479,28 @@ def get_provider_with_model(provider_name: str, model: str) -> LLMProvider:
         'gemini-1.5-pro-latest'
     """
     if provider_name == 'openai':
+        from ..providers.openai_provider import OpenAIProvider
         provider = OpenAIProvider()
         provider._default_model = model  # Set private attribute
         return provider
     elif provider_name == 'google' or provider_name == 'gemini':
         return GoogleProvider(model=model)
     elif provider_name == 'groq':
+        from ..providers.openai_compatible_provider import GroqProvider
         return GroqProvider(model=model)
     elif provider_name == 'groq-responses':
+        from ..providers.groq_responses_provider import GroqResponsesProvider
         provider = GroqResponsesProvider()
         provider.default_model = model
         return provider
     elif provider_name == 'ollama':
+        from ..providers.openai_compatible_provider import OllamaProvider
         return OllamaProvider(model=model)
     elif provider_name == 'perplexity':
+        from ..providers.openai_compatible_provider import PerplexityProvider
         return PerplexityProvider(model=model)
     elif provider_name == 'openrouter':
+        from ..providers.openai_compatible_provider import OpenRouterProvider
         return OpenRouterProvider(model=model)
     else:
         # For providers that don't support model parameter in constructor,

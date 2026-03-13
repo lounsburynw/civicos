@@ -1090,7 +1090,7 @@ class PgVectorBackend:
                              embedding_model, meeting_id, meeting_title, meeting_datetime,
                              metadata, updated_at)
                         VALUES %s
-                        ON CONFLICT (id) DO UPDATE SET
+                        ON CONFLICT (id, corpus_type) DO UPDATE SET
                             content = EXCLUDED.content,
                             embedding = EXCLUDED.embedding,
                             embedding_model = EXCLUDED.embedding_model,
@@ -1953,7 +1953,7 @@ class PgVectorBackend:
                          embedding_model, meeting_id, meeting_title, meeting_datetime,
                          metadata, updated_at)
                     VALUES %s
-                    ON CONFLICT (id) DO UPDATE SET
+                    ON CONFLICT (id, corpus_type) DO UPDATE SET
                         content = EXCLUDED.content,
                         embedding = EXCLUDED.embedding,
                         embedding_model = EXCLUDED.embedding_model,
@@ -1990,7 +1990,7 @@ class PgVectorBackend:
                                  embedding_model, meeting_id, meeting_title, meeting_datetime,
                                  metadata, updated_at)
                             VALUES %s
-                            ON CONFLICT (id) DO UPDATE SET
+                            ON CONFLICT (id, corpus_type) DO UPDATE SET
                                 content = EXCLUDED.content,
                                 embedding = EXCLUDED.embedding,
                                 embedding_model = EXCLUDED.embedding_model,

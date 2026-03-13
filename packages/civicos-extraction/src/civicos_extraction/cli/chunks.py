@@ -756,18 +756,46 @@ def extract_chunks_from_meeting(
             if degenerate_warnings:
                 logger.info(
                     f"  Detected HTML meeting page (not direct PDF). "
-                    "Parsing page to find actual PDF links..."
+                    "Looking for actual PDF URL..."
                 )
 
-                # Parse the meeting page to extract actual PDF URLs
-                pdf_urls = extract_pdf_urls_from_meeting_page(agenda_url)
+                actual_pdf_url = None
 
-                actual_pdf_url = pdf_urls.get('agenda_packet_url')
+                # Strategy 1: Check raw_data/full_data for packet_url (Granicus stores this)
+                for data_key in ("raw_data", "full_data"):
+                    src = meeting.get(data_key) or {}
+                    if isinstance(src, str):
+                        try:
+                            src = json.loads(src)
+                        except (json.JSONDecodeError, TypeError):
+                            src = {}
+                    # Direct packet_url
+                    pkt = src.get("packet_url")
+                    if pkt:
+                        actual_pdf_url = pkt
+                        logger.info(f"  Found packet_url in {data_key}")
+                        break
+                    # Nested in raw_data within full_data
+                    nested = src.get("raw_data") or {}
+                    if isinstance(nested, str):
+                        try:
+                            nested = json.loads(nested)
+                        except (json.JSONDecodeError, TypeError):
+                            nested = {}
+                    pkt = nested.get("packet_url")
+                    if pkt:
+                        actual_pdf_url = pkt
+                        logger.info(f"  Found packet_url in {data_key}.raw_data")
+                        break
+
+                # Strategy 2: Scrape the HTML meeting page for PDF links
                 if not actual_pdf_url:
-                    # Try minutes as fallback
-                    actual_pdf_url = pdf_urls.get('minutes_url')
-                    if actual_pdf_url:
-                        logger.info(f"  No agenda packet found, using minutes PDF")
+                    pdf_urls = extract_pdf_urls_from_meeting_page(agenda_url)
+                    actual_pdf_url = pdf_urls.get('agenda_packet_url')
+                    if not actual_pdf_url:
+                        actual_pdf_url = pdf_urls.get('minutes_url')
+                        if actual_pdf_url:
+                            logger.info(f"  No agenda packet found, using minutes PDF")
 
                 if not actual_pdf_url:
                     logger.warning(
