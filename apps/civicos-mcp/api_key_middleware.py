@@ -34,8 +34,15 @@ class SlidingWindowRateLimiter:
         self._window = window_seconds
         self._requests: dict[str, list[float]] = defaultdict(list)
 
-    def check(self, key: str, limit: int) -> tuple[bool, int]:
-        """Check if request is allowed. Returns (allowed, remaining)."""
+    def check(self, key: str, limit: int, cost: int = 1) -> tuple[bool, int]:
+        """Check if request is allowed. Returns (allowed, remaining).
+
+        Args:
+            key: Rate limit key (e.g., "ip:1.2.3.4" or "key:abc")
+            limit: Max units per window
+            cost: Number of units this request costs (default 1).
+                  Multi-corpus v2 queries use cost=len(corpus).
+        """
         now = time.monotonic()
         cutoff = now - self._window
 
@@ -44,17 +51,44 @@ class SlidingWindowRateLimiter:
         self._requests[key] = [t for t in timestamps if t > cutoff]
 
         count = len(self._requests[key])
-        if count >= limit:
-            return False, 0
+        if count + cost > limit:
+            return False, max(0, limit - count)
 
-        self._requests[key].append(now)
-        return True, limit - count - 1
+        # Record `cost` entries so multi-corpus queries consume proportionally
+        self._requests[key].extend([now] * cost)
+        return True, limit - count - cost
 
 
 # Module-level singletons
 _rate_limiter = SlidingWindowRateLimiter()
 _api_key_store: Optional[ApiKeyStore] = None
 _store_initialized = False
+
+
+def charge_query_units(request: Request, extra_cost: int) -> None:
+    """Charge additional rate limit units for multi-corpus v2 queries.
+
+    The middleware already charges 1 unit. Call this from v2 endpoints
+    to charge (corpus_count - 1) additional units so a 5-corpus search
+    costs 5 units total.
+
+    Args:
+        request: The FastAPI request (to extract rate limit key)
+        extra_cost: Additional units beyond the 1 already charged
+    """
+    if extra_cost <= 0:
+        return
+
+    key_info = getattr(request.state, "api_key_info", None)
+    if key_info:
+        rate_key = f"key:{key_info.key_id}"
+    else:
+        client_ip = request.client.host if request.client else "unknown"
+        rate_key = f"ip:{client_ip}"
+
+    # Add extra entries to the sliding window (units already consumed)
+    now = time.monotonic()
+    _rate_limiter._requests[rate_key].extend([now] * extra_cost)
 
 
 def _get_store() -> Optional[ApiKeyStore]:

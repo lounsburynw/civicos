@@ -185,6 +185,15 @@ async def startup():
             except ValueError as e:
                 logger.warning(f"Could not bind handler {name}: {e}")
 
+    # Mount v2 query interface
+    try:
+        from civicos_services.query import create_v2_router
+        v2_router = create_v2_router(_civic, _jurisdiction, registry=_registry, logger_override=logger)
+        app.include_router(v2_router)
+        logger.info("v2 query interface mounted at /api/v2/civic/")
+    except Exception as e:
+        logger.warning(f"Could not mount v2 query interface: {e}")
+
     logger.info(
         f"MCP Server ready with {bound_count} tools "
         f"(level: {_jurisdiction_config.level})"
@@ -267,15 +276,39 @@ async def mcp_endpoint(request: Request):
             })
 
         elif method == "tools/list":
+            # Include both v1 tools and v2 verbs
+            v2_tools = _get_v2_tool_definitions()
+            all_tools = _registry.list_tools() + v2_tools
             return JSONResponse({
                 "jsonrpc": "2.0",
-                "result": {"tools": _registry.list_tools()},
+                "result": {"tools": all_tools},
                 "id": request_id,
             })
 
         elif method == "tools/call":
             tool_name = params.get("name", "")
             tool_args = params.get("arguments", {})
+
+            # Route v2 verbs to async handlers
+            if tool_name.startswith("civic_"):
+                try:
+                    result = await _handle_v2_tool(tool_name, tool_args)
+                except Exception as e:
+                    return JSONResponse({
+                        "jsonrpc": "2.0",
+                        "error": {"code": -32603, "message": str(e)},
+                        "id": request_id,
+                    })
+
+                result_text = json.dumps(result, indent=2, default=str)
+                return JSONResponse({
+                    "jsonrpc": "2.0",
+                    "result": {
+                        "content": [{"type": "text", "text": result_text}],
+                        "isError": False,
+                    },
+                    "id": request_id,
+                })
 
             try:
                 result = _registry.call_tool(tool_name, tool_args)
@@ -366,6 +399,123 @@ async def mcp_endpoint(request: Request):
             },
             "id": data.get("id", 1) if 'data' in dir() else 1,
         })
+
+
+def _get_v2_tool_definitions() -> list:
+    """Return MCP tool definitions for the 5 v2 verbs."""
+    return [
+        {
+            "name": "civic_search",
+            "description": "Multi-corpus civic search. Searches across decisions, legislation, testimony, issues, budget, meetings, and more with server-side composition and ranking.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "query": {"type": "string", "description": "Natural language search query"},
+                    "corpus": {"type": "array", "items": {"type": "string"}, "description": "Corpus types to search: decisions, testimony, testimony:public, legislation, issues, budget, meetings, municipal_code, packets, rules, orders"},
+                    "jurisdiction": {"type": "string", "description": "Jurisdiction filter (e.g., city-san-rafael)"},
+                    "since": {"type": "string", "description": "Date range start (ISO format)"},
+                    "until": {"type": "string", "description": "Date range end (ISO format)"},
+                    "location": {"type": "string", "description": "Geographic filter"},
+                    "limit": {"type": "integer", "description": "Max results (default 10)", "default": 10},
+                    "depth": {"type": "string", "enum": ["minimal", "standard", "deep"], "default": "standard"},
+                },
+                "required": ["query", "corpus"],
+            },
+        },
+        {
+            "name": "civic_upcoming",
+            "description": "Query upcoming civic events: meetings, hearings, comment periods, elections, pending legislation.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "types": {"type": "array", "items": {"type": "string"}, "description": "Event types: meetings, hearings, comment_periods, legislation, elections", "default": ["meetings"]},
+                    "jurisdiction": {"type": "string"},
+                    "days": {"type": "integer", "description": "Days ahead (default 14)", "default": 14},
+                    "actionable_only": {"type": "boolean", "description": "Only items where participation is possible", "default": False},
+                },
+            },
+        },
+        {
+            "name": "civic_context",
+            "description": "Get comprehensive context for a civic item using its ref (from search/upcoming results). Returns history, regulatory, financial, testimony, and participation context.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "ref": {"type": "string", "description": "Opaque item reference from search/upcoming results"},
+                    "depth": {"type": "string", "enum": ["minimal", "standard", "deep"], "default": "standard"},
+                    "sections": {"type": "array", "items": {"type": "string"}, "description": "Sections to include (omit for all): history, regulatory, financial, testimony, participation"},
+                },
+                "required": ["ref"],
+            },
+        },
+        {
+            "name": "civic_act",
+            "description": "Execute civic participation actions: prepare_comment, comment_template, comment_guidelines, prepare_meeting, prepare_voice, broadcast_voice, prepare_initiative, broadcast_initiative, subscribe.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "action": {"type": "string", "description": "Action name"},
+                    "ref": {"type": "string", "description": "Item reference for context-dependent actions"},
+                    "params": {"type": "object", "description": "Action-specific parameters"},
+                },
+                "required": ["action"],
+            },
+        },
+        {
+            "name": "civic_explore",
+            "description": "Discover available jurisdictions, corpora, corpus schemas, actions, and capabilities. Use this first to understand what data is available.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "what": {"type": "string", "description": "What to explore: jurisdictions, corpora, corpus_schema:{name}, actions, capabilities, schema_version"},
+                    "jurisdiction": {"type": "string"},
+                },
+                "required": ["what"],
+            },
+        },
+    ]
+
+
+async def _handle_v2_tool(tool_name: str, args: dict) -> dict:
+    """Handle a v2 MCP tool call by routing to verb implementations."""
+    from civicos_services.query.models import (
+        SearchRequest,
+        UpcomingRequest,
+        ContextRequest,
+        ActRequest,
+        ExploreRequest,
+    )
+    from civicos_services.query.verbs import (
+        execute_search,
+        execute_upcoming,
+        execute_context,
+        execute_act,
+        execute_explore,
+    )
+
+    if tool_name == "civic_search":
+        req = SearchRequest(**args)
+        resp = await execute_search(req, _civic, _jurisdiction)
+    elif tool_name == "civic_upcoming":
+        req = UpcomingRequest(**args)
+        resp = await execute_upcoming(req, _civic, _jurisdiction)
+    elif tool_name == "civic_context":
+        req = ContextRequest(**args)
+        resp = await execute_context(req, _civic, _jurisdiction)
+    elif tool_name == "civic_act":
+        req = ActRequest(**args)
+
+        def call_handler(name, handler_args):
+            return _registry.call_tool(name, handler_args)
+
+        resp = await execute_act(req, _civic, _jurisdiction, call_handler)
+    elif tool_name == "civic_explore":
+        req = ExploreRequest(**args)
+        resp = await execute_explore(req, _civic, _jurisdiction)
+    else:
+        raise ValueError(f"Unknown v2 tool: {tool_name}")
+
+    return resp.model_dump(mode="json")
 
 
 if __name__ == "__main__":
