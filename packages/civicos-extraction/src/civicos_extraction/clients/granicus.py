@@ -105,7 +105,7 @@ class GranicusClient(BaseExtractor):
             time.sleep(1.0 - elapsed)
         self._last_request_time = time.time()
 
-    def generate_column_map(self, view_id: Optional[str] = None) -> Dict[str, int]:
+    def generate_column_map(self, view_id: Optional[str] = None) -> Dict[str, Any]:
         """
         Use LLM to infer column mapping from a sample HTML page.
 
@@ -119,7 +119,9 @@ class GranicusClient(BaseExtractor):
             view_id: View ID to sample (uses first discovered view if not given)
 
         Returns:
-            Dict mapping column role to zero-based index
+            Dict with:
+              "column_map": {field_name: column_index} — the usable mapping
+              "provenance": {input, prompt_template, raw_response} — for audit trail
         """
         import json as _json
 
@@ -177,6 +179,13 @@ HTML:
         )
         text = result.content.strip()
 
+        # Provenance: record what the LLM saw and returned
+        provenance = {
+            "input": {"view_id": vid, "sample_html": sample_html, "num_columns": num_columns},
+            "prompt_template": "generate_column_map/v1",
+            "raw_response": text,
+        }
+
         # Extract JSON from response (may be wrapped in ```json blocks)
         json_match = re.search(r"\{[^}]+\}", text)
         if not json_match:
@@ -204,10 +213,12 @@ HTML:
                 f"LLM column map missing required fields (name, date): {column_map}"
             )
 
+        provenance["parsed_map"] = column_map  # LLM's raw map before validation
+
         logger.info(
             f"Generated column map for {self.granicus_domain}: {validated}"
         )
-        return validated
+        return {"column_map": validated, "provenance": provenance}
 
     def _fetch_view(self, view_id: str, timeout: int = 30) -> Optional[requests.Response]:
         """Fetch a ViewPublisher page with rate limiting."""

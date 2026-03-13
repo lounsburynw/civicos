@@ -573,3 +573,68 @@ class TestGenerateBodyNames:
         # Raw data preserves the generic title — LLM decides what to do with it
         assert raw_views["1"]["page_title"] == "New View"
         assert "Parks Commission - Regular Meeting" in raw_views["1"]["sample_titles"]
+
+
+# ============================================================================
+# generate_column_map Tests
+# ============================================================================
+
+
+class TestGenerateColumnMap:
+    """Tests for LLM-based column mapping with provenance."""
+
+    def test_generate_column_map_success(self, client):
+        """LLM infers column indices and provenance is recorded."""
+        mock_response = MagicMock()
+        mock_response.text = (
+            '<html><body><table>'
+            '<tr><th>Name</th><th>Date</th><th>Duration</th><th>Agenda</th></tr>'
+            '<tr><td>City Council</td><td>March 10, 2026</td><td>2h</td><td><a href="/agenda">View</a></td></tr>'
+            '</table></body></html>'
+        )
+
+        mock_provider = MagicMock()
+        mock_provider.complete.return_value = MagicMock(
+            content='{"name": 0, "date": 1, "agenda": 3}'
+        )
+
+        mock_module = MagicMock()
+        mock_module.get_model_for_task.return_value = mock_provider
+
+        with patch.object(client, "_fetch_view", return_value=mock_response):
+            with patch.dict("sys.modules", {"civicos_services.core.llm_provider": mock_module}):
+                result = client.generate_column_map(view_id="1")
+
+        assert result["column_map"] == {"name": 0, "date": 1, "agenda": 3}
+        assert result["provenance"]["prompt_template"] == "generate_column_map/v1"
+        assert result["provenance"]["input"]["view_id"] == "1"
+        assert result["provenance"]["input"]["num_columns"] == 4
+        assert '{"name": 0, "date": 1, "agenda": 3}' in result["provenance"]["raw_response"]
+
+    def test_generate_column_map_filters_invalid_fields(self, client):
+        """Unknown fields and out-of-bounds indices are excluded; provenance preserves raw map."""
+        mock_response = MagicMock()
+        mock_response.text = (
+            '<html><body><table>'
+            '<tr><th>Name</th><th>Date</th></tr>'
+            '<tr><td>Meeting</td><td>Jan 1, 2026</td></tr>'
+            '</table></body></html>'
+        )
+
+        mock_provider = MagicMock()
+        mock_provider.complete.return_value = MagicMock(
+            content='{"name": 0, "date": 1, "bogus_field": 0, "agenda": 99}'
+        )
+
+        mock_module = MagicMock()
+        mock_module.get_model_for_task.return_value = mock_provider
+
+        with patch.object(client, "_fetch_view", return_value=mock_response):
+            with patch.dict("sys.modules", {"civicos_services.core.llm_provider": mock_module}):
+                result = client.generate_column_map(view_id="1")
+
+        # Only valid, in-bounds fields survive
+        assert result["column_map"] == {"name": 0, "date": 1}
+        # Provenance preserves the raw LLM output before validation
+        assert result["provenance"]["parsed_map"]["bogus_field"] == 0
+        assert result["provenance"]["parsed_map"]["agenda"] == 99
