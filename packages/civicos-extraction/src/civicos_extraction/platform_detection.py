@@ -427,6 +427,77 @@ def _detect_simbli(board_url: str, timeout: int) -> tuple[float, Dict[str, Any]]
         return 0.0, metadata
 
 
+def _detect_universal(base_url: str, timeout: int) -> tuple[float, Dict[str, Any]]:
+    """
+    Last-resort detection: check if page has meeting-like content.
+
+    Returns lower confidence than specific platform detections (0.30-0.50)
+    so that specific detectors always win.
+
+    Returns:
+        Tuple of (confidence, metadata)
+    """
+    metadata: Dict[str, Any] = {"base_url": base_url}
+
+    # Meeting-related keywords (case-insensitive)
+    meeting_keywords = [
+        "meeting", "agenda", "minutes", "council", "board",
+        "commission", "committee", "hearing", "session",
+    ]
+    # Date patterns that suggest a meeting schedule
+    date_pattern = re.compile(
+        r"(January|February|March|April|May|June|July|August|September|"
+        r"October|November|December)\s+\d{1,2},?\s+\d{4}"
+        r"|"
+        r"\d{1,2}/\d{1,2}/\d{4}"
+    )
+
+    try:
+        response = requests.get(
+            base_url,
+            headers={"User-Agent": "Civic-Platform-Detection/1.0"},
+            timeout=timeout,
+        )
+        metadata["status_code"] = response.status_code
+
+        if response.status_code != 200:
+            return 0.0, metadata
+
+        content_lower = response.text.lower()
+
+        # Count meeting keywords
+        keyword_hits = sum(1 for kw in meeting_keywords if kw in content_lower)
+        metadata["keyword_hits"] = keyword_hits
+
+        # Count date patterns
+        date_matches = date_pattern.findall(response.text)
+        metadata["date_count"] = len(date_matches)
+
+        # Check for table or list structures
+        soup = BeautifulSoup(response.text, "html.parser")
+        tables = soup.find_all("table")
+        lists = soup.find_all(["ul", "ol"])
+        metadata["table_count"] = len(tables)
+        metadata["list_count"] = len(lists)
+
+        # Score based on signals
+        if keyword_hits >= 3 and len(date_matches) >= 2 and (tables or lists):
+            return 0.50, metadata
+        elif keyword_hits >= 2 and len(date_matches) >= 1:
+            return 0.40, metadata
+        elif keyword_hits >= 1 and len(date_matches) >= 1:
+            return 0.30, metadata
+        else:
+            return 0.0, metadata
+
+    except requests.exceptions.Timeout:
+        metadata["error"] = "Timeout"
+        return 0.0, metadata
+    except requests.exceptions.RequestException as e:
+        metadata["error"] = str(e)
+        return 0.0, metadata
+
+
 def detect_platform(
     base_url: str,
     jurisdiction_id: Optional[str] = None,
@@ -569,6 +640,20 @@ def detect_platform(
             confidence=pc_confidence,
             metadata=pc_meta,
         )
+
+    # 7. Try universal adapter (last resort — checks for meeting-like content)
+    if best_confidence < 0.5:
+        universal_confidence, universal_meta = _detect_universal(base_url, timeout)
+        all_metadata["universal"] = universal_meta
+        if universal_confidence > best_confidence:
+            best_confidence = universal_confidence
+            best_result = DetectionResult(
+                source_type="universal",
+                source_id=f"universal-{jurisdiction_id}",
+                platform_name="Universal Adapter",
+                confidence=universal_confidence,
+                metadata=universal_meta,
+            )
 
     detection_time_ms = (time.time() - start_time) * 1000
 

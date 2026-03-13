@@ -1,7 +1,7 @@
 {
   "version": "1.0",
   "phase": "launch",
-  "last_updated": "2026-03-11",
+  "last_updated": "2026-03-13",
   "summary": "Launch readiness: billing infrastructure, acceptance policy enforcement, token issuance, operator tooling, observability",
   "category_order": [
     "security_fixes",
@@ -377,6 +377,18 @@
         "priority": 3,
         "files": [],
         "test_file": null
+      },
+      {
+        "name": "query_interface_hardening",
+        "description": "Harden v2 query interface: cursor pagination, aggregate/trend modes, live-data integration tests, ranking calibration. See docs/public/decisions/query_interface.md deferred items.",
+        "status": "not_started",
+        "priority": 0,
+        "files": [
+          "packages/civicos-services/src/civicos_services/query/",
+          "packages/civicos-services/tests/test_query_v2.py"
+        ],
+        "test_file": "packages/civicos-services/tests/test_query_v2.py",
+        "notes": "Cursor pagination is highest priority (blocks real agent usage). Aggregate/trend modes enable monitoring patterns. Live-data tests need DATABASE_URL."
       }
     ]
   },
@@ -415,7 +427,7 @@
         "name": "deploy_marin_test_relays",
         "description": "Deploy 2 additional relay instances on Modal for Mill Valley and San Anselmo. Private, not public-facing. Validates multi-relay deployment.",
         "status": "not_started",
-        "priority": 0,
+        "priority": 1,
         "phase": "A",
         "source": "federation testbed \u2014 multi-relay infrastructure",
         "files": [
@@ -599,7 +611,7 @@
       {
         "name": "universal_adapter_design",
         "description": "Design session: LLM-powered universal adapter for cities with custom platforms (Portland, NYC). Research declarative scraping configs, LLM-inferred selectors, failure modes. Output: ADR + prototype design.",
-        "status": "not_started",
+        "status": "done",
         "priority": 0,
         "test_file": ""
       }
