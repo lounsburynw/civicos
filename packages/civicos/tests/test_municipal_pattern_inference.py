@@ -170,6 +170,49 @@ class TestTitlePatternInference:
         assert m is not None
         assert m.group(1) == "1"
 
+    def test_austin_style_title_with_period(self):
+        """Austin-style 'TITLE 1. - NAME' (period after number) should match."""
+        corpus = self._make_corpus()
+        headings = [
+            "TITLE 1. - GENERAL PROVISIONS.",
+            "TITLE 2. - ADMINISTRATION.",
+            "TITLE 3. - ANIMAL REGULATION.",
+            "TITLE 4. - BUSINESS REGULATION AND PERMIT REQUIREMENTS.",
+        ]
+        result = corpus._infer_title_pattern(headings)
+        assert result is not None
+        m = result.match("TITLE 1. - GENERAL PROVISIONS.")
+        assert m is not None
+        assert m.group(2).startswith("GENERAL")
+
+    def test_salem_style_mixed_case_roman(self):
+        """Salem-style mixed 'Title I' / 'TITLE II' with roman numerals."""
+        corpus = self._make_corpus()
+        headings = [
+            "Title I - GOVERNMENT",
+            "TITLE II - ASSESSMENT, LIENS AND CONNECTION FEES",
+            "TITLE III - BUSINESSES AND VOCATIONS",
+            "TITLE IV - HEALTH AND SANITATION",
+        ]
+        result = corpus._infer_title_pattern(headings)
+        assert result is not None
+        m = result.match("TITLE II - ASSESSMENT, LIENS AND CONNECTION FEES")
+        assert m is not None
+        # Should capture roman numeral
+        assert m.group(1) == "II"
+
+    def test_title_without_period(self):
+        """'TITLE 1 - NAME' without period should also match flexible pattern."""
+        corpus = self._make_corpus()
+        headings = [
+            "TITLE 1 - GENERAL PROVISIONS",
+            "TITLE 2 - ADMINISTRATION",
+            "TITLE 3 - ANIMAL REGULATION",
+            "TITLE 4 - BUSINESS REGULATION",
+        ]
+        result = corpus._infer_title_pattern(headings)
+        assert result is not None
+
 
 class TestSectionPatternInference:
     """Test _infer_section_pattern for non-standard section numbering."""

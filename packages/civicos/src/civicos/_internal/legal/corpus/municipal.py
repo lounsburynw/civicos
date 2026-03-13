@@ -194,19 +194,35 @@ class MunicipalCodeCorpus:
         return re.compile(pattern_str)
 
     def _infer_title_pattern(self, headings: list[str]) -> Optional[re.Pattern]:
-        """Infer a title pattern from TOC headings using an LLM.
+        """Infer a title pattern from TOC headings.
 
-        When the default title pattern doesn't match any headings, this method
-        sends sample headings to an LLM to identify the top-level structure
-        and generate a matching regex.
+        Strategy: LLM-first (handles any format), hardcoded patterns as
+        offline fallback (when no LLM API key is available).
 
         Returns a compiled regex with 2 capture groups (number, name), or None.
         """
         if not headings:
             return None
 
-        # Try common alternative patterns first (cheaper than LLM)
+        # Strategy 1: LLM inference (handles arbitrary formats)
+        llm_result = self._llm_infer_pattern(headings, "title")
+        if llm_result:
+            return llm_result
+
+        # Strategy 2: Hardcoded alternative patterns (offline fallback)
+        return self._match_alternative_title_patterns(headings)
+
+    def _match_alternative_title_patterns(
+        self, headings: list[str]
+    ) -> Optional[re.Pattern]:
+        """Try common alternative title patterns against headings.
+
+        Offline fallback when LLM is unavailable. Covers ~80% of
+        non-standard formats seen in US municipal codes.
+        """
         alternative_patterns = [
+            # "TITLE 1. - GENERAL" (with optional period, case-insensitive)
+            r'(?i)TITLE\s+([IVXLCDM\d]+)\.?\s*[—–-]\s*(.+)',
             # "CHAPTER I - GENERAL" (roman numerals)
             r'CHAPTER\s+([IVXLCDM]+)\s*[—–-]\s*(.+)',
             # "Chapter 1 - General" (arabic, top-level)
@@ -229,53 +245,102 @@ class MunicipalCodeCorpus:
                 )
                 return pattern
 
-        # Fall back to LLM inference
+        return None
+
+    def _llm_infer_pattern(
+        self, headings: list[str], pattern_type: str
+    ) -> Optional[re.Pattern]:
+        """Use an LLM to infer a regex pattern from sample headings.
+
+        Args:
+            headings: Sample headings to analyze
+            pattern_type: "title" or "section" (affects the prompt)
+
+        Returns a compiled regex with 2 capture groups, or None.
+        """
         try:
-            from civicos._internal.llm import get_model_for_task
+            from civicos_services.core.llm_provider import get_model_for_task
         except ImportError:
             logger.debug("LLM not available for pattern inference")
             return None
 
         sample = headings[:30]
-        prompt = (
-            "These are headings from a municipal code table of contents. "
-            "Identify which headings represent top-level divisions "
-            "(like Titles, Chapters, Articles, or Parts — NOT charter, "
-            "supplement tables, or ordinances).\n\n"
-            + "\n".join(f"- {h}" for h in sample)
-            + "\n\nReturn ONLY a Python regex string with exactly 2 capture "
-            "groups: (number_or_id, name). The regex should match the "
-            "top-level division headings. Support em-dash (—), en-dash (–), "
-            "and hyphen (-) as separators. Example: "
-            r"r'Title\s+(\d+)\s*[—–-]\s*(.+)'"
-            "\n\nReturn ONLY the regex, no explanation."
-        )
+
+        if pattern_type == "title":
+            prompt = (
+                "These are headings from a municipal code table of contents. "
+                "Identify which headings represent the top-level divisions "
+                "(like Titles, Chapters, Articles, or Parts — NOT charter, "
+                "supplement history tables, code comparative tables, or "
+                "individual ordinances).\n\n"
+                + "\n".join(f"- {h}" for h in sample)
+                + "\n\nReturn ONLY a Python regex string with exactly 2 "
+                "capture groups: (number_or_id, name). The regex should "
+                "match the top-level division headings. Support em-dash "
+                "(—), en-dash (–), and hyphen (-) as separators. Handle "
+                "optional trailing periods after numbers (e.g., 'TITLE 1.' "
+                "and 'TITLE 1' should both match). Example: "
+                r"r'(?i)TITLE\s+(\d+)\.?\s*[—–-]\s*(.+)'"
+                "\n\nReturn ONLY the regex string, no explanation or "
+                "markdown formatting."
+            )
+        else:  # section
+            prompt = (
+                "These are headings from a municipal code's content sections. "
+                "Identify the pattern for individual code sections (numbered "
+                "provisions like '1-3.1 - Name' or '1.04.010 - Name').\n\n"
+                + "\n".join(f"- {h}" for h in sample)
+                + "\n\nReturn ONLY a Python regex string with exactly 2 "
+                "capture groups: (section_number, section_name). Support "
+                "em-dash (—), en-dash (–), and hyphen (-) separators. "
+                "Example: r'(\\d+-\\d+(?:\\.\\d+)?)\\s*[—–-]\\s*(.+)'"
+                "\n\nReturn ONLY the regex string, no explanation or "
+                "markdown formatting."
+            )
 
         try:
             model = get_model_for_task("fast")
             response = model.complete(prompt)
-            pattern_str = response.strip().strip("'\"").strip("r'").strip("'")
-            # Remove r prefix if present
-            if pattern_str.startswith("r'") or pattern_str.startswith('r"'):
-                pattern_str = pattern_str[2:-1]
+            pattern_str = self._clean_llm_regex(response)
             pattern = re.compile(pattern_str)
             # Validate: must match at least 3 headings
             matches = sum(1 for h in headings if pattern.match(h))
             if matches >= 3:
                 logger.info(
-                    f"LLM inferred pattern matched {matches}/{len(headings)} "
-                    f"headings: {pattern_str}"
+                    f"LLM inferred {pattern_type} pattern "
+                    f"({matches}/{len(headings)} matches): {pattern_str}"
                 )
                 return pattern
             else:
                 logger.warning(
-                    f"LLM pattern matched only {matches} headings, discarding: "
-                    f"{pattern_str}"
+                    f"LLM {pattern_type} pattern matched only {matches} "
+                    f"headings, discarding: {pattern_str}"
                 )
                 return None
         except Exception as e:
-            logger.warning(f"LLM pattern inference failed: {e}")
+            logger.warning(f"LLM {pattern_type} pattern inference failed: {e}")
             return None
+
+    @staticmethod
+    def _clean_llm_regex(response: str) -> str:
+        """Extract a clean regex string from LLM response."""
+        text = response.strip()
+        # Remove markdown code fences
+        if "```" in text:
+            lines = text.split("\n")
+            lines = [l for l in lines if not l.strip().startswith("```")]
+            text = "\n".join(lines).strip()
+        # Remove r-string prefix and quotes
+        for prefix in ["r'", 'r"', "r'''", 'r"""']:
+            if text.startswith(prefix):
+                end_quote = prefix[1:]  # matching closing quote
+                text = text[len(prefix):]
+                if text.endswith(end_quote):
+                    text = text[:-len(end_quote)]
+                break
+        # Remove bare quotes
+        text = text.strip("'\"")
+        return text
 
     @classmethod
     def for_jurisdiction(cls, jurisdiction_id: str, **kwargs) -> "MunicipalCodeCorpus":
@@ -518,14 +583,19 @@ class MunicipalCodeCorpus:
     def _infer_section_pattern(self, doc_headings: list[str]) -> Optional[re.Pattern]:
         """Infer a section pattern from document headings.
 
-        Called when the default section pattern doesn't match any docs
-        returned by CodesContent. Tries common alternative formats.
+        Strategy: LLM-first, hardcoded patterns as offline fallback.
 
         Returns a compiled regex with 2 capture groups (number, title), or None.
         """
         if not doc_headings:
             return None
 
+        # Strategy 1: LLM inference
+        llm_result = self._llm_infer_pattern(doc_headings, "section")
+        if llm_result:
+            return llm_result
+
+        # Strategy 2: Hardcoded alternative patterns (offline fallback)
         alternative_patterns = [
             # "1-3.1 - Name" (Alameda-style: dash-separated with optional sub-number)
             r'(\d+-\d+(?:\.\d+)?[A-Za-z]?)\s*[—–-]\s*(.+)',
