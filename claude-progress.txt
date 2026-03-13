@@ -22037,3 +22037,56 @@ Implemented three core hardening features for the v2 unified query interface:
 - Live-data integration tests against PostgreSQL
 - RRF ranking calibration with real queries
 - Multi-jurisdiction fan-out
+
+## Session 37 — 2026-03-13: Turnkey Onboarding Phase 2 + Berkeley E2E Test
+
+**Item:** turnkey_onboarding (continuation)
+**Status:** In progress — Phase 2 complete, Berkeley test surfaced 4 bugs, 4/4 fixed.
+
+### Phase 2 Changes (committed: e340f73)
+- Wired chunks, agenda items, issues into --full pipeline
+- Added --skip-chunks, --skip-agenda, --skip-issues opt-out flags
+- Added post-onboard data status report (DataStatus)
+- Added deployment next-steps guidance (Modal, registry)
+
+### Data Quality Fix (committed: ddc7740)
+- store_issues(): validate title (skip empty), coordinate consistency (both-or-neither)
+
+### Berkeley E2E Test Results
+Ran `civicos-extract onboard --city "Berkeley" --state CA --full` — completed but surfaced 4 bugs:
+
+### Bug Fixes (staged, pending commit)
+
+**Bug 1: Granicus AgendaViewer degenerate case** (chunks.py)
+- Problem: Berkeley's agenda_url → AgendaViewer.php (HTML), scraper finds no PDF links
+- Fix: Check meeting.raw_data.packet_url or full_data.raw_data.packet_url before scraping
+- File: packages/civicos-extraction/src/civicos_extraction/cli/chunks.py
+
+**Bug 2: Vector upsert ON CONFLICT** (pgvector_backend.py)
+- Problem: Partition migration changed PK from (id) to (id, corpus_type), but upserts still used ON CONFLICT (id)
+- Fix: Changed all 3 ON CONFLICT (id) → ON CONFLICT (id, corpus_type)
+- File: packages/civicos/src/civicos/storage/pgvector_backend.py
+
+**Bug 3: openai import failure in agenda extraction** (llm_provider.py, providers/__init__.py)
+- Problem: providers/__init__.py eagerly imports OpenAIProvider which imports openai at module level
+- Fix: Made all openai-dependent provider imports lazy (inside get_provider/get_provider_with_model)
+- Files: packages/civicos-services/src/civicos_services/core/llm_provider.py, .../providers/__init__.py
+
+**Bug 4: Municipal code silent failure** (municipal.py)
+- Problem: When no TOC nodes match title pattern, stream_sections() silently yields nothing
+- Fix: Added logger.warning with TOC details and pattern when no titles match
+- File: packages/civicos/src/civicos/_internal/legal/corpus/municipal.py
+
+### What Berkeley Actually Got
+- 10 meetings extracted (Granicus)
+- 4,794 CA legislation bills
+- 8 chunks (1/7 meetings — ZAB had actual PDF, City Council uses AgendaViewer HTML)
+- 0 agenda items (openai not installed locally — will work with Gemini after fix)
+- 5,000 SeeClickFix issues
+- 0 vectors (ON CONFLICT bug)
+- 0 municipal code sections (title pattern mismatch for Berkeley)
+
+### Remaining After This Session
+- Re-run Berkeley to validate fixes work
+- Berkeley municipal code may need custom title_pattern or product_name in JURISDICTION_MAP
+- Consider adding Granicus AgendaViewer → PDF URL derivation (GeneratedFile.php pattern)
