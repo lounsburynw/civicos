@@ -418,8 +418,10 @@ def _get_v2_tool_definitions() -> list:
                     "location": {"type": "string", "description": "Geographic filter"},
                     "limit": {"type": "integer", "description": "Max results (default 10)", "default": 10},
                     "depth": {"type": "string", "enum": ["minimal", "standard", "deep"], "default": "standard"},
-                    "mode": {"type": "string", "enum": ["search", "aggregate", "trend"], "description": "search (items), aggregate (counts/stats), trend (temporal patterns)", "default": "search"},
+                    "mode": {"type": "string", "enum": ["search", "aggregate", "trend", "diff", "intersect"], "description": "search (items), aggregate (counts/stats), trend (temporal), diff (new since snapshot), intersect (cross-corpus join)", "default": "search"},
                     "cursor": {"type": "string", "description": "Opaque pagination cursor from a previous response"},
+                    "snapshot_date": {"type": "string", "description": "ISO date for diff mode — returns items newer than this date"},
+                    "intersect_corpus": {"type": "array", "items": {"type": "string"}, "description": "For intersect mode — secondary corpora to join against"},
                 },
                 "required": ["query", "corpus"],
             },
@@ -439,15 +441,15 @@ def _get_v2_tool_definitions() -> list:
         },
         {
             "name": "civic_context",
-            "description": "Get comprehensive context for a civic item using its ref (from search/upcoming results). Returns history, regulatory, financial, testimony, and participation context.",
+            "description": "Get comprehensive context for a civic item using its ref, OR look up a civic term/concept (e.g., 'conditional use permit'). Provide ref OR concept, not both.",
             "inputSchema": {
                 "type": "object",
                 "properties": {
                     "ref": {"type": "string", "description": "Opaque item reference from search/upcoming results"},
+                    "concept": {"type": "string", "description": "Civic term to look up (e.g., 'conditional use permit', 'ADU', 'variance')"},
                     "depth": {"type": "string", "enum": ["minimal", "standard", "deep"], "default": "standard"},
                     "sections": {"type": "array", "items": {"type": "string"}, "description": "Sections to include (omit for all): history, regulatory, financial, testimony, participation"},
                 },
-                "required": ["ref"],
             },
         },
         {

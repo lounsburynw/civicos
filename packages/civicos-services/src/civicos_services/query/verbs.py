@@ -128,6 +128,113 @@ async def execute_search(
         total_results=sum(corpus_counts.values()),
     )
 
+    # === Mode: diff (EXCEPT — what's new since snapshot) ===
+    if mode == SearchMode.diff:
+        if not request.snapshot_date:
+            return SearchResponse(
+                results=[],
+                meta=ResponseMeta(
+                    schema_version=SCHEMA_VERSION,
+                    query_time_ms=int((time.monotonic() - start) * 1000),
+                    corpus_status={"error": "snapshot_date required for diff mode"},
+                ),
+            )
+
+        # Filter current results to items dated after the snapshot
+        snapshot = request.snapshot_date[:10]
+        diff_results: Dict[str, List[CivicResult]] = {}
+        for corpus_name, result_list in corpus_results.items():
+            new_items = [r for r in result_list if r.date and r.date[:10] > snapshot]
+            diff_results[corpus_name] = new_items
+
+        merged = reciprocal_rank_fusion(diff_results, global_limit=request.limit)
+        meta.total_results = len(merged)
+        meta.corpus_counts = {k: len(v) for k, v in diff_results.items()}
+
+        return SearchResponse(results=merged, meta=meta)
+
+    # === Mode: intersect (INTERSECT — items appearing across corpora) ===
+    if mode == SearchMode.intersect:
+        if not request.intersect_corpus:
+            return SearchResponse(
+                results=[],
+                meta=ResponseMeta(
+                    schema_version=SCHEMA_VERSION,
+                    query_time_ms=int((time.monotonic() - start) * 1000),
+                    corpus_status={"error": "intersect_corpus required for intersect mode"},
+                ),
+            )
+
+        # Execute search on the intersect corpora
+        intersect_plan = plan_search(
+            query=request.query,
+            corpus=request.intersect_corpus,
+            limit=100,
+            since=request.since,
+            until=request.until,
+            location=request.location,
+            depth=request.depth.value,
+        )
+
+        intersect_results: Dict[str, List[CivicResult]] = {}
+
+        async def run_intersect_corpus(cq):
+            adapter = get_adapter(cq.corpus)
+            if adapter is None:
+                logger.warning(f"Intersect corpus {cq.corpus}: no adapter found")
+                return cq.corpus, []
+            try:
+                loop = asyncio.get_event_loop()
+                results = await asyncio.wait_for(
+                    loop.run_in_executor(
+                        None,
+                        lambda: adapter.search(civic, jid, request.query, 100, offset=0, **cq.params),
+                    ),
+                    timeout=CORPUS_TIMEOUT_S,
+                )
+                return cq.corpus, results
+            except asyncio.TimeoutError:
+                logger.warning(f"Intersect corpus {cq.corpus} timed out")
+                return cq.corpus, []
+            except Exception as e:
+                logger.error(f"Intersect corpus {cq.corpus} error: {e}")
+                return cq.corpus, []
+
+        intersect_tasks = [run_intersect_corpus(cq) for cq in intersect_plan.corpus_queries]
+        intersect_raw = await asyncio.gather(*intersect_tasks)
+        for corpus_name, result_list in intersect_raw:
+            intersect_results[corpus_name] = result_list
+
+        # Match primary results against intersect results by date or significant title words.
+        # Date matching: same calendar day. Title matching: shared words >= 6 chars
+        # (short words like "city", "plan", "code" are too common in civic data).
+        intersect_dates = set()
+        intersect_words: set = set()
+        for result_list in intersect_results.values():
+            for r in result_list:
+                if r.date:
+                    intersect_dates.add(r.date[:10])
+                for word in r.title.lower().split():
+                    if len(word) >= 6:
+                        intersect_words.add(word)
+
+        matched_results: Dict[str, List[CivicResult]] = {}
+        for corpus_name, result_list in corpus_results.items():
+            matched = []
+            for r in result_list:
+                date_match = r.date and r.date[:10] in intersect_dates
+                primary_words = {w for w in r.title.lower().split() if len(w) >= 6}
+                title_match = bool(primary_words & intersect_words)
+                if date_match or title_match:
+                    matched.append(r)
+            matched_results[corpus_name] = matched
+
+        merged = reciprocal_rank_fusion(matched_results, global_limit=request.limit)
+        meta.total_results = len(merged)
+        meta.corpus_counts = {k: len(v) for k, v in matched_results.items()}
+
+        return SearchResponse(results=merged, meta=meta)
+
     # === Mode: aggregate ===
     if mode == SearchMode.aggregate:
         aggregates = []
@@ -356,8 +463,19 @@ async def execute_context(
     civic,
     jurisdiction: str,
 ) -> ContextResponse:
-    """Execute context assembly for a specific item."""
+    """Execute context assembly for a specific item, or civic jargon lookup."""
     start = time.monotonic()
+
+    # === Civic jargon / concept lookup ===
+    if request.concept:
+        return await _execute_concept_lookup(request, civic, jurisdiction, start)
+
+    # === Standard item context via ref ===
+    if not request.ref:
+        return ContextResponse(
+            context={"error": "ref is required for item context lookup"},
+            meta=ResponseMeta(schema_version=SCHEMA_VERSION, query_time_ms=0),
+        )
 
     try:
         parsed = parse_ref(request.ref)
@@ -405,6 +523,79 @@ async def execute_context(
         meta=ResponseMeta(
             schema_version=SCHEMA_VERSION,
             query_time_ms=total_time,
+        ),
+    )
+
+
+async def _execute_concept_lookup(
+    request: ContextRequest,
+    civic,
+    jurisdiction: str,
+    start: float,
+) -> ContextResponse:
+    """Look up a civic concept/term from the municipal code corpus."""
+    concept = request.concept
+    jid = jurisdiction
+
+    adapter = get_adapter("municipal_code")
+    if adapter is None:
+        total_time = int((time.monotonic() - start) * 1000)
+        return ContextResponse(
+            context={"concept": concept, "found": False, "error": "Municipal code corpus is not available."},
+            meta=ResponseMeta(schema_version=SCHEMA_VERSION, query_time_ms=total_time),
+        )
+
+    try:
+        loop = asyncio.get_event_loop()
+        results = await asyncio.wait_for(
+            loop.run_in_executor(
+                None,
+                lambda: adapter.search(civic, jid, concept, limit=5, offset=0),
+            ),
+            timeout=CORPUS_TIMEOUT_S,
+        )
+
+        if not results:
+            context_data = {
+                "concept": concept,
+                "found": False,
+                "explanation": f"No municipal code sections found for '{concept}'.",
+            }
+        else:
+            # Build a concept explanation from the top results
+            sections = []
+            for r in results:
+                sections.append({
+                    "ref": r.ref,
+                    "title": r.title,
+                    "excerpt": r.summary,
+                    "section_number": r.details.get("section_number"),
+                    "relevance": r.relevance,
+                })
+
+            context_data = {
+                "concept": concept,
+                "found": True,
+                "definition_source": "municipal_code",
+                "jurisdiction": jid,
+                "sections": sections,
+                "explanation": (
+                    f"Based on {len(sections)} relevant section(s) from the "
+                    f"municipal code of {jid}."
+                ),
+            }
+    except Exception as e:
+        logger.error(f"Concept lookup error for '{concept}': {e}")
+        context_data = {"concept": concept, "found": False, "error": str(e)}
+
+    total_time = int((time.monotonic() - start) * 1000)
+
+    return ContextResponse(
+        context=context_data,
+        meta=ResponseMeta(
+            schema_version=SCHEMA_VERSION,
+            query_time_ms=total_time,
+            corpora_searched=["municipal_code"],
         ),
     )
 
