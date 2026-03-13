@@ -600,7 +600,7 @@
         "name": "universal_adapter_design",
         "description": "Design session: LLM-powered universal adapter for cities with custom platforms (Portland, NYC). Research declarative scraping configs, LLM-inferred selectors, failure modes. Output: ADR + prototype design.",
         "status": "not_started",
-        "priority": 1,
+        "priority": 0,
         "test_file": ""
       }
     ]
