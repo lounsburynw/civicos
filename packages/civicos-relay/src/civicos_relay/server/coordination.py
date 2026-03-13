@@ -101,6 +101,9 @@ class VoiceResponse(BaseModel):
     signature: str
     timestamp: str
     revoked: bool = False
+    created_at: Optional[int] = None
+    jurisdiction: Optional[str] = None
+    attestation_proof: Optional[dict] = None
 
 
 class VoiceCountResponse(BaseModel):
@@ -1512,6 +1515,9 @@ async def export_voices(
                     signature=v.signature,
                     timestamp=v.timestamp.isoformat(),
                     revoked=v.revoked,
+                    created_at=v.created_at,
+                    jurisdiction=v.jurisdiction,
+                    attestation_proof=v.attestation_proof,
                 )
                 for v in response.voices
             ],
