@@ -20,11 +20,14 @@ Usage:
 
 import json
 import logging
+import os
 import re
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+
+import requests
 
 from civicos_extraction.platform_detection import detect_platform
 
@@ -288,7 +291,7 @@ def _infer_jurisdiction_id(url: str) -> Optional[str]:
 
 
 def _discover_granicus(url: str, jurisdiction_id: str) -> Dict[str, Any]:
-    """Run Granicus-specific discovery."""
+    """Run Granicus-specific discovery, including LLM column map generation."""
     from civicos_extraction.clients.granicus import GranicusClient
 
     match = re.match(r"https?://([^.]+)\.granicus\.com", url)
@@ -301,17 +304,34 @@ def _discover_granicus(url: str, jurisdiction_id: str) -> Dict[str, Any]:
 
     discovered = client.discover_view_ids()
 
+    # Determine best default view_id from discovery
+    default_view_id = "1"
+    if discovered:
+        default_view_id = next(iter(discovered.values()))
+
+    # Generate column map via LLM (one-time, ~$0.0001)
+    column_map = None
+    try:
+        column_map = client.generate_column_map(view_id=default_view_id)
+        logger.info(f"Column map generated: {column_map}")
+    except Exception as e:
+        logger.warning(f"Column map generation failed (will use header detection): {e}")
+
     # Build ExtractionConfig dict
+    metadata: Dict[str, Any] = {
+        "granicus_domain": domain,
+        "default_view_id": default_view_id,
+    }
+    if column_map:
+        metadata["column_map"] = column_map
+
     config = {
         "source_id": f"granicus-{jurisdiction_id}",
         "source_type": "granicus",
         "jurisdiction_id": jurisdiction_id,
         "base_url": f"https://{domain}.granicus.com",
         "archives": discovered,
-        "metadata": {
-            "granicus_domain": domain,
-            "default_view_id": "1",
-        },
+        "metadata": metadata,
     }
 
     return {
@@ -346,6 +366,121 @@ def _discover_proudcity(url: str, jurisdiction_id: str) -> Dict[str, Any]:
     }
 
 
+# US state abbreviation → full name mapping for parent_jurisdictions slugs
+_US_STATES = {
+    "AL": "Alabama", "AK": "Alaska", "AZ": "Arizona", "AR": "Arkansas",
+    "CA": "California", "CO": "Colorado", "CT": "Connecticut", "DE": "Delaware",
+    "FL": "Florida", "GA": "Georgia", "HI": "Hawaii", "ID": "Idaho",
+    "IL": "Illinois", "IN": "Indiana", "IA": "Iowa", "KS": "Kansas",
+    "KY": "Kentucky", "LA": "Louisiana", "ME": "Maine", "MD": "Maryland",
+    "MA": "Massachusetts", "MI": "Michigan", "MN": "Minnesota", "MS": "Mississippi",
+    "MO": "Missouri", "MT": "Montana", "NE": "Nebraska", "NV": "Nevada",
+    "NH": "New Hampshire", "NJ": "New Jersey", "NM": "New Mexico", "NY": "New York",
+    "NC": "North Carolina", "ND": "North Dakota", "OH": "Ohio", "OK": "Oklahoma",
+    "OR": "Oregon", "PA": "Pennsylvania", "RI": "Rhode Island", "SC": "South Carolina",
+    "SD": "South Dakota", "TN": "Tennessee", "TX": "Texas", "UT": "Utah",
+    "VT": "Vermont", "VA": "Virginia", "WA": "Washington", "WV": "West Virginia",
+    "WI": "Wisconsin", "WY": "Wyoming", "DC": "District of Columbia",
+}
+
+
+def _state_abbrev_to_slug(abbrev: str) -> str:
+    """Convert state abbreviation to jurisdiction slug (e.g., 'CA' -> 'california', 'NY' -> 'new-york')."""
+    name = _US_STATES.get(abbrev.upper(), "")
+    if not name:
+        return ""
+    return name.lower().replace(" ", "-")
+
+
+def geocode_city(
+    city_name: str,
+    state: str = "CA",
+    api_key: Optional[str] = None,
+) -> Optional[Dict[str, Any]]:
+    """
+    Geocode a city to get county, zip code, and state confirmation.
+
+    Uses Google Maps Geocoding API. Requires GOOGLE_MAPS_API_KEY env var
+    or explicit api_key parameter.
+
+    Args:
+        city_name: City name (e.g., "Berkeley")
+        state: State name or abbreviation (e.g., "CA", "California")
+        api_key: Google Maps API key (falls back to env var)
+
+    Returns:
+        Dict with: city, county, state, zip_code, parent_jurisdictions
+        None if geocoding fails or no API key
+    """
+    key = api_key or os.environ.get("GOOGLE_MAPS_API_KEY")
+    if not key:
+        logger.warning("No GOOGLE_MAPS_API_KEY — skipping geocoding enrichment")
+        return None
+
+    try:
+        params = {
+            "address": f"{city_name}, {state}",
+            "key": key,
+        }
+        response = requests.get(
+            "https://maps.googleapis.com/maps/api/geocode/json",
+            params=params,
+            timeout=5,
+        )
+        response.raise_for_status()
+        data = response.json()
+
+        if data.get("status") != "OK" or not data.get("results"):
+            logger.warning(f"Geocoding failed for '{city_name}, {state}': {data.get('status')}")
+            return None
+
+        result = data["results"][0]
+        components = result.get("address_components", [])
+
+        parsed: Dict[str, str] = {}
+        for comp in components:
+            types = comp["types"]
+            if "locality" in types:
+                parsed["city"] = comp["long_name"]
+            elif "administrative_area_level_2" in types:
+                parsed["county"] = comp["long_name"]
+            elif "administrative_area_level_1" in types:
+                parsed["state"] = comp["long_name"]
+                parsed["state_abbrev"] = comp["short_name"]
+            elif "postal_code" in types:
+                parsed["zip_code"] = comp["short_name"]
+
+        # Build parent_jurisdictions from county
+        county_name = parsed.get("county", "")
+        parent_jurisdictions = []
+        if county_name:
+            # "Alameda County" -> "county-alameda"
+            county_slug = re.sub(r"\s*County$", "", county_name).strip().lower()
+            county_slug = re.sub(r"\s+", "-", county_slug)
+            parent_jurisdictions.append(f"county-{county_slug}")
+        state_name = parsed.get("state", "")
+        if state_name:
+            state_slug = state_name.strip().lower().replace(" ", "-")
+            parent_jurisdictions.append(f"state-{state_slug}")
+        parent_jurisdictions.append("country-united-states")
+
+        return {
+            "city": parsed.get("city", city_name),
+            "county": county_name,
+            "state": parsed.get("state", ""),
+            "state_abbrev": parsed.get("state_abbrev", state.upper()),
+            "zip_code": parsed.get("zip_code", ""),
+            "parent_jurisdictions": parent_jurisdictions,
+        }
+
+    except requests.RequestException as e:
+        logger.warning(f"Geocoding request failed: {e}")
+        return None
+    except Exception as e:
+        logger.warning(f"Geocoding error: {e}")
+        return None
+
+
 def _generate_jurisdiction_yaml(
     jurisdiction_id: str,
     display_name: str,
@@ -354,6 +489,9 @@ def _generate_jurisdiction_yaml(
     website: str = "",
     parent_jurisdictions: Optional[List[str]] = None,
     level: str = "city",
+    county: str = "",
+    zip_code: str = "",
+    state_abbrev: str = "CA",
 ) -> str:
     """Generate jurisdiction YAML content from onboarding results."""
     source_type = config.get("source_type", "standard")
@@ -376,8 +514,14 @@ def _generate_jurisdiction_yaml(
         for key, val in metadata.items():
             meetings_yaml += f'\n      {key}: {json.dumps(val) if not isinstance(val, str) else val}'
 
-    parents = parent_jurisdictions or ["state-california", "country-united-states"]
+    # Derive state slug from abbreviation for fallback
+    state_slug = _state_abbrev_to_slug(state_abbrev)
+    parents = parent_jurisdictions or ([f"state-{state_slug}"] if state_slug else []) + ["country-united-states"]
     parents_yaml = "\n".join(f"  - {p}" for p in parents)
+
+    # County name for financial section (strip " County" suffix)
+    county_short = re.sub(r"\s*County$", "", county).strip() if county else "null"
+    county_field = f'"{county_short}"' if county_short != "null" else "null"
 
     return f"""# {display_name} Configuration
 #
@@ -393,6 +537,7 @@ parent_jurisdictions:
 contact_info:
   clerk_email: {contact_email or 'null'}
   website: "{website}"
+  zip_code: "{zip_code}"
 
 data_sources:
 {meetings_yaml}
@@ -401,8 +546,8 @@ data_sources:
   municipal_code: null
 
 financial:
-  state: CA
-  county: null
+  state: {state_abbrev}
+  county: {county_field}
 
 ingestion:
   meetings: true
@@ -456,21 +601,38 @@ def onboard_jurisdiction(
         OnboardResult with config, discovered bodies, and next steps
     """
     errors: List[str] = []
+    pre_discovered: Optional[Dict[str, Any]] = None
 
-    # Step 0: If city_name given without URL, auto-discover Granicus
+    # Step 0: If city_name given without URL, auto-discover platform
     if city_name and not url:
-        from civicos_extraction.platform_detection import discover_granicus_subdomain
+        from civicos_extraction.platform_detection import (
+            discover_platform as _discover_platform_fn,
+        )
 
-        logger.info(f"Auto-discovering Granicus for '{city_name}, {state.upper()}'...")
-        discovery = discover_granicus_subdomain(city_name, state=state)
+        logger.info(f"Auto-discovering platform for '{city_name}, {state.upper()}'...")
+        discovery = _discover_platform_fn(city_name, state=state)
         if discovery:
-            url = discovery["url"]
-            logger.info(f"Granicus discovered: {url}")
+            platform = discovery["platform"]
+            details = discovery["details"]
+            logger.info(f"Platform discovered: {platform} ({discovery['confidence']:.0%})")
+            pre_discovered = discovery
+
+            # Build URL from discovery results
+            if platform == "granicus":
+                url = details["url"]
+            elif platform == "legistar":
+                client = details["client_name"]
+                url = f"https://webapi.legistar.com/v1/{client}/bodies"
+            elif platform == "civicclerk":
+                subdomain = details["subdomain"]
+                url = f"https://{subdomain}.api.civicclerk.com/v1/Boards"
+            elif platform == "proudcity":
+                url = details.get("url", "")
         else:
             return OnboardResult(
                 success=False,
                 errors=[
-                    f"Could not auto-discover Granicus for '{city_name}, {state.upper()}'. "
+                    f"Could not auto-discover platform for '{city_name}, {state.upper()}'. "
                     "Try providing a direct URL instead."
                 ],
             )
@@ -489,53 +651,114 @@ def onboard_jurisdiction(
                     errors=["Could not infer jurisdiction_id from URL. Please provide one."],
                 )
 
-    # Step 1: Detect platform
-    detection = detect_platform(url, jurisdiction_id=jurisdiction_id)
-    detection_dict = detection.to_dict()
-
-    if not detection.source_type or detection.confidence < 0.5:
-        return OnboardResult(
-            success=False,
-            jurisdiction_id=jurisdiction_id,
-            detection=detection_dict,
-            errors=[
-                f"No platform detected (confidence: {detection.confidence:.0%}). "
-                "Supported platforms: granicus, legistar, civicclerk, proudcity."
-            ],
-            next_steps=[
-                "Check that the URL is correct",
-                "If this is a new platform, implement a client in civicos-extraction",
-            ],
-        )
-
-    # Step 2: Platform-specific discovery
+    # Step 1 & 2: Platform detection + discovery
+    # If Step 0 already discovered the platform, build config directly.
+    # Otherwise, detect from URL and run platform-specific discovery.
     discovery_result: Optional[Dict[str, Any]] = None
-    try:
-        if detection.source_type == "granicus":
-            discovery_result = _discover_granicus(url, jurisdiction_id)
-        elif detection.source_type == "proudcity":
-            discovery_result = _discover_proudcity(url, jurisdiction_id)
-        else:
-            # For legistar/civicclerk, generate basic config
+    detection_dict: Dict[str, Any] = {}
+
+    if pre_discovered:
+        platform = pre_discovered["platform"]
+        details = pre_discovered["details"]
+        confidence = pre_discovered["confidence"]
+
+        detection_dict = {
+            "source_type": platform,
+            "source_id": f"{platform}-{jurisdiction_id}",
+            "platform_name": platform.capitalize(),
+            "confidence": confidence,
+            "metadata": details,
+        }
+
+        if platform == "granicus":
+            try:
+                discovery_result = _discover_granicus(url, jurisdiction_id)
+            except Exception as e:
+                errors.append(f"Granicus discovery failed: {e}")
+        elif platform == "legistar":
+            client_name = details["client_name"]
             discovery_result = {
                 "config": {
-                    "source_id": f"{detection.source_type}-{jurisdiction_id}",
-                    "source_type": detection.source_type,
+                    "source_id": f"legistar-{client_name}",
+                    "source_type": "legistar",
                     "jurisdiction_id": jurisdiction_id,
-                    "base_url": url,
+                    "base_url": f"https://webapi.legistar.com/v1/{client_name}",
                     "archives": {},
-                    "metadata": detection.metadata,
+                    "metadata": {"client_name": client_name, "body_count": details.get("body_count", 0)},
                 },
                 "discovered_bodies": {},
             }
-    except Exception as e:
-        errors.append(f"Discovery failed: {e}")
-        return OnboardResult(
-            success=False,
-            jurisdiction_id=jurisdiction_id,
-            detection=detection_dict,
-            errors=errors,
-        )
+        elif platform == "civicclerk":
+            subdomain = details["subdomain"]
+            discovery_result = {
+                "config": {
+                    "source_id": f"civicclerk-{subdomain}",
+                    "source_type": "civicclerk",
+                    "jurisdiction_id": jurisdiction_id,
+                    "base_url": f"https://{subdomain}.api.civicclerk.com/v1",
+                    "archives": {},
+                    "metadata": {"subdomain": subdomain, "board_count": details.get("board_count", 0)},
+                },
+                "discovered_bodies": {},
+            }
+        elif platform == "proudcity":
+            try:
+                discovery_result = _discover_proudcity(url, jurisdiction_id)
+            except Exception as e:
+                errors.append(f"ProudCity discovery failed: {e}")
+
+        if not discovery_result:
+            return OnboardResult(
+                success=False,
+                jurisdiction_id=jurisdiction_id,
+                detection=detection_dict,
+                errors=errors or [f"Failed to build config for {platform}"],
+            )
+    else:
+        # URL-based flow: detect platform, then run discovery
+        detection = detect_platform(url, jurisdiction_id=jurisdiction_id)
+        detection_dict = detection.to_dict()
+
+        if not detection.source_type or detection.confidence < 0.5:
+            return OnboardResult(
+                success=False,
+                jurisdiction_id=jurisdiction_id,
+                detection=detection_dict,
+                errors=[
+                    f"No platform detected (confidence: {detection.confidence:.0%}). "
+                    "Supported platforms: granicus, legistar, civicclerk, proudcity."
+                ],
+                next_steps=[
+                    "Check that the URL is correct",
+                    "If this is a new platform, implement a client in civicos-extraction",
+                ],
+            )
+
+        try:
+            if detection.source_type == "granicus":
+                discovery_result = _discover_granicus(url, jurisdiction_id)
+            elif detection.source_type == "proudcity":
+                discovery_result = _discover_proudcity(url, jurisdiction_id)
+            else:
+                discovery_result = {
+                    "config": {
+                        "source_id": f"{detection.source_type}-{jurisdiction_id}",
+                        "source_type": detection.source_type,
+                        "jurisdiction_id": jurisdiction_id,
+                        "base_url": url,
+                        "archives": {},
+                        "metadata": detection.metadata,
+                    },
+                    "discovered_bodies": {},
+                }
+        except Exception as e:
+            errors.append(f"Discovery failed: {e}")
+            return OnboardResult(
+                success=False,
+                jurisdiction_id=jurisdiction_id,
+                detection=detection_dict,
+                errors=errors,
+            )
 
     config = discovery_result["config"]
     discovered_bodies = discovery_result.get("discovered_bodies", {})
@@ -561,15 +784,42 @@ def onboard_jurisdiction(
             errors=errors,
         )
 
+    # Step 3.5: Geocoding enrichment (if city_name available)
+    geo_data: Optional[Dict[str, Any]] = None
+    if city_name:
+        geo_data = geocode_city(city_name, state=state)
+        if geo_data:
+            logger.info(
+                f"Geocoded: {geo_data.get('city')} → "
+                f"{geo_data.get('county', 'unknown county')}, "
+                f"zip {geo_data.get('zip_code', '?')}"
+            )
+
     # Step 4: Generate jurisdiction YAML (optional)
     yaml_path = None
     if generate_yaml:
         display_name = city_name or jurisdiction_id.replace("city-", "").replace("-", " ").title()
+
+        # Use geocoding data if available
+        parent_jurisdictions = None
+        county = ""
+        zip_code = ""
+        state_abbrev = state.upper()
+        if geo_data:
+            parent_jurisdictions = geo_data.get("parent_jurisdictions")
+            county = geo_data.get("county", "")
+            zip_code = geo_data.get("zip_code", "")
+            state_abbrev = geo_data.get("state_abbrev", state.upper())
+
         yaml_content = _generate_jurisdiction_yaml(
             jurisdiction_id=jurisdiction_id,
             display_name=display_name,
             config=config,
             website=config.get("base_url", ""),
+            parent_jurisdictions=parent_jurisdictions,
+            county=county,
+            zip_code=zip_code,
+            state_abbrev=state_abbrev,
         )
         yaml_dir = Path(__file__).parents[4] / "data" / "jurisdictions"
         yaml_dir.mkdir(parents=True, exist_ok=True)

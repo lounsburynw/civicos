@@ -13,6 +13,9 @@ from civicos_extraction.platform_detection import (
     detect_platform,
     detect_platform_batch,
     discover_granicus_subdomain,
+    discover_legistar_client,
+    discover_civicclerk_subdomain,
+    discover_platform,
     _extract_client_name,
     _detect_legistar,
     _detect_civicclerk,
@@ -494,3 +497,337 @@ class TestDiscoverGranicusSubdomain:
         city_name = "Mill Valley"
         slug = re.sub(r"[\s\-]+", "", city_name.lower().strip())
         assert slug == "millvalley"
+
+
+class TestDiscoverLegistarClient:
+    """Test Legistar client auto-discovery."""
+
+    @patch('civicos_extraction.platform_detection.requests.get')
+    def test_discovers_simple_slug(self, mock_get):
+        """Test discovery with simple city slug (e.g., berkeley)."""
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = [
+            {"BodyId": 1, "BodyName": "City Council"},
+            {"BodyId": 2, "BodyName": "Planning Commission"},
+        ]
+        mock_get.return_value = mock_response
+
+        result = discover_legistar_client("Berkeley")
+        assert result is not None
+        assert result["client_name"] == "berkeley"
+        assert result["body_count"] == 2
+
+    @patch('civicos_extraction.platform_detection.requests.get')
+    def test_discovers_cityof_pattern(self, mock_get):
+        """Test discovery with cityof prefix (first two patterns fail)."""
+        def get_side_effect(url, **kwargs):
+            resp = MagicMock()
+            if "cityofberkeley" in url:
+                resp.status_code = 200
+                resp.json.return_value = [{"BodyId": 1, "BodyName": "Council"}]
+            else:
+                resp.status_code = 404
+                resp.json.side_effect = ValueError()
+            return resp
+
+        mock_get.side_effect = get_side_effect
+
+        result = discover_legistar_client("Berkeley")
+        assert result is not None
+        assert result["client_name"] == "cityofberkeley"
+
+    @patch('civicos_extraction.platform_detection.requests.get')
+    def test_returns_none_when_not_found(self, mock_get):
+        """Test returns None when no Legistar instance found."""
+        mock_response = MagicMock()
+        mock_response.status_code = 404
+        mock_get.return_value = mock_response
+
+        result = discover_legistar_client("Nonexistent City")
+        assert result is None
+
+    @patch('civicos_extraction.platform_detection.requests.get')
+    def test_skips_empty_body_list(self, mock_get):
+        """Test skips responses with empty body list."""
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = []
+        mock_get.return_value = mock_response
+
+        result = discover_legistar_client("EmptyCity")
+        assert result is None
+
+
+class TestDiscoverCivicClerkSubdomain:
+    """Test CivicClerk subdomain auto-discovery."""
+
+    @patch('civicos_extraction.platform_detection.requests.get')
+    def test_discovers_slug_state_pattern(self, mock_get):
+        """Test discovery with slug+state pattern (e.g., elcerritoca)."""
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "value": [
+                {"BoardId": 1, "BoardName": "City Council"},
+            ]
+        }
+        mock_get.return_value = mock_response
+
+        result = discover_civicclerk_subdomain("El Cerrito")
+        assert result is not None
+        assert result["subdomain"] == "elcerritoca"
+        assert result["board_count"] == 1
+
+    @patch('civicos_extraction.platform_detection.requests.get')
+    def test_discovers_plain_slug(self, mock_get):
+        """Test discovery with plain slug (first pattern fails)."""
+        def get_side_effect(url, **kwargs):
+            resp = MagicMock()
+            if "elcerritoca" in url:
+                resp.status_code = 404
+                resp.json.side_effect = ValueError()
+            elif "elcerrito.api" in url:
+                resp.status_code = 200
+                resp.json.return_value = {"value": [{"BoardId": 1}]}
+            else:
+                resp.status_code = 404
+                resp.json.side_effect = ValueError()
+            return resp
+
+        mock_get.side_effect = get_side_effect
+
+        result = discover_civicclerk_subdomain("El Cerrito")
+        assert result is not None
+        assert result["subdomain"] == "elcerrito"
+
+    @patch('civicos_extraction.platform_detection.requests.get')
+    def test_returns_none_when_not_found(self, mock_get):
+        """Test returns None when no CivicClerk instance found."""
+        mock_response = MagicMock()
+        mock_response.status_code = 404
+        mock_get.return_value = mock_response
+
+        result = discover_civicclerk_subdomain("Nonexistent City")
+        assert result is None
+
+    @patch('civicos_extraction.platform_detection.requests.get')
+    def test_handles_list_response(self, mock_get):
+        """Test handles direct list response (non-OData)."""
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = [{"BoardId": 1, "BoardName": "Council"}]
+        mock_get.return_value = mock_response
+
+        result = discover_civicclerk_subdomain("Hayward")
+        assert result is not None
+        assert result["board_count"] == 1
+
+
+class TestDiscoverPlatform:
+    """Test the unified discover_platform orchestrator."""
+
+    @patch('civicos_extraction.platform_detection.discover_legistar_client')
+    def test_discovers_legistar(self, mock_legistar):
+        """Test returns Legistar when API responds."""
+        mock_legistar.return_value = {
+            "client_name": "berkeley",
+            "body_count": 5,
+            "url": "https://webapi.legistar.com/v1/berkeley/bodies",
+        }
+
+        result = discover_platform("Berkeley", "ca")
+        assert result is not None
+        assert result["platform"] == "legistar"
+        assert result["confidence"] == 0.95
+        assert result["details"]["client_name"] == "berkeley"
+
+    @patch('civicos_extraction.platform_detection.discover_legistar_client')
+    @patch('civicos_extraction.platform_detection.discover_civicclerk_subdomain')
+    def test_discovers_civicclerk(self, mock_cc, mock_leg):
+        """Test falls through to CivicClerk when Legistar fails."""
+        mock_leg.return_value = None
+        mock_cc.return_value = {
+            "subdomain": "elcerritoca",
+            "board_count": 3,
+            "url": "https://elcerritoca.api.civicclerk.com/v1/Boards",
+        }
+
+        result = discover_platform("El Cerrito", "ca")
+        assert result is not None
+        assert result["platform"] == "civicclerk"
+
+    @patch('civicos_extraction.platform_detection.discover_legistar_client')
+    @patch('civicos_extraction.platform_detection.discover_civicclerk_subdomain')
+    @patch('civicos_extraction.platform_detection.discover_granicus_subdomain')
+    def test_discovers_granicus(self, mock_gran, mock_cc, mock_leg):
+        """Test falls through to Granicus when Legistar+CivicClerk fail."""
+        mock_leg.return_value = None
+        mock_cc.return_value = None
+        mock_gran.return_value = {
+            "subdomain": "dublin",
+            "view_id": 1,
+            "url": "https://dublin.granicus.com/ViewPublisher.php?view_id=1",
+            "table_count": 3,
+        }
+
+        result = discover_platform("Dublin", "ca")
+        assert result is not None
+        assert result["platform"] == "granicus"
+
+    @patch('civicos_extraction.platform_detection.discover_legistar_client')
+    @patch('civicos_extraction.platform_detection.discover_civicclerk_subdomain')
+    @patch('civicos_extraction.platform_detection.discover_granicus_subdomain')
+    @patch('civicos_extraction.platform_detection._detect_proudcity')
+    def test_discovers_proudcity(self, mock_pc, mock_gran, mock_cc, mock_leg):
+        """Test falls through to ProudCity website guessing."""
+        mock_leg.return_value = None
+        mock_cc.return_value = None
+        mock_gran.return_value = None
+        mock_pc.return_value = (0.90, {"meeting_type_count": 6, "discovered_meeting_types": ["city-council"]})
+
+        result = discover_platform("San Rafael", "ca")
+        assert result is not None
+        assert result["platform"] == "proudcity"
+
+    @patch('civicos_extraction.platform_detection.discover_legistar_client')
+    @patch('civicos_extraction.platform_detection.discover_civicclerk_subdomain')
+    @patch('civicos_extraction.platform_detection.discover_granicus_subdomain')
+    @patch('civicos_extraction.platform_detection._detect_proudcity')
+    def test_returns_none_when_nothing_found(self, mock_pc, mock_gran, mock_cc, mock_leg):
+        """Test returns None when no platform found."""
+        mock_leg.return_value = None
+        mock_cc.return_value = None
+        mock_gran.return_value = None
+        mock_pc.return_value = (0.0, {"meeting_type_count": 0})
+
+        result = discover_platform("Unknown City", "ca")
+        assert result is None
+
+
+# ── Geocoding & State Slug Tests ──────────────────────────────────
+
+
+from civicos_extraction.onboard import geocode_city, _state_abbrev_to_slug
+
+
+class TestStateAbbrevToSlug:
+    """Test state abbreviation to jurisdiction slug conversion."""
+
+    def test_california(self):
+        assert _state_abbrev_to_slug("CA") == "california"
+
+    def test_texas(self):
+        assert _state_abbrev_to_slug("TX") == "texas"
+
+    def test_new_york(self):
+        assert _state_abbrev_to_slug("NY") == "new-york"
+
+    def test_north_carolina(self):
+        assert _state_abbrev_to_slug("NC") == "north-carolina"
+
+    def test_dc(self):
+        assert _state_abbrev_to_slug("DC") == "district-of-columbia"
+
+    def test_lowercase_input(self):
+        assert _state_abbrev_to_slug("or") == "oregon"
+
+    def test_unknown_abbrev(self):
+        assert _state_abbrev_to_slug("ZZ") == ""
+
+
+def _mock_geocode_response(city, county, state_long, state_abbrev, zip_code):
+    """Build a mock Google Maps geocoding API response."""
+    components = [
+        {"long_name": city, "short_name": city, "types": ["locality"]},
+        {"long_name": state_long, "short_name": state_abbrev, "types": ["administrative_area_level_1"]},
+        {"long_name": zip_code, "short_name": zip_code, "types": ["postal_code"]},
+        {"long_name": "United States", "short_name": "US", "types": ["country"]},
+    ]
+    if county:
+        components.insert(1, {"long_name": county, "short_name": county, "types": ["administrative_area_level_2"]})
+    return {
+        "status": "OK",
+        "results": [{"address_components": components}],
+    }
+
+
+class TestGeocodeCity:
+    """Test geocode_city() with mocked API responses."""
+
+    @patch("civicos_extraction.onboard.requests.get")
+    def test_california_city(self, mock_get):
+        """Berkeley, CA should get state-california parent."""
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = _mock_geocode_response(
+            "Berkeley", "Alameda County", "California", "CA", "94704"
+        )
+        mock_resp.raise_for_status = MagicMock()
+        mock_get.return_value = mock_resp
+
+        result = geocode_city("Berkeley", "CA", api_key="test-key")
+        assert result is not None
+        assert result["parent_jurisdictions"] == [
+            "county-alameda", "state-california", "country-united-states"
+        ]
+
+    @patch("civicos_extraction.onboard.requests.get")
+    def test_texas_city(self, mock_get):
+        """Austin, TX should get state-texas parent, not state-california."""
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = _mock_geocode_response(
+            "Austin", "Travis County", "Texas", "TX", "78701"
+        )
+        mock_resp.raise_for_status = MagicMock()
+        mock_get.return_value = mock_resp
+
+        result = geocode_city("Austin", "TX", api_key="test-key")
+        assert result is not None
+        assert result["parent_jurisdictions"] == [
+            "county-travis", "state-texas", "country-united-states"
+        ]
+        assert result["state"] == "Texas"
+        assert result["state_abbrev"] == "TX"
+
+    @patch("civicos_extraction.onboard.requests.get")
+    def test_new_york_no_county(self, mock_get):
+        """New York City has no county in geocoding response."""
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = _mock_geocode_response(
+            "New York", "", "New York", "NY", "10001"
+        )
+        mock_resp.raise_for_status = MagicMock()
+        mock_get.return_value = mock_resp
+
+        result = geocode_city("New York", "NY", api_key="test-key")
+        assert result is not None
+        assert result["parent_jurisdictions"] == [
+            "state-new-york", "country-united-states"
+        ]
+
+    def test_no_api_key(self):
+        """Should return None when no API key is available."""
+        with patch.dict("os.environ", {}, clear=True):
+            result = geocode_city("Berkeley", "CA", api_key=None)
+        assert result is None
+
+    @patch("civicos_extraction.onboard.requests.get")
+    def test_api_failure(self, mock_get):
+        """Should return None on API failure."""
+        mock_get.side_effect = requests.RequestException("timeout")
+        result = geocode_city("Berkeley", "CA", api_key="test-key")
+        assert result is None
+
+    @patch("civicos_extraction.onboard.requests.get")
+    def test_multi_word_state(self, mock_get):
+        """West Virginia should become state-west-virginia."""
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = _mock_geocode_response(
+            "Charleston", "Kanawha County", "West Virginia", "WV", "25301"
+        )
+        mock_resp.raise_for_status = MagicMock()
+        mock_get.return_value = mock_resp
+
+        result = geocode_city("Charleston", "WV", api_key="test-key")
+        assert result is not None
+        assert "state-west-virginia" in result["parent_jurisdictions"]

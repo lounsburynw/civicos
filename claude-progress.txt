@@ -21723,3 +21723,70 @@ Fix F1 (Granicus subdomain discovery) and F5 (registry generation from YAML) to 
 - `packages/civicos-extraction/tests/test_generate_registries.py` — NEW: registry gen tests
 - `docs/internal/onboarding-friction-log.md` — documented resolutions
 - `launch.json` — turnkey_onboarding marked done
+
+### Session 2026-03-12: Multi-Platform Discovery + LLM Column Maps
+
+**P0: Turnkey Onboarding — Multi-Platform Discovery**
+
+**Part 1: Multi-Platform Discovery**
+- Added `discover_legistar_client()` — probes 3 slug patterns against Legistar API
+- Added `discover_civicclerk_subdomain()` — probes 3 slug patterns, fixed to use Events endpoint (Boards returns 404)
+- Added `discover_platform()` orchestrator — tries Legistar → CivicClerk → Granicus → ProudCity
+- Fixed `_detect_civicclerk()` — now probes Events?$top=1 before Boards?$top=1
+
+**Part 2: Geocoding Enrichment**
+- Added `geocode_city()` in onboard.py — Google Maps API for county/zip/parent_jurisdictions
+- Updated `_generate_jurisdiction_yaml()` — accepts county, zip_code, state_abbrev
+- Updated `onboard_jurisdiction()` — uses discover_platform() (was Granicus-only) + geocoding
+
+**Part 3: LLM Column Map for Granicus**
+- Added `GranicusClient.generate_column_map()` — Gemini Flash infers column mapping from HTML
+- Updated `_parse_table()` — uses column_map when available, positional fallback for headerless tables
+- Column map saved in extraction config, eliminates per-layout parser brittleness
+
+**Part 4: Onboarding Pipeline Fix**
+- Fixed handoff gap: discover_platform() already identified platform but onboard_jurisdiction() was re-detecting from API URL (which failed). Now skips re-detection when pre-discovered.
+
+**Verified End-to-End:**
+- Berkeley: Granicus → column_map {name:0, date:1, duration:2, agenda:3, video:4} → 17 meetings
+- El Cerrito: CivicClerk → 9 meetings, Contra Costa County
+- Dublin: Legistar → 26 meetings, Alameda County
+- Oakland: Legistar → 26 meetings, Alameda County
+- Mill Valley: Granicus → regression pass
+- San Rafael: ProudCity → regression pass
+
+**Tests:** 44/44 platform detection, 20/20 smoke, all 3 existing jurisdictions verified
+
+**Files modified:**
+- `packages/civicos-extraction/src/civicos_extraction/platform_detection.py` — 3 new discovery functions + CivicClerk fix
+- `packages/civicos-extraction/src/civicos_extraction/onboard.py` — geocoding, multi-platform, pre-discovered path
+- `packages/civicos-extraction/src/civicos_extraction/clients/granicus.py` — column_map, generate_column_map(), positional fallback
+- `packages/civicos-extraction/tests/test_platform_detection.py` — 13 new tests
+
+**Remaining gaps:**
+- geocode_city() hardcodes state-california (5-min fix)
+- Config → Postgres ingestion is manual
+- CivicClerk meeting titles are generic ("Meeting")
+- Legistar API intermittent 500s (their issue)
+
+## Session — 2026-03-12: onboard_berkeley (P0)
+
+**Goal:** Harden turnkey onboarding — fix hardcoded state-california, stress test out-of-state cities
+
+**Completed:**
+1. Fixed `geocode_city()` (onboard.py:435) — replaced hardcoded "state-california" with dynamic state slug from Google Maps geocoding response
+2. Fixed `_generate_jurisdiction_yaml()` fallback (onboard.py:488) — uses `_state_abbrev_to_slug()` instead of hardcoded California
+3. Added `_US_STATES` lookup dict (50 states + DC) and `_state_abbrev_to_slug()` helper
+4. Added 13 new tests: 7 for state slug conversion, 6 for geocode_city() (mocked HTTP)
+5. Stress tested geocoding: Berkeley/CA, Austin/TX, Portland/OR, NYC/NY, Chicago/IL — all correct
+6. Stress tested platform discovery: Berkeley (Granicus 95%), SF (Granicus 95%), Austin (ProudCity 50%), Portland (not found)
+7. E2E validation: Austin/TX onboarding generates `state-texas`, `county-travis` correctly
+
+**Tests:** 57/57 pass (44 original + 13 new)
+**Regressions:** All 3 existing jurisdictions verified (San Rafael 95, Mill Valley 56, San Anselmo 169 meetings)
+
+**Files modified:**
+- `packages/civicos-extraction/src/civicos_extraction/onboard.py` — geocoding fix + state slug helper
+- `packages/civicos-extraction/tests/test_platform_detection.py` — 13 new tests
+
+**Next P0:** `onboard_county_alameda` — Onboard Alameda County as parent jurisdiction for Berkeley

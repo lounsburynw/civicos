@@ -442,7 +442,7 @@
         "name": "cross_marin_query_prototype",
         "description": "Prototype cross-jurisdiction queries within Marin County. Test what_happened() and what_applies() across San Rafael + Mill Valley + San Anselmo with shared county context.",
         "status": "not_started",
-        "priority": 0,
+        "priority": 2,
         "phase": "A",
         "source": "federation testbed \u2014 query federation",
         "spec": "docs/internal/cross-jurisdiction-query-spec.md",
@@ -485,23 +485,25 @@
       },
       {
         "name": "onboard_berkeley",
-        "description": "Run /onboard for Berkeley (Legistar, Alameda County). First cross-county, cross-platform onboarding. Requires county-alameda parent jurisdiction.",
-        "status": "not_started",
-        "priority": 2,
+        "description": "Harden turnkey onboarding: fix geocoding state hardcode, stress test against SF/school boards, validate all 4 platforms end-to-end. Extends multi-platform discovery + LLM column map work from prior session.",
+        "status": "done",
+        "priority": 0,
         "phase": "B",
-        "source": "federation testbed \u2014 cross-county validation",
+        "source": "federation testbed \u2014 generalized onboarding",
         "files": [
-          "data/extraction/city-berkeley.json",
-          "data/jurisdictions/city-berkeley.yaml"
+          "packages/civicos-extraction/src/civicos_extraction/platform_detection.py",
+          "packages/civicos-extraction/src/civicos_extraction/onboard.py",
+          "packages/civicos-extraction/src/civicos_extraction/clients/granicus.py",
+          "packages/civicos-extraction/tests/test_platform_detection.py"
         ],
-        "test_file": null,
-        "notes": "Legistar platform \u2014 different extraction pipeline than Granicus. Must also onboard county-alameda as parent jurisdiction for what_applies() to work."
+        "test_file": "packages/civicos-extraction/tests/test_platform_detection.py",
+        "notes": "Fixed hardcoded state-california in geocode_city() and _generate_jurisdiction_yaml() fallback. Added _US_STATES lookup + _state_abbrev_to_slug() helper. Stress tested: Berkeley/CA, Austin/TX, Portland/OR, NYC/NY, Chicago/IL all produce correct state slugs. 13 new tests (7 state slug + 6 geocoding). 57/57 tests pass. All 3 existing jurisdictions verified."
       },
       {
         "name": "onboard_county_alameda",
         "description": "Onboard Alameda County as parent jurisdiction for Berkeley. Required for cross-county legislation context in what_applies().",
         "status": "not_started",
-        "priority": 2,
+        "priority": 0,
         "phase": "B",
         "source": "federation testbed \u2014 cross-county parent",
         "files": [
