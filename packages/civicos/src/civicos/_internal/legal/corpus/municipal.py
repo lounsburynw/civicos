@@ -202,6 +202,61 @@ class MunicipalCodeCorpus:
             return _PARSER_REGISTRY[jurisdiction_id](jurisdiction_id, **kwargs)
         return cls(jurisdiction_id, **kwargs)
 
+    def _infer_jurisdiction_info(self) -> dict:
+        """Infer Municode lookup info from jurisdiction ID and YAML config.
+
+        Attempts to derive (state, name) from:
+        1. Jurisdiction YAML file (data/jurisdictions/{id}.yaml)
+        2. Jurisdiction ID parsing (e.g., "city-san-rafael" -> "San Rafael", state from YAML)
+
+        Returns dict with 'state', 'name', and optionally 'product_name'.
+        """
+        jid = self.jurisdiction_id
+
+        # Try loading jurisdiction YAML for state info
+        state = None
+        yaml_name = None
+        try:
+            from pathlib import Path
+            # Walk up to find repo root (contains data/jurisdictions/)
+            p = Path(__file__).resolve()
+            for parent in p.parents:
+                yaml_path = parent / "data" / "jurisdictions" / f"{jid}.yaml"
+                if yaml_path.exists():
+                    import yaml
+                    with open(yaml_path) as f:
+                        data = yaml.safe_load(f)
+                    if data:
+                        state = data.get("state") or data.get("financial", {}).get("state")
+                        yaml_name = data.get("display_name")
+                    break
+        except Exception:
+            pass
+
+        # Derive city/county name from jurisdiction ID
+        # e.g., "city-san-rafael" -> "San Rafael", "county-marin" -> "Marin County"
+        parts = jid.split("-", 1)
+        if len(parts) == 2:
+            level, slug = parts
+            name = yaml_name or " ".join(w.capitalize() for w in slug.split("-"))
+            if level == "county" and not name.lower().endswith("county"):
+                name = f"{name} County"
+        else:
+            name = yaml_name or jid
+
+        if not state:
+            raise ValueError(
+                f"Cannot infer state for {jid}. "
+                f"Either add it to JURISDICTION_MAP or create data/jurisdictions/{jid}.yaml with a 'state' field."
+            )
+
+        # Counties often use "Municipal Code" instead of "Code of Ordinances"
+        product_name = "Municipal Code" if jid.startswith("county-") else "Code of Ordinances"
+
+        import logging
+        logging.getLogger(__name__).info(f"Inferred Municode lookup: {name}, {state} (product: {product_name})")
+        return {"state": state, "name": name, "product_name": product_name}
+
     def _get_client(self) -> httpx.Client:
         """Get or create HTTP client."""
         if self._client is None:
@@ -233,14 +288,12 @@ class MunicipalCodeCorpus:
         if self._client_id and self._product_id and self._job_id:
             return self._client_id, self._product_id, self._job_id
 
-        # Look up jurisdiction info
-        if self.jurisdiction_id not in self.JURISDICTION_MAP:
-            raise ValueError(
-                f"Unknown jurisdiction: {self.jurisdiction_id}. "
-                f"Known: {list(self.JURISDICTION_MAP.keys())}"
-            )
+        # Look up jurisdiction info — check hardcoded map first, then infer
+        if self.jurisdiction_id in self.JURISDICTION_MAP:
+            jur_info = self.JURISDICTION_MAP[self.jurisdiction_id]
+        else:
+            jur_info = self._infer_jurisdiction_info()
 
-        jur_info = self.JURISDICTION_MAP[self.jurisdiction_id]
         state = jur_info["state"]
         name = jur_info["name"]
         product_name = jur_info.get("product_name", "Code of Ordinances")
