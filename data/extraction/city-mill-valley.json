@@ -4,15 +4,11 @@
   "jurisdiction_id": "city-mill-valley",
   "base_url": "https://cityofmillvalley.granicus.com",
   "archives": {
-    "all_bodies": "2"
+    "new_view": "2",
+    "tabbed_view": "3"
   },
   "metadata": {
     "granicus_domain": "cityofmillvalley",
-    "default_view_id": "2",
-    "notes": "View 2 and 3 contain same data (City Council, Planning Commission, Parks & Rec). Using view 2 as primary. All bodies combined in single view (no per-body view IDs)."
-  },
-  "financial": {
-    "state": "CA",
-    "county": "Marin"
+    "default_view_id": "1"
   }
 }

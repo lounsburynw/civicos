@@ -1,10 +1,10 @@
 {
   "jurisdiction_id": "city-san-anselmo",
-  "last_meeting_id": "granicus-city-san-anselmo-8-20260108-general-plan-advisory-committee",
-  "items_processed": 115,
-  "items_extracted": 93,
+  "last_meeting_id": "granicus-city-san-anselmo-8-20260316-planning-commission",
+  "items_processed": 133,
+  "items_extracted": 107,
   "items_skipped": 0,
-  "items_failed": 12,
-  "total_agenda_items": 613,
-  "timestamp": "2026-03-11T14:20:05.478534"
+  "items_failed": 16,
+  "total_agenda_items": 720,
+  "timestamp": "2026-03-11T14:23:57.230097"
 }

@@ -1,0 +1,13 @@
+[
+  {
+    "meeting_id": "meeting:county-marin:granicus:bos-meeting-251104-2025-11-04",
+    "meeting_title": "BOS Meeting 251104",
+    "meeting_date": "2025-11-04",
+    "meeting_page_url": "https://marin.granicus.com/AgendaViewer.php?view_id=36&clip_id=12800",
+    "pdf_url": "https://marin.granicus.com/AgendaViewer.php?view_id=36&clip_id=12800",
+    "status": "error",
+    "parse_failure_reason": null,
+    "error": "name 'pdf_url' is not defined",
+    "timestamp": "2026-02-20T14:24:58.853094"
+  }
+]
