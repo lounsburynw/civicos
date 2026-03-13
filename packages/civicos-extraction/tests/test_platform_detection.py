@@ -831,3 +831,237 @@ class TestGeocodeCity:
         result = geocode_city("Charleston", "WV", api_key="test-key")
         assert result is not None
         assert "state-west-virginia" in result["parent_jurisdictions"]
+
+    @patch("civicos_extraction.onboard.requests.get")
+    def test_canadian_city(self, mock_get):
+        """Toronto, ON should get province-ontario → country-canada chain."""
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = {
+            "status": "OK",
+            "results": [{
+                "address_components": [
+                    {"long_name": "Toronto", "short_name": "Toronto", "types": ["locality"]},
+                    {"long_name": "Ontario", "short_name": "ON", "types": ["administrative_area_level_1"]},
+                    {"long_name": "M5V", "short_name": "M5V", "types": ["postal_code"]},
+                    {"long_name": "Canada", "short_name": "CA", "types": ["country"]},
+                ],
+            }],
+        }
+        mock_resp.raise_for_status = MagicMock()
+        mock_get.return_value = mock_resp
+
+        result = geocode_city("Toronto", "ON", api_key="test-key")
+        assert result is not None
+        assert result["parent_jurisdictions"] == [
+            "province-ontario", "country-canada"
+        ]
+        assert result["country"] == "Canada"
+
+    @patch("civicos_extraction.onboard.requests.get")
+    def test_uk_city(self, mock_get):
+        """Manchester, UK should get country-united-kingdom (flat)."""
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = {
+            "status": "OK",
+            "results": [{
+                "address_components": [
+                    {"long_name": "Manchester", "short_name": "Manchester", "types": ["locality"]},
+                    {"long_name": "Greater Manchester", "short_name": "Greater Manchester", "types": ["administrative_area_level_2"]},
+                    {"long_name": "England", "short_name": "England", "types": ["administrative_area_level_1"]},
+                    {"long_name": "M1", "short_name": "M1", "types": ["postal_code"]},
+                    {"long_name": "United Kingdom", "short_name": "GB", "types": ["country"]},
+                ],
+            }],
+        }
+        mock_resp.raise_for_status = MagicMock()
+        mock_get.return_value = mock_resp
+
+        result = geocode_city("Manchester", "UK", api_key="test-key")
+        assert result is not None
+        assert result["parent_jurisdictions"] == ["country-united-kingdom"]
+        assert result["country"] == "United Kingdom"
+
+
+# ── Track A: Platform Discovery Hardening Tests ─────────────────
+
+
+class TestDiscoverCivicClerkMultiState:
+    """Test CivicClerk discovery with non-CA states."""
+
+    @patch('civicos_extraction.platform_detection.requests.get')
+    def test_discovers_tx_subdomain(self, mock_get):
+        """Texas city uses slug+tx pattern (e.g., austintx)."""
+        def get_side_effect(url, **kwargs):
+            resp = MagicMock()
+            if "austintx.api.civicclerk.com" in url:
+                resp.status_code = 200
+                resp.json.return_value = {"value": [{"BoardId": 1}]}
+            else:
+                resp.status_code = 404
+                resp.json.side_effect = ValueError()
+            return resp
+
+        mock_get.side_effect = get_side_effect
+
+        result = discover_civicclerk_subdomain("Austin", state="tx")
+        assert result is not None
+        assert result["subdomain"] == "austintx"
+
+    @patch('civicos_extraction.platform_detection.requests.get')
+    def test_discovers_townof_pattern(self, mock_get):
+        """Town-of pattern works for small municipalities."""
+        def get_side_effect(url, **kwargs):
+            resp = MagicMock()
+            if "townofelcerrito.api.civicclerk.com" in url:
+                resp.status_code = 200
+                resp.json.return_value = {"value": [{"BoardId": 1}]}
+            else:
+                resp.status_code = 404
+                resp.json.side_effect = ValueError()
+            return resp
+
+        mock_get.side_effect = get_side_effect
+
+        result = discover_civicclerk_subdomain("El Cerrito", state="ca")
+        assert result is not None
+        assert result["subdomain"] == "townofelcerrito"
+
+
+class TestDiscoverLegistarCounty:
+    """Test Legistar discovery with county/town patterns."""
+
+    @patch('civicos_extraction.platform_detection.requests.get')
+    def test_discovers_countyof_pattern(self, mock_get):
+        """County-of pattern matches (e.g., countyofmarin)."""
+        def get_side_effect(url, **kwargs):
+            resp = MagicMock()
+            if "countyofmarin" in url:
+                resp.status_code = 200
+                resp.json.return_value = [{"BodyId": 1, "BodyName": "BOS"}]
+            else:
+                resp.status_code = 404
+                resp.json.side_effect = ValueError()
+            return resp
+
+        mock_get.side_effect = get_side_effect
+
+        result = discover_legistar_client("Marin", state="ca")
+        assert result is not None
+        assert result["client_name"] == "countyofmarin"
+
+    @patch('civicos_extraction.platform_detection.requests.get')
+    def test_discovers_townof_pattern(self, mock_get):
+        """Town-of pattern matches."""
+        def get_side_effect(url, **kwargs):
+            resp = MagicMock()
+            if "townofsananselmo" in url:
+                resp.status_code = 200
+                resp.json.return_value = [{"BodyId": 1, "BodyName": "TC"}]
+            else:
+                resp.status_code = 404
+                resp.json.side_effect = ValueError()
+            return resp
+
+        mock_get.side_effect = get_side_effect
+
+        result = discover_legistar_client("San Anselmo", state="ca")
+        assert result is not None
+        assert result["client_name"] == "townofsananselmo"
+
+
+class TestDiscoverPlatformProudCityGov:
+    """Test ProudCity discovery with .gov TLDs."""
+
+    @patch('civicos_extraction.platform_detection.discover_legistar_client')
+    @patch('civicos_extraction.platform_detection.discover_civicclerk_subdomain')
+    @patch('civicos_extraction.platform_detection.discover_granicus_subdomain')
+    @patch('civicos_extraction.platform_detection._detect_proudcity')
+    def test_discovers_gov_url(self, mock_pc, mock_gran, mock_cc, mock_leg):
+        """ProudCity discovery tries .gov URLs."""
+        mock_leg.return_value = None
+        mock_cc.return_value = None
+        mock_gran.return_value = None
+
+        def pc_side_effect(url, **kwargs):
+            if url.endswith(".gov"):
+                return (0.90, {"meeting_type_count": 5})
+            return (0.0, {"meeting_type_count": 0})
+
+        mock_pc.side_effect = pc_side_effect
+
+        result = discover_platform("Test City", "ca")
+        assert result is not None
+        assert result["platform"] == "proudcity"
+        assert ".gov" in result["details"]["url"]
+
+
+# ── Track B: Body Discovery Tests ───────────────────────────────
+
+
+class TestDiscoverLegistarBodies:
+    """Test Legistar body discovery via _discover_legistar."""
+
+    def test_discovers_bodies(self):
+        """Bodies are extracted and keyed correctly."""
+        from civicos_extraction.onboard import _discover_legistar
+
+        mock_client = MagicMock()
+        mock_client.get_bodies.return_value = [
+            {"BodyId": 1, "BodyName": "City Council"},
+            {"BodyId": 2, "BodyName": "Planning Commission"},
+            {"BodyId": 3, "BodyName": "Zoning Board of Appeals"},
+        ]
+
+        with patch("civicos_extraction.clients.legistar.LegistarClient", return_value=mock_client):
+            result = _discover_legistar("berkeley", "city-berkeley")
+
+        assert result["discovered_bodies"]["city_council"] == "1"
+        assert result["discovered_bodies"]["planning_commission"] == "2"
+        assert result["discovered_bodies"]["zoning_board_of_appeals"] == "3"
+        assert result["config"]["source_type"] == "legistar"
+        assert result["config"]["archives"] == result["discovered_bodies"]
+
+
+class TestDiscoverCivicClerkBoards:
+    """Test CivicClerk board discovery via _discover_civicclerk."""
+
+    def test_discovers_boards(self):
+        """Boards are extracted and keyed correctly."""
+        from civicos_extraction.onboard import _discover_civicclerk
+
+        mock_client = MagicMock()
+        mock_client.get_boards.return_value = [
+            {"BoardId": 10, "BoardName": "City Council"},
+            {"BoardId": 20, "BoardName": "Design Review Board"},
+        ]
+
+        with patch("civicos_extraction.clients.civicclerk.CivicClerkClient", return_value=mock_client):
+            result = _discover_civicclerk("elcerritoca", "city-el-cerrito")
+
+        assert result["discovered_bodies"]["city_council"] == "10"
+        assert result["discovered_bodies"]["design_review_board"] == "20"
+        assert result["config"]["source_type"] == "civicclerk"
+
+
+# ── Track C: International Support Tests ─────────────────────────
+
+
+from civicos_extraction.onboard import _CANADIAN_PROVINCES
+
+
+class TestCanadianProvinces:
+    """Test Canadian province support."""
+
+    def test_ontario_slug(self):
+        assert _state_abbrev_to_slug("ON") == "ontario"
+
+    def test_british_columbia_slug(self):
+        assert _state_abbrev_to_slug("BC") == "british-columbia"
+
+    def test_quebec_slug(self):
+        assert _state_abbrev_to_slug("QC") == "quebec"
+
+    def test_us_states_still_work(self):
+        """US states are checked first and still work."""
+        assert _state_abbrev_to_slug("CA") == "california"
+        assert _state_abbrev_to_slug("TX") == "texas"

@@ -292,7 +292,7 @@ def _infer_jurisdiction_id(url: str) -> Optional[str]:
 
 
 def _discover_granicus(url: str, jurisdiction_id: str) -> Dict[str, Any]:
-    """Run Granicus-specific discovery, including LLM column map generation."""
+    """Run Granicus-specific discovery, including LLM column map and body name generation."""
     from civicos_extraction.clients.granicus import GranicusClient
 
     match = re.match(r"https?://([^.]+)\.granicus\.com", url)
@@ -303,14 +303,23 @@ def _discover_granicus(url: str, jurisdiction_id: str) -> Dict[str, Any]:
         jurisdiction_id=jurisdiction_id,
     )
 
-    discovered = client.discover_view_ids()
+    # Step 1: Probe view_ids to find pages with meeting data
+    raw_views = client.discover_view_ids()
+
+    # Step 2: Use LLM to assign body names (one-time, ~$0.0001)
+    try:
+        discovered = client.generate_body_names(raw_views)
+        logger.info(f"Body names generated via LLM: {discovered}")
+    except Exception as e:
+        logger.warning(f"LLM body name generation failed, using view_N fallback: {e}")
+        discovered = {f"view_{vid}": vid for vid in raw_views}
 
     # Determine best default view_id from discovery
     default_view_id = "1"
     if discovered:
         default_view_id = next(iter(discovered.values()))
 
-    # Generate column map via LLM (one-time, ~$0.0001)
+    # Step 3: Generate column map via LLM (one-time, ~$0.0001)
     column_map = None
     try:
         column_map = client.generate_column_map(view_id=default_view_id)
@@ -384,10 +393,20 @@ _US_STATES = {
     "WI": "Wisconsin", "WY": "Wyoming", "DC": "District of Columbia",
 }
 
+_CANADIAN_PROVINCES = {
+    "AB": "Alberta", "BC": "British Columbia", "MB": "Manitoba",
+    "NB": "New Brunswick", "NL": "Newfoundland and Labrador",
+    "NS": "Nova Scotia", "NT": "Northwest Territories",
+    "NU": "Nunavut", "ON": "Ontario", "PE": "Prince Edward Island",
+    "QC": "Quebec", "SK": "Saskatchewan", "YT": "Yukon",
+}
+
 
 def _state_abbrev_to_slug(abbrev: str) -> str:
-    """Convert state abbreviation to jurisdiction slug (e.g., 'CA' -> 'california', 'NY' -> 'new-york')."""
+    """Convert state/province abbreviation to jurisdiction slug (e.g., 'CA' -> 'california', 'ON' -> 'ontario')."""
     name = _US_STATES.get(abbrev.upper(), "")
+    if not name:
+        name = _CANADIAN_PROVINCES.get(abbrev.upper(), "")
     if not name:
         return ""
     return name.lower().replace(" ", "-")
@@ -450,20 +469,46 @@ def geocode_city(
                 parsed["state_abbrev"] = comp["short_name"]
             elif "postal_code" in types:
                 parsed["zip_code"] = comp["short_name"]
+            elif "country" in types:
+                parsed["country"] = comp["long_name"]
+                parsed["country_code"] = comp["short_name"]
 
-        # Build parent_jurisdictions from county
+        # Build parent_jurisdictions based on country
+        country = parsed.get("country", "")
+        if not country:
+            # No country in response — infer from state abbreviation
+            if parsed.get("state_abbrev", "").upper() in _CANADIAN_PROVINCES:
+                country = "Canada"
+            else:
+                country = "United States"  # safe default for this product's scope
+        country_slug = country.strip().lower().replace(" ", "-")
         county_name = parsed.get("county", "")
         parent_jurisdictions = []
-        if county_name:
-            # "Alameda County" -> "county-alameda"
-            county_slug = re.sub(r"\s*County$", "", county_name).strip().lower()
-            county_slug = re.sub(r"\s+", "-", county_slug)
-            parent_jurisdictions.append(f"county-{county_slug}")
-        state_name = parsed.get("state", "")
-        if state_name:
-            state_slug = state_name.strip().lower().replace(" ", "-")
-            parent_jurisdictions.append(f"state-{state_slug}")
-        parent_jurisdictions.append("country-united-states")
+
+        if country == "United States":
+            # US: county → state → country
+            if county_name:
+                county_slug = re.sub(r"\s*County$", "", county_name).strip().lower()
+                county_slug = re.sub(r"\s+", "-", county_slug)
+                parent_jurisdictions.append(f"county-{county_slug}")
+            state_name = parsed.get("state", "")
+            if state_name:
+                state_slug = state_name.strip().lower().replace(" ", "-")
+                parent_jurisdictions.append(f"state-{state_slug}")
+            parent_jurisdictions.append("country-united-states")
+        elif country == "Canada":
+            # Canada: province → country
+            state_name = parsed.get("state", "")
+            if state_name:
+                province_slug = state_name.strip().lower().replace(" ", "-")
+                parent_jurisdictions.append(f"province-{province_slug}")
+            parent_jurisdictions.append("country-canada")
+        elif country == "United Kingdom":
+            # UK: flat (councils don't have county/state hierarchy)
+            parent_jurisdictions.append("country-united-kingdom")
+        else:
+            # Other countries: just country
+            parent_jurisdictions.append(f"country-{country_slug}")
 
         return {
             "city": parsed.get("city", city_name),
@@ -471,6 +516,7 @@ def geocode_city(
             "state": parsed.get("state", ""),
             "state_abbrev": parsed.get("state_abbrev", state.upper()),
             "zip_code": parsed.get("zip_code", ""),
+            "country": country,
             "parent_jurisdictions": parent_jurisdictions,
         }
 
@@ -480,6 +526,60 @@ def geocode_city(
     except Exception as e:
         logger.warning(f"Geocoding error: {e}")
         return None
+
+
+def _discover_legistar(client_name: str, jurisdiction_id: str) -> Dict[str, Any]:
+    """Run Legistar-specific body discovery using the API."""
+    from civicos_extraction.clients.legistar import LegistarClient
+
+    client = LegistarClient(client_name=client_name, jurisdiction_id=jurisdiction_id)
+    bodies = client.get_bodies()
+    archives = {}
+    for body in bodies:
+        name = body.get("BodyName", "")
+        body_id = str(body.get("BodyId", ""))
+        if name and body_id:
+            key = re.sub(r"[^a-z0-9]+", "_", name.lower()).strip("_")
+            archives[key] = body_id
+
+    return {
+        "config": {
+            "source_id": f"legistar-{client_name}",
+            "source_type": "legistar",
+            "jurisdiction_id": jurisdiction_id,
+            "base_url": f"https://webapi.legistar.com/v1/{client_name}",
+            "archives": archives,
+            "metadata": {"client_name": client_name, "body_count": len(bodies)},
+        },
+        "discovered_bodies": archives,
+    }
+
+
+def _discover_civicclerk(subdomain: str, jurisdiction_id: str) -> Dict[str, Any]:
+    """Run CivicClerk-specific board discovery using the API."""
+    from civicos_extraction.clients.civicclerk import CivicClerkClient
+
+    client = CivicClerkClient(subdomain=subdomain, jurisdiction_id=jurisdiction_id)
+    boards = client.get_boards()
+    archives = {}
+    for board in boards:
+        name = board.get("BoardName", "")
+        board_id = str(board.get("BoardId", ""))
+        if name and board_id:
+            key = re.sub(r"[^a-z0-9]+", "_", name.lower()).strip("_")
+            archives[key] = board_id
+
+    return {
+        "config": {
+            "source_id": f"civicclerk-{subdomain}",
+            "source_type": "civicclerk",
+            "jurisdiction_id": jurisdiction_id,
+            "base_url": f"https://{subdomain}.api.civicclerk.com/v1",
+            "archives": archives,
+            "metadata": {"subdomain": subdomain, "board_count": len(boards)},
+        },
+        "discovered_bodies": archives,
+    }
 
 
 def _generate_jurisdiction_yaml(
@@ -678,30 +778,38 @@ def onboard_jurisdiction(
                 errors.append(f"Granicus discovery failed: {e}")
         elif platform == "legistar":
             client_name = details["client_name"]
-            discovery_result = {
-                "config": {
-                    "source_id": f"legistar-{client_name}",
-                    "source_type": "legistar",
-                    "jurisdiction_id": jurisdiction_id,
-                    "base_url": f"https://webapi.legistar.com/v1/{client_name}",
-                    "archives": {},
-                    "metadata": {"client_name": client_name, "body_count": details.get("body_count", 0)},
-                },
-                "discovered_bodies": {},
-            }
+            try:
+                discovery_result = _discover_legistar(client_name, jurisdiction_id)
+            except Exception as e:
+                errors.append(f"Legistar body discovery failed: {e}")
+                discovery_result = {
+                    "config": {
+                        "source_id": f"legistar-{client_name}",
+                        "source_type": "legistar",
+                        "jurisdiction_id": jurisdiction_id,
+                        "base_url": f"https://webapi.legistar.com/v1/{client_name}",
+                        "archives": {},
+                        "metadata": {"client_name": client_name, "body_count": details.get("body_count", 0)},
+                    },
+                    "discovered_bodies": {},
+                }
         elif platform == "civicclerk":
             subdomain = details["subdomain"]
-            discovery_result = {
-                "config": {
-                    "source_id": f"civicclerk-{subdomain}",
-                    "source_type": "civicclerk",
-                    "jurisdiction_id": jurisdiction_id,
-                    "base_url": f"https://{subdomain}.api.civicclerk.com/v1",
-                    "archives": {},
-                    "metadata": {"subdomain": subdomain, "board_count": details.get("board_count", 0)},
-                },
-                "discovered_bodies": {},
-            }
+            try:
+                discovery_result = _discover_civicclerk(subdomain, jurisdiction_id)
+            except Exception as e:
+                errors.append(f"CivicClerk board discovery failed: {e}")
+                discovery_result = {
+                    "config": {
+                        "source_id": f"civicclerk-{subdomain}",
+                        "source_type": "civicclerk",
+                        "jurisdiction_id": jurisdiction_id,
+                        "base_url": f"https://{subdomain}.api.civicclerk.com/v1",
+                        "archives": {},
+                        "metadata": {"subdomain": subdomain, "board_count": details.get("board_count", 0)},
+                    },
+                    "discovered_bodies": {},
+                }
         elif platform == "proudcity":
             try:
                 discovery_result = _discover_proudcity(url, jurisdiction_id)
