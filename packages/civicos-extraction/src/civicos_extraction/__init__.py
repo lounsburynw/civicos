@@ -86,6 +86,13 @@ from civicos_extraction.config import (
     get_hud_grantee,
     get_hud_relationship,
 )
+from civicos_extraction.onboard import (
+    onboard_jurisdiction,
+    geocode_city,
+    OnboardResult,
+    CostEstimate,
+    estimate_costs,
+)
 
 __version__ = "0.1.0"
 __all__ = [
@@ -132,4 +139,9 @@ __all__ = [
     "get_jurisdictions_with_hud_config",
     "get_hud_grantee",
     "get_hud_relationship",
+    "onboard_jurisdiction",
+    "geocode_city",
+    "OnboardResult",
+    "CostEstimate",
+    "estimate_costs",
 ]
