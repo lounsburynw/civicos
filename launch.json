@@ -389,6 +389,17 @@
         ],
         "test_file": "packages/civicos-services/tests/test_query_v2.py",
         "notes": "Cursor pagination is highest priority (blocks real agent usage). Aggregate/trend modes enable monitoring patterns. Live-data tests need DATABASE_URL."
+      },
+      {
+        "name": "query_interface_operators",
+        "description": "v2 query interface operators and cross-jurisdiction support: set operators (- for diff/monitoring, & for intersection), multi-jurisdiction fan-out, civic jargon lookup via civic.context. See docs/public/decisions/query_interface.md open questions.",
+        "status": "not_started",
+        "priority": 2,
+        "files": [
+          "packages/civicos-services/src/civicos_services/query/"
+        ],
+        "test_file": "packages/civicos-services/tests/test_query_v2.py",
+        "notes": "Depends on query_interface_hardening and multiple jurisdictions having data (extraction pipeline). Blocked until Oakland/Berkeley onboarded."
       }
     ]
   },
