@@ -1,68 +1,97 @@
-# Recommended: Deploy Marin Test Relays
+# Recommended: Issue Test Attestations for Federation Relays
 
-**Priority:** P0 (`deploy_marin_test_relays`)
-**Area:** federation_testbed (Phase A)
+**Priority:** P0 (`issue_test_attestations`)
+**Area:** federation_testbed
 **Date:** 2026-03-13
 
 > This is recommended context from the previous session. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
 
 ## Context
 
-Mill Valley and San Anselmo have been onboarded (meetings + agenda items in PostgreSQL). The next federation step is deploying separate relay instances for these jurisdictions on Modal. This validates multi-relay deployment — same code, different jurisdiction config. These are private, not public-facing.
-
-The existing San Rafael relay is deployed at `apps/civicos-relay/modal_relay.py`. The task is to deploy 2 additional instances.
+This session consolidated the relay coordination router into a self-contained package and deployed federation test relays for Mill Valley and San Anselmo on Fly.io with separate Neon Postgres databases. Three independent relays are now running across two platforms (Modal + Fly.io). The next step is generating issuer keypairs so the relays can verify attestations — a prerequisite for cross-relay voice and comment verification.
 
 ## What Was Completed This Session
 
-`query_interface_operators` (P0) is done:
-- 23 live-data integration tests against PostgreSQL (all passing)
-- RRF calibration: k=60 shows good 4:4 interleaving between corpora
-- Known issue: legislation/municipal_code timeout at 10s (what_applies takes ~40s)
+`deploy_marin_test_relays` (P0) is done:
+- **Relay consolidation**: Moved coordination router (40 endpoints, 2948 lines) from civicos_services into civicos_relay package. Relay is now fully self-contained.
+- **Dockerfile + Fly.io deployment**: `apps/civicos-relay/Dockerfile` + `fly.toml` + `scripts/deploy-relay.sh`
+- **Parameterized deployment**: `./scripts/deploy-relay.sh <jurisdiction> <platform>` (modal/fly/docker)
+- **Test relays deployed on Fly.io**:
+  - Mill Valley: `https://civicos-relay-mill-valley.fly.dev/health`
+  - San Anselmo: `https://civicos-relay-san-anselmo.fly.dev/health`
+- **Separate Neon Postgres databases**: Full schema (21 coordination tables each), $0/mo free tier
+- **Production relay unchanged**: San Rafael still on Modal with Supabase
+
+Also discussed but deferred:
+- Multi-tenant MCP consolidation (free up Modal endpoint slots) — separate session
+- Peer sync configuration (RELAY_PEERS) — after attestation setup
 
 ## Recommended Task
 
-Deploy 2 additional relay instances on Modal for Mill Valley and San Anselmo.
+Generate issuer keypairs for Mill Valley and San Anselmo. Register them in each relay's issuer_registry table. Verify that attestation issuance and verification work across the three relays.
 
-### Approach Options
+### Key Files
 
-1. **Separate Modal apps** — one `modal_relay.py` per jurisdiction (simplest, some duplication)
-2. **Parameterized single app** — one `modal_relay.py` that accepts jurisdiction via env var or Modal secret
-3. **Multi-jurisdiction single app** — one app serving all jurisdictions (most complex)
+- `packages/civicos-relay/src/civicos_relay/attestation/service.py` — AttestationService (redeem codes, verify proofs)
+- `packages/civicos-relay/src/civicos_relay/voice/crypto.py` — `sign_attestation_event()`, `verify_attestation_proof()`
+- `packages/civicos-relay/src/civicos_relay/storage/postgres.py` — PostgresAttestationStorage, PostgresIssuerStorage
+- `packages/civicos-relay/src/civicos_relay/server/coordination.py` — `/coordination/attest`, `/coordination/issuers/register`
+- `scripts/sql/add_attestation_tables.sql` — Schema for attestation codes + attestations
+- `scripts/sql/add_issuer_registry.sql` — Schema for trusted issuers
 
-Option 2 is likely best — keeps code DRY while Modal handles isolation.
+### Relay Deployment Info
 
-## Key Files
+| Relay | Platform | URL | Database |
+|-------|----------|-----|----------|
+| San Rafael | Modal | `civicos--civicos-relay-relayserver-relay-endpoint.modal.run` | Supabase (production) |
+| Mill Valley | Fly.io | `civicos-relay-mill-valley.fly.dev` | Neon (`ep-blue-base-akoamc38-pooler`) |
+| San Anselmo | Fly.io | `civicos-relay-san-anselmo.fly.dev` | Neon (`ep-old-term-akcsgm0j-pooler`) |
 
-- `apps/civicos-relay/modal_relay.py` — Existing San Rafael relay deployment
-- `packages/civicos-relay/src/civicos_relay/server/app.py` — Relay server application
-- `packages/civicos-relay/src/civicos_relay/server/acceptance.py` — Acceptance policy
-- `docs/internal/deployment.md` — Modal deployment procedures
-- `data/jurisdictions/city-mill-valley.yaml` — Mill Valley jurisdiction config
-- `data/jurisdictions/city-san-anselmo.yaml` — San Anselmo jurisdiction config
+Deploy script: `./scripts/deploy-relay.sh <jurisdiction> <platform>`
 
 ## Suggested Approach
 
-1. Read `apps/civicos-relay/modal_relay.py` to understand the current deployment pattern
-2. Read `docs/internal/deployment.md` for Modal deployment procedures
-3. Check Modal secrets: `modal secret list` (need `civicos-secrets` or similar)
-4. Create parameterized deployment (jurisdiction via env var or separate Modal apps)
-5. Deploy with `modal deploy` and validate with health checks
-6. Test that each relay serves its jurisdiction's data correctly
+### Phase 1: Configure peer sync (do this first)
+The relays are running independently. Configure them to sync voices/events:
+
+1. Set `RELAY_PEERS` on each Fly.io relay so they know about each other:
+   ```bash
+   fly secrets set RELAY_PEERS="https://civicos-relay-san-anselmo.fly.dev" -a civicos-relay-mill-valley
+   fly secrets set RELAY_PEERS="https://civicos-relay-mill-valley.fly.dev" -a civicos-relay-san-anselmo
+   ```
+2. Verify sync endpoints respond: `GET /coordination/sync/voices` and `GET /coordination/sync/events`
+3. Key files for sync: `packages/civicos-relay/src/civicos_relay/sync/service.py`, `sync/protocol.py`
+
+### Phase 2: Issue attestations
+1. Generate secp256k1 keypairs for Mill Valley and San Anselmo issuers
+2. Register issuers on each relay via `POST /coordination/issuers/register` (requires CIVICOS_RELAY_API_KEY)
+3. Set `CIVICOS_ATTESTATION_PRIVATE_KEY` as Fly.io secret on each test relay
+4. Generate test attestation codes via `POST /coordination/codes/batch`
+5. Test attestation redemption: `POST /coordination/attest` on each relay
+
+### Phase 3: Cross-relay verification
+6. Cast a voice on Mill Valley relay with attestation from Mill Valley issuer
+7. Verify the voice syncs to San Anselmo relay via peer sync
+8. Verify attestation proof validates on the receiving relay
 
 ## Tests to Run
 
 ```bash
-# Smoke tests (should stay green)
+# Relay tests (should stay green)
+pytest packages/civicos-relay/tests/ -q --override-ini="addopts="
+
+# Smoke tests
 pytest packages/civicos/tests/test_civicos.py -q --override-ini="addopts="
 
-# Health check after deployment
-/health relay
+# Health checks
+curl -s https://civicos-relay-mill-valley.fly.dev/health
+curl -s https://civicos-relay-san-anselmo.fly.dev/health
 ```
 
 ## Success Criteria
 
-- [ ] Mill Valley relay deployed on Modal (private, not public-facing)
-- [ ] San Anselmo relay deployed on Modal (private, not public-facing)
-- [ ] Each relay serves correct jurisdiction data
-- [ ] Health checks pass for all 3 relays (San Rafael + 2 new)
-- [ ] Deployment documented (how to add more jurisdictions)
+- [ ] Issuer keypairs generated for Mill Valley and San Anselmo
+- [ ] Issuers registered in each relay's database
+- [ ] Attestation codes issued on each test relay
+- [ ] Attestation redemption works on each relay
+- [ ] Cross-relay attestation proof verification works

@@ -438,8 +438,8 @@
       {
         "name": "deploy_marin_test_relays",
         "description": "Deploy 2 additional relay instances on Modal for Mill Valley and San Anselmo. Private, not public-facing. Validates multi-relay deployment.",
-        "status": "not_started",
-        "priority": 0,
+        "status": "done",
+        "priority": 1,
         "phase": "A",
         "source": "federation testbed \u2014 multi-relay infrastructure",
         "files": [
@@ -452,7 +452,7 @@
         "name": "issue_test_attestations",
         "description": "Generate issuer keypairs for Mill Valley and San Anselmo. Register in issuer_registry. Test multi-issuer attestation verification across relays.",
         "status": "not_started",
-        "priority": 2,
+        "priority": 0,
         "phase": "A",
         "source": "federation testbed \u2014 multi-issuer trust",
         "files": [

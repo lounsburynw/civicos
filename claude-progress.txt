@@ -1,3 +1,40 @@
+## Session 38 — 2026-03-13: Turnkey Onboarding Phase 3 — Coverage Improvements (P1)
+
+**Item:** turnkey_onboarding_coverage
+**Status:** In progress — chunks redirect fix done, municipal code pattern inference done, agenda validation not yet run.
+
+### Changes Made
+
+**1. Chunks: Fixed PDF discovery for redirecting meeting pages (chunks.py)**
+- Problem: Granicus AgendaViewer.php redirects to city Drupal sites (e.g., berkeleyca.gov), but our scraper used the original Granicus URL as the base for relative links
+- Fix: `extract_pdf_urls_from_meeting_page()` now uses `requests.Session()` to persist cookies and tracks the final redirect URL for relative link resolution
+- Added pattern for city-hosted agenda PDFs (e.g., "2026-02-24 Agenda - Council.pdf")
+- Added fallback: if no pattern matches but PDFs found, use the first PDF
+- `download_and_validate_pdf()` now accepts optional session for cookie-gated sites
+- Verified: Both Berkeley City Council meetings (clip_id 5590, 5592) now find and download PDFs
+
+**2. Municipal Code: Added title pattern inference (municipal.py)**
+- Problem: Default `Title\s+(\d+)` pattern fails for cities with different TOC structures (e.g., Alameda uses CHAPTER I, II, III)
+- Fix: `_infer_title_pattern()` tries 5 common alternative patterns before falling back to LLM
+- Patterns: CHAPTER (roman), Chapter (arabic), ARTICLE, Part, Division
+- Requires minimum 3 heading matches for acceptance
+- `stream_sections()` now calls this method when default pattern fails instead of silently returning empty
+- Verified: Alameda TOC (23/24 headings matched with CHAPTER roman numeral pattern)
+- Note: Berkeley is NOT on Municode API (404), so pattern inference doesn't help there
+
+**3. New test: test_municipal_pattern_inference.py (11 tests, all passing)**
+
+### Key Findings
+- Berkeley Granicus → redirects to berkeleyca.gov (Drupal) where PDFs are in static HTML
+- PDF download requires cookies from the redirect chain (403 without)
+- Playwright not needed — static HTML scraping works after redirect handling
+- Berkeley NOT on Municode API despite having a library page
+
+### Remaining for Turnkey Coverage
+- Run `civicos-extract agenda --jurisdiction city-berkeley --limit 2 --cloud` to validate agenda extraction
+- Full Berkeley re-test with chunks fix applied
+- Multi-city validation sweep (Alameda, Mill Valley, Austin, Ashland)
+
 ## Session 36 — 2026-03-13: Query Interface Operators — Integration Tests & RRF Calibration (P0)
 
 **Item:** query_interface_operators
@@ -22090,3 +22127,33 @@ Ran `civicos-extract onboard --city "Berkeley" --state CA --full` — completed 
 - Re-run Berkeley to validate fixes work
 - Berkeley municipal code may need custom title_pattern or product_name in JURISDICTION_MAP
 - Consider adding Granicus AgendaViewer → PDF URL derivation (GeneratedFile.php pattern)
+
+## Session: 2026-03-13 — Relay Consolidation & Federation Deployment
+
+### P0 Completed: deploy_marin_test_relays
+
+**Relay consolidation:**
+- Moved coordination router (40 endpoints, 2948 lines) from civicos_services → civicos_relay/server/coordination.py
+- app.py slimmed from 919 → 226 lines (mounts router instead of inline routes)
+- modal_relay.py now uses create_app() from relay package
+- civicos_services re-exports for backward compat
+
+**Cross-platform deployment:**
+- Dockerfile + fly.toml + deploy-relay.sh (modal/fly/docker)
+- Mill Valley relay: Fly.io (civicos-relay-mill-valley.fly.dev) + Neon Postgres
+- San Anselmo relay: Fly.io (civicos-relay-san-anselmo.fly.dev) + Neon Postgres
+- San Rafael relay: Modal (production, unchanged)
+- 21 coordination tables on each Neon database
+
+**Key decision:** Federation requires separate relay instances (not multi-tenant consolidation). Deployed on Fly.io to avoid Modal endpoint limits ($0 Fly free tier + $0 Neon free tier). This also provides better federation testing — cross-platform relay communication.
+
+**Files modified:**
+- `packages/civicos-relay/src/civicos_relay/server/coordination.py` (moved from civicos_services)
+- `packages/civicos-relay/src/civicos_relay/server/app.py` (slimmed)
+- `apps/civicos-relay/modal_relay.py` (uses create_app(), parameterized)
+- `apps/civicos-relay/Dockerfile` (new)
+- `apps/civicos-relay/fly.toml` (new)
+- `scripts/deploy-relay.sh` (new)
+
+### Next P0: issue_test_attestations
+Generate issuer keypairs for Mill Valley and San Anselmo, register in issuer_registry, test cross-relay attestation verification.
