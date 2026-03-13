@@ -16,11 +16,13 @@ from civicos_extraction.platform_detection import (
     discover_legistar_client,
     discover_civicclerk_subdomain,
     discover_escribe_instance,
+    discover_simbli_instance,
     discover_platform,
     _extract_client_name,
     _detect_legistar,
     _detect_civicclerk,
     _detect_escribe,
+    _detect_simbli,
     _detect_proudcity,
 )
 
@@ -1718,3 +1720,172 @@ class TestEScribeClient:
         assert client._infer_meeting_type("Finance Committee") == "committee"
         assert client._infer_meeting_type("Library Board") == "board"
         assert client._infer_meeting_type("Special Session") == "other"
+
+
+class TestDetectSimbli:
+    """Test Simbli detection strategy."""
+
+    @patch('civicos_extraction.platform_detection.requests.get')
+    def test_simbli_detected(self, mock_get):
+        """Test successful Simbli detection."""
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.text = '<html>simbli eboardsolutions meeting board</html>'
+        mock_get.return_value = mock_response
+
+        confidence, metadata = _detect_simbli(
+            "https://srcs.simbli.com/index.php", timeout=5
+        )
+
+        assert confidence == 0.95
+        assert metadata["confirmed"] is True
+
+    @patch('civicos_extraction.platform_detection.requests.get')
+    def test_simbli_waf_blocked(self, mock_get):
+        """Test Simbli WAF blocking (403) still detects platform."""
+        mock_response = MagicMock()
+        mock_response.status_code = 403
+        mock_get.return_value = mock_response
+
+        confidence, metadata = _detect_simbli(
+            "https://srcs.simbli.com/index.php", timeout=5
+        )
+
+        assert confidence == 0.70
+        assert metadata["waf_blocked"] is True
+
+    @patch('civicos_extraction.platform_detection.requests.get')
+    def test_simbli_incapsula_challenge(self, mock_get):
+        """Test Simbli WAF challenge page still detects platform."""
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.text = '<html>Incapsula incident checking your browser</html>'
+        mock_get.return_value = mock_response
+
+        confidence, metadata = _detect_simbli(
+            "https://srcs.simbli.com/index.php", timeout=5
+        )
+
+        assert confidence == 0.80
+        assert metadata["confirmed"] == "waf_detected"
+
+    @patch('civicos_extraction.platform_detection.requests.get')
+    def test_simbli_not_found(self, mock_get):
+        """Test non-Simbli URL."""
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.text = '<html>Welcome to Example Corp</html>'
+        mock_get.return_value = mock_response
+
+        confidence, metadata = _detect_simbli(
+            "https://example.com", timeout=5
+        )
+
+        assert confidence == 0.0
+
+    @patch('civicos_extraction.platform_detection.requests.get')
+    def test_simbli_timeout(self, mock_get):
+        """Test Simbli timeout handling."""
+        mock_get.side_effect = requests.exceptions.Timeout()
+
+        confidence, metadata = _detect_simbli(
+            "https://srcs.simbli.com/index.php", timeout=5
+        )
+
+        assert confidence == 0.0
+        assert metadata["error"] == "Timeout"
+
+
+class TestDiscoverSimbliInstance:
+    """Test Simbli instance discovery."""
+
+    @patch('civicos_extraction.platform_detection._detect_simbli')
+    def test_discover_simbli_slug(self, mock_detect):
+        """Test discovery with simple slug."""
+        mock_detect.return_value = (0.95, {"confirmed": True})
+
+        result = discover_simbli_instance("srcs", state="CA")
+
+        assert result is not None
+        assert result["board_url"].startswith("https://")
+        assert "simbli.com" in result["board_url"]
+
+    @patch('civicos_extraction.platform_detection._detect_simbli')
+    def test_discover_simbli_not_found(self, mock_detect):
+        """Test discovery fails when no instance found."""
+        mock_detect.return_value = (0.0, {"error": "Not found"})
+
+        result = discover_simbli_instance("nonexistent", state="CA")
+
+        assert result is None
+
+
+class TestSimbliClient:
+    """Test SimbliClient BaseExtractor conformance."""
+
+    def test_client_is_base_extractor(self):
+        """Test SimbliClient subclasses BaseExtractor."""
+        from civicos_extraction.clients.simbli import SimbliClient
+        from civicos_extraction.clients.base import BaseExtractor
+
+        client = SimbliClient(
+            "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030430",
+            "srcs",
+        )
+        assert isinstance(client, BaseExtractor)
+        assert client.platform_name == "simbli"
+        assert client.source_id == "simbli-srcs"
+        assert client.source_type == "simbli"
+
+    def test_normalize_event(self):
+        """Test event normalization to Meeting dataclass."""
+        from civicos_extraction.clients.simbli import SimbliClient
+
+        client = SimbliClient(
+            "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030430",
+            "srcs",
+        )
+
+        event = {
+            "id": "meeting:srcs:simbli:2026-01-15",
+            "title": "Regular Board Meeting - January 15, 2026",
+            "meeting_datetime": "2026-01-15T18:00:00",
+            "meeting_type": "regular",
+            "agenda_url": "https://simbli.eboardsolutions.com/agenda.pdf",
+            "minutes_url": None,
+            "location": "Board Room",
+            "source_url": "https://simbli.eboardsolutions.com/...",
+            "simbli_mid": "45989",
+            "attachments": None,
+        }
+
+        meeting = client.normalize_event(event)
+        assert meeting.title == "Regular Board Meeting - January 15, 2026"
+        assert meeting.meeting_type == "regular"
+        assert meeting.source_platform == "simbli"
+        assert meeting.jurisdiction_id == "srcs"
+        assert meeting.raw_data["simbli_mid"] == "45989"
+        assert meeting.agenda_url == "https://simbli.eboardsolutions.com/agenda.pdf"
+
+    def test_factory_creates_simbli(self):
+        """Test factory dispatches simbli correctly."""
+        from civicos_extraction.clients.factory import create_source
+        from civicos_extraction.clients.base import ExtractionConfig
+
+        config = ExtractionConfig(
+            source_id="simbli-srcs",
+            source_type="simbli",
+            jurisdiction_id="srcs",
+            base_url="https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030430",
+            metadata={"board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030430"},
+        )
+        source = create_source(config)
+        assert source.platform_name == "simbli"
+        assert source.source_type == "simbli"
+
+    def test_infer_jurisdiction_from_simbli_url(self):
+        """Test jurisdiction inference from Simbli URLs."""
+        from civicos_extraction.onboard import _infer_jurisdiction_id
+
+        jid = _infer_jurisdiction_id("https://srcs.simbli.com/index.php")
+        assert jid == "srcs"
