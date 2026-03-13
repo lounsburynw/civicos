@@ -525,8 +525,12 @@ class TestGenerateBodyNames:
         with patch.dict("sys.modules", {"civicos_services.core.llm_provider": mock_module}):
             result = client.generate_body_names(raw_views)
 
-        assert result["board_of_supervisors"] == "1"
-        assert result["parks_and_recreation_commission"] == "3"
+        assert result["archives"]["board_of_supervisors"] == "1"
+        assert result["archives"]["parks_and_recreation_commission"] == "3"
+        # Provenance records what the LLM saw and returned
+        assert result["provenance"]["prompt_template"] == "generate_body_names/v1"
+        assert result["provenance"]["input"] == raw_views
+        assert "Board of Supervisors" in result["provenance"]["raw_response"]
 
     def test_generate_body_names_fallback_on_bad_json(self, client):
         """Falls back to view_N naming when LLM returns invalid JSON."""
@@ -540,12 +544,13 @@ class TestGenerateBodyNames:
         with patch.dict("sys.modules", {"civicos_services.core.llm_provider": mock_module}):
             result = client.generate_body_names(raw_views)
 
-        assert result == {"view_1": "1"}
+        assert result["archives"] == {"view_1": "1"}
+        assert result["provenance"]["raw_response"] == "I don't know"
 
     def test_generate_body_names_empty_input(self, client):
         """Empty raw_views returns empty dict without calling LLM."""
         result = client.generate_body_names({})
-        assert result == {}
+        assert result == {"archives": {}, "provenance": None}
 
     def test_discover_returns_raw_data_for_llm(self, client):
         """discover_view_ids returns raw context including generic titles for LLM to interpret."""

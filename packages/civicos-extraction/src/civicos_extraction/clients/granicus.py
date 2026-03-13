@@ -666,7 +666,7 @@ HTML:
 
         return discovered
 
-    def generate_body_names(self, raw_views: Dict[str, Dict[str, Any]]) -> Dict[str, str]:
+    def generate_body_names(self, raw_views: Dict[str, Dict[str, Any]]) -> Dict[str, Any]:
         """
         Use LLM to assign descriptive body names to discovered view_ids.
 
@@ -678,10 +678,12 @@ HTML:
             raw_views: Output of discover_view_ids() — {view_id: {page_title, h1, sample_titles}}
 
         Returns:
-            Dict mapping body_name_slug → view_id (e.g., {"city_council": "1", "planning_commission": "3"})
+            Dict with:
+              "archives": {body_name_slug: view_id} — the usable mapping
+              "provenance": {input, prompt_template, raw_response} — for audit trail
         """
         if not raw_views:
-            return {}
+            return {"archives": {}, "provenance": None}
 
         import json as _json
 
@@ -721,18 +723,30 @@ Views:
         )
         text = result.content.strip()
 
+        # Provenance: record what the LLM saw and returned
+        provenance = {
+            "input": raw_views,
+            "prompt_template": "generate_body_names/v1",
+            "raw_response": text,
+        }
+
         # Extract JSON from response
         json_match = re.search(r"\{[^{}]*\}", text, re.DOTALL)
         if not json_match:
             logger.warning(f"LLM body name response not valid JSON: {text[:200]}")
-            # Fallback: use view_N naming
-            return {f"view_{vid}": vid for vid in raw_views}
+            return {
+                "archives": {f"view_{vid}": vid for vid in raw_views},
+                "provenance": provenance,
+            }
 
         try:
             name_map = _json.loads(json_match.group())
         except _json.JSONDecodeError:
             logger.warning(f"LLM body name JSON parse failed: {json_match.group()[:200]}")
-            return {f"view_{vid}": vid for vid in raw_views}
+            return {
+                "archives": {f"view_{vid}": vid for vid in raw_views},
+                "provenance": provenance,
+            }
 
         # Convert to slug keys: "City Council" → "city_council"
         result_map: Dict[str, str] = {}
@@ -744,10 +758,12 @@ Views:
                 key = f"view_{vid}"
             result_map[key] = str(vid)
 
+        provenance["parsed_map"] = name_map  # LLM's raw names before slugification
+
         logger.info(
             f"Generated body names for {self.granicus_domain}: {result_map}"
         )
-        return result_map
+        return {"archives": result_map, "provenance": provenance}
 
 
 class GranicusSource:

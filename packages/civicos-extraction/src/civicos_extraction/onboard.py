@@ -307,8 +307,11 @@ def _discover_granicus(url: str, jurisdiction_id: str) -> Dict[str, Any]:
     raw_views = client.discover_view_ids()
 
     # Step 2: Use LLM to assign body names (one-time, ~$0.0001)
+    body_name_provenance = None
     try:
-        discovered = client.generate_body_names(raw_views)
+        naming_result = client.generate_body_names(raw_views)
+        discovered = naming_result["archives"]
+        body_name_provenance = naming_result.get("provenance")
         logger.info(f"Body names generated via LLM: {discovered}")
     except Exception as e:
         logger.warning(f"LLM body name generation failed, using view_N fallback: {e}")
@@ -334,6 +337,8 @@ def _discover_granicus(url: str, jurisdiction_id: str) -> Dict[str, Any]:
     }
     if column_map:
         metadata["column_map"] = column_map
+    if body_name_provenance:
+        metadata["body_name_provenance"] = body_name_provenance
 
     config = {
         "source_id": f"granicus-{jurisdiction_id}",
