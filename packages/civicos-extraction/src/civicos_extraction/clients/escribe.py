@@ -18,7 +18,7 @@ import logging
 import re
 import requests
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional, Any
 
 from civicos_extraction.clients.base import BaseExtractor, Meeting, HealthStatus, ValidationResult
@@ -97,10 +97,10 @@ class EScribeClient(BaseExtractor):
             jurisdiction_id=self.jurisdiction_id,
             is_available=is_available,
             available_count=available_count,
-            last_checked=datetime.utcnow(),
+            last_checked=datetime.now(timezone.utc),
             check_duration_ms=round(check_duration_ms, 2),
             errors=errors,
-            last_successful=datetime.utcnow() if is_available else None,
+            last_successful=datetime.now(timezone.utc) if is_available else None,
             metadata=metadata,
         )
 
@@ -257,14 +257,15 @@ class EScribeClient(BaseExtractor):
     def normalize_event(self, event: Dict[str, Any]) -> Meeting:
         """Normalize an eScribe event to the Meeting dataclass."""
         # Parse datetime from "YYYY/MM/DD HH:MM:SS" format
+        # eScribe returns local times without timezone; treat as UTC
         start_str = event.get("StartDate", "")
-        meeting_datetime = datetime.now()
+        meeting_datetime = datetime.now(timezone.utc)
         if start_str:
             try:
-                meeting_datetime = datetime.strptime(start_str, "%Y/%m/%d %H:%M:%S")
+                meeting_datetime = datetime.strptime(start_str, "%Y/%m/%d %H:%M:%S").replace(tzinfo=timezone.utc)
             except ValueError:
                 try:
-                    meeting_datetime = datetime.strptime(start_str, "%Y-%m-%d %H:%M:%S")
+                    meeting_datetime = datetime.strptime(start_str, "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
                 except ValueError:
                     pass
 

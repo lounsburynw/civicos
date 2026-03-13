@@ -1658,6 +1658,9 @@ class TestEScribeClient:
         assert meeting.jurisdiction_id == "city-national-city"
         assert "FileStream.ashx" in meeting.agenda_url
         assert meeting.location == "City Hall"
+        assert meeting.meeting_datetime.tzinfo is not None, "datetime must be timezone-aware"
+        assert meeting.meeting_datetime.year == 2026
+        assert meeting.meeting_datetime.hour == 16
 
     def test_normalize_completed_meeting(self):
         """Test completed meeting has correct status."""
@@ -1675,6 +1678,7 @@ class TestEScribeClient:
         meeting = client.normalize_event(event)
         assert meeting.status == "completed"
         assert meeting.meeting_type == "planning_commission"
+        assert meeting.meeting_datetime.tzinfo is not None, "datetime must be timezone-aware"
 
     def test_factory_creates_escribe(self):
         """Test factory dispatches escribe correctly."""
