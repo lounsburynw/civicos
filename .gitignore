@@ -86,6 +86,9 @@ api.log
 .tmp/
 .temp/
 
+# Validation pipeline (ephemeral onboarding data)
+.validation/
+
 # OpenAI API keys and secrets
 .env.local
 .env.production
