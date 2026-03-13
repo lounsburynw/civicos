@@ -1,0 +1,10 @@
+{
+  "jurisdiction_id": "county-marin",
+  "last_meeting_id": "meeting:county-marin:granicus:truth-act-meeting-260310-notice-of-hearing-spanish-2026-03-10",
+  "items_processed": 30,
+  "items_extracted": 28,
+  "items_skipped": 1,
+  "items_failed": 1,
+  "total_agenda_items": 500,
+  "timestamp": "2026-02-20T14:24:58.852922"
+}
