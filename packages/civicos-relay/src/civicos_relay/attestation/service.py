@@ -5,7 +5,7 @@ import logging
 from datetime import datetime, timezone
 
 from civicos_relay.attestation.signer_client import IssuerSignerClient, SignerError
-from civicos_relay.voice.crypto import verify_attestation_request, verify_attestation_proof
+from civicos_relay.voice.crypto import verify_attestation_request, verify_attestation_proof, verify_code_batch
 
 logger = logging.getLogger(__name__)
 
@@ -116,8 +116,6 @@ class AttestationService:
         Returns: {count, batch_id, jurisdiction}
         Raises ValueError for validation failures.
         """
-        from civicos_signer.crypto import verify_code_batch
-
         # 1. Extract issuer pubkey and find their registration
         issuer_pubkey = signed_event.get("pubkey")
         if not issuer_pubkey:
