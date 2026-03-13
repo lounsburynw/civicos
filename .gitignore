@@ -3,6 +3,9 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# Generated Fly.io configs (from deploy-relay.sh)
+.fly-*.toml
+
 # C extensions
 *.so
 
