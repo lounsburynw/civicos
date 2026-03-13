@@ -330,7 +330,8 @@ def _detect_proudcity(base_url: str, timeout: int) -> tuple[float, Dict[str, Any
 def detect_platform(
     base_url: str,
     jurisdiction_id: Optional[str] = None,
-    timeout: int = 10
+    timeout: int = 10,
+    state: Optional[str] = None,
 ) -> DetectionResult:
     """
     Auto-detect which civic platform a city uses.
@@ -397,9 +398,10 @@ def detect_platform(
 
     # 3. Try CivicClerk (API-based)
     # Try common subdomain patterns
+    state_suffix = state.lower().strip() if state else "ca"
     civicclerk_subdomains = [
         client_name,
-        f"{client_name}ca",  # e.g., elcerritoca
+        f"{client_name}{state_suffix}",  # e.g., elcerritoca, austintx
         client_name.replace("city", ""),  # cityof... -> ...
     ]
     for subdomain in civicclerk_subdomains:
@@ -566,6 +568,10 @@ def discover_legistar_client(
         slug,                    # e.g., berkeley
         f"{slug}-{state}",       # e.g., berkeley-ca
         f"cityof{slug}",        # e.g., cityofberkeley
+        f"countyof{slug}",      # e.g., countyofmarin
+        f"townof{slug}",        # e.g., townofsananselmo
+        f"{slug}{state}",       # e.g., berkeleyca (no hyphen)
+        f"{slug}city",          # e.g., berkeleycity
     ]
 
     for client_name in candidates:
@@ -622,9 +628,12 @@ def discover_civicclerk_subdomain(
     slug = re.sub(r"[\s\-]+", "", city_name.lower().strip())
 
     candidates = [
-        f"{slug}{state}",        # e.g., elcerritoca
+        f"{slug}{state}",        # e.g., elcerritoca, austintx
         slug,                    # e.g., elcerrito
         f"cityof{slug}",        # e.g., cityofelcerrito
+        f"cityof{slug}{state}", # e.g., cityofelcerritoca
+        f"townof{slug}",        # e.g., townofelcerrito
+        f"townof{slug}{state}", # e.g., townofelcerritoca
     ]
 
     headers = {
@@ -720,12 +729,22 @@ def discover_platform(
         }
 
     # 4. Try ProudCity (slowest — guess website URL, then scrape)
+    hyphenated = re.sub(r"[\s]+", "-", city_name.lower().strip())
     proudcity_urls = [
         f"https://www.cityof{slug}.org",
         f"https://cityof{slug}.org",
         f"https://www.{slug}.org",
         f"https://{slug}.org",
+        f"https://www.{slug}.gov",
+        f"https://{slug}.{state}.gov",
     ]
+    # Add hyphenated variants for multi-word cities (e.g., "san-rafael" vs "sanrafael")
+    if hyphenated != slug:
+        proudcity_urls.extend([
+            f"https://www.cityof{hyphenated}.org",
+            f"https://www.{hyphenated}.org",
+            f"https://www.{hyphenated}.gov",
+        ])
     for url in proudcity_urls:
         try:
             pc_confidence, pc_meta = _detect_proudcity(url, timeout=timeout)

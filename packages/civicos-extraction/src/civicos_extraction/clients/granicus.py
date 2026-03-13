@@ -603,12 +603,15 @@ HTML:
         """
         Probe view_ids 1-50 to discover available bodies.
 
-        Stops after 5 consecutive empty responses.
+        Stops after 5 consecutive empty responses. Returns raw view data
+        keyed by view_id — body names are assigned later by
+        generate_body_names() using the LLM.
 
         Returns:
-            Dict mapping inferred body_name to view_id string
+            Dict mapping view_id to raw context dict with page_title and
+            sample_titles. Pass this to generate_body_names() for final naming.
         """
-        discovered = {}
+        discovered: Dict[str, Dict[str, Any]] = {}
         consecutive_empty = 0
 
         for vid in range(1, 51):
@@ -621,35 +624,31 @@ HTML:
 
             soup = BeautifulSoup(response.text, "html.parser")
 
-            # Try to get body name from page title or h1
-            body_name = None
+            # Extract raw page title and h1 (no filtering — LLM decides what's useful)
+            page_title = ""
             title_tag = soup.find("title")
             if title_tag:
-                title_text = title_tag.get_text(strip=True)
-                # Clean up common Granicus title patterns
-                title_text = re.sub(
-                    r"(ViewPublisher|Granicus|Meeting List)\s*[-–|]?\s*",
-                    "",
-                    title_text,
-                    flags=re.I,
-                ).strip()
-                if title_text:
-                    body_name = title_text
+                page_title = title_tag.get_text(strip=True)
 
-            if not body_name:
-                h1 = soup.find("h1")
-                if h1:
-                    body_name = h1.get_text(strip=True)
-
-            if not body_name:
-                body_name = f"view_{vid}"
+            h1_text = ""
+            h1 = soup.find("h1")
+            if h1:
+                h1_text = h1.get_text(strip=True)
 
             # Check if the page has actual meeting data
             events = self._parse_table(response.text, str(vid))
+
             if events:
-                # Convert body name to key
-                key = re.sub(r"[^a-z0-9]+", "_", body_name.lower()).strip("_")
-                discovered[key] = str(vid)
+                # Collect sample meeting titles for LLM context
+                sample_titles = [
+                    e.get("title", "") for e in events[:8] if e.get("title")
+                ]
+                discovered[str(vid)] = {
+                    "page_title": page_title,
+                    "h1": h1_text,
+                    "sample_titles": sample_titles,
+                    "event_count": len(events),
+                }
                 consecutive_empty = 0
             else:
                 consecutive_empty += 1
@@ -660,12 +659,95 @@ HTML:
             "Discovered Granicus view_ids",
             extra={
                 "count": len(discovered),
-                "views": discovered,
+                "view_ids": list(discovered.keys()),
                 "jurisdiction_id": self.jurisdiction_id,
             },
         )
 
         return discovered
+
+    def generate_body_names(self, raw_views: Dict[str, Dict[str, Any]]) -> Dict[str, str]:
+        """
+        Use LLM to assign descriptive body names to discovered view_ids.
+
+        Runs once during onboarding. Sends page titles and sample meeting
+        titles for each view_id. The LLM returns a clean body name per view.
+        Result is saved in the extraction config (same pattern as column_map).
+
+        Args:
+            raw_views: Output of discover_view_ids() — {view_id: {page_title, h1, sample_titles}}
+
+        Returns:
+            Dict mapping body_name_slug → view_id (e.g., {"city_council": "1", "planning_commission": "3"})
+        """
+        if not raw_views:
+            return {}
+
+        import json as _json
+
+        from civicos_services.core.llm_provider import get_model_for_task
+
+        # Build a compact description of each view for the LLM
+        view_descriptions = []
+        for vid, info in raw_views.items():
+            desc = f"view_id={vid}"
+            if info.get("page_title"):
+                desc += f", page_title=\"{info['page_title']}\""
+            if info.get("h1"):
+                desc += f", h1=\"{info['h1']}\""
+            if info.get("sample_titles"):
+                titles = info["sample_titles"][:5]
+                desc += f", sample_meeting_titles={titles}"
+            view_descriptions.append(desc)
+
+        views_text = "\n".join(view_descriptions)
+
+        provider = get_model_for_task("navigation")
+
+        prompt = f"""You are analyzing a government meeting platform. Each entry below represents a different page (view_id) that lists meetings for a specific governing body.
+
+For each view_id, determine the name of the governing body (e.g., "City Council", "Planning Commission", "Board of Supervisors").
+
+Use the page title, h1, and sample meeting titles as clues. Page titles are often generic (e.g., "New View", "Meeting List") — in that case, infer the body name from the meeting titles instead.
+
+Return ONLY a JSON object mapping each view_id to the body name. Example:
+{{"1": "City Council", "3": "Planning Commission", "7": "Parks and Recreation Commission"}}
+
+Views:
+{views_text}"""
+
+        result = provider.complete(
+            messages=[{"role": "user", "content": prompt}]
+        )
+        text = result.content.strip()
+
+        # Extract JSON from response
+        json_match = re.search(r"\{[^{}]*\}", text, re.DOTALL)
+        if not json_match:
+            logger.warning(f"LLM body name response not valid JSON: {text[:200]}")
+            # Fallback: use view_N naming
+            return {f"view_{vid}": vid for vid in raw_views}
+
+        try:
+            name_map = _json.loads(json_match.group())
+        except _json.JSONDecodeError:
+            logger.warning(f"LLM body name JSON parse failed: {json_match.group()[:200]}")
+            return {f"view_{vid}": vid for vid in raw_views}
+
+        # Convert to slug keys: "City Council" → "city_council"
+        result_map: Dict[str, str] = {}
+        for vid, body_name in name_map.items():
+            if not isinstance(body_name, str) or not body_name.strip():
+                body_name = f"view_{vid}"
+            key = re.sub(r"[^a-z0-9]+", "_", body_name.lower()).strip("_")
+            if not key:
+                key = f"view_{vid}"
+            result_map[key] = str(vid)
+
+        logger.info(
+            f"Generated body names for {self.granicus_domain}: {result_map}"
+        )
+        return result_map
 
 
 class GranicusSource:

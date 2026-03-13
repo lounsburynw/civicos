@@ -5,6 +5,7 @@ All tests use mocked HTTP responses — no live network calls.
 """
 
 import json
+import sys
 from datetime import datetime
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -393,7 +394,7 @@ class TestGranicusDiscovery:
     """Tests for view_id discovery."""
 
     def test_discover_view_ids(self, client):
-        """discover_view_ids probes sequential IDs and returns results."""
+        """discover_view_ids probes sequential IDs and returns raw view data."""
         call_count = 0
 
         def mock_fetch(view_id):
@@ -404,7 +405,7 @@ class TestGranicusDiscovery:
                 if view_id == "1":
                     resp.text = '<html><head><title>Board of Supervisors</title></head><body>' + \
                         '<table><tr><th>Name</th><th>Date</th></tr>' + \
-                        '<tr><td>Meeting</td><td>March 1, 2026</td></tr></table></body></html>'
+                        '<tr><td>BOS Meeting</td><td>March 1, 2026</td></tr></table></body></html>'
                 else:
                     resp.text = '<html><head><title>Planning Commission</title></head><body>' + \
                         '<table><tr><th>Name</th><th>Date</th></tr>' + \
@@ -414,12 +415,14 @@ class TestGranicusDiscovery:
             return None
 
         with patch.object(client, "_fetch_view", side_effect=mock_fetch):
-            discovered = client.discover_view_ids()
+            raw_views = client.discover_view_ids()
 
-        assert "board_of_supervisors" in discovered
-        assert "planning_commission" in discovered
-        assert discovered["board_of_supervisors"] == "1"
-        assert discovered["planning_commission"] == "2"
+        # Returns raw data keyed by view_id
+        assert "1" in raw_views
+        assert "2" in raw_views
+        assert raw_views["1"]["page_title"] == "Board of Supervisors"
+        assert raw_views["2"]["page_title"] == "Planning Commission"
+        assert "BOS Meeting" in raw_views["1"]["sample_titles"]
 
     def test_discover_stops_after_consecutive_empty(self, client):
         """Discovery stops after 5 consecutive empty responses."""
@@ -438,11 +441,11 @@ class TestGranicusDiscovery:
             return None
 
         with patch.object(client, "_fetch_view", side_effect=mock_fetch):
-            discovered = client.discover_view_ids()
+            raw_views = client.discover_view_ids()
 
         # Should have view 1 + 5 consecutive empty (2-6) = 6 calls
         assert call_count == 6
-        assert len(discovered) == 1
+        assert len(raw_views) == 1
 
 
 # ============================================================================
@@ -485,3 +488,83 @@ class TestExtractionConfigCountyPrefix:
             config = ExtractionConfig.from_jurisdiction("state-california")
 
         assert config.jurisdiction_id == "state-california"
+
+
+# ============================================================================
+# TestGranicusBodyNameInference
+# ============================================================================
+
+
+class TestGenerateBodyNames:
+    """Tests for LLM-based body name generation."""
+
+    def test_generate_body_names_success(self, client):
+        """LLM assigns descriptive names from raw view data."""
+        raw_views = {
+            "1": {
+                "page_title": "Board of Supervisors",
+                "h1": "",
+                "sample_titles": ["BOS Regular Meeting", "BOS Special Session"],
+                "event_count": 10,
+            },
+            "3": {
+                "page_title": "New View",  # Generic — LLM should use sample titles
+                "h1": "",
+                "sample_titles": ["Parks Commission - Regular Meeting", "Parks Commission - Special Meeting"],
+                "event_count": 5,
+            },
+        }
+
+        mock_provider = MagicMock()
+        mock_provider.complete.return_value = MagicMock(
+            content='{"1": "Board of Supervisors", "3": "Parks and Recreation Commission"}'
+        )
+
+        mock_module = MagicMock()
+        mock_module.get_model_for_task.return_value = mock_provider
+        with patch.dict("sys.modules", {"civicos_services.core.llm_provider": mock_module}):
+            result = client.generate_body_names(raw_views)
+
+        assert result["board_of_supervisors"] == "1"
+        assert result["parks_and_recreation_commission"] == "3"
+
+    def test_generate_body_names_fallback_on_bad_json(self, client):
+        """Falls back to view_N naming when LLM returns invalid JSON."""
+        raw_views = {"1": {"page_title": "", "h1": "", "sample_titles": [], "event_count": 2}}
+
+        mock_provider = MagicMock()
+        mock_provider.complete.return_value = MagicMock(content="I don't know")
+
+        mock_module = MagicMock()
+        mock_module.get_model_for_task.return_value = mock_provider
+        with patch.dict("sys.modules", {"civicos_services.core.llm_provider": mock_module}):
+            result = client.generate_body_names(raw_views)
+
+        assert result == {"view_1": "1"}
+
+    def test_generate_body_names_empty_input(self, client):
+        """Empty raw_views returns empty dict without calling LLM."""
+        result = client.generate_body_names({})
+        assert result == {}
+
+    def test_discover_returns_raw_data_for_llm(self, client):
+        """discover_view_ids returns raw context including generic titles for LLM to interpret."""
+        def mock_fetch(view_id):
+            if view_id == "1":
+                resp = MagicMock()
+                resp.text = (
+                    '<html><head><title>New View</title></head><body>'
+                    '<table><tr><th>Name</th><th>Date</th></tr>'
+                    '<tr><td>Parks Commission - Regular Meeting</td><td>March 1, 2026</td></tr>'
+                    '</table></body></html>'
+                )
+                resp.status_code = 200
+                return resp
+            return None
+
+        with patch.object(client, "_fetch_view", side_effect=mock_fetch):
+            raw_views = client.discover_view_ids()
+
+        # Raw data preserves the generic title — LLM decides what to do with it
+        assert raw_views["1"]["page_title"] == "New View"
+        assert "Parks Commission - Regular Meeting" in raw_views["1"]["sample_titles"]
