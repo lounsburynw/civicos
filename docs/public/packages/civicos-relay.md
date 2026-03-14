@@ -50,7 +50,7 @@ Orchestrates multi-issuer code redemption and attestation issuance.
 
 ## Storage
 
-- **`PostgresStorage`** — Production. Uses `RELAY_DATABASE_URL` (separate Supabase project for San Rafael, Neon for federation test relays).
+- **`PostgresStorage`** — Production. Uses `RELAY_DATABASE_URL` (separate from the civic data database).
   - Tables: `coordination_voices`, `coordination_subscriptions`, `coordination_initiatives`, `coordination_attestation_codes`, `coordination_attestations`, `coordination_issuer_registry`, `coordination_sync_cursors`, and more
 - **`InMemoryStorage`** — Fallback for local dev/testing.
 
@@ -67,22 +67,11 @@ All voices are signed with secp256k1 Schnorr signatures (Nostr-compatible, BIP-3
 ## Deployment
 
 ```bash
-# San Rafael (production — Modal)
+# Production (Modal)
 modal deploy packages/civicos-relay/src/civicos_relay/modal_relay.py
 
-# Federation test relays (Fly.io)
-./scripts/deploy-relay.sh city-mill-valley fly
-./scripts/deploy-relay.sh city-san-anselmo fly
+# Multi-platform (Modal, Fly.io, or Docker)
+./scripts/deploy-relay.sh <jurisdiction> <platform>
 ```
 
-## Federation Testbed
-
-Three relays are deployed for federation testing:
-
-| Relay | Platform | URL | Database |
-|-------|----------|-----|----------|
-| San Rafael | Modal | `civicos--civicos-relay-*.modal.run` | Supabase |
-| Mill Valley | Fly.io | `civicos-relay-mill-valley.fly.dev` | Neon |
-| San Anselmo | Fly.io | `civicos-relay-san-anselmo.fly.dev` | Neon |
-
-Mill Valley and San Anselmo are configured as peers with bidirectional sync (60s interval). Voices cast on one relay propagate to the other automatically.
+Each relay instance is self-contained — a single jurisdiction can be served by one relay, or multiple relays can peer via `RELAY_PEERS` for federation.
