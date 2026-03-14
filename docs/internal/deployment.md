@@ -22,6 +22,23 @@ All production services run on Modal (serverless Python). Data lives in Supabase
 
 Relay DB uses `db.PROJECT_REF.supabase.co:6543` pooler format (not `pooler.supabase.com`).
 
+### Federation Test Relays (Fly.io)
+
+| Relay | App Name | Database | Peer |
+|-------|----------|----------|------|
+| Mill Valley | `civicos-relay-mill-valley` | Neon (`ep-blue-base-akoamc38`) | San Anselmo |
+| San Anselmo | `civicos-relay-san-anselmo` | Neon (`ep-old-term-akcsgm0j`) | Mill Valley |
+
+Each test relay has its own Neon Postgres database (free tier) with the full coordination schema.
+
+**Secrets per relay:** `RELAY_DATABASE_URL`, `CIVICOS_ADMIN_API_KEY`, `CIVICOS_ATTESTATION_PRIVATE_KEY`, `RELAY_PEERS`, `RELAY_SYNC_INTERVAL`
+
+**Deploy:** `./scripts/deploy-relay.sh <jurisdiction> fly`
+
+**Issuer setup:** `python3 scripts/setup_federation_issuers.py <generate|register|codes|status>`
+
+Issuer configs are in `config/federation/` (gitignored — contains private keys).
+
 ## Secrets
 
 Modal secrets are stored in the `civicos-secrets` (or jurisdiction-specific) secret group:
@@ -64,5 +81,5 @@ Health endpoints:
 
 ## Never
 
-- Deploy to Fly.io or other platforms — Modal only
+- Deploy **production** services to Fly.io — Modal only. (Federation test relays use Fly.io intentionally for cross-platform testing.)
 - Skip `load_dotenv()` when testing locally — `DATABASE_URL` won't be set

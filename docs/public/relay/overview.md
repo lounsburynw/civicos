@@ -107,7 +107,7 @@ If a write exceeds the rate limit without an attestation or payment proof, the r
 
 Write tools are not exposed in the MCP server — all writes go through the relay directly.
 
-> **Current status:** Only rate limiting (tier 3) is active. Attestation verification (tier 1) and payment proof verification (tier 2) are designed and stubbed but not yet enforced — all writes currently fall through to rate limiting. Rate limits are persistent (PostgreSQL-backed), unlike REST API rate limits which are in-memory.
+> **Current status:** Rate limiting (tier 3) and attestation verification (tier 1) are active. Attestation codes are issued via multi-issuer registry — organizations register their signers and the relay verifies attestation proofs against trusted issuer pubkeys. Payment proof verification (tier 2) is designed but not yet enforced. Rate limits are persistent (PostgreSQL-backed), unlike REST API rate limits which are in-memory.
 
 ## HTTP Endpoints
 
@@ -159,9 +159,14 @@ All endpoints are under the relay's base URL. Write endpoints require Nostr-sign
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| POST | `/coordination/attestation/redeem` | Signed (kind-24242) | Redeem an attestation code |
-| POST | `/coordination/codes/batch` | Issuer-signed (kind-30851) | Upload batch of attestation codes |
-| POST | `/coordination/issuers/register` | Bearer token | Register a trusted issuer |
+| POST | `/coordination/attest` | Signed (kind-24242) | Redeem an attestation code |
+| GET | `/coordination/attestation/{public_key}` | None | Check attestation status |
+| GET | `/coordination/attestation/stats/{jurisdiction}` | None | Attestation statistics |
+| POST | `/coordination/codes/batch` | Admin | Upload issuer-signed code batch (kind-30851) |
+| POST | `/coordination/issuers/register` | Admin | Register a trusted issuer |
+| GET | `/coordination/issuers/{jurisdiction}` | None | List trusted issuers |
+| POST | `/coordination/admin/issuer/{id}/verify` | Admin | Verify an issuer |
+| POST | `/coordination/admin/issuer/{id}/revoke` | Admin | Revoke an issuer |
 
 ### Feedback
 
@@ -176,6 +181,9 @@ All endpoints are under the relay's base URL. Write endpoints require Nostr-sign
 |--------|------|------|-------------|
 | GET | `/coordination/sync/voices` | None | Export voices for peer sync (paginated) |
 | POST | `/coordination/sync/voices` | None | Import voices from a peer relay |
+| GET | `/coordination/sync/events` | None | Export events for peer sync (paginated) |
+| POST | `/coordination/sync/events` | None | Import events from a peer relay |
+| POST | `/coordination/sync/trigger` | Admin | Trigger immediate sync from all peers |
 | GET | `/coordination/provenance/{public_key}` | None | Get provenance data for a key |
 
 ### Health
