@@ -1,6 +1,6 @@
 # Relay Acceptance Policy & Payment Architecture Spec
 
-**Status:** Implemented (Phase 1 — rate limiting + write tool removal). Phases 2-4 pending.
+**Status:** Implemented (Phase 1 — rate limiting + write tool removal + attestation verification). Payment proof (Phase 2) pending.
 **Date:** 2026-03-10
 **Reviewed by:** Architecture agent, Security agent, Cashu feasibility agent
 

@@ -1,7 +1,7 @@
 # Multi-Issuer Lookup Spec
 
-**Status:** Not started
-**Date:** 2026-03-11
+**Status:** Partially implemented (registry + endpoints live, acceptance policy integration pending)
+**Date:** 2026-03-11 (spec), 2026-03-13 (implementation started)
 **Launch.json item:** `multi_issuer_lookup`
 
 ## Problem
@@ -116,22 +116,38 @@ CREATE TABLE coordination_issuer_registry (
 
 **Recommendation:** Option B. The relay already connects to PostgreSQL at startup. Issuer registry is coordination data — it belongs in the coordination DB alongside voices and actions.
 
-## Migration Path
+### Implementation Status
 
-1. Create `coordination_issuer_registry` table
-2. Seed from current `registry.json` `attestation_issuer_pubkey` values
-3. Update `app.py` lifespan to build `IssuerLookup` from DB query
-4. Update `AcceptancePolicy._verify_attestation()` to iterate issuers
-5. Remove `attestation_issuer_pubkey` from `registry.json` (replaced by DB)
-6. Generate issuer keypairs for Mill Valley + San Anselmo testbed cities
+Steps 1, 2, and 6 are complete:
+
+1. ~~Create `coordination_issuer_registry` table~~ — **Done.** Table exists on all relay databases (Supabase + Neon). Schema in `scripts/sql/add_issuer_registry.sql`.
+2. ~~Seed from current `registry.json`~~ — **Done.** Issuers registered via HTTP endpoints.
+3. Update `app.py` lifespan to build `IssuerLookup` from DB query — **Pending.** Currently uses `CIVICOS_ATTESTATION_PRIVATE_KEY` env var (single issuer).
+4. Update `AcceptancePolicy._verify_attestation()` to iterate issuers — **Pending.**
+5. Remove `attestation_issuer_pubkey` from `registry.json` — **Pending** (after step 3).
+6. ~~Generate issuer keypairs for Mill Valley + San Anselmo~~ — **Done.** Both registered and verified on live relays. Configs in `config/federation/` (gitignored).
+
+### HTTP Endpoints (Implemented)
+
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/coordination/issuers/register` | Register issuer (admin auth) |
+| GET | `/coordination/issuers/{jurisdiction}` | List non-revoked issuers |
+| POST | `/coordination/admin/issuer/{id}/verify` | Mark as trusted |
+| POST | `/coordination/admin/issuer/{id}/revoke` | Revoke issuer |
+| POST | `/coordination/codes/batch` | Accept issuer-signed code batch |
+
+### Remaining Work
+
+The issuer registry HTTP layer and storage are complete. What remains is wiring the `AcceptancePolicy` to query the registry instead of using a single env var key. This is the actual `multi_issuer_lookup` item in `launch.json`.
 
 ## Backward Compatibility
 
 During migration, support both:
-- If `coordination_issuer_registry` table exists → use it
-- If not → fall back to `registry.json` `attestation_issuer_pubkey` (single issuer)
+- If `coordination_issuer_registry` table has verified issuers → use them
+- If not → fall back to `CIVICOS_ATTESTATION_PRIVATE_KEY` env var (single issuer)
 
-This allows self-hosted operators to use the simple config-file approach without running the migration.
+This allows self-hosted operators to use the simple env var approach without running the migration.
 
 ## Test Strategy
 
