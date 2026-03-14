@@ -53,6 +53,9 @@ class InMemoryVoiceStorage:
                 public_key=old.public_key,
                 signature=old.signature,
                 timestamp=old.timestamp,
+                created_at=old.created_at,
+                jurisdiction=old.jurisdiction,
+                attestation_proof=old.attestation_proof,
                 revoked=True,
             )
             return True

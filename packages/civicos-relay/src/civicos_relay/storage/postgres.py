@@ -126,7 +126,9 @@ class PostgresVoiceStorage:
                 cur.execute(
                     """
                     SELECT entity, stance, public_key, signature, timestamp,
-                           jurisdiction, created_at, attestation_proof, revoked
+                           jurisdiction,
+                           COALESCE(created_at, EXTRACT(EPOCH FROM timestamp)::bigint) AS created_at,
+                           attestation_proof, revoked
                     FROM coordination_voices
                     WHERE entity = %s AND revoked = FALSE
                     """,
@@ -140,7 +142,7 @@ class PostgresVoiceStorage:
                         signature=row[3],
                         timestamp=row[4],
                         jurisdiction=row[5],
-                        created_at=row[6],
+                        created_at=row[6] or int(row[4].timestamp()),
                         attestation_proof=_parse_jsonb(row[7]),
                         revoked=row[8],
                     )
@@ -663,7 +665,9 @@ class PostgresSyncStorage:
                     cur.execute(
                         """
                         SELECT entity, stance, public_key, signature, timestamp,
-                               jurisdiction, created_at, attestation_proof, revoked
+                               jurisdiction,
+                               COALESCE(created_at, EXTRACT(EPOCH FROM timestamp)::bigint) AS created_at,
+                               attestation_proof, revoked
                         FROM coordination_voices
                         WHERE timestamp > %s AND entity LIKE %s
                         ORDER BY timestamp ASC
@@ -675,7 +679,9 @@ class PostgresSyncStorage:
                     cur.execute(
                         """
                         SELECT entity, stance, public_key, signature, timestamp,
-                               jurisdiction, created_at, attestation_proof, revoked
+                               jurisdiction,
+                               COALESCE(created_at, EXTRACT(EPOCH FROM timestamp)::bigint) AS created_at,
+                               attestation_proof, revoked
                         FROM coordination_voices
                         WHERE timestamp > %s
                         ORDER BY timestamp ASC
@@ -693,7 +699,7 @@ class PostgresSyncStorage:
                         signature=row[3],
                         timestamp=row[4],
                         jurisdiction=row[5],
-                        created_at=row[6],
+                        created_at=row[6] or int(row[4].timestamp()),
                         attestation_proof=_parse_jsonb(row[7]),
                         revoked=row[8],
                     )

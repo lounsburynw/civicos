@@ -51,6 +51,8 @@ Modal secrets are stored in the `civicos-secrets` (or jurisdiction-specific) sec
 - `GOOGLE_MAPS_API_KEY` — Geocoding (extension + API)
 - `PLATFORM_DATABASE_URL` — Platform DB for usage logging and billing (in `civicos-platform` secret)
 - `RELAY_ACCEPTANCE_POLICY` — Set `true` to enable rate limiting on relay writes (default: `false`)
+- `RELAY_JURISDICTION` — Jurisdiction ID for per-jurisdiction rate limit policy (e.g., `city-san-rafael`)
+- `RELAY_POLICY_FILE` — Override path for relay rate limit policies (see `config/relay_policies.json`)
 
 Check secrets: `modal secret list`
 

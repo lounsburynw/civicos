@@ -1,6 +1,6 @@
 # Config-Driven Rate Limits Spec
 
-**Status:** Not started
+**Status:** Done
 **Date:** 2026-03-11
 **Launch.json item:** `config_driven_rate_limits`
 

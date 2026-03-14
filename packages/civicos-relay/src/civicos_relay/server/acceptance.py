@@ -8,11 +8,15 @@ Tiers checked in order:
 """
 
 import hashlib
+import json
 import logging
+import os
 import time
 from collections import defaultdict
+from copy import deepcopy
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta, timezone
+from pathlib import Path
 from typing import Callable, Optional
 
 logger = logging.getLogger(__name__)
@@ -59,6 +63,84 @@ DEFAULT_POLICY = {
 # Default attestation validity period: 1 year in seconds
 DEFAULT_ATTESTATION_VALIDITY_SECONDS = 365 * 24 * 60 * 60  # 31536000
 
+# Default path to relay policies config file (relative to project root)
+_DEFAULT_POLICY_FILE = "config/relay_policies.json"
+
+
+def load_policy(jurisdiction_id: Optional[str] = None) -> dict:
+    """Load relay policy for a jurisdiction using resolution order:
+
+    1. RELAY_POLICY_FILE env var (operator override)
+    2. config/relay_policies.json[jurisdiction_id] (per-jurisdiction)
+    3. config/relay_policies.json["default"] (file defaults)
+    4. DEFAULT_POLICY constant (hardcoded fallback)
+
+    Per-jurisdiction config merges with defaults — a jurisdiction can
+    override just "voice.max_per_day" without specifying every event type.
+    """
+    policy_data = _load_policy_file()
+    if policy_data is None:
+        return deepcopy(DEFAULT_POLICY)
+
+    # Start with hardcoded defaults
+    merged = deepcopy(DEFAULT_POLICY)
+
+    # Layer file defaults
+    file_defaults = policy_data.get("default", {})
+    _merge_policy(merged, file_defaults)
+
+    # Layer jurisdiction-specific overrides
+    if jurisdiction_id and jurisdiction_id in policy_data:
+        _merge_policy(merged, policy_data[jurisdiction_id])
+
+    return merged
+
+
+def _load_policy_file() -> Optional[dict]:
+    """Load policy JSON from RELAY_POLICY_FILE or default path."""
+    # Check env var override first
+    policy_path = os.environ.get("RELAY_POLICY_FILE")
+    if policy_path:
+        path = Path(policy_path)
+        if path.is_file():
+            try:
+                return json.loads(path.read_text())
+            except (json.JSONDecodeError, OSError) as e:
+                logger.warning("Failed to load RELAY_POLICY_FILE=%s: %s", policy_path, e)
+                return None
+        else:
+            logger.warning("RELAY_POLICY_FILE=%s not found", policy_path)
+            return None
+
+    # Try default path (walk up from this file to find project root)
+    # acceptance.py is at packages/civicos-relay/src/civicos_relay/server/acceptance.py
+    # project root is 6 levels up
+    pkg_dir = Path(__file__).resolve()
+    for _ in range(8):
+        pkg_dir = pkg_dir.parent
+        candidate = pkg_dir / _DEFAULT_POLICY_FILE
+        if candidate.is_file():
+            try:
+                return json.loads(candidate.read_text())
+            except (json.JSONDecodeError, OSError) as e:
+                logger.warning("Failed to load %s: %s", candidate, e)
+                return None
+
+    return None
+
+
+def _merge_policy(base: dict, overrides: dict) -> None:
+    """Deep merge overrides into base policy. Mutates base in place.
+
+    Each event type's config is merged independently, so overriding
+    voice.max_per_day doesn't lose voice.pow_difficulty.
+    """
+    for event_type, event_config in overrides.items():
+        if event_type in base and isinstance(base[event_type], dict) and isinstance(event_config, dict):
+            base[event_type].update(event_config)
+        else:
+            base[event_type] = event_config
+
 
 class InMemoryRateLimiter:
     """Dict-based rate limiter for tests and dev (no database required)."""
@@ -101,8 +183,10 @@ class AcceptancePolicy:
         connection_url: Optional[str] = None,
         issuer_lookup: Optional[IssuerLookup] = None,
         attestation_validity_seconds: int = DEFAULT_ATTESTATION_VALIDITY_SECONDS,
+        jurisdiction_id: Optional[str] = None,
     ):
-        self._config = config or DEFAULT_POLICY
+        self._config = config or load_policy(jurisdiction_id)
+        self._jurisdiction_id = jurisdiction_id
         self._connection_url = connection_url
         self._db_available = False
         self._issuer_lookup = issuer_lookup

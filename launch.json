@@ -213,15 +213,16 @@
       {
         "name": "config_driven_rate_limits",
         "description": "Move DEFAULT_POLICY from hardcoded module-level constant to per-jurisdiction configuration (config file or DB table). Currently every relay instance has identical rate limits and PoW difficulty regardless of jurisdiction.",
-        "status": "not_started",
-        "priority": 0,
+        "status": "done",
+        "priority": 99,
         "source": "architectural review \u2014 scaling prerequisite",
         "spec": "docs/internal/config-driven-rate-limits-spec.md",
         "files": [
-          "packages/civicos-relay/src/civicos_relay/server/acceptance.py"
+          "packages/civicos-relay/src/civicos_relay/server/acceptance.py",
+          "config/relay_policies.json"
         ],
-        "test_file": "packages/civicos-relay/tests/test_acceptance.py",
-        "notes": "Blocks multi-city: different jurisdictions will need different rate limits. Load from config/relay_policies.json with RELAY_POLICY_FILE env var override."
+        "test_file": "packages/civicos-relay/tests/test_acceptance_policy.py",
+        "notes": "load_policy() resolves: RELAY_POLICY_FILE env var \u2192 config/relay_policies.json[jurisdiction] \u2192 file defaults \u2192 DEFAULT_POLICY. Deep merge preserves per-event-type fields. AcceptancePolicy accepts jurisdiction_id param, RelayConfig reads RELAY_JURISDICTION env var. 10 new tests."
       },
       {
         "name": "extension_pow_generation",
@@ -466,7 +467,7 @@
         "name": "cross_marin_query_prototype",
         "description": "Prototype cross-jurisdiction queries within Marin County. Test what_happened() and what_applies() across San Rafael + Mill Valley + San Anselmo with shared county context.",
         "status": "not_started",
-        "priority": 2,
+        "priority": 0,
         "phase": "A",
         "source": "federation testbed \u2014 query federation",
         "spec": "docs/internal/cross-jurisdiction-query-spec.md",

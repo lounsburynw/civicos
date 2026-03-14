@@ -1,11 +1,12 @@
 """Tests for relay acceptance policy (rate limiting and tiered access)."""
 
+import json
 import time
 import pytest
 from unittest.mock import patch
 from civicos_relay.server.acceptance import (
     AcceptancePolicy, PolicyResult, InMemoryRateLimiter, DEFAULT_POLICY,
-    DEFAULT_ATTESTATION_VALIDITY_SECONDS,
+    DEFAULT_ATTESTATION_VALIDITY_SECONDS, load_policy, _merge_policy,
 )
 
 
@@ -585,3 +586,118 @@ class TestAcceptanceLogging:
         policy._conn_factory = lambda: (_ for _ in ()).throw(Exception("connection failed"))
         # Should not raise
         policy.cleanup_old_logs()
+
+
+class TestLoadPolicy:
+    """Tests for config-driven rate limit policy loading."""
+
+    def test_no_file_returns_defaults(self, tmp_path):
+        """Without any policy file, load_policy returns DEFAULT_POLICY."""
+        with patch.dict("os.environ", {"RELAY_POLICY_FILE": str(tmp_path / "nonexistent.json")}, clear=False):
+            policy = load_policy()
+        assert policy == DEFAULT_POLICY
+
+    def test_env_var_override(self, tmp_path):
+        """RELAY_POLICY_FILE env var takes precedence."""
+        policy_file = tmp_path / "custom.json"
+        policy_file.write_text(json.dumps({
+            "default": {
+                "voice": {"max_per_day": 999}
+            }
+        }))
+        with patch.dict("os.environ", {"RELAY_POLICY_FILE": str(policy_file)}, clear=False):
+            policy = load_policy()
+        assert policy["voice"]["max_per_day"] == 999
+        # pow_difficulty should be inherited from DEFAULT_POLICY
+        assert policy["voice"]["pow_difficulty"] == DEFAULT_POLICY["voice"]["pow_difficulty"]
+
+    def test_jurisdiction_specific_override(self, tmp_path):
+        """Per-jurisdiction config overrides defaults."""
+        policy_file = tmp_path / "policies.json"
+        policy_file.write_text(json.dumps({
+            "default": {
+                "voice": {"max_per_day": 50, "pow_difficulty": 16}
+            },
+            "city-berkeley": {
+                "voice": {"max_per_day": 200}
+            }
+        }))
+        with patch.dict("os.environ", {"RELAY_POLICY_FILE": str(policy_file)}, clear=False):
+            policy = load_policy("city-berkeley")
+        assert policy["voice"]["max_per_day"] == 200
+        assert policy["voice"]["pow_difficulty"] == 16
+
+    def test_unknown_jurisdiction_uses_defaults(self, tmp_path):
+        """Unknown jurisdiction falls through to file defaults."""
+        policy_file = tmp_path / "policies.json"
+        policy_file.write_text(json.dumps({
+            "default": {
+                "voice": {"max_per_day": 75}
+            },
+            "city-berkeley": {
+                "voice": {"max_per_day": 200}
+            }
+        }))
+        with patch.dict("os.environ", {"RELAY_POLICY_FILE": str(policy_file)}, clear=False):
+            policy = load_policy("city-unknown")
+        assert policy["voice"]["max_per_day"] == 75
+
+    def test_partial_override_preserves_other_event_types(self, tmp_path):
+        """Overriding one event type preserves others from defaults."""
+        policy_file = tmp_path / "policies.json"
+        policy_file.write_text(json.dumps({
+            "default": {
+                "voice": {"max_per_day": 100}
+            }
+        }))
+        with patch.dict("os.environ", {"RELAY_POLICY_FILE": str(policy_file)}, clear=False):
+            policy = load_policy()
+        # Comment should still have DEFAULT_POLICY values
+        assert policy["comment"] == DEFAULT_POLICY["comment"]
+
+    def test_invalid_json_falls_back_to_defaults(self, tmp_path):
+        """Invalid JSON in policy file falls back to DEFAULT_POLICY."""
+        policy_file = tmp_path / "bad.json"
+        policy_file.write_text("not json{{{")
+        with patch.dict("os.environ", {"RELAY_POLICY_FILE": str(policy_file)}, clear=False):
+            policy = load_policy()
+        assert policy == DEFAULT_POLICY
+
+    def test_acceptance_policy_uses_jurisdiction_id(self, tmp_path):
+        """AcceptancePolicy constructor respects jurisdiction_id parameter."""
+        policy_file = tmp_path / "policies.json"
+        policy_file.write_text(json.dumps({
+            "default": {},
+            "city-berkeley": {
+                "voice": {"max_per_day": 200, "pow_difficulty": 12}
+            }
+        }))
+        with patch.dict("os.environ", {"RELAY_POLICY_FILE": str(policy_file)}, clear=False):
+            policy = AcceptancePolicy(jurisdiction_id="city-berkeley")
+        assert policy._config["voice"]["max_per_day"] == 200
+        assert policy._config["voice"]["pow_difficulty"] == 12
+
+
+class TestMergePolicy:
+    """Tests for policy merge logic."""
+
+    def test_merge_updates_existing_key(self):
+        base = {"voice": {"max_per_day": 50, "pow_difficulty": 16}}
+        _merge_policy(base, {"voice": {"max_per_day": 100}})
+        assert base["voice"]["max_per_day"] == 100
+        assert base["voice"]["pow_difficulty"] == 16
+
+    def test_merge_adds_new_event_type(self):
+        base = {"voice": {"max_per_day": 50}}
+        _merge_policy(base, {"petition": {"max_per_day": 5}})
+        assert base["petition"]["max_per_day"] == 5
+        assert base["voice"]["max_per_day"] == 50
+
+    def test_merge_does_not_modify_source(self):
+        from copy import deepcopy
+        original = {"voice": {"max_per_day": 50, "pow_difficulty": 16}}
+        base = deepcopy(original)
+        overrides = {"voice": {"max_per_day": 100}}
+        _merge_policy(base, overrides)
+        # Overrides dict should be unchanged
+        assert overrides == {"voice": {"max_per_day": 100}}
