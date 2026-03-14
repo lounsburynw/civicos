@@ -87,21 +87,35 @@ P0 is reserved for critical blockers. `/start` and `init.sh` will warn if multip
 
 ## Core API
 
+The primary query interface is the **v2 query layer** (`civicos-services/query/`) with 5 verbs:
+
+```
+POST /api/v2/civic/search     — Multi-corpus civic search (decisions, meetings, legislation, etc.)
+POST /api/v2/civic/upcoming   — Upcoming events
+POST /api/v2/civic/context    — Deep item context or civic jargon lookup
+POST /api/v2/civic/act        — Participation actions
+POST /api/v2/civic/explore    — Discover jurisdictions, corpora, capabilities
+```
+
+Cross-jurisdiction queries use `include_parents` / `include_siblings` on search requests.
+
+The `CivicOS` class provides **internal** query methods used by v2 adapters:
+
 ```python
 from civicos import CivicOS
 c = CivicOS("san-rafael")
 
-# Query methods
+# Internal methods (used by v2 adapters, not the external API surface)
 c.whats_next()              # Upcoming meetings/decisions
 c.what_happened("housing")  # Historical decisions
 c.what_applies("housing")   # Relevant legislation
 c.what_was_said("housing")  # Search meeting transcripts
 c.get_public_testimony("housing")  # Public testimony excerpts
 
-
 # Coordination — see civicos-relay package
-
 ```
+
+**Do not add new query features to the CivicOS class.** New query capabilities go in the v2 layer.
 
 ### Data Access Patterns
 
@@ -109,7 +123,7 @@ c.get_public_testimony("housing")  # Public testimony excerpts
 
 | Need | Use This | NOT This |
 |------|----------|----------|
-| User-facing queries | `Civic` API (`what_happened()`, etc.) | Raw SQL |
+| User-facing queries | v2 verbs (`/api/v2/civic/search`, etc.) | Raw SQL or CivicOS methods directly |
 | Data counts/diagnostics | `DataStatus` or `StorageBackend.get_*_count()` | Raw SQL |
 | Bulk data access | `StorageBackend.get_*()` methods | Raw SQL |
 | Schema information | `CORPUS_REGISTRY` | Hardcoded column names |

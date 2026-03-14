@@ -34,45 +34,51 @@ Most agents should use the **REST API** or **MCP** path. The Python SDK requires
 
 ## Reading Civic Data
 
-### Via REST (recommended for agents)
+### Via v2 Query API (recommended for agents)
 
-All MCP tools are available as REST endpoints at `/api/tools/{tool-name}`:
+The v2 interface handles server-side composition — one request fans out across multiple corpora and jurisdictions:
 
 ```python
 import httpx
 
 BASE = "https://san-rafael.civicosproject.org"
+headers = {"Authorization": "Bearer cvk_live_your_key_here"}
 
-# Upcoming meetings
-resp = httpx.post(f"{BASE}/api/tools/get-upcoming-meetings",
-    json={"topics": "housing", "days": 30})
-meetings = resp.json()
+# Multi-corpus search: decisions + legislation + meetings in one call
+resp = httpx.post(f"{BASE}/api/v2/civic/search",
+    json={"query": "housing", "corpus": ["decisions", "legislation", "meetings"]},
+    headers=headers)
+results = resp.json()
 
-# Past decisions
-resp = httpx.post(f"{BASE}/api/tools/search-meeting-history",
-    json={"query": "housing zoning"})
-decisions = resp.json()
+# Cross-jurisdiction: include county + state results alongside city
+resp = httpx.post(f"{BASE}/api/v2/civic/search",
+    json={"query": "housing", "corpus": ["decisions"], "include_parents": True},
+    headers=headers)
 
-# Legislation
-resp = httpx.post(f"{BASE}/api/tools/search-legislation",
-    json={"topic": "housing", "level": "state", "limit": 10})
+# Cross-jurisdiction with siblings (neighboring cities in same county)
+resp = httpx.post(f"{BASE}/api/v2/civic/search",
+    json={"query": "housing", "corpus": ["decisions"],
+           "include_parents": True, "include_siblings": True},
+    headers=headers)
 
-# City pulse (no auth required — open tier)
+# Upcoming events
+resp = httpx.post(f"{BASE}/api/v2/civic/upcoming",
+    json={"types": ["meetings"], "days": 14})
+
+# Deep context for a specific item
+resp = httpx.post(f"{BASE}/api/v2/civic/context",
+    json={"ref": "decision:city-san-rafael:dec-123"},
+    headers=headers)
+
+# City pulse (open tier — no auth required)
 resp = httpx.get(f"{BASE}/api/tools/city-pulse")
 
-# Voice counts (no auth required — open tier)
+# Voice counts (open tier — no auth required)
 resp = httpx.post(f"{BASE}/api/tools/get-voice-counts",
     json={"entity": "city-san-rafael:mtg-2026-03-10-cc:item-5"})
 ```
 
-For higher rate limits, pass an API key:
-```python
-headers = {"Authorization": "Bearer cvk_live_your_key_here"}
-resp = httpx.post(f"{BASE}/api/tools/search-meeting-history",
-    json={"query": "housing"}, headers=headers)
-```
-
-See [API Reference](api.md) for rate limits and tier access. See [MCP Setup — Tool Access by Tier](mcp/setup.md#tool-access-by-api-tier) for which tools are available at each tier.
+See [API Reference — v2 Query Interface](api.md#v2-query-interface-recommended) for full request/response schemas and rate limits.
 
 ### Via MCP (for AI assistants)
 
@@ -88,11 +94,13 @@ If your agent framework supports MCP (Claude Desktop, OpenAI agents, LangChain, 
 }
 ```
 
-The MCP server exposes 50+ tools. Your agent can call them like any MCP tool. See [MCP Setup](mcp/setup.md) for the full tool inventory.
+The MCP server provides civic data tools. See [MCP Setup](mcp/setup.md) for the tool inventory and v2 verb interface.
 
 ### Multi-Jurisdiction Queries
 
-Each jurisdiction has its own MCP server. Query multiple jurisdictions by hitting different endpoints:
+The v2 query interface supports cross-jurisdiction queries natively via `include_parents` and `include_siblings` flags. Results are grouped by jurisdiction with tier-based relevance boosting (parent=1.0, sibling=0.8).
+
+Each jurisdiction also has its own endpoint for direct queries:
 
 | Jurisdiction | Endpoint |
 |-------------|----------|
@@ -242,9 +250,9 @@ The AI proxy requires attestation and is rate-limited to 20 requests/day per pub
 Watches for new meetings and alerts when relevant topics appear.
 
 ```
-Poll get_upcoming_meetings (every hour)
+Poll civic.upcoming (every hour, types=["meetings"])
   → Filter by topics of interest
-  → For each new meeting: get_item_context for full background
+  → For each new meeting: civic.context(ref=meeting_ref) for full background
   → Notify user with context summary
 ```
 
@@ -253,9 +261,9 @@ Poll get_upcoming_meetings (every hour)
 Tracks state/federal legislation and surfaces local impact.
 
 ```
-Poll search_legislation (daily, by topic)
-  → For each bill: get_bill_detail, get_leverage_points
-  → Cross-reference with local decisions: search_meeting_history
+Poll civic.search (daily, corpus=["legislation"], include_parents=true)
+  → For each bill: civic.context(ref=bill_ref)
+  → Cross-reference with local decisions: civic.search(corpus=["decisions"])
   → Generate impact summary
 ```
 

@@ -1,10 +1,24 @@
 # civicos
 
-Core Python package. Provides the `CivicOS` class for querying civic data.
+Core Python package. Provides the `CivicOS` class and storage backends.
 
 **Location:** `packages/civicos/`
 
-## Public API
+## Role in Architecture
+
+The `civicos` package is the **data access layer**. It provides storage backends, vector search, and jurisdiction configuration. The v2 query interface (`civicos-services/query/`) orchestrates these into the public-facing API.
+
+```
+v2 Query Layer (civicos-services)   ← External API surface
+    ↓ calls
+CivicOS + Adapters                  ← Internal orchestration
+    ↓ calls
+StorageBackend / VectorBackend      ← Data access
+```
+
+External consumers should use the [v2 REST API](../api.md#v2-query-interface-recommended) or MCP server, not the `CivicOS` class directly.
+
+## CivicOS Class
 
 ```python
 from civicos import CivicOS
@@ -12,7 +26,9 @@ from civicos import CivicOS
 c = CivicOS("city-san-rafael")  # or a CivicOSConfig object
 ```
 
-### Query Methods
+### Query Methods (Internal)
+
+> These methods are used by v2 adapters internally. Do not add new query features here — they go in the v2 layer.
 
 | Method | Returns | Purpose |
 |--------|---------|---------|

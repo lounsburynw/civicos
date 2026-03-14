@@ -305,173 +305,120 @@ Operating cost breakdown (admin auth required).
 
 ---
 
-## Python SDK
+## v2 Query Interface (Recommended)
 
-For direct integration without HTTP overhead.
+The v2 interface provides server-side composition across corpora and jurisdictions. All queries go through 5 verbs at `/api/v2/civic/`:
 
-```python
-from dotenv import load_dotenv
-load_dotenv()  # Loads DATABASE_URL from .env
+```bash
+# Multi-corpus search
+curl -X POST "$BASE/api/v2/civic/search" \
+  -H "Authorization: Bearer $KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"query": "housing", "corpus": ["decisions", "legislation", "meetings"]}'
 
-from civicos import CivicOS
-c = CivicOS("city-san-rafael")
+# Cross-jurisdiction search (parents = county, state, federal)
+curl -X POST "$BASE/api/v2/civic/search" \
+  -H "Authorization: Bearer $KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"query": "housing", "corpus": ["decisions"], "include_parents": true}'
+
+# Cross-jurisdiction with siblings (other cities in same county)
+curl -X POST "$BASE/api/v2/civic/search" \
+  -H "Authorization: Bearer $KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"query": "housing", "corpus": ["decisions"], "include_parents": true, "include_siblings": true}'
 ```
 
-### Query Methods
+### civic.search
 
-#### what_happened(query, since=None) -> List[Decision]
+`POST /api/v2/civic/search`
 
-Search past council decisions by topic.
+| Field | Type | Description |
+|-------|------|-------------|
+| `query` | string | Natural language query (required) |
+| `corpus` | string[] | Corpus types to search (required): `decisions`, `testimony`, `legislation`, `meetings`, `issues`, `budget`, `municipal_code`, `packets`, `rules`, `orders` |
+| `jurisdiction` | string | Override jurisdiction (default: server's jurisdiction) |
+| `since` | string | Date range start (ISO) |
+| `until` | string | Date range end (ISO) |
+| `location` | string | Geographic filter |
+| `limit` | int | Max results (1-100, default 10) |
+| `depth` | string | `minimal`, `standard` (default), `deep` |
+| `mode` | string | `search` (default), `aggregate`, `trend`, `diff`, `intersect` |
+| `include_parents` | bool | Include parent jurisdictions (county, state, federal) |
+| `include_siblings` | bool | Include sibling jurisdictions (same parent county) |
 
-```python
-decisions = c.what_happened("housing")
-for d in decisions:
-    print(d.title, d.outcome, d.date)
+**Response:**
+
+```json
+{
+  "results": [
+    {
+      "type": "decision",
+      "ref": "decision:city-san-rafael:dec-123",
+      "title": "Approve Housing Element Update",
+      "date": "2026-02-15",
+      "summary": "Approved 4-1 — City Council",
+      "relevance": 0.95,
+      "jurisdiction": "city-san-rafael",
+      "details": {"outcome": "Approved 4-1", "vote_summary": "4-1"}
+    }
+  ],
+  "jurisdiction_results": {
+    "city-san-rafael": [...],
+    "county-marin": [...]
+  },
+  "meta": {
+    "schema_version": "2025.1",
+    "query_time_ms": 245,
+    "total_results": 12,
+    "corpus_counts": {"decisions": 5, "legislation": 7}
+  }
+}
 ```
 
-**Decision fields:** `id`, `title`, `date` (datetime), `outcome`, `body`, `votes` (dict)
+`jurisdiction_results` is only present in cross-jurisdiction queries. Each `CivicResult` includes a `jurisdiction` field.
 
-Outcomes: `approved`, `denied`, `continued`, `withdrawn`, `received`, `adopted`, `other`
+### civic.upcoming
 
-#### what_happened_full_context(query, since=None, top_k=5) -> List[DecisionWithContext]
+`POST /api/v2/civic/upcoming`
 
-Decisions with linked transcript excerpts and public comment context.
+| Field | Type | Description |
+|-------|------|-------------|
+| `types` | string[] | Event types: `meetings`, `hearings`, `comment_periods`, `legislation`, `elections` |
+| `days` | int | Look-ahead window (1-365, default 14) |
+| `actionable_only` | bool | Only events with participation opportunities |
 
-**DecisionWithContext fields:** `decision` (Decision), `transcript_links` (List[TranscriptLink]), `link_confidence` (float), `link_type` (str)
+### civic.context
 
-Properties: `has_transcript`, `public_comments`, `staff_discussion`, `council_discussion`
+`POST /api/v2/civic/context`
 
-#### whats_next(topics=None, days=30, include_elections=False) -> List[Meeting]
+| Field | Type | Description |
+|-------|------|-------------|
+| `ref` | string | Opaque ref from a search/upcoming result |
+| `concept` | string | Civic term to look up (e.g., "conditional use permit") |
+| `depth` | string | `minimal`, `standard`, `deep` |
 
-Upcoming meetings, optionally filtered by topic.
+Provide either `ref` (item context) or `concept` (jargon lookup), not both.
 
-```python
-meetings = c.whats_next(["transportation"], days=14)
-for m in meetings:
-    print(m.title, m.date, len(m.agenda_items), "agenda items")
-```
+### civic.act
 
-**Meeting fields:** `id`, `title`, `date` (datetime), `body`, `agenda_items` (list), `location`
+`POST /api/v2/civic/act`
 
-#### what_applies(topic, location=None, ranking_mode="auto") -> RegulatoryStack
+| Field | Type | Description |
+|-------|------|-------------|
+| `action` | string | Action name: `prepare_comment`, `comment_template`, etc. |
+| `ref` | string | Item reference for context-dependent actions |
+| `params` | object | Action-specific parameters |
 
-Federal, state, and local regulations relevant to a topic.
+### civic.explore
 
-```python
-regs = c.what_applies("housing", ranking_mode="section_first")
-print(len(regs.federal), "federal")
-print(len(regs.state), "state")
-print(len(regs.local), "local")
-```
+`POST /api/v2/civic/explore`
 
-**RegulatoryStack fields:** `topic`, `jurisdiction`, `federal` (list), `state` (list), `local` (list), `retrieved_at` (datetime)
+| Field | Type | Description |
+|-------|------|-------------|
+| `what` | string | `jurisdictions`, `corpora`, `corpus_schema:{name}`, `actions`, `capabilities`, `schema_version` |
 
-#### what_was_said(query, top_k=10) -> List[TranscriptExcerpt]
-
-Search meeting transcripts by topic.
-
-**TranscriptExcerpt fields:** `id`, `text`, `speaker`, `speaker_role`, `video_id`, `start_timestamp`, `end_timestamp`, `is_public_comment`, `score`
-
-Property: `video_url` — YouTube link with timestamp
-
-#### get_public_testimony(topic, top_k=10) -> List[TranscriptExcerpt]
-
-Public comment excerpts only (filters to public comment segments).
-
-#### what_happened_with_discussion(query, top_k=10, agenda_item=None) -> List[HybridSearchResult]
-
-Combined PDF + transcript search. Each result has `source_type` ("pdf" or "transcript").
-
-### Budget & Finance
-
-#### budget(department=None, fund=None, fiscal_year=None) -> List[BudgetItem]
-
-```python
-items = c.budget(department="Fire")
-for item in items:
-    print(item.department, item.line_item, f"${item.budgeted_dollars:,.0f}")
-```
-
-**BudgetItem fields:** `id`, `fund`, `department`, `program`, `line_item`, `budgeted_dollars` (float), `fiscal_year`, `revised_dollars`, `actual_dollars`, `source_url`, `source_page`, `notes`
-
-#### budget_summary(fiscal_year=None, group_by="department") -> List[BudgetSummary]
-
-Aggregated budget by department or fund.
-
-**BudgetSummary fields:** `name`, `budgeted_dollars` (float), `item_count` (int), `revised_dollars`, `actual_dollars`
-
-#### federal_expenditures(cfda_number=None, audit_year=None) -> List[FederalExpenditure]
-
-Audited federal spending from the Single Audit (Federal Audit Clearinghouse data).
-
-```python
-exps = c.federal_expenditures()
-for e in exps[:5]:
-    print(f"{e.federal_program_name}: ${e.amount_expended_dollars:,.0f}")
-```
-
-**FederalExpenditure fields:** `report_id`, `cfda_number`, `audit_year` (int), `amount_expended_dollars` (float), `federal_program_total_dollars`, `cluster_total_dollars`, `federal_program_name`, `cluster_name`, `federal_agency_prefix`, `is_major` (bool), `is_passthrough` (bool), `source_url`
-
-#### federal_expenditures_summary(audit_year=None) -> dict
-
-Aggregated federal spending summary.
-
-```python
-summary = c.federal_expenditures_summary()
-print(f"Total: ${summary['total_dollars']:,.0f} across {len(summary['programs'])} programs")
-```
-
-**Returns:** `{"total_dollars": float, "audit_year": int, "programs": [...]}`
-
-#### intergovernmental_revenue(fiscal_year=None, source=None) -> IntergovernmentalRevenueSummary
-
-Revenue from federal, state, and county sources (CA State Controller data).
-
-```python
-rev = c.intergovernmental_revenue()
-print(f"Federal: ${rev.federal_total_dollars:,.0f}")
-print(f"State:   ${rev.state_total_dollars:,.0f}")
-print(f"County:  ${rev.county_total_dollars:,.0f}")
-print(f"Total:   ${rev.total_dollars:,.0f}")
-```
-
-**IntergovernmentalRevenueSummary fields:** `fiscal_year` (int), `entity_name`, `federal_total_dollars` (float), `state_total_dollars` (float), `county_total_dollars` (float), `undetermined_total_dollars` (float), `total_dollars` (float), `details` (List[IntergovernmentalRevenue])
-
-**IntergovernmentalRevenue fields:** `fiscal_year`, `form_table` (SCO form code), `source` ("federal"/"state"/"county"), `amount_dollars` (float), `category`, `subcategory`, `line_description`, `entity_name`
-
-#### funding_flow(program=None, cfda_number=None) -> List[FundingFlow]
-
-Trace federal-to-state-to-city funding paths. Links federal awards to state pass-throughs to city budget items.
-
-> **Note:** This feature requires funding flow linkage data, which is not yet available for all jurisdictions. Returns empty results where linkage data hasn't been ingested.
-
-**FundingFlow fields:** `budget_item_id`, `budget_description`, `budget_dollars` (float), `department`, `fund`, `fiscal_year`, `federal_award_id`, `federal_cfda_number`, `federal_program_name`, `federal_agency`, `federal_dollars`, `match_type`, `match_confidence` (float), `reconciliation_status`
-
-#### funding_flow_impact(program=None, cfda_number=None, cut_percentage=0.20) -> FundingFlowImpact
-
-Model the impact of hypothetical funding cuts on local budget items.
-
-> **Note:** Depends on funding flow linkage data (see above).
-
-**FundingFlowImpact fields:** `program_name`, `cfda_number`, `cut_percentage` (float), `total_current_dollars` (float), `total_impact_dollars` (float), `affected_items` (List[FundingFlow])
-
-### Voting Records
-
-#### get_voting_record(official_name, topic=None, since=None, until=None) -> VotingRecord
-
-Voting statistics for an elected official, optionally filtered by topic.
-
-**VotingRecord fields:** `official_id`, `official_name`, `topic`, `total_votes` (int), `yes_votes` (int), `no_votes` (int), `abstain_votes` (int), `decisions` (list of dicts)
-
-Properties: `yes_percentage`, `no_percentage`, `abstain_percentage`
-
-### AI Actions
-
-#### draft_action(action_type, topic, description, target=None, template=None) -> ActionDraft
-
-AI-generated civic action draft (public comment, letter, etc.).
-
-**ActionDraft fields:** `draft` (str), `description`, `citations` (list)
+---
 
 ## Data Coverage
 
