@@ -214,7 +214,7 @@
         "name": "config_driven_rate_limits",
         "description": "Move DEFAULT_POLICY from hardcoded module-level constant to per-jurisdiction configuration (config file or DB table). Currently every relay instance has identical rate limits and PoW difficulty regardless of jurisdiction.",
         "status": "not_started",
-        "priority": 2,
+        "priority": 0,
         "source": "architectural review \u2014 scaling prerequisite",
         "spec": "docs/internal/config-driven-rate-limits-spec.md",
         "files": [
@@ -239,7 +239,7 @@
       {
         "name": "attestation_expiry",
         "description": "Add attestation expiry check: created_at + validity_period > now. Recommend 1-year validity. Design revocation mechanism (blocklist of revoked attestation event IDs).",
-        "status": "not_started",
+        "status": "done",
         "priority": 0,
         "source": "docs/internal/relay-acceptance-policy-spec.md (Phase 3)",
         "files": [

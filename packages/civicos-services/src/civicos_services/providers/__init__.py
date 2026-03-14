@@ -9,17 +9,17 @@ so this package can be imported without those packages installed.
 """
 
 from .base import LLMProvider, CompletionResponse, ToolCall
-from .google_provider import GoogleProvider
 
 # Lazy imports for providers requiring optional packages:
+# - GoogleProvider → requires `google-generativeai`
 # - OpenAIProvider, GroqProvider, OllamaProvider, OpenAICompatibleProvider → require `openai`
 # - AnthropicProvider → requires `anthropic`
 # Import them directly when needed:
+#   from civicos_services.providers.google_provider import GoogleProvider
 #   from civicos_services.providers.openai_provider import OpenAIProvider
 
 __all__ = [
     'LLMProvider',
     'CompletionResponse',
     'ToolCall',
-    'GoogleProvider',
 ]

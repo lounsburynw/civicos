@@ -13,7 +13,6 @@ import requests
 from typing import Dict, List, Optional, Any, Tuple
 from dataclasses import dataclass
 from urllib.parse import urljoin, urlparse
-import openai
 import html
 from urllib.parse import quote
 
@@ -1188,11 +1187,15 @@ Skip only purely procedural items (meeting minutes approval, internal appointmen
     def _extract_pdf_text(self, pdf_content: bytes) -> str:
         """Extract text from PDF content with smart preamble skipping"""
         try:
-            import PyPDF2
+            try:
+                from pypdf import PdfReader
+            except ImportError:
+                import PyPDF2
+                PdfReader = PyPDF2.PdfReader
             from io import BytesIO
 
             pdf_file = BytesIO(pdf_content)
-            pdf_reader = PyPDF2.PdfReader(pdf_file)
+            pdf_reader = PdfReader(pdf_file)
 
             # Extract first 50 pages to handle large agenda packets with attachments
             # Using Gemini 1.5 Pro with 2M context, we can process much more content

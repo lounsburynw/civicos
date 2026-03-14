@@ -1,3 +1,23 @@
+## Session 39 — 2026-03-13: Attestation Expiry & Revocation (P0)
+
+**Item:** attestation_expiry
+**Status:** Complete
+
+**Changes:**
+- Added expiry check in `_verify_attestation()`: `created_at + validity_period < now` rejects old proofs
+- Default validity: 1 year (31536000 seconds), configurable via `attestation_validity_seconds` param
+- Added in-memory revocation blocklist (`_revoked_attestations` set) with DB persistence
+- Public API: `revoke_attestation()`, `is_attestation_revoked()`, `load_revocations_from_db()`
+- Migration SQL: `scripts/sql/add_attestation_revocations.sql` (coordination_attestation_revocations table)
+- 13 new tests: 8 expiry (boundary, custom validity, missing created_at) + 6 revocation (blocklist, idempotent, isolation)
+- 404 relay tests pass (up from 391), 53 acceptance policy tests (up from 40)
+
+**Files modified:**
+- `packages/civicos-relay/src/civicos_relay/server/acceptance.py` — expiry check, revocation API
+- `packages/civicos-relay/tests/test_acceptance_policy.py` — 13 new tests
+- `scripts/sql/add_attestation_revocations.sql` — new migration
+- `launch.json` — item marked done
+
 ## Session 38 — 2026-03-13: Turnkey Onboarding Phase 3 — Coverage Improvements (P1)
 
 **Item:** turnkey_onboarding_coverage

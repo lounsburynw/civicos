@@ -34,8 +34,7 @@ Usage:
 import os
 from typing import Optional, List
 from ..providers.base import LLMProvider
-from ..providers.google_provider import GoogleProvider
-# Lazy imports for providers that require optional dependencies (openai, anthropic)
+# Lazy imports for ALL providers that require optional dependencies
 # OpenAIProvider, GroqProvider, OllamaProvider, PerplexityProvider, OpenRouterProvider
 #   → imported inside get_provider() / get_provider_with_model() (require `openai` package)
 # AnthropicProvider → imported inside get_provider() (requires `anthropic` package)
@@ -83,6 +82,7 @@ def get_provider(provider_name: Optional[str] = None) -> LLMProvider:
         return OpenAIProvider()
 
     elif provider_name == 'google' or provider_name == 'gemini':
+        from ..providers.google_provider import GoogleProvider
         return GoogleProvider()
 
     elif provider_name == 'groq':
@@ -419,14 +419,20 @@ def get_model_for_task(task_type: str, use_model_config: bool = True) -> LLMProv
         # Try candidates in cost order (cheapest first)
         for model_name in candidates:
             if is_model_available_in_registry(model_name):
-                return get_model(model_name)
+                try:
+                    return get_model(model_name)
+                except ImportError:
+                    continue  # SDK not installed, try next
 
     # Strategy 2: Explicit priority - try models in specified order
     else:
         model_priority = config.get('model_priority', [])
         for model_name in model_priority:
             if is_model_available_in_registry(model_name):
-                return get_model(model_name)
+                try:
+                    return get_model(model_name)
+                except ImportError:
+                    continue  # SDK not installed, try next
 
     # All models unavailable - use fallback
     fallback = config.get('fallback_model', 'gpt-4o-mini')
@@ -484,6 +490,7 @@ def get_provider_with_model(provider_name: str, model: str) -> LLMProvider:
         provider._default_model = model  # Set private attribute
         return provider
     elif provider_name == 'google' or provider_name == 'gemini':
+        from ..providers.google_provider import GoogleProvider
         return GoogleProvider(model=model)
     elif provider_name == 'groq':
         from ..providers.openai_compatible_provider import GroqProvider
