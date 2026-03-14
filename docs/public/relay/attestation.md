@@ -103,7 +103,7 @@ Think of it like a passport: you don't call the issuing country every time someo
 
 ## Multi-Issuer Attestation
 
-Multiple independent organizations can be trusted issuers for a jurisdiction — each holding their own signing key via the [`civicos-signer`](../packages/civicos-signer.md) service. This is live in the federation testbed with issuers registered for Mill Valley (Library) and San Anselmo (Town Council).
+Multiple independent organizations can be trusted issuers for a jurisdiction — each holding their own signing key via the [`civicos-signer`](../packages/civicos-signer.md) service. This separation of attestation authority from relay operation is built in from launch, not deferred to a future phase.
 
 ### How it works
 
@@ -126,22 +126,6 @@ The attestation event's `pubkey` field identifies which organization vouched for
 | POST | `/coordination/codes/batch` | Admin | Submit issuer-signed code batch (kind-30851) |
 
 Admin auth accepts both `?api_key=` query param and `Authorization: Bearer` header (env: `CIVICOS_ADMIN_API_KEY`).
-
-### Tooling
-
-```bash
-# Generate issuer keypairs for federation test relays
-python3 scripts/setup_federation_issuers.py generate
-
-# Register and verify issuers on live relays
-python3 scripts/setup_federation_issuers.py register
-
-# Generate and push test attestation codes
-python3 scripts/setup_federation_issuers.py codes
-
-# Check relay status, issuer registration, attestation stats
-python3 scripts/setup_federation_issuers.py status
-```
 
 ### Attestation types
 
