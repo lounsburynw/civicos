@@ -136,13 +136,14 @@ async def lifespan(app: FastAPI):
     if config.acceptance_policy_enabled:
         issuer_storage = storage.issuers
 
-        def issuer_lookup(jurisdiction: str) -> Optional[str]:
-            """Look up trusted issuer pubkey for a jurisdiction."""
+        def issuer_lookup(jurisdiction: str) -> list[str]:
+            """Look up all trusted issuer pubkeys for a jurisdiction."""
             issuers = issuer_storage.get_issuers_for_jurisdiction(jurisdiction)
-            for issuer in issuers:
-                if issuer.get("verified") and not issuer.get("revoked"):
-                    return issuer["issuer_pubkey"]
-            return None
+            return [
+                issuer["issuer_pubkey"]
+                for issuer in issuers
+                if issuer.get("verified") and not issuer.get("revoked")
+            ]
 
         policy = AcceptancePolicy(
             connection_url=relay_db_url,

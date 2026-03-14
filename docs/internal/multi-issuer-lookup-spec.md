@@ -118,12 +118,12 @@ CREATE TABLE coordination_issuer_registry (
 
 ### Implementation Status
 
-Steps 1, 2, and 6 are complete:
+Steps 1, 2, 3, 4, and 6 are complete:
 
 1. ~~Create `coordination_issuer_registry` table~~ — **Done.** Table exists on all relay databases (Supabase + Neon). Schema in `scripts/sql/add_issuer_registry.sql`.
 2. ~~Seed from current `registry.json`~~ — **Done.** Issuers registered via HTTP endpoints.
-3. Update `app.py` lifespan to build `IssuerLookup` from DB query — **Pending.** Currently uses `CIVICOS_ATTESTATION_PRIVATE_KEY` env var (single issuer).
-4. Update `AcceptancePolicy._verify_attestation()` to iterate issuers — **Pending.**
+3. ~~Update `app.py` lifespan to build `IssuerLookup` from DB query~~ — **Done.** `issuer_lookup` now returns `list[str]` of all verified, non-revoked pubkeys from the issuer storage.
+4. ~~Update `AcceptancePolicy._verify_attestation()` to iterate issuers~~ — **Done.** Iterates all issuer pubkeys, accepts if any one verifies. 6 new tests added to `test_acceptance_policy.py`.
 5. Remove `attestation_issuer_pubkey` from `registry.json` — **Pending** (after step 3).
 6. ~~Generate issuer keypairs for Mill Valley + San Anselmo~~ — **Done.** Both registered and verified on live relays. Configs in `config/federation/` (gitignored).
 

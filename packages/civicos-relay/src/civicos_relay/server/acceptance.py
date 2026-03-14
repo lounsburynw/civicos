@@ -16,8 +16,8 @@ from typing import Callable, Optional
 
 logger = logging.getLogger(__name__)
 
-# Type for issuer registry lookup: (jurisdiction) -> issuer_pubkey or None
-IssuerLookup = Callable[[str], Optional[str]]
+# Type for issuer registry lookup: (jurisdiction) -> list of verified issuer pubkeys
+IssuerLookup = Callable[[str], list[str]]
 
 
 @dataclass
@@ -176,9 +176,10 @@ class AcceptancePolicy:
     def _verify_attestation(self, proof: dict, public_key: str) -> bool:
         """Verify kind-30850 attestation proof from a trusted jurisdiction issuer.
 
-        Extracts jurisdiction from the proof's 'j' tag, looks up the trusted
-        issuer pubkey, then delegates to verify_attestation_proof() for full
-        cryptographic verification (event ID, Schnorr signature, tag matching).
+        Extracts jurisdiction from the proof's 'j' tag, looks up all trusted
+        issuer pubkeys, then tries each until one verifies. This supports
+        multiple issuers per jurisdiction (e.g., voices arriving via peer sync
+        may carry attestations from a different issuer).
         """
         if self._issuer_lookup is None:
             return False
@@ -193,15 +194,18 @@ class AcceptancePolicy:
                 logger.debug("Attestation proof missing jurisdiction tag")
                 return False
 
-            # Look up trusted issuer for this jurisdiction
-            issuer_pubkey = self._issuer_lookup(jurisdiction)
-            if not issuer_pubkey:
-                logger.debug("No trusted issuer for jurisdiction: %s", jurisdiction)
+            # Look up all trusted issuers for this jurisdiction
+            issuer_pubkeys = self._issuer_lookup(jurisdiction)
+            if not issuer_pubkeys:
+                logger.debug("No trusted issuers for jurisdiction: %s", jurisdiction)
                 return False
 
-            # Full cryptographic verification
+            # Try each issuer — attestation is valid if any one matches
             from civicos_relay.voice.crypto import verify_attestation_proof
-            return verify_attestation_proof(proof, public_key, jurisdiction, issuer_pubkey)
+            for issuer_pubkey in issuer_pubkeys:
+                if verify_attestation_proof(proof, public_key, jurisdiction, issuer_pubkey):
+                    return True
+            return False
         except Exception:
             logger.warning("Attestation verification failed", exc_info=True)
             return False

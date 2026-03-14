@@ -588,7 +588,7 @@
       {
         "name": "multi_issuer_lookup",
         "description": "Update issuer_lookup signature from (jurisdiction) -> Optional[str] to (jurisdiction) -> List[TrustedIssuer] with validity windows and trust levels. Informed by testbed findings.",
-        "status": "not_started",
+        "status": "done",
         "priority": 0,
         "phase": "B",
         "source": "architectural review \u2014 federation prerequisite",

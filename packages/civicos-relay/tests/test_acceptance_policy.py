@@ -139,7 +139,7 @@ class TestAttestationVerification:
     def test_valid_attestation_accepts_as_attested(self):
         """Valid attestation proof with issuer lookup should accept as tier='attested'."""
         issuer_pubkey = "b" * 64
-        lookup = lambda j: issuer_pubkey if j == "city-san-rafael" else None
+        lookup = lambda j: [issuer_pubkey] if j == "city-san-rafael" else []
         policy = AcceptancePolicy(
             config={"voice": {"max_per_day": 1, "pow_difficulty": 3}},
             issuer_lookup=lookup,
@@ -153,7 +153,7 @@ class TestAttestationVerification:
 
     def test_attestation_bypasses_exhausted_rate_limit(self):
         """Valid attestation should bypass rate limit even when quota exhausted."""
-        lookup = lambda j: "b" * 64
+        lookup = lambda j: ["b" * 64]
         policy = AcceptancePolicy(
             config={"voice": {"max_per_day": 1, "pow_difficulty": 3}},
             issuer_lookup=lookup,
@@ -178,7 +178,7 @@ class TestAttestationVerification:
 
     def test_unknown_jurisdiction_falls_through(self):
         """Attestation for unknown jurisdiction falls through to lower tiers."""
-        lookup = lambda j: None  # no issuers
+        lookup = lambda j: []  # no issuers
         policy = AcceptancePolicy(
             config={"voice": {"max_per_day": 5, "pow_difficulty": 3}},
             issuer_lookup=lookup,
@@ -190,7 +190,7 @@ class TestAttestationVerification:
 
     def test_missing_jurisdiction_tag_falls_through(self):
         """Attestation proof without j-tag falls through to lower tiers."""
-        lookup = lambda j: "b" * 64
+        lookup = lambda j: ["b" * 64]
         policy = AcceptancePolicy(
             config={"voice": {"max_per_day": 5, "pow_difficulty": 3}},
             issuer_lookup=lookup,
@@ -202,7 +202,7 @@ class TestAttestationVerification:
 
     def test_crypto_verification_failure_falls_through(self):
         """If crypto verification fails, falls through to lower tiers."""
-        lookup = lambda j: "b" * 64
+        lookup = lambda j: ["b" * 64]
         policy = AcceptancePolicy(
             config={"voice": {"max_per_day": 5, "pow_difficulty": 3}},
             issuer_lookup=lookup,
@@ -212,6 +212,84 @@ class TestAttestationVerification:
             result = policy.check("voice", "a" * 64, attestation_proof=proof)
         assert result.accepted
         assert result.tier == "rate_limited"
+
+
+class TestMultiIssuerAttestation:
+    def test_second_issuer_verifies_when_first_fails(self):
+        """Attestation from issuer B passes when issuers A and B are both registered."""
+        issuer_a = "a1" * 32
+        issuer_b = "b2" * 32
+        lookup = lambda j: [issuer_a, issuer_b]
+        policy = AcceptancePolicy(
+            config={"voice": {"max_per_day": 1, "pow_difficulty": 3}},
+            issuer_lookup=lookup,
+        )
+        proof = _make_attestation_proof(issuer_pubkey=issuer_b)
+
+        def verify_side_effect(proof, pubkey, jurisdiction, issuer_pubkey):
+            return issuer_pubkey == issuer_b
+
+        with patch("civicos_relay.voice.crypto.verify_attestation_proof", side_effect=verify_side_effect) as mock_verify:
+            result = policy.check("voice", "a" * 64, attestation_proof=proof)
+        assert result.accepted
+        assert result.tier == "attested"
+        assert mock_verify.call_count == 2
+
+    def test_first_issuer_matches_without_trying_rest(self):
+        """When first issuer verifies, remaining issuers are not tried."""
+        issuer_a = "a1" * 32
+        issuer_b = "b2" * 32
+        lookup = lambda j: [issuer_a, issuer_b]
+        policy = AcceptancePolicy(
+            config={"voice": {"max_per_day": 1, "pow_difficulty": 3}},
+            issuer_lookup=lookup,
+        )
+        proof = _make_attestation_proof(issuer_pubkey=issuer_a)
+        with patch("civicos_relay.voice.crypto.verify_attestation_proof", return_value=True) as mock_verify:
+            result = policy.check("voice", "a" * 64, attestation_proof=proof)
+        assert result.accepted
+        assert result.tier == "attested"
+        mock_verify.assert_called_once_with(proof, "a" * 64, "city-san-rafael", issuer_a)
+
+    def test_no_issuer_matches_falls_through(self):
+        """When no issuers verify, falls through to lower tiers."""
+        lookup = lambda j: ["a1" * 32, "b2" * 32]
+        policy = AcceptancePolicy(
+            config={"voice": {"max_per_day": 5, "pow_difficulty": 3}},
+            issuer_lookup=lookup,
+        )
+        proof = _make_attestation_proof()
+        with patch("civicos_relay.voice.crypto.verify_attestation_proof", return_value=False):
+            result = policy.check("voice", "a" * 64, attestation_proof=proof)
+        assert result.accepted
+        assert result.tier == "rate_limited"
+
+    def test_empty_issuer_list_falls_through(self):
+        """Empty issuer list is equivalent to no trusted issuers."""
+        lookup = lambda j: []
+        policy = AcceptancePolicy(
+            config={"voice": {"max_per_day": 5, "pow_difficulty": 3}},
+            issuer_lookup=lookup,
+        )
+        proof = _make_attestation_proof()
+        result = policy.check("voice", "a" * 64, attestation_proof=proof)
+        assert result.accepted
+        assert result.tier == "rate_limited"
+
+    def test_revoked_issuer_excluded_from_lookup(self):
+        """Simulates that revoked issuers are excluded by the lookup callable."""
+        # Only issuer_b is in the list (issuer_a was revoked and filtered out by lookup)
+        issuer_b = "b2" * 32
+        lookup = lambda j: [issuer_b]
+        policy = AcceptancePolicy(
+            config={"voice": {"max_per_day": 1, "pow_difficulty": 3}},
+            issuer_lookup=lookup,
+        )
+        proof = _make_attestation_proof(issuer_pubkey=issuer_b)
+        with patch("civicos_relay.voice.crypto.verify_attestation_proof", return_value=True):
+            result = policy.check("voice", "a" * 64, attestation_proof=proof)
+        assert result.accepted
+        assert result.tier == "attested"
 
 
 class TestProofOfWork:
