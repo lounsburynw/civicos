@@ -1,0 +1,19 @@
+{
+  "jurisdiction_id": "city-berkeley",
+  "last_meeting_id": "granicus-city-berkeley-2-20260226-zab",
+  "items_processed": 1,
+  "items_extracted": 1,
+  "items_skipped": 0,
+  "items_failed": 0,
+  "total_agenda_items": 8,
+  "timestamp": "2026-03-13T17:21:36.550978",
+  "succeeded_meeting_ids": [
+    "granicus-city-berkeley-2-20260226-zab",
+    "granicus-city-berkeley-5-20260310-regular-city-council-meeting-6-00-p-m",
+    "granicus-city-berkeley-5-20260224-regular-city-council-meeting-6-00-p-m",
+    "granicus-city-berkeley-5-20260310-special-city-council-meeting-4-00-p-m",
+    "granicus-city-berkeley-5-20260224-special-city-council-meeting-4-00-p-m",
+    "granicus-city-berkeley-5-20260226-regular-city-council-meeting-6-00-p-m",
+    "granicus-city-berkeley-5-20260223-special-city-council-meeting-6-00-p-m"
+  ]
+}

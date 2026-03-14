@@ -1,8 +1,12 @@
 """Tests for relay acceptance policy (rate limiting and tiered access)."""
 
+import time
 import pytest
 from unittest.mock import patch
-from civicos_relay.server.acceptance import AcceptancePolicy, PolicyResult, InMemoryRateLimiter, DEFAULT_POLICY
+from civicos_relay.server.acceptance import (
+    AcceptancePolicy, PolicyResult, InMemoryRateLimiter, DEFAULT_POLICY,
+    DEFAULT_ATTESTATION_VALIDITY_SECONDS,
+)
 
 
 class TestPolicyResult:
@@ -117,12 +121,22 @@ class TestAcceptancePolicy:
         assert AcceptancePolicy._verify_pow("00" * 32, 256)
 
 
-def _make_attestation_proof(jurisdiction="city-san-rafael", subject_pubkey="a" * 64, issuer_pubkey="b" * 64):
+def _make_attestation_proof(
+    jurisdiction="city-san-rafael",
+    subject_pubkey="a" * 64,
+    issuer_pubkey="b" * 64,
+    created_at=None,
+    event_id=None,
+):
     """Helper to create a realistic-looking attestation proof dict."""
+    if created_at is None:
+        created_at = int(time.time()) - 3600  # 1 hour ago (well within validity)
+    if event_id is None:
+        event_id = "cc" * 32
     return {
-        "id": "cc" * 32,
+        "id": event_id,
         "pubkey": issuer_pubkey,
-        "created_at": 1700000000,
+        "created_at": created_at,
         "kind": 30850,
         "tags": [
             ["d", f"attest:{jurisdiction}:{subject_pubkey}"],
@@ -130,7 +144,7 @@ def _make_attestation_proof(jurisdiction="city-san-rafael", subject_pubkey="a" *
             ["j", jurisdiction],
             ["type", "physical"],
         ],
-        "content": f"civicos:attestation:v1:{jurisdiction}:physical:1700000000",
+        "content": f"civicos:attestation:v1:{jurisdiction}:physical:{created_at}",
         "sig": "dd" * 32,
     }
 
@@ -290,6 +304,173 @@ class TestMultiIssuerAttestation:
             result = policy.check("voice", "a" * 64, attestation_proof=proof)
         assert result.accepted
         assert result.tier == "attested"
+
+
+class TestAttestationExpiry:
+    def test_fresh_attestation_accepted(self):
+        """Attestation created recently (within validity) should be accepted."""
+        lookup = lambda j: ["b" * 64]
+        policy = AcceptancePolicy(
+            config={"voice": {"max_per_day": 1, "pow_difficulty": 3}},
+            issuer_lookup=lookup,
+        )
+        proof = _make_attestation_proof(created_at=int(time.time()) - 3600)  # 1 hour ago
+        with patch("civicos_relay.voice.crypto.verify_attestation_proof", return_value=True):
+            result = policy.check("voice", "a" * 64, attestation_proof=proof)
+        assert result.accepted
+        assert result.tier == "attested"
+
+    def test_expired_attestation_rejected(self):
+        """Attestation older than validity period should be rejected (falls through)."""
+        lookup = lambda j: ["b" * 64]
+        policy = AcceptancePolicy(
+            config={"voice": {"max_per_day": 5, "pow_difficulty": 3}},
+            issuer_lookup=lookup,
+        )
+        # created_at 2 years ago — well past the 1-year default
+        two_years_ago = int(time.time()) - (2 * 365 * 24 * 60 * 60)
+        proof = _make_attestation_proof(created_at=two_years_ago)
+        result = policy.check("voice", "a" * 64, attestation_proof=proof)
+        # Should fall through to rate limit since attestation is expired
+        assert result.accepted
+        assert result.tier == "rate_limited"
+
+    def test_expired_attestation_with_exhausted_rate_limit(self):
+        """Expired attestation + exhausted rate limit = rejected."""
+        lookup = lambda j: ["b" * 64]
+        policy = AcceptancePolicy(
+            config={"voice": {"max_per_day": 1, "pow_difficulty": None}},
+            issuer_lookup=lookup,
+        )
+        policy.check("voice", "a" * 64)  # exhaust rate limit
+
+        two_years_ago = int(time.time()) - (2 * 365 * 24 * 60 * 60)
+        proof = _make_attestation_proof(created_at=two_years_ago)
+        result = policy.check("voice", "a" * 64, attestation_proof=proof)
+        assert not result.accepted
+
+    def test_custom_validity_period(self):
+        """Custom validity period is respected."""
+        lookup = lambda j: ["b" * 64]
+        # 1-hour validity
+        policy = AcceptancePolicy(
+            config={"voice": {"max_per_day": 5, "pow_difficulty": 3}},
+            issuer_lookup=lookup,
+            attestation_validity_seconds=3600,
+        )
+        # Created 2 hours ago — expired with 1-hour validity
+        proof = _make_attestation_proof(created_at=int(time.time()) - 7200)
+        result = policy.check("voice", "a" * 64, attestation_proof=proof)
+        assert result.accepted
+        assert result.tier == "rate_limited"  # fell through
+
+    def test_custom_validity_accepts_within_window(self):
+        """Attestation within custom validity window is accepted."""
+        lookup = lambda j: ["b" * 64]
+        policy = AcceptancePolicy(
+            config={"voice": {"max_per_day": 1, "pow_difficulty": 3}},
+            issuer_lookup=lookup,
+            attestation_validity_seconds=3600,
+        )
+        proof = _make_attestation_proof(created_at=int(time.time()) - 1800)  # 30 min ago
+        with patch("civicos_relay.voice.crypto.verify_attestation_proof", return_value=True):
+            result = policy.check("voice", "a" * 64, attestation_proof=proof)
+        assert result.accepted
+        assert result.tier == "attested"
+
+    def test_missing_created_at_treated_as_expired(self):
+        """Attestation with no created_at (defaults to 0) is expired."""
+        lookup = lambda j: ["b" * 64]
+        policy = AcceptancePolicy(
+            config={"voice": {"max_per_day": 5, "pow_difficulty": 3}},
+            issuer_lookup=lookup,
+        )
+        proof = _make_attestation_proof()
+        del proof["created_at"]  # remove created_at
+        result = policy.check("voice", "a" * 64, attestation_proof=proof)
+        assert result.accepted
+        assert result.tier == "rate_limited"  # fell through due to epoch 0 + validity < now
+
+    def test_attestation_at_boundary_still_valid(self):
+        """Attestation exactly at the validity boundary is still valid."""
+        lookup = lambda j: ["b" * 64]
+        validity = 3600
+        policy = AcceptancePolicy(
+            config={"voice": {"max_per_day": 1, "pow_difficulty": 3}},
+            issuer_lookup=lookup,
+            attestation_validity_seconds=validity,
+        )
+        # created_at such that created_at + validity == now (just barely valid)
+        proof = _make_attestation_proof(created_at=int(time.time()) - validity + 1)
+        with patch("civicos_relay.voice.crypto.verify_attestation_proof", return_value=True):
+            result = policy.check("voice", "a" * 64, attestation_proof=proof)
+        assert result.accepted
+        assert result.tier == "attested"
+
+
+class TestAttestationRevocation:
+    def test_revoked_attestation_rejected(self):
+        """Attestation with a revoked event ID should be rejected."""
+        lookup = lambda j: ["b" * 64]
+        policy = AcceptancePolicy(
+            config={"voice": {"max_per_day": 5, "pow_difficulty": 3}},
+            issuer_lookup=lookup,
+        )
+        revoked_id = "ee" * 32
+        policy.revoke_attestation(revoked_id, reason="compromised key")
+        proof = _make_attestation_proof(event_id=revoked_id)
+        result = policy.check("voice", "a" * 64, attestation_proof=proof)
+        assert result.accepted
+        assert result.tier == "rate_limited"  # fell through
+
+    def test_revoked_attestation_with_exhausted_rate_limit(self):
+        """Revoked attestation + exhausted rate limit = rejected."""
+        lookup = lambda j: ["b" * 64]
+        policy = AcceptancePolicy(
+            config={"voice": {"max_per_day": 1, "pow_difficulty": None}},
+            issuer_lookup=lookup,
+        )
+        policy.check("voice", "a" * 64)  # exhaust rate limit
+
+        revoked_id = "ee" * 32
+        policy.revoke_attestation(revoked_id)
+        proof = _make_attestation_proof(event_id=revoked_id)
+        result = policy.check("voice", "a" * 64, attestation_proof=proof)
+        assert not result.accepted
+
+    def test_non_revoked_attestation_still_accepted(self):
+        """Revoking one attestation doesn't affect others."""
+        lookup = lambda j: ["b" * 64]
+        policy = AcceptancePolicy(
+            config={"voice": {"max_per_day": 1, "pow_difficulty": 3}},
+            issuer_lookup=lookup,
+        )
+        policy.revoke_attestation("ee" * 32)  # revoke a different one
+        proof = _make_attestation_proof(event_id="ff" * 32)  # different ID
+        with patch("civicos_relay.voice.crypto.verify_attestation_proof", return_value=True):
+            result = policy.check("voice", "a" * 64, attestation_proof=proof)
+        assert result.accepted
+        assert result.tier == "attested"
+
+    def test_is_attestation_revoked(self):
+        """is_attestation_revoked returns correct status."""
+        policy = AcceptancePolicy()
+        assert not policy.is_attestation_revoked("ee" * 32)
+        policy.revoke_attestation("ee" * 32)
+        assert policy.is_attestation_revoked("ee" * 32)
+
+    def test_revoke_idempotent(self):
+        """Revoking the same attestation twice doesn't error."""
+        policy = AcceptancePolicy()
+        policy.revoke_attestation("ee" * 32)
+        policy.revoke_attestation("ee" * 32)  # should not raise
+        assert policy.is_attestation_revoked("ee" * 32)
+
+    def test_load_revocations_noop_without_db(self):
+        """load_revocations_from_db is a no-op without database."""
+        policy = AcceptancePolicy()
+        policy.load_revocations_from_db()  # should not raise
+        assert len(policy._revoked_attestations) == 0
 
 
 class TestProofOfWork:

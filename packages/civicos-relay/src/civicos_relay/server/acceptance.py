@@ -9,6 +9,7 @@ Tiers checked in order:
 
 import hashlib
 import logging
+import time
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta, timezone
@@ -55,6 +56,9 @@ DEFAULT_POLICY = {
     "action_complete": {"max_per_day": 20, "pow_difficulty": None},
 }
 
+# Default attestation validity period: 1 year in seconds
+DEFAULT_ATTESTATION_VALIDITY_SECONDS = 365 * 24 * 60 * 60  # 31536000
+
 
 class InMemoryRateLimiter:
     """Dict-based rate limiter for tests and dev (no database required)."""
@@ -96,11 +100,14 @@ class AcceptancePolicy:
         config: Optional[dict] = None,
         connection_url: Optional[str] = None,
         issuer_lookup: Optional[IssuerLookup] = None,
+        attestation_validity_seconds: int = DEFAULT_ATTESTATION_VALIDITY_SECONDS,
     ):
         self._config = config or DEFAULT_POLICY
         self._connection_url = connection_url
         self._db_available = False
         self._issuer_lookup = issuer_lookup
+        self._attestation_validity_seconds = attestation_validity_seconds
+        self._revoked_attestations: set[str] = set()
 
         if connection_url:
             try:
@@ -176,15 +183,29 @@ class AcceptancePolicy:
     def _verify_attestation(self, proof: dict, public_key: str) -> bool:
         """Verify kind-30850 attestation proof from a trusted jurisdiction issuer.
 
-        Extracts jurisdiction from the proof's 'j' tag, looks up all trusted
-        issuer pubkeys, then tries each until one verifies. This supports
-        multiple issuers per jurisdiction (e.g., voices arriving via peer sync
-        may carry attestations from a different issuer).
+        Checks (in order):
+        1. Revocation — reject if attestation event ID is in blocklist
+        2. Expiry — reject if created_at + validity_period < now
+        3. Jurisdiction lookup — find trusted issuers
+        4. Crypto verification — try each issuer until one verifies
         """
         if self._issuer_lookup is None:
             return False
 
         try:
+            # Check revocation blocklist
+            attestation_id = proof.get("id")
+            if attestation_id and attestation_id in self._revoked_attestations:
+                logger.debug("Attestation %s is revoked", attestation_id)
+                return False
+
+            # Check expiry
+            created_at = proof.get("created_at", 0)
+            if created_at + self._attestation_validity_seconds < int(time.time()):
+                logger.debug("Attestation expired: created_at=%d, validity=%d",
+                             created_at, self._attestation_validity_seconds)
+                return False
+
             # Extract jurisdiction from proof's j-tag
             tags = proof.get("tags", [])
             jurisdiction = next(
@@ -209,6 +230,55 @@ class AcceptancePolicy:
         except Exception:
             logger.warning("Attestation verification failed", exc_info=True)
             return False
+
+    def revoke_attestation(self, attestation_event_id: str, reason: str = ""):
+        """Add an attestation event ID to the revocation blocklist."""
+        self._revoked_attestations.add(attestation_event_id)
+        logger.info("Revoked attestation %s: %s", attestation_event_id, reason or "no reason")
+        if self._db_available:
+            self._persist_revocation(attestation_event_id, reason)
+
+    def is_attestation_revoked(self, attestation_event_id: str) -> bool:
+        """Check if an attestation event ID has been revoked."""
+        return attestation_event_id in self._revoked_attestations
+
+    def load_revocations_from_db(self):
+        """Load revocation blocklist from database into memory."""
+        if not self._db_available:
+            return
+        try:
+            conn = self._conn_factory()
+            try:
+                with conn.cursor() as cur:
+                    cur.execute("SELECT event_id FROM coordination_attestation_revocations")
+                    for row in cur.fetchall():
+                        self._revoked_attestations.add(row[0])
+                    logger.info("Loaded %d attestation revocations from DB",
+                                len(self._revoked_attestations))
+            finally:
+                conn.close()
+        except Exception as e:
+            logger.warning("Failed to load revocations from DB: %s", e)
+
+    def _persist_revocation(self, attestation_event_id: str, reason: str):
+        """Persist a revocation to the database."""
+        try:
+            conn = self._conn_factory()
+            try:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        """
+                        INSERT INTO coordination_attestation_revocations (event_id, reason)
+                        VALUES (%s, %s)
+                        ON CONFLICT (event_id) DO NOTHING
+                        """,
+                        (attestation_event_id, reason),
+                    )
+                conn.commit()
+            finally:
+                conn.close()
+        except Exception as e:
+            logger.warning("Failed to persist revocation: %s", e)
 
     def _verify_payment(self, proof: dict) -> bool:
         """Verify payment proof. Phase 4 stub — always returns False."""
