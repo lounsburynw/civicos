@@ -240,7 +240,7 @@
         "name": "attestation_expiry",
         "description": "Add attestation expiry check: created_at + validity_period > now. Recommend 1-year validity. Design revocation mechanism (blocklist of revoked attestation event IDs).",
         "status": "not_started",
-        "priority": 2,
+        "priority": 0,
         "source": "docs/internal/relay-acceptance-policy-spec.md (Phase 3)",
         "files": [
           "packages/civicos-relay/src/civicos_relay/server/acceptance.py"

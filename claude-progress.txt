@@ -22220,3 +22220,23 @@ Update issuer_lookup from (jurisdiction) -> Optional[str] to support multiple is
 - Successfully cast an attested voice on Mill Valley
 - Triggered sync from San Anselmo → Mill Valley: connection works, voices export
 - **Remaining issue:** Voice export response missing `created_at` field, causes Pydantic validation error in sync import. Fix: update VoiceSyncResponseAPI or the export query to include created_at.
+
+### Session: 2026-03-13 — multi_issuer_lookup (DONE)
+**Completed P0:** `multi_issuer_lookup`
+
+**Changes:**
+- `IssuerLookup` type: `Callable[[str], Optional[str]]` → `Callable[[str], list[str]]`
+- `_verify_attestation()` iterates all verified issuers, accepts if any verifies
+- `issuer_lookup` closure in `app.py` returns all verified, non-revoked pubkeys
+- 6 new tests in `TestMultiIssuerAttestation` (40 total acceptance policy tests)
+- 391 relay tests pass
+
+**Files modified:**
+- `packages/civicos-relay/src/civicos_relay/server/acceptance.py` — type alias + iteration loop
+- `packages/civicos-relay/src/civicos_relay/server/app.py` — lookup returns list
+- `packages/civicos-relay/tests/test_acceptance_policy.py` — updated + 6 new tests
+- `docs/internal/multi-issuer-lookup-spec.md` — steps 3,4 marked done
+- `launch.json` — item marked done
+
+### Next P0: attestation_expiry
+Add attestation expiry check (created_at + validity_period > now, default 1 year) and design revocation blocklist.
