@@ -34,7 +34,7 @@ from civicos_services.query.merger import reciprocal_rank_fusion
 
 logger = logging.getLogger(__name__)
 
-CORPUS_TIMEOUT_S = 10
+CORPUS_TIMEOUT_S = 20
 
 
 # === civic.search ===
@@ -50,7 +50,15 @@ async def execute_search(
     - search: standard result list with optional cursor pagination
     - aggregate: per-corpus counts/statistics
     - trend: time-bucketed counts per corpus
+
+    Cross-jurisdiction: when include_parents or include_siblings is set,
+    resolves target jurisdictions, fans out per-jurisdiction, and merges
+    with tier-based relevance boosting.
     """
+    # Cross-jurisdiction: delegate to multi-jurisdiction fan-out
+    if request.include_parents or request.include_siblings:
+        return await _execute_cross_jurisdiction_search(request, civic, jurisdiction)
+
     start = time.monotonic()
 
     plan = plan_search(
@@ -276,6 +284,128 @@ async def execute_search(
     meta.cursor = encode_cursor(next_offsets)
 
     return SearchResponse(results=merged, meta=meta)
+
+
+# === Cross-jurisdiction search ===
+
+async def _execute_cross_jurisdiction_search(
+    request: SearchRequest,
+    civic,
+    jurisdiction: str,
+) -> SearchResponse:
+    """Fan out search across multiple jurisdictions with tier-based boosting.
+
+    Creates a CivicOS instance per target jurisdiction, runs the standard
+    search for each, then merges with tier-weighted relevance scores.
+    Returns both flat ranked results and jurisdiction-grouped results.
+    """
+    from civicos_services.query.jurisdictions import (
+        resolve_jurisdictions,
+        get_tier_weight,
+    )
+
+    start = time.monotonic()
+    base_jid = request.jurisdiction or jurisdiction
+
+    target_jids = resolve_jurisdictions(
+        base_jid,
+        include_parents=request.include_parents,
+        include_siblings=request.include_siblings,
+    )
+
+    logger.info(f"Cross-jurisdiction search: {base_jid} -> {target_jids}")
+
+    # Create a single-jurisdiction request (no cross-jurisdiction flags)
+    per_jid_request = request.model_copy(update={
+        "include_parents": False,
+        "include_siblings": False,
+    })
+
+    # Build lightweight CivicOS instances that share storage/vector backends.
+    # Creating new backends per jurisdiction exhausts the connection pool.
+    def _make_civic_for(jid: str):
+        if jid == base_jid:
+            return civic
+        from civicos import CivicOS
+        other = CivicOS(jid)
+        # Share the base civic's storage and vector backends
+        other._storage = civic._storage
+        other._vectors = civic._vectors
+        return other
+
+    jid_civics = {jid: _make_civic_for(jid) for jid in target_jids}
+
+    # Fan out per-jurisdiction in parallel
+    async def search_jurisdiction(jid: str) -> tuple:
+        """Run standard search for one jurisdiction, return (jid, response)."""
+        try:
+            jid_request = per_jid_request.model_copy(update={"jurisdiction": jid})
+            response = await execute_search(jid_request, jid_civics[jid], jid)
+            return jid, response
+        except Exception as e:
+            logger.error(f"Cross-jurisdiction search failed for {jid}: {e}")
+            return jid, SearchResponse(
+                meta=ResponseMeta(
+                    corpus_status={"error": str(e)},
+                ),
+            )
+
+    # Run base jurisdiction first to warm up vector/storage backends,
+    # then fan out remaining jurisdictions in parallel.
+    base_result = await search_jurisdiction(base_jid)
+    other_jids = [jid for jid in target_jids if jid != base_jid]
+    if other_jids:
+        other_tasks = [search_jurisdiction(jid) for jid in other_jids]
+        other_results = await asyncio.gather(*other_tasks)
+        jid_responses = [base_result] + list(other_results)
+    else:
+        jid_responses = [base_result]
+
+    # Collect results, tag with jurisdiction, apply tier boosting
+    all_results: List[CivicResult] = []
+    jurisdiction_grouped: Dict[str, List[CivicResult]] = {}
+    all_corpus_times: Dict[str, int] = {}
+    all_corpus_status: Dict[str, str] = {}
+    all_corpus_counts: Dict[str, int] = {}
+
+    for jid, response in jid_responses:
+        tier_weight = get_tier_weight(base_jid, jid)
+        jid_results = []
+        for r in response.results:
+            r.jurisdiction = jid
+            if r.relevance is not None:
+                r.relevance = round(r.relevance * tier_weight, 4)
+            jid_results.append(r)
+            all_results.append(r)
+        jurisdiction_grouped[jid] = jid_results
+
+        # Merge per-corpus meta (prefix with jurisdiction for uniqueness)
+        for corpus, ms in response.meta.corpus_times_ms.items():
+            all_corpus_times[f"{jid}:{corpus}"] = ms
+        for corpus, status in response.meta.corpus_status.items():
+            all_corpus_status[f"{jid}:{corpus}"] = status
+        for corpus, count in response.meta.corpus_counts.items():
+            all_corpus_counts[f"{jid}:{corpus}"] = count
+
+    # Sort by tier-boosted relevance
+    all_results.sort(key=lambda r: r.relevance or 0, reverse=True)
+    merged = all_results[:request.limit]
+
+    total_time = int((time.monotonic() - start) * 1000)
+    meta = ResponseMeta(
+        query_time_ms=total_time,
+        corpora_searched=list(all_corpus_counts.keys()),
+        corpus_counts=all_corpus_counts,
+        corpus_times_ms=all_corpus_times,
+        corpus_status=all_corpus_status,
+        total_results=len(all_results),
+    )
+
+    return SearchResponse(
+        results=merged,
+        jurisdiction_results=jurisdiction_grouped,
+        meta=meta,
+    )
 
 
 # === civic.upcoming ===

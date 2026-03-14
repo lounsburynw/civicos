@@ -1564,3 +1564,182 @@ class TestSearchModeExtensions:
     def test_snapshot_date_accepts_iso_datetime(self):
         req = SearchRequest(query="test", corpus=["decisions"], snapshot_date="2025-06-01T12:00:00")
         assert req.snapshot_date == "2025-06-01T12:00:00"
+
+
+# === Jurisdiction Resolution Tests ===
+
+class TestJurisdictionResolution:
+    def test_base_only(self):
+        from civicos_services.query.jurisdictions import resolve_jurisdictions
+        result = resolve_jurisdictions("city-san-rafael")
+        assert result == ["city-san-rafael"]
+
+    def test_include_parents(self):
+        from civicos_services.query.jurisdictions import resolve_jurisdictions
+        result = resolve_jurisdictions("city-san-rafael", include_parents=True)
+        assert result[0] == "city-san-rafael"
+        assert "county-marin" in result
+        assert "state-california" in result
+        assert "country-united-states" in result
+
+    def test_include_siblings(self):
+        from civicos_services.query.jurisdictions import resolve_jurisdictions
+        result = resolve_jurisdictions("city-san-rafael", include_siblings=True)
+        assert result[0] == "city-san-rafael"
+        assert "city-mill-valley" in result
+        assert "city-san-anselmo" in result
+        # Parents should NOT be included when only siblings requested
+        assert "county-marin" not in result
+
+    def test_parents_and_siblings(self):
+        from civicos_services.query.jurisdictions import resolve_jurisdictions
+        result = resolve_jurisdictions(
+            "city-san-rafael", include_parents=True, include_siblings=True
+        )
+        assert result[0] == "city-san-rafael"
+        assert "county-marin" in result
+        assert "city-mill-valley" in result
+        assert "city-san-anselmo" in result
+
+    def test_no_duplicates(self):
+        from civicos_services.query.jurisdictions import resolve_jurisdictions
+        result = resolve_jurisdictions(
+            "city-san-rafael", include_parents=True, include_siblings=True
+        )
+        assert len(result) == len(set(result))
+
+    def test_tier_self(self):
+        from civicos_services.query.jurisdictions import get_jurisdiction_tier
+        assert get_jurisdiction_tier("city-san-rafael", "city-san-rafael") == "self"
+
+    def test_tier_parent(self):
+        from civicos_services.query.jurisdictions import get_jurisdiction_tier
+        assert get_jurisdiction_tier("city-san-rafael", "county-marin") == "parent"
+
+    def test_tier_sibling(self):
+        from civicos_services.query.jurisdictions import get_jurisdiction_tier
+        assert get_jurisdiction_tier("city-san-rafael", "city-mill-valley") == "sibling"
+
+    def test_tier_cross_county(self):
+        from civicos_services.query.jurisdictions import get_jurisdiction_tier
+        assert get_jurisdiction_tier("city-san-rafael", "city-berkeley") == "cross_county"
+
+    def test_tier_weight_self(self):
+        from civicos_services.query.jurisdictions import get_tier_weight
+        assert get_tier_weight("city-san-rafael", "city-san-rafael") == 1.0
+
+    def test_tier_weight_sibling(self):
+        from civicos_services.query.jurisdictions import get_tier_weight
+        assert get_tier_weight("city-san-rafael", "city-mill-valley") == 0.8
+
+
+# === Cross-Jurisdiction Search Tests ===
+
+class TestCrossJurisdictionSearch:
+    def test_search_request_cross_jurisdiction_fields(self):
+        """SearchRequest accepts include_parents and include_siblings."""
+        req = SearchRequest(
+            query="housing",
+            corpus=["decisions"],
+            include_parents=True,
+            include_siblings=True,
+        )
+        assert req.include_parents is True
+        assert req.include_siblings is True
+
+    def test_search_request_defaults_no_cross_jurisdiction(self):
+        """By default, cross-jurisdiction is off."""
+        req = SearchRequest(query="housing", corpus=["decisions"])
+        assert req.include_parents is False
+        assert req.include_siblings is False
+
+    def test_civic_result_has_jurisdiction_field(self):
+        """CivicResult includes optional jurisdiction field."""
+        r = CivicResult(
+            type="decision",
+            ref="decision:city-san-rafael:1",
+            title="Test",
+            jurisdiction="city-san-rafael",
+        )
+        assert r.jurisdiction == "city-san-rafael"
+
+    def test_civic_result_jurisdiction_defaults_none(self):
+        """CivicResult.jurisdiction defaults to None for backward compat."""
+        r = CivicResult(type="decision", ref="test:1", title="Test")
+        assert r.jurisdiction is None
+
+    @pytest.mark.asyncio
+    async def test_cross_jurisdiction_search_with_parents(self):
+        """Cross-jurisdiction search fans out to parent jurisdictions."""
+        from civicos_services.query.verbs import execute_search
+
+        civic = make_mock_civic()
+
+        req = SearchRequest(
+            query="housing",
+            corpus=["decisions"],
+            include_parents=True,
+        )
+
+        with patch("civicos.CivicOS") as MockCivicOS:
+            # Each CivicOS instance returns mock decisions
+            mock_instance = make_mock_civic()
+            MockCivicOS.return_value = mock_instance
+
+            response = await execute_search(req, civic, "city-san-rafael")
+
+        # Should have results
+        assert len(response.results) > 0
+
+        # Should have jurisdiction_results grouping
+        assert response.jurisdiction_results is not None
+
+        # Base jurisdiction should be in results
+        assert "city-san-rafael" in response.jurisdiction_results
+
+        # Results should have jurisdiction tagged
+        for r in response.results:
+            assert r.jurisdiction is not None
+
+    @pytest.mark.asyncio
+    async def test_cross_jurisdiction_search_tier_boosting(self):
+        """Sibling results get relevance reduced by tier weight (0.8)."""
+        from civicos_services.query.verbs import execute_search
+
+        civic = make_mock_civic()
+
+        req = SearchRequest(
+            query="housing",
+            corpus=["decisions"],
+            include_siblings=True,
+        )
+
+        with patch("civicos.CivicOS") as MockCivicOS:
+            mock_instance = make_mock_civic()
+            MockCivicOS.return_value = mock_instance
+
+            response = await execute_search(req, civic, "city-san-rafael")
+
+        # Find a sibling result
+        sibling_results = [
+            r for r in response.results if r.jurisdiction and r.jurisdiction != "city-san-rafael"
+        ]
+        if sibling_results:
+            # Sibling relevance should be boosted down (0.8x)
+            for r in sibling_results:
+                assert r.relevance is not None
+                assert r.relevance <= 0.8  # Max relevance * 0.8 tier weight
+
+    @pytest.mark.asyncio
+    async def test_single_jurisdiction_search_unchanged(self):
+        """Standard search (no cross-jurisdiction flags) still works."""
+        from civicos_services.query.verbs import execute_search
+
+        civic = make_mock_civic()
+        req = SearchRequest(query="housing", corpus=["decisions"])
+
+        response = await execute_search(req, civic, "city-san-rafael")
+
+        assert len(response.results) > 0
+        # No jurisdiction_results in single-jurisdiction mode
+        assert response.jurisdiction_results is None

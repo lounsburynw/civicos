@@ -85,6 +85,7 @@ class CivicResult(BaseModel):
     date: Optional[str] = Field(None, description="ISO date string")
     summary: Optional[str] = None
     relevance: Optional[float] = Field(None, ge=0.0, le=1.0)
+    jurisdiction: Optional[str] = Field(None, description="Source jurisdiction ID (set in cross-jurisdiction queries)")
     details: Dict[str, Any] = Field(default_factory=dict, description="Type-specific essential metadata")
 
 
@@ -116,6 +117,8 @@ class SearchRequest(BaseModel):
     cursor: Optional[str] = Field(None, description="Opaque pagination cursor from previous response")
     snapshot_date: Optional[str] = Field(None, description="ISO date for diff mode — returns items newer than this date")
     intersect_corpus: Optional[List[str]] = Field(None, description="For intersect mode — secondary corpora to join against")
+    include_parents: bool = Field(False, description="Include parent jurisdictions (county, state, federal)")
+    include_siblings: bool = Field(False, description="Include sibling jurisdictions (cities sharing same parent county)")
 
     @field_validator("snapshot_date")
     @classmethod
@@ -189,11 +192,18 @@ class TrendBucket(BaseModel):
 
 class SearchResponse(BaseModel):
     """civic.search response. Shape depends on mode:
-    - search: results list
+    - search: results list (flat, ranked by RRF)
     - aggregate: aggregates list (results empty)
     - trend: trends list (results empty)
+
+    For cross-jurisdiction queries (include_parents/include_siblings),
+    jurisdiction_results groups results by source jurisdiction while
+    results still contains the flat ranked list.
     """
     results: List[CivicResult] = Field(default_factory=list)
+    jurisdiction_results: Optional[Dict[str, List[CivicResult]]] = Field(
+        None, description="Results grouped by jurisdiction (set in cross-jurisdiction queries)"
+    )
     aggregates: Optional[List[AggregateEntry]] = None
     trends: Optional[List[TrendBucket]] = None
     meta: ResponseMeta = Field(default_factory=ResponseMeta)

@@ -12,30 +12,25 @@ No setup required. Curl against the live API.
 
 **Base URL:** `https://san-rafael.civicosproject.org`
 
-All REST endpoints use the `/api/tools/{tool_name}` pattern, which wraps the MCP tools as HTTP POST endpoints.
+The recommended path is the v2 query interface (see Option C below). Legacy tool endpoints are also available at `/api/tools/{tool_name}`.
 
 ```bash
 BASE=https://san-rafael.civicosproject.org
 
-# What's happening this month? (open tier — no auth required)
+# v2: Multi-corpus search (recommended)
+curl -X POST "$BASE/api/v2/civic/search" \
+  -H "Content-Type: application/json" \
+  -d '{"query": "housing", "corpus": ["decisions", "legislation", "meetings"]}'
+
+# v2: Upcoming events
+curl -X POST "$BASE/api/v2/civic/upcoming" \
+  -H "Content-Type: application/json" \
+  -d '{"types": ["meetings"], "days": 30}'
+
+# City pulse (open tier — no auth required)
 curl "$BASE/api/tools/city-pulse"
 
-# Search upcoming meetings
-curl -X POST "$BASE/api/tools/get-upcoming-meetings" \
-  -H "Content-Type: application/json" \
-  -d '{"topics": "housing", "days": 30}'
-
-# Past decisions about housing
-curl -X POST "$BASE/api/tools/search-meeting-history" \
-  -H "Content-Type: application/json" \
-  -d '{"query": "housing"}'
-
-# State legislation on housing
-curl -X POST "$BASE/api/tools/search-legislation" \
-  -H "Content-Type: application/json" \
-  -d '{"topic": "housing", "level": "state", "limit": 5}'
-
-# Voice counts on an entity (open tier — no auth required)
+# Voice counts (open tier — no auth required)
 curl -X POST "$BASE/api/tools/get-voice-counts" \
   -H "Content-Type: application/json" \
   -d '{"entity": "city-san-rafael:mtg-2026-03-10-cc:item-5"}'
@@ -72,7 +67,7 @@ Connect your AI assistant directly to civic data.
 }
 ```
 
-Restart Claude Desktop. You now have 40+ civic data tools. Try these prompts:
+Restart Claude Desktop. You now have civic data tools including the v2 query interface. Try these prompts:
 
 - "What meetings are coming up in San Rafael?"
 - "What has the city council decided about housing?"
@@ -83,39 +78,40 @@ For other jurisdictions, add additional MCP server entries pointing at their dom
 
 See [MCP Server Setup](mcp/setup.md) for the full tool inventory and ChatGPT configuration.
 
-## Option C: Python SDK
+## Option C: v2 Query API
 
-Direct access, no HTTP overhead.
+The v2 interface provides server-side composition — one request searches across multiple corpora and jurisdictions.
 
 ```bash
-pip install civicos python-dotenv
+# Multi-corpus search (decisions + legislation + meetings in one call)
+curl -X POST "$BASE/api/v2/civic/search" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $KEY" \
+  -d '{"query": "housing", "corpus": ["decisions", "legislation", "meetings"]}'
+
+# Cross-jurisdiction search (include county + state results)
+curl -X POST "$BASE/api/v2/civic/search" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $KEY" \
+  -d '{"query": "housing", "corpus": ["decisions"], "include_parents": true}'
+
+# Upcoming events
+curl -X POST "$BASE/api/v2/civic/upcoming" \
+  -H "Content-Type: application/json" \
+  -d '{"types": ["meetings"], "days": 14}'
+
+# Deep context for a specific item (using ref from search results)
+curl -X POST "$BASE/api/v2/civic/context" \
+  -H "Content-Type: application/json" \
+  -d '{"ref": "decision:city-san-rafael:dec-123"}'
+
+# Discover available corpora and capabilities
+curl -X POST "$BASE/api/v2/civic/explore" \
+  -H "Content-Type: application/json" \
+  -d '{"what": "corpora"}'
 ```
 
-```python
-from dotenv import load_dotenv
-load_dotenv()  # Loads DATABASE_URL from .env
-
-from civicos import CivicOS
-c = CivicOS("city-san-rafael")
-
-# Upcoming meetings
-for m in c.whats_next(days=14):
-    print(m.title, m.date)
-
-# Past decisions
-for d in c.what_happened("housing"):
-    print(d.title, d.outcome)
-
-# Relevant legislation
-regs = c.what_applies("housing")
-print(f"{len(regs.federal)} federal, {len(regs.state)} state, {len(regs.local)} local")
-
-# Meeting transcript search
-for excerpt in c.what_was_said("parking", top_k=3):
-    print(f"{excerpt.speaker}: {excerpt.text[:100]}...")
-```
-
-The Python SDK requires `DATABASE_URL` pointing to a PostgreSQL instance with civic data. For local development without a database, it falls back to SQLite with sample data.
+The v2 API returns a stable two-level result structure: an envelope (`type`, `ref`, `title`, `date`, `summary`, `relevance`) plus type-specific `details`. See [API Reference — v2 Query Interface](api.md#v2-query-interface-recommended) for full field documentation.
 
 ## Next Steps
 

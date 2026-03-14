@@ -1,6 +1,6 @@
 # MCP Server Setup
 
-The CivicOS MCP server exposes 50+ read-only civic data tools for AI assistants like Claude and ChatGPT. Write operations (voices, initiatives, comments) are not available through MCP — they go through the [relay](../relay/overview.md) directly and require Nostr-signed requests.
+The CivicOS MCP server provides read-only civic data tools for AI assistants like Claude and ChatGPT. Write operations (voices, initiatives, comments) go through the [relay](../relay/overview.md) directly and require Nostr-signed requests.
 
 ## Connect to Claude Desktop
 
@@ -16,7 +16,25 @@ Add to your Claude Desktop config (`~/Library/Application Support/Claude/claude_
 }
 ```
 
-## Available Tools
+## v2 Query Interface (Recommended)
+
+The v2 interface consolidates civic queries into 5 verbs with server-side composition. Instead of calling 5 separate tools to answer a question, one `civic.search` call fans out across multiple corpora and jurisdictions.
+
+| Verb | Endpoint | Purpose |
+|------|----------|---------|
+| `civic.search` | `POST /api/v2/civic/search` | Multi-corpus search with cross-jurisdiction support |
+| `civic.upcoming` | `POST /api/v2/civic/upcoming` | Upcoming meetings, hearings, comment periods |
+| `civic.context` | `POST /api/v2/civic/context` | Deep item context or civic jargon lookup |
+| `civic.act` | `POST /api/v2/civic/act` | Participation actions (comment drafting, meeting prep) |
+| `civic.explore` | `POST /api/v2/civic/explore` | Discover jurisdictions, corpora, capabilities |
+
+**Cross-jurisdiction queries:** Set `include_parents: true` to include county, state, and federal results. Set `include_siblings: true` to include neighboring cities in the same county.
+
+See [API Reference — v2 Query Interface](../api.md#v2-query-interface-recommended) for full request/response schemas.
+
+## Legacy Tools (v1)
+
+> The following individual tools are still available but are superseded by the v2 query interface. New integrations should use v2 verbs instead.
 
 ### Core Civic (7 tools)
 - `search_meeting_history` — Past meetings and decisions with transcripts
@@ -88,7 +106,7 @@ Add to your Claude Desktop config (`~/Library/Application Support/Claude/claude_
 - `manage_api_keys` — Create, list, revoke API keys
 - `query_feedback` — Query user feedback by type/jurisdiction
 
-Admin tools require an `_admin_token` argument validated against the server's `CIVICOS_ADMIN_TOKEN` environment variable. These tools are available at all jurisdiction levels (federal, state, county, city).
+Admin tools require an `_admin_token` argument validated against the server's `CIVICOS_ADMIN_TOKEN` environment variable.
 
 ### API Key Rate Limiting
 

@@ -22260,3 +22260,77 @@ Update issuer_lookup from (jurisdiction) -> Optional[str] to support multiple is
 
 ### Next P0: attestation_expiry
 Add attestation expiry check (created_at + validity_period > now, default 1 year) and design revocation blocklist.
+
+## Session: 2026-03-13 — Peer sync fix + config_driven_rate_limits (DONE)
+
+### Peer sync created_at bug (fixed)
+- Root cause: coordination_voices rows with NULL created_at crash Voice model (required int field)
+- Fix: COALESCE(created_at, EXTRACT(EPOCH FROM timestamp)::bigint) in SQL + Python fallback
+- Fixed in both get_voices_for_entity() and get_voices_since() in postgres.py
+- Also fixed InMemoryStorage.revoke_voice() dropping created_at/jurisdiction/attestation_proof
+
+### P0 Completed: config_driven_rate_limits
+- load_policy(jurisdiction_id) with 4-level resolution: RELAY_POLICY_FILE env var → config/relay_policies.json[jurisdiction] → file defaults → DEFAULT_POLICY
+- _merge_policy() deep merges per-event-type config (override voice.max_per_day without losing pow_difficulty)
+- AcceptancePolicy accepts jurisdiction_id param
+- RelayConfig reads RELAY_JURISDICTION env var
+- config/relay_policies.json created with current defaults
+- 10 new tests (414 total relay tests pass)
+- Documented RELAY_POLICY_FILE and RELAY_JURISDICTION in docs/internal/deployment.md
+
+**Files modified:**
+- packages/civicos-relay/src/civicos_relay/server/acceptance.py — load_policy(), _merge_policy()
+- packages/civicos-relay/src/civicos_relay/identity/config.py — jurisdiction_id field
+- packages/civicos-relay/src/civicos_relay/server/app.py — passes jurisdiction_id
+- packages/civicos-relay/src/civicos_relay/storage/postgres.py — COALESCE fix
+- packages/civicos-relay/src/civicos_relay/storage/memory.py — revoke_voice fix
+- packages/civicos-relay/tests/test_acceptance_policy.py — 10 new tests
+- config/relay_policies.json — new
+- docs/internal/deployment.md — new env vars documented
+
+### Next P0: cross_marin_query_prototype
+Prototype cross-jurisdiction queries within Marin County across San Rafael + Mill Valley + San Anselmo.
+
+## Session: 2026-03-14 — Cross-jurisdiction queries + doc overhaul + adapter refactor scoping
+
+### Cross-jurisdiction queries (v2 layer)
+- Implemented in v2 query layer (NOT on CivicOS class — aligns with unified query interface ADR)
+- New file: `query/jurisdictions.py` — resolve_jurisdictions(), get_jurisdiction_tier(), tier weights
+- SearchRequest: include_parents, include_siblings fields
+- CivicResult: jurisdiction field
+- SearchResponse: jurisdiction_results grouping
+- _execute_cross_jurisdiction_search() in verbs.py — parallel fan-out with tier boosting
+- 18 new tests, 130 total v2 tests passing
+
+### Doc overhaul — v2 as primary API
+- Removed Python SDK section from api.md (public), replaced with v2 Query Interface docs
+- Updated quickstart-api.md, building-agents.md, mcp/setup.md, README.md, packages/civicos.md
+- Updated CLAUDE.md — v2 verbs as primary API, CivicOS methods marked internal
+- Updated internal specs (cross-jurisdiction, cross-county) to reference v2 not legacy methods
+- Key rule: do NOT add new query features to CivicOS class
+
+### Real data validation
+- San Rafael: 10 housing results (7 decisions, 3 meetings) — works
+- Sibling cities: 0 decisions (need extraction), meetings timeout
+- Cold pgvector query: ~15s, warm: ~1.5s
+- Cross-jurisdiction with 6 jurisdictions: connection pool exhaustion from CivicOS instances
+- Workarounds applied: shared backends, warm-then-fan-out, timeout 10s→20s
+
+### Adapter refactor scoped as next P0
+- Root cause of performance issues: adapters call CivicOS methods (thin wrappers)
+- CivicOS instance per jurisdiction is wasteful — should pass storage/vector directly
+- v2_adapter_storage_refactor added to launch.json as P0
+- cross_marin_query_prototype demoted to P1 (blocked on sibling data)
+
+**Files created/modified:**
+- packages/civicos-services/src/civicos_services/query/jurisdictions.py — NEW
+- packages/civicos-services/src/civicos_services/query/models.py — 3 new fields
+- packages/civicos-services/src/civicos_services/query/verbs.py — cross-jurisdiction + workarounds
+- packages/civicos-services/tests/test_query_v2.py — 18 new tests
+- docs/public/api.md, quickstart-api.md, building-agents.md, mcp/setup.md, README.md, packages/civicos.md
+- docs/internal/cross-jurisdiction-query-spec.md, cross-county-relevance-spec.md
+- CLAUDE.md — v2 as primary API
+- launch.json — new item, priority updates
+
+### Next P0: v2_adapter_storage_refactor
+Refactor adapters to call storage/vector backends directly instead of CivicOS methods.

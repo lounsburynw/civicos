@@ -465,17 +465,19 @@
       },
       {
         "name": "cross_marin_query_prototype",
-        "description": "Prototype cross-jurisdiction queries within Marin County. Test what_happened() and what_applies() across San Rafael + Mill Valley + San Anselmo with shared county context.",
+        "description": "Cross-jurisdiction queries within Marin County via v2 query layer. SearchRequest.include_parents/include_siblings with tier-based relevance boosting.",
         "status": "not_started",
-        "priority": 0,
+        "priority": 1,
         "phase": "A",
         "source": "federation testbed \u2014 query federation",
         "spec": "docs/internal/cross-jurisdiction-query-spec.md",
         "files": [
-          "packages/civicos/src/civicos/civicos.py"
+          "packages/civicos-services/src/civicos_services/query/jurisdictions.py",
+          "packages/civicos-services/src/civicos_services/query/verbs.py",
+          "packages/civicos-services/src/civicos_services/query/models.py"
         ],
-        "test_file": null,
-        "notes": "Same county parent \u2014 shared legislation context. Tests relevance when sibling cities share regional bodies (TAM, MMWD, Marin Transit)."
+        "test_file": "packages/civicos-services/tests/test_query_v2.py",
+        "notes": "Infrastructure done (jurisdiction resolution, tier boosting, parallel fan-out, 18 tests passing). Remaining: validate with real PostgreSQL data across Marin cities. Mill Valley and San Anselmo have meetings but 0 decisions — may need extraction first."
       },
       {
         "name": "onboarding_friction_log",
@@ -627,6 +629,20 @@
         "status": "done",
         "priority": 0,
         "test_file": ""
+      },
+      {
+        "name": "v2_adapter_storage_refactor",
+        "description": "Refactor v2 corpus adapters to call storage/vector backends directly instead of CivicOS query methods. Removes unnecessary CivicOS middleman layer and the workarounds needed for cross-jurisdiction queries.",
+        "status": "not_started",
+        "priority": 0,
+        "phase": "B",
+        "source": "architectural review — v2 query layer cleanup",
+        "files": [
+          "packages/civicos-services/src/civicos_services/query/adapters.py",
+          "packages/civicos-services/src/civicos_services/query/verbs.py"
+        ],
+        "test_file": "packages/civicos-services/tests/test_query_v2.py",
+        "notes": "Cross-jurisdiction testing (2026-03-14) hit connection pool exhaustion and cold-start thundering herd from creating CivicOS instances per jurisdiction. Current workarounds (shared backends, warm-then-fan-out, 20s timeout) are duct tape. Removing the CivicOS middleman is the clean fix."
       }
     ]
   }

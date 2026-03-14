@@ -17,7 +17,7 @@ Identity is local-first, built on Nostr (secp256k1 Schnorr signatures). Private 
 | Surface | What it does | Who it's for |
 |---------|-------------|--------------|
 | [Browser extension](extension/setup.md) | Primary UI — civic dashboard, voice, identity | Residents |
-| [MCP server](mcp/setup.md) | 50+ read-only civic data tools for AI assistants | Claude, ChatGPT users |
+| [MCP server](mcp/setup.md) | Civic data tools for AI assistants (v2 query interface) | Claude, ChatGPT users |
 | REST API | Programmatic access to civic data | Developers |
 
 ## Architecture
@@ -63,8 +63,8 @@ Operators can independently run an **MCP server** (read-only civic data), a **re
 
 | Package | Purpose |
 |---------|---------|
-| [`civicos`](packages/civicos.md) | Core query API — `what_happened()`, `whats_next()`, `what_applies()` |
-| [`civicos-services`](packages/civicos-services.md) | REST API server (FastAPI, 15 routers, 50+ endpoints) |
+| [`civicos`](packages/civicos.md) | Core data access — storage backends, vector search, jurisdiction config |
+| [`civicos-services`](packages/civicos-services.md) | REST API server — v2 query interface (5 verbs), legacy endpoints |
 | [`civicos-relay`](packages/civicos-relay.md) | Coordination — voice casting, subscriptions, relay sync |
 | [`civicos-signer`](packages/civicos-signer.md) | Portable attestation signing — lets organizations hold their own issuer keys |
 | [`civicos-extraction`](packages/civicos-extraction.md) | Platform parsers — Legistar, CivicClerk, ProudCity, Granicus, SeeClickFix, LegiScan, and more |
@@ -89,14 +89,11 @@ All data is semantically indexed (~16,786 vector embeddings) for natural languag
 ## Quick Start (Developers)
 
 ```bash
-# Python core
-source civicos-env/bin/activate
-python3 -c "
-from dotenv import load_dotenv; load_dotenv()
-from civicos import CivicOS
-c = CivicOS('city-san-rafael')
-print(c.whats_next())
-"
+# Query via v2 REST API
+BASE=https://san-rafael.civicosproject.org
+curl -X POST "$BASE/api/v2/civic/search" \
+  -H "Content-Type: application/json" \
+  -d '{"query": "housing", "corpus": ["decisions", "meetings"]}'
 
 # Browser extension
 cd apps/civicos-extension

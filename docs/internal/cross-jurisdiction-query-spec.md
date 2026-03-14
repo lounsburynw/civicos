@@ -1,12 +1,12 @@
 # Cross-Jurisdiction Query Spec
 
-**Status:** Not started
-**Date:** 2026-03-11
+**Status:** Phase A implemented (v2 query layer)
+**Date:** 2026-03-11 (updated 2026-03-13)
 **Launch.json items:** `cross_marin_query_prototype`, `cross_county_query_prototype`
 
 ## Problem
 
-CivicOS queries (`what_happened()`, `what_applies()`, `whats_next()`) operate on a single jurisdiction. When a San Rafael user asks "what happened with housing?", they get only San Rafael results. But housing policy is shaped by Marin County decisions, state legislation, and potentially by what neighboring cities have done.
+CivicOS queries operate on a single jurisdiction. When a San Rafael user asks "what happened with housing?", they get only San Rafael results. But housing policy is shaped by Marin County decisions, state legislation, and potentially by what neighboring cities have done.
 
 We need to define what cross-jurisdiction queries return, when cross-jurisdiction results are relevant, and how the query API exposes this.
 
@@ -22,10 +22,10 @@ We need to define what cross-jurisdiction queries return, when cross-jurisdictio
 ### Tier 1: Parent Chain (Always Relevant)
 A query for `city-san-rafael` should include results from:
 - `county-marin` — county ordinances, supervisor decisions
-- `state-california` — state legislation (already handled by `what_applies()`)
+- `state-california` — state legislation
 - `country-united-states` — federal legislation
 
-This is the `parent_jurisdictions` array in `registry.json`. It already exists — the query layer just doesn't use it.
+This is the `parent_jurisdictions` array in `registry.json`.
 
 ### Tier 2: Sibling Cities (Sometimes Relevant)
 Cities sharing a parent jurisdiction. For San Rafael: Mill Valley, San Anselmo, Larkspur, etc.
@@ -46,61 +46,57 @@ Relevant when:
 - Explicit comparison request ("how did Berkeley handle rent control?")
 - State-level policy with local implementation variation
 
-## API Design
+## Implementation (v2 Query Layer)
 
-### Option A: Expand Existing Methods
+Cross-jurisdiction queries are implemented in the v2 query interface (`civicos-services/query/`), not on the CivicOS class. The v2 layer's planner/adapter/merger pattern naturally extends to multi-jurisdiction fan-out.
 
-```python
-# Add scope parameter to existing methods
-c.what_happened("housing", scope="local")        # Current behavior (default)
-c.what_happened("housing", scope="county")       # + parent chain up to county
-c.what_happened("housing", scope="state")        # + parent chain up to state
-c.what_happened("housing", scope="region")       # + sibling cities
-```
-
-- Pro: Backward compatible, simple
-- Con: "region" is ambiguous. What about cross-county?
-
-### Option B: Explicit Jurisdiction List
+### API Surface
 
 ```python
-c.what_happened("housing", jurisdictions=["city-san-rafael", "city-mill-valley"])
-c.what_happened("housing", include_parents=True)  # auto-expand parent chain
-```
-
-- Pro: Precise control
-- Con: Caller needs to know jurisdiction IDs
-
-### Option C: Return Grouped Results
-
-```python
-results = c.what_happened("housing", scope="county")
-# Returns:
+# v2 REST API — POST /api/v2/civic/search
 {
-    "city-san-rafael": [Decision, Decision, ...],
-    "county-marin": [Decision, ...],
-    "state-california": [Decision, ...]
+    "query": "housing",
+    "corpus": ["decisions", "meetings"],
+    "include_parents": true,       # expand parent chain from registry.json
+    "include_siblings": false      # expand sibling cities (same county)
 }
 ```
 
-- Pro: Client can display hierarchically
-- Con: Different return type from current (breaking change or new method)
+**Response** includes both flat ranked results and jurisdiction-grouped results:
 
-**Recommendation:** Option B with Option C return format, exposed as a new method:
-
-```python
-# Existing method unchanged
-c.what_happened("housing")  # -> List[dict], single jurisdiction
-
-# New method for cross-jurisdiction
-c.what_happened_across("housing",
-    jurisdictions=["city-san-rafael"],
-    include_parents=True,
-    include_siblings=False
-)  # -> Dict[str, List[dict]], grouped by jurisdiction
+```json
+{
+    "results": [/* flat, ranked by tier-boosted relevance */],
+    "jurisdiction_results": {
+        "city-san-rafael": [/* results */],
+        "county-marin": [/* results */],
+        "state-california": [/* results */]
+    },
+    "meta": {
+        "corpus_counts": {"city-san-rafael:decisions": 5, "county-marin:decisions": 2},
+        "corpus_status": {"city-san-rafael:decisions": "ok", "county-marin:decisions": "ok"}
+    }
+}
 ```
 
-This avoids breaking the existing API while providing cross-jurisdiction capabilities.
+Each `CivicResult` includes a `jurisdiction` field identifying its source.
+
+### Implementation Files
+
+| File | Purpose |
+|------|---------|
+| `packages/civicos-services/src/civicos_services/query/jurisdictions.py` | Jurisdiction resolution (parents, siblings, tiers) |
+| `packages/civicos-services/src/civicos_services/query/models.py` | `SearchRequest.include_parents/include_siblings`, `CivicResult.jurisdiction`, `SearchResponse.jurisdiction_results` |
+| `packages/civicos-services/src/civicos_services/query/verbs.py` | `_execute_cross_jurisdiction_search()` — parallel fan-out per jurisdiction |
+
+### How It Works
+
+1. `SearchRequest` arrives with `include_parents=True` or `include_siblings=True`
+2. `execute_search()` delegates to `_execute_cross_jurisdiction_search()`
+3. `resolve_jurisdictions()` reads `config/registry.json` to expand the jurisdiction list
+4. For each target jurisdiction, a CivicOS instance is created and the standard per-corpus search runs in parallel (asyncio)
+5. Results are tagged with `jurisdiction` and relevance is multiplied by tier weight (self=1.0, parent=1.0, sibling=0.8, cross_county=0.5)
+6. Response includes both flat ranked list and `jurisdiction_results` grouping
 
 ## Vector Search Implications
 
@@ -112,29 +108,28 @@ Cross-jurisdiction queries hit multiple vector namespaces. Options:
 
 3. **Parallel fan-out** — query jurisdictions concurrently with asyncio. Latency = max(individual queries). Better for federated deployment where jurisdictions are on different DBs.
 
-**For testbed (same Supabase instance):** Option 2 is natural — all cities share the DB. Add `jurisdiction_id` filter to vector queries.
-
-**For production federation (different DBs):** Option 3. The testbed should validate that result merging and ranking work correctly, so the transition from Option 2 → 3 is a deployment concern, not a design change.
+**Current implementation:** Option 3 (parallel fan-out). Each jurisdiction gets its own CivicOS instance and adapter calls run concurrently. This works for both shared-DB (testbed) and federated (production) deployments.
 
 ## Ranking Across Jurisdictions
 
-When merging results from multiple jurisdictions, how do we rank?
+**Implemented:** Tier-boosted relevance. Each result's relevance score is multiplied by its tier weight:
+- Self: 1.0
+- Parent: 1.0
+- Sibling: 0.8
+- Cross-county: 0.5
 
-- **By relevance score** — vector similarity, regardless of jurisdiction. Simple, but parent-chain results may be less textually similar while being more legally relevant.
-- **By tier then relevance** — Tier 1 (parent) results first, then Tier 2 (sibling), then Tier 3 (cross-county). Within each tier, by relevance score.
-- **Boosted by tier** — multiply relevance score by tier weight (e.g., parent = 1.0, sibling = 0.8, cross-county = 0.5).
-
-**Recommendation:** Tier-boosted relevance. Let the testbed validate the weights with real data before hardcoding.
+Weights are defined in `packages/civicos-services/src/civicos_services/query/jurisdictions.py:TIER_WEIGHTS` and can be tuned based on testbed validation.
 
 ## Testbed Validation Plan
 
 ### Phase A (Marin): `cross_marin_query_prototype`
-1. Ingest Mill Valley + San Anselmo data
-2. Implement `what_happened_across()` with `include_parents=True`
-3. Test: "housing" query for San Rafael → results from SR + county-marin + state-california
-4. Test: "housing" with `include_siblings=True` → adds Mill Valley, San Anselmo results
-5. Validate: are sibling results actually useful, or noise?
-6. Test: shared regional body queries (TAM, MMWD)
+1. ~~Implement cross-jurisdiction search in v2 layer~~ ✅ Done
+2. ~~Jurisdiction resolution (parents, siblings) from registry.json~~ ✅ Done
+3. ~~Tier-based relevance boosting~~ ✅ Done
+4. **TODO:** Test with real data — "housing" query across Marin cities
+5. **TODO:** Validate sibling results are useful, not noise
+6. **TODO:** Test shared regional body queries (TAM, MMWD)
+7. **NOTE:** Mill Valley and San Anselmo have meetings but 0 decisions — may need extraction first
 
 ### Phase B (Berkeley): `cross_county_query_prototype`
 1. Ingest Berkeley + county-alameda data
@@ -149,3 +144,4 @@ When merging results from multiple jurisdictions, how do we rank?
 1. **Performance budget** — what's acceptable latency for cross-jurisdiction queries? Current single-jurisdiction is ~200ms. Cross-county with 4 cities might be 400-800ms.
 2. **Result limits** — max results per jurisdiction? Total across all jurisdictions?
 3. **Caching** — parent-chain results (state legislation) change slowly. Cache county/state results?
+4. **Legacy method removal** — the CivicOS class still has `what_happened()`, `what_applies()`, etc. These are used by v2 adapters internally but should not be extended with cross-jurisdiction features. Eventually the adapters should call storage/vector backends directly, removing the CivicOS dependency.

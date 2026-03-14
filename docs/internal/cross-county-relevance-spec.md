@@ -1,7 +1,7 @@
 # Cross-County Relevance Filtering Spec
 
-**Status:** Not started
-**Date:** 2026-03-11
+**Status:** Not started (depends on Phase A validation)
+**Date:** 2026-03-11 (updated 2026-03-13)
 **Launch.json item:** `cross_county_query_prototype`
 **Depends on:** `cross_marin_query_prototype` (Phase A findings inform this)
 
@@ -28,11 +28,11 @@ Given a query for jurisdiction J, automatically include results from all ancesto
 city-san-rafael → county-marin → state-california → country-united-states
 ```
 
-These are always included, labeled by source jurisdiction.
+These are always included, labeled by source jurisdiction. **Implemented** via `include_parents=True` on v2 `SearchRequest`.
 
 ### Rule 2: Sibling Inclusion (Opt-In)
 
-Siblings share the same immediate parent. For `city-san-rafael`, siblings under `county-marin` include Mill Valley, San Anselmo, Larkspur, etc.
+Siblings share the same immediate parent county. For `city-san-rafael`, siblings under `county-marin` include Mill Valley, San Anselmo, etc.
 
 Include when:
 - `include_siblings=True` is passed
@@ -42,14 +42,17 @@ Exclude when:
 - Topic is operational (permits, street closures, personnel)
 - Default behavior (sibling inclusion is opt-in)
 
+**Implemented** via `include_siblings=True` on v2 `SearchRequest`.
+
 ### Rule 3: Cross-County Exclusion (Default)
 
 Berkeley (`county-alameda`) results are NOT included in San Rafael queries by default. They share `state-california` as an ancestor, but state-level results are already included via Rule 1.
 
 Include when:
 - User explicitly names the jurisdiction ("how did Berkeley handle rent control?")
-- User passes `jurisdictions=["city-berkeley"]` explicitly
-- Comparison mode: `compare_with=["city-berkeley"]`
+- User passes explicit `jurisdiction` parameter in v2 `SearchRequest`
+
+**Implemented** via tier system: `get_jurisdiction_tier()` returns `"cross_county"` for Berkeley relative to San Rafael, with tier weight 0.5.
 
 ### Rule 4: Topic Classification
 
@@ -63,31 +66,37 @@ To distinguish policy vs operational queries (for Rule 2), use the existing topi
 
 This can be a simple lookup table, not ML classification. If the query topic matches a policy keyword, sibling results are eligible.
 
-## API Surface
+## API Surface (v2 Query Layer)
+
+Cross-jurisdiction is implemented in the v2 query interface (`civicos-services/query/`), not on the CivicOS class.
 
 ```python
+# v2 REST API — POST /api/v2/civic/search
+
 # Default: local + parent chain only
-c.what_happened_across("housing", jurisdictions=["city-san-rafael"])
+{"query": "housing", "corpus": ["decisions"], "include_parents": true}
 
 # Explicit sibling inclusion
-c.what_happened_across("housing",
-    jurisdictions=["city-san-rafael"],
-    include_siblings=True
-)
+{"query": "housing", "corpus": ["decisions"], "include_parents": true, "include_siblings": true}
 
-# Explicit cross-county comparison
-c.what_happened_across("rent control",
-    jurisdictions=["city-san-rafael", "city-berkeley"]
-)
-
-# Results always grouped by jurisdiction
-# {
-#     "city-san-rafael": [...],
-#     "county-marin": [...],           # parent chain
-#     "state-california": [...],       # parent chain
-#     "city-mill-valley": [...],       # sibling (if included)
-# }
+# Explicit cross-county (pass jurisdiction directly)
+{"query": "rent control", "corpus": ["decisions"], "jurisdiction": "city-berkeley"}
 ```
+
+**Response** includes `jurisdiction_results` grouping:
+
+```json
+{
+    "results": [/* flat, tier-boosted relevance */],
+    "jurisdiction_results": {
+        "city-san-rafael": [/* results */],
+        "county-marin": [/* results */],
+        "city-mill-valley": [/* results, if include_siblings */]
+    }
+}
+```
+
+Each `CivicResult` has a `jurisdiction` field identifying its source. See `packages/civicos-services/src/civicos_services/query/jurisdictions.py` for tier weights and resolution logic.
 
 ## Testbed Validation
 
