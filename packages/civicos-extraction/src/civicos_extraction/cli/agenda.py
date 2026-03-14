@@ -65,12 +65,19 @@ class AgendaCheckpoint:
     items_failed: int
     total_agenda_items: int
     timestamp: str
+    succeeded_meeting_ids: list = None  # Track which meetings succeeded
+
+    def __post_init__(self):
+        if self.succeeded_meeting_ids is None:
+            self.succeeded_meeting_ids = []
 
     def to_dict(self) -> dict:
         return asdict(self)
 
     @classmethod
     def from_dict(cls, data: dict) -> "AgendaCheckpoint":
+        if "succeeded_meeting_ids" not in data:
+            data["succeeded_meeting_ids"] = []
         return cls(**data)
 
 
@@ -600,19 +607,36 @@ def run_agenda_extraction(
     resume_from = load_checkpoint(checkpoint_path)
     start_index = 0
 
+    succeeded_ids = set()
     if resume_from:
-        logger.info(f"Found checkpoint: {resume_from.items_processed} items processed")
-        # Find the index to resume from
-        for i, meeting in enumerate(meetings):
-            meeting_id = meeting.get("id") or meeting.get("meeting_id")
-            if meeting_id == resume_from.last_meeting_id:
-                start_index = i + 1
-                break
-        if start_index > 0:
-            logger.info(f"Resuming from meeting {start_index}")
+        succeeded_ids = set(resume_from.succeeded_meeting_ids or [])
+        if succeeded_ids:
+            logger.info(
+                f"Found checkpoint: {len(succeeded_ids)} meetings succeeded, "
+                f"{resume_from.items_failed} failed (will retry failures)"
+            )
+        else:
+            if resume_from.items_failed == 0:
+                for i, meeting in enumerate(meetings):
+                    meeting_id = meeting.get("id") or meeting.get("meeting_id")
+                    if meeting_id == resume_from.last_meeting_id:
+                        start_index = i + 1
+                        break
+                if start_index > 0:
+                    logger.info(f"Resuming from meeting {start_index} (legacy checkpoint, no failures)")
+            else:
+                logger.info(
+                    f"Found checkpoint with {resume_from.items_failed} failures "
+                    "but no success tracking — re-processing all meetings"
+                )
 
-    # Apply limit
+    # Filter out already-succeeded meetings
     meetings_to_process = meetings[start_index:]
+    if succeeded_ids:
+        meetings_to_process = [
+            m for m in meetings
+            if (m.get("id") or m.get("meeting_id")) not in succeeded_ids
+        ]
     if limit > 0:
         meetings_to_process = meetings_to_process[:limit]
         logger.info(f"Limited to {limit} meetings")
@@ -649,7 +673,7 @@ def run_agenda_extraction(
     # Extract agenda items
     results = []
     failures = []  # Track failures for post-hoc validation
-    items_processed = start_index
+    items_processed = 0
     items_extracted = 0
     items_skipped = 0
     items_failed = 0
@@ -657,12 +681,12 @@ def run_agenda_extraction(
     items_cancelled = 0
     total_agenda_items = 0
 
-    for i, meeting in enumerate(meetings_to_process, start=start_index + 1):
+    for i, meeting in enumerate(meetings_to_process, start=1):
         meeting_id = meeting.get("id") or meeting.get("meeting_id", "unknown")
         meeting_date = meeting.get("meeting_date") or meeting.get("meeting_datetime", "")[:10]
         title = meeting.get("title", "Unknown")[:50]
 
-        logger.info(f"[{i}/{len(meetings)}] {meeting_date} - {title}")
+        logger.info(f"[{i}/{len(meetings_to_process)}] {meeting_date} - {title}")
 
         result = extract_agenda_items_from_meeting(
             meeting,
@@ -674,10 +698,13 @@ def run_agenda_extraction(
         if result.status == "success":
             items_extracted += 1
             total_agenda_items += result.items_count
+            succeeded_ids.add(meeting_id)
         elif result.status == "skipped":
             items_skipped += 1
+            succeeded_ids.add(meeting_id)
         elif result.status == "no_items":
             items_no_items += 1
+            succeeded_ids.add(meeting_id)  # No items is a valid result, don't retry
             failures.append(result)  # Track for validation
         elif result.status == "cancelled":
             items_cancelled += 1
@@ -698,6 +725,7 @@ def run_agenda_extraction(
                 items_failed=items_failed,
                 total_agenda_items=total_agenda_items,
                 timestamp=datetime.now().isoformat(),
+                succeeded_meeting_ids=list(succeeded_ids),
             )
             save_checkpoint(checkpoint, checkpoint_path)
             logger.debug(f"Checkpoint saved: {items_processed} processed")
@@ -715,6 +743,7 @@ def run_agenda_extraction(
             items_failed=items_failed,
             total_agenda_items=total_agenda_items,
             timestamp=datetime.now().isoformat(),
+            succeeded_meeting_ids=list(succeeded_ids),
         )
         save_checkpoint(checkpoint, checkpoint_path)
 
