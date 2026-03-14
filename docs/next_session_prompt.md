@@ -1,81 +1,59 @@
-# Recommended: Multi-Issuer Lookup
+# Recommended: Attestation Expiry
 
-**Priority:** P0 (`multi_issuer_lookup`)
-**Area:** federation_testbed
+**Priority:** P0 (`attestation_expiry`)
+**Area:** acceptance_policy
 **Date:** 2026-03-13
 
 > This is recommended context from the previous session. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
 
 ## Context
 
-The previous session built the full federation attestation pipeline: issuer registry endpoints, code batch submission, attestation redemption, and peer sync — all validated on live relays (Mill Valley and San Anselmo). The one remaining gap is that `AcceptancePolicy._verify_attestation()` only checks the **first** verified issuer it finds. It should try **all** verified issuers for a jurisdiction, since a voice arriving via peer sync might carry an attestation signed by a different issuer than the one the local relay would pick first.
+The previous session completed `multi_issuer_lookup`: `_verify_attestation()` now iterates all verified issuers for a jurisdiction instead of returning the first match. This enables cross-relay attestation verification via peer sync. The next natural step is adding expiry checking so old attestations don't verify forever.
 
 ## What Was Completed Last Session
 
-- Issuer registry HTTP endpoints (register, verify, revoke, list, code batch)
-- `verify_code_batch()` moved to relay crypto module (no civicos_signer dependency)
-- Issuer keypairs generated for Mill Valley + San Anselmo, registered on live relays
-- Attestation redemption verified end-to-end on both relays
-- Peer sync working: voices propagate between Mill Valley ↔ San Anselmo
-- Manual sync trigger endpoint (`POST /coordination/sync/trigger`)
-- Documentation updated (public + internal)
+- `IssuerLookup` type changed from `Callable[[str], Optional[str]]` to `Callable[[str], list[str]]`
+- `_verify_attestation()` iterates all issuer pubkeys, accepts if any verifies
+- `issuer_lookup` closure in `app.py` returns all verified, non-revoked pubkeys
+- 6 new multi-issuer tests added (40 total acceptance policy tests pass)
+- 391 relay tests pass
+- Spec updated (`docs/internal/multi-issuer-lookup-spec.md` steps 3,4 marked done)
 
 ## Recommended Task
 
-Update `_verify_attestation()` to iterate all verified issuers instead of returning only the first match. The `issuer_lookup` callable in `app.py` already queries the DB — it just needs to return all issuers instead of the first one's pubkey.
+Add attestation expiry checking to `_verify_attestation()`. Currently, a kind-30850 attestation event is accepted regardless of age. Add a check: `proof["created_at"] + validity_period > now`. Recommend 1-year default validity (31536000 seconds).
+
+Also design a revocation mechanism — a blocklist of revoked attestation event IDs stored in the coordination DB.
 
 ## Key Files
 
-- `packages/civicos-relay/src/civicos_relay/server/acceptance.py:176-207` — `_verify_attestation()` currently calls `self._issuer_lookup(jurisdiction)` which returns `Optional[str]` (single pubkey)
-- `packages/civicos-relay/src/civicos_relay/server/acceptance.py:17` — `IssuerLookup = Callable[[str], Optional[str]]` type alias
-- `packages/civicos-relay/src/civicos_relay/server/app.py:139-145` — `issuer_lookup()` closure that queries `issuer_storage.get_issuers_for_jurisdiction()` but returns only the first verified pubkey
-- `packages/civicos-relay/src/civicos_relay/storage/postgres.py:2330` — `get_issuers_for_jurisdiction()` already returns all issuers
-- `docs/internal/multi-issuer-lookup-spec.md` — Spec with TrustedIssuer model and updated signature
-- `packages/civicos-relay/tests/test_acceptance.py` — Existing acceptance policy tests
+- `packages/civicos-relay/src/civicos_relay/server/acceptance.py:176-211` — `_verify_attestation()` where the expiry check should go
+- `packages/civicos-relay/src/civicos_relay/server/acceptance.py:46-56` — `DEFAULT_POLICY` config dict — could add `attestation_validity_seconds` here
+- `packages/civicos-relay/src/civicos_relay/voice/crypto.py:409` — `verify_attestation_proof()` does the crypto verification
+- `packages/civicos-relay/tests/test_acceptance_policy.py` — 40 existing tests including `TestMultiIssuerAttestation`
+- `docs/internal/relay-acceptance-policy-spec.md` — Phase 3 spec for attestation expiry
 
 ## Suggested Approach
 
-1. **Update the type alias** in `acceptance.py`:
-   ```python
-   # Old
-   IssuerLookup = Callable[[str], Optional[str]]
-   # New
-   IssuerLookup = Callable[[str], list[str]]  # returns list of verified pubkeys
-   ```
+1. **Add expiry check in `_verify_attestation()`** — before calling `verify_attestation_proof()`, check `proof.get("created_at", 0) + validity_period > int(time.time())`. If expired, log and return False.
 
-2. **Update `issuer_lookup` in `app.py:139-145`** to return all verified pubkeys:
-   ```python
-   def issuer_lookup(jurisdiction: str) -> list[str]:
-       issuers = issuer_storage.get_issuers_for_jurisdiction(jurisdiction)
-       return [i["issuer_pubkey"] for i in issuers if i.get("verified") and not i.get("revoked")]
-   ```
+2. **Make validity period configurable** — add `attestation_validity_seconds` to the policy config or `AcceptancePolicy.__init__()` (default 31536000 = 1 year).
 
-3. **Update `_verify_attestation()` in `acceptance.py:176-207`** to iterate:
-   ```python
-   issuer_pubkeys = self._issuer_lookup(jurisdiction)
-   if not issuer_pubkeys:
-       return False
-   for pubkey in issuer_pubkeys:
-       if verify_attestation_proof(proof, public_key, jurisdiction, pubkey):
-           return True
-   return False
-   ```
+3. **Design revocation blocklist** — create `coordination_attestation_revocations` table with `event_id TEXT PRIMARY KEY, revoked_at TIMESTAMPTZ, reason TEXT`. Check blocklist in `_verify_attestation()` before crypto verification.
 
-4. **Add a test** — cast a voice with an attestation from issuer B, verify it passes acceptance when both issuer A and B are registered.
+4. **Add tests:**
+   - Attestation with `created_at` older than validity period is rejected
+   - Attestation within validity period passes
+   - Revoked attestation event ID is rejected
+   - Custom validity period works
 
-5. **Update spec** — mark `multi-issuer-lookup-spec.md` steps 3 and 4 as done.
+5. **Migration SQL** — add to `scripts/sql/` for the revocations table.
 
 ## Tests to Run
 
 ```bash
-# Acceptance policy tests
-pytest packages/civicos-relay/tests/test_acceptance.py -q --override-ini="addopts="
-
-# Attestation multi-issuer tests
-pytest packages/civicos-relay/tests/test_attestation_multi_issuer.py -q --override-ini="addopts="
-
-# Issuer endpoint tests
-pytest packages/civicos-relay/tests/test_issuer_endpoints.py -q --override-ini="addopts="
+# Acceptance policy tests (primary)
+pytest packages/civicos-relay/tests/test_acceptance_policy.py -q --override-ini="addopts="
 
 # Full relay suite
 pytest packages/civicos-relay/tests/ -q --override-ini="addopts="
@@ -83,9 +61,9 @@ pytest packages/civicos-relay/tests/ -q --override-ini="addopts="
 
 ## Success Criteria
 
-- [ ] `IssuerLookup` returns `list[str]` instead of `Optional[str]`
-- [ ] `_verify_attestation()` iterates all issuers for a jurisdiction
-- [ ] Test: attestation from issuer B passes when issuers A and B are both registered
-- [ ] Test: attestation from revoked issuer fails
-- [ ] `multi-issuer-lookup-spec.md` updated with implementation status
+- [ ] Attestation proofs older than validity period are rejected
+- [ ] Validity period is configurable (default 1 year)
+- [ ] Revocation blocklist table designed and created
+- [ ] Revoked attestation event IDs are rejected
+- [ ] Tests cover expiry and revocation scenarios
 - [ ] `launch.json` item marked done
