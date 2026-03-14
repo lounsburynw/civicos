@@ -64,6 +64,12 @@ class RelayConfig(BaseModel):
     # Acceptance policy (enabled by default — set RELAY_ACCEPTANCE_POLICY=false to disable)
     acceptance_policy_enabled: bool = Field(default=True)
 
+    # Jurisdiction this relay serves (for per-jurisdiction policy config)
+    jurisdiction_id: Optional[str] = Field(
+        default=None,
+        description="Jurisdiction ID (e.g., 'city-san-rafael') for per-jurisdiction rate limit policy",
+    )
+
     # Health check settings
     health_check_timeout: int = Field(
         default=10, description="Timeout in seconds for health checks"
@@ -100,6 +106,7 @@ class RelayConfig(BaseModel):
             database_url=os.environ.get("DATABASE_URL"),
             sync_enabled=os.environ.get("RELAY_SYNC_ENABLED", "true").lower() == "true",
             acceptance_policy_enabled=os.environ.get("RELAY_ACCEPTANCE_POLICY", "true").lower() == "true",
+            jurisdiction_id=os.environ.get("RELAY_JURISDICTION"),
         )
 
     @classmethod

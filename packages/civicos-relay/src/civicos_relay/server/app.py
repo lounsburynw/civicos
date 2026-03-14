@@ -148,6 +148,7 @@ async def lifespan(app: FastAPI):
         policy = AcceptancePolicy(
             connection_url=relay_db_url,
             issuer_lookup=issuer_lookup,
+            jurisdiction_id=config.jurisdiction_id,
         )
         policy.cleanup_old_limits()
         policy.cleanup_old_logs()

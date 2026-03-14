@@ -1,0 +1,10 @@
+{
+  "default": {
+    "voice": {"max_per_day": 50, "pow_difficulty": 16},
+    "comment": {"max_per_day": 20, "pow_difficulty": 16},
+    "initiative": {"max_per_day": 5, "pow_difficulty": null},
+    "action_create": {"max_per_day": 10, "pow_difficulty": null},
+    "action_commit": {"max_per_day": 20, "pow_difficulty": null},
+    "action_complete": {"max_per_day": 20, "pow_difficulty": null}
+  }
+}
