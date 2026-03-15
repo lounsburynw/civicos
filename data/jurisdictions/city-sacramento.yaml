@@ -1,0 +1,59 @@
+# Sacramento City Configuration
+#
+# Pilot city for American Legal Publishing municipal code extraction.
+
+# =============================================================================
+# Identity
+# =============================================================================
+
+jurisdiction_id: city-sacramento
+level: city
+display_name: Sacramento
+
+# =============================================================================
+# Hierarchy
+# =============================================================================
+
+parent_jurisdictions:
+  - county-sacramento
+  - state-california
+  - country-united-states
+
+# =============================================================================
+# Data Sources
+# =============================================================================
+
+data_sources:
+  # Municipal code (American Legal Publishing)
+  municipal_code: amlegal
+
+# =============================================================================
+# American Legal Publishing Configuration
+# =============================================================================
+
+amlegal:
+  slug: sacramentoca
+  code_id: sacramento_ca
+
+# =============================================================================
+# Financial Context
+# =============================================================================
+
+financial:
+  state: CA
+  county: Sacramento
+
+# =============================================================================
+# Ingestion Tiers
+# =============================================================================
+
+ingestion:
+  municipal_code: true
+
+# =============================================================================
+# Metadata
+# =============================================================================
+
+metadata:
+  created: "2026-03-13"
+  notes: "Pilot city for American Legal Publishing municipal code client."

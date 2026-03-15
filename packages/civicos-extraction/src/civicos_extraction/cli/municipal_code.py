@@ -1,10 +1,12 @@
 """
 Municipal code fetch command for civic-extract CLI.
 
-Fetches municipal code from Municode API and stores to Postgres.
+Fetches municipal code from Municode API or American Legal Publishing
+and stores to Postgres. Source is auto-detected from jurisdiction config.
 
 Usage:
     civic-extract municipal-code --jurisdiction city-san-rafael
+    civic-extract municipal-code --jurisdiction city-sacramento
     civic-extract municipal-code --jurisdiction city-san-rafael --cloud
     civic-extract municipal-code --jurisdiction city-san-rafael --dry-run
     civic-extract municipal-code --jurisdiction city-san-rafael --stats --cloud
@@ -136,19 +138,21 @@ def validate_config(jurisdiction_id: str) -> int:
     logger.info("Municipal Code Dry Run")
     logger.info("=" * 50)
 
-    # Check Municode availability
+    # Check source availability
     try:
-        from civicos._internal.legal.corpus.municipal import MunicipalCodeCorpus
+        from civicos._internal.legal.corpus.municipal import MunicipalCodeCorpus, _is_amlegal_jurisdiction
+        is_amlegal = _is_amlegal_jurisdiction(jurisdiction_id)
+        source = "American Legal Publishing" if is_amlegal else "Municode API"
         corpus = MunicipalCodeCorpus.for_jurisdiction(jurisdiction_id)
         logger.info(f"Jurisdiction: {jurisdiction_id}")
-        logger.info(f"Municode corpus: Initialized successfully")
+        logger.info(f"Source: {source}")
+        logger.info(f"Corpus: {type(corpus).__name__} initialized successfully")
 
-        # Check if jurisdiction is in the known map
-        if jurisdiction_id in corpus.JURISDICTION_MAP:
+        if not is_amlegal and jurisdiction_id in corpus.JURISDICTION_MAP:
             jur_info = corpus.JURISDICTION_MAP[jurisdiction_id]
             logger.info(f"  State: {jur_info.get('state')}")
             logger.info(f"  Name: {jur_info.get('name')}")
-        else:
+        elif not is_amlegal:
             logger.warning(f"  Jurisdiction not in known map - will attempt auto-discovery")
 
         logger.info("Configuration: VALID")
@@ -185,14 +189,17 @@ def fetch_and_store_municipal_code(
         logger.error(f"Failed to initialize Municode corpus: {e}")
         return 1
 
-    logger.info(f"Fetching municipal code from Municode API...")
+    # Detect source type
+    from civicos._internal.legal.corpus.municipal import _is_amlegal_jurisdiction
+    source = "amlegal" if _is_amlegal_jurisdiction(jurisdiction_id) else "municode"
+    logger.info(f"Fetching municipal code from {source}...")
 
-    # Stream sections from Municode
+    # Stream sections
     sections: List[Dict[str, Any]] = []
     try:
         for section in corpus.stream_sections():
             section_dict = asdict(section)
-            section_dict['source'] = 'municode'
+            section_dict['source'] = source
             sections.append(section_dict)
 
             if len(sections) % 100 == 0:
