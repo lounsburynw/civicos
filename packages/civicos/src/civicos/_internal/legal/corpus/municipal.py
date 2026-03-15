@@ -120,6 +120,32 @@ def register_parser(jurisdiction_id: str):
     return decorator
 
 
+def _is_amlegal_jurisdiction(jurisdiction_id: str) -> bool:
+    """Check if a jurisdiction uses American Legal Publishing."""
+    # Check AmericanLegalCorpus.JURISDICTION_MAP (lazy import)
+    try:
+        from .american_legal import AmericanLegalCorpus
+        if jurisdiction_id in AmericanLegalCorpus.JURISDICTION_MAP:
+            return True
+    except ImportError:
+        pass
+
+    # Check jurisdiction YAML
+    try:
+        yaml_path = Path(__file__).resolve()
+        for parent in yaml_path.parents:
+            config_path = parent / "data" / "jurisdictions" / f"{jurisdiction_id}.yaml"
+            if config_path.exists():
+                import yaml
+                with open(config_path) as f:
+                    data = yaml.safe_load(f)
+                return data.get("data_sources", {}).get("municipal_code") == "amlegal"
+    except Exception:
+        pass
+
+    return False
+
+
 class MunicipalCodeCorpus:
     """
     Fetch municipal code from Municode API.
@@ -347,11 +373,23 @@ class MunicipalCodeCorpus:
         """
         Factory method that returns the appropriate parser for a jurisdiction.
 
-        If a custom parser is registered via @register_parser, returns that.
-        Otherwise returns a standard MunicipalCodeCorpus instance.
+        Routing order:
+        1. Custom parser registered via @register_parser
+        2. AmericanLegalCorpus if jurisdiction uses AMLegal
+        3. Standard MunicipalCodeCorpus (Municode API)
+
+        AMLegal jurisdictions are detected by:
+        - Presence in AmericanLegalCorpus.JURISDICTION_MAP, or
+        - data_sources.municipal_code == "amlegal" in jurisdiction YAML
         """
         if jurisdiction_id in _PARSER_REGISTRY:
             return _PARSER_REGISTRY[jurisdiction_id](jurisdiction_id, **kwargs)
+
+        # Check if this jurisdiction uses American Legal Publishing
+        if _is_amlegal_jurisdiction(jurisdiction_id):
+            from .american_legal import AmericanLegalCorpus
+            return AmericanLegalCorpus(jurisdiction_id, **kwargs)
+
         return cls(jurisdiction_id, **kwargs)
 
     def _infer_jurisdiction_info(self) -> dict:
