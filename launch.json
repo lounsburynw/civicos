@@ -474,18 +474,20 @@
       },
       {
         "name": "marin_sibling_ingestion",
-        "description": "Ingest decisions, chunks, and agenda items for Mill Valley and San Anselmo to provide real cross-jurisdiction data. Both have meetings (56 and 169) but 0 decisions.",
+        "description": "Build a turnkey onboard-and-ingest flow, validate it by onboarding Mill Valley and San Anselmo end-to-end, then update docs so any operator can do the same.",
         "status": "not_started",
         "priority": 0,
         "phase": "A",
-        "source": "federation testbed — data prerequisite for cross_marin_query_prototype",
+        "source": "federation testbed — data prerequisite for cross_marin_query_prototype + operator experience validation",
         "files": [
-          "data/jurisdictions/city-san-anselmo.yaml",
           "scripts/modal_ingest.py",
-          "scripts/modal_vectors.py"
+          "packages/civicos-extraction/src/civicos_extraction/onboard.py",
+          "data/jurisdictions/",
+          "data/extraction/",
+          "docs/public/data-ingestion.md"
         ],
         "test_file": null,
-        "notes": "Mill Valley has no jurisdiction YAML yet. San Anselmo has one. Both use Granicus. Run Tier 1+2 ingestion per data-ingestion.md guide, then vector index. Success = non-zero decisions for both cities."
+        "notes": "Three deliverables: (1) Streamline onboard into a single entry point that generates both configs (extraction JSON + jurisdiction YAML) and runs Tier 1+2+4 ingestion. (2) Validate by running it on Mill Valley (missing YAML) and San Anselmo (missing extraction config) — success = non-zero decisions + vectors for both. (3) Update data-ingestion.md with the turnkey flow so a newbie operator can follow it. Current gaps: two separate config files with no single command, /onboard is a Claude Code skill not an operator CLI, civic-extract onboard --full may not exist yet."
       },
       {
         "name": "cross_marin_query_prototype",
