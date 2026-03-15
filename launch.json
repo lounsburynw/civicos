@@ -38,6 +38,14 @@
         ],
         "test_file": "packages/civicos-relay/tests/test_acceptance.py",
         "completed_in": "7beb779"
+      },
+      {
+        "name": "amlegal_client_hardening",
+        "description": "Harden American Legal Publishing client: test parser on 2-3 more cities (LA, SF, Chicago), store Sacramento to Postgres, verify vector indexing pipeline.",
+        "priority": 1,
+        "status": "not_started",
+        "test_file": "packages/civicos/tests/test_integration_pgvector.py",
+        "notes": "PR #21 (feature/data/american-legal-client) has the initial client. Sacramento pilot: 6,562 sections parsed from cached text export."
       }
     ]
   },
@@ -341,7 +349,7 @@
         "name": "data_ingestion_guide",
         "description": "Public-facing guide for operators to ingest data for their jurisdiction. Currently noted as a gap in operator-guide.md \u2014 links to internal docs only.",
         "status": "not_started",
-        "priority": 2,
+        "priority": 0,
         "files": [
           "docs/public/"
         ],
@@ -477,7 +485,7 @@
           "packages/civicos-services/src/civicos_services/query/models.py"
         ],
         "test_file": "packages/civicos-services/tests/test_query_v2.py",
-        "notes": "Infrastructure done (jurisdiction resolution, tier boosting, parallel fan-out, 18 tests passing). Remaining: validate with real PostgreSQL data across Marin cities. Mill Valley and San Anselmo have meetings but 0 decisions — may need extraction first."
+        "notes": "Infrastructure done (jurisdiction resolution, tier boosting, parallel fan-out, 18 tests passing). Remaining: validate with real PostgreSQL data across Marin cities. Mill Valley and San Anselmo have meetings but 0 decisions \u2014 may need extraction first."
       },
       {
         "name": "onboarding_friction_log",
@@ -632,11 +640,11 @@
       },
       {
         "name": "v2_adapter_storage_refactor",
-        "description": "Refactor v2 corpus adapters to call storage/vector backends directly instead of CivicOS query methods. Removes unnecessary CivicOS middleman layer and the workarounds needed for cross-jurisdiction queries.",
-        "status": "not_started",
-        "priority": 0,
+        "description": "Refactored v2 corpus adapters to call storage/vector backends directly. Removed CivicOS middleman. Cross-jurisdiction no longer creates CivicOS instances.",
+        "status": "done",
+        "priority": 1,
         "phase": "B",
-        "source": "architectural review — v2 query layer cleanup",
+        "source": "architectural review \u2014 v2 query layer cleanup",
         "files": [
           "packages/civicos-services/src/civicos_services/query/adapters.py",
           "packages/civicos-services/src/civicos_services/query/verbs.py"

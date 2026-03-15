@@ -22334,3 +22334,32 @@ Prototype cross-jurisdiction queries within Marin County across San Rafael + Mil
 
 ### Next P0: v2_adapter_storage_refactor
 Refactor adapters to call storage/vector backends directly instead of CivicOS methods.
+
+## Session — 2026-03-15: v2 Adapter Storage Refactor
+
+### Completed P1: v2_adapter_storage_refactor
+Refactored all 10 v2 corpus adapters to call storage/vector backends directly
+instead of going through CivicOS query methods.
+
+**Changes:**
+- `adapters.py`: Changed `search(self, civic, ...)` → `search(self, storage, vectors, ...)` for all adapters
+  - DecisionsAdapter → `search_decisions()` from history.py
+  - TestimonyAdapter → `search_transcripts()` from history.py
+  - Legislation/MunicipalCode/Orders/Rules → `get_regulatory_context()` from context.py
+  - MeetingsAdapter → `storage.get_meetings()` directly
+  - BudgetAdapter → `storage.get_budget_items()` directly
+  - IssuesAdapter → `storage.get_issues()` directly
+  - PacketsAdapter → `search_hybrid()` from history.py
+- `verbs.py`: Updated `execute_search` to extract `civic._storage`/`civic._vectors` and pass to adapters
+- `verbs.py`: Rewrote `_execute_cross_jurisdiction_search` — no more CivicOS instance creation
+  - Removed warm-then-fan-out workaround (all jurisdictions fan out in parallel now)
+  - Added `_execute_single_jurisdiction_search` for direct storage/vectors usage
+- `test_query_v2.py`: Updated all 130 tests
+  - Added `adapter_patches()` context manager for mocking backend function calls
+  - Added `make_mock_storage()`, `make_mock_vectors()` helpers
+  - Replaced inline `civic.what_happened.return_value` patterns with `adapter_patches(decisions=[...])`
+
+**Results:** All 130 v2 tests pass, all 20 core smoke tests pass.
+
+**Impact:** Cross-jurisdiction queries no longer create CivicOS instances or need connection pool workarounds. Same storage/vector backends serve all jurisdictions.
+

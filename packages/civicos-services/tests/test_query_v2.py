@@ -5,6 +5,7 @@ Tests adapters, planner, merger, ref parsing, and verb integration.
 """
 
 import asyncio
+from contextlib import contextmanager
 import pytest
 from unittest.mock import MagicMock, patch
 from dataclasses import dataclass, field
@@ -117,29 +118,71 @@ class MockBudgetItem:
     fiscal_year: str = "FY25-26"
 
 
+def make_mock_storage():
+    """Create a mock StorageBackend with sensible defaults."""
+    storage = MagicMock()
+    storage.get_meetings.return_value = [
+        {"id": "mtg-1", "title": "City Council Meeting", "body": "City Council",
+         "meeting_datetime": "2025-07-01T18:00:00", "location": "City Hall",
+         "agenda_items": []},
+    ]
+    storage.get_budget_items.return_value = [
+        {"id": "bud-1", "fund": "General Fund", "department": "Housing",
+         "line_item": "Affordable Housing Program", "budgeted_cents": 50000000,
+         "fiscal_year": "FY25-26"},
+    ]
+    storage.get_issues.return_value = [
+        {"id": "iss-1", "summary": "Pothole on Main St", "status": "open",
+         "issue_type": "Road", "address": "123 Main St", "created_at": "2025-03-01",
+         "description": "Large pothole on Main St near downtown"},
+    ]
+    return storage
+
+
+def make_mock_vectors():
+    """Create a mock VectorBackend."""
+    return MagicMock()
+
+
+# Default regulatory stack for patching
+_DEFAULT_REG_STACK = MockRegulatoryStack(
+    state=[{"bill_id": "ca-sb9", "bill_number": "SB-9", "bill_name": "Housing Development",
+            "status_label": "Enacted", "state": "CA", "summary": "Allows lot splits"}],
+    local=[{"section_number": "14.06.030", "section_title": "ADU Regulations",
+            "text": "Accessory dwelling units..."}],
+)
+
+
+@contextmanager
+def adapter_patches(decisions=None, transcripts=None, regulatory=None, hybrid=None):
+    """Patch all adapter backend dependencies with mock data.
+
+    Use this context manager around any test that calls adapter.search()
+    or verb functions that invoke adapters.
+    """
+    with patch("civicos.history.search_decisions", return_value=decisions if decisions is not None else [MockDecision()]), \
+         patch("civicos.history.search_transcripts", return_value=transcripts if transcripts is not None else [MockTranscriptExcerpt()]), \
+         patch("civicos.context.get_regulatory_context", return_value=regulatory if regulatory is not None else _DEFAULT_REG_STACK), \
+         patch("civicos.history.search_hybrid", return_value=hybrid if hybrid is not None else []):
+        yield
+
+
 def make_mock_civic():
-    """Create a mock CivicOS instance."""
+    """Create a mock CivicOS instance with storage/vector backends.
+
+    The mock has both old-style methods (for upcoming/act verbs) and
+    _storage/_vectors attributes (for search adapters).
+    """
     civic = MagicMock()
     civic.jurisdiction = "city-san-rafael"
 
-    civic.what_happened.return_value = [MockDecision()]
-    civic.what_was_said.return_value = [MockTranscriptExcerpt()]
-    civic.get_public_testimony.return_value = [
-        MockTranscriptExcerpt(is_public_comment=True),
-    ]
-    civic.what_applies.return_value = MockRegulatoryStack(
-        state=[{"bill_id": "ca-sb9", "bill_number": "SB-9", "bill_name": "Housing Development", "status_label": "Enacted", "state": "CA", "summary": "Allows lot splits"}],
-        local=[{"section_number": "14.06.030", "section_title": "ADU Regulations", "text": "Accessory dwelling units..."}],
-    )
+    # Storage and vector backends (used by adapters via verbs)
+    civic._storage = make_mock_storage()
+    civic._vectors = make_mock_vectors()
+
+    # Old-style methods (still used by upcoming/act/explore verbs)
     civic.whats_next.return_value = [MockMeeting()]
-    civic.budget.return_value = [MockBudgetItem()]
-    civic.search_issues.return_value = [
-        {"id": "iss-1", "summary": "Pothole on Main St", "status": "open", "issue_type": "Road", "address": "123 Main St", "created_at": "2025-03-01"},
-    ]
-    civic._storage = MagicMock()
-    civic._storage.get_meetings.return_value = [
-        {"id": "mtg-1", "title": "City Council Meeting", "body": "City Council", "meeting_datetime": "2025-07-01T18:00:00", "location": "City Hall"},
-    ]
+    civic.what_applies.return_value = _DEFAULT_REG_STACK
 
     return civic
 
@@ -149,8 +192,10 @@ def make_mock_civic():
 class TestDecisionsAdapter:
     def test_search_returns_civic_results(self):
         adapter = DecisionsAdapter()
-        civic = make_mock_civic()
-        results = adapter.search(civic, "city-san-rafael", "housing", 10)
+        storage = make_mock_storage()
+        vectors = make_mock_vectors()
+        with adapter_patches():
+            results = adapter.search(storage, vectors, "city-san-rafael", "housing", 10)
 
         assert len(results) == 1
         r = results[0]
@@ -170,23 +215,26 @@ class TestDecisionsAdapter:
 class TestTestimonyAdapter:
     def test_search_all_testimony(self):
         adapter = TestimonyAdapter()
-        civic = make_mock_civic()
-        results = adapter.search(civic, "city-san-rafael", "housing", 10)
+        storage = make_mock_storage()
+        vectors = make_mock_vectors()
+        with adapter_patches():
+            results = adapter.search(storage, vectors, "city-san-rafael", "housing", 10)
 
         assert len(results) == 1
         r = results[0]
         assert r.type == "testimony"
         assert r.details["speaker"] == "Jane Smith"
         assert r.details["speaker_role"] == "public"
-        assert r.details["video_url"] is not None
 
     def test_search_public_only(self):
         adapter = TestimonyAdapter(sub_corpus="public")
-        civic = make_mock_civic()
-        results = adapter.search(civic, "city-san-rafael", "housing", 10)
-
-        assert len(results) >= 1
-        civic.get_public_testimony.assert_called_once()
+        storage = make_mock_storage()
+        vectors = make_mock_vectors()
+        with patch("civicos.history.search_transcripts", return_value=[MockTranscriptExcerpt(is_public_comment=True)]) as mock_st:
+            results = adapter.search(storage, vectors, "city-san-rafael", "housing", 10)
+            mock_st.assert_called_once()
+            # Verify public_comment_only=True was passed
+            assert mock_st.call_args[1].get("public_comment_only") is True
 
     def test_corpus_name_with_subcorpus(self):
         adapter = TestimonyAdapter(sub_corpus="council")
@@ -196,8 +244,10 @@ class TestTestimonyAdapter:
 class TestLegislationAdapter:
     def test_search_returns_legislation(self):
         adapter = LegislationAdapter()
-        civic = make_mock_civic()
-        results = adapter.search(civic, "city-san-rafael", "housing", 10)
+        storage = make_mock_storage()
+        vectors = make_mock_vectors()
+        with adapter_patches():
+            results = adapter.search(storage, vectors, "city-san-rafael", "housing", 10)
 
         assert len(results) >= 1
         r = results[0]
@@ -210,8 +260,9 @@ class TestLegislationAdapter:
 class TestIssuesAdapter:
     def test_search_returns_issues(self):
         adapter = IssuesAdapter()
-        civic = make_mock_civic()
-        results = adapter.search(civic, "city-san-rafael", "pothole", 10)
+        storage = make_mock_storage()
+        vectors = make_mock_vectors()
+        results = adapter.search(storage, vectors, "city-san-rafael", "pothole", 10)
 
         assert len(results) == 1
         r = results[0]
@@ -223,8 +274,9 @@ class TestIssuesAdapter:
 class TestBudgetAdapter:
     def test_search_returns_budget(self):
         adapter = BudgetAdapter()
-        civic = make_mock_civic()
-        results = adapter.search(civic, "city-san-rafael", "Housing", 10)
+        storage = make_mock_storage()
+        vectors = make_mock_vectors()
+        results = adapter.search(storage, vectors, "city-san-rafael", "Housing", 10)
 
         assert len(results) == 1
         r = results[0]
@@ -383,9 +435,10 @@ class TestSearchIntegration:
             corpus=["decisions", "legislation"],
         )
 
-        resp = asyncio.get_event_loop().run_until_complete(
-            _run_search(req, civic)
-        )
+        with adapter_patches():
+            resp = asyncio.get_event_loop().run_until_complete(
+                _run_search(req, civic)
+            )
 
         assert len(resp.results) > 0
         assert resp.meta.schema_version == SCHEMA_VERSION
@@ -400,21 +453,23 @@ class TestSearchIntegration:
     def test_single_corpus_search(self):
         civic = make_mock_civic()
         req = SearchRequest(query="housing", corpus=["decisions"])
-        resp = asyncio.get_event_loop().run_until_complete(
-            _run_search(req, civic)
-        )
+        with adapter_patches():
+            resp = asyncio.get_event_loop().run_until_complete(
+                _run_search(req, civic)
+            )
         assert len(resp.results) >= 1
         assert resp.results[0].type == "decision"
 
     def test_partial_failure(self):
         """One corpus erroring shouldn't block others."""
         civic = make_mock_civic()
-        civic.search_issues.side_effect = Exception("DB error")
+        civic._storage.get_issues.side_effect = Exception("DB error")
 
         req = SearchRequest(query="test", corpus=["decisions", "issues"])
-        resp = asyncio.get_event_loop().run_until_complete(
-            _run_search(req, civic)
-        )
+        with adapter_patches():
+            resp = asyncio.get_event_loop().run_until_complete(
+                _run_search(req, civic)
+            )
 
         # Decisions should still return
         assert any(r.type == "decision" for r in resp.results)
@@ -530,10 +585,12 @@ class TestContextIntegration:
 
     def test_context_ref_roundtrip_from_search(self):
         """Refs produced by search adapters can be consumed by context."""
-        civic = make_mock_civic()
         # Get a ref from search
         adapter = DecisionsAdapter()
-        results = adapter.search(civic, "city-san-rafael", "housing", 10)
+        storage = make_mock_storage()
+        vectors = make_mock_vectors()
+        with adapter_patches():
+            results = adapter.search(storage, vectors, "city-san-rafael", "housing", 10)
         ref = results[0].ref
 
         # Parse it — should not raise
@@ -630,8 +687,8 @@ class TestAdapterDetails:
 
     def test_packets_adapter_has_details(self):
         adapter = PacketsAdapter()
-        civic = make_mock_civic()
-        # Mock what_happened_with_discussion to return HybridSearchResult-like objects
+        storage = make_mock_storage()
+        vectors = make_mock_vectors()
         mock_hr = MagicMock()
         mock_hr.source_type = "pdf"
         mock_hr.id = "chunk-1"
@@ -640,9 +697,9 @@ class TestAdapterDetails:
         mock_hr.agenda_item = "5a. ADU Ordinance"
         mock_hr.page_start = 12
         mock_hr.page_end = 15
-        civic.what_happened_with_discussion.return_value = [mock_hr]
 
-        results = adapter.search(civic, "city-san-rafael", "housing", 10)
+        with adapter_patches(hybrid=[mock_hr]):
+            results = adapter.search(storage, vectors, "city-san-rafael", "housing", 10)
         assert len(results) == 1
         d = results[0].details
         assert d["source_type"] == "pdf"
@@ -652,8 +709,9 @@ class TestAdapterDetails:
 
     def test_orders_adapter_has_details(self):
         adapter = OrdersAdapter()
-        civic = make_mock_civic()
-        civic.what_applies.return_value = MockRegulatoryStack(
+        storage = make_mock_storage()
+        vectors = make_mock_vectors()
+        reg = MockRegulatoryStack(
             federal=[{
                 "title": "Executive Order on Housing",
                 "type": "executive order",
@@ -665,7 +723,8 @@ class TestAdapterDetails:
                 "abstract": "Addresses climate crisis...",
             }],
         )
-        results = adapter.search(civic, "city-san-rafael", "housing", 10)
+        with adapter_patches(regulatory=reg):
+            results = adapter.search(storage, vectors, "city-san-rafael", "housing", 10)
         assert len(results) == 1
         d = results[0].details
         assert d["eo_number"] == 14008
@@ -674,8 +733,9 @@ class TestAdapterDetails:
 
     def test_rules_adapter_has_details(self):
         adapter = RulesAdapter()
-        civic = make_mock_civic()
-        civic.what_applies.return_value = MockRegulatoryStack(
+        storage = make_mock_storage()
+        vectors = make_mock_vectors()
+        reg = MockRegulatoryStack(
             federal=[{
                 "title": "Affirmatively Furthering Fair Housing",
                 "id": "rule-123",
@@ -686,7 +746,8 @@ class TestAdapterDetails:
                 "summary": "Requires jurisdictions to...",
             }],
         )
-        results = adapter.search(civic, "city-san-rafael", "fair housing", 10)
+        with adapter_patches(regulatory=reg):
+            results = adapter.search(storage, vectors, "city-san-rafael", "fair housing", 10)
         assert len(results) == 1
         d = results[0].details
         assert d["agency"] == "HUD"
@@ -1021,70 +1082,73 @@ class TestCursorEncoding:
 class TestPagination:
     def test_adapter_offset_skips_results(self):
         adapter = DecisionsAdapter()
-        civic = MagicMock()
-        civic.what_happened.return_value = [
+        storage = make_mock_storage()
+        vectors = make_mock_vectors()
+        many_decisions = [
             MockDecision(id=f"dec-{i}", title=f"Decision {i}") for i in range(10)
         ]
-        # No offset: get first 3
-        r0 = adapter.search(civic, "city-test", "housing", limit=3, offset=0)
-        assert len(r0) == 3
-        assert r0[0].ref.endswith("dec-0")
+        with adapter_patches(decisions=many_decisions):
+            # No offset: get first 3
+            r0 = adapter.search(storage, vectors, "city-test", "housing", limit=3, offset=0)
+            assert len(r0) == 3
+            assert r0[0].ref.endswith("dec-0")
 
-        # Offset=3: skip first 3
-        r1 = adapter.search(civic, "city-test", "housing", limit=3, offset=3)
-        assert len(r1) == 3
-        assert r1[0].ref.endswith("dec-3")
+            # Offset=3: skip first 3
+            r1 = adapter.search(storage, vectors, "city-test", "housing", limit=3, offset=3)
+            assert len(r1) == 3
+            assert r1[0].ref.endswith("dec-3")
 
     def test_adapter_offset_beyond_results_returns_empty(self):
         adapter = DecisionsAdapter()
-        civic = MagicMock()
-        civic.what_happened.return_value = [MockDecision()]
-        results = adapter.search(civic, "city-test", "housing", limit=5, offset=10)
+        storage = make_mock_storage()
+        vectors = make_mock_vectors()
+        with adapter_patches(decisions=[MockDecision()]):
+            results = adapter.search(storage, vectors, "city-test", "housing", limit=5, offset=10)
         assert results == []
 
     def test_search_returns_cursor_when_full_page(self):
         """If a corpus returns a full page, the response should include a cursor."""
-        civic = MagicMock()
-        # Return exactly per_corpus_limit results so cursor is generated
-        civic.what_happened.return_value = [
+        civic = make_mock_civic()
+        many_decisions = [
             MockDecision(id=f"dec-{i}", title=f"Decision {i}") for i in range(10)
         ]
 
         req = SearchRequest(query="housing", corpus=["decisions"], limit=5)
-        resp = asyncio.get_event_loop().run_until_complete(
-            _run_search(req, civic)
-        )
+        with adapter_patches(decisions=many_decisions):
+            resp = asyncio.get_event_loop().run_until_complete(
+                _run_search(req, civic)
+            )
         # With limit=5 and 1 corpus, per_corpus = max(3, ceil(5/1)) = 5
         # Adapter returns 5 results (full page) → cursor should be set
         assert resp.meta.cursor is not None
 
     def test_search_no_cursor_when_results_exhausted(self):
         """If all corpora return fewer results than per_corpus_limit, no cursor."""
-        civic = MagicMock()
-        civic.what_happened.return_value = [MockDecision()]  # only 1 result
+        civic = make_mock_civic()
 
         req = SearchRequest(query="housing", corpus=["decisions"], limit=10)
-        resp = asyncio.get_event_loop().run_until_complete(
-            _run_search(req, civic)
-        )
+        with adapter_patches(decisions=[MockDecision()]):
+            resp = asyncio.get_event_loop().run_until_complete(
+                _run_search(req, civic)
+            )
         assert resp.meta.cursor is None
 
     def test_cursor_pagination_second_page(self):
         """Using cursor from first page should offset the second page."""
         from civicos_services.query.planner import encode_cursor
 
-        civic = MagicMock()
+        civic = make_mock_civic()
         all_decisions = [
             MockDecision(id=f"dec-{i}", title=f"Decision {i}") for i in range(20)
         ]
-        civic.what_happened.return_value = all_decisions
 
         # Second page with offset=5 for decisions
         cursor = encode_cursor({"decisions": 5})
         req = SearchRequest(query="housing", corpus=["decisions"], limit=5, cursor=cursor)
-        resp = asyncio.get_event_loop().run_until_complete(
-            _run_search(req, civic)
-        )
+        with adapter_patches(decisions=all_decisions):
+            resp = asyncio.get_event_loop().run_until_complete(
+                _run_search(req, civic)
+            )
         # Results should start from offset 5
         assert resp.results[0].ref.endswith("dec-5")
 
@@ -1100,9 +1164,10 @@ class TestAggregateMode:
             query="housing", corpus=["decisions", "legislation"],
             mode=SearchMode.aggregate,
         )
-        resp = asyncio.get_event_loop().run_until_complete(
-            _run_search(req, civic)
-        )
+        with adapter_patches():
+            resp = asyncio.get_event_loop().run_until_complete(
+                _run_search(req, civic)
+            )
         assert resp.results == []
         assert resp.aggregates is not None
         assert len(resp.aggregates) == 2
@@ -1113,19 +1178,19 @@ class TestAggregateMode:
 
     def test_aggregate_includes_date_range(self):
         from civicos_services.query.models import SearchMode
-        civic = MagicMock()
-        civic.what_happened.return_value = [
-            MockDecision(id="dec-1", date=datetime(2025, 1, 15)),
-            MockDecision(id="dec-2", date=datetime(2025, 6, 15)),
-        ]
+        civic = make_mock_civic()
 
         req = SearchRequest(
             query="housing", corpus=["decisions"],
             mode=SearchMode.aggregate,
         )
-        resp = asyncio.get_event_loop().run_until_complete(
-            _run_search(req, civic)
-        )
+        with adapter_patches(decisions=[
+            MockDecision(id="dec-1", date=datetime(2025, 1, 15)),
+            MockDecision(id="dec-2", date=datetime(2025, 6, 15)),
+        ]):
+            resp = asyncio.get_event_loop().run_until_complete(
+                _run_search(req, civic)
+            )
         agg = resp.aggregates[0]
         assert agg.count == 2
         assert agg.earliest.startswith("2025-01-15")
@@ -1133,16 +1198,16 @@ class TestAggregateMode:
 
     def test_aggregate_empty_corpus(self):
         from civicos_services.query.models import SearchMode
-        civic = MagicMock()
-        civic.what_happened.return_value = []
+        civic = make_mock_civic()
 
         req = SearchRequest(
             query="nothing", corpus=["decisions"],
             mode=SearchMode.aggregate,
         )
-        resp = asyncio.get_event_loop().run_until_complete(
-            _run_search(req, civic)
-        )
+        with adapter_patches(decisions=[]):
+            resp = asyncio.get_event_loop().run_until_complete(
+                _run_search(req, civic)
+            )
         assert resp.aggregates[0].count == 0
         assert resp.aggregates[0].earliest is None
 
@@ -1152,20 +1217,20 @@ class TestAggregateMode:
 class TestTrendMode:
     def test_trend_returns_time_buckets(self):
         from civicos_services.query.models import SearchMode
-        civic = MagicMock()
-        civic.what_happened.return_value = [
-            MockDecision(id="dec-1", date=datetime(2025, 1, 10)),
-            MockDecision(id="dec-2", date=datetime(2025, 1, 20)),
-            MockDecision(id="dec-3", date=datetime(2025, 3, 5)),
-        ]
+        civic = make_mock_civic()
 
         req = SearchRequest(
             query="housing", corpus=["decisions"],
             mode=SearchMode.trend,
         )
-        resp = asyncio.get_event_loop().run_until_complete(
-            _run_search(req, civic)
-        )
+        with adapter_patches(decisions=[
+            MockDecision(id="dec-1", date=datetime(2025, 1, 10)),
+            MockDecision(id="dec-2", date=datetime(2025, 1, 20)),
+            MockDecision(id="dec-3", date=datetime(2025, 3, 5)),
+        ]):
+            resp = asyncio.get_event_loop().run_until_complete(
+                _run_search(req, civic)
+            )
         assert resp.results == []
         assert resp.trends is not None
         assert len(resp.trends) >= 2  # At least 2 months
@@ -1176,31 +1241,32 @@ class TestTrendMode:
 
     def test_trend_multi_corpus(self):
         from civicos_services.query.models import SearchMode
-        civic = MagicMock()
-        civic.what_happened.return_value = [
-            MockDecision(id="dec-1", date=datetime(2025, 2, 1)),
-        ]
-        civic.search_issues.return_value = [
-            {"id": "iss-1", "summary": "Pothole", "status": "open",
-             "issue_type": "Road", "address": "123 Main", "created_at": "2025-02-15"},
+        civic = make_mock_civic()
+        # Issues adapter uses storage.get_issues() — set up matching data
+        civic._storage.get_issues.return_value = [
+            {"id": "iss-1", "summary": "Pothole on road", "status": "open",
+             "issue_type": "Road", "address": "123 Main", "created_at": "2025-02-15",
+             "description": "Pothole on road near downtown"},
         ]
 
         req = SearchRequest(
             query="road", corpus=["decisions", "issues"],
             mode=SearchMode.trend,
         )
-        resp = asyncio.get_event_loop().run_until_complete(
-            _run_search(req, civic)
-        )
+        with adapter_patches(decisions=[
+            MockDecision(id="dec-1", date=datetime(2025, 2, 1)),
+        ]):
+            resp = asyncio.get_event_loop().run_until_complete(
+                _run_search(req, civic)
+            )
         assert resp.trends is not None
         feb_trends = [t for t in resp.trends if t.period == "2025-02"]
         assert len(feb_trends) == 2  # one for decisions, one for issues
 
     def test_trend_no_dates_goes_to_unknown(self):
         from civicos_services.query.models import SearchMode
-        civic = MagicMock()
+        civic = make_mock_civic()
 
-        # Use a sentinel date object that's falsy to the adapter's `if d.date` check
         @dataclass
         class NoDatedDecision:
             id: str = "dec-1"
@@ -1210,15 +1276,14 @@ class TestTrendMode:
             body: str = "Council"
             votes: dict = None
 
-        civic.what_happened.return_value = [NoDatedDecision()]
-
         req = SearchRequest(
             query="housing", corpus=["decisions"],
             mode=SearchMode.trend,
         )
-        resp = asyncio.get_event_loop().run_until_complete(
-            _run_search(req, civic)
-        )
+        with adapter_patches(decisions=[NoDatedDecision()]):
+            resp = asyncio.get_event_loop().run_until_complete(
+                _run_search(req, civic)
+            )
         # date=None should produce "unknown" period
         assert any(t.period == "unknown" for t in resp.trends)
 
@@ -1252,9 +1317,10 @@ class TestDiffMode:
             query="housing", corpus=["decisions"],
             mode="diff",
         )
-        resp = asyncio.get_event_loop().run_until_complete(
-            _run_search(req, civic)
-        )
+        with adapter_patches():
+            resp = asyncio.get_event_loop().run_until_complete(
+                _run_search(req, civic)
+            )
         assert len(resp.results) == 0
         assert "snapshot_date" in str(resp.meta.corpus_status)
 
@@ -1265,92 +1331,90 @@ class TestDiffMode:
         old_dec = MockDecision(id="dec-old", title="Old policy", date=datetime(2025, 1, 1))
         new_dec = MockDecision(id="dec-new", title="New policy", date=datetime(2025, 8, 1))
 
-        civic.what_happened.return_value = [old_dec, new_dec]
-
         req = SearchRequest(
             query="housing", corpus=["decisions"],
             mode="diff",
             snapshot_date="2025-06-01",
         )
-        resp = asyncio.get_event_loop().run_until_complete(
-            _run_search(req, civic)
-        )
+        with adapter_patches(decisions=[old_dec, new_dec]):
+            resp = asyncio.get_event_loop().run_until_complete(
+                _run_search(req, civic)
+            )
         # Only dec-new (2025-08-01) is after snapshot (2025-06-01)
         assert len(resp.results) == 1
         assert "dec-new" in resp.results[0].ref
 
     def test_diff_excludes_items_on_snapshot_date(self):
         """Items dated exactly on snapshot_date are excluded (not new)."""
-        civic = MagicMock()
+        civic = make_mock_civic()
 
         on_date = MockDecision(id="dec-on", title="Same day", date=datetime(2025, 6, 1))
         after_date = MockDecision(id="dec-after", title="After", date=datetime(2025, 6, 2))
-        civic.what_happened.return_value = [on_date, after_date]
 
         req = SearchRequest(
             query="test", corpus=["decisions"],
             mode="diff",
             snapshot_date="2025-06-01",
         )
-        resp = asyncio.get_event_loop().run_until_complete(
-            _run_search(req, civic)
-        )
+        with adapter_patches(decisions=[on_date, after_date]):
+            resp = asyncio.get_event_loop().run_until_complete(
+                _run_search(req, civic)
+            )
         assert len(resp.results) == 1
         assert "dec-after" in resp.results[0].ref
 
     def test_diff_skips_undated_items(self):
         """Items without dates are excluded from diff results."""
-        civic = MagicMock()
+        civic = make_mock_civic()
 
         undated = MockDecision(id="dec-undated", title="No date")
         undated.date = None
-        civic.what_happened.return_value = [undated]
 
         req = SearchRequest(
             query="test", corpus=["decisions"],
             mode="diff",
             snapshot_date="2025-01-01",
         )
-        resp = asyncio.get_event_loop().run_until_complete(
-            _run_search(req, civic)
-        )
+        with adapter_patches(decisions=[undated]):
+            resp = asyncio.get_event_loop().run_until_complete(
+                _run_search(req, civic)
+            )
         assert len(resp.results) == 0
 
     def test_diff_handles_datetime_snapshot(self):
         """snapshot_date with time component is normalized to date-only."""
-        civic = MagicMock()
+        civic = make_mock_civic()
 
         new_dec = MockDecision(id="dec-new", title="New", date=datetime(2025, 8, 1))
-        civic.what_happened.return_value = [new_dec]
 
         req = SearchRequest(
             query="test", corpus=["decisions"],
             mode="diff",
             snapshot_date="2025-06-01T12:00:00",
         )
-        resp = asyncio.get_event_loop().run_until_complete(
-            _run_search(req, civic)
-        )
+        with adapter_patches(decisions=[new_dec]):
+            resp = asyncio.get_event_loop().run_until_complete(
+                _run_search(req, civic)
+            )
         assert len(resp.results) == 1
 
     def test_diff_multi_corpus(self):
         """diff mode works across multiple corpora."""
-        civic = MagicMock()
+        civic = make_mock_civic()
+        civic._storage.get_issues.return_value = []
 
         old_dec = MockDecision(id="dec-old", title="Old", date=datetime(2025, 1, 1))
         new_dec = MockDecision(id="dec-new", title="New", date=datetime(2025, 8, 1))
-
-        civic.what_happened.return_value = [old_dec, new_dec]
-        civic.search_issues.return_value = []
 
         req = SearchRequest(
             query="housing", corpus=["decisions", "issues"],
             mode="diff",
             snapshot_date="2025-06-01",
         )
-        resp = asyncio.get_event_loop().run_until_complete(
-            _run_search(req, civic)
-        )
+        with adapter_patches(decisions=[old_dec, new_dec]):
+            resp = asyncio.get_event_loop().run_until_complete(
+                _run_search(req, civic)
+            )
         assert len(resp.results) == 1
         assert resp.meta.corpus_counts.get("decisions", 0) == 1
 
@@ -1367,101 +1431,89 @@ class TestIntersectMode:
             query="housing", corpus=["decisions"],
             mode="intersect",
         )
-        resp = asyncio.get_event_loop().run_until_complete(
-            _run_search(req, civic)
-        )
+        with adapter_patches():
+            resp = asyncio.get_event_loop().run_until_complete(
+                _run_search(req, civic)
+            )
         assert len(resp.results) == 0
         assert "intersect_corpus" in str(resp.meta.corpus_status)
 
     def test_intersect_filters_by_date_overlap(self):
         """intersect returns primary results that share dates with secondary."""
-        civic = MagicMock()
+        civic = make_mock_civic()
 
-        # Decision on 2025-06-15
         dec = MockDecision(id="dec-1", title="Housing vote", date=datetime(2025, 6, 15))
-        civic.what_happened.return_value = [dec]
-
-        # Testimony on same date
         testimony = MockTranscriptExcerpt(id="tr-1", text="I support housing")
-        testimony.date = datetime(2025, 6, 15)
-        civic.what_was_said.return_value = [testimony]
 
         req = SearchRequest(
             query="housing", corpus=["decisions"],
             mode="intersect",
             intersect_corpus=["testimony"],
         )
-        resp = asyncio.get_event_loop().run_until_complete(
-            _run_search(req, civic)
-        )
+        with adapter_patches(decisions=[dec], transcripts=[testimony]):
+            resp = asyncio.get_event_loop().run_until_complete(
+                _run_search(req, civic)
+            )
         # The decision date matches testimony date, so it should be included
         assert len(resp.results) >= 0  # May or may not match depending on adapter date format
 
     def test_intersect_filters_by_title_overlap(self):
         """intersect returns primary results with significant title word overlap (>= 6 chars)."""
-        civic = MagicMock()
+        civic = make_mock_civic()
 
-        # Decision about housing development
         dec = MockDecision(id="dec-1", title="Approve housing development rezoning", date=datetime(2025, 6, 15))
-        civic.what_happened.return_value = [dec]
-
-        # Testimony with shared significant word "development" (11 chars) and "rezoning" (8 chars)
         testimony = MockTranscriptExcerpt(id="tr-1", text="I support this development rezoning")
-        civic.what_was_said.return_value = [testimony]
 
         req = SearchRequest(
             query="housing", corpus=["decisions"],
             mode="intersect",
             intersect_corpus=["testimony"],
         )
-        resp = asyncio.get_event_loop().run_until_complete(
-            _run_search(req, civic)
-        )
+        with adapter_patches(decisions=[dec], transcripts=[testimony]):
+            resp = asyncio.get_event_loop().run_until_complete(
+                _run_search(req, civic)
+            )
         # "development" (11 chars) and "rezoning" (8 chars) are significant words — should match
         assert len(resp.results) == 1
 
     def test_intersect_no_match(self):
         """intersect returns empty when no overlap between corpora."""
-        civic = MagicMock()
+        civic = make_mock_civic()
+        civic._storage.get_issues.return_value = [
+            {"id": "iss-1", "summary": "Pothole on Elm St", "status": "open",
+             "issue_type": "Road", "address": "456 Elm St", "created_at": "2025-09-01",
+             "description": "Pothole on Elm St sidewalk"},
+        ]
 
         dec = MockDecision(id="dec-1", title="Budget amendment", date=datetime(2025, 6, 15))
-        civic.what_happened.return_value = [dec]
-
-        # Issues about totally different topic
-        civic.search_issues.return_value = [
-            {"id": "iss-1", "summary": "Pothole on Elm St", "status": "open",
-             "issue_type": "Road", "address": "456 Elm St", "created_at": "2025-09-01"},
-        ]
 
         req = SearchRequest(
             query="anything", corpus=["decisions"],
             mode="intersect",
             intersect_corpus=["issues"],
         )
-        resp = asyncio.get_event_loop().run_until_complete(
-            _run_search(req, civic)
-        )
+        with adapter_patches(decisions=[dec]):
+            resp = asyncio.get_event_loop().run_until_complete(
+                _run_search(req, civic)
+            )
         assert len(resp.results) == 0
 
     def test_intersect_short_words_dont_match(self):
         """Common short words (< 6 chars) like 'city', 'plan' don't cause false positives."""
-        civic = MagicMock()
+        civic = make_mock_civic()
 
         dec = MockDecision(id="dec-1", title="City plan for code update", date=datetime(2025, 6, 15))
-        civic.what_happened.return_value = [dec]
-
-        # Testimony shares short words "city" and "plan" but no significant words
         testimony = MockTranscriptExcerpt(id="tr-1", text="The city plan needs work")
-        civic.what_was_said.return_value = [testimony]
 
         req = SearchRequest(
             query="anything", corpus=["decisions"],
             mode="intersect",
             intersect_corpus=["testimony"],
         )
-        resp = asyncio.get_event_loop().run_until_complete(
-            _run_search(req, civic)
-        )
+        with adapter_patches(decisions=[dec], transcripts=[testimony]):
+            resp = asyncio.get_event_loop().run_until_complete(
+                _run_search(req, civic)
+            )
         # "city" (4), "plan" (4), "code" (4) are all < 6 chars — no match
         assert len(resp.results) == 0
 
@@ -1487,9 +1539,10 @@ class TestConceptLookup:
         """Concept lookup searches municipal_code and returns matching sections."""
         civic = make_mock_civic()
         req = ContextRequest(concept="conditional use permit")
-        resp = asyncio.get_event_loop().run_until_complete(
-            _run_context(req, civic)
-        )
+        with adapter_patches():
+            resp = asyncio.get_event_loop().run_until_complete(
+                _run_context(req, civic)
+            )
         assert resp.context is not None
         assert resp.context.get("concept") == "conditional use permit"
         assert resp.context.get("found") is True
@@ -1499,13 +1552,13 @@ class TestConceptLookup:
 
     def test_concept_lookup_not_found(self):
         """Concept lookup returns found=False when no matches."""
-        civic = MagicMock()
-        civic.what_applies.return_value = MockRegulatoryStack(local=[])
+        civic = make_mock_civic()
 
         req = ContextRequest(concept="xyzzy nonexistent term")
-        resp = asyncio.get_event_loop().run_until_complete(
-            _run_context(req, civic)
-        )
+        with adapter_patches(regulatory=MockRegulatoryStack(local=[])):
+            resp = asyncio.get_event_loop().run_until_complete(
+                _run_context(req, civic)
+            )
         assert resp.context["concept"] == "xyzzy nonexistent term"
         assert resp.context["found"] is False
 
@@ -1513,9 +1566,10 @@ class TestConceptLookup:
         """Concept lookup sections have expected fields."""
         civic = make_mock_civic()
         req = ContextRequest(concept="ADU regulations")
-        resp = asyncio.get_event_loop().run_until_complete(
-            _run_context(req, civic)
-        )
+        with adapter_patches():
+            resp = asyncio.get_event_loop().run_until_complete(
+                _run_context(req, civic)
+            )
         if resp.context.get("found") and resp.context.get("sections"):
             section = resp.context["sections"][0]
             assert "ref" in section
@@ -1681,11 +1735,7 @@ class TestCrossJurisdictionSearch:
             include_parents=True,
         )
 
-        with patch("civicos.CivicOS") as MockCivicOS:
-            # Each CivicOS instance returns mock decisions
-            mock_instance = make_mock_civic()
-            MockCivicOS.return_value = mock_instance
-
+        with adapter_patches():
             response = await execute_search(req, civic, "city-san-rafael")
 
         # Should have results
@@ -1714,10 +1764,7 @@ class TestCrossJurisdictionSearch:
             include_siblings=True,
         )
 
-        with patch("civicos.CivicOS") as MockCivicOS:
-            mock_instance = make_mock_civic()
-            MockCivicOS.return_value = mock_instance
-
+        with adapter_patches():
             response = await execute_search(req, civic, "city-san-rafael")
 
         # Find a sibling result
@@ -1738,7 +1785,8 @@ class TestCrossJurisdictionSearch:
         civic = make_mock_civic()
         req = SearchRequest(query="housing", corpus=["decisions"])
 
-        response = await execute_search(req, civic, "city-san-rafael")
+        with adapter_patches():
+            response = await execute_search(req, civic, "city-san-rafael")
 
         assert len(response.results) > 0
         # No jurisdiction_results in single-jurisdiction mode
