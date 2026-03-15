@@ -1,15 +1,16 @@
 """
-Per-corpus adapters — translate shared filter vocabulary into corpus-specific API calls
-and normalize results into CivicResult format.
+Per-corpus adapters — translate shared filter vocabulary into corpus-specific
+backend calls and normalize results into CivicResult format.
 
 Each adapter:
   1. Declares supported filters
-  2. Translates filters into CivicOS API call params
+  2. Calls storage/vector backends directly (no CivicOS middleman)
   3. Normalizes raw results into CivicResult (envelope + essential details)
 """
 
 import logging
 from abc import ABC, abstractmethod
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional, Set
 
 from civicos_services.query.models import CivicResult
@@ -24,10 +25,15 @@ class CorpusAdapter(ABC):
     supported_filters: Set[str] = set()  # {"since", "until", "location", "query"}
 
     @abstractmethod
-    def search(self, civic, jurisdiction: str, query: str, limit: int, offset: int = 0, **filters) -> List[CivicResult]:
+    def search(self, storage, vectors, jurisdiction: str, query: str, limit: int, offset: int = 0, **filters) -> List[CivicResult]:
         """Execute search and return normalized results.
 
         Args:
+            storage: StorageBackend instance
+            vectors: Optional VectorBackend instance
+            jurisdiction: Jurisdiction ID (e.g., "city-san-rafael")
+            query: Search query string
+            limit: Maximum results to return
             offset: Skip this many results before returning (for pagination).
         """
         ...
@@ -41,12 +47,18 @@ class DecisionsAdapter(CorpusAdapter):
     corpus_name = "decisions"
     supported_filters = {"query", "since"}
 
-    def search(self, civic, jurisdiction: str, query: str, limit: int, offset: int = 0, **filters) -> List[CivicResult]:
-        kwargs = {}
-        if filters.get("since"):
-            kwargs["since"] = filters["since"]
+    def search(self, storage, vectors, jurisdiction: str, query: str, limit: int, offset: int = 0, **filters) -> List[CivicResult]:
+        from civicos.history import search_decisions
 
-        decisions = civic.what_happened(query, **kwargs)
+        since = filters.get("since")
+        decisions = search_decisions(
+            state_manager=None,
+            jurisdiction=jurisdiction,
+            query=query,
+            since=since,
+            vector_backend=vectors,
+            storage_backend=storage,
+        )
         results = []
         for i, d in enumerate(decisions[offset:offset + limit]):
             results.append(CivicResult(
@@ -75,12 +87,17 @@ class TestimonyAdapter(CorpusAdapter):
         if sub_corpus:
             self.corpus_name = f"testimony:{sub_corpus}"
 
-    def search(self, civic, jurisdiction: str, query: str, limit: int, offset: int = 0, **filters) -> List[CivicResult]:
+    def search(self, storage, vectors, jurisdiction: str, query: str, limit: int, offset: int = 0, **filters) -> List[CivicResult]:
+        from civicos.history import search_transcripts
+
         fetch_count = offset + limit
-        if self._sub_corpus == "public":
-            excerpts = civic.get_public_testimony(query, top_k=fetch_count)
-        else:
-            excerpts = civic.what_was_said(query, top_k=fetch_count)
+        public_only = self._sub_corpus == "public"
+        excerpts = search_transcripts(
+            jurisdiction=jurisdiction,
+            query=query,
+            top_k=fetch_count,
+            public_comment_only=public_only,
+        )
 
         # Post-filter by sub-corpus if needed
         if self._sub_corpus and self._sub_corpus != "public":
@@ -88,6 +105,7 @@ class TestimonyAdapter(CorpusAdapter):
 
         results = []
         for i, e in enumerate(excerpts[offset:offset + limit]):
+            video_url = getattr(e, "video_url", None)
             results.append(CivicResult(
                 type="testimony",
                 ref=self._make_ref("testimony", jurisdiction, e.id),
@@ -98,7 +116,7 @@ class TestimonyAdapter(CorpusAdapter):
                 details={
                     "speaker": e.speaker,
                     "speaker_role": e.speaker_role,
-                    "video_url": e.video_url,
+                    "video_url": video_url,
                 },
             ))
         return results
@@ -108,8 +126,8 @@ class LegislationAdapter(CorpusAdapter):
     corpus_name = "legislation"
     supported_filters = {"query"}
 
-    def search(self, civic, jurisdiction: str, query: str, limit: int, offset: int = 0, **filters) -> List[CivicResult]:
-        reg_stack = civic.what_applies(query, max_results=offset + limit)
+    def search(self, storage, vectors, jurisdiction: str, query: str, limit: int, offset: int = 0, **filters) -> List[CivicResult]:
+        reg_stack = _get_regulatory_context(jurisdiction, query, storage, vectors, max_results=offset + limit)
 
         results = []
         # Combine state + federal legislation
@@ -147,8 +165,17 @@ class IssuesAdapter(CorpusAdapter):
     corpus_name = "issues"
     supported_filters = {"query", "location"}
 
-    def search(self, civic, jurisdiction: str, query: str, limit: int, offset: int = 0, **filters) -> List[CivicResult]:
-        issues = civic.search_issues(query, limit=offset + limit)
+    def search(self, storage, vectors, jurisdiction: str, query: str, limit: int, offset: int = 0, **filters) -> List[CivicResult]:
+        issues = storage.get_issues(jurisdiction_id=jurisdiction, limit=offset + limit)
+
+        # Client-side text filter (storage doesn't support query search)
+        if query:
+            q_lower = query.lower()
+            issues = [
+                iss for iss in issues
+                if q_lower in (iss.get("summary", "") + " " + iss.get("description", "")).lower()
+            ]
+
         results = []
         for i, issue in enumerate(issues[offset:offset + limit]):
             results.append(CivicResult(
@@ -171,32 +198,41 @@ class MeetingsAdapter(CorpusAdapter):
     corpus_name = "meetings"
     supported_filters = {"query"}
 
-    def search(self, civic, jurisdiction: str, query: str, limit: int, offset: int = 0, **filters) -> List[CivicResult]:
-        # Use public whats_next API — CivicOS is already jurisdiction-scoped
-        meetings = civic.whats_next(days=365)  # wide window to capture recent meetings
+    def search(self, storage, vectors, jurisdiction: str, query: str, limit: int, offset: int = 0, **filters) -> List[CivicResult]:
+        # Query storage directly — wide window to capture recent meetings
+        now = datetime.now(timezone.utc)
+        since = now - timedelta(days=365)
+        meetings_data = storage.get_meetings(jurisdiction_id=jurisdiction, since=since)
 
         # Text filter on meeting titles/bodies
         if query:
             q_lower = query.lower()
-            meetings = [
-                m for m in meetings
-                if q_lower in (m.title + " " + m.body).lower()
-                or any(q_lower in (a.get("title", "")).lower() for a in m.agenda_items)
+            meetings_data = [
+                m for m in meetings_data
+                if q_lower in (m.get("title", "") + " " + m.get("body", "")).lower()
             ]
 
         results = []
-        for i, m in enumerate(meetings[offset:offset + limit]):
+        for i, m in enumerate(meetings_data[offset:offset + limit]):
+            meeting_date = m.get("meeting_datetime") or m.get("date")
+            if isinstance(meeting_date, str):
+                date_str = meeting_date[:10]
+            elif isinstance(meeting_date, datetime):
+                date_str = meeting_date.isoformat()[:10]
+            else:
+                date_str = None
+
             results.append(CivicResult(
                 type="meeting",
-                ref=self._make_ref("meeting", jurisdiction, m.id),
-                title=m.title,
-                date=m.date.isoformat()[:10] if m.date else None,
-                summary=m.body,
+                ref=self._make_ref("meeting", jurisdiction, m.get("id", "")),
+                title=m.get("title", ""),
+                date=date_str,
+                summary=m.get("body", ""),
                 relevance=max(0.0, 1.0 - i * 0.05),
                 details={
-                    "agenda_item_count": len(m.agenda_items),
+                    "agenda_item_count": len(m.get("agenda_items", [])),
                     "has_transcript": False,
-                    "location": m.location,
+                    "location": m.get("location", ""),
                 },
             ))
         return results
@@ -206,21 +242,28 @@ class BudgetAdapter(CorpusAdapter):
     corpus_name = "budget"
     supported_filters = {"query"}
 
-    def search(self, civic, jurisdiction: str, query: str, limit: int, offset: int = 0, **filters) -> List[CivicResult]:
-        items = civic.budget(department=query, limit=offset + limit)
+    def search(self, storage, vectors, jurisdiction: str, query: str, limit: int, offset: int = 0, **filters) -> List[CivicResult]:
+        items = storage.get_budget_items(
+            jurisdiction_id=jurisdiction,
+            department=query if query else None,
+            limit=offset + limit,
+        )
         results = []
         for i, item in enumerate(items[offset:offset + limit]):
+            # Budget items from storage are dicts; amounts in cents
+            budgeted_cents = item.get("budgeted_cents", 0)
+            budgeted_dollars = budgeted_cents / 100.0 if budgeted_cents else 0.0
             results.append(CivicResult(
                 type="budget",
-                ref=self._make_ref("budget", jurisdiction, item.id),
-                title=item.line_item,
+                ref=self._make_ref("budget", jurisdiction, item.get("id", "")),
+                title=item.get("line_item", ""),
                 date=None,
-                summary=f"{item.department} — {item.fund}",
+                summary=f"{item.get('department', '')} — {item.get('fund', '')}",
                 relevance=max(0.0, 1.0 - i * 0.05),
                 details={
-                    "amount": item.budgeted_dollars,
-                    "department": item.department,
-                    "fiscal_year": item.fiscal_year,
+                    "amount": budgeted_dollars,
+                    "department": item.get("department", ""),
+                    "fiscal_year": item.get("fiscal_year", ""),
                 },
             ))
         return results
@@ -230,9 +273,8 @@ class MunicipalCodeAdapter(CorpusAdapter):
     corpus_name = "municipal_code"
     supported_filters = {"query"}
 
-    def search(self, civic, jurisdiction: str, query: str, limit: int, offset: int = 0, **filters) -> List[CivicResult]:
-        # Municipal code is searched via what_applies (local component)
-        reg_stack = civic.what_applies(query, max_results=offset + limit)
+    def search(self, storage, vectors, jurisdiction: str, query: str, limit: int, offset: int = 0, **filters) -> List[CivicResult]:
+        reg_stack = _get_regulatory_context(jurisdiction, query, storage, vectors, max_results=offset + limit)
         results = []
         for i, section in enumerate(reg_stack.local[offset:offset + limit]):
             results.append(CivicResult(
@@ -254,9 +296,15 @@ class PacketsAdapter(CorpusAdapter):
     corpus_name = "packets"
     supported_filters = {"query"}
 
-    def search(self, civic, jurisdiction: str, query: str, limit: int, offset: int = 0, **filters) -> List[CivicResult]:
-        # Agenda packets via what_happened_with_discussion — returns HybridSearchResult
-        hybrid_results = civic.what_happened_with_discussion(query, top_k=offset + limit)
+    def search(self, storage, vectors, jurisdiction: str, query: str, limit: int, offset: int = 0, **filters) -> List[CivicResult]:
+        from civicos.history import search_hybrid
+
+        hybrid_results = search_hybrid(
+            jurisdiction=jurisdiction,
+            query=query,
+            top_k=offset + limit,
+            vector_backend=vectors,
+        )
         results = []
         for i, hr in enumerate(hybrid_results[offset:offset + limit]):
             if hr.source_type == "pdf":
@@ -281,9 +329,8 @@ class OrdersAdapter(CorpusAdapter):
     corpus_name = "orders"
     supported_filters = {"query"}
 
-    def search(self, civic, jurisdiction: str, query: str, limit: int, offset: int = 0, **filters) -> List[CivicResult]:
-        # Executive orders from what_applies federal component
-        reg_stack = civic.what_applies(query, max_results=offset + limit)
+    def search(self, storage, vectors, jurisdiction: str, query: str, limit: int, offset: int = 0, **filters) -> List[CivicResult]:
+        reg_stack = _get_regulatory_context(jurisdiction, query, storage, vectors, max_results=offset + limit)
         results = []
         for i, item in enumerate(reg_stack.federal[offset:offset + limit]):
             if "executive order" in (item.get("title", "") + item.get("type", "")).lower():
@@ -307,9 +354,8 @@ class RulesAdapter(CorpusAdapter):
     corpus_name = "rules"
     supported_filters = {"query"}
 
-    def search(self, civic, jurisdiction: str, query: str, limit: int, offset: int = 0, **filters) -> List[CivicResult]:
-        # Federal rules — use what_applies if available
-        reg_stack = civic.what_applies(query, max_results=offset + limit)
+    def search(self, storage, vectors, jurisdiction: str, query: str, limit: int, offset: int = 0, **filters) -> List[CivicResult]:
+        reg_stack = _get_regulatory_context(jurisdiction, query, storage, vectors, max_results=offset + limit)
         results = []
         for i, item in enumerate(reg_stack.federal[offset:offset + limit]):
             if "executive order" not in (item.get("title", "") + item.get("type", "")).lower():
@@ -368,6 +414,18 @@ def get_adapter(corpus_name: str) -> Optional[CorpusAdapter]:
 def list_corpus_names() -> List[str]:
     """List all supported corpus names."""
     return sorted(ADAPTER_REGISTRY.keys())
+
+
+def _get_regulatory_context(jurisdiction, topic, storage, vectors, max_results=30):
+    """Helper to call get_regulatory_context with storage/vector backends."""
+    from civicos.context import get_regulatory_context
+    return get_regulatory_context(
+        jurisdiction=jurisdiction,
+        topic=topic,
+        storage=storage,
+        vectors=vectors,
+        max_results=max_results,
+    )
 
 
 def _format_votes(votes: Optional[dict]) -> Optional[str]:

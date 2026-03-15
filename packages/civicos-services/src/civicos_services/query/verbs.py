@@ -55,9 +55,12 @@ async def execute_search(
     resolves target jurisdictions, fans out per-jurisdiction, and merges
     with tier-based relevance boosting.
     """
+    storage = civic._storage
+    vectors = civic._vectors
+
     # Cross-jurisdiction: delegate to multi-jurisdiction fan-out
     if request.include_parents or request.include_siblings:
-        return await _execute_cross_jurisdiction_search(request, civic, jurisdiction)
+        return await _execute_cross_jurisdiction_search(request, storage, vectors, jurisdiction)
 
     start = time.monotonic()
 
@@ -97,7 +100,7 @@ async def execute_search(
                 loop.run_in_executor(
                     None,
                     lambda: adapter.search(
-                        civic, jid, request.query, fetch_limit,
+                        storage, vectors, jid, request.query, fetch_limit,
                         offset=cq.offset if mode == SearchMode.search else 0,
                         **cq.params,
                     ),
@@ -196,7 +199,7 @@ async def execute_search(
                 results = await asyncio.wait_for(
                     loop.run_in_executor(
                         None,
-                        lambda: adapter.search(civic, jid, request.query, 100, offset=0, **cq.params),
+                        lambda: adapter.search(storage, vectors, jid, request.query, 100, offset=0, **cq.params),
                     ),
                     timeout=CORPUS_TIMEOUT_S,
                 )
@@ -290,14 +293,15 @@ async def execute_search(
 
 async def _execute_cross_jurisdiction_search(
     request: SearchRequest,
-    civic,
+    storage,
+    vectors,
     jurisdiction: str,
 ) -> SearchResponse:
     """Fan out search across multiple jurisdictions with tier-based boosting.
 
-    Creates a CivicOS instance per target jurisdiction, runs the standard
-    search for each, then merges with tier-weighted relevance scores.
-    Returns both flat ranked results and jurisdiction-grouped results.
+    Uses storage/vector backends directly — no CivicOS instances needed.
+    Adapters accept jurisdiction as a parameter, so the same storage/vector
+    backends serve all jurisdictions (they filter by jurisdiction_id internally).
     """
     from civicos_services.query.jurisdictions import (
         resolve_jurisdictions,
@@ -321,26 +325,14 @@ async def _execute_cross_jurisdiction_search(
         "include_siblings": False,
     })
 
-    # Build lightweight CivicOS instances that share storage/vector backends.
-    # Creating new backends per jurisdiction exhausts the connection pool.
-    def _make_civic_for(jid: str):
-        if jid == base_jid:
-            return civic
-        from civicos import CivicOS
-        other = CivicOS(jid)
-        # Share the base civic's storage and vector backends
-        other._storage = civic._storage
-        other._vectors = civic._vectors
-        return other
-
-    jid_civics = {jid: _make_civic_for(jid) for jid in target_jids}
-
-    # Fan out per-jurisdiction in parallel
+    # Fan out per-jurisdiction in parallel — all use shared storage/vectors
     async def search_jurisdiction(jid: str) -> tuple:
-        """Run standard search for one jurisdiction, return (jid, response)."""
+        """Run search for one jurisdiction using shared backends."""
         try:
             jid_request = per_jid_request.model_copy(update={"jurisdiction": jid})
-            response = await execute_search(jid_request, jid_civics[jid], jid)
+            response = await _execute_single_jurisdiction_search(
+                jid_request, storage, vectors, jid,
+            )
             return jid, response
         except Exception as e:
             logger.error(f"Cross-jurisdiction search failed for {jid}: {e}")
@@ -350,16 +342,10 @@ async def _execute_cross_jurisdiction_search(
                 ),
             )
 
-    # Run base jurisdiction first to warm up vector/storage backends,
-    # then fan out remaining jurisdictions in parallel.
-    base_result = await search_jurisdiction(base_jid)
-    other_jids = [jid for jid in target_jids if jid != base_jid]
-    if other_jids:
-        other_tasks = [search_jurisdiction(jid) for jid in other_jids]
-        other_results = await asyncio.gather(*other_tasks)
-        jid_responses = [base_result] + list(other_results)
-    else:
-        jid_responses = [base_result]
+    # Fan out all jurisdictions in parallel — no warm-up needed since
+    # we're reusing the same storage/vector backends (no connection overhead)
+    tasks = [search_jurisdiction(jid) for jid in target_jids]
+    jid_responses = await asyncio.gather(*tasks)
 
     # Collect results, tag with jurisdiction, apply tier boosting
     all_results: List[CivicResult] = []
@@ -406,6 +392,99 @@ async def _execute_cross_jurisdiction_search(
         jurisdiction_results=jurisdiction_grouped,
         meta=meta,
     )
+
+
+async def _execute_single_jurisdiction_search(
+    request: SearchRequest,
+    storage,
+    vectors,
+    jurisdiction: str,
+) -> SearchResponse:
+    """Execute search for a single jurisdiction using storage/vector backends directly.
+
+    Used by cross-jurisdiction fan-out to avoid creating CivicOS instances.
+    """
+    start = time.monotonic()
+
+    plan = plan_search(
+        query=request.query,
+        corpus=request.corpus,
+        limit=request.limit,
+        since=request.since,
+        until=request.until,
+        location=request.location,
+        depth=request.depth.value,
+        cursor=request.cursor,
+    )
+
+    jid = request.jurisdiction or jurisdiction
+    mode = request.mode
+
+    corpus_results: Dict[str, List[CivicResult]] = {}
+    corpus_times: Dict[str, int] = {}
+    corpus_status: Dict[str, str] = {}
+    corpus_counts: Dict[str, int] = {}
+
+    async def run_corpus(cq):
+        adapter = get_adapter(cq.corpus)
+        if adapter is None:
+            return cq.corpus, [], "error", 0
+
+        c_start = time.monotonic()
+        try:
+            fetch_limit = cq.per_corpus_limit if mode == SearchMode.search else 100
+            loop = asyncio.get_event_loop()
+            results = await asyncio.wait_for(
+                loop.run_in_executor(
+                    None,
+                    lambda: adapter.search(
+                        storage, vectors, jid, request.query, fetch_limit,
+                        offset=cq.offset if mode == SearchMode.search else 0,
+                        **cq.params,
+                    ),
+                ),
+                timeout=CORPUS_TIMEOUT_S,
+            )
+            elapsed = int((time.monotonic() - c_start) * 1000)
+            status = "ok" if results else "empty"
+            return cq.corpus, results, status, elapsed
+        except asyncio.TimeoutError:
+            elapsed = int((time.monotonic() - c_start) * 1000)
+            return cq.corpus, [], "timeout", elapsed
+        except Exception as e:
+            elapsed = int((time.monotonic() - c_start) * 1000)
+            return cq.corpus, [], "error", elapsed
+
+    tasks = [run_corpus(cq) for cq in plan.corpus_queries]
+    results = await asyncio.gather(*tasks)
+
+    for corpus_name, corpus_result_list, status, elapsed in results:
+        corpus_results[corpus_name] = corpus_result_list
+        corpus_times[corpus_name] = elapsed
+        corpus_status[corpus_name] = status
+        corpus_counts[corpus_name] = len(corpus_result_list)
+
+    total_time = int((time.monotonic() - start) * 1000)
+    meta = ResponseMeta(
+        schema_version=SCHEMA_VERSION,
+        query_time_ms=total_time,
+        corpora_searched=list(corpus_results.keys()),
+        corpus_counts=corpus_counts,
+        corpus_times_ms=corpus_times,
+        corpus_status=corpus_status,
+        total_results=sum(corpus_counts.values()),
+    )
+
+    merged = reciprocal_rank_fusion(corpus_results, global_limit=request.limit)
+
+    next_offsets = {}
+    for cq in plan.corpus_queries:
+        returned = len(corpus_results.get(cq.corpus, []))
+        if returned >= cq.per_corpus_limit:
+            next_offsets[cq.corpus] = cq.offset + returned
+    meta.cursor = encode_cursor(next_offsets)
+
+    return SearchResponse(results=merged, meta=meta)
 
 
 # === civic.upcoming ===
@@ -675,12 +754,15 @@ async def _execute_concept_lookup(
             meta=ResponseMeta(schema_version=SCHEMA_VERSION, query_time_ms=total_time),
         )
 
+    storage = civic._storage
+    vectors = civic._vectors
+
     try:
         loop = asyncio.get_event_loop()
         results = await asyncio.wait_for(
             loop.run_in_executor(
                 None,
-                lambda: adapter.search(civic, jid, concept, limit=5, offset=0),
+                lambda: adapter.search(storage, vectors, jid, concept, limit=5, offset=0),
             ),
             timeout=CORPUS_TIMEOUT_S,
         )
