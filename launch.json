@@ -348,13 +348,14 @@
       {
         "name": "data_ingestion_guide",
         "description": "Public-facing guide for operators to ingest data for their jurisdiction. Currently noted as a gap in operator-guide.md \u2014 links to internal docs only.",
-        "status": "not_started",
-        "priority": 0,
+        "status": "done",
+        "priority": 2,
         "files": [
-          "docs/public/"
+          "docs/public/data-ingestion.md"
         ],
         "test_file": null,
-        "notes": "Ingestion is jurisdiction-specific and complex. May need per-platform quickstarts (Legistar, ProudCity, Granicus)."
+        "notes": "Rewritten with correct modal CLI commands, tiered cost model, verification steps, and accurate file paths. Old version referenced non-existent scripts.",
+        "completed_in": "pending"
       },
       {
         "name": "registry_pr_workflow",
@@ -470,6 +471,21 @@
         ],
         "test_file": null,
         "notes": "Tests the issuer_lookup callable with 3 jurisdictions. Validates that attestation proofs are portable across relays."
+      },
+      {
+        "name": "marin_sibling_ingestion",
+        "description": "Ingest decisions, chunks, and agenda items for Mill Valley and San Anselmo to provide real cross-jurisdiction data. Both have meetings (56 and 169) but 0 decisions.",
+        "status": "not_started",
+        "priority": 0,
+        "phase": "A",
+        "source": "federation testbed — data prerequisite for cross_marin_query_prototype",
+        "files": [
+          "data/jurisdictions/city-san-anselmo.yaml",
+          "scripts/modal_ingest.py",
+          "scripts/modal_vectors.py"
+        ],
+        "test_file": null,
+        "notes": "Mill Valley has no jurisdiction YAML yet. San Anselmo has one. Both use Granicus. Run Tier 1+2 ingestion per data-ingestion.md guide, then vector index. Success = non-zero decisions for both cities."
       },
       {
         "name": "cross_marin_query_prototype",

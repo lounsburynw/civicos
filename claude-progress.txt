@@ -22363,3 +22363,21 @@ instead of going through CivicOS query methods.
 
 **Impact:** Cross-jurisdiction queries no longer create CivicOS instances or need connection pool workarounds. Same storage/vector backends serve all jurisdictions.
 
+
+## Session — 2026-03-15 — Data Ingestion Guide
+
+**Item:** `data_ingestion_guide` (P0 → done)
+**Area:** operator_readiness
+
+**What was done:**
+- Rewrote `docs/public/data-ingestion.md` from an overview into an actionable operator guide
+- Fixed incorrect file paths (was `config/city-berkeley.yaml`, now `data/jurisdictions/city-berkeley.yaml`)
+- Removed reference to non-existent `scripts/ingest_jurisdiction.py`
+- Added correct `modal run` CLI commands for all 10 ingestion steps, organized by cost tier
+- Added dry-run mode documentation
+- Added verification steps (DataStatus, vector stats, gaps check)
+- Added ingestion cost tier table with per-unit pricing
+- Added platform detection example code
+- Updated `launch.json` status to done
+
+**Impact:** Operators can now follow the guide end-to-end to ingest data for a new jurisdiction using actual, correct CLI commands.
