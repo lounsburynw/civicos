@@ -251,27 +251,54 @@ class RetrospectiveAnalyzer(AgendaIntegrator):
             return 'unknown'
 
     def _resolve_minutes_url(self, url: str) -> str:
-        """Resolve Granicus MinutesViewer.php redirects to actual PDF URLs.
+        """Resolve redirects to find the actual PDF URL.
 
-        Granicus MinutesViewer.php often redirects (302) to a Google Docs gview
-        wrapper, which embeds the real PDF URL as a query parameter. Following
-        the redirect normally lands on Google Docs HTML, not the PDF itself.
+        Follows redirect chains (up to 5 hops) looking for a PDF resource.
+        Handles common patterns:
+        - Direct 302 to PDF (San Anselmo DocumentViewer)
+        - 302 to Google Docs gview wrapper with embedded PDF URL
+        - 302 to other PDF viewer wrappers with 'url=' parameter
         """
         if 'MinutesViewer.php' not in url:
             return url
 
         try:
-            from urllib.parse import parse_qs, urlparse
+            from urllib.parse import parse_qs, urlparse, urljoin
 
-            resp = self.session.get(url, allow_redirects=False, timeout=10)
-            if resp.status_code == 302 and 'location' in resp.headers:
-                location = resp.headers['location']
-                if 'docs.google.com/gview' in location:
-                    parsed = parse_qs(urlparse(location).query)
-                    if 'url' in parsed:
-                        actual_url = parsed['url'][0]
-                        logger.info(f"  Resolved MinutesViewer redirect → {actual_url.split('?')[0]}")
-                        return actual_url
+            current_url = url
+            for _ in range(5):  # max redirect hops
+                resp = self.session.get(current_url, allow_redirects=False, timeout=10)
+
+                if resp.status_code == 200:
+                    # Landed on content — check if it's a PDF
+                    ct = resp.headers.get('content-type', '').lower()
+                    if 'pdf' in ct or resp.content[:5] == b'%PDF-':
+                        logger.info(f"  Resolved MinutesViewer → PDF at {current_url.split('?')[0]}")
+                        return current_url
+                    # HTML page — not a PDF, stop following
+                    break
+
+                if resp.status_code not in (301, 302, 303, 307, 308):
+                    break
+
+                location = resp.headers.get('location', '')
+                if not location:
+                    break
+
+                # Resolve relative redirects (e.g., /MinutesViewer.php?...)
+                location = urljoin(current_url, location)
+
+                # Check if redirect target is a PDF viewer wrapper with url= param
+                parsed = urlparse(location)
+                qs = parse_qs(parsed.query)
+                if 'url' in qs:
+                    embedded_url = qs['url'][0]
+                    logger.info(f"  Resolved MinutesViewer redirect → {embedded_url.split('?')[0]}")
+                    return embedded_url
+
+                # Continue following the chain
+                current_url = location
+
         except Exception as e:
             logger.debug(f"MinutesViewer redirect resolution failed: {e}")
 
