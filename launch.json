@@ -506,10 +506,25 @@
         "notes": "Done 2026-03-15. Turnkey onboard script (scripts/onboard.py) generates configs + runs Modal ingestion in one command. Mill Valley: 57 meetings, 166 agenda items, 2 decisions, 591 vectors. San Anselmo: 152 meetings, 34 new agenda items, 112 decisions, 1037 vectors. Both jurisdictions now have non-zero decisions + vectors. Chunks were 0/14 due to Granicus HTML agendas (MV) and SSL cert errors (SA) — not blocking."
       },
       {
+        "name": "turnkey_onboard_hardening",
+        "description": "Add a validation gate (small sample + quality check before full backfill) and fix data quality gaps: HTML agenda chunk extraction for Granicus, duplicate meeting deduplication, post-onboard quality report, and idempotent re-runs.",
+        "status": "not_started",
+        "priority": 0,
+        "phase": "A",
+        "source": "marin_sibling_ingestion validation — gaps found during Mill Valley + San Anselmo onboarding",
+        "files": [
+          "scripts/onboard.py",
+          "packages/civicos-extraction/src/civicos_extraction/onboard.py",
+          "scripts/modal_ingest.py"
+        ],
+        "test_file": null,
+        "notes": "Eight gaps identified: (0) No validation gate — ingests 365 days blind, should sample 30 days first, verify quality (chunks>0? decisions>0?), then scale up only if quality passes. Prevents burning $3-4 on jurisdictions with unextractable data. (1) Chunks=0 for Granicus HTML AgendaViewer sites — need to extract text from GeneratedAgendaViewer HTML pages when no PDF link exists. (2) Only 2/57 decisions for Mill Valley — thin HTML minutes, need quality signal. (3) Duplicate meetings from multi-view archives — view 2 and 3 contain same meetings, wastes LLM spend. (4) No post-onboard quality report — operator can't tell if results are good or bad. (5) County enrichment is fragile string patching on YAML. (6) No idempotency — re-run doubles LLM spend on agenda/decisions. (7) City name sensitivity — slug derivation is case/prefix sensitive. Must fix before open sourcing and before cross-jurisdiction queries can rely on this data."
+      },
+      {
         "name": "cross_marin_query_prototype",
         "description": "Cross-jurisdiction queries within Marin County via v2 query layer. SearchRequest.include_parents/include_siblings with tier-based relevance boosting.",
         "status": "not_started",
-        "priority": 0,
+        "priority": 1,
         "phase": "A",
         "source": "federation testbed \u2014 query federation",
         "spec": "docs/internal/cross-jurisdiction-query-spec.md",

@@ -1,6 +1,6 @@
-# Recommended: Turnkey Onboard + Marin Sibling Ingestion
+# Recommended: Turnkey Onboard Hardening
 
-**Priority:** P0 (`marin_sibling_ingestion`)
+**Priority:** P0 (`turnkey_onboard_hardening`)
 **Area:** federation_testbed
 **Date:** 2026-03-15
 
@@ -8,70 +8,71 @@
 
 ## Context
 
-This session rewrote `docs/public/data-ingestion.md` with correct Modal CLI commands and verification steps. During review, we discovered the onboarding experience has significant friction: two separate config files (extraction JSON + jurisdiction YAML), no single command to go from zero to ingested data, and the `/onboard` flow is a Claude Code skill rather than something an operator can run. Mill Valley and San Anselmo are the perfect test cases — both partially onboarded with meetings in Postgres but 0 decisions, chunks, or vectors.
+This session built `scripts/onboard.py` — a turnkey onboarding script that takes a city name and produces searchable data in one command. We validated it on Mill Valley and San Anselmo. Both have non-zero meetings, agenda items, decisions, and vectors. However, the runs exposed 7 data quality gaps that must be fixed before cross-jurisdiction queries (P1) can rely on this data, and before open sourcing.
 
-## What Was Done This Session
+## The 8 Gaps (prioritized by impact)
 
-1. **Data ingestion guide rewritten** (`docs/public/data-ingestion.md`) — correct `modal run` commands for all 10 ingestion steps, cost tiers, verification workflow
-2. **P0 item created** for this task with full scope notes
+### 0. No validation gate before full ingestion (CRITICAL)
+The onboard script runs 365 days of ingestion immediately — $3-4 in LLM spend — with no upfront check that the data is actually extractable. Mill Valley's 0 chunks and 2/57 decisions would have been caught by ingesting ~30 days first, verifying quality, then scaling up. **Fix:** Add a two-phase flow: (1) ingest a small window (e.g., 30 days), run quality checks (chunks > 0? decisions > 0? agenda items look sane?), present results to operator, (2) only proceed to full backfill if quality passes or operator explicitly confirms. This prevents burning LLM budget on jurisdictions where the platform doesn't yield useful data.
+- `scripts/onboard.py` — add `--validate-first` (default on) that runs a 30-day sample + quality gate before full ingestion
+- `.claude/commands/onboard.md` — has a "Data Quality Reference" section with San Rafael baseline ratios and red flags per platform. Use these thresholds in the validation gate.
 
-## Three Deliverables
+### 1. Chunks = 0 for Granicus HTML agenda sites (HIGH)
+Mill Valley got 0 chunks. Granicus uses `GeneratedAgendaViewer.php` (inline HTML) instead of direct PDF links. The chunk extractor only handles PDFs. **Fix:** Extract text from the HTML agenda pages when no PDF link is found. This affects most Granicus jurisdictions.
+- `scripts/modal_ingest.py:2818` — `extract_chunks()` function
+- Chunk extraction pipeline in `packages/civicos-extraction/`
 
-### 1. Streamline the onboard flow into a single entry point
+### 2. Duplicate meetings from multi-view archives (HIGH)
+Mill Valley processed 107 meetings for decisions but only has 57 unique meetings. Views 2 and 3 contain identical data. **Fix:** Deduplicate by meeting ID before LLM extraction, or ensure onboard only picks one view per body.
+- `packages/civicos-extraction/src/civicos_extraction/clients/granicus.py:519` — `get_meetings()` deduplicates, but decisions/agenda extractors iterate all views independently
 
-Currently an operator must:
-- Run `onboard_jurisdiction()` to generate extraction config JSON
-- Manually create jurisdiction YAML from schema template
-- Run 6-10 separate `modal run` commands for ingestion
-- Run vector indexing separately
+### 3. Thin decisions for Mill Valley (MEDIUM)
+Only 2/57 meetings yielded decisions. HTML minutes are sparse summaries. San Anselmo got 112, so the extractor works. **Fix:** Add a quality signal to post-onboard report.
 
-**Goal:** A single Modal function (e.g., `modal run scripts/modal_ingest.py::onboard`) that takes a jurisdiction URL + ID and does everything: platform detection, config generation, Tier 1+2 ingestion, and vector indexing. Or at minimum, a script that chains the existing functions.
+### 4. No post-onboard quality report (MEDIUM)
+Script prints counts but doesn't assess quality. **Fix:** Add summary section to `scripts/onboard.py` that flags low-quality results with actionable guidance.
 
-### 2. Validate on Mill Valley and San Anselmo
+### 5. No idempotency on re-run (MEDIUM)
+Re-running doubles LLM spend. **Fix:** Verify agenda/decision extraction respects existing data on re-run.
 
-Run the new flow on both cities. Current state:
+### 6. County enrichment is fragile YAML patching (LOW)
+String replacement on YAML is brittle. **Fix:** Use `yaml.safe_load()` / `yaml.dump()` round-trip.
 
-| | Mill Valley | San Anselmo |
-|---|---|---|
-| Registry (`config/registry.json`) | Yes | Yes |
-| Extraction config (`data/extraction/`) | Yes (Granicus) | **Missing** |
-| Jurisdiction YAML (`data/jurisdictions/`) | **Missing** | Yes (fully populated) |
-| Meetings in Postgres | 56 | 169 |
-| Decisions | 0 | 0 |
-| Vectors | 0 | 0 |
+### 7. City name slug sensitivity (LOW)
+Different capitalizations produce different slugs. **Fix:** Normalize input before slugifying.
 
-**Success criteria:** Non-zero decisions AND vectors for both cities.
+## Current Data State
 
-### 3. Update docs
-
-After validating the flow works, update `docs/public/data-ingestion.md` to document the turnkey path alongside the manual step-by-step that's already there.
+| | San Rafael | Mill Valley | San Anselmo |
+|---|---|---|---|
+| Meetings | 98 | 57 | 152 |
+| Chunks | 5,084 | **0** | 14 |
+| Agenda items | — | 166 | 34 new + prior |
+| Decisions | 44 | **2** | **112** |
+| Vectors | 16,786 | 591 | 1,037 |
 
 ## Key Files
 
-- `packages/civicos-extraction/src/civicos_extraction/onboard.py` — `onboard_jurisdiction()` generates extraction config, does platform detection
-- `data/jurisdictions/schema.yaml` — YAML schema reference
-- `data/jurisdictions/city-san-anselmo.yaml` — complete example (San Anselmo has YAML but no extraction config)
-- `data/extraction/city-mill-valley.json` — Granicus extraction config (Mill Valley has this but no YAML)
-- `scripts/modal_ingest.py` — all ingestion functions (`fetch_meetings`, `extract_chunks`, `extract_agenda_items`, `extract_decisions`)
-- `scripts/modal_vectors.py:534` — `main()` entry point for vector indexing
-- `.claude/commands/onboard.md` — current `/onboard` skill (references `civic-extract onboard --full` which may not exist)
-- `docs/public/data-ingestion.md` — the guide we just rewrote (update after validation)
+- `scripts/onboard.py` — the turnkey script (207 lines)
+- `scripts/modal_ingest.py:2818` — `extract_chunks()`, `:2940` — `extract_agenda_items()`, `:3056` — `extract_decisions()`
+- `packages/civicos-extraction/src/civicos_extraction/onboard.py:674` — `_generate_jurisdiction_yaml()`
+- `packages/civicos-extraction/src/civicos_extraction/clients/granicus.py:451` — `get_events()` iterates all view_ids
+- `data/extraction/city-mill-valley.json` — auto-generated extraction config
+- `data/jurisdictions/city-mill-valley.yaml` — auto-generated jurisdiction YAML
 
 ## Suggested Approach
 
-1. Read `onboard.py` to understand what `onboard_jurisdiction()` already does
-2. Decide the right entry point: new Modal function in `modal_ingest.py`, standalone script, or enhanced `onboard_jurisdiction()`
-3. Implement — should generate both configs if missing, then chain Tier 1+2+4 ingestion
-4. Test on Mill Valley first (simpler: 56 meetings, has extraction config, needs YAML)
-5. Test on San Anselmo (169 meetings, has YAML, needs extraction config)
-6. Verify with `/data-status` for both cities
-7. Update `docs/public/data-ingestion.md` with the turnkey flow
-8. Update the `/onboard` skill if the interface changed
+1. Start with **gap #1 (HTML chunks)** — biggest impact, unblocks PDF search for all Granicus sites
+2. Then **gap #2 (dedup)** — prevents wasting LLM spend on duplicates
+3. Then **gap #4 (quality report)** — gives operators visibility
+4. Gaps 5-7 are lower priority but quick fixes
+5. Re-run onboard on Mill Valley after fixes to verify improvement
+6. Verify with `/data-status city-mill-valley`
 
 ## Tests to Run
 
 ```bash
-# Verify data landed
+# Check current state
 source civicos-env/bin/activate && python3 -c "
 from dotenv import load_dotenv; load_dotenv()
 from civicos import CivicOS, DataStatus, format_data_status
@@ -81,20 +82,12 @@ for jid in ['city-mill-valley', 'city-san-anselmo']:
     print(f'=== {jid} ===')
     print(format_data_status(status.summary()))
 "
-
-# Vector stats
-modal run scripts/modal_vectors.py --jurisdiction city-mill-valley --stats-only
-modal run scripts/modal_vectors.py --jurisdiction city-san-anselmo --stats-only
 ```
 
 ## Success Criteria
 
-- [ ] Single command/function onboards a jurisdiction from URL to searchable data
-- [ ] Mill Valley: non-zero decisions, chunks, and vector embeddings
-- [ ] San Anselmo: non-zero decisions, chunks, and vector embeddings
-- [ ] `docs/public/data-ingestion.md` updated with turnkey flow
-- [ ] A newbie reading the guide could onboard a city without Claude Code skills
-
-## Parallel Session Note
-
-`amlegal_client_hardening` (P1, security_fixes) may be in progress in a parallel session. Avoid touching `packages/civicos/src/civicos/_internal/legal/corpus/` to prevent conflicts.
+- [ ] Mill Valley chunks > 0 (HTML agenda text extraction works)
+- [ ] No duplicate meeting processing in agenda/decision extraction
+- [ ] Post-onboard output includes quality assessment with actionable guidance
+- [ ] Re-running onboard doesn't re-extract already-processed meetings
+- [ ] `cross_marin_query_prototype` (P1) is unblocked with quality data
