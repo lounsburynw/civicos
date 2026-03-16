@@ -4,11 +4,71 @@
   "jurisdiction_id": "city-mill-valley",
   "base_url": "https://cityofmillvalley.granicus.com",
   "archives": {
-    "new_view": "2",
-    "tabbed_view": "3"
+    "multiple_bodies": "3"
   },
   "metadata": {
     "granicus_domain": "cityofmillvalley",
-    "default_view_id": "1"
+    "default_view_id": "3",
+    "column_map": {
+      "date": 0,
+      "name": 1,
+      "agenda": 2,
+      "video": 4
+    },
+    "column_map_provenance": {
+      "input": {
+        "view_id": "3",
+        "sample_html": "<table>\n<tr>\n<th id=\"Date\" scope=\"col\">Date</th>\n<th id=\"Meeting\" scope=\"col\">Meeting</th>\n<th id=\"Agenda\" scope=\"col\"></th>\n<th id=\"Minutes\" scope=\"col\"></th>\n<th id=\"Video\" scope=\"col\"></th>\n<th class=\"MP3Link\" scope=\"col\"></th>\n<th class=\"MP4Link\" scope=\"col\"></th>\n</tr>\n<tr class=\"even\" odd=\"\" onmouseout=\"this.className = 'even';\" onmouseover=\"this.className = 'hlt';\">\n<td class=\"listItem\" headers=\"Date MV-2040-GPAC-\"><span style=\"display:none;\">1352361600</span>11/08/12</td>\n<td class=\"listItem\">MV 2040 GPAC </td>\n<td class=\"listItem\" headers=\"Agenda MV-2040-GPAC-\"><a href=\"//cityofmillvalley.granicus.com/AgendaViewer.php?view_id=3&amp;clip_id=380\" target=\"_blank\">Agenda</a></td>\n<td class=\"listItem\">\t\t\t\t\t\t\t\t\t\t\u00a0\r\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t</td>\n<td class=\"listItem\" headers=\"VideoLink MV-2040-GPAC-\"><a href=\"javascript:void(0);\" onclick=\"window.open('//cityofmillvalley.granicus.com/MediaPlayer.php?view_id=3&amp;clip_id=380','player','toolbar=no,directories=no,status=yes,scrollbars=yes,resizable=yes,menubar=no')\">Video</a> <a href=\"//cityofmillvalley.granicus.com/ASX.php?view_id=3&amp;clip_id=380&amp;sn=cityofmillvalley.granicus.com\" style=\"display:none\" title=\"Video Only link\">Open Video Only in Windows Media Player</a> </td>\n<td class=\"listItem\" headers=\"MP3Link MV-2040-GPAC-\"><a href=\"https://archive-video.granicus.com/cityofmillvalley/cityofmillvalley_89846155-d472-4a02-aa43-76eb34109815.mp3\" style=\"white-space:nowrap;\">MP3</a></td>\n<td class=\"listItem\" headers=\"MP4Link MV-2040-GPAC-\"><a href=\"https://archive-video.granicus.com/cityofmillvalley/cityofmillvalley_89846155-d472-4a02-aa43-76eb34109815.mp4\" style=\"white-space:nowrap;\">MP4</a></td>\n</tr>\n<tr class=\"odd\" even=\"\" onmouseout=\"this.className = 'odd';\" onmouseover=\"this.className = 'hlt';\">\n<td class=\"listItem\" headers=\"Date MV-2040-Working-Group---Land-Use-&amp;-Mobility-\"><span style=\"display:none;\">1351580400</span>10/30/12</td>\n<td class=\"listItem\">MV 2040 Working Group - Land Use &amp; Mobility </td>\n<td class=\"listItem\" headers=\"Agenda MV-2040-Working-Group---Land-Use-&amp;-Mobility-\"><a href=\"//cityofmillvalley.granicus.com/AgendaViewer.php?view_id=3&amp;clip_id=374\" target=\"_blank\">Agenda</a></td>\n<td class=\"listItem\">\t\t\t\t\t\t\t\t\t\t\u00a0\r\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t</td>\n<td class=\"listItem\" headers=\"VideoLink MV-2040-Working-Group---Land-Use-&amp;-Mobility-\"><a href=\"javascript:void(0);\" onclick=\"window.open('//cityofmillvalley.granicus.com/MediaPlayer.php?view_id=3&amp;clip_id=374','player','toolbar=no,directories=no,status=yes,scrollbars=yes,resizable=yes,menubar=no')\">Video</a> <a href=\"//cityofmillvalley.granicus.com/ASX.php?view_id=3&amp;clip_id=374&amp;sn=cityofmillvalley.granicus.com\" style=\"display:none\" title=\"Video Only link\">Open Video Only in Windows Media Player</a> </td>\n<td class=\"listItem\" headers=\"MP3Link MV-2040-Working-Group---Land-Use-&amp;-Mobility-\"><a href=\"https://archive-video.granicus.com/cityofmillvalley/cityofmillvalley_9a91293c-dfd5-4380-9aa5-085d998d861e.mp3\" style=\"white-space:nowrap;\">MP3</a></td>\n<td class=\"listItem\" headers=\"MP4Link MV-2040-Working-Group---Land-Use-&amp;-Mobility-\"><a href=\"https://archive-video.granicus.com/cityofmillvalley/cityofmillvalley_9a91293c-dfd5-4380-9aa5-085d998d861e.mp4\" style=\"white-space:nowrap;\">MP4</a></td>\n</tr>\n<tr class=\"even\" odd=\"\" onmouseout=\"this.className = 'even';\" onmouseover=\"this.className = 'hlt';\">\n<td class=\"listItem\" headers=\"Date MV-2040-Working-Group---Land-Use-&amp;-Mobility-\"><span style=\"display:none;\">1350457200</span>10/17/12</td>\n<td class=\"listItem\">MV 2040 Working Group - Land Use &amp; Mobility </td>\n<td class=\"listItem\" headers=\"Agenda MV-2040-Working-Group---Land-Use-&amp;-Mobility-\"><a href=\"//cityofmillvalley.granicus.com/AgendaViewer.php?view_id=3&amp;clip_id=371\" target=\"_blank\">Agenda</a></td>\n<td class=\"listItem\">\t\t\t\t\t\t\t\t\t\t\u00a0\r\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t</td>\n<td class=\"listItem\" headers=\"VideoLink MV-2040-Working-Group---Land-Use-&amp;-Mobility-\"><a href=\"javascript:void(0);\" onclick=\"window.open('//cityofmillvalley.granicus.com/MediaPlayer.php?view_id=3&amp;clip_id=371','player','toolbar=no,directories=no,status=yes,scrollbars=yes,resizable=yes,menubar=no')\">Video</a> <a href=\"//cityofmillvalley.granicus.com/ASX.php?view_id=3&amp;clip_id=371&amp;sn=cityofmillvalley.granicus.com\" style=\"display:none\" title=\"Video Only link\">Open Video Only in Windows Media Player</a> </td>\n<td class=\"listItem\" headers=\"MP3Link MV-2040-Working-Group---Land-Use-&amp;-Mobility-\"><a href=\"https://archive-video.granicus.com/cityofmillvalley/cityofmillvalley_663d51ab-7f9d-48c6-9bca-979fd0faf88f.mp3\" style=\"white-space:nowrap;\">MP3</a></td>\n<td class=\"listItem\" headers=\"MP4Link MV-2040-Working-Group---Land-Use-&amp;-Mobility-\"><a href=\"https://archive-video.granicus.com/cityofmillvalley/cityofmillvalley_663d51ab-7f9d-48c6-9bca-979fd0faf88f.mp4\" style=\"white-space:nowrap;\">MP4</a></td>\n</tr>\n<tr class=\"odd\" even=\"\" onmouseout=\"this.className = 'odd';\" onmouseover=\"this.className = 'hlt';\">\n<td class=\"listItem\" headers=\"Date MV-2040-Working-Group---Natural-Environment-\"><span style=\"display:none;\">1350370800</span>10/16/12</td>\n<td class=\"listItem\">MV 2040 Working Group - Natural Environment </td>\n<td class=\"listItem\" headers=\"Agenda MV-2040-Working-Group---Natural-Environment-\"><a href=\"//cityofmillvalley.granicus.com/AgendaViewer.php?view_id=3&amp;clip_id=363\" target=\"_blank\">Agenda</a></td>\n<td class=\"listItem\">\t\t\t\t\t\t\t\t\t\t\u00a0\r\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t</td>\n<td class=\"listItem\" headers=\"VideoLink MV-2040-Working-Group---Natural-Environment-\"><a href=\"javascript:void(0);\" onclick=\"window.open('//cityofmillvalley.granicus.com/MediaPlayer.php?view_id=3&amp;clip_id=363','player','toolbar=no,directories=no,status=yes,scrollbars=yes,resizable=yes,menubar=no')\">Video</a> <a href=\"//cityofmillvalley.granicus.com/ASX.php?view_id=3&amp;clip_id=363&amp;sn=cityofmillvalley.granicus.com\" style=\"display:none\" title=\"Video Only link\">Open Video Only in Windows Media Player</a> </td>\n<td class=\"listItem\" headers=\"MP3Link MV-2040-Working-Group---Natural-Environment-\"><a href=\"https://archive-video.granicus.com/cityofmillvalley/cityofmillvalley_8c32001a-3f42-4cb9-a7f0-e0a3c4835471.mp3\" style=\"white-space:nowrap;\">MP3</a></td>\n<td class=\"listItem\" headers=\"MP4Link MV-2040-Working-Group---Natural-Environment-\"><a href=\"https://archive-video.granicus.com/cityofmillvalley/cityofmillvalley_8c32001a-3f42-4cb9-a7f0-e0a3c4835471.mp4\" style=\"white-space:nowrap;\">MP4</a></td>\n</tr>\n<tr class=\"even\" odd=\"\" onmouseout=\"this.className = 'even';\" onmouseover=\"this.className = 'hlt';\">\n<td class=\"listItem\" headers=\"Date MV-2040-Working-Group---Community-Vitality\"><span style=\"display:none;\">1350370800</span>10/16/12</td>\n<td class=\"listItem\">MV 2040 Working Group - Community Vitality</td>\n<td class=\"listItem\" headers=\"Agenda MV-2040-Working-Group---Community-Vitality\"><a href=\"//cityofmillvalley.granicus.com/AgendaViewer.php?view_id=3&amp;clip_id=364\" target=\"_blank\">Agenda</a></td>\n<td class=\"listItem\">\t\t\t\t\t\t\t\t\t\t\u00a0\r\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t</td>\n<td class=\"listItem\" headers=\"VideoLink MV-2040-Working-Group---Community-Vitality\"><a href=\"javascript:void(0);\" onclick=\"window.open('//cityofmillvalley.granicus.com/MediaPlayer.php?view_id=3&amp;clip_id=364','player','toolbar=no,directories=no,status=yes,scrollbars=yes,resizable=yes,menubar=no')\">Video</a> <a href=\"//cityofmillvalley.granicus.com/ASX.php?view_id=3&amp;clip_id=364&amp;sn=cityofmillvalley.granicus.com\" style=\"display:none\" title=\"Video Only link\">Open Video Only in Windows Media Player</a> </td>\n<td class=\"listItem\" headers=\"MP3Link MV-2040-Working-Group---Community-Vitality\"><a href=\"https://archive-video.granicus.com/cityofmillvalley/cityofmillvalley_a918d0e7-0913-4199-9ff9-71b19abad572.mp3\" style=\"white-space:nowrap;\">MP3</a></td>\n<td class=\"listItem\" headers=\"MP4Link MV-2040-Working-Group---Community-Vitality\"><a href=\"https://archive-video.granicus.com/cityofmillvalley/cityofmillvalley_a918d0e7-0913-4199-9ff9-71b19abad572.mp4\" style=\"white-space:nowrap;\">MP4</a></td>\n</tr>\n<tr class=\"odd\" even=\"\" onmouseout=\"this.className = 'odd';\" onmouseover=\"this.className = 'hlt';\">\n<td class=\"listItem\" headers=\"Date MV-2040-Working-Group---Land-Use-&amp;-Mobility\"><span style=\"display:none;\">1349852400</span>10/10/12</td>\n<td class=\"listItem\">MV 2040 Working Group - Land Use &amp; Mobility</td>\n<td class=\"listItem\" headers=\"Agenda MV-2040-Working-Group---Land-Use-&amp;-Mobility\"><a href=\"//cityofmillvalley.granicus.com/AgendaViewer.php?view_id=3&amp;clip_id=359\" target=\"_blank\">Agenda</a></td>\n<td class=\"listItem\">\t\t\t\t\t\t\t\t\t\t\u00a0\r\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t</td>\n<td class=\"listItem\" headers=\"VideoLink MV-2040-Working-Group---Land-Use-&amp;-Mobility\"><a href=\"javascript:void(0);\" onclick=\"window.open('//cityofmillvalley.granicus.com/MediaPlayer.php?view_id=3&amp;clip_id=359','player','toolbar=no,directories=no,status=yes,scrollbars=yes,resizable=yes,menubar=no')\">Video</a> <a href=\"//cityofmillvalley.granicus.com/ASX.php?view_id=3&amp;clip_id=359&amp;sn=cityofmillvalley.granicus.com\" style=\"display:none\" title=\"Video Only link\">Open Video Only in Windows Media Player</a> </td>\n<td class=\"listItem\" headers=\"MP3Link MV-2040-Working-Group---Land-Use-&amp;-Mobility\"><a href=\"https://archive-video.granicus.com/cityofmillvalley/cityofmillvalley_ba2e41da-a310-4fed-882c-9115f3e9d781.mp3\" style=\"white-space:nowrap;\">MP3</a></td>\n<td class=\"listItem\" headers=\"MP4Link MV-2040-Working-Group---Land-Use-&amp;-Mobility\"><a href=\"https://archive-video.granicus.com/cityofmillvalley/cityofmillvalley_ba2e41da-a310-4fed-882c-9115f3e9d781.mp4\" style=\"white-space:nowrap;\">MP4</a></td>\n</tr>\n<tr class=\"even\" odd=\"\" onmouseout=\"this.className = 'even';\" onmouseover=\"this.className = 'hlt';\">\n<td class=\"listItem\" headers=\"Date MV-2040-Working-Group---Natural-Environment\"><span style=\"display:none;\">1349766000</span>10/09/12</td>\n<td class=\"listItem\">MV 2040 Working Group - Natural Environment</td>\n<td class=\"listItem\" headers=\"Agenda MV-2040-Working-Group---Natural-Environment\"><a href=\"//cityofmillvalley.granicus.com/AgendaViewer.php?view_id=3&amp;clip_id=358\" target=\"_blank\">Agenda</a></td>\n<td class=\"listItem\">\t\t\t\t\t\t\t\t\t\t\u00a0\r\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t</td>\n<td class=\"listItem\" headers=\"VideoLink MV-2040-Working-Group---Natural-Environment\"><a href=\"javascript:void(0);\" onclick=\"window.open('//cityofmillvalley.granicus.com/MediaPlayer.php?view_id=3&amp;clip_id=358','player','toolbar=no,directories=no,status=yes,scrollbars=yes,resizable=yes,menubar=no')\">Video</a> <a href=\"//cityofmillvalley.granicus.com/ASX.php?view_id=3&amp;clip_id=358&amp;sn=cityofmillvalley.granicus.com\" style=\"display:none\" title=\"Video Only link\">Open Video Only in Windows Media Player</a> </td>\n<td class=\"listItem\" headers=\"MP3Link MV-2040-Working-Group---Natural-Environment\"><a href=\"https://archive-video.granicus.com/cityofmillvalley/cityofmillvalley_05035ae1-69e5-498e-87cb-5cc533648108.mp3\" style=\"white-space:nowrap;\">MP3</a></td>\n<td class=\"listItem\" headers=\"MP4Link MV-2040-Working-Group---Natural-Environment\"><a href=\"https://archive-video.granicus.com/cityofmillvalley/cityofmillvalley_05035ae1-69e5-498e-87cb-5cc533648108.mp4\" style=\"white-space:nowrap;\">MP4</a></td>\n</tr>\n</table>",
+        "num_columns": 7
+      },
+      "prompt_template": "generate_column_map/v1",
+      "raw_response": "```json\n{\"date\": 0, \"name\": 1, \"agenda\": 2, \"video\": 4}\n```",
+      "parsed_map": {
+        "date": 0,
+        "name": 1,
+        "agenda": 2,
+        "video": 4
+      }
+    },
+    "body_name_provenance": {
+      "input": {
+        "2": {
+          "page_title": "New View",
+          "h1": "",
+          "sample_titles": [
+            "Regular City Council Meeting",
+            "Planning Commission Meeting",
+            "Parks and Recreation Commission Meeting - Adjusted for Passover",
+            "Planning Commission Meeting",
+            "City Council",
+            "City Council",
+            "City Council",
+            "City Council"
+          ],
+          "event_count": 954
+        },
+        "3": {
+          "page_title": "Tabbed View",
+          "h1": "",
+          "sample_titles": [
+            "Regular City Council Meeting",
+            "Planning Commission Meeting",
+            "Parks and Recreation Commission Meeting - Adjusted for Passover",
+            "Planning Commission Meeting",
+            "City Council",
+            "City Council",
+            "City Council",
+            "City Council"
+          ],
+          "event_count": 954
+        }
+      },
+      "prompt_template": "generate_body_names/v1",
+      "raw_response": "```json\n{\n  \"2\": \"Multiple Bodies\",\n  \"3\": \"Multiple Bodies\"\n}\n```",
+      "parsed_map": {
+        "2": "Multiple Bodies",
+        "3": "Multiple Bodies"
+      }
+    }
   }
 }

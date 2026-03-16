@@ -34,7 +34,12 @@ from civicos_extraction.platform_detection import detect_platform
 logger = logging.getLogger(__name__)
 
 # Path to cost_registry.yaml (relative to repo root)
-_COST_REGISTRY_PATH = Path(__file__).parents[4] / "docs" / "public" / "cost_registry.yaml"
+# Lazy computation — parents[4] fails on Modal where directory structure differs
+def _get_cost_registry_path() -> Path:
+    try:
+        return Path(__file__).parents[4] / "docs" / "public" / "cost_registry.yaml"
+    except IndexError:
+        return Path("/dev/null")  # Cost estimation not available on Modal
 
 
 @dataclass
@@ -109,10 +114,11 @@ def _load_cost_registry() -> Dict[str, Any]:
         # Fallback: parse enough YAML-like structure manually
         raise ImportError("PyYAML required for cost estimation: pip install pyyaml")
 
-    if not _COST_REGISTRY_PATH.exists():
-        raise FileNotFoundError(f"Cost registry not found: {_COST_REGISTRY_PATH}")
+    path = _get_cost_registry_path()
+    if not path.exists():
+        raise FileNotFoundError(f"Cost registry not found: {path}")
 
-    with open(_COST_REGISTRY_PATH) as f:
+    with open(path) as f:
         return yaml.safe_load(f)
 
 
@@ -743,7 +749,13 @@ def _generate_jurisdiction_yaml(
     if archives:
         meetings_source["archives"] = archives
     if metadata:
-        meetings_source["metadata"] = metadata
+        # Strip provenance/debug keys — YAML is for config, not extraction debug data
+        clean_metadata = {
+            k: v for k, v in metadata.items()
+            if not k.endswith("_provenance")
+        }
+        if clean_metadata:
+            meetings_source["metadata"] = clean_metadata
 
     today = date.today().isoformat()
 
