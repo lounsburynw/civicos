@@ -45,6 +45,80 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+# Module-level cache for LLM-learned date formats. Shared across all
+# GranicusClient instances so a format discovered for one jurisdiction
+# benefits all others in the same process.
+_learned_date_formats: List[str] = []
+
+
+def _get_llm_provider():
+    """Lazy-load the LLM provider. Returns None if unavailable."""
+    try:
+        from civicos_services.core.llm_provider import get_model_for_task
+        return get_model_for_task("fast")
+    except ImportError:
+        return None
+
+
+def _llm_parse_date(date_text: str) -> Optional[datetime]:
+    """LLM fallback for date strings that no hardcoded format can parse.
+
+    Asks gpt-4o-mini to return both the parsed ISO date and a strptime
+    format string.  The format string is cached in ``_learned_date_formats``
+    so future dates in the same format skip the LLM entirely.
+
+    Returns the parsed datetime, or None if the LLM can't parse it either.
+    """
+    import json as _json
+
+    provider = _get_llm_provider()
+    if provider is None:
+        logger.debug("LLM provider unavailable for date fallback")
+        return None
+    prompt = (
+        "Parse this date string from a government meeting listing page.\n"
+        "Return JSON with two keys:\n"
+        '  "iso": the date in ISO 8601 format (YYYY-MM-DDTHH:MM:SS), '
+        "use 00:00:00 if no time is present\n"
+        '  "strptime_format": a Python strptime format string that would '
+        "parse the *original* text (e.g. \"%B %d, %Y\")\n\n"
+        f"Date text: {date_text!r}\n\n"
+        "Return ONLY the JSON object, no explanation."
+    )
+
+    try:
+        response = provider.invoke(prompt)
+        # Handle provider response (string or object with .content)
+        raw = response if isinstance(response, str) else response.content
+        payload = _json.loads(raw.strip().removeprefix("```json").removesuffix("```").strip())
+
+        iso_str = payload.get("iso")
+        fmt = payload.get("strptime_format")
+
+        if not iso_str:
+            return None
+
+        parsed = datetime.fromisoformat(iso_str)
+
+        # Cache the learned format for future use (if it round-trips)
+        if fmt and fmt not in _learned_date_formats:
+            try:
+                check = datetime.strptime(date_text.strip(), fmt)
+                if check.date() == parsed.date():
+                    _learned_date_formats.append(fmt)
+                    logger.info(
+                        f"Learned new date format from LLM: {fmt!r} "
+                        f"(from {date_text!r})"
+                    )
+            except ValueError:
+                pass  # Format doesn't actually round-trip; still use iso
+
+        return parsed
+
+    except Exception as e:
+        logger.debug(f"LLM date parsing failed for {date_text!r}: {e}")
+        return None
+
 
 class GranicusClient(BaseExtractor):
     """
@@ -378,14 +452,21 @@ HTML:
     def _parse_date(self, date_text: str) -> Optional[datetime]:
         """Parse date from various Granicus date formats.
 
+        Uses a three-tier strategy:
+        1. Deterministic regex cleanup + hardcoded strptime formats
+        2. Previously-learned formats (from LLM, cached in-process)
+        3. LLM fallback (gpt-4o-mini) that also learns new format strings
+
         Handles:
         - "March 4, 2026", "Feb 25, 2026" (full/abbreviated month)
         - "10/7/2025", "03/10/26" (MM/DD/YYYY or MM/DD/YY)
         - "2025-10-07" (ISO)
         - "1773156600 03/10/26" (Unix timestamp prefix)
         - "03/10/26 - 08:30 AM" (with time suffix)
+        - Unknown formats (via LLM fallback)
         """
         # Normalize whitespace first (Granicus HTML has \r\n and extra spaces)
+        raw_text = date_text
         date_text = re.sub(r"\s+", " ", date_text).strip()
         if not date_text:
             return None
@@ -401,6 +482,7 @@ HTML:
         date_text = re.sub(r"\s+-\s+\d{1,2}:\d{2}\s*(AM|PM)?.*$", "", date_text, flags=re.I)
         date_text = date_text.strip()
 
+        # Tier 1: Hardcoded formats (zero cost, covers ~99% of Granicus sites)
         date_formats = [
             "%B %d, %Y",
             "%b %d, %Y",
@@ -426,7 +508,16 @@ HTML:
                 except ValueError:
                     continue
 
-        return None
+        # Tier 2: Try LLM-learned formats (free — cached from prior LLM calls)
+        for fmt in _learned_date_formats:
+            try:
+                return datetime.strptime(date_text.strip(), fmt)
+            except ValueError:
+                continue
+
+        # Tier 3: LLM fallback (one API call; learns format for next time)
+        logger.info(f"No hardcoded format matched {date_text!r}, trying LLM")
+        return _llm_parse_date(date_text)
 
     def _extract_link(self, cells, col_idx: Optional[int]) -> Optional[str]:
         """Extract first link href from a table cell."""

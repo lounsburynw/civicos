@@ -140,8 +140,35 @@ class TestGranicusClient:
         assert client._parse_date("2025-10-07") == datetime(2025, 10, 7)
         # Empty
         assert client._parse_date("") is None
-        # Garbage
-        assert client._parse_date("not a date") is None
+        # Garbage (LLM fallback also returns None)
+        with patch("civicos_extraction.clients.granicus._llm_parse_date", return_value=None):
+            assert client._parse_date("not a date") is None
+
+    def test_parse_date_llm_fallback(self, client):
+        """LLM fallback is invoked for unrecognized date formats."""
+        with patch(
+            "civicos_extraction.clients.granicus._llm_parse_date",
+            return_value=datetime(2026, 5, 15),
+        ) as mock_llm:
+            result = client._parse_date("15 Mai 2026")  # French format
+            assert result == datetime(2026, 5, 15)
+            mock_llm.assert_called_once_with("15 Mai 2026")
+
+    def test_parse_date_learned_format_skips_llm(self, client):
+        """Once a format is learned, LLM is not called again."""
+        import civicos_extraction.clients.granicus as g
+
+        # Simulate a previously-learned format
+        g._learned_date_formats.append("%d %b %Y")
+        try:
+            with patch(
+                "civicos_extraction.clients.granicus._llm_parse_date",
+            ) as mock_llm:
+                result = client._parse_date("15 Mar 2026")
+                assert result == datetime(2026, 3, 15)
+                mock_llm.assert_not_called()
+        finally:
+            g._learned_date_formats.remove("%d %b %Y")
 
     def test_parse_date_unix_timestamp_prefix(self, client):
         """Unix timestamp prefix is stripped before parsing."""
@@ -285,6 +312,59 @@ class TestGranicusClient:
 
 
 # ============================================================================
+# TestLlmDateParsing
+# ============================================================================
+
+
+class TestLlmDateParsing:
+    """Tests for LLM date parsing fallback."""
+
+    def test_llm_parse_date_success(self):
+        """LLM returns valid date and format string, which gets cached."""
+        import civicos_extraction.clients.granicus as g
+
+        mock_provider = MagicMock()
+        mock_provider.invoke.return_value = MagicMock(
+            content='{"iso": "2026-05-15T00:00:00", "strptime_format": "%d %B %Y"}'
+        )
+
+        original = g._learned_date_formats.copy()
+        try:
+            with patch.object(g, "_get_llm_provider", return_value=mock_provider):
+                result = g._llm_parse_date("15 May 2026")
+                assert result == datetime(2026, 5, 15)
+                assert "%d %B %Y" in g._learned_date_formats
+        finally:
+            g._learned_date_formats[:] = original
+
+    def test_llm_parse_date_bad_format_still_parses(self):
+        """LLM returns valid iso but non-roundtripping format — still returns date."""
+        import civicos_extraction.clients.granicus as g
+
+        mock_provider = MagicMock()
+        mock_provider.invoke.return_value = MagicMock(
+            content='{"iso": "2026-05-15T00:00:00", "strptime_format": "%Y-%m-%d"}'
+        )
+
+        original = g._learned_date_formats.copy()
+        try:
+            with patch.object(g, "_get_llm_provider", return_value=mock_provider):
+                result = g._llm_parse_date("15 Mai 2026")  # Won't match %Y-%m-%d
+                assert result == datetime(2026, 5, 15)
+                # Format not cached because it doesn't round-trip
+                assert "%Y-%m-%d" not in g._learned_date_formats or "%Y-%m-%d" in original
+        finally:
+            g._learned_date_formats[:] = original
+
+    def test_llm_parse_date_provider_unavailable(self):
+        """Gracefully returns None when LLM provider not available."""
+        import civicos_extraction.clients.granicus as g
+
+        with patch.object(g, "_get_llm_provider", return_value=None):
+            result = g._llm_parse_date("15 Mai 2026")
+            assert result is None
+
+
 # TestGranicusSource
 # ============================================================================
 
