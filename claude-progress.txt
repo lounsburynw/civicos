@@ -1,3 +1,26 @@
+## Session — 2026-03-16: Close Marin Data Gaps
+
+**Item:** close_marin_data_gaps (P0 override per handoff — prerequisite for cross_marin_query_prototype)
+**Status:** DONE — major gaps closed
+
+**Code changes:**
+1. **MinutesViewer redirect resolution** — `retrospective_analyzer.py`: Added `_resolve_minutes_url()` to follow Granicus MinutesViewer.php → Google Docs gview → actual PDF URL chain. Mill Valley minutes were landing on Google Docs HTML viewer instead of the actual PDF.
+2. **decisions_check constraint fix** — `postgres_backend.py`: Added `AND valid_from < %s` guard to temporal versioning UPDATE, preventing valid_to == valid_from when same decision is re-extracted in same session (from multiple Granicus view_ids).
+3. **Integer overflow guard** — `postgres_backend.py`: Clamp `financial_impact_cents` to INT max (2,147,483,647) to prevent LLM-hallucinated budget numbers from failing insert.
+
+**Data results:**
+- Mill Valley chunks: 0 → 601 vectors indexed (100%)
+- Mill Valley decisions: 2 → 60 stored, 60 vectors indexed (100%)
+- San Anselmo chunks: 0 → 489 vectors indexed (100%)
+- San Anselmo decisions: 96 already at 100%
+- Semantic search verified working for both jurisdictions
+
+**Remaining gaps (not blocking for cross-Marin queries):**
+- Issues (SeeClickFix): not configured for MV/SA
+- Municipal code: not configured for MV/SA
+- Transcripts: requires audio pipeline (multi-session)
+- Budget: not available for MV/SA
+
 ## Session — 2026-03-16: Turnkey Onboard Hardening (continued)
 
 **Item:** turnkey_onboard_hardening (P0)
