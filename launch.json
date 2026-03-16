@@ -701,6 +701,20 @@
         ],
         "test_file": "packages/civicos-services/tests/test_query_v2.py",
         "notes": "Cross-jurisdiction testing (2026-03-14) hit connection pool exhaustion and cold-start thundering herd from creating CivicOS instances per jurisdiction. Current workarounds (shared backends, warm-then-fan-out, 20s timeout) are duct tape. Removing the CivicOS middleman is the clean fix."
+      },
+      {
+        "name": "direct_city_submission",
+        "description": "Authenticated endpoint for city clerks to submit meeting data directly (PDF upload + metadata). Bypasses scraping entirely. Extension UI for drag-and-drop upload.",
+        "status": "not_started",
+        "priority": 3,
+        "phase": "B",
+        "source": "onboarding friction \u2014 scraping is fragile, cities already have the data",
+        "files": [
+          "packages/civicos-services/src/civicos_services/servers/routers/",
+          "apps/civicos-extension/src/"
+        ],
+        "test_file": null,
+        "notes": "Trivial implementation: POST endpoint accepts {title, date, board, pdf_file}, runs AgendaPacketParser, calls store_meetings() + store_chunks(). Auth via API key per jurisdiction. Extension gets Upload Agenda button. Scraping pipeline remains as fallback for historical data and non-adopting cities. 1-2 sessions of work."
       }
     ]
   }
