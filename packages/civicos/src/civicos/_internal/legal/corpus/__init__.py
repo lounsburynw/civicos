@@ -16,6 +16,13 @@ from civicos._internal.legal.corpus.municipal import (
     parse_municipal_code,
     parse_municipal_code_pdf,  # Legacy alias
 )
+from civicos._internal.legal.corpus.refresh import (
+    ChangeSignal,
+    ChangeStatus,
+    RefreshPolicy,
+    RefreshRunner,
+    RefreshableCorpus,
+)
 
 __all__ = [
     "CaliforniaCorpus",
@@ -24,4 +31,9 @@ __all__ = [
     "MunicipalCodeSection",
     "parse_municipal_code",
     "parse_municipal_code_pdf",
+    "ChangeSignal",
+    "ChangeStatus",
+    "RefreshPolicy",
+    "RefreshRunner",
+    "RefreshableCorpus",
 ]

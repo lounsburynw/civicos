@@ -17,6 +17,7 @@ Critics are specialized prompts that review code changes against Civic's pattern
 | `security.critic.md` | Trust model integrity | Silent verification bypass, env var security holes, lazy crypto imports |
 | `jurisdiction.critic.md` | Jurisdiction isolation | Missing jurisdiction_id filters, hardcoded jurisdictions, data leakage |
 | `data.critic.md` | ETL data quality | Schema violations, type mismatches, missing fields |
+| `refresh.critic.md` | Refresh/upsert integrity | Accumulation bugs, self-referential checks, truncated fetch, whitespace drift |
 | `docs.critic.md` | Documentation accuracy | Stale paths, orphaned docs, dead links, bloat |
 
 ## Related Tools

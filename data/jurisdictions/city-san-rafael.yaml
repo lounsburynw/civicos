@@ -142,6 +142,24 @@ ingestion:
   vector_indexing: true
 
 # =============================================================================
+# Refresh Policies
+# =============================================================================
+
+refresh:
+  municipal_code:
+    interval: 90d
+    strategy: content_hash
+  meetings:
+    interval: 1d
+    strategy: incremental
+  issues:
+    interval: 1d
+    strategy: incremental
+  legislation:
+    interval: 7d
+    strategy: incremental
+
+# =============================================================================
 # Tool Configuration
 # =============================================================================
 
