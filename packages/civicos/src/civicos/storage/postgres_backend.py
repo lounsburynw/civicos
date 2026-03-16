@@ -2409,13 +2409,16 @@ class PostgresBackend:
                 decision_id = f"decision:{jurisdiction_id}:{meeting_date}:{item_part}"
 
                 # Close previous version of this specific decision only
+                # Skip if the current version was created at the same timestamp
+                # (same session re-extracting from a different view_id)
                 cursor.execute("""
                     UPDATE decisions
                     SET valid_to = %s
                     WHERE jurisdiction_id = %s
                       AND id = %s
                       AND valid_to IS NULL
-                """, (as_of.isoformat(), jurisdiction_id, decision_id))
+                      AND valid_from < %s
+                """, (as_of.isoformat(), jurisdiction_id, decision_id, as_of.isoformat()))
 
                 # Compute content hash for data integrity verification
                 content_hash = compute_decision_hash(decision)
@@ -2474,7 +2477,7 @@ class PostgresBackend:
                     json.dumps(decision.get('topics')) if decision.get('topics') else None,
                     json.dumps(decision.get('source_documents')) if decision.get('source_documents') else None,
                     decision.get('extraction_method'),
-                    decision.get('financial_impact_cents'),
+                    min(decision.get('financial_impact_cents') or 0, 2_147_483_647) or None,
                     as_of.isoformat(),
                     as_of.isoformat(),
                     content_hash,

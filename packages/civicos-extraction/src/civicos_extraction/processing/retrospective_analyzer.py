@@ -250,6 +250,33 @@ class RetrospectiveAnalyzer(AgendaIntegrator):
         else:
             return 'unknown'
 
+    def _resolve_minutes_url(self, url: str) -> str:
+        """Resolve Granicus MinutesViewer.php redirects to actual PDF URLs.
+
+        Granicus MinutesViewer.php often redirects (302) to a Google Docs gview
+        wrapper, which embeds the real PDF URL as a query parameter. Following
+        the redirect normally lands on Google Docs HTML, not the PDF itself.
+        """
+        if 'MinutesViewer.php' not in url:
+            return url
+
+        try:
+            from urllib.parse import parse_qs, urlparse
+
+            resp = self.session.get(url, allow_redirects=False, timeout=10)
+            if resp.status_code == 302 and 'location' in resp.headers:
+                location = resp.headers['location']
+                if 'docs.google.com/gview' in location:
+                    parsed = parse_qs(urlparse(location).query)
+                    if 'url' in parsed:
+                        actual_url = parsed['url'][0]
+                        logger.info(f"  Resolved MinutesViewer redirect → {actual_url.split('?')[0]}")
+                        return actual_url
+        except Exception as e:
+            logger.debug(f"MinutesViewer redirect resolution failed: {e}")
+
+        return url
+
     def _download_and_extract_agenda(
         self,
         agenda_url: str,
@@ -261,6 +288,9 @@ class RetrospectiveAnalyzer(AgendaIntegrator):
         extract text from those instead. PDFs have cleaner agenda content.
         """
         try:
+            # Resolve Granicus MinutesViewer.php → actual PDF URL
+            agenda_url = self._resolve_minutes_url(agenda_url)
+
             response = self.session.get(agenda_url, timeout=20, stream=True)
             response.raise_for_status()
 
