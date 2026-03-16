@@ -640,6 +640,138 @@ def _split_text_into_chunks(text: str, max_chars: int, overlap: int = 200) -> Li
     return chunks if chunks else [text[:max_chars]]
 
 
+def _classify_agenda_link(
+    links: List[Dict[str, str]],
+) -> Optional[str]:
+    """Identify the main agenda PDF from a list of document links.
+
+    Uses simple keyword heuristics first (free, fast), then falls back to
+    LLM classification if no match is found.
+
+    Args:
+        links: List of {'url': str, 'label': str}
+
+    Returns:
+        URL of the main agenda PDF, or None
+    """
+    labels = [(l['label'].lower(), l['url']) for l in links]
+
+    # Heuristic: label starts with "agenda" (Mill Valley pattern)
+    for label, url in labels:
+        if label.startswith('agenda'):
+            logger.info(f"  Found agenda PDF via label: {url[:80]}...")
+            return url
+
+    # Heuristic: label contains "full agenda" or "agenda packet"
+    for label, url in labels:
+        if 'full agenda' in label or 'agenda packet' in label:
+            logger.info(f"  Found agenda PDF via label: {url[:80]}...")
+            return url
+
+    # LLM fallback: ask which link is the main meeting agenda
+    if len(links) > 1:
+        try:
+            from civicos_services.core.llm_provider import get_model_for_task
+
+            model = get_model_for_task("fast")
+            link_list = "\n".join(
+                f"{i}: {l['label']}" for i, l in enumerate(links)
+            )
+            prompt = (
+                "Given these document links from a government meeting page, "
+                "which ONE is most likely the main meeting agenda document? "
+                "Return ONLY the number (0-indexed). If none is an agenda, "
+                "return -1.\n\n"
+                f"{link_list}"
+            )
+            resp = model.generate(prompt)
+            text = resp.strip().strip('.')
+            # Extract just the number
+            import re
+            match = re.search(r'-?\d+', text)
+            if match:
+                idx = int(match.group())
+                if 0 <= idx < len(links):
+                    url = links[idx]['url']
+                    logger.info(
+                        f"  LLM identified agenda: {links[idx]['label'][:50]} → {url[:60]}..."
+                    )
+                    return url
+        except (ImportError, Exception) as e:
+            logger.debug(f"LLM agenda classification unavailable: {e}")
+
+    return None
+
+
+def _llm_classify_pdf_links(
+    pdf_urls: List[str],
+) -> Optional[Dict[str, Optional[str]]]:
+    """Use LLM to classify PDF URLs by purpose (agenda, minutes, etc.).
+
+    Called as a fallback when regex patterns fail to identify agenda/minutes
+    PDFs from their filenames. Works across different naming conventions
+    and languages.
+
+    Args:
+        pdf_urls: List of PDF URLs to classify
+
+    Returns:
+        Dict with 'agenda_packet_url' and 'minutes_url', or None if LLM unavailable
+    """
+    if not pdf_urls:
+        return None
+
+    try:
+        from civicos_services.core.llm_provider import get_model_for_task
+    except ImportError:
+        return None
+
+    try:
+        model = get_model_for_task("fast")
+
+        # Extract just filenames for classification (cheaper, less noise)
+        from urllib.parse import urlparse, unquote
+        filenames = []
+        for url in pdf_urls:
+            path = unquote(urlparse(url).path)
+            filename = path.split('/')[-1] if '/' in path else path
+            filenames.append(filename)
+
+        file_list = "\n".join(
+            f"{i}: {fn}" for i, fn in enumerate(filenames)
+        )
+        prompt = (
+            "Classify these PDF filenames from a government meeting page.\n"
+            "Return JSON with two keys:\n"
+            '  "agenda": index of the main agenda/agenda packet (-1 if none)\n'
+            '  "minutes": index of the meeting minutes (-1 if none)\n\n'
+            f"{file_list}\n\n"
+            "Return ONLY the JSON object."
+        )
+
+        import json
+        resp = model.generate(prompt)
+        # Extract JSON from response
+        text = resp.strip()
+        if text.startswith('```'):
+            text = text.split('\n', 1)[1].rsplit('```', 1)[0]
+        result = json.loads(text)
+
+        classified = {}
+        agenda_idx = result.get('agenda', -1)
+        minutes_idx = result.get('minutes', -1)
+        if isinstance(agenda_idx, int) and 0 <= agenda_idx < len(pdf_urls):
+            classified['agenda_packet_url'] = pdf_urls[agenda_idx]
+        if isinstance(minutes_idx, int) and 0 <= minutes_idx < len(pdf_urls):
+            classified['minutes_url'] = pdf_urls[minutes_idx]
+
+        return classified if classified else None
+
+    except Exception as e:
+        logger.debug(f"LLM PDF classification failed: {e}")
+        return None
+
+
 def extract_pdf_urls_from_meeting_page(meeting_page_url: str) -> dict[str, Optional[str]]:
     """
     Parse an HTML meeting page to extract actual PDF URLs.
@@ -714,8 +846,6 @@ def extract_pdf_urls_from_meeting_page(meeting_page_url: str) -> dict[str, Optio
 
     # Granicus MetaViewer.php links (serve PDFs directly without .pdf in URL)
     # GeneratedAgendaViewer.php pages list per-item PDFs via MetaViewer.php.
-    # The first link with "Agenda" in the text is typically the agenda overview;
-    # individual item PDFs contain the actual staff reports and attachments.
     meta_viewer_urls = []
     for link in soup.find_all('a', href=True):
         href = link.get('href', '')
@@ -723,14 +853,15 @@ def extract_pdf_urls_from_meeting_page(meeting_page_url: str) -> dict[str, Optio
             abs_url = make_absolute(href)
             if abs_url:
                 link_text = link.get_text(strip=True)
-                if link_text.lower().startswith('agenda') and not result['agenda_packet_url']:
-                    result['agenda_packet_url'] = abs_url
-                    logger.info(f"  Found Granicus agenda PDF via MetaViewer: {abs_url[:80]}...")
                 meta_viewer_urls.append({'url': abs_url, 'label': link_text})
 
     if meta_viewer_urls:
         result['granicus_item_pdfs'] = meta_viewer_urls
         logger.info(f"  Found {len(meta_viewer_urls)} Granicus MetaViewer PDF links")
+
+        # Identify the main agenda PDF — try simple heuristic first, LLM fallback
+        if not result['agenda_packet_url']:
+            result['agenda_packet_url'] = _classify_agenda_link(meta_viewer_urls)
 
     if not pdf_urls and meta_viewer_urls:
         # Use MetaViewer links as PDF sources for fallback pattern matching
@@ -780,27 +911,37 @@ def extract_pdf_urls_from_meeting_page(meeting_page_url: str) -> dict[str, Optio
                         logger.info(f"  Found agenda packet in tab: {abs_url[:80]}...")
                         break
 
-    # Fallback: if no pattern matched but we have PDF links,
-    # use the first PDF (often the agenda on city sites)
+    # Fallback: LLM classification of PDF links when regex patterns fail
+    if not result['agenda_packet_url'] and pdf_urls:
+        classified = _llm_classify_pdf_links(pdf_urls)
+        if classified:
+            result['agenda_packet_url'] = classified.get('agenda_packet_url')
+            if not result['minutes_url']:
+                result['minutes_url'] = classified.get('minutes_url')
+            if result['agenda_packet_url']:
+                logger.info(f"  LLM classified agenda: {result['agenda_packet_url'][:80]}...")
+
+    # Final fallback: first PDF link
     if not result['agenda_packet_url'] and pdf_urls:
         result['agenda_packet_url'] = pdf_urls[0]
         logger.info(f"  Using first PDF link as agenda: {pdf_urls[0][:80]}...")
 
-    # Pattern match for minutes
-    minutes_patterns = [
-        r'cc-minutes.*\d{4}-\d{2}-\d{2}.*\.pdf',
-        r'minutes-\d{4}-\d{2}-\d{2}.*\.pdf',
-        r'\d{8}-cc-minutes.*\.pdf',
-        r'\d{4}-\d{2}-\d{2}[%20\s_-]*(?:.*?)[Mm]inutes.*\.pdf',
-    ]
+    # Pattern match for minutes (fast regex first)
+    if not result['minutes_url']:
+        minutes_patterns = [
+            r'cc-minutes.*\d{4}-\d{2}-\d{2}.*\.pdf',
+            r'minutes-\d{4}-\d{2}-\d{2}.*\.pdf',
+            r'\d{8}-cc-minutes.*\.pdf',
+            r'\d{4}-\d{2}-\d{2}[%20\s_-]*(?:.*?)[Mm]inutes.*\.pdf',
+        ]
 
-    for pattern in minutes_patterns:
-        for url in pdf_urls:
-            if re.search(pattern, url, re.I):
-                result['minutes_url'] = url
+        for pattern in minutes_patterns:
+            for url in pdf_urls:
+                if re.search(pattern, url, re.I):
+                    result['minutes_url'] = url
+                    break
+            if result['minutes_url']:
                 break
-        if result['minutes_url']:
-            break
 
     # Try #tab-minutes section
     if not result['minutes_url']:
