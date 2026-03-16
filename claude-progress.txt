@@ -22408,3 +22408,29 @@ instead of going through CivicOS query methods.
 - One context length exceeded error (146K tokens > 128K limit) — recovered via targeted extraction fallback
 
 **Impact:** Federation testbed now has searchable data for 3 Marin jurisdictions (San Rafael, Mill Valley, San Anselmo). `cross_marin_query_prototype` (P1) is unblocked.
+
+## Session — 2026-03-16: Turnkey Onboard Hardening (P0)
+
+**What was done:**
+- Added validation gate to `scripts/onboard.py` — 30-day sample + quality check before full 365-day backfill
+- Fixed cross-view meeting deduplication in `granicus.py:get_meetings()` — dedup by (date, title) instead of by ID
+- Added post-onboard quality report with red flag detection (chunks/meeting, agenda_items/meeting, decisions/meeting vs baselines)
+- Replaced fragile YAML string patching with `yaml.safe_load()`/`yaml.dump()` round-trip
+- Fixed slug normalization to handle special chars consistently
+- Added test for cross-view dedup (`test_get_meetings_dedup_across_views`)
+- Investigated data quality across all 3 Marin jurisdictions — probed Granicus views, verified meeting coverage
+
+**Data investigation findings:**
+- Mill Valley views 2+3 are identical mirrors (954 events each) — coverage is complete
+- San Anselmo view 8 is a superset containing all committee meetings — coverage is complete
+- Agenda items are actually strong: MV 476 (4.2/mtg), SA 770 (4.5/mtg)
+- Decisions are the gap: MV only 2/113, SA 96/171 (OK), SR 83/96 (good)
+- Granicus clip_ids available for ~10 meetings each (MV, SA) but not extracted as video_url
+- Agenda items table has no jurisdiction_id column — filtered by meeting_id prefix
+
+**Remaining (next session):**
+- Granicus video_url extraction from clip_ids (quick win)
+- Manual QC on Mill Valley minutes/decisions content
+- HTML chunk extraction for Granicus AgendaViewer pages
+- Idempotent re-runs (agenda/decision checkpoints)
+- San Rafael agenda items low (1.3/mtg) — investigate ProudCity path
