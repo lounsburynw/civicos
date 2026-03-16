@@ -186,6 +186,35 @@ civic-extract onboard --city "{city}" --state {ST} --full
 - Deploy to Modal for scheduled refresh: `modal deploy scripts/modal_ingest.py`
 - Update extension registry: `cd apps/civicos-registry && npx wrangler deploy`
 
+## Data Quality Reference (city-san-rafael)
+
+Use San Rafael as the baseline for what good ingestion looks like. After onboarding, compare the new jurisdiction's ratios against these. Large deviations signal platform-specific issues worth investigating before scaling up.
+
+| Metric | San Rafael | What it means |
+|--------|-----------|---------------|
+| meetings/month | ~16 | Healthy city council + commissions |
+| chunks/meeting | ~52 | Agenda PDFs are downloadable and parseable |
+| agenda_items/meeting | ~3 | LLM extraction is finding actionable items |
+| decisions/meeting | ~0.45 | Minutes contain votable decisions (not all meetings have them) |
+| vectors/meeting | ~171 | All corpora are indexing (meetings + chunks + decisions + transcripts) |
+| transcripts/meeting | ~0.19 | ~1 in 5 meetings have audio available |
+
+**Red flags after a 30-day sample:**
+- `chunks/meeting = 0` → Platform uses HTML agendas, not PDFs (e.g., Mill Valley Granicus). Chunk search won't work.
+- `decisions/meeting = 0` → Minutes are too thin or not yet posted. Decision search won't work.
+- `agenda_items/meeting = 0` → LLM extraction failing. Check if agendas are behind auth or in an unsupported format.
+- `meetings = 0` → Extraction config is wrong (bad view ID, wrong platform, etc.). Don't proceed.
+
+**Expected ranges by platform:**
+
+| Platform | chunks/meeting | decisions/meeting | Notes |
+|----------|---------------|-------------------|-------|
+| ProudCity | 40-80 | 0.3-0.6 | Direct PDF links, rich minutes |
+| Granicus (PDF) | 30-60 | 0.3-0.5 | S3-hosted PDFs |
+| Granicus (HTML) | **0** | 0.0-0.1 | No PDFs, thin HTML minutes |
+| Legistar | 20-50 | 0.3-0.5 | API-accessible attachments |
+| CivicClerk | 10-40 | 0.2-0.4 | OData API |
+
 ## Notes
 
 - Platform detection works for **Granicus** (direct *.granicus.com URLs, 95% confidence; indirect via city site links, 85%), **Legistar** (API probe), **CivicClerk** (OData probe), and **ProudCity** (HTML scrape).
