@@ -60,12 +60,16 @@ class DecisionCheckpoint:
     items_failed: int
     total_decisions: int
     timestamp: str
+    succeeded_meeting_ids: Optional[List[str]] = None
 
     def to_dict(self) -> dict:
         return asdict(self)
 
     @classmethod
     def from_dict(cls, data: dict) -> "DecisionCheckpoint":
+        # Handle old checkpoints without succeeded_meeting_ids
+        if "succeeded_meeting_ids" not in data:
+            data["succeeded_meeting_ids"] = []
         return cls(**data)
 
 
@@ -608,24 +612,28 @@ def run_decision_extraction(
     # Sort by date (oldest first for chronological processing)
     meetings = sorted(meetings, key=lambda m: m.get("meeting_date", "") or m.get("meeting_datetime", "")[:10])
 
-    # Check for existing checkpoint
+    # Check for existing checkpoint (ID-based, not index-based)
     checkpoint_path = checkpoint_path_for_decisions(jurisdiction_id, checkpoint_dir)
     resume_from = load_checkpoint(checkpoint_path)
-    start_index = 0
+    succeeded_ids = set()
 
     if resume_from:
         logger.info(f"Found checkpoint: {resume_from.items_processed} items processed")
-        # Find the index to resume from
-        for i, meeting in enumerate(meetings):
-            meeting_id = meeting.get("id") or meeting.get("meeting_id")
-            if meeting_id == resume_from.last_meeting_id:
-                start_index = i + 1
-                break
-        if start_index > 0:
-            logger.info(f"Resuming from meeting {start_index}")
+        if resume_from.succeeded_meeting_ids:
+            succeeded_ids = set(resume_from.succeeded_meeting_ids)
+            logger.info(f"  {len(succeeded_ids)} meetings already succeeded")
+
+    # Filter out already-succeeded meetings
+    meetings_to_process = [
+        m for m in meetings
+        if (m.get("id") or m.get("meeting_id")) not in succeeded_ids
+    ]
+    logger.info(f"  {len(meetings) - len(meetings_to_process)} meetings skipped (checkpoint)")
+
+    start_index = len(succeeded_ids)
 
     # Apply limit
-    meetings_to_process = meetings[start_index:]
+
     if limit > 0:
         meetings_to_process = meetings_to_process[:limit]
         logger.info(f"Limited to {limit} meetings")
@@ -700,8 +708,10 @@ def run_decision_extraction(
         if result.status == "success":
             items_extracted += 1
             total_decisions += result.decisions_count
+            succeeded_ids.add(meeting_id)
         elif result.status in ("skipped", "no_minutes"):
             items_skipped += 1
+            succeeded_ids.add(meeting_id)  # Don't re-process skipped meetings
         else:
             items_failed += 1
 
@@ -718,6 +728,7 @@ def run_decision_extraction(
                 items_failed=items_failed,
                 total_decisions=total_decisions,
                 timestamp=datetime.now().isoformat(),
+                succeeded_meeting_ids=sorted(succeeded_ids),
             )
             save_checkpoint(checkpoint, checkpoint_path)
             logger.debug(f"Checkpoint saved: {items_processed} processed")
@@ -735,6 +746,7 @@ def run_decision_extraction(
             items_failed=items_failed,
             total_decisions=total_decisions,
             timestamp=datetime.now().isoformat(),
+            succeeded_meeting_ids=sorted(succeeded_ids),
         )
         save_checkpoint(checkpoint, checkpoint_path)
 

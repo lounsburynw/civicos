@@ -502,6 +502,14 @@ HTML:
 
         meeting_id = f"granicus-{self.jurisdiction_id}-{view_id}-{date_str}-{title_slug}"
 
+        # Extract clip_id from agenda_url to construct video player URL
+        video_url = None
+        agenda_url = event.get("agenda_url", "")
+        if agenda_url:
+            clip_match = re.search(r"clip_id=(\d+)", agenda_url)
+            if clip_match:
+                video_url = f"{self.base_url}/player/clip/{clip_match.group(1)}"
+
         return Meeting(
             id=meeting_id,
             title=title,
@@ -511,6 +519,7 @@ HTML:
             status="scheduled",
             agenda_url=event.get("agenda_url"),
             minutes_url=event.get("minutes_url"),
+            video_url=video_url,
             source_platform="granicus",
             source_url=event.get("source_url"),
             raw_data=event,
