@@ -21,6 +21,7 @@ import concurrent.futures
 import json
 import logging
 import os
+import re
 import signal
 import sys
 import tempfile
@@ -465,6 +466,180 @@ def download_pdf(url: str, timeout: int = 60) -> Optional[bytes]:
         return None
 
 
+def extract_chunks_from_html_agenda(
+    agenda_url: str,
+    meeting_id: str,
+    max_chunk_chars: int = 1500,
+) -> List[Dict[str, Any]]:
+    """
+    Extract text chunks from an HTML agenda page (e.g., Granicus AgendaViewer).
+
+    Falls back to this when no PDF is available. Parses the HTML page for
+    structured agenda content and splits into chunks compatible with the
+    storage format.
+
+    Returns list of chunk dicts ready for storage, or empty list if extraction fails.
+    """
+    from bs4 import BeautifulSoup
+
+    session = requests.Session()
+    session.headers.update({
+        'User-Agent': (
+            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) '
+            'AppleWebKit/537.36 (KHTML, like Gecko) '
+            'Chrome/120.0.0.0 Safari/537.36'
+        ),
+    })
+
+    try:
+        resp = session.get(agenda_url, timeout=30)
+        resp.raise_for_status()
+    except requests.exceptions.RequestException as e:
+        logger.warning(f"  Failed to fetch HTML agenda: {e}")
+        return []
+
+    soup = BeautifulSoup(resp.text, "html.parser")
+
+    # Remove script/style tags
+    for tag in soup.find_all(["script", "style"]):
+        tag.decompose()
+
+    # Strategy 1: Try structured table extraction (Granicus AgendaViewer uses tables)
+    sections = _extract_agenda_sections_from_html(soup)
+
+    # Strategy 2: Fall back to body text if no structured sections found
+    if not sections:
+        body_text = soup.get_text(separator="\n", strip=True)
+        # Filter out very short pages (nav-only, error pages, etc.)
+        if len(body_text) < 200:
+            logger.warning(f"  HTML agenda page has too little text ({len(body_text)} chars)")
+            return []
+        sections = [{"item": "1", "title": "Meeting Agenda", "text": body_text}]
+
+    # Convert sections to chunks
+    chunks = []
+    chunk_idx = 0
+    for section in sections:
+        text = section["text"].strip()
+        if not text or len(text) < 20:
+            continue
+
+        # Split large sections into multiple chunks
+        if len(text) <= max_chunk_chars:
+            text_parts = [text]
+        else:
+            text_parts = _split_text_into_chunks(text, max_chunk_chars)
+
+        for i, part in enumerate(text_parts):
+            chunks.append({
+                "id": f"chunk-{meeting_id}-{chunk_idx}",
+                "meeting_id": meeting_id,
+                "text": part,
+                "agenda_item": section["item"],
+                "agenda_title": section["title"],
+                "page_start": 0,
+                "page_end": 0,
+                "chunk_index": i,
+                "total_chunks": len(text_parts),
+                "metadata": {
+                    "source_file": agenda_url,
+                    "source_type": "html_agenda",
+                },
+            })
+            chunk_idx += 1
+
+    return chunks
+
+
+def _extract_agenda_sections_from_html(soup) -> List[Dict[str, str]]:
+    """Extract structured agenda sections from HTML.
+
+    Handles Granicus AgendaViewer table format and generic heading-based
+    structures. Returns list of dicts with 'item', 'title', 'text' keys.
+    """
+    sections = []
+
+    # Granicus AgendaViewer: content is in nested tables with class patterns
+    # Look for rows that represent agenda items
+    tables = soup.find_all("table")
+    for table in tables:
+        rows = table.find_all("tr")
+        for row in rows:
+            cells = row.find_all(["td", "th"])
+            if len(cells) >= 2:
+                # Heuristic: first cell is item number, rest is content
+                first_text = cells[0].get_text(strip=True)
+                rest_text = " ".join(c.get_text(separator=" ", strip=True) for c in cells[1:])
+
+                # Check if first cell looks like an agenda item number
+                if re.match(r"^[A-Z]?\d+\.?[a-z]?\.?$", first_text) and len(rest_text) > 20:
+                    sections.append({
+                        "item": first_text,
+                        "title": rest_text[:120],
+                        "text": rest_text,
+                    })
+
+    # If table extraction found items, return them
+    if sections:
+        return sections
+
+    # Fallback: look for heading-based structure (h2, h3, h4 followed by content)
+    item_counter = 1
+    for heading in soup.find_all(["h2", "h3", "h4"]):
+        title = heading.get_text(strip=True)
+        if not title:
+            continue
+
+        # Collect text until next heading
+        content_parts = []
+        for sibling in heading.find_next_siblings():
+            if sibling.name in ["h2", "h3", "h4"]:
+                break
+            text = sibling.get_text(separator=" ", strip=True)
+            if text:
+                content_parts.append(text)
+
+        if content_parts:
+            sections.append({
+                "item": str(item_counter),
+                "title": title[:120],
+                "text": f"{title}\n\n" + "\n".join(content_parts),
+            })
+            item_counter += 1
+
+    return sections
+
+
+def _split_text_into_chunks(text: str, max_chars: int, overlap: int = 200) -> List[str]:
+    """Split text into chunks at paragraph boundaries with overlap."""
+    paragraphs = text.split("\n")
+    chunks = []
+    current = []
+    current_len = 0
+
+    for para in paragraphs:
+        para_len = len(para) + 1  # +1 for newline
+        if current_len + para_len > max_chars and current:
+            chunks.append("\n".join(current))
+            # Keep last paragraph(s) for overlap
+            overlap_parts = []
+            overlap_len = 0
+            for p in reversed(current):
+                if overlap_len + len(p) > overlap:
+                    break
+                overlap_parts.insert(0, p)
+                overlap_len += len(p)
+            current = overlap_parts
+            current_len = overlap_len
+        current.append(para)
+        current_len += para_len
+
+    if current:
+        chunks.append("\n".join(current))
+
+    return chunks if chunks else [text[:max_chars]]
+
+
 def extract_pdf_urls_from_meeting_page(meeting_page_url: str) -> dict[str, Optional[str]]:
     """
     Parse an HTML meeting page to extract actual PDF URLs.
@@ -842,14 +1017,43 @@ def extract_chunks_from_meeting(
                             logger.info(f"  No agenda packet found, using minutes PDF")
 
                 if not actual_pdf_url:
+                    # Strategy 3: Extract text chunks directly from HTML agenda
+                    logger.info(
+                        f"  No PDF links found. Trying HTML text extraction..."
+                    )
+                    html_chunks = extract_chunks_from_html_agenda(
+                        agenda_url, meeting_id
+                    )
+                    if html_chunks:
+                        logger.info(
+                            f"  Extracted {len(html_chunks)} chunks from HTML agenda"
+                        )
+                        # Store HTML chunks (same path as PDF chunks)
+                        stored_to_cloud = False
+                        if cloud_mode:
+                            stored_to_cloud = store_chunks_to_cloud(
+                                jurisdiction_id, html_chunks, meeting_id=meeting_id
+                            )
+                        if not stored_to_cloud:
+                            os.makedirs(output_dir, exist_ok=True)
+                            with open(output_path, "w") as f:
+                                json.dump(html_chunks, f, indent=2)
+
+                        return ChunksResult(
+                            meeting_id=meeting_id,
+                            meeting_date=meeting_date,
+                            status="success",
+                            chunks_count=len(html_chunks),
+                        )
+
                     logger.warning(
-                        f"  No PDF links found on meeting page: {agenda_url[:60]}..."
+                        f"  No PDF links or HTML content on meeting page: {agenda_url[:60]}..."
                     )
                     return ChunksResult(
                         meeting_id=meeting_id,
                         meeting_date=meeting_date,
                         status="error",
-                        error="No PDF links found on meeting page",
+                        error="No PDF links or extractable HTML content on meeting page",
                     )
 
                 # Download the actual PDF (pass session for cookie-gated sites)

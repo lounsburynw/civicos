@@ -1,3 +1,41 @@
+## Session — 2026-03-16: Turnkey Onboard Hardening (continued)
+
+**Item:** turnkey_onboard_hardening (P0)
+**Status:** Complete
+
+### Changes made:
+1. **Granicus video_url extraction** — `normalize_event()` now extracts clip_id from agenda_url and constructs video player URL (`/player/clip/{id}`). Test added.
+2. **HTML chunk extraction for Granicus** — New `extract_chunks_from_html_agenda()` function in chunks.py. When no PDF is found, falls back to parsing HTML agenda page with BeautifulSoup, extracting structured sections (table-based or heading-based), and chunking text. Integrated into the degenerate-case handler. 10 tests added.
+3. **Decision extraction idempotency** — Added `succeeded_meeting_ids` to `DecisionCheckpoint` (matching chunks/agenda pattern). Resume logic now filters by ID set instead of fragile index-based approach. Backward compatible with old checkpoints.
+
+### Tests: 64 passed (35 granicus + 10 html_chunks + 19 pipeline_checkpoint)
+### Files changed:
+- `packages/civicos-extraction/src/civicos_extraction/clients/granicus.py` — video_url in normalize_event
+- `packages/civicos-extraction/src/civicos_extraction/cli/chunks.py` — HTML chunk extraction + fallback integration
+- `packages/civicos-extraction/src/civicos_extraction/cli/decisions.py` — succeeded_meeting_ids checkpoint
+- `packages/civicos-extraction/tests/test_granicus.py` — video_url tests
+- `packages/civicos-extraction/tests/test_html_chunks.py` — new test file
+
+---
+
+## Session — 2026-03-16: Configurable Refresh Policies (from handoff)
+
+**Item:** configurable_refresh_policies
+**Status:** In Progress
+
+**What was done:**
+- Created `refresh.py` module with ChangeSignal, ChangeStatus, RefreshPolicy, RefreshRunner, diff_sections, content_hash
+- Added `check_for_update()` and `get_fingerprint()` to MunicipalCodeCorpus (Municode: job publish date)
+- Added `check_for_update()` and `get_fingerprint()` to AmericanLegalCorpus (supplement string from cached text)
+- Added `RefreshRunner` class: reads YAML policy → checks fingerprint → fetches → diffs by content hash → upserts deltas only → triggers re-embed
+- Added `refresh:` block to city-san-rafael.yaml (municipal_code 90d, meetings 1d, issues 1d, legislation 7d)
+- Added `refresh:` block to city-sacramento.yaml (municipal_code 90d)
+- Added `refresh_municipal_code()` Modal function to modal_ingest.py with `--refresh` CLI flag
+- Added `--force` flag to skip interval/fingerprint checks
+- Exported RefreshableCorpus protocol from corpus __init__.py
+- 38 unit tests passing (test_refresh.py)
+
+
 ## Session 39 — 2026-03-13: Attestation Expiry & Revocation (P0)
 
 **Item:** attestation_expiry

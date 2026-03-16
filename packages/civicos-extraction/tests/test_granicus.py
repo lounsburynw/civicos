@@ -180,6 +180,18 @@ class TestGranicusClient:
         assert meeting.meeting_type == "board_of_supervisors"
         assert meeting.source_platform == "granicus"
         assert meeting.meeting_datetime == datetime(2026, 3, 4)
+        assert meeting.video_url is None  # No clip_id in this URL
+
+    def test_normalize_event_extracts_video_url(self, client):
+        """video_url is constructed from clip_id in agenda_url."""
+        event = {
+            "title": "Council Meeting",
+            "parsed_date": datetime(2026, 3, 10),
+            "view_id": "2",
+            "agenda_url": "https://marin.granicus.com/AgendaViewer.php?view_id=2&clip_id=2042",
+        }
+        meeting = client.normalize_event(event)
+        assert meeting.video_url == "https://marin.granicus.com/player/clip/2042"
 
     def test_get_events_with_mock(self, client):
         """get_events iterates view_ids and applies date filter."""
