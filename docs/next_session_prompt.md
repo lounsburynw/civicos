@@ -1,79 +1,79 @@
-# Recommended: Turnkey Onboard Hardening (continued)
+# Recommended: Turnkey Onboard Hardening — Data Quality Verification
 
 **Priority:** P0 (`turnkey_onboard_hardening`)
 **Area:** federation_testbed
 **Date:** 2026-03-16
 
-> This is recommended context from the previous session. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
+> Code work is complete. This session should verify the new code against live data and close out remaining data quality gaps.
 
-## What was done this session
+## What's been built (ready to verify)
 
-Committed in `519b19a`:
+| Feature | Commit | Status |
+|---------|--------|--------|
+| Validation gate (sample before full backfill) | `519b19a` | Done |
+| Cross-view meeting dedup | `519b19a` | Done |
+| Post-onboard quality report | `519b19a` | Done |
+| Granicus video_url from clip_ids | `a2484f1` | Done — needs live verify |
+| HTML chunk extraction fallback | `a2484f1` | Done — needs live verify |
+| Decision checkpoint idempotency | `a2484f1` | Done |
+| LLM date parsing fallback | `3172a26` | Done |
 
-1. **Validation gate** (Gap 0) — `scripts/onboard.py` now runs a 30-day sample before full 365-day backfill. Quality report with red flag detection against San Rafael baselines. `--no-validate` to skip.
-2. **Cross-view dedup** (Gap 2/3) — `granicus.py:get_meetings()` deduplicates by (date, title) across views instead of by ID. Prevents duplicate LLM processing for multi-view Granicus sites like Mill Valley (views 2+3 are mirrors). Test added.
-3. **Quality report** (Gap 4) — Post-onboard Phase 4 now auto-generates a quality assessment with ratios (chunks/meeting, agenda_items/meeting, decisions/meeting) compared to baselines, plus actionable red flags.
-4. **YAML enrichment** (Gap 6) — Uses `yaml.safe_load()`/`yaml.dump()` instead of fragile string patching.
-5. **Slug normalization** (Gap 7) — `re.sub(r"[^a-z0-9]+", "-", ...)` handles special chars consistently.
+## Remaining: Data Quality Verification
 
-## What remains (prioritized)
+### 1. Live test HTML chunk extraction (FIRST PRIORITY)
+Mill Valley and San Anselmo have 0 chunks because agendas are HTML, not PDF. The new HTML fallback should fix this.
 
-### 1. Granicus video_url extraction (QUICK WIN)
-Granicus meetings have `clip_id` in their agenda URLs (e.g., `AgendaViewer.php?view_id=2&clip_id=2042`) but we don't set `video_url` on the Meeting. Mill Valley has ~10 meetings with clip_ids, San Anselmo ~10. Fix: extract clip_id in `normalize_event()` and set `video_url = f"https://{domain}.granicus.com/player/clip/{clip_id}"`. This unblocks transcription/diarization for Granicus cities.
+```bash
+# Test with a small batch first
+civic-extract chunks --jurisdiction city-mill-valley --cloud --limit 5
+civic-extract chunks --jurisdiction city-san-anselmo --cloud --limit 5
+
+# Check results
+/data-status city-mill-valley
+/data-status city-san-anselmo
+```
+
+**What to look for:**
+- Chunks count > 0 for both jurisdictions
+- Chunk text is meaningful (not nav elements, boilerplate, etc.)
+- `source_type: html_agenda` in chunk metadata
 
 ### 2. Mill Valley decisions quality (2/113 meetings)
-The MinutesViewer HTML is too thin for the LLM. 81 meetings have `minutes_url` but extraction only found 2 decisions. Need to investigate: is the HTML genuinely sparse, or is the minutes parser not extracting enough content? Manual QC needed (see below).
+81 meetings have `minutes_url` but only 2 decisions were extracted. Need to understand why.
 
-### 3. HTML chunk extraction for Granicus (Gap 1)
-Both Mill Valley and San Anselmo have 0 chunks because agenda URLs point to `AgendaViewer.php` (HTML) not PDFs. The chunk pipeline only handles PDFs. Fix: extract text from HTML agenda pages via BeautifulSoup when no PDF link is found.
-- `packages/civicos-extraction/cli/chunks.py:794+` — where PDF is validated
-- Affects all Granicus HTML jurisdictions
+**Manual QC steps:**
+- Open a Mill Valley `minutes_url` in browser (e.g., `https://cityofmillvalley.granicus.com/MinutesViewer.php?view_id=2&clip_id=2042`)
+- Is the HTML a full minutes document or a sparse summary?
+- Compare to San Anselmo minutes (96/171 decisions) — what's different?
+- If HTML is too thin, decisions may require video transcription first
 
-### 4. Idempotency on re-run (Gap 5)
-Re-running onboard may double LLM spend on agenda/decisions. Chunks already have checkpoint tracking. Agenda and decision extraction need similar checkpoint logic.
+**If minutes are genuinely sparse:** This is a data availability issue, not a code bug. Document it and move on.
 
-### 5. San Rafael agenda items seem low (1.3/meeting vs 4+ for Granicus cities)
-May be a ProudCity extraction path issue or different meeting composition. Worth investigating.
+### 3. Verify Granicus video_url extraction
+```python
+from dotenv import load_dotenv; load_dotenv()
+from civicos.storage import get_storage_backend
+backend = get_storage_backend()
+meetings = backend.get_meetings('city-mill-valley')
+with_video = [m for m in meetings if m.get('video_url')]
+print(f"Mill Valley meetings with video_url: {len(with_video)}/{len(meetings)}")
+```
 
-## Manual QC needed
+If video_urls aren't stored yet, need to re-run meeting extraction to pick up the new `normalize_event()` logic.
 
-**Before fixing extraction code, manually inspect the source content** to understand what's actually available:
+### 4. San Rafael agenda items low (1.3/meeting vs 4+)
+May be a ProudCity extraction path issue or different meeting composition (fewer committee meetings). Lower priority — investigate if time permits.
 
-1. **Mill Valley minutes** — Open a `minutes_url` (e.g., `https://cityofmillvalley.granicus.com/MinutesViewer.php?view_id=2&clip_id=2042`) in a browser. How much actual content is in the HTML? Is it a full minutes document or just a sparse summary?
+## When to close this P0
 
-2. **Mill Valley agenda** — Open an `agenda_url` (e.g., `https://cityofmillvalley.granicus.com/AgendaViewer.php?view_id=2&clip_id=2042`). What does the HTML contain? Are there embedded attachments/PDFs we're missing?
-
-3. **San Anselmo minutes vs Mill Valley** — San Anselmo got 96 decisions from 171 meetings. Compare their minutes HTML to Mill Valley's to understand why the extraction quality differs.
-
-4. **Granicus video** — Visit a clip URL (e.g., `https://cityofmillvalley.granicus.com/player/clip/2042`). Does it play? Is there a direct video/audio download link we can use for transcription?
-
-5. **Spot-check extracted decisions** — The 2 Mill Valley decisions ("$250K Downtown Revitalization", "Zoning Amendment for New Residential Development") — are these real decisions from real meetings, or LLM hallucinations from thin source content?
-
-## Current Data State
-
-| | San Rafael | Mill Valley | San Anselmo |
-|---|---|---|---|
-| Meetings | 96 | 113 (dupes in DB) | 171 |
-| Agenda items | 129 (1.3/mtg) | 476 (4.2/mtg) | 770 (4.5/mtg) |
-| Chunks | 7,078 | **0** | **0** |
-| Decisions | 83 (0.86/mtg) | **2** (0.02/mtg) | 96 (0.56/mtg) |
-| Video URLs | 31 (YouTube) | 0 stored (~10 available) | 0 stored (~10 available) |
-| Transcripts | 41 | 0 | 0 |
+Mark `turnkey_onboard_hardening` as `done` when:
+- [ ] HTML chunks extracted for Mill Valley (count > 0)
+- [ ] HTML chunks extracted for San Anselmo (count > 0)
+- [ ] Mill Valley decisions gap understood (code fix or documented limitation)
+- [ ] Video URLs verified in at least one Granicus jurisdiction
 
 ## Key Files
-
-- `scripts/onboard.py` — turnkey script with validation gate + quality report
-- `packages/civicos-extraction/src/civicos_extraction/clients/granicus.py:488` — `normalize_event()` (add video_url here)
-- `packages/civicos-extraction/cli/chunks.py:794+` — PDF validation (HTML extraction goes here)
-- `scripts/modal_ingest.py` — ingestion pipeline orchestration
-
-## Success Criteria
-
-- [x] Validation gate before full backfill
-- [x] Cross-view meeting deduplication
-- [x] Post-onboard quality report with red flags
-- [ ] Granicus video_url extracted from clip_ids
-- [ ] Manual QC on Mill Valley minutes/decisions content
-- [ ] Mill Valley chunks > 0 (HTML agenda extraction)
-- [ ] Idempotent re-runs (agenda/decision checkpoints)
-- [ ] `cross_marin_query_prototype` (P1) unblocked with quality data
+- `packages/civicos-extraction/src/civicos_extraction/cli/chunks.py` — HTML chunk extraction
+- `packages/civicos-extraction/src/civicos_extraction/clients/granicus.py` — video_url + LLM date fallback
+- `packages/civicos-extraction/src/civicos_extraction/cli/decisions.py` — idempotent checkpoints
+- `scripts/onboard.py` — turnkey onboarding with validation gate

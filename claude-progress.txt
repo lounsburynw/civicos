@@ -1,7 +1,7 @@
 ## Session — 2026-03-16: Turnkey Onboard Hardening (continued)
 
 **Item:** turnkey_onboard_hardening (P0)
-**Status:** Complete
+**Status:** Code complete — next session: live data verification
 
 ### Changes made:
 1. **Granicus video_url extraction** — `normalize_event()` now extracts clip_id from agenda_url and constructs video player URL (`/player/clip/{id}`). Test added.
