@@ -193,6 +193,28 @@ class TestGranicusClient:
         # All 3 events from sample HTML should be returned (within date range)
         assert len(events) >= 1
 
+    def test_get_meetings_dedup_across_views(self):
+        """get_meetings deduplicates same meeting across different view_ids."""
+        # Client with two views that contain overlapping meetings
+        c = GranicusClient(
+            granicus_domain="test",
+            jurisdiction_id="city-test",
+            view_ids={"council": "2", "archive": "3"},
+            default_view_id="2",
+        )
+        c._last_request_time = 999999999.0
+
+        mock_response = MagicMock()
+        mock_response.text = SAMPLE_GRANICUS_HTML  # Same HTML for both views
+        mock_response.status_code = 200
+
+        with patch.object(c, "_fetch_view", return_value=mock_response):
+            meetings = c.get_meetings(days_ahead=90, days_past=365)
+
+        # Both views return 3 events each (6 total), but same titles+dates
+        # should be deduplicated to 3 unique meetings
+        assert len(meetings) == 3
+
     def test_health_check(self, client):
         """Health check returns HealthStatus."""
         mock_response = MagicMock()
