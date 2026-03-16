@@ -330,6 +330,7 @@ LLM-based code review prompts in `.critics/` catch architectural issues before c
 | `security.critic.md` | Trust model integrity (silent verification bypass, env var holes, lazy crypto imports) |
 | `jurisdiction.critic.md` | Jurisdiction isolation (missing filters, hardcoded jurisdictions, data leakage) |
 | `data.critic.md` | ETL data quality (schema violations, type mismatches) |
+| `refresh.critic.md` | Refresh/upsert integrity (accumulation, truncated fetch, whitespace drift) |
 | `docs.critic.md` | Documentation accuracy (stale paths, orphaned docs, bloat) |
 
 **Usage:**

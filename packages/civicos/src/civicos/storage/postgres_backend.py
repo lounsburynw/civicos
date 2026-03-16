@@ -3655,11 +3655,31 @@ class PostgresBackend:
             """, (jurisdiction_id,))
             current_rows = cursor.fetchall()
 
-            # Index current rows by section_number (keep first if duplicates exist)
+            # Index current rows by section_number.
+            # If duplicates exist (from prior accumulation bugs), track the
+            # newest one for comparison and collect all IDs for cleanup.
             current_by_number: dict = {}
+            duplicate_ids: list = []
+            _seen_sections: set = set()
             for row_id, sn, full_text in current_rows:
-                if sn not in current_by_number:
+                if sn not in _seen_sections:
+                    _seen_sections.add(sn)
                     current_by_number[sn] = (row_id, full_text or "")
+                else:
+                    # Duplicate current row — close it
+                    duplicate_ids.append(row_id)
+
+            # Close any duplicate current rows (defensive cleanup)
+            if duplicate_ids:
+                import logging as _log
+                _log.getLogger(__name__).warning(
+                    f"Closing {len(duplicate_ids)} duplicate current rows "
+                    f"for {jurisdiction_id} municipal_code"
+                )
+                cursor.execute("""
+                    UPDATE municipal_code SET valid_to = %s
+                    WHERE id = ANY(%s) AND valid_to IS NULL
+                """, (as_of.isoformat(), duplicate_ids))
 
             # Determine which sections are new or changed
             import uuid
@@ -3667,11 +3687,17 @@ class PostgresBackend:
             sections_to_close = []  # section_numbers whose content changed
             sections_to_insert = []  # (sn, section) pairs to insert
 
+            def _normalize_for_comparison(text: str) -> str:
+                """Normalize text to avoid false positives from whitespace/encoding drift."""
+                import re as _re
+                # Collapse all whitespace (spaces, tabs, newlines) to single space
+                return _re.sub(r'\s+', ' ', text).strip()
+
             for sn, section in incoming_by_number.items():
                 new_text = section.get('full_text', '')
                 if sn in current_by_number:
                     _existing_id, existing_text = current_by_number[sn]
-                    if new_text == existing_text:
+                    if _normalize_for_comparison(new_text) == _normalize_for_comparison(existing_text):
                         continue  # Content unchanged — skip
                     # Content changed — close old version, insert new
                     sections_to_close.append(sn)
@@ -4579,6 +4605,7 @@ class PostgresBackend:
         error_message: Optional[str] = None,
         fetch_window_days: Optional[int] = None,
         next_scheduled_at: Optional[datetime] = None,
+        last_fetch_hash: Optional[str] = None,
     ) -> int:
         """
         Update or insert refresh metadata after a fetch operation.
@@ -4607,13 +4634,14 @@ class PostgresBackend:
             cursor.execute("""
                 INSERT INTO refresh_metadata (
                     jurisdiction_id, corpus_type, source_name,
-                    last_fetch_at, items_fetched, items_stored,
+                    last_fetch_at, last_fetch_hash, items_fetched, items_stored,
                     status, error_message, fetch_window_days,
                     next_scheduled_at, updated_at
-                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 ON CONFLICT (jurisdiction_id, corpus_type, source_name)
                 DO UPDATE SET
                     last_fetch_at = EXCLUDED.last_fetch_at,
+                    last_fetch_hash = COALESCE(EXCLUDED.last_fetch_hash, refresh_metadata.last_fetch_hash),
                     items_fetched = COALESCE(EXCLUDED.items_fetched, refresh_metadata.items_fetched),
                     items_stored = COALESCE(EXCLUDED.items_stored, refresh_metadata.items_stored),
                     status = EXCLUDED.status,
@@ -4627,6 +4655,7 @@ class PostgresBackend:
                 corpus_type,
                 source_name,
                 datetime.now(),
+                last_fetch_hash,
                 items_fetched,
                 items_stored,
                 status,

@@ -210,6 +210,14 @@ def fetch_municipal_code(
     with_text = sum(1 for s in sections if s.get("full_text"))
     logger.info(f"Fetched {len(sections)} sections ({with_text} with text) in {fetch_time:.1f}s")
 
+    # Capture fingerprint for future refresh comparisons
+    fingerprint = None
+    if hasattr(corpus, "get_fingerprint"):
+        try:
+            fingerprint = corpus.get_fingerprint()
+        except Exception:
+            pass
+
     stored_count = 0
     if not dry_run:
         backend = PostgresBackend(database_url)
@@ -222,6 +230,7 @@ def fetch_municipal_code(
                 items_fetched=len(sections),
                 items_stored=stored_count,
                 status="completed",
+                last_fetch_hash=fingerprint,
             )
         except Exception as e:
             logger.error(f"Error storing municipal code: {e}")
@@ -272,6 +281,106 @@ def fetch_municipal_code(
         )
 
     return result
+
+
+# =============================================================================
+# Municipal Code Refresh (incremental)
+# =============================================================================
+
+@app.function(
+    image=civic_image,
+    secrets=[modal.Secret.from_name("civic-db")],
+    memory=4096,
+    timeout=7200,
+)
+def refresh_municipal_code(
+    jurisdiction: str = "city-san-rafael",
+    force: bool = False,
+    dry_run: bool = False,
+    reindex: bool = True,
+) -> dict:
+    """Refresh municipal code if it has changed since the last fetch.
+
+    Checks for updates using publisher-specific fingerprinting (Municode job
+    publish date, AMLegal supplement string), then diffs against Postgres and
+    upserts only changed sections. Re-embeds changed sections afterward.
+
+    Args:
+        jurisdiction: Target jurisdiction (e.g., "city-san-rafael")
+        force: Skip interval/fingerprint checks and always refresh
+        dry_run: Check for changes but don't store
+        reindex: Re-embed changed sections after upsert
+    """
+    import logging
+    import os
+
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+    logger = logging.getLogger(__name__)
+
+    from civicos._internal.legal.corpus.refresh import RefreshRunner
+    from civicos.storage.postgres_backend import PostgresBackend
+
+    database_url = os.environ.get("DATABASE_URL")
+    if not database_url:
+        raise ValueError("DATABASE_URL environment variable not set")
+
+    backend = PostgresBackend(database_url)
+
+    # For vector reindexing, use the remote index_vectors function
+    # RefreshRunner handles the diff/upsert; we trigger reindex separately
+    runner = RefreshRunner(storage_backend=backend)
+
+    logger.info(f"[REFRESH] Starting municipal code refresh: {jurisdiction}")
+    result = runner.refresh_municipal_code(
+        jurisdiction_id=jurisdiction,
+        force=force,
+        dry_run=dry_run,
+        reindex_vectors=False,  # We'll trigger Modal reindex below
+    )
+
+    logger.info(
+        f"[REFRESH] {jurisdiction}: {result.status} "
+        f"(+{result.sections_added} ~{result.sections_modified} "
+        f"-{result.sections_removed} ={result.sections_unchanged})"
+    )
+
+    # Trigger vector reindexing via Modal if sections changed
+    vector_result = None
+    if (
+        reindex
+        and not dry_run
+        and result.status == "updated"
+        and (result.sections_added + result.sections_modified) > 0
+    ):
+        logger.info(f"[REFRESH] Triggering vector reindex for {jurisdiction}...")
+        vector_result = index_vectors.remote(
+            jurisdiction=jurisdiction,
+            corpus="municipal_code",
+            reindex=True,
+        )
+        logger.info(f"  Vectors indexed: {vector_result.get('total_indexed', 0)}")
+
+    output = {
+        "task": "refresh_municipal_code",
+        "jurisdiction": jurisdiction,
+        "status": result.status,
+        "sections_added": result.sections_added,
+        "sections_modified": result.sections_modified,
+        "sections_removed": result.sections_removed,
+        "sections_unchanged": result.sections_unchanged,
+        "dry_run": dry_run,
+        "force": force,
+        "elapsed_seconds": result.elapsed_seconds,
+    }
+    if result.change_signal:
+        output["fingerprint"] = result.change_signal.new_fingerprint
+        output["change_message"] = result.change_signal.message
+    if vector_result:
+        output["vector_result"] = vector_result
+    if result.error:
+        output["error"] = result.error
+
+    return output
 
 
 # =============================================================================
@@ -4467,6 +4576,8 @@ def main(
     agenda: bool = False,
     decisions: bool = False,
     vectors: bool = False,
+    refresh: bool = False,
+    force: bool = False,
     jurisdiction: str = "city-san-rafael",
     legislation_jurisdiction: str = "state-CA",
     legislation_limit: int | None = None,
@@ -4520,6 +4631,10 @@ def main(
         # Extract decisions (run weekly, not daily - minutes PDFs lag behind meetings)
         modal run scripts/modal_ingest.py --decisions
         modal run scripts/modal_ingest.py --decisions --decisions-limit 5
+
+        # Incremental refresh (checks fingerprint, diffs, upserts deltas only)
+        modal run scripts/modal_ingest.py --refresh --jurisdiction city-san-rafael
+        modal run scripts/modal_ingest.py --refresh --force  # Skip interval/fingerprint check
 
         # Combine components (skip legislation to save API quota)
         modal run scripts/modal_ingest.py --municipal --vectors
@@ -4588,9 +4703,10 @@ def main(
     run_decisions = decisions  # Explicitly not in --all (weekly only)
     run_videos = videos  # Not in --all (YouTube jurisdictions need explicit flag)
     run_vectors = all or vectors
+    run_refresh = refresh  # Not in --all (explicit only)
 
-    if not (run_municipal or run_legislation or run_executive_orders or run_federal_programs or run_federal_rules or run_legislative_events or run_meetings or run_issues or run_elections or run_elected_officials or run_videos or run_transcripts or run_chunks or run_agenda or run_decisions or run_vectors):
-        print("No tasks specified. Use --all, --municipal, --legislation, --executive-orders, --federal-programs, --federal-rules, --legislative-events, --meetings, --issues, --elections, --elected-officials, --videos, --transcripts, --chunks, --agenda, --decisions, or --vectors")
+    if not (run_municipal or run_legislation or run_executive_orders or run_federal_programs or run_federal_rules or run_legislative_events or run_meetings or run_issues or run_elections or run_elected_officials or run_videos or run_transcripts or run_chunks or run_agenda or run_decisions or run_vectors or run_refresh):
+        print("No tasks specified. Use --all, --municipal, --legislation, --executive-orders, --federal-programs, --federal-rules, --legislative-events, --meetings, --issues, --elections, --elected-officials, --videos, --transcripts, --chunks, --agenda, --decisions, --vectors, or --refresh")
         print("Use --stats-only to check current state")
         return
 
@@ -4630,6 +4746,8 @@ def main(
         task_list.append("decisions")
     if run_vectors:
         task_list.append("vectors")
+    if run_refresh:
+        task_list.append("refresh")
     print(f"Tasks: {' '.join(task_list)}")
     if run_municipal:
         print(f"  Municipal: {jurisdiction}")
@@ -4663,12 +4781,24 @@ def main(
         print(f"  Decisions: {jurisdiction}" + (f" (limit: {decisions_limit})" if decisions_limit else " (incremental)"))
     if run_vectors:
         print(f"  Vectors: {jurisdiction}")
+    if run_refresh:
+        print(f"  Refresh: {jurisdiction} (municipal_code)" + (" (force)" if force else ""))
     print(f"Dry run: {dry_run}")
     print(f"Auto-index: {auto_index}" + (" (vectors indexed after each store)" if auto_index else " (vectors NOT indexed after store)"))
     print("=" * 60)
 
     # Spawn tasks in parallel
     handles = []
+
+    if run_refresh:
+        print("\nSpawning municipal code refresh (incremental)...")
+        handle = refresh_municipal_code.spawn(
+            jurisdiction=jurisdiction,
+            force=force,
+            dry_run=dry_run,
+            reindex=auto_index,
+        )
+        handles.append(("refresh_municipal_code", handle))
 
     if run_municipal:
         print("\nSpawning municipal code fetch...")

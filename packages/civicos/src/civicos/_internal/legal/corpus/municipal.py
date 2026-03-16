@@ -548,6 +548,52 @@ class MunicipalCodeCorpus:
             "source": "municode.com API",
         }
 
+    def get_fingerprint(self) -> str:
+        """Get current fingerprint: Municode job publish date.
+
+        Lightweight — single API call to Jobs/latest.
+        """
+        meta = self.get_metadata()
+        publish_date = meta.get("publish_date") or meta.get("online_date") or ""
+        job_id = str(meta.get("job_id", ""))
+        return f"municode:{job_id}:{publish_date}"
+
+    def check_for_update(self, last_fingerprint: Optional[str] = None):
+        """Check if the municipal code has been republished.
+
+        Compares the current job publish date against the stored fingerprint.
+        """
+        from .refresh import ChangeSignal, ChangeStatus
+
+        try:
+            new_fp = self.get_fingerprint()
+        except Exception as e:
+            return ChangeSignal(
+                status=ChangeStatus.ERROR,
+                message=f"Failed to get Municode metadata: {e}",
+            )
+
+        if not last_fingerprint:
+            return ChangeSignal(
+                status=ChangeStatus.UNKNOWN,
+                new_fingerprint=new_fp,
+                message="No prior fingerprint — first fetch or unknown state",
+            )
+
+        if new_fp == last_fingerprint:
+            return ChangeSignal(
+                status=ChangeStatus.UNCHANGED,
+                old_fingerprint=last_fingerprint,
+                new_fingerprint=new_fp,
+            )
+
+        return ChangeSignal(
+            status=ChangeStatus.CHANGED,
+            old_fingerprint=last_fingerprint,
+            new_fingerprint=new_fp,
+            message=f"Job changed: {last_fingerprint} → {new_fp}",
+        )
+
     def get_toc(self) -> list[dict]:
         """Get table of contents (top-level titles)."""
         _, product_id, job_id = self._discover_client()

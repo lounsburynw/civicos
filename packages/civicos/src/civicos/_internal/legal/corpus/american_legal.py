@@ -734,6 +734,12 @@ class AmericanLegalCorpus:
         logger.info(f"Format spec cached to {fmt_path}")
         return spec
 
+    # AMLegal does not implement RefreshableCorpus (no check_for_update/get_fingerprint).
+    # Cloudflare blocks lightweight source checks, so change detection happens
+    # inside store_municipal_code() after a full download. The RefreshRunner
+    # skips the fingerprint gate for AMLegal and goes straight to fetch when
+    # the interval expires.
+
     def stream_sections(self, title_ids: Optional[list[str]] = None) -> Iterator[MunicipalCodeSection]:
         text = self._get_text()
         spec = self._get_format_spec(text)
