@@ -519,18 +519,23 @@ HTML:
     def get_meetings(
         self, days_ahead: int = 90, days_past: int = 0
     ) -> List[Meeting]:
-        """Get normalized meetings, deduplicated by ID.
+        """Get normalized meetings, deduplicated across views.
 
-        Granicus pages can list duplicate rows for the same meeting
-        (e.g., separate English/Spanish audio entries). This override
-        deduplicates by meeting ID, keeping the first occurrence.
+        Granicus sites with multiple view_ids (e.g., view 2 and view 3)
+        often list the same meeting in both. Deduplicates by (date, title)
+        across all views, keeping the first occurrence (lowest view_id).
+        Also deduplicates within a single view (e.g., English/Spanish rows).
         """
         events = self.get_events(days_ahead=days_ahead, days_past=days_past)
         seen: Dict[str, Meeting] = {}
         for event in events:
             meeting = self.normalize_event(event)
-            if meeting.id not in seen:
-                seen[meeting.id] = meeting
+            # Cross-view dedup key: date + title slug (ignoring view_id)
+            date_str = meeting.meeting_datetime.strftime("%Y%m%d")
+            title_slug = re.sub(r"[^a-z0-9]+", "-", meeting.title.lower()).strip("-")[:50]
+            dedup_key = f"{date_str}-{title_slug}"
+            if dedup_key not in seen:
+                seen[dedup_key] = meeting
         return list(seen.values())
 
     def health(self) -> HealthStatus:
