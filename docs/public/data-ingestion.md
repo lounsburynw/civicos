@@ -78,9 +78,53 @@ FETCH → NORMALIZE → VALIDATE → STORE → INDEX
 
 ## Adding a New City
 
-Adding a city is **configuration, not code** — if the city uses a supported platform. There are four steps: configure, register, ingest, and verify.
+### Turnkey (Recommended)
 
-### Step 1: Create a jurisdiction config
+One command from zero to searchable data:
+
+```bash
+python scripts/onboard.py --city "Mill Valley" --state CA --county Marin
+```
+
+This auto-detects the civic platform (Granicus, Legistar, etc.), generates both config files, then runs the full ingestion pipeline on Modal:
+
+1. **Config generation** — Creates `data/extraction/city-mill-valley.json` (platform config) and `data/jurisdictions/city-mill-valley.yaml` (governance metadata) via platform auto-discovery and geocoding
+2. **Meeting fetch** — Scrapes meetings from the detected platform (365 days of history by default)
+3. **Chunk extraction** — Downloads and parses agenda PDFs
+4. **Agenda items** — LLM-powered extraction of actionable items from agendas
+5. **Decisions** — LLM-powered extraction of high-stakes decisions from minutes
+6. **Vector indexing** — Embeds all corpora for semantic search
+
+**Options:**
+
+```bash
+# Preview what would happen (generate configs only, no ingestion)
+python scripts/onboard.py --city "Mill Valley" --state CA --county Marin --skip-ingestion
+
+# Dry run (fetch data but don't store)
+python scripts/onboard.py --city "Mill Valley" --state CA --county Marin --dry-run
+
+# Re-run on existing city (skips config generation, runs ingestion)
+python scripts/onboard.py --city "Mill Valley" --state CA --county Marin
+
+# Force regenerate configs
+python scripts/onboard.py --city "Mill Valley" --state CA --county Marin --force
+
+# Direct URL instead of auto-discovery
+python scripts/onboard.py --url "https://cityofmillvalley.granicus.com" --jurisdiction city-mill-valley --state CA --county Marin
+```
+
+**Verify:**
+
+```bash
+modal run scripts/modal_ingest.py --stats-only --jurisdiction city-mill-valley
+```
+
+### Manual (Step-by-Step)
+
+For more control, or if the turnkey flow doesn't support your platform:
+
+#### Step 1: Create a jurisdiction config
 
 Each jurisdiction has a YAML file in `data/jurisdictions/`. The file name matches the jurisdiction ID.
 

@@ -43,9 +43,10 @@
         "name": "amlegal_client_hardening",
         "description": "Harden American Legal Publishing client: test parser on 2-3 more cities (LA, SF, Chicago), store Sacramento to Postgres, verify vector indexing pipeline.",
         "priority": 1,
-        "status": "not_started",
+        "status": "in_progress",
         "test_file": "packages/civicos/tests/test_integration_pgvector.py",
-        "notes": "PR #21 (feature/data/american-legal-client) has the initial client. Sacramento pilot: 6,562 sections parsed from cached text export."
+        "notes": "Parser rewritten with deterministic format detection + LLM fallback (1956d3a). Tested on 4 cities: Sacramento (8,236 sections), Gridley (2,071), Fairfax (1,649), Pinole (1,978). 6 new cities in JURISDICTION_MAP. Remaining: store Sacramento to Postgres, verify vector indexing.",
+        "completed_in": "1956d3a (parser hardening)"
       }
     ]
   },
@@ -401,6 +402,19 @@
         "notes": "Done: cursor pagination (stateless base64 offsets), aggregate mode (counts + date ranges), trend mode (year-month buckets), 19 new tests (88 total). Remaining: live-data integration tests and RRF ranking calibration moved to query_interface_operators."
       },
       {
+        "name": "configurable_refresh_policies",
+        "description": "Configurable per-corpus refresh policies in jurisdiction YAML. Operators set interval and strategy for each data source (municipal_code, meetings, transcripts, etc.). System checks for changes and re-ingests only what changed.",
+        "status": "not_started",
+        "priority": 1,
+        "files": [
+          "data/jurisdictions/",
+          "scripts/modal_ingest.py",
+          "packages/civicos-extraction/"
+        ],
+        "test_file": null,
+        "notes": "Critical for multi-city operations. Without this, data freshness is manual and ad-hoc. Design: jurisdiction YAML gains a `refresh:` block with per-corpus `interval` (e.g. 90d, 1d) and `strategy` (supplement, incremental, full). The ingestion runner reads the policy and acts accordingly. For municipal_code: compare AMLegal supplement line against stored value, re-download + diff-upsert if changed. For meetings: fetch since last checkpoint. Scheduling is external (GH Actions cron), policies just define what to check. Prerequisite: supplement identifier storage, diff-aware re-ingestion (upsert changed sections, skip identical), vector re-indexing for changed sections only."
+      },
+      {
         "name": "query_interface_operators",
         "description": "v2 query interface operators and cross-jurisdiction support: set operators (- for diff/monitoring, & for intersection), multi-jurisdiction fan-out, civic jargon lookup via civic.context. Also: live-data integration tests and RRF ranking calibration (from hardening). See docs/public/decisions/query_interface.md open questions.",
         "status": "done",
@@ -475,25 +489,27 @@
       {
         "name": "marin_sibling_ingestion",
         "description": "Build a turnkey onboard-and-ingest flow, validate it by onboarding Mill Valley and San Anselmo end-to-end, then update docs so any operator can do the same.",
-        "status": "not_started",
-        "priority": 0,
+        "status": "done",
+        "priority": 1,
         "phase": "A",
         "source": "federation testbed — data prerequisite for cross_marin_query_prototype + operator experience validation",
         "files": [
+          "scripts/onboard.py",
           "scripts/modal_ingest.py",
           "packages/civicos-extraction/src/civicos_extraction/onboard.py",
+          "packages/civicos-extraction/src/civicos_extraction/clients/base.py",
           "data/jurisdictions/",
           "data/extraction/",
           "docs/public/data-ingestion.md"
         ],
         "test_file": null,
-        "notes": "Three deliverables: (1) Streamline onboard into a single entry point that generates both configs (extraction JSON + jurisdiction YAML) and runs Tier 1+2+4 ingestion. (2) Validate by running it on Mill Valley (missing YAML) and San Anselmo (missing extraction config) — success = non-zero decisions + vectors for both. (3) Update data-ingestion.md with the turnkey flow so a newbie operator can follow it. Current gaps: two separate config files with no single command, /onboard is a Claude Code skill not an operator CLI, civic-extract onboard --full may not exist yet."
+        "notes": "Done 2026-03-15. Turnkey onboard script (scripts/onboard.py) generates configs + runs Modal ingestion in one command. Mill Valley: 57 meetings, 166 agenda items, 2 decisions, 591 vectors. San Anselmo: 152 meetings, 34 new agenda items, 112 decisions, 1037 vectors. Both jurisdictions now have non-zero decisions + vectors. Chunks were 0/14 due to Granicus HTML agendas (MV) and SSL cert errors (SA) — not blocking."
       },
       {
         "name": "cross_marin_query_prototype",
         "description": "Cross-jurisdiction queries within Marin County via v2 query layer. SearchRequest.include_parents/include_siblings with tier-based relevance boosting.",
         "status": "not_started",
-        "priority": 1,
+        "priority": 0,
         "phase": "A",
         "source": "federation testbed \u2014 query federation",
         "spec": "docs/internal/cross-jurisdiction-query-spec.md",

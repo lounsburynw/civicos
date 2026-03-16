@@ -80,6 +80,9 @@ Usage:
     # Dry run (fetch but don't store)
     modal run scripts/modal_ingest.py --all --dry-run
 
+    # Turnkey onboard (separate script — generates configs, then runs ingestion)
+    python scripts/onboard.py --city "Mill Valley" --state CA --county Marin
+
 API Quota Considerations:
     - Municode API: No quota, 2 req/s rate limit - always safe to run
     - LegiScan API: 30,000 queries/month free tier
@@ -4920,3 +4923,4 @@ def main(
     print("=" * 60)
     print(f"Total estimated cost: ${total_cost:.4f}")
     print("=" * 60)
+

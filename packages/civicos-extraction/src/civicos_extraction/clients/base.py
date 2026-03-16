@@ -236,9 +236,14 @@ class ExtractionConfig:
         config_path = get_config_dir() / f"{config_name}.json"
 
         if not config_path.exists():
-            raise FileNotFoundError(
-                f"No extraction config found for {jurisdiction_id} at {config_path}"
-            )
+            # Fallback: try full jurisdiction ID as filename (e.g., city-mill-valley.json)
+            alt_path = get_config_dir() / f"{jurisdiction_id}.json"
+            if alt_path.exists():
+                config_path = alt_path
+            else:
+                raise FileNotFoundError(
+                    f"No extraction config found for {jurisdiction_id} at {config_path} or {alt_path}"
+                )
         return cls.from_file(str(config_path))
 
 

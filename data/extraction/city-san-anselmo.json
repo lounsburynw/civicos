@@ -1,0 +1,18 @@
+{
+  "source_id": "granicus-city-san-anselmo",
+  "source_type": "granicus",
+  "jurisdiction_id": "city-san-anselmo",
+  "base_url": "https://sananselmo-ca.granicus.com",
+  "archives": {
+    "all_bodies": "8"
+  },
+  "metadata": {
+    "granicus_domain": "sananselmo-ca",
+    "default_view_id": "8",
+    "notes": "View 8 is the main publisher ('USE FOR ALL PUBLIC MEETINGS'). View 4 is training/test. View 1 returns 404. Also has Legistar API with 21 bodies. All bodies combined in single Granicus view."
+  },
+  "financial": {
+    "state": "CA",
+    "county": "Marin"
+  }
+}

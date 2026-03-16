@@ -4,6 +4,18 @@ Interactive jurisdiction onboarding wizard. Detects the civic platform automatic
 
 Supports cities, counties, and other jurisdiction levels.
 
+## Turnkey Option
+
+For a fully automated onboard, use the standalone script:
+
+```bash
+python scripts/onboard.py --city "<CITY_NAME>" --state <ST> --county "<COUNTY>"
+```
+
+This generates both configs and runs the full Modal ingestion pipeline. Use `--skip-ingestion` to generate configs only, or `--dry-run` to preview without storing.
+
+## Interactive Steps (if turnkey doesn't fit)
+
 ## Steps
 
 ### Step 1: Gather Information
