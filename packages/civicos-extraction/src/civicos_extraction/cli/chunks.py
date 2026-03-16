@@ -712,6 +712,30 @@ def extract_pdf_urls_from_meeting_page(meeting_page_url: str) -> dict[str, Optio
             if abs_url:
                 pdf_urls.append(abs_url)
 
+    # Granicus MetaViewer.php links (serve PDFs directly without .pdf in URL)
+    # GeneratedAgendaViewer.php pages list per-item PDFs via MetaViewer.php.
+    # The first link with "Agenda" in the text is typically the agenda overview;
+    # individual item PDFs contain the actual staff reports and attachments.
+    meta_viewer_urls = []
+    for link in soup.find_all('a', href=True):
+        href = link.get('href', '')
+        if 'MetaViewer' in href:
+            abs_url = make_absolute(href)
+            if abs_url:
+                link_text = link.get_text(strip=True)
+                if link_text.lower().startswith('agenda') and not result['agenda_packet_url']:
+                    result['agenda_packet_url'] = abs_url
+                    logger.info(f"  Found Granicus agenda PDF via MetaViewer: {abs_url[:80]}...")
+                meta_viewer_urls.append({'url': abs_url, 'label': link_text})
+
+    if meta_viewer_urls:
+        result['granicus_item_pdfs'] = meta_viewer_urls
+        logger.info(f"  Found {len(meta_viewer_urls)} Granicus MetaViewer PDF links")
+
+    if not pdf_urls and meta_viewer_urls:
+        # Use MetaViewer links as PDF sources for fallback pattern matching
+        pdf_urls = [m['url'] for m in meta_viewer_urls]
+
     # Embeds and iframes
     for tag in soup.find_all(['embed', 'iframe']):
         src = tag.get('src', '')
@@ -924,6 +948,128 @@ def _parse_pdf_with_timeout(
             )
 
 
+def _extract_granicus_multi_pdf(
+    item_pdfs: List[Dict[str, str]],
+    meeting_id: str,
+    meeting_date: str,
+    jurisdiction_id: str,
+    cloud_mode: bool,
+    output_dir: str,
+    output_path: str,
+    timeout: int = PDF_PARSE_TIMEOUT_SECONDS,
+) -> Optional["ChunksResult"]:
+    """
+    Download and parse multiple Granicus MetaViewer PDFs for a single meeting.
+
+    Granicus GeneratedAgendaViewer pages list individual item PDFs (staff reports,
+    attachments) via MetaViewer.php links. This downloads each one and combines
+    the chunks, producing much richer coverage than a single agenda PDF.
+
+    Args:
+        item_pdfs: List of {'url': str, 'label': str} from extract_pdf_urls_from_meeting_page
+        meeting_id: Meeting ID for chunk namespacing
+        jurisdiction_id: Jurisdiction ID
+        cloud_mode: Store to cloud if True
+        output_dir: Local output directory
+        output_path: Local output file path
+        timeout: PDF parsing timeout per PDF
+
+    Returns:
+        ChunksResult if extraction succeeds, None to fall back to single-PDF path
+    """
+    from civicos._internal.meetings.pdf_parser import AgendaPacketParser
+
+    parser = AgendaPacketParser()
+    all_chunks_data = []
+    pdfs_processed = 0
+    pdfs_failed = 0
+
+    for item_pdf in item_pdfs:
+        pdf_url = item_pdf['url']
+        label = item_pdf.get('label', '')
+
+        try:
+            dl = download_and_validate_pdf(pdf_url, timeout=30)
+            if not dl.content or not dl.is_valid_pdf:
+                pdfs_failed += 1
+                continue
+
+            pdfs_processed += 1
+
+            with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as f:
+                f.write(dl.content)
+                temp_path = f.name
+
+            try:
+                source_metadata = {
+                    "source_file": pdf_url,
+                    "source_type": "agenda_packet",
+                }
+                chunks = _parse_pdf_with_timeout(
+                    parser, temp_path, source_metadata, timeout_seconds=timeout
+                )
+
+                # Compute PDF hash
+                try:
+                    from civicos.storage.integrity import compute_pdf_hash
+                    pdf_hash = compute_pdf_hash(dl.content)
+                except ImportError:
+                    pdf_hash = None
+
+                for chunk in chunks:
+                    chunk_dict = chunk.to_dict()
+                    # Use label to provide better agenda_item context
+                    if label and not chunk_dict.get('agenda_title'):
+                        chunk_dict['agenda_title'] = label
+                    chunk_dict["meeting_id"] = meeting_id
+                    chunk_dict["pdf_hash"] = pdf_hash
+                    all_chunks_data.append(chunk_dict)
+
+            except PDFParseTimeoutError:
+                logger.warning(f"  Timeout parsing {label[:40]}")
+                pdfs_failed += 1
+            finally:
+                try:
+                    os.unlink(temp_path)
+                except OSError:
+                    pass
+
+        except Exception as e:
+            logger.debug(f"  Failed to process {label[:40]}: {e}")
+            pdfs_failed += 1
+
+    if not all_chunks_data:
+        logger.info(f"  No chunks from {pdfs_processed} Granicus PDFs")
+        return None  # Fall back to single-PDF path
+
+    # Assign sequential chunk IDs
+    for i, chunk_dict in enumerate(all_chunks_data):
+        chunk_dict["id"] = f"chunk-{meeting_id}-{i}"
+
+    # Store
+    stored_to_cloud = False
+    if cloud_mode:
+        stored_to_cloud = store_chunks_to_cloud(
+            jurisdiction_id, all_chunks_data, meeting_id=meeting_id
+        )
+    if not stored_to_cloud:
+        os.makedirs(output_dir, exist_ok=True)
+        with open(output_path, "w") as f:
+            json.dump(all_chunks_data, f, indent=2)
+
+    logger.info(
+        f"  ✓ Extracted {len(all_chunks_data)} chunks from "
+        f"{pdfs_processed} Granicus PDFs ({pdfs_failed} failed)"
+    )
+
+    return ChunksResult(
+        meeting_id=meeting_id,
+        meeting_date=meeting_date,
+        status="success",
+        chunks_count=len(all_chunks_data),
+    )
+
+
 def extract_chunks_from_meeting(
     meeting: Dict[str, Any],
     output_dir: str,
@@ -1072,14 +1218,28 @@ def extract_chunks_from_meeting(
                 # Strategy 2: Scrape the HTML meeting page for PDF links
                 # (handles redirects, e.g. Granicus → city Drupal site)
                 scrape_session = None
+                granicus_item_pdfs = None
                 if not actual_pdf_url:
                     pdf_urls = extract_pdf_urls_from_meeting_page(agenda_url)
                     scrape_session = pdf_urls.pop('_session', None)
+                    granicus_item_pdfs = pdf_urls.get('granicus_item_pdfs')
                     actual_pdf_url = pdf_urls.get('agenda_packet_url')
                     if not actual_pdf_url:
                         actual_pdf_url = pdf_urls.get('minutes_url')
                         if actual_pdf_url:
                             logger.info(f"  No agenda packet found, using minutes PDF")
+
+                # Strategy 2b: Granicus multi-PDF extraction
+                # GeneratedAgendaViewer pages list individual item PDFs via MetaViewer.
+                # Download and parse all of them for comprehensive chunk coverage.
+                if granicus_item_pdfs and len(granicus_item_pdfs) > 1:
+                    all_chunks = _extract_granicus_multi_pdf(
+                        granicus_item_pdfs, meeting_id, meeting_date,
+                        jurisdiction_id, cloud_mode, output_dir, output_path,
+                        timeout=timeout,
+                    )
+                    if all_chunks is not None:
+                        return all_chunks
 
                 if not actual_pdf_url:
                     # Strategy 3: Extract text chunks directly from HTML agenda
