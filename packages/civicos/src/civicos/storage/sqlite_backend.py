@@ -1314,8 +1314,8 @@ class SQLiteBackend:
                 # Generate namespaced chunk ID
                 # Format: chunk:{jurisdiction}:{meeting_id}:{index}
                 meeting_id_ref = chunk.get('meeting_id', 'unknown')
-                chunk_index = chunk.get('chunk_index', i)
-                chunk_id = f"chunk:{jurisdiction_id}:{meeting_id_ref}:{chunk_index:04d}"
+                # Use loop index for globally unique chunk ID (chunk_index may be per-section)
+                chunk_id = f"chunk:{jurisdiction_id}:{meeting_id_ref}:{i:04d}"
 
                 cursor.execute("""
                     INSERT INTO chunks (
