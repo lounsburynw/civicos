@@ -404,15 +404,16 @@
       {
         "name": "configurable_refresh_policies",
         "description": "Configurable per-corpus refresh policies in jurisdiction YAML. Operators set interval and strategy for each data source (municipal_code, meetings, transcripts, etc.). System checks for changes and re-ingests only what changed.",
-        "status": "not_started",
+        "status": "in_progress",
         "priority": 1,
         "files": [
           "data/jurisdictions/",
           "scripts/modal_ingest.py",
-          "packages/civicos-extraction/"
+          "packages/civicos/src/civicos/_internal/legal/corpus/refresh.py",
+          "packages/civicos/src/civicos/storage/postgres_backend.py"
         ],
-        "test_file": null,
-        "notes": "Critical for multi-city operations. Without this, data freshness is manual and ad-hoc. Design: jurisdiction YAML gains a `refresh:` block with per-corpus `interval` (e.g. 90d, 1d) and `strategy` (supplement, incremental, full). The ingestion runner reads the policy and acts accordingly. For municipal_code: compare AMLegal supplement line against stored value, re-download + diff-upsert if changed. For meetings: fetch since last checkpoint. Scheduling is external (GH Actions cron), policies just define what to check. Prerequisite: supplement identifier storage, diff-aware re-ingestion (upsert changed sections, skip identical), vector re-indexing for changed sections only."
+        "test_file": "packages/civicos/tests/test_refresh.py",
+        "notes": "Core infrastructure done (fd77c05): RefreshRunner, CorpusProvider protocol (Municode fingerprint gate, AMLegal interval-only), YAML refresh: block, modal run --refresh CLI, safety valves (>50% modified or >20% removed), normalized text comparison, duplicate row defense, refresh.critic.md. 41 tests + real-data simulation. Remaining: (1) GH Actions cron workflow for scheduled --refresh, (2) extend RefreshRunner to meetings/issues/legislation corpus types, (3) operator notification on detected changes."
       },
       {
         "name": "query_interface_operators",
@@ -492,7 +493,7 @@
         "status": "done",
         "priority": 1,
         "phase": "A",
-        "source": "federation testbed — data prerequisite for cross_marin_query_prototype + operator experience validation",
+        "source": "federation testbed \u2014 data prerequisite for cross_marin_query_prototype + operator experience validation",
         "files": [
           "scripts/onboard.py",
           "scripts/modal_ingest.py",
@@ -503,28 +504,28 @@
           "docs/public/data-ingestion.md"
         ],
         "test_file": null,
-        "notes": "Done 2026-03-15. Turnkey onboard script (scripts/onboard.py) generates configs + runs Modal ingestion in one command. Mill Valley: 57 meetings, 166 agenda items, 2 decisions, 591 vectors. San Anselmo: 152 meetings, 34 new agenda items, 112 decisions, 1037 vectors. Both jurisdictions now have non-zero decisions + vectors. Chunks were 0/14 due to Granicus HTML agendas (MV) and SSL cert errors (SA) — not blocking."
+        "notes": "Done 2026-03-15. Turnkey onboard script (scripts/onboard.py) generates configs + runs Modal ingestion in one command. Mill Valley: 57 meetings, 166 agenda items, 2 decisions, 591 vectors. San Anselmo: 152 meetings, 34 new agenda items, 112 decisions, 1037 vectors. Both jurisdictions now have non-zero decisions + vectors. Chunks were 0/14 due to Granicus HTML agendas (MV) and SSL cert errors (SA) \u2014 not blocking."
       },
       {
         "name": "turnkey_onboard_hardening",
         "description": "Add a validation gate (small sample + quality check before full backfill) and fix data quality gaps: HTML agenda chunk extraction for Granicus, duplicate meeting deduplication, post-onboard quality report, and idempotent re-runs.",
-        "status": "not_started",
+        "status": "done",
         "priority": 0,
         "phase": "A",
-        "source": "marin_sibling_ingestion validation — gaps found during Mill Valley + San Anselmo onboarding",
+        "source": "marin_sibling_ingestion validation \u2014 gaps found during Mill Valley + San Anselmo onboarding",
         "files": [
           "scripts/onboard.py",
           "packages/civicos-extraction/src/civicos_extraction/onboard.py",
           "scripts/modal_ingest.py"
         ],
         "test_file": null,
-        "notes": "Eight gaps identified: (0) No validation gate — ingests 365 days blind, should sample 30 days first, verify quality (chunks>0? decisions>0?), then scale up only if quality passes. Prevents burning $3-4 on jurisdictions with unextractable data. (1) Chunks=0 for Granicus HTML AgendaViewer sites — need to extract text from GeneratedAgendaViewer HTML pages when no PDF link exists. (2) Only 2/57 decisions for Mill Valley — thin HTML minutes, need quality signal. (3) Duplicate meetings from multi-view archives — view 2 and 3 contain same meetings, wastes LLM spend. (4) No post-onboard quality report — operator can't tell if results are good or bad. (5) County enrichment is fragile string patching on YAML. (6) No idempotency — re-run doubles LLM spend on agenda/decisions. (7) City name sensitivity — slug derivation is case/prefix sensitive. Must fix before open sourcing and before cross-jurisdiction queries can rely on this data."
+        "notes": "Eight gaps identified: (0) No validation gate \u2014 ingests 365 days blind, should sample 30 days first, verify quality (chunks>0? decisions>0?), then scale up only if quality passes. Prevents burning $3-4 on jurisdictions with unextractable data. (1) Chunks=0 for Granicus HTML AgendaViewer sites \u2014 need to extract text from GeneratedAgendaViewer HTML pages when no PDF link exists. (2) Only 2/57 decisions for Mill Valley \u2014 thin HTML minutes, need quality signal. (3) Duplicate meetings from multi-view archives \u2014 view 2 and 3 contain same meetings, wastes LLM spend. (4) No post-onboard quality report \u2014 operator can't tell if results are good or bad. (5) County enrichment is fragile string patching on YAML. (6) No idempotency \u2014 re-run doubles LLM spend on agenda/decisions. (7) City name sensitivity \u2014 slug derivation is case/prefix sensitive. Must fix before open sourcing and before cross-jurisdiction queries can rely on this data."
       },
       {
         "name": "cross_marin_query_prototype",
         "description": "Cross-jurisdiction queries within Marin County via v2 query layer. SearchRequest.include_parents/include_siblings with tier-based relevance boosting.",
         "status": "not_started",
-        "priority": 1,
+        "priority": 0,
         "phase": "A",
         "source": "federation testbed \u2014 query federation",
         "spec": "docs/internal/cross-jurisdiction-query-spec.md",

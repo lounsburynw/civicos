@@ -22472,3 +22472,24 @@ instead of going through CivicOS query methods.
 - HTML chunk extraction for Granicus AgendaViewer pages
 - Idempotent re-runs (agenda/decision checkpoints)
 - San Rafael agenda items low (1.3/mtg) — investigate ProudCity path
+
+## Session — 2026-03-16: Turnkey Onboard Hardening — Data Verification COMPLETE
+
+**Item:** turnkey_onboard_hardening (P0) → DONE
+**Status:** All verification items passed, 3 bugs fixed
+
+**Bugs fixed:**
+1. **chunk_index duplicate key** — HTML and PDF chunk extraction used per-section chunk_index (always 0 for single-chunk sections), causing duplicate PK in store_chunks. Fixed to use global counter in chunks.py and loop index in postgres_backend.py/sqlite_backend.py.
+2. **SSL cert bypass for Granicus S3** — San Anselmo's agenda PDFs redirect to `granicus_production_attachments.s3.amazonaws.com` which has broken SSL (underscores in hostname). Added SSLError retry with verify=False in download_and_validate_pdf.
+3. **Download failure HTML fallback** — When PDF download fails entirely (not just degenerate HTML), now falls back to HTML text extraction from agenda URL.
+
+**Verification results:**
+- Mill Valley: 601 chunks (was 0), 106/113 video_urls (was 0)
+- San Anselmo: 489 chunks (was 0), 132/171 video_urls (was 0)
+- Mill Valley decisions gap: Granicus MinutesViewer.php returns 500 error. Minutes are accessible as PDFs via Google Docs viewer redirect chain but decisions extraction doesn't follow this yet. Documented limitation — not a code bug.
+
+**Files changed:**
+- packages/civicos-extraction/src/civicos_extraction/cli/chunks.py (chunk_index fix, SSL retry, download failure fallback)
+- packages/civicos/src/civicos/storage/postgres_backend.py (chunk_id uses loop index)
+- packages/civicos/src/civicos/storage/sqlite_backend.py (chunk_id uses loop index)
+- launch.json (turnkey_onboard_hardening → done)

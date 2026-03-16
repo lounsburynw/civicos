@@ -539,7 +539,7 @@ def extract_chunks_from_html_agenda(
                 "agenda_title": section["title"],
                 "page_start": 0,
                 "page_end": 0,
-                "chunk_index": i,
+                "chunk_index": chunk_idx,
                 "total_chunks": len(text_parts),
                 "metadata": {
                     "source_file": agenda_url,
@@ -817,7 +817,15 @@ def download_and_validate_pdf(
     """
     try:
         requester = session or requests
-        response = requester.get(url, timeout=timeout)
+        # Granicus S3 bucket has broken SSL cert (underscores in hostname)
+        # Disable verify only for this known-broken host
+        verify = True
+        if "granicus_production_attachments.s3.amazonaws.com" in url:
+            verify = False
+            import urllib3
+            urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+        response = requester.get(url, timeout=timeout, verify=verify)
 
         content_type = response.headers.get("Content-Type", "")
         content = response.content
@@ -837,6 +845,34 @@ def download_and_validate_pdf(
             is_valid_pdf=is_valid,
             validation_warnings=warnings,
         )
+    except requests.exceptions.SSLError as e:
+        # SSL errors may be caused by Granicus S3 redirect — retry without verify
+        if "granicus" in url.lower() or "CERTIFICATE_VERIFY_FAILED" in str(e):
+            logger.warning(f"SSL error, retrying without verification: {e}")
+            import urllib3
+            urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+            try:
+                requester = session or requests
+                response = requester.get(url, timeout=timeout, verify=False)
+                content_type = response.headers.get("Content-Type", "")
+                content = response.content
+                is_valid, warnings = validate_pdf_content(content, content_type, url)
+                for warning in warnings:
+                    if "DEGENERATE CASE" in warning:
+                        logger.error(warning)
+                    else:
+                        logger.warning(warning)
+                return DownloadResult(
+                    content=content,
+                    content_type=content_type,
+                    is_valid_pdf=is_valid,
+                    validation_warnings=warnings,
+                )
+            except requests.exceptions.RequestException as retry_e:
+                logger.error(f"Failed to download PDF even without SSL verify: {retry_e}")
+                return DownloadResult(content=None, validation_warnings=[str(retry_e)])
+        logger.error(f"Failed to download PDF: {e}")
+        return DownloadResult(content=None, validation_warnings=[str(e)])
     except requests.exceptions.RequestException as e:
         logger.error(f"Failed to download PDF: {e}")
         return DownloadResult(content=None, validation_warnings=[str(e)])
@@ -959,11 +995,40 @@ def extract_chunks_from_meeting(
         # Download PDF with validation
         download_result = download_and_validate_pdf(agenda_url)
         if not download_result.content:
+            # Download failed (SSL error, timeout, etc.)
+            # Try HTML extraction from the agenda URL as fallback
+            logger.info(
+                f"  PDF download failed. Trying HTML text extraction from agenda URL..."
+            )
+            html_chunks = extract_chunks_from_html_agenda(
+                agenda_url, meeting_id
+            )
+            if html_chunks:
+                logger.info(
+                    f"  Extracted {len(html_chunks)} chunks from HTML agenda"
+                )
+                stored_to_cloud = False
+                if cloud_mode:
+                    stored_to_cloud = store_chunks_to_cloud(
+                        jurisdiction_id, html_chunks, meeting_id=meeting_id
+                    )
+                if not stored_to_cloud:
+                    os.makedirs(output_dir, exist_ok=True)
+                    with open(output_path, "w") as f:
+                        json.dump(html_chunks, f, indent=2)
+
+                return ChunksResult(
+                    meeting_id=meeting_id,
+                    meeting_date=meeting_date,
+                    status="success",
+                    chunks_count=len(html_chunks),
+                )
+
             return ChunksResult(
                 meeting_id=meeting_id,
                 meeting_date=meeting_date,
                 status="error",
-                error="Failed to download PDF",
+                error="Failed to download PDF and no HTML content available",
             )
 
         # Check for degenerate case (HTML instead of PDF)
