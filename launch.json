@@ -1,7 +1,7 @@
 {
   "version": "1.0",
   "phase": "launch",
-  "last_updated": "2026-03-13",
+  "last_updated": "2026-03-17",
   "summary": "Launch readiness: billing infrastructure, acceptance policy enforcement, token issuance, operator tooling, observability",
   "category_order": [
     "security_fixes",
@@ -369,17 +369,18 @@
         "test_file": null
       },
       {
-        "name": "shared_connection_pool_utility",
-        "description": "Extract shared PostgreSQL connection pooling utility used by both civicos and civicos-relay. Currently duplicated with different strategies (retry-based in civicos, SimpleConnectionPool in civicos-relay).",
+        "name": "query_engine_performance",
+        "description": "Connection pooling, vector search tuning, and end-to-end profiling for cross-jurisdiction query performance under load.",
         "status": "not_started",
-        "priority": 3,
-        "source": "architectural review \u2014 DRY infrastructure",
+        "priority": 1,
+        "source": "performance assessment 2026-03-17",
         "files": [
           "packages/civicos/src/civicos/storage/postgres_backend.py",
+          "packages/civicos/src/civicos/storage/pgvector_backend.py",
           "packages/civicos-relay/src/civicos_relay/storage/postgres.py"
         ],
         "test_file": null,
-        "notes": "Unify retry logic and pool management. Could live in a shared utility module or lightweight package. Both packages currently work \u2014 this is cleanup, not a fix."
+        "notes": "Three wins: (1) ThreadedConnectionPool in PostgresBackend — currently opens new TCP connection per query, biggest latency source. (2) Tune ef_search from 200 to ~80 — overkill for 17k vectors, trades unnecessary recall for speed. (3) Profile cross-jurisdiction latency with 3 cities, set performance baseline. Also unifies retry logic between civicos and civicos-relay backends."
       },
       {
         "name": "operator_relay_dockerfile",
@@ -524,7 +525,7 @@
       {
         "name": "cross_marin_query_prototype",
         "description": "Cross-jurisdiction queries within Marin County via v2 query layer. SearchRequest.include_parents/include_siblings with tier-based relevance boosting.",
-        "status": "not_started",
+        "status": "in_progress",
         "priority": 0,
         "phase": "A",
         "source": "federation testbed \u2014 query federation",
@@ -535,7 +536,7 @@
           "packages/civicos-services/src/civicos_services/query/models.py"
         ],
         "test_file": "packages/civicos-services/tests/test_query_v2.py",
-        "notes": "Infrastructure done (jurisdiction resolution, tier boosting, parallel fan-out, 18 tests passing). Remaining: validate with real PostgreSQL data across Marin cities. Mill Valley and San Anselmo have meetings but 0 decisions \u2014 may need extraction first."
+        "notes": "Infrastructure done: jurisdiction resolution, tier boosting (self=1.0, sibling=0.8), parallel fan-out, semantic relevance scores (04792c2), noise filter MIN_RELEVANCE=0.45, 130+ tests. Data ready: SR 83 decisions, MV 60, SA 96. Decision IDs migrated to meeting-scoped ordinals (f08025f). Remaining: (1) downward resolution — query county-marin should fan out to child cities, (2) cache registry.json in memory, (3) mount v2 on REST API server."
       },
       {
         "name": "onboarding_friction_log",
@@ -645,6 +646,21 @@
         ],
         "test_file": null,
         "notes": "Mechanical change but touches every backend implementation. Easier to do now with 2 backends than later with N. Prerequisite for FederatedDataSource fan-out."
+      },
+      {
+        "name": "query_monitoring_and_docs",
+        "description": "Production polish: query latency logging, connection pool metrics, alert thresholds, and docs sweep to update stale decision ID format references across ~10 doc files.",
+        "status": "not_started",
+        "priority": 2,
+        "phase": "B",
+        "source": "performance assessment 2026-03-17",
+        "files": [
+          "packages/civicos-services/src/civicos_services/query/verbs.py",
+          "docs/public/",
+          "docs/internal/"
+        ],
+        "test_file": null,
+        "notes": "Docs: entity_id_namespace.md updated but ~10 other files still reference old decision:{jur}:{date}:{item} format. Monitoring: per-corpus query times already logged but not persisted or alerted on."
       },
       {
         "name": "multi_issuer_lookup",
