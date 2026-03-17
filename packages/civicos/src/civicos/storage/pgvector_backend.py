@@ -155,20 +155,32 @@ class PgVectorBackend:
         self._embedding_model_override = embedding_model
         self._embedding_dimension_override = embedding_dimension
 
-    def _get_connection(self, session_mode: bool = False):
-        """Get a database connection.
+    def _get_connection(self, session_mode: bool = False, retries: int = 3, retry_delay: float = 1.0):
+        """Get a database connection with retry logic.
 
         Args:
             session_mode: If True, use the session pooler (port 5432) instead
                 of the transaction pooler (port 6543). Required for SET
                 commands (statement_timeout, maintenance_work_mem) which are
                 not supported on Supabase's transaction pooler.
+            retries: Number of connection retry attempts (default 3)
+            retry_delay: Seconds to wait between retries (default 1.0)
         """
         import re
         conn_string = self._conn_string
         if session_mode:
             conn_string = re.sub(r':6543/', ':5432/', conn_string)
-        return psycopg2.connect(conn_string)
+        last_error = None
+        for attempt in range(retries):
+            try:
+                return psycopg2.connect(conn_string)
+            except psycopg2.OperationalError as e:
+                last_error = e
+                if attempt < retries - 1:
+                    time.sleep(retry_delay * (attempt + 1))
+                    continue
+                raise
+        raise last_error
 
     @property
     def _embedding_provider(self) -> "EmbeddingProvider":

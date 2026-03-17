@@ -126,10 +126,67 @@ Weights are defined in `packages/civicos-services/src/civicos_services/query/jur
 1. ~~Implement cross-jurisdiction search in v2 layer~~ ✅ Done
 2. ~~Jurisdiction resolution (parents, siblings) from registry.json~~ ✅ Done
 3. ~~Tier-based relevance boosting~~ ✅ Done
-4. **TODO:** Test with real data — "housing" query across Marin cities
-5. **TODO:** Validate sibling results are useful, not noise
-6. **TODO:** Test shared regional body queries (TAM, MMWD)
-7. **NOTE:** Mill Valley and San Anselmo have meetings but 0 decisions — may need extraction first
+4. ~~Test with real data — "housing" query across Marin cities~~ ✅ Done (2026-03-17)
+5. ~~Validate sibling results are useful, not noise~~ ✅ Done — see QC below
+6. **TODO:** Test shared regional body queries (TAM, MMWD) — blocked on regional body data
+7. ~~Mill Valley and San Anselmo have 0 decisions~~ ✅ Resolved — MV has 60, SA has 96
+
+### Phase A QC Report (2026-03-17)
+
+Tested cross-jurisdiction queries against PostgreSQL with real Marin data (SR 83, MV 60, SA 96 decisions).
+
+**Functional: Working (warm backend)**
+- Fan-out to 3 cities, tier boosting, result merging all work as designed
+- Field completeness: all results have title, date, summary, jurisdiction, ref, details
+- Parent jurisdictions correctly return 0 results (no county/state data ingested)
+- Multi-corpus (decisions + meetings) works across jurisdictions
+
+**Issue: Cold Start Timeout (P0 — FIXED 2026-03-17)**
+- `_ensure_schema()` ran 137 DDL statements on first call, taking 12-21 seconds
+- Fix: added fast schema probe (single `information_schema` query) + thread-safe lock
+- Cold start now **805ms** (down from 12-21s), well under 20s timeout
+- Thread safety prevents race condition in cross-jurisdiction parallel fan-out
+
+**Issue: Relevance Scores Are Rank-Based, Not Semantic (P1 — FIXED 2026-03-17)**
+- Was: `1.0, 0.95, 0.90, ...` (constant 0.05 decrement per rank position)
+- Fix: `Decision.score` now carries cosine similarity from pgvector. DecisionsAdapter uses real scores.
+- Example: "housing" returns scores 0.53-0.65 (semantically meaningful), not 1.0/0.95/0.90
+
+**Issue: No Relevance Threshold (P1 — FIXED 2026-03-17)**
+- Was: "xyzzy12345" returned 30 results (10 per jurisdiction) — all noise
+- Fix: `DecisionsAdapter.MIN_RELEVANCE = 0.45` filters low-similarity results
+- Nonsense queries now return ~3 results instead of 10 per jurisdiction (borderline scores just above threshold)
+- Note: `min_score` parameter also plumbed through `_search_with_vector_backend` → `pgvector_backend.search()` for DB-level filtering
+
+**Issue: Ref Format Inconsistency (P2 — PARTIALLY FIXED 2026-03-17)**
+- FIXED: `_make_ref()` now detects when `item_id` already has the ref prefix and avoids doubling
+- SR refs are now correct: `decision:city-san-rafael:2026-02-17:5-c` (no more doubled prefix)
+- REMAINING: MV has description text leaked into decision IDs from extraction (`1- bayfront terrace/1 hamilton drive...`). This is a data quality issue that needs re-extraction to fix properly.
+
+**Issue: Intermittent DNS Failure (P2 — FIXED 2026-03-17)**
+- PostgresBackend already had retry logic catching `OperationalError` (covers DNS failures)
+- Fix: Added matching retry logic to PgVectorBackend's `_get_connection()` (was missing)
+
+**Sibling Result Quality: Acceptable for Prototype**
+- 3/4 unique top results across topics (vector search differentiates by topic)
+- Housing: relevant siblings (Bayfront Terrace, Housing Initiatives, Rezone Housing Site)
+- Parking/police: less relevant siblings (generic zoning/planning items)
+- Some overlap: "100 Evelyn Ave" appears as MV top result for both housing and parking
+
+**Performance (warm backend)**
+| Metric | Value |
+|--------|-------|
+| Single jurisdiction decisions | ~5-7s |
+| Cross-jurisdiction (3 cities) decisions | ~7-8s |
+| Multi-corpus cross-jurisdiction | ~5s |
+| Cold start penalty | +12-21s |
+| Vector search alone | 1.2-2.3s |
+| SQL enrichment (`get_decisions`) | 0.7-0.9s (warm) |
+| `_ensure_schema` (cold) | 12-21s |
+
+**Answered Open Questions**
+1. Performance: 7-8s warm is acceptable for prototype, but cold start needs fix
+2. Result quality: sibling decisions add value for policy topics, less so for operational queries
 
 ### Phase B (Berkeley): `cross_county_query_prototype`
 1. Ingest Berkeley + county-alameda data
@@ -141,7 +198,9 @@ Weights are defined in `packages/civicos-services/src/civicos_services/query/jur
 
 ## Open Questions
 
-1. **Performance budget** — what's acceptable latency for cross-jurisdiction queries? Current single-jurisdiction is ~200ms. Cross-county with 4 cities might be 400-800ms.
-2. **Result limits** — max results per jurisdiction? Total across all jurisdictions?
+1. ~~**Performance budget**~~ — Answered: 7-8s warm is acceptable for prototype. Cold start (12-21s) needs fix before production.
+2. **Result limits** — max results per jurisdiction? Total across all jurisdictions? (Currently: 10 per jurisdiction, merged to request limit)
 3. **Caching** — parent-chain results (state legislation) change slowly. Cache county/state results?
 4. **Legacy method removal** — the CivicOS class still has `what_happened()`, `what_applies()`, etc. These are used by v2 adapters internally but should not be extended with cross-jurisdiction features. Eventually the adapters should call storage/vector backends directly, removing the CivicOS dependency.
+5. **Relevance threshold** — should the API enforce a minimum vector distance to avoid returning noise for unrelated queries? Currently returns k nearest regardless of distance.
+6. **Ref normalization** — decision refs are inconsistent across jurisdictions (doubled prefixes, description text in IDs). Needs cleanup before refs become stable client-side identifiers.

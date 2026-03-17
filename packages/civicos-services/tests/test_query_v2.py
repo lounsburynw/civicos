@@ -54,6 +54,7 @@ class MockDecision:
     outcome: str = "Approved 4-1"
     body: str = "City Council"
     votes: dict = None
+    score: float = 0.85
 
     def __post_init__(self):
         if self.date is None:
@@ -1275,6 +1276,7 @@ class TestTrendMode:
             outcome: str = "Approved"
             body: str = "Council"
             votes: dict = None
+            score: float = 0.85
 
         req = SearchRequest(
             query="housing", corpus=["decisions"],

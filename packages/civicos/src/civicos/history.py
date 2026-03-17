@@ -32,6 +32,7 @@ class Decision:
     body: str
     votes: Optional[dict] = None
     agenda_item: Optional[str] = None
+    score: Optional[float] = None  # Semantic similarity score from vector search (0-1)
 
 
 @dataclass
@@ -1063,6 +1064,7 @@ def _search_with_vector_backend(
     query: str,
     top_k: int = 10,
     storage_backend: Optional["StorageBackend"] = None,
+    min_score: Optional[float] = None,
 ) -> List[Decision]:
     """
     Search decisions using an explicit vector backend.
@@ -1073,12 +1075,15 @@ def _search_with_vector_backend(
         query: Search query
         top_k: Maximum results
         storage_backend: Optional storage backend for enriching results with full SQL data
+        min_score: Minimum similarity score threshold (0-1) to filter noise
 
     Returns:
         List of Decision objects
     """
     try:
-        results = vector_backend.search(query, jurisdiction, corpus_type="decisions", top_k=top_k)
+        results = vector_backend.search(
+            query, jurisdiction, corpus_type="decisions", top_k=top_k, min_score=min_score,
+        )
     except Exception as e:
         logger.warning(f"Vector search failed: {e}")
         return []
@@ -1141,6 +1146,7 @@ def _search_with_vector_backend(
             body=body,
             votes=votes,
             agenda_item=agenda_item,
+            score=r.score,
         ))
 
     decisions.sort(key=lambda d: d.date, reverse=True)

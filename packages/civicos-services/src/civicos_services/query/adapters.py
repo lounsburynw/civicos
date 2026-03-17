@@ -39,13 +39,20 @@ class CorpusAdapter(ABC):
         ...
 
     def _make_ref(self, corpus_type: str, jurisdiction: str, item_id: str) -> str:
-        """Build opaque ref string."""
-        return f"{corpus_type}:{jurisdiction}:{item_id}"
+        """Build opaque ref string, avoiding doubled prefixes."""
+        prefix = f"{corpus_type}:{jurisdiction}:"
+        if item_id.startswith(prefix):
+            return item_id  # ID already has the full ref prefix
+        return f"{prefix}{item_id}"
 
 
 class DecisionsAdapter(CorpusAdapter):
     corpus_name = "decisions"
     supported_filters = {"query", "since"}
+
+    # Minimum cosine similarity to include in results (filters noise).
+    # Nonsense queries score ~0.42-0.45; real queries score 0.50+ at top.
+    MIN_RELEVANCE = 0.45
 
     def search(self, storage, vectors, jurisdiction: str, query: str, limit: int, offset: int = 0, **filters) -> List[CivicResult]:
         from civicos.history import search_decisions
@@ -61,13 +68,21 @@ class DecisionsAdapter(CorpusAdapter):
         )
         results = []
         for i, d in enumerate(decisions[offset:offset + limit]):
+            # Use semantic similarity score from vector search when available
+            if d.score is not None:
+                relevance = max(0.0, min(1.0, d.score))
+                if relevance < self.MIN_RELEVANCE:
+                    continue  # Filter out low-relevance noise
+            else:
+                # Fallback for non-vector search paths (e.g., keyword-only)
+                relevance = max(0.0, 1.0 - i * 0.05)
             results.append(CivicResult(
                 type="decision",
                 ref=self._make_ref("decision", jurisdiction, d.id),
                 title=d.title,
                 date=d.date.isoformat() if d.date else None,
                 summary=f"{d.outcome} — {d.body}" if d.outcome else d.body,
-                relevance=max(0.0, 1.0 - i * 0.05),  # rank-based
+                relevance=relevance,
                 details={
                     "outcome": d.outcome,
                     "vote_summary": _format_votes(d.votes) if d.votes else None,
