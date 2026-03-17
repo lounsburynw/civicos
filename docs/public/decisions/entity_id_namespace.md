@@ -33,7 +33,7 @@ CivicOS is designed for multi-city federation. Without namespaced IDs, a second 
 | Entity | Format | Example |
 |--------|--------|---------|
 | Meeting | `meeting:{jurisdiction}:{platform}:{platform_id}` | `meeting:city-san-rafael:legistar:12345` |
-| Decision | `decision:{jurisdiction}:{date}:{item}` | `decision:city-san-rafael:2026-01-15:item-6a` |
+| Decision | `decision:{jurisdiction}:{meeting_id}:{ordinal}` | `decision:city-san-rafael:proudcity-city-san-rafael-city-council-january-20-2026-tuesday:03` |
 | Chunk | `chunk:{jurisdiction}:{meeting_id}:{index}` | `chunk:city-san-rafael:meeting-legistar-12345:001` |
 | Issue | `issue:{jurisdiction}:{provider}:{external_id}` | `issue:city-san-rafael:seeclickfix:12345678` |
 | Bill | `bill:{jurisdiction}:{bill_type}{number}` | `bill:state-california:sb-1234` |

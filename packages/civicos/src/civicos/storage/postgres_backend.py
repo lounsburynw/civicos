@@ -7,10 +7,14 @@ Part of the 4-stage pipeline: discover -> ingest -> store -> index.
 """
 
 import json
+import logging
+import threading
 import time
 from datetime import datetime, date, timedelta, timezone
 from io import StringIO
 from typing import Any, Dict, List, Optional
+
+logger = logging.getLogger(__name__)
 
 from .backend import MeetingStoreResult, StorageBackend, StorageStats, StorageValidationResult
 from .integrity import compute_transcript_hash, compute_chunk_hash, compute_decision_hash
@@ -35,6 +39,47 @@ try:
 except ImportError:
     psycopg2 = None  # type: ignore
     PSYCOPG2_AVAILABLE = False
+
+
+import re as _re
+
+
+def _normalize_item_ref(raw: str) -> str:
+    """Normalize an agenda item reference to a short, stable identifier.
+
+    Extracts a clean item number from LLM-generated item_ref values which may
+    contain full titles or descriptions instead of concise agenda numbers.
+
+    Examples:
+        "5.a"                          → "5-a"
+        "Item 4"                       → "4"
+        "Agenda Item 3"                → "3"
+        "1. Bayfront Terrace/1 Ham..." → "1"
+        "City Manager's Report"        → "city-managers-report"  (hash-based fallback)
+        "Unknown"                      → "unknown"
+    """
+    if not raw:
+        return "unknown"
+
+    text = raw.strip()
+
+    # Already a clean short ref (e.g., "5-c", "g-1", "2")
+    if _re.fullmatch(r'[a-zA-Z0-9][-a-zA-Z0-9]{0,9}', text):
+        return text.replace(".", "-").lower()
+
+    # Strip common prefixes: "Item 4", "Agenda Item 3", "Item #2"
+    stripped = _re.sub(r'^(?:agenda\s+)?item\s*#?\s*', '', text, flags=_re.IGNORECASE).strip()
+    if stripped and _re.fullmatch(r'[a-zA-Z0-9][-a-zA-Z0-9.]{0,9}', stripped):
+        return stripped.replace(".", "-").lower()
+
+    # Leading number before description: "1. Bayfront Terrace..." → "1"
+    m = _re.match(r'^(\d+[a-zA-Z]?(?:[.-]\d*[a-zA-Z]?)?)\b', text)
+    if m:
+        return m.group(1).replace(".", "-").lower()
+
+    # Fallback: slugify to a short identifier (max 30 chars)
+    slug = _re.sub(r'[^a-z0-9]+', '-', text.lower()).strip('-')[:30].rstrip('-')
+    return slug or "unknown"
 
 
 class PostgresBackend:
@@ -67,6 +112,7 @@ class PostgresBackend:
     # Class-level: track which connection strings have had schema verified.
     # Survives across multiple PostgresBackend instances in the same process.
     _schemas_verified: set = set()
+    _schema_lock = threading.Lock()
 
     def __init__(self, connection_string: str):
         """
@@ -198,14 +244,41 @@ class PostgresBackend:
     def _ensure_schema(self, conn) -> None:
         """Create database schema if it doesn't exist.
 
-        Runs at most once per PostgresBackend instance. The schema uses
-        IF NOT EXISTS / ADD COLUMN IF NOT EXISTS throughout, so repeated
-        calls are safe but wasteful. On Supabase with statement timeouts,
-        running 137 DDL statements on every store operation causes timeouts
-        that prevent any data from being written.
+        Uses a fast probe to check if schema already exists before running
+        DDL. This avoids the 12-21s cost of 137 DDL statements on cold start
+        when the schema is already in place (normal production path).
+
+        The full DDL only runs when tables are missing (fresh database or
+        new migrations needed).
         """
         if self._schema_ensured:
             return
+
+        with PostgresBackend._schema_lock:
+            # Double-check after acquiring lock (another thread may have finished)
+            if self._schema_ensured:
+                return
+
+            # Fast probe: check if schema already exists by looking for a
+            # late-migration column (item_type on decisions). If present,
+            # the schema is current — skip all DDL.
+            try:
+                probe = conn.cursor()
+                probe.execute("""
+                    SELECT 1 FROM information_schema.columns
+                    WHERE table_name = 'decisions' AND column_name = 'item_type'
+                    LIMIT 1
+                """)
+                if probe.fetchone():
+                    self._schema_ensured = True
+                    PostgresBackend._schemas_verified.add(self._conn_string)
+                    logger.debug("Schema probe: tables exist, skipping DDL")
+                    return
+            except Exception:
+                # Probe failed (table doesn't exist, etc.) — fall through to full DDL
+                conn.rollback()
+
+            logger.info("Schema probe: tables missing, running full DDL migration")
         cursor = conn.cursor()
 
         # City states table
@@ -2400,13 +2473,15 @@ class PostgresBackend:
             for decision in decisions:
                 # Support both 'id' and 'decision_id' field names
                 raw_id = decision.get('id') or decision.get('decision_id')
-                # Generate namespaced decision ID
-                # Format: decision:{jurisdiction}:{meeting_date}:{item}
-                meeting_date = decision.get('meeting_date', '')
-                agenda_item = decision.get('agenda_item', raw_id or 'unknown')
-                # Normalize item identifier (remove dots, lowercase)
-                item_part = agenda_item.replace(".", "-").lower() if agenda_item else 'unknown'
-                decision_id = f"decision:{jurisdiction_id}:{meeting_date}:{item_part}"
+                # Trust pre-constructed decision IDs (new format: decision:{jur}:{meeting_id}:{ordinal})
+                # Fall back to legacy construction for data without pre-constructed IDs
+                if raw_id and raw_id.startswith('decision:'):
+                    decision_id = raw_id
+                else:
+                    meeting_date = decision.get('meeting_date', '')
+                    agenda_item = decision.get('agenda_item', raw_id or 'unknown')
+                    item_part = _normalize_item_ref(agenda_item)
+                    decision_id = f"decision:{jurisdiction_id}:{meeting_date}:{item_part}"
 
                 # Close previous version of this specific decision only
                 # Skip if the current version was created at the same timestamp
