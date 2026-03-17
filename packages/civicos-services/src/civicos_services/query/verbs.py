@@ -319,6 +319,19 @@ async def _execute_cross_jurisdiction_search(
 
     logger.info(f"Cross-jurisdiction search: {base_jid} -> {target_jids}")
 
+    # Pre-compute query embedding once and warm the cache for all fan-out threads
+    if vectors is not None and hasattr(vectors, '_embedding_cache'):
+        try:
+            loop = asyncio.get_event_loop()
+            query_embedding = await loop.run_in_executor(
+                None,
+                lambda: vectors._embedding_provider.encode([request.query])[0],
+            )
+            with vectors._embedding_cache_lock:
+                vectors._embedding_cache[request.query] = query_embedding
+        except Exception:
+            pass  # Fall back to per-search encoding
+
     # Create a single-jurisdiction request (no cross-jurisdiction flags)
     per_jid_request = request.model_copy(update={
         "include_parents": False,

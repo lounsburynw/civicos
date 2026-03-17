@@ -1,3 +1,34 @@
+## Session — 2026-03-17: Query Engine Performance (P0)
+
+**Item:** query_engine_performance
+**Status:** DONE — Cross-jurisdiction queries dropped from 9.4s → 1.8s (5.2x speedup)
+
+**Changes:**
+1. **Class-level connection pooling** (PostgresBackend + PgVectorBackend):
+   - Replaced per-call `psycopg2.connect()` with `ThreadedConnectionPool(8, 20)`
+   - Pools are class-level, keyed by connection string — shared across all CivicOS instances
+   - Critical for cross-jurisdiction fan-out: county-marin's backends reuse city-san-rafael's warm pool
+2. **Embedding cache** (PgVectorBackend):
+   - Class-level LRU cache (max 32 entries) avoids re-encoding the same query
+   - Pre-warmed in cross-jurisdiction fan-out before parallel dispatch
+3. **ef_search tuning**: 200 → 80 (faster vector search with adequate recall at 17k vectors)
+
+**Performance results (warm):**
+| Query Type | Before | After |
+|---|---|---|
+| Cross-jurisdiction (6 jids) | 9.4s | 1.8s |
+| Single jurisdiction | 1.7s | 0.85s |
+| Cold start (pool init) | N/A | ~10.7s (one-time) |
+
+**Files modified:**
+- `packages/civicos/src/civicos/storage/postgres_backend.py` — class-level ThreadedConnectionPool
+- `packages/civicos/src/civicos/storage/pgvector_backend.py` — class-level pool + embedding cache + ef_search=80
+- `packages/civicos-services/src/civicos_services/query/verbs.py` — pre-compute embedding before fan-out
+
+**Tests:** 20 smoke + 130 v2 query tests passing
+
+---
+
 ## Session — 2026-03-17: Decision ID Migration + Cross-Jurisdiction Foundations
 
 **Item:** cross_marin_query_prototype (P0)

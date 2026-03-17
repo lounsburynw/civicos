@@ -371,7 +371,7 @@
       {
         "name": "query_engine_performance",
         "description": "Connection pooling, vector search tuning, and end-to-end profiling for cross-jurisdiction query performance under load.",
-        "status": "not_started",
+        "status": "done",
         "priority": 0,
         "source": "performance assessment 2026-03-17",
         "files": [
@@ -380,7 +380,7 @@
           "packages/civicos-relay/src/civicos_relay/storage/postgres.py"
         ],
         "test_file": null,
-        "notes": "Three wins: (1) ThreadedConnectionPool in PostgresBackend — currently opens new TCP connection per query, biggest latency source. (2) Tune ef_search from 200 to ~80 — overkill for 17k vectors, trades unnecessary recall for speed. (3) Profile cross-jurisdiction latency with 3 cities, set performance baseline. Also unifies retry logic between civicos and civicos-relay backends."
+        "notes": "Three wins: (1) ThreadedConnectionPool in PostgresBackend \u2014 currently opens new TCP connection per query, biggest latency source. (2) Tune ef_search from 200 to ~80 \u2014 overkill for 17k vectors, trades unnecessary recall for speed. (3) Profile cross-jurisdiction latency with 3 cities, set performance baseline. Also unifies retry logic between civicos and civicos-relay backends."
       },
       {
         "name": "operator_relay_dockerfile",
@@ -536,7 +536,7 @@
           "packages/civicos-services/src/civicos_services/query/models.py"
         ],
         "test_file": "packages/civicos-services/tests/test_query_v2.py",
-        "notes": "Infrastructure done: jurisdiction resolution, tier boosting (self=1.0, sibling=0.8), parallel fan-out, semantic relevance scores (04792c2), noise filter MIN_RELEVANCE=0.45, 130+ tests. Data ready: SR 83 decisions, MV 60, SA 96. Decision IDs migrated to meeting-scoped ordinals (f08025f). Remaining: (1) downward resolution — query county-marin should fan out to child cities, (2) cache registry.json in memory, (3) mount v2 on REST API server."
+        "notes": "Infrastructure done: jurisdiction resolution, tier boosting (self=1.0, sibling=0.8), parallel fan-out, semantic relevance scores (04792c2), noise filter MIN_RELEVANCE=0.45, 130+ tests. Data ready: SR 83 decisions, MV 60, SA 96. Decision IDs migrated to meeting-scoped ordinals (f08025f). Remaining: (1) downward resolution \u2014 query county-marin should fan out to child cities, (2) cache registry.json in memory, (3) mount v2 on REST API server."
       },
       {
         "name": "onboarding_friction_log",
@@ -621,7 +621,7 @@
         "name": "cross_county_query_prototype",
         "description": "Prototype cross-county queries: Berkeley (Alameda) vs San Rafael (Marin). Test relevance filtering \u2014 when are cross-county results useful vs noise?",
         "status": "not_started",
-        "priority": 2,
+        "priority": 0,
         "phase": "B",
         "source": "federation testbed \u2014 cross-county federation",
         "spec": "docs/internal/cross-county-relevance-spec.md",
