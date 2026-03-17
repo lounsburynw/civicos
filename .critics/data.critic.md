@@ -136,11 +136,13 @@ For auditable data (transcripts, chunks, decisions):
 
 ## Output
 
+**Only flag issues you can see in the diff.** Do not speculate about code you haven't read. If the diff shows a field being set, don't assume the column is missing unless you've verified the schema. If two code paths use the same format string, don't claim they're inconsistent. Pre-existing patterns unchanged by the diff are out of scope.
+
 Respond with JSON:
 ```json
 {
   "pass": boolean,
-  "issues": ["list of specific data quality violations"],
+  "issues": ["list of specific data quality violations visible in the diff"],
   "severity": "critical" | "warning" | "info",
   "affected_tables": ["meetings", "decisions", etc],
   "suggestions": ["fixes or improvements"]

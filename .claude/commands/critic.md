@@ -29,9 +29,11 @@ No staged changes. Stage your changes with `git add` first.
 
 3. **Dispatch critic agents:**
 
-Use the Task tool to spawn parallel sub-agents for each critic. This keeps critic file contents out of main context.
+Use the Agent tool to spawn parallel sub-agents for each critic. This keeps critic file contents out of main context.
 
-**For each critic, spawn a Task agent with this prompt pattern:**
+**IMPORTANT: Always pass the actual `git diff --staged` output to each agent.** Do not summarize or paraphrase the diff — agents need the exact code to avoid false positives from speculation about code they haven't seen.
+
+**For each critic, spawn an Agent with this prompt pattern:**
 
 ```
 You are a code critic. Analyze this staged diff against the critic rules.
@@ -39,8 +41,13 @@ You are a code critic. Analyze this staged diff against the critic rules.
 CRITIC FILE: .critics/{name}.critic.md
 Read the critic file first, then analyze the diff.
 
+RULES:
+- Only flag issues visible in the diff. Do not speculate about code you haven't read.
+- Pre-existing patterns unchanged by the diff are out of scope.
+- If you're unsure whether something is an issue, use the Read tool to check the actual file before flagging it.
+
 STAGED DIFF:
-{paste the staged diff here}
+{paste the FULL git diff --staged output here — do NOT summarize}
 
 Respond with JSON only:
 {
@@ -52,17 +59,19 @@ Respond with JSON only:
 }
 ```
 
-**Spawn these in parallel using multiple Task tool calls in a single message:**
-- Task: "Run pipeline critic" → reads `.critics/pipeline.critic.md`
-- Task: "Run protocol critic" → reads `.critics/protocol.critic.md`
-- Task: "Run architecture critic" → reads `.critics/architecture.critic.md`
-- Task: "Run security critic" → reads `.critics/security.critic.md`
-- Task: "Run jurisdiction critic" → reads `.critics/jurisdiction.critic.md`
-- Task: "Run session critic" → reads `.critics/session.critic.md`
-- Task: "Run data critic" → reads `.critics/data.critic.md`
-- Task: "Run docs critic" → reads `.critics/docs.critic.md`
+**Spawn these in parallel using multiple Agent tool calls in a single message:**
+- Agent: "Run pipeline critic" → reads `.critics/pipeline.critic.md`
+- Agent: "Run protocol critic" → reads `.critics/protocol.critic.md`
+- Agent: "Run architecture critic" → reads `.critics/architecture.critic.md`
+- Agent: "Run security critic" → reads `.critics/security.critic.md`
+- Agent: "Run jurisdiction critic" → reads `.critics/jurisdiction.critic.md`
+- Agent: "Run session critic" → reads `.critics/session.critic.md`
+- Agent: "Run data critic" → reads `.critics/data.critic.md`
+- Agent: "Run docs critic" → reads `.critics/docs.critic.md`
 
 Use `model: "haiku"` for fast, cost-effective critic runs.
+
+**If the diff is very large (>500 lines):** You may split it by file group and send relevant portions to each critic. But always send actual diff content, never prose summaries.
 
 4. **Aggregate results:**
 
