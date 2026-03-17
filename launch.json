@@ -372,7 +372,7 @@
         "name": "query_engine_performance",
         "description": "Connection pooling, vector search tuning, and end-to-end profiling for cross-jurisdiction query performance under load.",
         "status": "not_started",
-        "priority": 1,
+        "priority": 0,
         "source": "performance assessment 2026-03-17",
         "files": [
           "packages/civicos/src/civicos/storage/postgres_backend.py",

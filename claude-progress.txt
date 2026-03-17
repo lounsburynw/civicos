@@ -1,3 +1,25 @@
+## Session — 2026-03-17: Decision ID Migration + Cross-Jurisdiction Foundations
+
+**Item:** cross_marin_query_prototype (P0)
+**Status:** In progress — Session A of 4-session game plan complete
+
+**Changes:**
+1. **Decision ID migration** (f08025f) — New format `decision:{jur}:{meeting_id}:{ordinal}` decouples machine IDs from LLM-extracted item refs. LLM prompts now extract `item_number` + `item_label` separately. 344 existing decisions migrated. Storage layer trusts pre-constructed IDs.
+
+2. **Downward jurisdiction resolution** (4d1fb0f) — `county-marin` + `include_siblings=True` now discovers all child cities (SR, MV, SA). Supports upward/downward/sideways traversal. `get_jurisdiction_tier()` returns "child" tier.
+
+3. **Registry caching** (4d1fb0f) — `@lru_cache` on `_load_registry()` eliminates disk I/O per query.
+
+4. **v2 on REST API** (4d1fb0f) — `create_v2_router()` mounted in `api.py`. Controlled by `CIVICOS_JURISDICTION` env var.
+
+5. **Critic improvements** (25865bb) — Anti-speculation rules in data.critic.md and /critic command. Requires actual diff, not summaries.
+
+6. **Game plan documented** in launch.json — 4 sessions: A (foundations, done), B (performance), C (onboarding), D (production polish).
+
+**Live test:** `county-marin` → housing → returns decisions from all 3 Marin cities with semantic relevance. 9.4s query time (connection overhead — Session B target).
+
+**Tests:** 130 v2 query + 20 smoke = 150 all passing
+
 ## Session — 2026-03-16: Close Marin Data Gaps + Chunk QC
 
 **Item:** close_marin_data_gaps (P0 override per handoff — prerequisite for cross_marin_query_prototype)
