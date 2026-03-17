@@ -17,6 +17,7 @@ Migration path from ChromaDB:
 import json
 import logging
 import os
+import threading
 import time
 from datetime import datetime
 from io import StringIO
@@ -61,6 +62,7 @@ _DEFAULT_WINDOW_SIZE = 1000  # Non-chunked types: direct storage rows
 try:
     import psycopg2
     import psycopg2.extras
+    import psycopg2.pool
     PSYCOPG2_AVAILABLE = True
 except ImportError:
     psycopg2 = None  # type: ignore
@@ -121,6 +123,15 @@ class PgVectorBackend:
     # Survives across multiple PgVectorBackend instances in the same process.
     _schemas_verified: set = set()
 
+    # Class-level connection pools keyed by connection string.
+    _pools: Dict[str, Any] = {}
+    _pool_lock = threading.Lock()
+
+    # Class-level embedding cache shared across instances.
+    _embedding_cache: Dict[str, Any] = {}
+    _embedding_cache_lock = threading.Lock()
+    _embedding_cache_max = 32
+
     def __init__(
         self,
         connection_string: str,
@@ -156,31 +167,81 @@ class PgVectorBackend:
         self._embedding_dimension_override = embedding_dimension
 
     def _get_connection(self, session_mode: bool = False, retries: int = 3, retry_delay: float = 1.0):
-        """Get a database connection with retry logic.
+        """Get a database connection from the class-level thread-safe pool.
+
+        Pool is shared across all PgVectorBackend instances with the same
+        connection string for efficient cross-jurisdiction fan-out.
 
         Args:
-            session_mode: If True, use the session pooler (port 5432) instead
-                of the transaction pooler (port 6543). Required for SET
-                commands (statement_timeout, maintenance_work_mem) which are
-                not supported on Supabase's transaction pooler.
-            retries: Number of connection retry attempts (default 3)
+            session_mode: If True, bypass pool and create a direct session
+                connection (port 5432) for SET commands.
+            retries: Number of retry attempts (default 3)
             retry_delay: Seconds to wait between retries (default 1.0)
         """
-        import re
-        conn_string = self._conn_string
         if session_mode:
-            conn_string = re.sub(r':6543/', ':5432/', conn_string)
-        last_error = None
-        for attempt in range(retries):
-            try:
-                return psycopg2.connect(conn_string)
-            except psycopg2.OperationalError as e:
-                last_error = e
-                if attempt < retries - 1:
-                    time.sleep(retry_delay * (attempt + 1))
-                    continue
-                raise
-        raise last_error
+            import re
+            conn_string = re.sub(r':6543/', ':5432/', self._conn_string)
+            last_error = None
+            for attempt in range(retries):
+                try:
+                    return psycopg2.connect(conn_string)
+                except psycopg2.OperationalError as e:
+                    last_error = e
+                    if attempt < retries - 1:
+                        time.sleep(retry_delay * (attempt + 1))
+                        continue
+                    raise
+            raise last_error
+
+        pool = PgVectorBackend._pools.get(self._conn_string)
+        if pool is None:
+            with PgVectorBackend._pool_lock:
+                pool = PgVectorBackend._pools.get(self._conn_string)
+                if pool is None:
+                    last_error = None
+                    for attempt in range(retries):
+                        try:
+                            pool = psycopg2.pool.ThreadedConnectionPool(
+                                8, 20,
+                                self._conn_string,
+                                keepalives=1,
+                                keepalives_idle=30,
+                                keepalives_interval=10,
+                                keepalives_count=5,
+                                connect_timeout=30,
+                            )
+                            PgVectorBackend._pools[self._conn_string] = pool
+                            break
+                        except psycopg2.OperationalError as e:
+                            last_error = e
+                            if attempt < retries - 1:
+                                time.sleep(retry_delay * (attempt + 1))
+                                continue
+                            raise
+                    if pool is None:
+                        raise last_error
+        return pool.getconn()
+
+    def _return_connection(self, conn, session_mode: bool = False):
+        """Return a connection to the pool (or close if session_mode)."""
+        if conn is None:
+            return
+        if session_mode:
+            conn.close()
+        else:
+            pool = PgVectorBackend._pools.get(self._conn_string)
+            if pool is not None:
+                try:
+                    pool.putconn(conn)
+                except Exception as e:
+                    logger.debug(f"Failed to return connection to pool: {e}")
+
+    def close(self):
+        """Close the connection pool for this connection string."""
+        with PgVectorBackend._pool_lock:
+            pool = PgVectorBackend._pools.pop(self._conn_string, None)
+            if pool is not None:
+                pool.closeall()
 
     @property
     def _embedding_provider(self) -> "EmbeddingProvider":
@@ -460,7 +521,7 @@ class PgVectorBackend:
                         f"Missing columns in {self.TABLE_NAME}: {missing_cols}"
                     )
 
-            conn.close()
+            self._return_connection(conn)
 
         except Exception as e:
             if psycopg2 and isinstance(e, psycopg2.Error):
@@ -1122,7 +1183,7 @@ class PgVectorBackend:
                 logger.error(f"Bulk insert failed: {e}")
                 conn.rollback()
             finally:
-                conn.close()
+                self._return_connection(conn)
 
         return indexed_count
 
@@ -1183,7 +1244,7 @@ class PgVectorBackend:
             conn.rollback()
             return 0
         finally:
-            conn.close()
+            self._return_connection(conn)
 
     def index_from_storage(
         self,
@@ -1247,7 +1308,7 @@ class PgVectorBackend:
         # Ensure schema exists (may recreate if dimension changed and allowed)
         conn = self._get_connection()
         self._ensure_schema(conn, allow_dimension_change=allow_dimension_change)
-        conn.close()
+        self._return_connection(conn)
 
         # Build metadata lookups once for transcripts (small data, reused across windows)
         video_to_meeting: Dict[str, str] = {}
@@ -1380,8 +1441,8 @@ class PgVectorBackend:
         cursor = conn.cursor()
 
         # HNSW search uses ef_search to control recall/speed tradeoff
-        # Default (40) is good for most queries; increase for higher recall
-        cursor.execute("SET hnsw.ef_search = 200")
+        # At ~17k vectors, 80 provides good recall without the latency cost of 200
+        cursor.execute("SET hnsw.ef_search = 80")
 
         # Validate model compatibility - vectors from different models can't be compared
         cursor.execute(f"""
@@ -1400,7 +1461,7 @@ class PgVectorBackend:
         normalized_indexed = {normalize_model_name(m) for m in indexed_models}
 
         if indexed_models and indexed_models != {'unknown'} and normalized_current not in normalized_indexed:
-            conn.close()
+            self._return_connection(conn)
             raise ValueError(
                 f"Model mismatch: index contains vectors from {indexed_models}, "
                 f"but query would use '{current_model}'. "
@@ -1408,8 +1469,15 @@ class PgVectorBackend:
                 f"Reindex with --reindex to rebuild with the current model."
             )
 
-        # Generate query embedding using configured provider
-        query_embedding = self._embedding_provider.encode([query])[0]
+        # Check class-level embedding cache (avoids re-encoding during fan-out)
+        with self._embedding_cache_lock:
+            query_embedding = self._embedding_cache.get(query)
+        if query_embedding is None:
+            query_embedding = self._embedding_provider.encode([query])[0]
+            with self._embedding_cache_lock:
+                if len(self._embedding_cache) >= self._embedding_cache_max:
+                    self._embedding_cache.pop(next(iter(self._embedding_cache)))
+                self._embedding_cache[query] = query_embedding
 
         # pgvector's <=> operator returns cosine distance (0-2 range)
         # Convert to similarity: 1 - distance
@@ -1450,7 +1518,7 @@ class PgVectorBackend:
 
         cursor.execute(sql, params)
         rows = cursor.fetchall()
-        conn.close()
+        self._return_connection(conn)
 
         results = []
         for row in rows:
@@ -1504,7 +1572,7 @@ class PgVectorBackend:
 
         row = cursor.fetchone()
         count = row[0] if row else 0
-        conn.close()
+        self._return_connection(conn)
 
         return count
 
@@ -1541,7 +1609,7 @@ class PgVectorBackend:
         doc_count = row[0] if row else 0
         last_indexed = row[1] if row else None
 
-        conn.close()
+        self._return_connection(conn)
 
         # Get storage count for coverage calculation
         storage_count = None
@@ -1616,7 +1684,7 @@ class PgVectorBackend:
                 ))
             return results
         finally:
-            conn.close()
+            self._return_connection(conn)
 
     def delete_index(
         self,
@@ -1651,7 +1719,7 @@ class PgVectorBackend:
 
         deleted = cursor.rowcount
         conn.commit()
-        conn.close()
+        self._return_connection(conn)
 
         logger.info(
             f"Deleted {deleted} vectors for {jurisdiction_id}"
@@ -1699,7 +1767,7 @@ class PgVectorBackend:
             logger.warning(f"Could not drop HNSW index for {corpus_type}: {e}")
             return False
         finally:
-            conn.close()
+            self._return_connection(conn)
 
     def rebuild_hnsw_index(self, corpus_type: str) -> bool:
         """Rebuild the HNSW index for a specific corpus_type partition.
@@ -1755,7 +1823,7 @@ class PgVectorBackend:
             logger.error(f"Failed to rebuild HNSW index for {corpus_type}: {e}")
             return False
         finally:
-            conn.close()
+            self._return_connection(conn, session_mode=True)
 
     def encode_texts(
         self,
@@ -1890,12 +1958,12 @@ class PgVectorBackend:
                     ),
                 )
                 conn.commit()
-                conn.close()
+                self._return_connection(conn)
                 return {"success": len(records), "failed": 0}
             except Exception as e:
                 if not conn.closed:
                     conn.rollback()
-                    conn.close()
+                    self._return_connection(conn)
                 logger.error(f"Bulk COPY insert failed: {e}")
                 # Retry once with a fresh connection on connection/timeout errors
                 import psycopg2
@@ -1915,12 +1983,12 @@ class PgVectorBackend:
                             ),
                         )
                         conn2.commit()
-                        conn2.close()
+                        self._return_connection(conn2)
                         return {"success": len(records), "failed": 0}
                     except Exception as e2:
                         if not conn2.closed:
                             conn2.rollback()
-                            conn2.close()
+                            self._return_connection(conn2)
                         logger.error(f"Bulk COPY insert retry failed: {e2}")
                         return {"success": 0, "failed": len(records), "error": str(e2)}
                 return {"success": 0, "failed": len(records), "error": str(e)}
@@ -1980,12 +2048,12 @@ class PgVectorBackend:
                     page_size=500,
                 )
                 conn.commit()
-                conn.close()
+                self._return_connection(conn)
                 return {"success": len(records), "failed": 0}
             except Exception as e:
                 if not conn.closed:
                     conn.rollback()
-                    conn.close()
+                    self._return_connection(conn)
                 logger.error(f"Bulk upsert failed: {e}")
                 # Retry once with a fresh connection on connection/timeout errors
                 import psycopg2
@@ -2017,12 +2085,12 @@ class PgVectorBackend:
                             page_size=500,
                         )
                         conn2.commit()
-                        conn2.close()
+                        self._return_connection(conn2)
                         return {"success": len(records), "failed": 0}
                     except Exception as e2:
                         if not conn2.closed:
                             conn2.rollback()
-                            conn2.close()
+                            self._return_connection(conn2)
                         logger.error(f"Bulk upsert retry failed: {e2}")
                         return {"success": 0, "failed": len(records), "error": str(e2)}
                 return {"success": 0, "failed": len(records), "error": str(e)}

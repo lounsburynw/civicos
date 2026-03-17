@@ -35,6 +35,7 @@ class DateTimeEncoder(json.JSONEncoder):
 try:
     import psycopg2
     import psycopg2.extras
+    import psycopg2.pool
     PSYCOPG2_AVAILABLE = True
 except ImportError:
     psycopg2 = None  # type: ignore
@@ -114,6 +115,12 @@ class PostgresBackend:
     _schemas_verified: set = set()
     _schema_lock = threading.Lock()
 
+    # Class-level connection pools keyed by connection string.
+    # Shared across all PostgresBackend instances in the same process so that
+    # cross-jurisdiction fan-out reuses warm connections.
+    _pools: Dict[str, Any] = {}
+    _pool_lock = threading.Lock()
+
     def __init__(self, connection_string: str):
         """
         Initialize PostgreSQL storage backend.
@@ -131,37 +138,55 @@ class PostgresBackend:
         self._schema_ensured = connection_string in self._schemas_verified
 
     def _get_connection(self, retries: int = 3, retry_delay: float = 1.0):
-        """Get a database connection with keepalive settings and retry logic.
+        """Get a database connection from the class-level thread-safe pool.
 
-        Configured for stability with connection poolers (PgBouncer/Supabase):
-        - TCP keepalive enabled to detect dropped connections
-        - Retry logic for transient connection failures
-        - Short keepalive intervals suitable for cloud environments
-
-        Args:
-            retries: Number of connection retry attempts (default 3)
-            retry_delay: Seconds to wait between retries (default 1.0)
+        Pool is shared across all PostgresBackend instances with the same
+        connection string, so cross-jurisdiction fan-out reuses warm connections.
         """
-        last_error = None
-        for attempt in range(retries):
+        pool = self._pools.get(self._conn_string)
+        if pool is None:
+            with PostgresBackend._pool_lock:
+                pool = self._pools.get(self._conn_string)
+                if pool is None:
+                    last_error = None
+                    for attempt in range(retries):
+                        try:
+                            pool = psycopg2.pool.ThreadedConnectionPool(
+                                8, 20,
+                                self._conn_string,
+                                keepalives=1,
+                                keepalives_idle=30,
+                                keepalives_interval=10,
+                                keepalives_count=5,
+                                connect_timeout=30,
+                            )
+                            self._pools[self._conn_string] = pool
+                            break
+                        except psycopg2.OperationalError as e:
+                            last_error = e
+                            if attempt < retries - 1:
+                                time.sleep(retry_delay * (attempt + 1))
+                                continue
+                            raise
+                    if pool is None:
+                        raise last_error
+        return pool.getconn()
+
+    def _return_connection(self, conn):
+        """Return a connection to the pool."""
+        pool = self._pools.get(self._conn_string)
+        if pool is not None and conn is not None:
             try:
-                conn = psycopg2.connect(
-                    self._conn_string,
-                    # TCP keepalive settings for connection stability
-                    keepalives=1,  # Enable TCP keepalive
-                    keepalives_idle=30,  # Start keepalive after 30s idle
-                    keepalives_interval=10,  # Send keepalive every 10s
-                    keepalives_count=5,  # Close after 5 failed keepalives
-                    connect_timeout=30,  # Connection timeout in seconds
-                )
-                return conn
-            except psycopg2.OperationalError as e:
-                last_error = e
-                if attempt < retries - 1:
-                    time.sleep(retry_delay * (attempt + 1))  # Exponential backoff
-                    continue
-                raise
-        raise last_error
+                pool.putconn(conn)
+            except Exception as e:
+                logger.debug(f"Failed to return connection to pool: {e}")
+
+    def close(self):
+        """Close the connection pool for this connection string."""
+        with PostgresBackend._pool_lock:
+            pool = self._pools.pop(self._conn_string, None)
+            if pool is not None:
+                pool.closeall()
 
     @property
     def backend_type(self) -> str:
@@ -221,7 +246,7 @@ class PostgresBackend:
                 else:
                     schema_valid = True
 
-            conn.close()
+            self._return_connection(conn)
 
         except Exception as e:
             if "psycopg2" in str(type(e).__module__):
@@ -1878,7 +1903,7 @@ class PostgresBackend:
             conn.rollback()
             raise
         finally:
-            conn.close()
+            self._return_connection(conn)
 
     def get_meetings(
         self,
@@ -1938,7 +1963,7 @@ class PostgresBackend:
 
         cursor.execute(query, params)
         rows = cursor.fetchall()
-        conn.close()
+        self._return_connection(conn)
 
         # Convert to dictionaries, parsing full_data JSON
         meetings = []
@@ -2008,7 +2033,7 @@ class PostgresBackend:
         """)
         size_bytes = cursor.fetchone()[0]
 
-        conn.close()
+        self._return_connection(conn)
 
         # Parse datetime values (Postgres returns datetime objects)
         earliest_dt = earliest if isinstance(earliest, datetime) else None
@@ -2093,7 +2118,7 @@ class PostgresBackend:
             conn.rollback()
             raise
         finally:
-            conn.close()
+            self._return_connection(conn)
 
     def update_meeting(
         self,
@@ -2163,7 +2188,7 @@ class PostgresBackend:
             raise
         finally:
             cursor.close()
-            conn.close()
+            self._return_connection(conn)
 
     # ========== Operation Tracking Methods ==========
 
@@ -2200,7 +2225,7 @@ class PostgresBackend:
 
             conn.commit()
         finally:
-            conn.close()
+            self._return_connection(conn)
 
         return {
             "id": operation_id,
@@ -2272,7 +2297,7 @@ class PostgresBackend:
             conn.commit()
             return updated
         finally:
-            conn.close()
+            self._return_connection(conn)
 
     def complete_operation(
         self,
@@ -2332,7 +2357,7 @@ class PostgresBackend:
             conn.commit()
             return updated
         finally:
-            conn.close()
+            self._return_connection(conn)
 
     def get_operation(self, operation_id: str) -> Optional[Dict[str, Any]]:
         """
@@ -2373,7 +2398,7 @@ class PostgresBackend:
 
             return result
         finally:
-            conn.close()
+            self._return_connection(conn)
 
     def get_operations(
         self,
@@ -2435,7 +2460,7 @@ class PostgresBackend:
 
             return results
         finally:
-            conn.close()
+            self._return_connection(conn)
 
     # ========== Decision Methods (SESSION 366) ==========
 
@@ -2567,7 +2592,7 @@ class PostgresBackend:
             conn.rollback()
             raise
         finally:
-            conn.close()
+            self._return_connection(conn)
 
     def get_decisions(
         self,
@@ -2638,7 +2663,7 @@ class PostgresBackend:
 
         cursor.execute(query, params)
         rows = cursor.fetchall()
-        conn.close()
+        self._return_connection(conn)
 
         # Convert to dictionaries, parsing JSON fields
         decisions = []
@@ -2680,7 +2705,7 @@ class PostgresBackend:
             WHERE jurisdiction_id = %s AND valid_to IS NULL AND deleted_at IS NULL
         """, (jurisdiction_id,))
         count = cursor.fetchone()[0]
-        conn.close()
+        self._return_connection(conn)
 
         return count
 
@@ -2768,7 +2793,7 @@ class PostgresBackend:
             conn.rollback()
             raise
         finally:
-            conn.close()
+            self._return_connection(conn)
 
     def get_agenda_items(
         self,
@@ -2836,7 +2861,7 @@ class PostgresBackend:
 
         cursor.execute(query, params)
         rows = cursor.fetchall()
-        conn.close()
+        self._return_connection(conn)
 
         # Convert to regular dicts
         items = []
@@ -2881,7 +2906,7 @@ class PostgresBackend:
             """)
 
         count = cursor.fetchone()[0]
-        conn.close()
+        self._return_connection(conn)
 
         return count
 
@@ -2915,7 +2940,7 @@ class PostgresBackend:
             conn.rollback()
             raise
         finally:
-            conn.close()
+            self._return_connection(conn)
 
     # ========== Chunk Methods (SESSION 367) ==========
 
@@ -3021,7 +3046,7 @@ class PostgresBackend:
             conn.rollback()
             raise
         finally:
-            conn.close()
+            self._return_connection(conn)
 
     def get_chunks(
         self,
@@ -3086,7 +3111,7 @@ class PostgresBackend:
 
         cursor.execute(query, params)
         rows = cursor.fetchall()
-        conn.close()
+        self._return_connection(conn)
 
         # Convert to dictionaries
         chunks = []
@@ -3120,7 +3145,7 @@ class PostgresBackend:
             WHERE jurisdiction_id = %s AND valid_to IS NULL AND deleted_at IS NULL
         """, (jurisdiction_id,))
         count = cursor.fetchone()[0]
-        conn.close()
+        self._return_connection(conn)
 
         return count
 
@@ -3235,7 +3260,7 @@ class PostgresBackend:
             conn.rollback()
             raise
         finally:
-            conn.close()
+            self._return_connection(conn)
 
     def get_videos(
         self,
@@ -3290,7 +3315,7 @@ class PostgresBackend:
 
         cursor.execute(query, params)
         rows = cursor.fetchall()
-        conn.close()
+        self._return_connection(conn)
 
         # Convert to dictionaries
         videos = []
@@ -3327,7 +3352,7 @@ class PostgresBackend:
             WHERE jurisdiction_id = %s AND valid_to IS NULL AND deleted_at IS NULL
         """, (jurisdiction_id,))
         count = cursor.fetchone()[0]
-        conn.close()
+        self._return_connection(conn)
 
         return count
 
@@ -3356,7 +3381,7 @@ class PostgresBackend:
             WHERE jurisdiction_id = %s AND valid_to IS NULL AND meeting_id IS NOT NULL
         """, (jurisdiction_id,))
         mapping = {video_id: meeting_id for video_id, meeting_id in cursor.fetchall()}
-        conn.close()
+        self._return_connection(conn)
 
         return mapping
 
@@ -3484,7 +3509,7 @@ class PostgresBackend:
             conn.rollback()
             raise
         finally:
-            conn.close()
+            self._return_connection(conn)
 
     def get_transcripts(
         self,
@@ -3530,7 +3555,7 @@ class PostgresBackend:
 
         cursor.execute(query, params)
         rows = cursor.fetchall()
-        conn.close()
+        self._return_connection(conn)
 
         # Convert to dictionaries
         transcripts = []
@@ -3579,7 +3604,7 @@ class PostgresBackend:
         """, (video_id, as_of.isoformat(), as_of.isoformat()))
 
         row = cursor.fetchone()
-        conn.close()
+        self._return_connection(conn)
 
         if not row:
             return None
@@ -3650,7 +3675,7 @@ class PostgresBackend:
             conn.rollback()
             raise
         finally:
-            conn.close()
+            self._return_connection(conn)
 
     def get_transcript_count(self, jurisdiction_id: str) -> int:
         """
@@ -3671,7 +3696,7 @@ class PostgresBackend:
             WHERE jurisdiction_id = %s AND valid_to IS NULL AND deleted_at IS NULL
         """, (jurisdiction_id,))
         count = cursor.fetchone()[0]
-        conn.close()
+        self._return_connection(conn)
 
         return count
 
@@ -3840,7 +3865,7 @@ class PostgresBackend:
             conn.rollback()
             raise
         finally:
-            conn.close()
+            self._return_connection(conn)
 
     def get_municipal_code(
         self,
@@ -3893,7 +3918,7 @@ class PostgresBackend:
 
         cursor.execute(query, params)
         rows = cursor.fetchall()
-        conn.close()
+        self._return_connection(conn)
 
         # Convert to dictionaries
         sections = []
@@ -3942,7 +3967,7 @@ class PostgresBackend:
         """, (jurisdiction_id, section_number, as_of.isoformat(), as_of.isoformat()))
 
         row = cursor.fetchone()
-        conn.close()
+        self._return_connection(conn)
 
         if not row:
             return None
@@ -3975,7 +4000,7 @@ class PostgresBackend:
             WHERE jurisdiction_id = %s AND valid_to IS NULL AND deleted_at IS NULL
         """, (jurisdiction_id,))
         count = cursor.fetchone()[0]
-        conn.close()
+        self._return_connection(conn)
 
         return count
 
@@ -4123,7 +4148,7 @@ class PostgresBackend:
             conn.rollback()
             raise
         finally:
-            conn.close()
+            self._return_connection(conn)
 
     def get_issues(
         self,
@@ -4193,7 +4218,7 @@ class PostgresBackend:
 
         cursor.execute(query, params)
         rows = cursor.fetchall()
-        conn.close()
+        self._return_connection(conn)
 
         # Convert to dictionaries
         issues = []
@@ -4239,7 +4264,7 @@ class PostgresBackend:
                 WHERE jurisdiction_id = %s AND valid_to IS NULL AND deleted_at IS NULL
             """, (jurisdiction_id,))
         count = cursor.fetchone()[0]
-        conn.close()
+        self._return_connection(conn)
 
         return count
 
@@ -4296,7 +4321,7 @@ class PostgresBackend:
             conn.rollback()
             raise
         finally:
-            conn.close()
+            self._return_connection(conn)
 
     def get_etl_costs(
         self,
@@ -4352,7 +4377,7 @@ class PostgresBackend:
             return costs
 
         finally:
-            conn.close()
+            self._return_connection(conn)
 
     def get_etl_cost_summary(
         self,
@@ -4401,7 +4426,7 @@ class PostgresBackend:
             }
 
         finally:
-            conn.close()
+            self._return_connection(conn)
 
     # ========== Operating Cost Methods ==========
 
@@ -4456,7 +4481,7 @@ class PostgresBackend:
             conn.rollback()
             raise
         finally:
-            conn.close()
+            self._return_connection(conn)
 
     def get_operating_costs(
         self,
@@ -4530,7 +4555,7 @@ class PostgresBackend:
             return costs
 
         finally:
-            conn.close()
+            self._return_connection(conn)
 
     def get_operating_cost_summary(
         self,
@@ -4617,7 +4642,7 @@ class PostgresBackend:
             }
 
         finally:
-            conn.close()
+            self._return_connection(conn)
 
     # ========== Refresh Metadata Methods (SESSION 423) ==========
 
@@ -4670,7 +4695,7 @@ class PostgresBackend:
             return result
 
         finally:
-            conn.close()
+            self._return_connection(conn)
 
     def update_refresh_metadata(
         self,
@@ -4751,7 +4776,7 @@ class PostgresBackend:
             conn.rollback()
             raise
         finally:
-            conn.close()
+            self._return_connection(conn)
 
     def list_refresh_metadata(
         self,
@@ -4808,7 +4833,7 @@ class PostgresBackend:
             return results
 
         finally:
-            conn.close()
+            self._return_connection(conn)
 
     # ========== Legislation Methods (SESSION 402) ==========
 
@@ -4976,7 +5001,7 @@ class PostgresBackend:
             conn.rollback()
             raise
         finally:
-            conn.close()
+            self._return_connection(conn)
 
     def get_legislation(
         self,
@@ -5035,7 +5060,7 @@ class PostgresBackend:
 
         cursor.execute(query, params)
         rows = cursor.fetchall()
-        conn.close()
+        self._return_connection(conn)
 
         # Convert to dictionaries
         bills = []
@@ -5100,7 +5125,7 @@ class PostgresBackend:
         """, (state, bill_id, as_of.isoformat(), as_of.isoformat()))
 
         row = cursor.fetchone()
-        conn.close()
+        self._return_connection(conn)
 
         if not row:
             return None
@@ -5185,7 +5210,7 @@ class PostgresBackend:
                         bill[key] = bill[key].isoformat()
             results[bill['bill_id']] = bill
 
-        conn.close()
+        self._return_connection(conn)
         return results
 
     def get_legislation_count(self, state: str, topic: Optional[str] = None) -> int:
@@ -5215,7 +5240,7 @@ class PostgresBackend:
             """, (state,))
 
         count = cursor.fetchone()[0]
-        conn.close()
+        self._return_connection(conn)
 
         return count
 
@@ -5259,7 +5284,7 @@ class PostgresBackend:
                 updated_count += 1
 
         conn.commit()
-        conn.close()
+        self._return_connection(conn)
 
         return updated_count
 
@@ -5306,7 +5331,7 @@ class PostgresBackend:
                 updated_count += 1
 
         conn.commit()
-        conn.close()
+        self._return_connection(conn)
 
         return updated_count
 
@@ -5353,7 +5378,7 @@ class PostgresBackend:
                 updated_count += 1
 
         conn.commit()
-        conn.close()
+        self._return_connection(conn)
 
         return updated_count
 
@@ -5526,7 +5551,7 @@ class PostgresBackend:
             conn.rollback()
             raise
         finally:
-            conn.close()
+            self._return_connection(conn)
 
     def get_codified_law(
         self,
@@ -5588,7 +5613,7 @@ class PostgresBackend:
 
         cursor.execute(query, params)
         rows = cursor.fetchall()
-        conn.close()
+        self._return_connection(conn)
 
         # Convert to dictionaries
         sections = []
@@ -5663,7 +5688,7 @@ class PostgresBackend:
 
         cursor.execute(sql, params)
         rows = cursor.fetchall()
-        conn.close()
+        self._return_connection(conn)
 
         return [dict(row) for row in rows]
 
@@ -5703,7 +5728,7 @@ class PostgresBackend:
 
         cursor.execute(query, params)
         count = cursor.fetchone()[0]
-        conn.close()
+        self._return_connection(conn)
 
         return count
 
@@ -5759,7 +5784,7 @@ class PostgresBackend:
                 new_orders = [o for o in valid_orders if o.get("document_number") not in existing]
 
                 if not new_orders:
-                    conn.close()
+                    self._return_connection(conn)
                     return 0
 
                 # Batch in chunks of 500
@@ -5891,7 +5916,7 @@ class PostgresBackend:
             conn.rollback()
             raise
         finally:
-            conn.close()
+            self._return_connection(conn)
 
     def get_executive_orders(
         self,
@@ -5959,7 +5984,7 @@ class PostgresBackend:
 
         cursor.execute(query, params)
         rows = cursor.fetchall()
-        conn.close()
+        self._return_connection(conn)
 
         # Convert to dictionaries
         orders = []
@@ -6028,7 +6053,7 @@ class PostgresBackend:
 
         cursor.execute(sql, params)
         rows = cursor.fetchall()
-        conn.close()
+        self._return_connection(conn)
 
         # Convert dates
         orders = []
@@ -6074,7 +6099,7 @@ class PostgresBackend:
 
         cursor.execute(query, params)
         count = cursor.fetchone()[0]
-        conn.close()
+        self._return_connection(conn)
 
         return count
 
@@ -6137,7 +6162,7 @@ class PostgresBackend:
             conn.rollback()
             raise
         finally:
-            conn.close()
+            self._return_connection(conn)
 
     def get_executive_orders_missing_text(
         self,
@@ -6170,7 +6195,7 @@ class PostgresBackend:
 
         cursor.execute(query)
         rows = cursor.fetchall()
-        conn.close()
+        self._return_connection(conn)
 
         return [dict(row) for row in rows]
 
@@ -6196,7 +6221,7 @@ class PostgresBackend:
         try:
             valid_rules = [r for r in rules if r.get("document_number")]
             if not valid_rules:
-                conn.close()
+                self._return_connection(conn)
                 return 0
 
             values = []
@@ -6248,7 +6273,7 @@ class PostgresBackend:
             conn.rollback()
             raise
         finally:
-            conn.close()
+            self._return_connection(conn)
 
     def get_federal_rules(
         self,
@@ -6295,7 +6320,7 @@ class PostgresBackend:
 
         cursor.execute(query, params)
         rows = cursor.fetchall()
-        conn.close()
+        self._return_connection(conn)
 
         rules = []
         for row in rows:
@@ -6373,7 +6398,7 @@ class PostgresBackend:
 
         cursor.execute(sql, params)
         rows = cursor.fetchall()
-        conn.close()
+        self._return_connection(conn)
 
         rules = []
         for row in rows:
@@ -6410,7 +6435,7 @@ class PostgresBackend:
 
         cursor.execute(query, params)
         count = cursor.fetchone()[0]
-        conn.close()
+        self._return_connection(conn)
 
         return count
 
@@ -6444,7 +6469,7 @@ class PostgresBackend:
         try:
             valid_events = [e for e in events if e.get("bill_id") and e.get("event_type")]
             if not valid_events:
-                conn.close()
+                self._return_connection(conn)
                 return 0
 
             values = []
@@ -6481,7 +6506,7 @@ class PostgresBackend:
             conn.rollback()
             raise
         finally:
-            conn.close()
+            self._return_connection(conn)
 
     def get_legislative_events(
         self,
@@ -6545,7 +6570,7 @@ class PostgresBackend:
 
         cursor.execute(query, params)
         rows = cursor.fetchall()
-        conn.close()
+        self._return_connection(conn)
 
         events = []
         for row in rows:
@@ -6601,7 +6626,7 @@ class PostgresBackend:
 
         cursor.execute(query, params)
         count = cursor.fetchone()[0]
-        conn.close()
+        self._return_connection(conn)
 
         return count
 
@@ -6789,7 +6814,7 @@ class PostgresBackend:
             conn.rollback()
             raise
         finally:
-            conn.close()
+            self._return_connection(conn)
 
     def get_budget_items(
         self,
@@ -6857,7 +6882,7 @@ class PostgresBackend:
 
         cursor.execute(query, params)
         rows = cursor.fetchall()
-        conn.close()
+        self._return_connection(conn)
 
         # Convert to dictionaries
         items = []
@@ -6927,7 +6952,7 @@ class PostgresBackend:
 
         cursor.execute(query, params)
         rows = cursor.fetchall()
-        conn.close()
+        self._return_connection(conn)
 
         return [dict(row) for row in rows]
 
@@ -6963,7 +6988,7 @@ class PostgresBackend:
 
         cursor.execute(query, params)
         count = cursor.fetchone()[0]
-        conn.close()
+        self._return_connection(conn)
 
         return count
 
@@ -7075,7 +7100,7 @@ class PostgresBackend:
             conn.rollback()
             raise
         finally:
-            conn.close()
+            self._return_connection(conn)
 
     def get_federal_awards(
         self,
@@ -7138,7 +7163,7 @@ class PostgresBackend:
 
         cursor.execute(query, params)
         rows = cursor.fetchall()
-        conn.close()
+        self._return_connection(conn)
 
         # Convert to dictionaries with parsed metadata
         awards = []
@@ -7173,7 +7198,7 @@ class PostgresBackend:
               AND valid_to IS NULL AND deleted_at IS NULL
         """, (jurisdiction_id,))
         count = cursor.fetchone()[0]
-        conn.close()
+        self._return_connection(conn)
 
         return count
 
@@ -7311,7 +7336,7 @@ class PostgresBackend:
             conn.rollback()
             raise
         finally:
-            conn.close()
+            self._return_connection(conn)
 
     def get_federal_audit_expenditures(
         self,
@@ -7368,7 +7393,7 @@ class PostgresBackend:
 
         cursor.execute(query, params)
         rows = cursor.fetchall()
-        conn.close()
+        self._return_connection(conn)
 
         # Convert to dictionaries with proper serialization
         expenditures = []
@@ -7435,7 +7460,7 @@ class PostgresBackend:
               AND valid_to IS NULL AND deleted_at IS NULL
         """, (jurisdiction_id,))
         count = cursor.fetchone()[0]
-        conn.close()
+        self._return_connection(conn)
 
         return count
 
@@ -7559,7 +7584,7 @@ class PostgresBackend:
             conn.rollback()
             raise
         finally:
-            conn.close()
+            self._return_connection(conn)
 
     def get_state_passthrough_funds(
         self,
@@ -7633,7 +7658,7 @@ class PostgresBackend:
 
         cursor.execute(query, params)
         rows = cursor.fetchall()
-        conn.close()
+        self._return_connection(conn)
 
         # Convert to dictionaries with parsed metadata
         passthroughs = []
@@ -7671,7 +7696,7 @@ class PostgresBackend:
               AND valid_to IS NULL AND deleted_at IS NULL
         """, (jurisdiction_id,))
         count = cursor.fetchone()[0]
-        conn.close()
+        self._return_connection(conn)
 
         return count
 
@@ -7786,7 +7811,7 @@ class PostgresBackend:
             conn.rollback()
             raise
         finally:
-            conn.close()
+            self._return_connection(conn)
 
     def get_budget_funding_links(
         self,
@@ -7870,7 +7895,7 @@ class PostgresBackend:
 
         cursor.execute(query, params)
         links = cursor.fetchall()
-        conn.close()
+        self._return_connection(conn)
 
         return [dict(link) for link in links]
 
@@ -7905,7 +7930,7 @@ class PostgresBackend:
 
         cursor.execute(query, params)
         count = cursor.fetchone()[0]
-        conn.close()
+        self._return_connection(conn)
 
         return count
 
@@ -7951,7 +7976,7 @@ class PostgresBackend:
             conn.rollback()
             raise
         finally:
-            conn.close()
+            self._return_connection(conn)
 
     # ========== Election Methods (SESSION 460) ==========
 
@@ -8037,7 +8062,7 @@ class PostgresBackend:
             conn.rollback()
             raise
         finally:
-            conn.close()
+            self._return_connection(conn)
 
     def get_elections(
         self,
@@ -8092,7 +8117,7 @@ class PostgresBackend:
 
         cursor.execute(query, params)
         rows = cursor.fetchall()
-        conn.close()
+        self._return_connection(conn)
 
         return [dict(row) for row in rows]
 
@@ -8115,7 +8140,7 @@ class PostgresBackend:
               AND election_date >= %s
         """, (jurisdiction_id, today))
         count = cursor.fetchone()[0]
-        conn.close()
+        self._return_connection(conn)
         return count
 
     # ========== Election Deadline Methods ==========
@@ -8172,7 +8197,7 @@ class PostgresBackend:
             conn.rollback()
             raise
         finally:
-            conn.close()
+            self._return_connection(conn)
 
     def get_election_deadlines(
         self,
@@ -8199,7 +8224,7 @@ class PostgresBackend:
         """, (election_id, as_of.isoformat(), as_of.isoformat()))
 
         rows = cursor.fetchall()
-        conn.close()
+        self._return_connection(conn)
 
         return [dict(row) for row in rows]
 
@@ -8269,7 +8294,7 @@ class PostgresBackend:
             conn.rollback()
             raise
         finally:
-            conn.close()
+            self._return_connection(conn)
 
     def get_election_contests(
         self,
@@ -8304,7 +8329,7 @@ class PostgresBackend:
 
         cursor.execute(query, params)
         rows = cursor.fetchall()
-        conn.close()
+        self._return_connection(conn)
 
         return [dict(row) for row in rows]
 
@@ -8393,7 +8418,7 @@ class PostgresBackend:
             conn.rollback()
             raise
         finally:
-            conn.close()
+            self._return_connection(conn)
 
     def get_elected_officials(
         self,
@@ -8431,7 +8456,7 @@ class PostgresBackend:
 
         cursor.execute(query, params)
         rows = cursor.fetchall()
-        conn.close()
+        self._return_connection(conn)
 
         return [dict(row) for row in rows]
 
@@ -8468,7 +8493,7 @@ class PostgresBackend:
 
         row = cursor.fetchone()
         if row:
-            conn.close()
+            self._return_connection(conn)
             return dict(row)
 
         # If not found, search in name_variations JSONB
@@ -8483,7 +8508,7 @@ class PostgresBackend:
         """, (jurisdiction_id, f"%{name}%"))
 
         row = cursor.fetchone()
-        conn.close()
+        self._return_connection(conn)
 
         if row:
             return dict(row)
@@ -8659,7 +8684,7 @@ class PostgresBackend:
             conn.rollback()
             raise
         finally:
-            conn.close()
+            self._return_connection(conn)
 
     def get_federal_programs(
         self,
@@ -8715,7 +8740,7 @@ class PostgresBackend:
 
         cursor.execute(query, params)
         rows = cursor.fetchall()
-        conn.close()
+        self._return_connection(conn)
 
         # Convert to dictionaries with parsed dates
         programs = []
@@ -8758,7 +8783,7 @@ class PostgresBackend:
 
         cursor.execute(query, params)
         count = cursor.fetchone()[0]
-        conn.close()
+        self._return_connection(conn)
 
         return count
 
@@ -8919,7 +8944,7 @@ class PostgresBackend:
             conn.rollback()
             raise
         finally:
-            conn.close()
+            self._return_connection(conn)
 
     def get_federal_program_allocations(
         self,
@@ -8975,7 +9000,7 @@ class PostgresBackend:
 
         cursor.execute(query, params)
         rows = cursor.fetchall()
-        conn.close()
+        self._return_connection(conn)
 
         # Convert to dictionaries with parsed dates
         allocations = []
@@ -9024,7 +9049,7 @@ class PostgresBackend:
 
         cursor.execute(query, params)
         count = cursor.fetchone()[0]
-        conn.close()
+        self._return_connection(conn)
 
         return count
 
@@ -9106,7 +9131,7 @@ class PostgresBackend:
         cursor.execute(query, params)
         deleted_count = cursor.rowcount
         conn.commit()
-        conn.close()
+        self._return_connection(conn)
 
         return deleted_count
 
@@ -9170,7 +9195,7 @@ class PostgresBackend:
         cursor.execute(query, params)
         restored_count = cursor.rowcount
         conn.commit()
-        conn.close()
+        self._return_connection(conn)
 
         return restored_count
 
