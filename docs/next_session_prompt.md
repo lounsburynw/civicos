@@ -1,65 +1,51 @@
-# Recommended: cross_marin_query_prototype
+# Recommended: Query Engine Performance (Session B)
 
-**Priority:** P0
-**Area:** federation_testbed
-**Date:** 2026-03-16
+**Priority:** P0 (cross_marin_query_prototype) / P1 (query_engine_performance)
+**Area:** federation_testbed > operator_readiness
+**Date:** 2026-03-17
 
 > This is recommended context from the previous session. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
 
 ## Context
 
-Previous session closed critical Marin data gaps: Mill Valley decisions went from 2 to 60, chunk/decision vectors were indexed for both MV and SA, and MinutesViewer redirect handling was fixed. A multi-PDF chunk extraction upgrade was built and validated (6 to 106 chunks/meeting) but full re-extraction was intentionally deferred to the refresh framework -- we want the same turnkey flow for us and for any new operator.
-
-Cross-Marin queries are now unblocked. All three jurisdictions have searchable chunks, decisions, and meetings.
+Session A of a 4-session game plan is complete. Cross-jurisdiction queries work end-to-end: querying `county-marin` fans out to all 3 child cities (SR, MV, SA) with semantic relevance scores. Decision IDs migrated to stable meeting-scoped ordinals. v2 mounted on REST API. **But query latency is 9.4s** — mostly from opening a new TCP connection per query (no connection pooling).
 
 ## Recommended Task
 
-Implement cross-jurisdiction queries within Marin County via the v2 query layer. `SearchRequest.include_parents`/`include_siblings` should enable queries that span San Rafael, Mill Valley, and San Anselmo with tier-based relevance boosting (local > sibling > parent).
-
-## Current Data State
-
-| Corpus | San Rafael | Mill Valley | San Anselmo |
-|--------|-----------|-------------|-------------|
-| Meetings | 96 | 113 | 171 |
-| Chunks (indexed) | 7,039 | 601 | 489 |
-| Decisions (indexed) | 83 | 60 | 96 |
-| Transcripts | 41 | 0 | 0 |
-| Issues | 2,084 | 0 | 0 |
-| Municipal Code | 2,364 | 0 | 0 |
-
-Note: MV chunks are HTML-only (avg 255 chars). Multi-PDF upgrade is committed (`chunks.py:_extract_granicus_multi_pdf`) but full re-extraction deferred to `configurable_refresh_policies`. SA chunks are proper PDF extracts (avg 1,156 chars).
+**Session B: Query Engine Performance** — make cross-jurisdiction queries fast under load.
 
 ## Key Files
-
-- `packages/civicos-services/src/civicos_services/query/` -- v2 query layer
-- `packages/civicos-services/src/civicos_services/query/search.py` -- SearchRequest with `include_parents`/`include_siblings`
-- `packages/civicos/src/civicos/storage/pgvector_backend.py` -- vector search backend
-- `data/jurisdictions/city-*.yaml` -- parent_jurisdictions: [county-marin, ...] for all three cities
-- `packages/civicos-services/tests/test_query_v2.py` -- existing v2 query tests
+- `packages/civicos/src/civicos/storage/postgres_backend.py:133` — `_get_connection()` opens fresh TCP connection every call
+- `packages/civicos/src/civicos/storage/pgvector_backend.py:1384` — `SET hnsw.ef_search = 200` (overkill for 17k vectors)
+- `packages/civicos-services/src/civicos_services/query/verbs.py:37` — `CORPUS_TIMEOUT_S = 20`
+- `packages/civicos-services/src/civicos_services/query/jurisdictions.py` — freshly rewritten with caching + downward resolution
 
 ## Suggested Approach
-
-1. Load context on the v2 query layer (`/load_context` or Explore agent on `packages/civicos-services/src/civicos_services/query/`)
-2. Understand how `SearchRequest.include_parents`/`include_siblings` are defined and whether any cross-jurisdiction logic exists
-3. Implement sibling discovery: given `city-san-rafael` with `parent: county-marin`, find siblings sharing the same parent
-4. Add tier-based relevance boosting: local results score higher than sibling results
-5. Test with real queries across Marin County jurisdictions
+1. **Connection pooling** — Replace per-call `psycopg2.connect()` with `ThreadedConnectionPool` in PostgresBackend. Biggest single win. civicos-relay already uses `SimpleConnectionPool` (see `packages/civicos-relay/src/civicos_relay/storage/postgres.py`).
+2. **Tune ef_search** — Drop from 200 to ~80. At 17k vectors, 200 is extreme overkill trading latency for marginal recall.
+3. **Profile end-to-end** — Measure cross-jurisdiction query latency with 3 cities. Target: <3s for a 3-city fan-out.
+4. **Deploy** — Push updated API + MCP to Modal with pooling.
 
 ## Tests to Run
-
 ```bash
-pytest packages/civicos-services/tests/test_query_v2.py -v
+pytest packages/civicos-services/tests/test_query_v2.py -q --override-ini="addopts="
+pytest packages/civicos/tests/test_civicos.py -q --override-ini="addopts="
 ```
 
 ## Success Criteria
+- [ ] ConnectionPool in PostgresBackend (min=2, max=10 or similar)
+- [ ] ef_search tuned to 80 (or data-driven value)
+- [ ] Cross-jurisdiction query (3 cities) completes in <3s
+- [ ] 150 tests still passing
+- [ ] Deployed to Modal
 
-- [ ] `POST /api/v2/civic/search` with `include_siblings=true` returns results from MV and SA
-- [ ] Local jurisdiction results rank higher than sibling results
-- [ ] Cross-jurisdiction query for "housing" returns decisions from all three cities
-- [ ] Existing single-jurisdiction queries are unaffected
+## Game Plan Context
 
-## Known Issues (not blocking)
+| Session | Item | Status |
+|---------|------|--------|
+| **A** | Downward resolution, registry cache, v2 on REST | **Done** (this session) |
+| **B** | Connection pooling, ef_search tuning, profiling | **Next** |
+| **C** | Configurable refresh policies (GH Actions cron) | Planned |
+| **D** | Pagination protocol, monitoring, docs sweep | Planned |
 
-- **MV duplicate meetings**: view_2 and view_3 create identical meetings per date. Fix at Granicus discovery time -- not urgent for query prototype.
-- **MV chunk quality**: HTML-only, avg 255 chars. Multi-PDF code committed, re-extraction deferred to refresh framework.
-- **`configurable_refresh_policies`** (P1): chunk re-extraction, Granicus dedup, and new city onboarding should all flow through this. Design principle: same turnkey process for internal use and any new operator/dev.
+All items tracked in `launch.json` under `federation_testbed` and `operator_readiness`.
