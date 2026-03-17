@@ -22527,3 +22527,54 @@ instead of going through CivicOS query methods.
 - packages/civicos/src/civicos/storage/postgres_backend.py (chunk_id uses loop index)
 - packages/civicos/src/civicos/storage/sqlite_backend.py (chunk_id uses loop index)
 - launch.json (turnkey_onboard_hardening → done)
+
+## Session — 2026-03-17: Cross-Marin Query Prototype — QC Pass + Cold Start Fix
+
+**Item:** cross_marin_query_prototype (P0) → IN PROGRESS (QC issues remain)
+
+**What was done:**
+1. **QC pass on cross-jurisdiction queries** — ran integration tests against real PostgreSQL data across all 3 Marin cities
+2. **Fixed cold start timeout** — `_ensure_schema()` took 12-21s running 137 DDL statements. Added fast schema probe (single `information_schema` query) + thread-safe lock. Cold start now 805ms.
+
+**QC findings documented in** `docs/internal/cross-jurisdiction-query-spec.md`:
+- P0 FIXED: Cold start timeout (805ms down from 12-21s)
+- P1: Relevance scores are rank-based (constant 0.05 decrement), not semantic similarity
+- P1: No relevance threshold — nonsense queries return 30 results (10 per jurisdiction)
+- P2: Ref format inconsistency (doubled prefix, description text leaked into IDs)
+- P2: Intermittent DNS failures (no retry/reconnect)
+- P3: Sibling result quality mixed — good for policy topics, weaker for operational queries
+
+**Files changed:**
+- packages/civicos/src/civicos/storage/postgres_backend.py (fast schema probe, threading import, logger)
+- docs/internal/cross-jurisdiction-query-spec.md (QC report, updated TODOs, open questions)
+
+**Tests:** 20 smoke + 130 v2 query tests all passing
+
+**Remaining for prototype completion:**
+- Fix P1: Relevance scores need semantic basis (use vector distance, not rank position)
+- Fix P1: Add relevance threshold to filter noise from unrelated queries
+- Fix P2: Normalize ref format across jurisdictions
+- Fix P2: Add DNS retry/reconnect logic
+
+## Session — 2026-03-17: Cross-Marin Query QC Fixes
+
+**Item:** cross_marin_query_prototype (P0 — QC fixes)
+**Status:** QC issues resolved
+
+**Changes:**
+1. **P1 FIXED: Semantic relevance scores** — Added `Decision.score` field to carry cosine similarity from pgvector through to adapters. DecisionsAdapter now uses real similarity scores (0.53-0.65 for "housing") instead of rank-based (1.0, 0.95, 0.90...).
+
+2. **P1 FIXED: Relevance threshold** — `DecisionsAdapter.MIN_RELEVANCE = 0.45` filters low-similarity noise. Nonsense queries ("xyzzy12345") now return ~3 results instead of 10 per jurisdiction. `min_score` parameter plumbed through `_search_with_vector_backend` for DB-level filtering.
+
+3. **P2 FIXED: Doubled ref prefix** — `_make_ref()` detects when `item_id` already contains the ref prefix and avoids doubling. SR refs now correct. MV description-text-in-IDs is a data quality issue from extraction (deferred to re-extraction).
+
+4. **P2 FIXED: DNS retry in PgVectorBackend** — Added retry logic with exponential backoff to `PgVectorBackend._get_connection()` (matching PostgresBackend's existing pattern).
+
+**Files changed:**
+- packages/civicos/src/civicos/history.py (Decision.score field, min_score passthrough)
+- packages/civicos-services/src/civicos_services/query/adapters.py (semantic scores, threshold, ref dedup)
+- packages/civicos/src/civicos/storage/pgvector_backend.py (connection retry logic)
+- packages/civicos-services/tests/test_query_v2.py (MockDecision.score field)
+- docs/internal/cross-jurisdiction-query-spec.md (QC report updated)
+
+**Tests:** 130 v2 query + 20 smoke = 150 all passing
