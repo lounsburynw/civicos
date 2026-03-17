@@ -131,6 +131,19 @@ def create_app() -> FastAPI:
     app.include_router(ai_proxy_router, prefix="/api", tags=["AI Proxy"])
     app.include_router(billing_router, prefix="/api", tags=["Billing"])
 
+    # v2 query interface — cross-jurisdiction search, upcoming, context, act, explore
+    try:
+        import os
+        from civicos import CivicOS
+        from civicos_services.query import create_v2_router
+        default_jurisdiction = os.getenv("CIVICOS_JURISDICTION", "city-san-rafael")
+        civic = CivicOS(default_jurisdiction)
+        v2_router = create_v2_router(civic, default_jurisdiction)
+        app.include_router(v2_router)
+        logger.info(f"v2 query endpoints mounted for {default_jurisdiction}")
+    except Exception as e:
+        logger.warning(f"v2 query endpoints not mounted: {e}")
+
     return app
 
 
