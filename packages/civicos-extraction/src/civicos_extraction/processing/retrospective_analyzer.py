@@ -35,7 +35,7 @@ class AgendaDownloadError(Exception):
 class HighStakesDecision:
     """Enhanced decision metadata for retrospective analysis"""
     # Basic identification
-    item_ref: str
+    item_ref: str  # Human-readable label (item_label or item_number from LLM)
     title: str
     description: str
     meeting_date: str
@@ -66,6 +66,7 @@ class HighStakesDecision:
     staff_report_url: Optional[str]
 
     # Fields with defaults must follow fields without defaults
+    item_number: Optional[str] = None  # Formal agenda number if one exists, null otherwise
     item_type: str = "action"  # action, consent, presentation, hearing, discussion
     extracted_outcome: Optional[str] = None  # LLM-classified outcome
     full_agenda_packet_url: Optional[str] = None  # Full agenda packet PDF
@@ -516,11 +517,19 @@ HIGH-STAKES CRITERIA (flag if ANY apply):
 4. Tax/fee decisions:
    - New taxes, tax increases, fee structure changes, special assessment districts
 
+Return items in the order they appear in the agenda document.
+
+ITEM NUMBERING: Extract the formal item number exactly as printed.
+- "5.a", "7", "Item #2", "III-B", "G-1" → use as-is
+- Named sections without numbers ("City Manager's Report") → item_number = null
+- Do NOT put titles or descriptions in item_number
+
 For EACH high-stakes item found, extract:
 {{
     "items": [
         {{
-            "item_ref": "item number from agenda (e.g., '5.a', 'Item 7', 'Consent-3')",
+            "item_number": "formal agenda number exactly as printed (e.g., '5.a', '7', 'III-B'), or null if none visible",
+            "item_label": "short human-readable name (2-5 words, e.g., 'Urban Lot Splits Ordinance')",
             "title": "clear, specific title",
             "description": "detailed description (2-3 sentences) - WHO, WHAT, WHY",
             "is_high_stakes": true,
@@ -603,8 +612,12 @@ Return JSON with items array:"""
                 else:
                     passed_value = extracted_outcome in ('approved', 'adopted') if extracted_outcome else None
 
+                # Resolve item_ref from new fields (item_label/item_number) or legacy item_ref
+                item_ref = item_data.get('item_label') or item_data.get('item_number') or item_data.get('item_ref', 'unknown')
+                item_number = item_data.get('item_number')
+
                 decision = HighStakesDecision(
-                    item_ref=item_data.get('item_ref', 'unknown'),
+                    item_ref=item_ref,
                     title=item_data.get('title', ''),
                     description=item_data.get('description', ''),
                     meeting_date=meeting_date,
@@ -612,6 +625,7 @@ Return JSON with items array:"""
                     is_high_stakes=True,
                     stakes_score=item_data.get('stakes_score', 6),
                     decision_type=item_data.get('decision_type', 'policy'),
+                    item_number=item_number,
                     item_type=item_type,
                     extracted_outcome=extracted_outcome,
                     budget_amount=item_data.get('budget_amount'),
@@ -771,7 +785,8 @@ For EACH item above, find the corresponding agenda item and extract:
 {{
     "items": [
         {{
-            "item_ref": "agenda item reference",
+            "item_number": "formal agenda number exactly as printed, or null if none visible",
+            "item_label": "short human-readable name (2-5 words)",
             "title": "item title",
             "description": "what this budget is for",
             "is_high_stakes": true,
@@ -813,8 +828,11 @@ Return JSON with items array. If an item cannot be found or isn't a decision, om
                 else:
                     passed_value = extracted_outcome in ('approved', 'adopted') if extracted_outcome else None
 
+                item_ref = item_data.get('item_label') or item_data.get('item_number') or item_data.get('item_ref', 'unknown')
+                item_number = item_data.get('item_number')
+
                 decision = HighStakesDecision(
-                    item_ref=item_data.get('item_ref', 'unknown'),
+                    item_ref=item_ref,
                     title=item_data.get('title', ''),
                     description=item_data.get('description', ''),
                     meeting_date=meeting_date,
@@ -822,6 +840,7 @@ Return JSON with items array. If an item cannot be found or isn't a decision, om
                     is_high_stakes=True,
                     stakes_score=item_data.get('stakes_score', 6),
                     decision_type=item_data.get('decision_type', 'budget'),
+                    item_number=item_number,
                     item_type=item_type,
                     extracted_outcome=extracted_outcome,
                     budget_amount=item_data.get('budget_amount'),
@@ -905,7 +924,8 @@ For each high-stakes item, extract:
 {{
     "items": [
         {{
-            "item_ref": "item number from agenda",
+            "item_number": "formal agenda number exactly as printed, or null if none visible",
+            "item_label": "short human-readable name (2-5 words)",
             "title": "clear, specific title",
             "description": "detailed description (2-3 sentences) - include WHO, WHAT, WHY",
             "is_high_stakes": true,
@@ -987,7 +1007,8 @@ Return JSON format:
 {{
     "items": [
         {{
-            "item_ref": "{safe_item_ref}",
+            "item_number": "{safe_item_ref}",
+            "item_label": "short human-readable name",
             "title": "...",
             "description": "...",
             "is_high_stakes": true/false,
@@ -1031,9 +1052,13 @@ PROJECT TYPES: housing, transportation, environment, budget, education, developm
                 else:
                     passed_value = extracted_outcome in ('approved', 'adopted') if extracted_outcome else None
 
+                # Resolve item_ref from new fields or legacy, fall back to caller's item_ref
+                extracted_ref = item_data.get('item_label') or item_data.get('item_number') or item_data.get('item_ref', item_ref)
+                extracted_number = item_data.get('item_number')
+
                 # Build HighStakesDecision object
                 decision = HighStakesDecision(
-                    item_ref=item_data.get('item_ref', item_ref),  # Use extracted ref
+                    item_ref=extracted_ref,
                     title=item_data.get('title', ''),
                     description=item_data.get('description', ''),
                     meeting_date=meeting_date,
@@ -1041,6 +1066,7 @@ PROJECT TYPES: housing, transportation, environment, budget, education, developm
                     is_high_stakes=True,
                     stakes_score=item_data.get('stakes_score', 6),
                     decision_type=item_data.get('decision_type', 'policy'),
+                    item_number=extracted_number,
                     item_type=item_type,
                     extracted_outcome=extracted_outcome,
                     budget_amount=item_data.get('budget_amount'),

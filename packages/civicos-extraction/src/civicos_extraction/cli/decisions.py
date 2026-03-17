@@ -463,12 +463,12 @@ def extract_decisions_from_meeting(
         for i, decision in enumerate(high_stakes_decisions):
             decision_dict = decision.to_dict()
             # Add required fields for storage
-            # Namespaced ID format: decision:{jurisdiction}:{date}:{item}
-            item_ref = decision.item_ref.replace(" ", "_")
-            decision_dict["id"] = f"decision:{jurisdiction_id}:{meeting_date}:{item_ref}"
+            # Namespaced ID format: decision:{jurisdiction}:{meeting_id}:{ordinal}
+            # Ordinal is 1-based extraction position, zero-padded to 2 digits
+            decision_dict["id"] = f"decision:{jurisdiction_id}:{meeting_id}:{i + 1:02d}"
             decision_dict["meeting_date"] = meeting_date
             decision_dict["meeting_id"] = meeting_id
-            decision_dict["agenda_item"] = decision.item_ref
+            decision_dict["agenda_item"] = decision.item_number or decision.item_ref
             decision_dict["summary"] = decision.description
             # Outcome mapping: prefer LLM-extracted outcome, fall back to item_type heuristics
             valid_outcomes = {"approved", "denied", "continued", "withdrawn", "received", "adopted", "other"}

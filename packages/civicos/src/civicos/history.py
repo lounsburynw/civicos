@@ -1115,10 +1115,13 @@ def _search_with_vector_backend(
             except (ValueError, TypeError):
                 pass
         if meeting_date is None and r.id:
-            # Decision IDs follow "YYYY-MM-DD-item" format
+            # Try to extract date from decision ID (legacy format: decision:{jur}:{YYYY-MM-DD}:{item})
             try:
-                date_part = "-".join(r.id.split("-")[:3])
-                meeting_date = datetime.strptime(date_part, "%Y-%m-%d")
+                parts = r.id.split(":")
+                for part in parts:
+                    if len(part) == 10 and part[4] == '-' and part[7] == '-':
+                        meeting_date = datetime.strptime(part, "%Y-%m-%d")
+                        break
             except (ValueError, IndexError):
                 pass
         if meeting_date is None:
