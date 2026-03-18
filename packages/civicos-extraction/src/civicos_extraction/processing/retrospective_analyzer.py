@@ -135,7 +135,9 @@ class RetrospectiveAnalyzer(AgendaIntegrator):
         self,
         event: Dict[str, Any],
         min_budget: int = 100000,
-        min_stakes_score: int = 6
+        min_stakes_score: int = 6,
+        source_type: Optional[str] = None,
+        text_override: Optional[str] = None,
     ) -> List[HighStakesDecision]:
         """
         Extract high-stakes decisions from meeting with enhanced metadata.
@@ -149,31 +151,37 @@ class RetrospectiveAnalyzer(AgendaIntegrator):
             event: Event dict from civic_digest.py
             min_budget: Minimum budget threshold for auto-flagging ($100K default)
             min_stakes_score: Minimum stakes score (1-10 scale, 6+ is high-stakes)
+            source_type: Source type ("minutes", "transcript", "agenda") for prompt tuning
+            text_override: Pre-fetched text content (e.g., formatted transcript). Skips download.
 
         Returns:
             List of HighStakesDecision objects
         """
-        # Get agenda URL (try multiple metadata sources)
-        agenda_url = self._get_agenda_url(event)
-        if not agenda_url:
-            logger.info(f"No agenda URL found for {event.get('title', 'Unknown')}")
-            return []
+        if text_override:
+            # Use provided text directly (e.g., transcript)
+            text_content = text_override
+        else:
+            # Get agenda URL (try multiple metadata sources)
+            agenda_url = self._get_agenda_url(event)
+            if not agenda_url:
+                logger.info(f"No agenda URL found for {event.get('title', 'Unknown')}")
+                return []
+
+            # Download and extract text — raise on failure so callers can
+            # distinguish "download broken" from "no high-stakes decisions"
+            text_content = self._download_and_extract_agenda(agenda_url, event)
+            if not text_content:
+                raise AgendaDownloadError(
+                    f"Failed to download/extract agenda from {agenda_url} "
+                    f"for {event.get('title', 'Unknown')}"
+                )
 
         # Extract meeting type from event title or metadata
         meeting_type = self._infer_meeting_type(event)
 
-        # Download and extract text — raise on failure so callers can
-        # distinguish "download broken" from "no high-stakes decisions"
-        text_content = self._download_and_extract_agenda(agenda_url, event)
-        if not text_content:
-            raise AgendaDownloadError(
-                f"Failed to download/extract agenda from {agenda_url} "
-                f"for {event.get('title', 'Unknown')}"
-            )
-
         # === PASS 1: Primary LLM extraction ===
         high_stakes_items = self._extract_with_high_stakes_prompt(
-            text_content, event, meeting_type, min_budget
+            text_content, event, meeting_type, min_budget, source_type=source_type
         )
 
         # === PASS 2: Budget validation scan ===
@@ -472,7 +480,8 @@ class RetrospectiveAnalyzer(AgendaIntegrator):
         text_content: str,
         event: Dict[str, Any],
         meeting_type: str,
-        min_budget: int
+        min_budget: int,
+        source_type: Optional[str] = None,
     ) -> List[HighStakesDecision]:
         """
         Use LLM to extract ALL high-stakes decisions in a single pass.
@@ -487,15 +496,30 @@ class RetrospectiveAnalyzer(AgendaIntegrator):
         # Use generous limit - Gemini 2.5 Pro has 2M context
         safe_text = html.escape(text_content[:150000])
 
-        prompt = f"""Analyze this municipal meeting agenda/packet and extract ALL high-stakes decisions.
+        # Source-specific prompt header and instructions
+        if source_type == "transcript":
+            source_header = "meeting transcript with speaker attribution"
+            source_instructions = """
+TRANSCRIPT-SPECIFIC INSTRUCTIONS:
+- Look for motion language ("I move to...", "motion to approve...")
+- Look for vote calls ("all in favor", "roll call vote", "ayes/noes")
+- Look for roll call results to determine outcomes
+- Speaker names indicate who made/seconded motions
+- Distinguish formal votes from discussion/direction
+"""
+        else:
+            source_header = "agenda/packet"
+            source_instructions = ""
+
+        prompt = f"""Analyze this municipal {source_header} and extract ALL high-stakes decisions.
 
 Meeting: {safe_title}
 Date: {safe_date}
 Meeting Type: {safe_meeting_type}
 
-FULL AGENDA TEXT:
+FULL TEXT:
 {safe_text}
-
+{source_instructions}
 OBJECTIVE: Extract ALL decisions with significant community impact. Return MULTIPLE items if found.
 
 CRITICAL: Any agenda item mentioning a dollar amount >= ${min_budget:,} MUST be extracted.
