@@ -25,6 +25,7 @@ import os
 import sys
 from dataclasses import dataclass, asdict
 from datetime import datetime
+from enum import Enum
 from pathlib import Path
 from typing import List, Optional, Dict, Any
 
@@ -71,6 +72,124 @@ class DecisionCheckpoint:
         if "succeeded_meeting_ids" not in data:
             data["succeeded_meeting_ids"] = []
         return cls(**data)
+
+
+class ExtractionSource(Enum):
+    """Source type for decision extraction, in preference order."""
+    MINUTES = "minutes"
+    TRANSCRIPT = "transcript"
+    AGENDA = "agenda"
+
+
+@dataclass
+class SourceAssessment:
+    """Assessment of available sources for a meeting."""
+    meeting_id: str
+    best_source: ExtractionSource
+    has_minutes: bool = False
+    has_transcript: bool = False
+    has_agenda: bool = False
+    transcript_video_id: Optional[str] = None
+
+
+def assess_sources(
+    meeting: Dict[str, Any],
+    meeting_to_video: Optional[Dict[str, str]] = None,
+) -> Optional[SourceAssessment]:
+    """Determine the best available source for decision extraction.
+
+    Priority: minutes > transcript > agenda.
+
+    Args:
+        meeting: Meeting dictionary
+        meeting_to_video: Mapping of meeting_id -> video_id (for transcript lookup)
+
+    Returns:
+        SourceAssessment with best source, or None if no sources available
+    """
+    meeting_id = meeting.get("id") or meeting.get("meeting_id", "unknown")
+    has_minutes = bool(meeting.get("minutes_url"))
+    has_agenda = bool(meeting.get("agenda_url"))
+
+    # Check for transcript via video mapping
+    video_id = (meeting_to_video or {}).get(meeting_id)
+    has_transcript = video_id is not None
+
+    if has_minutes:
+        best = ExtractionSource.MINUTES
+    elif has_transcript:
+        best = ExtractionSource.TRANSCRIPT
+    elif has_agenda:
+        best = ExtractionSource.AGENDA
+    else:
+        return None
+
+    return SourceAssessment(
+        meeting_id=meeting_id,
+        best_source=best,
+        has_minutes=has_minutes,
+        has_transcript=has_transcript,
+        has_agenda=has_agenda,
+        transcript_video_id=video_id,
+    )
+
+
+def build_meeting_to_video_map(
+    jurisdiction_id: str,
+) -> Dict[str, str]:
+    """Invert get_video_meeting_mapping() to meeting_id -> video_id.
+
+    Args:
+        jurisdiction_id: Jurisdiction to query
+
+    Returns:
+        Dict mapping meeting_id -> video_id
+    """
+    try:
+        from civicos.storage import get_storage_backend
+
+        backend = get_storage_backend()
+        if backend.backend_type == "postgres":
+            # video_id -> meeting_id
+            video_to_meeting = backend.get_video_meeting_mapping(jurisdiction_id)
+            # Invert: meeting_id -> video_id
+            return {mid: vid for vid, mid in video_to_meeting.items()}
+    except ImportError:
+        logger.debug("civicos.storage not available for video mapping")
+    except Exception as e:
+        logger.warning(f"Failed to build video mapping: {e}")
+    return {}
+
+
+def format_transcript_for_extraction(transcript_data: Any) -> Optional[str]:
+    """Format transcript utterances as readable text for LLM extraction.
+
+    Args:
+        transcript_data: Transcript dict with 'transcript' field containing utterances
+
+    Returns:
+        Formatted transcript text, or None if no usable content
+    """
+    utterances = transcript_data.get("transcript", [])
+    if not utterances:
+        return None
+
+    lines = []
+    last_speaker = None
+    for utt in utterances:
+        speaker = utt.get("speaker", "Unknown")
+        text = utt.get("text", "").strip()
+        if not text:
+            continue
+        if speaker != last_speaker:
+            if last_speaker is not None:
+                lines.append("")  # Blank line between speaker changes
+            lines.append(f"[{speaker}]: {text}")
+            last_speaker = speaker
+        else:
+            lines.append(text)
+
+    return "\n".join(lines) if lines else None
 
 
 def add_decisions_parser(subparsers: argparse._SubParsersAction) -> None:
@@ -223,18 +342,12 @@ def find_meetings(
                     until=until_dt,
                 )
                 if meetings:
-                    # Filter to meetings with agenda URLs
-                    meetings_with_agendas = [
-                        m for m in meetings
-                        if m.get("agenda_url")
-                    ]
-                    if meetings_with_agendas:
-                        logger.info(
-                            f"Found {len(meetings_with_agendas)} meetings with agendas in cloud storage"
-                        )
-                        return meetings_with_agendas
-                    else:
-                        logger.info("No meetings with agendas in cloud, trying local fallback")
+                    # Return all meetings — source filtering happens per-meeting
+                    # in extract_decisions_from_meeting() via assess_sources()
+                    logger.info(
+                        f"Found {len(meetings)} meetings in cloud storage"
+                    )
+                    return meetings
         except ImportError:
             logger.debug("civic.storage not available, using local fallback")
         except Exception as e:
@@ -370,6 +483,7 @@ def extract_decisions_from_meeting(
     min_budget: int = 100000,
     cloud: bool = False,
     analyzer: Optional[Any] = None,
+    meeting_to_video: Optional[Dict[str, str]] = None,
 ) -> DecisionResult:
     """
     Extract decisions from a meeting using RetrospectiveAnalyzer.
@@ -428,18 +542,54 @@ def extract_decisions_from_meeting(
                 )
             analyzer = RetrospectiveAnalyzer(provider=provider)
 
-        # Skip meetings without minutes — decisions can't be reliably extracted
-        # from agendas alone (no outcomes, votes, or actual actions taken).
-        # These meetings will be retried when minutes become available.
-        if not meeting.get('minutes_url'):
-            logger.info(f"  Skipping (no minutes available yet): {meeting_id}")
+        # Assess available sources (minutes > transcript > agenda)
+        assessment = assess_sources(meeting, meeting_to_video)
+        if assessment is None:
+            logger.info(f"  Skipping (no sources available): {meeting_id}")
             return DecisionResult(
                 meeting_id=meeting_id,
                 meeting_date=meeting_date,
-                status="no_minutes",
+                status="no_sources",
             )
 
-        logger.info(f"  Extracting decisions from minutes...")
+        source = assessment.best_source
+        logger.info(f"  Extracting decisions from {source.value}...")
+
+        # For transcript source, fetch and format transcript text
+        source_type = source.value
+        text_override = None
+        if source == ExtractionSource.TRANSCRIPT:
+            try:
+                from civicos.storage import get_storage_backend
+
+                backend = get_storage_backend()
+                transcript_data = backend.get_transcript(assessment.transcript_video_id)
+                if transcript_data:
+                    text_override = format_transcript_for_extraction(transcript_data)
+                if not text_override:
+                    # Transcript fetch failed, fall back to agenda
+                    if assessment.has_agenda:
+                        logger.info(f"  Transcript empty, falling back to agenda")
+                        source_type = ExtractionSource.AGENDA.value
+                    else:
+                        logger.info(f"  Transcript empty and no agenda available: {meeting_id}")
+                        return DecisionResult(
+                            meeting_id=meeting_id,
+                            meeting_date=meeting_date,
+                            status="no_sources",
+                        )
+            except Exception as e:
+                if assessment.has_agenda:
+                    logger.warning(f"  Transcript fetch failed ({e}), falling back to agenda")
+                    source_type = ExtractionSource.AGENDA.value
+                else:
+                    logger.warning(f"  Transcript fetch failed and no agenda: {meeting_id}")
+                    return DecisionResult(
+                        meeting_id=meeting_id,
+                        meeting_date=meeting_date,
+                        status="error",
+                        error=f"Transcript fetch failed: {e}",
+                    )
 
         # Extract decisions — AgendaDownloadError is raised when the
         # PDF cannot be fetched, distinguishing it from "no decisions found"
@@ -447,6 +597,8 @@ def extract_decisions_from_meeting(
             event=meeting,
             min_budget=min_budget,
             min_stakes_score=min_stakes,
+            source_type=source_type,
+            text_override=text_override,
         )
 
         if not high_stakes_decisions:
@@ -490,7 +642,7 @@ def extract_decisions_from_meeting(
                 {"url": decision.minutes_url, "type": "minutes"} if decision.minutes_url else None,
             ]
             decision_dict["source_documents"] = [d for d in decision_dict["source_documents"] if d]
-            decision_dict["extraction_method"] = "retrospective_analyzer_gemini"
+            decision_dict["extraction_method"] = f"retrospective_analyzer_gemini_{source_type}"
             decisions_data.append(decision_dict)
 
         # Store decisions (cloud or local)
@@ -679,6 +831,11 @@ def run_decision_extraction(
         return None
     analyzer = RetrospectiveAnalyzer(provider=provider)
 
+    # Build meeting_id -> video_id map once for transcript source assessment
+    meeting_to_video = build_meeting_to_video_map(jurisdiction_id)
+    if meeting_to_video:
+        logger.info(f"Found {len(meeting_to_video)} meetings with transcripts")
+
     # Extract decisions
     results = []
     items_processed = start_index
@@ -702,6 +859,7 @@ def run_decision_extraction(
             min_budget=min_budget,
             cloud=cloud_mode,
             analyzer=analyzer,  # Reuse for cost tracking
+            meeting_to_video=meeting_to_video,
         )
         results.append(result)
 
@@ -709,7 +867,7 @@ def run_decision_extraction(
             items_extracted += 1
             total_decisions += result.decisions_count
             succeeded_ids.add(meeting_id)
-        elif result.status in ("skipped", "no_minutes"):
+        elif result.status in ("skipped", "no_sources"):
             items_skipped += 1
             succeeded_ids.add(meeting_id)  # Don't re-process skipped meetings
         else:

@@ -3252,8 +3252,8 @@ def extract_decisions(
 
     # Count actual extractions
     extracted = sum(1 for r in results if r.status == "success")
-    skipped = sum(1 for r in results if r.status in ("skipped", "no_minutes"))
-    no_minutes = sum(1 for r in results if r.status == "no_minutes")
+    skipped = sum(1 for r in results if r.status in ("skipped", "no_sources"))
+    no_sources = sum(1 for r in results if r.status == "no_sources")
     failed = sum(1 for r in results if r.status == "error")
     total_decisions = sum(r.decisions_count for r in results if r.status == "success")
 
@@ -3294,7 +3294,7 @@ def extract_decisions(
 
     elapsed = time.time() - start_time
     logger.info(f"[DECISIONS] Extracted {total_decisions} decisions from {extracted} meetings")
-    logger.info(f"[DECISIONS] Skipped {skipped} (already extracted or no minutes), {no_minutes} awaiting minutes, {failed} failed")
+    logger.info(f"[DECISIONS] Skipped {skipped} (already extracted or no sources), {no_sources} no sources available, {failed} failed")
 
     result = {
         "task": "decisions",
@@ -3302,7 +3302,7 @@ def extract_decisions(
         "meetings_processed": len(results),
         "meetings_extracted": extracted,
         "meetings_skipped": skipped,
-        "meetings_no_minutes": no_minutes,
+        "meetings_no_sources": no_sources,
         "meetings_failed": failed,
         "decisions_extracted": total_decisions,
         "targeted": bool(meeting_ids),
