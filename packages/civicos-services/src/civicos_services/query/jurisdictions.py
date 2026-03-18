@@ -154,6 +154,13 @@ def get_jurisdiction_tier(base_jurisdiction: str, target_jurisdiction: str) -> s
     return "cross_county"
 
 
+def validate_jurisdiction_ids(jids: List[str]) -> List[str]:
+    """Return any jurisdiction IDs not found in the registry."""
+    registry = _get_registry()
+    all_jurisdictions = registry.get("jurisdictions", {})
+    return [jid for jid in jids if jid not in all_jurisdictions]
+
+
 def get_tier_weight(base_jurisdiction: str, target_jurisdiction: str) -> float:
     """Get the relevance weight for a jurisdiction based on its tier."""
     tier = get_jurisdiction_tier(base_jurisdiction, target_jurisdiction)

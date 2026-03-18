@@ -1688,6 +1688,19 @@ class TestJurisdictionResolution:
         from civicos_services.query.jurisdictions import get_tier_weight
         assert get_tier_weight("city-san-rafael", "city-mill-valley") == 0.8
 
+    def test_validate_jurisdiction_ids_valid(self):
+        from civicos_services.query.jurisdictions import validate_jurisdiction_ids
+        assert validate_jurisdiction_ids(["city-san-rafael", "city-berkeley"]) == []
+
+    def test_validate_jurisdiction_ids_unknown(self):
+        from civicos_services.query.jurisdictions import validate_jurisdiction_ids
+        unknown = validate_jurisdiction_ids(["city-san-rafael", "city-nonexistent"])
+        assert unknown == ["city-nonexistent"]
+
+    def test_validate_jurisdiction_ids_empty(self):
+        from civicos_services.query.jurisdictions import validate_jurisdiction_ids
+        assert validate_jurisdiction_ids([]) == []
+
 
 # === Cross-Jurisdiction Search Tests ===
 
@@ -1874,3 +1887,24 @@ class TestCrossJurisdictionSearch:
         # city-san-rafael should appear exactly once in jurisdiction_results keys
         jid_list = list(response.jurisdiction_results.keys())
         assert jid_list.count("city-san-rafael") == 1
+
+    @pytest.mark.asyncio
+    async def test_also_include_rejects_unknown_jurisdiction(self):
+        """also_include with unknown jurisdiction IDs returns error, not empty results."""
+        from civicos_services.query.verbs import execute_search
+
+        civic = make_mock_civic()
+
+        req = SearchRequest(
+            query="housing",
+            corpus=["decisions"],
+            also_include=["city-nonexistent"],
+        )
+
+        with adapter_patches():
+            response = await execute_search(req, civic, "city-san-rafael")
+
+        # Should return error in meta, not fan out to unknown jurisdiction
+        assert response.results == []
+        assert "error" in response.meta.corpus_status
+        assert "city-nonexistent" in response.meta.corpus_status["error"]
