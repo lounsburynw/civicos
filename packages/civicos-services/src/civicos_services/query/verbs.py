@@ -306,10 +306,23 @@ async def _execute_cross_jurisdiction_search(
     from civicos_services.query.jurisdictions import (
         resolve_jurisdictions,
         get_tier_weight,
+        validate_jurisdiction_ids,
     )
 
     start = time.monotonic()
     base_jid = request.jurisdiction or jurisdiction
+
+    # Validate also_include jurisdiction IDs against registry
+    if request.also_include:
+        unknown = validate_jurisdiction_ids(request.also_include)
+        if unknown:
+            return SearchResponse(
+                meta=ResponseMeta(
+                    schema_version=SCHEMA_VERSION,
+                    query_time_ms=0,
+                    corpus_status={"error": f"Unknown jurisdiction IDs in also_include: {unknown}"},
+                ),
+            )
 
     target_jids = resolve_jurisdictions(
         base_jid,
