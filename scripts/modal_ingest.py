@@ -110,6 +110,7 @@ import modal
 # Define the Modal app
 app = modal.App("civic-ingest")
 
+
 # Persistent volume for model caching (fastembed downloads ~500MB models)
 # This prevents re-downloading on every cold start and avoids cache corruption
 model_cache = modal.Volume.from_name("civic-model-cache", create_if_missing=True)
@@ -3819,7 +3820,9 @@ def scheduled_low_velocity_refresh():
         modal.Secret.from_name("civic-youtube-proxy"),  # Residential proxy for YouTube downloads
         modal.Secret.from_name("civic-openai"),  # For speaker estimation + agenda extraction
         modal.Secret.from_name("civic-notify"),  # Push notifications (ntfy or legacy Slack)
-        modal.Secret.from_name("civicos-platform"),  # PLATFORM_DATABASE_URL for usage rollup
+        # civicos-platform (PLATFORM_DATABASE_URL) added to this function's
+        # secrets list once the secret is provisioned on Modal. Until then,
+        # usage rollup is skipped gracefully in the function body.
     ],
     memory=4096,
     timeout=10800,  # 3 hours (transcription can take time)
