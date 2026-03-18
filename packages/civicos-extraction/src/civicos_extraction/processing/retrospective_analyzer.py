@@ -352,7 +352,10 @@ class RetrospectiveAnalyzer(AgendaIntegrator):
                 text_content = self._extract_pdf_text(content_bytes)
             elif 'html' in content_type:
                 # HTML page - find embedded PDF and extract from that
-                text_content = self._extract_pdf_from_html_page(content_bytes, agenda_url)
+                # Use response.url (final URL after redirects) so relative
+                # links resolve to the correct host (e.g., berkeleyca.gov
+                # instead of berkeley.granicus.com)
+                text_content = self._extract_pdf_from_html_page(content_bytes, response.url)
             else:
                 text_content = content_bytes.decode('utf-8', errors='ignore')
 
