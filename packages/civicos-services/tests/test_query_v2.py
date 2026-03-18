@@ -1793,3 +1793,84 @@ class TestCrossJurisdictionSearch:
         assert len(response.results) > 0
         # No jurisdiction_results in single-jurisdiction mode
         assert response.jurisdiction_results is None
+
+    def test_search_request_also_include_field(self):
+        """SearchRequest accepts also_include and defaults to None."""
+        req = SearchRequest(query="housing", corpus=["decisions"])
+        assert req.also_include is None
+
+        req2 = SearchRequest(
+            query="housing",
+            corpus=["decisions"],
+            also_include=["city-berkeley"],
+        )
+        assert req2.also_include == ["city-berkeley"]
+
+    @pytest.mark.asyncio
+    async def test_also_include_triggers_cross_jurisdiction(self):
+        """also_include alone (no parents/siblings) triggers cross-jurisdiction fan-out."""
+        from civicos_services.query.verbs import execute_search
+
+        civic = make_mock_civic()
+
+        req = SearchRequest(
+            query="housing",
+            corpus=["decisions"],
+            also_include=["city-berkeley"],
+        )
+
+        with adapter_patches():
+            response = await execute_search(req, civic, "city-san-rafael")
+
+        # Should produce jurisdiction_results (cross-jurisdiction mode)
+        assert response.jurisdiction_results is not None
+        # Base jurisdiction always included
+        assert "city-san-rafael" in response.jurisdiction_results
+        # Explicitly included jurisdiction present
+        assert "city-berkeley" in response.jurisdiction_results
+
+    @pytest.mark.asyncio
+    async def test_also_include_cross_county_tier_weight(self):
+        """Cross-county jurisdictions via also_include get 0.5 weight."""
+        from civicos_services.query.verbs import execute_search
+
+        civic = make_mock_civic()
+
+        req = SearchRequest(
+            query="housing",
+            corpus=["decisions"],
+            also_include=["city-berkeley"],
+        )
+
+        with adapter_patches():
+            response = await execute_search(req, civic, "city-san-rafael")
+
+        berkeley_results = [
+            r for r in response.results if r.jurisdiction == "city-berkeley"
+        ]
+        for r in berkeley_results:
+            assert r.relevance is not None
+            # Cross-county weight is 0.5, so max relevance is 0.5
+            assert r.relevance <= 0.5
+
+    @pytest.mark.asyncio
+    async def test_also_include_deduplicates_with_resolved(self):
+        """also_include does not duplicate jurisdictions already resolved by siblings/parents."""
+        from civicos_services.query.verbs import execute_search
+
+        civic = make_mock_civic()
+
+        # include_siblings already resolves sibling cities; adding one explicitly shouldn't duplicate
+        req = SearchRequest(
+            query="housing",
+            corpus=["decisions"],
+            include_siblings=True,
+            also_include=["city-san-rafael"],  # already the base — should not duplicate
+        )
+
+        with adapter_patches():
+            response = await execute_search(req, civic, "city-san-rafael")
+
+        # city-san-rafael should appear exactly once in jurisdiction_results keys
+        jid_list = list(response.jurisdiction_results.keys())
+        assert jid_list.count("city-san-rafael") == 1

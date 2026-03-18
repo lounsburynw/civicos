@@ -1,0 +1,575 @@
+{
+  "timestamp": "2026-03-18T09:35:42",
+  "questions": [
+    {
+      "label": "Q1: Sibling housing decisions \u2014 are results useful?",
+      "total_results": 30,
+      "query_time_ms": 9281,
+      "jurisdictions_searched": [
+        "city-san-rafael",
+        "city-mill-valley",
+        "city-san-anselmo"
+      ],
+      "results_by_jurisdiction": {
+        "city-san-rafael": [
+          {
+            "title": "Below Market Rate Housing Program Update",
+            "relevance": 0.6515,
+            "type": "decision",
+            "date": "2026-02-17T00:00:00"
+          },
+          {
+            "title": "2026 Housing Study Session One",
+            "relevance": 0.6426,
+            "type": "decision",
+            "date": "2026-02-02T00:00:00"
+          },
+          {
+            "title": "4040 Civic Center Drive \u2013 Multifamily Residential Development Project",
+            "relevance": 0.5764,
+            "type": "decision",
+            "date": "2026-01-27T00:00:00"
+          },
+          {
+            "title": "700 Irwin Street \u2013 New Mixed-Use Building",
+            "relevance": 0.5384,
+            "type": "decision",
+            "date": "2026-01-13T00:00:00"
+          },
+          {
+            "title": "Real Property Negotiation: 519 Fourth Street",
+            "relevance": 0.5356,
+            "type": "decision",
+            "date": "2025-12-15T00:00:00"
+          }
+        ],
+        "city-mill-valley": [
+          {
+            "title": "100 Evelyn Avenue \u2013 Study Session for Design Review \u2013 PL25 -0081",
+            "relevance": 0.4289,
+            "type": "decision",
+            "date": "2026-01-27T00:00:00"
+          },
+          {
+            "title": "Adoption of Ordinance to Rezone Housing Site",
+            "relevance": 0.4591,
+            "type": "decision",
+            "date": "2026-01-20T00:00:00"
+          },
+          {
+            "title": "Reapproval of Bayfront Terrace Affordable Housing Project at 1 Hamilton Drive",
+            "relevance": 0.4586,
+            "type": "decision",
+            "date": "2025-12-17T00:00:00"
+          },
+          {
+            "title": "Amendment to Inclusionary Housing Regulations",
+            "relevance": 0.4896,
+            "type": "decision",
+            "date": "2025-12-09T00:00:00"
+          },
+          {
+            "title": "Affordable Housing Fee Revenue",
+            "relevance": 0.4766,
+            "type": "decision",
+            "date": "2025-12-09T00:00:00"
+          }
+        ],
+        "city-san-anselmo": [
+          {
+            "title": "Community Development and Housing Initiatives",
+            "relevance": 0.5432,
+            "type": "decision",
+            "date": "2025-11-04T00:00:00"
+          },
+          {
+            "title": "Adoption of Ordinance Amending Construction and Green Building Codes",
+            "relevance": 0.4187,
+            "type": "decision",
+            "date": "2025-09-09T00:00:00"
+          },
+          {
+            "title": "Approval of Library Roof/HVAC and Interior Refresh Project",
+            "relevance": 0.4308,
+            "type": "decision",
+            "date": "2025-08-06T00:00:00"
+          },
+          {
+            "title": "House Retrofit Cost Evaluation",
+            "relevance": 0.455,
+            "type": "decision",
+            "date": "2025-07-21T00:00:00"
+          },
+          {
+            "title": "Ordinance Amendments for Housing Element Implementation",
+            "relevance": 0.523,
+            "type": "decision",
+            "date": "2025-05-13T00:00:00"
+          }
+        ]
+      }
+    },
+    {
+      "label": "Q2: Water decisions+issues with siblings \u2014 policy vs operational",
+      "total_results": 16,
+      "query_time_ms": 1158,
+      "jurisdictions_searched": [
+        "city-san-rafael",
+        "city-mill-valley",
+        "city-san-anselmo"
+      ],
+      "results_by_jurisdiction": {
+        "city-san-rafael": [
+          {
+            "title": "Agreements for On-Call Environmental Consulting Services",
+            "relevance": 1.0,
+            "type": "decision",
+            "date": "2025-11-17T00:00:00"
+          },
+          {
+            "title": "Replacement of Fire Hoses and Nozzles",
+            "relevance": 0.9839,
+            "type": "decision",
+            "date": "2025-10-06T00:00:00"
+          },
+          {
+            "title": "Agreement for Environmental Consulting Services for the Dominican Residential De",
+            "relevance": 0.9683,
+            "type": "decision",
+            "date": "2025-10-06T00:00:00"
+          }
+        ],
+        "city-mill-valley": [
+          {
+            "title": "Resolution Authorizing City Manager to Execute Agreement with Schaaf & Wheeler f",
+            "relevance": 0.8,
+            "type": "decision",
+            "date": "2025-11-17T00:00:00"
+          },
+          {
+            "title": "SASM Grant Request for Sea Level Rise Study",
+            "relevance": 0.7871,
+            "type": "decision",
+            "date": "2025-11-03T00:00:00"
+          },
+          {
+            "title": "Award of Sea Level Rise Shoreline Adaptation Project Contract",
+            "relevance": 0.7746,
+            "type": "decision",
+            "date": "2025-08-18T00:00:00"
+          },
+          {
+            "title": "Continuation of Annual Sewer Service Charge for Fiscal Year 2025/26",
+            "relevance": 0.7625,
+            "type": "decision",
+            "date": "2025-07-21T00:00:00"
+          },
+          {
+            "title": "Federal Grant Application for Drainage Pipe Upgrade",
+            "relevance": 0.7508,
+            "type": "decision",
+            "date": "2025-06-02T00:00:00"
+          }
+        ],
+        "city-san-anselmo": [
+          {
+            "title": "Treasurer\u2019s Report",
+            "relevance": 0.8,
+            "type": "decision",
+            "date": "2025-08-26T00:00:00"
+          },
+          {
+            "title": "Draft Land Use Goals, Policies, and Actions",
+            "relevance": 0.7871,
+            "type": "decision",
+            "date": "2025-07-10T00:00:00"
+          },
+          {
+            "title": "Update on San Anselmo Flood Risk Reduction Project",
+            "relevance": 0.7746,
+            "type": "decision",
+            "date": "2025-06-24T00:00:00"
+          }
+        ]
+      }
+    },
+    {
+      "label": "Q3: Housing decisions \u2014 siblings + Berkeley cross-county",
+      "total_results": 40,
+      "query_time_ms": 1230,
+      "jurisdictions_searched": [
+        "city-san-rafael",
+        "city-mill-valley",
+        "city-san-anselmo",
+        "city-berkeley"
+      ],
+      "results_by_jurisdiction": {
+        "city-san-rafael": [
+          {
+            "title": "Below Market Rate Housing Program Update",
+            "relevance": 0.6515,
+            "type": "decision",
+            "date": "2026-02-17T00:00:00"
+          },
+          {
+            "title": "2026 Housing Study Session One",
+            "relevance": 0.6426,
+            "type": "decision",
+            "date": "2026-02-02T00:00:00"
+          },
+          {
+            "title": "4040 Civic Center Drive \u2013 Multifamily Residential Development Project",
+            "relevance": 0.5764,
+            "type": "decision",
+            "date": "2026-01-27T00:00:00"
+          },
+          {
+            "title": "700 Irwin Street \u2013 New Mixed-Use Building",
+            "relevance": 0.5384,
+            "type": "decision",
+            "date": "2026-01-13T00:00:00"
+          },
+          {
+            "title": "Real Property Negotiation: 519 Fourth Street",
+            "relevance": 0.5356,
+            "type": "decision",
+            "date": "2025-12-15T00:00:00"
+          }
+        ],
+        "city-mill-valley": [
+          {
+            "title": "100 Evelyn Avenue \u2013 Study Session for Design Review \u2013 PL25 -0081",
+            "relevance": 0.4289,
+            "type": "decision",
+            "date": "2026-01-27T00:00:00"
+          },
+          {
+            "title": "Adoption of Ordinance to Rezone Housing Site",
+            "relevance": 0.4591,
+            "type": "decision",
+            "date": "2026-01-20T00:00:00"
+          },
+          {
+            "title": "Reapproval of Bayfront Terrace Affordable Housing Project at 1 Hamilton Drive",
+            "relevance": 0.4586,
+            "type": "decision",
+            "date": "2025-12-17T00:00:00"
+          },
+          {
+            "title": "Amendment to Inclusionary Housing Regulations",
+            "relevance": 0.4896,
+            "type": "decision",
+            "date": "2025-12-09T00:00:00"
+          },
+          {
+            "title": "Affordable Housing Fee Revenue",
+            "relevance": 0.4766,
+            "type": "decision",
+            "date": "2025-12-09T00:00:00"
+          }
+        ],
+        "city-san-anselmo": [
+          {
+            "title": "Community Development and Housing Initiatives",
+            "relevance": 0.5432,
+            "type": "decision",
+            "date": "2025-11-04T00:00:00"
+          },
+          {
+            "title": "Adoption of Ordinance Amending Construction and Green Building Codes",
+            "relevance": 0.4187,
+            "type": "decision",
+            "date": "2025-09-09T00:00:00"
+          },
+          {
+            "title": "Approval of Library Roof/HVAC and Interior Refresh Project",
+            "relevance": 0.4308,
+            "type": "decision",
+            "date": "2025-08-06T00:00:00"
+          },
+          {
+            "title": "House Retrofit Cost Evaluation",
+            "relevance": 0.455,
+            "type": "decision",
+            "date": "2025-07-21T00:00:00"
+          },
+          {
+            "title": "Ordinance Amendments for Housing Element Implementation",
+            "relevance": 0.523,
+            "type": "decision",
+            "date": "2025-05-13T00:00:00"
+          }
+        ],
+        "city-berkeley": [
+          {
+            "title": "Authorizing funding for affordable housing projects",
+            "relevance": 0.3304,
+            "type": "decision",
+            "date": "2026-02-10T00:00:00"
+          },
+          {
+            "title": "Authorizing funding for affordable housing projects",
+            "relevance": 0.3304,
+            "type": "decision",
+            "date": "2026-02-10T00:00:00"
+          },
+          {
+            "title": "Authorizing funding for affordable housing projects",
+            "relevance": 0.3304,
+            "type": "decision",
+            "date": "2026-02-10T00:00:00"
+          },
+          {
+            "title": "Authorizing funding for affordable housing projects",
+            "relevance": 0.3304,
+            "type": "decision",
+            "date": "2026-02-10T00:00:00"
+          },
+          {
+            "title": "Use Permit #ZP 2024- 0182, 2029 University Avenue (Student -Oriented Housing)",
+            "relevance": 0.312,
+            "type": "decision",
+            "date": "2025-11-13T00:00:00"
+          }
+        ]
+      }
+    },
+    {
+      "label": "Q4: Housing zoning \u2014 with vs without siblings",
+      "without_siblings": {
+        "label": "without siblings",
+        "total_results": 10,
+        "query_time_ms": 763,
+        "jurisdictions_searched": [
+          "single"
+        ],
+        "results_by_jurisdiction": {
+          "single": [
+            {
+              "title": "Opportunity Zone Designation Process",
+              "relevance": 0.617413342564288,
+              "type": "decision",
+              "date": "2026-02-17T00:00:00"
+            },
+            {
+              "title": "Below Market Rate Housing Program Update",
+              "relevance": 0.603603189316719,
+              "type": "decision",
+              "date": "2026-02-17T00:00:00"
+            },
+            {
+              "title": "2026 Housing Study Session One",
+              "relevance": 0.515664503978831,
+              "type": "decision",
+              "date": "2026-02-02T00:00:00"
+            },
+            {
+              "title": "4040 Civic Center Drive \u2013 Multifamily Residential Development Project",
+              "relevance": 0.563238838409332,
+              "type": "decision",
+              "date": "2026-01-27T00:00:00"
+            },
+            {
+              "title": "Real Property Negotiation: 519 Fourth Street",
+              "relevance": 0.52061013272137,
+              "type": "decision",
+              "date": "2025-12-15T00:00:00"
+            }
+          ]
+        }
+      },
+      "with_siblings": {
+        "label": "with siblings",
+        "total_results": 30,
+        "query_time_ms": 1344,
+        "jurisdictions_searched": [
+          "city-san-rafael",
+          "city-mill-valley",
+          "city-san-anselmo"
+        ],
+        "results_by_jurisdiction": {
+          "city-san-rafael": [
+            {
+              "title": "Opportunity Zone Designation Process",
+              "relevance": 0.6174,
+              "type": "decision",
+              "date": "2026-02-17T00:00:00"
+            },
+            {
+              "title": "Below Market Rate Housing Program Update",
+              "relevance": 0.6036,
+              "type": "decision",
+              "date": "2026-02-17T00:00:00"
+            },
+            {
+              "title": "2026 Housing Study Session One",
+              "relevance": 0.5157,
+              "type": "decision",
+              "date": "2026-02-02T00:00:00"
+            },
+            {
+              "title": "4040 Civic Center Drive \u2013 Multifamily Residential Development Project",
+              "relevance": 0.5632,
+              "type": "decision",
+              "date": "2026-01-27T00:00:00"
+            },
+            {
+              "title": "Real Property Negotiation: 519 Fourth Street",
+              "relevance": 0.5206,
+              "type": "decision",
+              "date": "2025-12-15T00:00:00"
+            }
+          ],
+          "city-mill-valley": [
+            {
+              "title": "Adoption of Ordinance to Rezone Housing Site",
+              "relevance": 0.5437,
+              "type": "decision",
+              "date": "2026-01-20T00:00:00"
+            },
+            {
+              "title": "Reapproval of Bayfront Terrace Affordable Housing Project at 1 Hamilton Drive",
+              "relevance": 0.4396,
+              "type": "decision",
+              "date": "2025-12-17T00:00:00"
+            },
+            {
+              "title": "Amendment to Inclusionary Housing Regulations",
+              "relevance": 0.5054,
+              "type": "decision",
+              "date": "2025-12-09T00:00:00"
+            },
+            {
+              "title": "Adoption of Ordinance to Amend Zoning Code Regarding Parking Regulations",
+              "relevance": 0.4784,
+              "type": "decision",
+              "date": "2025-11-17T00:00:00"
+            },
+            {
+              "title": "Ordinance to Amend Title 20 (\u201cZoning\u201d) of the Mill Valley Municipal Code to Upda",
+              "relevance": 0.4719,
+              "type": "decision",
+              "date": "2025-11-03T00:00:00"
+            }
+          ],
+          "city-san-anselmo": [
+            {
+              "title": "Ordinance to Amend Planning and Zoning Regulations",
+              "relevance": 0.5668,
+              "type": "decision",
+              "date": "2026-02-10T00:00:00"
+            },
+            {
+              "title": "Resolution on Amendments to Title 10 Planning and Zoning",
+              "relevance": 0.5265,
+              "type": "decision",
+              "date": "2026-01-12T00:00:00"
+            },
+            {
+              "title": "Community Development and Housing Initiatives",
+              "relevance": 0.5049,
+              "type": "decision",
+              "date": "2025-11-04T00:00:00"
+            },
+            {
+              "title": "Ordinance to Repeal and Replace Title 10 'Planning and Zoning'",
+              "relevance": 0.5252,
+              "type": "decision",
+              "date": "2025-10-14T00:00:00"
+            },
+            {
+              "title": "Adoption of Ordinance Amending Construction and Green Building Codes",
+              "relevance": 0.4547,
+              "type": "decision",
+              "date": "2025-09-09T00:00:00"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "label": "Q5: Rent control \u2014 without vs with Berkeley",
+      "without_berkeley": {
+        "label": "San Rafael only",
+        "total_results": 2,
+        "query_time_ms": 20006,
+        "jurisdictions_searched": [
+          "single"
+        ],
+        "results_by_jurisdiction": {
+          "single": [
+            {
+              "title": "Real Property Negotiation: 519 Fourth Street",
+              "relevance": 1.0,
+              "type": "decision",
+              "date": "2025-12-15T00:00:00"
+            },
+            {
+              "title": "Real Estate Brokerage Services Agreement - 350 Merrydal",
+              "relevance": 0.9839,
+              "type": "decision",
+              "date": "2025-11-17T00:00:00"
+            }
+          ]
+        }
+      },
+      "with_berkeley": {
+        "label": "with Berkeley via also_include",
+        "total_results": 7,
+        "query_time_ms": 20303,
+        "jurisdictions_searched": [
+          "city-san-rafael",
+          "city-berkeley"
+        ],
+        "results_by_jurisdiction": {
+          "city-san-rafael": [
+            {
+              "title": "Real Property Negotiation: 519 Fourth Street",
+              "relevance": 1.0,
+              "type": "decision",
+              "date": "2025-12-15T00:00:00"
+            },
+            {
+              "title": "Real Estate Brokerage Services Agreement - 350 Merrydal",
+              "relevance": 0.9839,
+              "type": "decision",
+              "date": "2025-11-17T00:00:00"
+            }
+          ],
+          "city-berkeley": [
+            {
+              "title": "Zoning Adjustments Board Appeal: 2029 University Avenue, Use Permit Application ",
+              "relevance": 0.5,
+              "type": "decision",
+              "date": "2026-02-23T00:00:00"
+            },
+            {
+              "title": "Use Permit #ZP 2024-0183 1890 Alcatraz Avenue",
+              "relevance": 0.4919,
+              "type": "decision",
+              "date": "2025-12-11T00:00:00"
+            },
+            {
+              "title": "Authorizing the Execution, Sale, and Delivery of Lease Revenue Notes for the Fir",
+              "relevance": 0.4842,
+              "type": "decision",
+              "date": "2025-12-04T00:00:00"
+            },
+            {
+              "title": "Use Permit #ZP 2024- 0182, 2029 University Avenue (Student -Oriented Housing)",
+              "relevance": 0.4765,
+              "type": "decision",
+              "date": "2025-11-13T00:00:00"
+            },
+            {
+              "title": "Funding for SAHA Lease Payments",
+              "relevance": 0.4693,
+              "type": "decision",
+              "date": "2025-10-14T00:00:00"
+            }
+          ]
+        }
+      }
+    }
+  ]
+}
