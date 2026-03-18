@@ -119,6 +119,10 @@ class SearchRequest(BaseModel):
     intersect_corpus: Optional[List[str]] = Field(None, description="For intersect mode — secondary corpora to join against")
     include_parents: bool = Field(False, description="Include parent jurisdictions (county, state, federal)")
     include_siblings: bool = Field(False, description="Include sibling jurisdictions (cities sharing same parent county)")
+    also_include: Optional[List[str]] = Field(
+        None,
+        description="Additional jurisdiction IDs to include (cross-county, explicit comparisons)",
+    )
 
     @field_validator("snapshot_date")
     @classmethod

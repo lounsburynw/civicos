@@ -59,7 +59,7 @@ async def execute_search(
     vectors = civic._vectors
 
     # Cross-jurisdiction: delegate to multi-jurisdiction fan-out
-    if request.include_parents or request.include_siblings:
+    if request.include_parents or request.include_siblings or request.also_include:
         return await _execute_cross_jurisdiction_search(request, storage, vectors, jurisdiction)
 
     start = time.monotonic()
@@ -317,6 +317,12 @@ async def _execute_cross_jurisdiction_search(
         include_siblings=request.include_siblings,
     )
 
+    # Append explicit cross-county jurisdictions (deduplicating)
+    if request.also_include:
+        for jid in request.also_include:
+            if jid not in target_jids:
+                target_jids.append(jid)
+
     logger.info(f"Cross-jurisdiction search: {base_jid} -> {target_jids}")
 
     # Pre-compute query embedding once and warm the cache for all fan-out threads
@@ -336,6 +342,7 @@ async def _execute_cross_jurisdiction_search(
     per_jid_request = request.model_copy(update={
         "include_parents": False,
         "include_siblings": False,
+        "also_include": None,
     })
 
     # Fan out per-jurisdiction in parallel — all use shared storage/vectors
