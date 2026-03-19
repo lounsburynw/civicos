@@ -62,9 +62,14 @@ _JURISDICTION_ALIASES = {
     "san-anselmo-ca": "city-san-anselmo",
     "sananselmo": "city-san-anselmo",
 
-    # Sonoma County (not city-sonoma)
-    "sonoma": "sonoma-county",
-    "sonoma-ca": "sonoma-county",
+    # Marin County
+    "marin": "county-marin",
+    "marin-county": "county-marin",  # Legacy suffix form
+
+    # Sonoma County
+    "sonoma": "county-sonoma",
+    "sonoma-ca": "county-sonoma",
+    "sonoma-county": "county-sonoma",  # Legacy suffix form
 
     # BART (no city- prefix)
     "sf-bart": "bart",
@@ -100,7 +105,8 @@ _DISPLAY_NAMES = {
     "city-santa-rosa": "Santa Rosa",
     "city-pleasant-hill": "Pleasant Hill",
     "city-scotts-valley": "Scotts Valley",
-    "sonoma-county": "Sonoma County",
+    "county-sonoma": "Sonoma County",
+    "county-marin": "Marin County",
     "bart": "BART",
 }
 

@@ -56,10 +56,10 @@ class GeocodingService:
 
         # County name mapping
         self.county_to_jurisdiction = {
-            "Alameda County": "alameda-county",
-            "Contra Costa County": "contra-costa-county",
-            "Marin County": "marin-county",
-            "Sonoma County": "sonoma-county",
+            "Alameda County": "county-alameda",
+            "Contra Costa County": "county-contra-costa",
+            "Marin County": "county-marin",
+            "Sonoma County": "county-sonoma",
         }
 
     def geocode_address(self, address: str) -> Optional[Dict[str, Any]]:

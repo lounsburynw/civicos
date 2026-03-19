@@ -293,7 +293,7 @@ class TestDisplayJurisdiction:
     def test_display_generates_name_from_id(self):
         """Display names are generated from canonical IDs."""
         assert display_jurisdiction("city-oakland") == "Oakland"
-        assert display_jurisdiction("sonoma-county") == "Sonoma County"
+        assert display_jurisdiction("county-sonoma") == "Sonoma County"
 
     def test_display_bart(self):
         """BART displays as all caps."""
@@ -326,9 +326,10 @@ class TestJurisdictionRegistryAliases:
     # ─────────── Special entity aliases ───────────
 
     def test_sonoma_alias(self):
-        """'sonoma' normalizes to 'sonoma-county' (not city-sonoma)."""
-        assert normalize_jurisdiction("sonoma") == "sonoma-county"
-        assert normalize_jurisdiction("sonoma-ca") == "sonoma-county"
+        """'sonoma' normalizes to 'county-sonoma' (not city-sonoma)."""
+        assert normalize_jurisdiction("sonoma") == "county-sonoma"
+        assert normalize_jurisdiction("sonoma-ca") == "county-sonoma"
+        assert normalize_jurisdiction("sonoma-county") == "county-sonoma"
 
     def test_bart_aliases(self):
         """BART has multiple alias forms."""

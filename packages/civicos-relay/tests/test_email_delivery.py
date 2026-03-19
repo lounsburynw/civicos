@@ -353,7 +353,7 @@ class TestJurisdictionFormatting:
 
     def test_no_prefix(self, email_delivery):
         """Jurisdictions without city prefix are handled."""
-        result = email_delivery._format_jurisdiction("marin-county")
+        result = email_delivery._format_jurisdiction("county-marin")
         assert result == "Marin County"
 
 

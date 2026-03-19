@@ -320,7 +320,7 @@ class CivicSchemaAdapter:
             # Extract display name from jurisdiction_id
             if jurisdiction_id.startswith('city-'):
                 city_name = jurisdiction_id[5:].replace('-', ' ').title()
-            elif jurisdiction_id == 'marin-county':
+            elif jurisdiction_id == 'county-marin':
                 city_name = 'Marin County'
             else:
                 city_name = jurisdiction_id.replace('-', ' ').title()

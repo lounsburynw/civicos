@@ -63,7 +63,7 @@ relay:
 
   peers:
     - url: "https://relay.marincounty.org"
-      namespaces: ["marin-county:*"]
+      namespaces: ["county-marin:*"]
       sync_interval: 300
 ```
 

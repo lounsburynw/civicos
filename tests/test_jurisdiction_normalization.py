@@ -48,9 +48,9 @@ def test_multi_word_cities():
 
 def test_counties():
     """Test county normalization"""
-    assert normalize_jurisdiction("sonoma county") == "sonoma-county"
-    assert normalize_jurisdiction("Sonoma County") == "sonoma-county"
-    assert normalize_jurisdiction("alameda county") == "alameda-county"
+    assert normalize_jurisdiction("sonoma county") == "county-sonoma"
+    assert normalize_jurisdiction("Sonoma County") == "county-sonoma"
+    assert normalize_jurisdiction("alameda county") == "county-alameda"
     print("✓ Counties normalize correctly")
 
 
@@ -98,7 +98,7 @@ def test_all_configured_cities():
         ("pittsburg", "city-pittsburg"),
         ("antioch", "city-antioch"),
         # Counties
-        ("sonoma county", "sonoma-county"),
+        ("sonoma county", "county-sonoma"),
         # Special districts
         ("bart", "bart"),
     ]
@@ -125,7 +125,7 @@ def main():
     print("Fix verified:")
     print("  LLM output: 'berkeley' → Database ID: 'city-berkeley'")
     print("  LLM output: 'San Rafael' → Database ID: 'city-san-rafael'")
-    print("  LLM output: 'Sonoma County' → Database ID: 'sonoma-county'")
+    print("  LLM output: 'Sonoma County' → Database ID: 'county-sonoma'")
 
 
 if __name__ == "__main__":

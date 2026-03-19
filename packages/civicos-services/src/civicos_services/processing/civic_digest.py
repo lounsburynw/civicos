@@ -228,7 +228,7 @@ class CivicDigest:
                 # Extract city name from jurisdiction_id for display
                 if jurisdiction_id.startswith('city-'):
                     city_name = jurisdiction_id[5:].replace('-', ' ').title()
-                elif jurisdiction_id == 'marin-county':
+                elif jurisdiction_id == 'county-marin':
                     city_name = 'Marin County'
                 else:
                     city_name = jurisdiction_id.replace('-', ' ').title()
@@ -2023,7 +2023,7 @@ Respond with only the meeting type (e.g., "commission" or "committee")
             website_mapping = {
                 'city-oakland': 'https://www.oaklandca.gov',
                 'city-santa-rosa': 'https://srcity.org',
-                'sonoma-county': 'https://sonomacounty.ca.gov',
+                'county-sonoma': 'https://sonomacounty.ca.gov',
                 'city-hayward': 'https://www.hayward-ca.gov',
                 'city-napa': 'https://www.cityofnapa.org',
                 'bart': 'https://www.bart.gov'
@@ -2033,7 +2033,7 @@ Respond with only the meeting type (e.g., "commission" or "committee")
             legistar_client_mapping = {
                 'city-oakland': 'oakland',
                 'city-santa-rosa': 'santa-rosa',
-                'sonoma-county': 'sonomacounty',
+                'county-sonoma': 'sonomacounty',
                 'city-hayward': 'hayward',
                 'city-napa': 'napa',
                 'bart': 'bart'
