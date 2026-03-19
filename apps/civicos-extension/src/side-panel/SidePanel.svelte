@@ -402,13 +402,16 @@
     // Clear stale errors from previous load attempts
     parentPulseErrors = new Map();
 
-    // Fetch pulse data from each parent server concurrently
+    // Route parent requests through city server (parent servers may not be deployed)
+    const cityBaseUrl = await registry.getMcpUrl();
+
+    // Fetch pulse data from each parent via city server proxy
     for (const server of parentServers) {
       const id = server.jurisdiction_id;
       parentPulseLoading.add(id);
       parentPulseLoading = new Set(parentPulseLoading);
 
-      api.getCityPulseFromServer(registry.getServerBaseUrl(server))
+      api.getCityPulseFromServer(cityBaseUrl, 14, 30, id)
         .then(data => {
           parentPulseData.set(id, data);
           parentPulseData = new Map(parentPulseData);
@@ -1283,14 +1286,16 @@
           parentPulseErrors = new Map(parentPulseErrors);
           parentPulseLoading.add(id);
           parentPulseLoading = new Set(parentPulseLoading);
-          api.getCityPulseFromServer(registry.getServerBaseUrl(tabServer))
-            .then(data => {
-              parentPulseData.set(id, data); parentPulseData = new Map(parentPulseData);
-              serverHealth.set(id, { status: 'healthy', checked_at: Date.now() });
-              serverHealth = new Map(serverHealth);
-            })
-            .catch(() => { parentPulseErrors.set(id, 'Server unavailable'); parentPulseErrors = new Map(parentPulseErrors); })
-            .finally(() => { parentPulseLoading.delete(id); parentPulseLoading = new Set(parentPulseLoading); });
+          registry.getMcpUrl().then(cityUrl =>
+            api.getCityPulseFromServer(cityUrl, 14, 30, id)
+              .then(data => {
+                parentPulseData.set(id, data); parentPulseData = new Map(parentPulseData);
+                serverHealth.set(id, { status: 'healthy', checked_at: Date.now() });
+                serverHealth = new Map(serverHealth);
+              })
+              .catch(() => { parentPulseErrors.set(id, 'Server unavailable'); parentPulseErrors = new Map(parentPulseErrors); })
+              .finally(() => { parentPulseLoading.delete(id); parentPulseLoading = new Set(parentPulseLoading); })
+          );
         }}>Retry</button>
       </div>
     {:else if tabData}

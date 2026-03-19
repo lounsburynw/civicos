@@ -70,12 +70,14 @@ export class ApiClient {
     });
   }
 
-  async getCityPulseFromServer(serverBaseUrl: string, daysAhead = 14, daysBack = 30): Promise<CityPulseData> {
+  async getCityPulseFromServer(serverBaseUrl: string, daysAhead = 14, daysBack = 30, parentJurisdiction?: string): Promise<CityPulseData> {
     const url = `${serverBaseUrl}/api/tools/city-pulse`;
+    const bodyObj: Record<string, unknown> = { days_ahead: daysAhead, days_back: daysBack };
+    if (parentJurisdiction) bodyObj.parent_jurisdiction = parentJurisdiction;
     const opts: RequestInit = {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ days_ahead: daysAhead, days_back: daysBack }),
+      body: JSON.stringify(bodyObj),
     };
 
     // Retry once on failure (handles cold-start timeouts on serverless containers)

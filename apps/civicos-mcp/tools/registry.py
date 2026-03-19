@@ -84,6 +84,7 @@ TOOL_DEFINITIONS: dict[str, ToolDefinition] = {
             "properties": {
                 "days_ahead": {"type": "integer", "default": 7, "description": "Days to look ahead"},
                 "days_back": {"type": "integer", "default": 30, "description": "Days to look back"},
+                "parent_jurisdiction": {"type": "string", "description": "Return legislation pulse for a parent jurisdiction (e.g. state-california, country-united-states) using data from this city server"},
             },
         },
     },
