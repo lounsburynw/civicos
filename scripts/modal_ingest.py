@@ -1700,6 +1700,164 @@ def fetch_all_hud_allocations(dry_run: bool = False) -> dict:
 
 
 # =============================================================================
+# Federal Awards (USAspending.gov)
+# =============================================================================
+
+@app.function(
+    image=civic_image,
+    secrets=[modal.Secret.from_name("civic-db")],
+    memory=4096,
+    timeout=3600,  # 1 hour
+    retries=modal.Retries(max_retries=2, backoff_coefficient=2.0, initial_delay=30.0),
+)
+def fetch_federal_awards(
+    dry_run: bool = False,
+    auto_index: bool = False,
+    max_pages: int = 20,
+) -> dict:
+    """Fetch federal awards from USAspending.gov for all configured jurisdictions.
+
+    Iterates jurisdiction configs looking for 'usaspending' section with
+    recipient_name (and optional recipient_uei). Fetches grants and direct
+    payments, stores via store_federal_awards(), optionally indexes vectors.
+
+    Args:
+        dry_run: If True, fetch but don't store
+        auto_index: If True, index vectors after storing
+        max_pages: Max pages per award group per jurisdiction
+
+    Returns:
+        Dict with per-jurisdiction results
+    """
+    import logging
+    import os
+    import time
+
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+    logger = logging.getLogger(__name__)
+
+    from dotenv import load_dotenv
+    load_dotenv()
+
+    database_url = os.environ.get("DATABASE_URL")
+    if not database_url:
+        raise ValueError("DATABASE_URL not set")
+
+    from civicos.storage import get_storage_backend
+    from civicos_extraction.config import get_active_jurisdictions
+    from civicos_extraction.clients.usaspending import USAspendingClient
+
+    backend = get_storage_backend(database_url)
+    jurisdictions = get_active_jurisdictions()
+
+    start_time = time.time()
+    results = {}
+    total_stored = 0
+
+    for jid, config in jurisdictions.items():
+        usa_config = config.get("usaspending")
+        if not usa_config:
+            continue
+
+        recipient_name = usa_config.get("recipient_name")
+        recipient_uei = usa_config.get("recipient_uei")
+
+        if not recipient_name and not recipient_uei:
+            logger.warning(f"[{jid}] usaspending config has no recipient_name or recipient_uei, skipping")
+            continue
+
+        # Validate jurisdiction ID is registered (skip unregistered ones)
+        from civicos._internal.jurisdiction import normalize_jurisdiction, JurisdictionError
+        try:
+            canonical_jid = normalize_jurisdiction(jid)
+        except JurisdictionError:
+            logger.warning(f"[{jid}] Not registered in jurisdiction registry, skipping")
+            continue
+
+        # Support multiple search names (deduplicates by award_id)
+        search_names = usa_config.get("search_names", [])
+        if not search_names and recipient_name:
+            search_names = [recipient_name]
+
+        # Get allowed recipient names for filtering false positives
+        allowed_names = usa_config.get("allowed_names", [])
+        for sn in search_names:
+            if sn not in allowed_names:
+                allowed_names.append(sn)
+
+        logger.info(f"[{canonical_jid}] Fetching federal awards (names={search_names}, uei={recipient_uei})")
+
+        # Run one search per name, deduplicate by award_id
+        all_awards = {}
+        for search_name in search_names:
+            client = USAspendingClient(
+                jurisdiction_id=canonical_jid,
+                recipient_name=search_name,
+                recipient_uei=recipient_uei,
+            )
+            batch = client.get_awards(max_pages=max_pages)
+            for a in batch:
+                aid = a.get("award_id")
+                if aid and aid not in all_awards:
+                    all_awards[aid] = a
+            time.sleep(0.5)
+
+        awards = list(all_awards.values())
+        raw_count = len(awards)
+
+        # Filter false positives: only keep awards whose recipient_name
+        # matches one of the allowed names (case-insensitive)
+        if allowed_names and not recipient_uei:
+            allowed_upper = {n.upper() for n in allowed_names}
+            awards = [a for a in awards if a.get("recipient_name", "").upper() in allowed_upper]
+            if len(awards) < raw_count:
+                logger.info(f"[{canonical_jid}] Filtered {raw_count - len(awards)} false positives (kept {len(awards)})")
+
+        logger.info(f"[{canonical_jid}] Fetched {len(awards)} awards from USAspending")
+
+        if dry_run:
+            results[canonical_jid] = {"fetched": len(awards), "stored": 0, "dry_run": True}
+            continue
+
+        if not awards:
+            results[canonical_jid] = {"fetched": 0, "stored": 0}
+            continue
+
+        stored = backend.store_federal_awards(canonical_jid, awards)
+        total_stored += stored
+        logger.info(f"[{canonical_jid}] Stored {stored} awards")
+        results[canonical_jid] = {"fetched": len(awards), "stored": stored}
+
+    # Auto-index vectors for jurisdictions that got awards
+    vector_result = None
+    if auto_index and not dry_run and total_stored > 0:
+        logger.info("Auto-indexing federal_awards vectors...")
+        for jid in results:
+            if results[jid].get("stored", 0) > 0:
+                try:
+                    vr = index_vectors.local(
+                        jurisdiction=jid,
+                        corpus="federal_awards",
+                        reindex=True,
+                    )
+                    results[jid]["vector_result"] = vr
+                    logger.info(f"[{jid}] Indexed {vr.get('federal_awards', {}).get('indexed', 0)} vectors")
+                except Exception as e:
+                    logger.warning(f"[{jid}] Vector indexing failed: {e}")
+                    results[jid]["vector_error"] = str(e)
+
+    elapsed = time.time() - start_time
+    return {
+        "status": "success",
+        "total_stored": total_stored,
+        "jurisdictions": results,
+        "auto_index": auto_index,
+        "dry_run": dry_run,
+        "elapsed_seconds": round(elapsed, 1),
+    }
+
+
+# =============================================================================
 # Vector Indexing (Parallel)
 # =============================================================================
 
@@ -1992,7 +2150,7 @@ def index_vectors(
     elif jurisdiction.startswith("federal-"):
         all_corpus_types = ["programs", "executive_orders", "federal_rules"]
     else:
-        all_corpus_types = ["chunks", "decisions", "meetings", "transcripts", "municipal_code", "issues", "agenda_items", "budget_items"]
+        all_corpus_types = ["chunks", "decisions", "meetings", "transcripts", "municipal_code", "issues", "agenda_items", "budget_items", "federal_awards"]
 
     corpus_types = all_corpus_types if corpus == "all" else [corpus]
     results = {}
@@ -2077,6 +2235,38 @@ def index_vectors(
                 })
         elif ct == "budget_items":
             chunks = backend.get_budget_items(jurisdiction)
+        elif ct == "federal_awards":
+            raw = backend.get_federal_awards(jurisdiction)
+            chunks = []
+            for award in raw:
+                parts = []
+                if award.get("awarding_agency"):
+                    parts.append(f"Agency: {award['awarding_agency']}")
+                if award.get("recipient_name"):
+                    parts.append(f"Recipient: {award['recipient_name']}")
+                if award.get("program_name"):
+                    parts.append(award["program_name"])
+                if award.get("award_type"):
+                    parts.append(f"Type: {award['award_type']}")
+                amount = award.get("amount_cents", 0)
+                if amount:
+                    parts.append(f"Amount: ${amount / 100:,.0f}")
+                text = "\n".join(parts)
+                if not text.strip():
+                    continue
+                chunks.append({
+                    "id": f"award-{award.get('award_id', '')}",
+                    "text": text,
+                    "award_id": award.get("award_id"),
+                    "recipient_name": award.get("recipient_name"),
+                    "awarding_agency": award.get("awarding_agency"),
+                    "amount_cents": amount,
+                    "metadata": {
+                        "cfda_number": award.get("cfda_number"),
+                        "period_start": award.get("period_start"),
+                        "period_end": award.get("period_end"),
+                    },
+                })
         else:
             logger.warning(f"Unknown corpus type: {ct}")
             continue
@@ -3723,6 +3913,19 @@ def scheduled_low_velocity_refresh():
         # NOTE: Federal programs vector indexing is now handled by auto_index=True
         # in the fetch_federal_programs call above (avoids duplicate indexing).
 
+        # Federal awards from USAspending.gov (iterates all configured jurisdictions)
+        logger.info("Fetching federal awards from USAspending.gov...")
+        result = run_with_retry(
+            fetch_federal_awards,
+            "Federal awards fetch",
+            dry_run=False, auto_index=True,
+        )
+        results["federal_awards"] = result
+        if result.get("status") != "failed":
+            total = result.get("total_stored", 0)
+            jcount = len(result.get("jurisdictions", {}))
+            logger.info(f"  Federal awards: {total} stored across {jcount} jurisdictions")
+
         # =========================================================================
         # Per-jurisdiction operations
         # =========================================================================
@@ -4568,6 +4771,7 @@ def main(
     executive_orders: bool = False,
     federal_programs: bool = False,
     federal_rules: bool = False,
+    federal_awards: bool = False,
     legislative_events: bool = False,
     meetings: bool = False,
     issues: bool = False,
@@ -4695,6 +4899,7 @@ def main(
     run_executive_orders = all or executive_orders
     run_federal_programs = federal_programs  # Not in --all (weekly refresh)
     run_federal_rules = federal_rules  # Not in --all (weekly refresh)
+    run_federal_awards = federal_awards  # Not in --all (weekly refresh)
     run_legislative_events = legislative_events  # Not in --all (weekly refresh)
     run_meetings = all or meetings
     run_issues = all or issues
@@ -4708,8 +4913,8 @@ def main(
     run_vectors = all or vectors
     run_refresh = refresh  # Not in --all (explicit only)
 
-    if not (run_municipal or run_legislation or run_executive_orders or run_federal_programs or run_federal_rules or run_legislative_events or run_meetings or run_issues or run_elections or run_elected_officials or run_videos or run_transcripts or run_chunks or run_agenda or run_decisions or run_vectors or run_refresh):
-        print("No tasks specified. Use --all, --municipal, --legislation, --executive-orders, --federal-programs, --federal-rules, --legislative-events, --meetings, --issues, --elections, --elected-officials, --videos, --transcripts, --chunks, --agenda, --decisions, --vectors, or --refresh")
+    if not (run_municipal or run_legislation or run_executive_orders or run_federal_programs or run_federal_rules or run_federal_awards or run_legislative_events or run_meetings or run_issues or run_elections or run_elected_officials or run_videos or run_transcripts or run_chunks or run_agenda or run_decisions or run_vectors or run_refresh):
+        print("No tasks specified. Use --all, --municipal, --legislation, --executive-orders, --federal-programs, --federal-rules, --federal-awards, --legislative-events, --meetings, --issues, --elections, --elected-officials, --videos, --transcripts, --chunks, --agenda, --decisions, --vectors, or --refresh")
         print("Use --stats-only to check current state")
         return
 
@@ -4727,6 +4932,8 @@ def main(
         task_list.append("federal_programs")
     if run_federal_rules:
         task_list.append("federal_rules")
+    if run_federal_awards:
+        task_list.append("federal_awards")
     if run_legislative_events:
         task_list.append("legislative_events")
     if run_meetings:
@@ -4762,6 +4969,8 @@ def main(
         print(f"  Federal Programs: SAM.gov (full catalog)")
     if run_federal_rules:
         print(f"  Federal Rules: Federal Register (proposed rules, final rules, notices)")
+    if run_federal_awards:
+        print(f"  Federal Awards: USAspending.gov (all configured jurisdictions)")
     if run_legislative_events:
         print(f"  Legislative Events: {legislation_jurisdiction} (hearing dates from existing bills)")
     if run_meetings:
@@ -4846,6 +5055,14 @@ def main(
             auto_index=auto_index,
         )
         handles.append(("federal_rules", handle))
+
+    if run_federal_awards:
+        print("Spawning federal awards fetch...")
+        handle = fetch_federal_awards.spawn(
+            dry_run=dry_run,
+            auto_index=auto_index,
+        )
+        handles.append(("federal_awards", handle))
 
     if run_legislative_events:
         print("Spawning legislative events extraction...")

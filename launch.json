@@ -771,8 +771,8 @@
       {
         "name": "federal_funding_pipeline",
         "description": "Bulk ingest federal awards via USAspending API for all configured jurisdictions. Client exists (usaspending.py), API is free. Store in federal_awards table, add to weekly refresh, index vectors.",
-        "status": "not_started",
-        "priority": 0,
+        "status": "done",
+        "priority": 2,
         "phase": "1",
         "source": "multi-scale participation \u2014 federal data (plan: docs/internal/federal-data-plan.md, sessions 1-2)",
         "files": [
@@ -787,7 +787,7 @@
         "name": "congressional_votes",
         "description": "Extend CongressGovClient with vote retrieval. Store in congressional_votes table linked to legislation + elected_officials. Wire into v2 query and extension.",
         "status": "not_started",
-        "priority": 1,
+        "priority": 0,
         "phase": "1",
         "source": "multi-scale participation \u2014 federal data (plan: sessions 3-4)",
         "files": [

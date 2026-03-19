@@ -150,3 +150,33 @@ civicos-deploy city-berkeley --skip-ingest
 
 ### Next P0
 - TBD (need to set in pilot.json before ending session)
+
+## Session — 2026-03-18 — Federal Funding Pipeline (USAspending)
+
+**Completed:** federal_funding_pipeline (P0)
+
+**What was done:**
+- Added `FEDERAL_AWARDS` to CorpusType enum and CORPUS_REGISTRY for vector indexing
+- Added `usaspending` config section to jurisdiction extraction configs (san-rafael, city-mill-valley, county-marin)
+- Supports `search_names` (multiple name variants), `allowed_names` (false positive filtering), and `recipient_uei`
+- Created `fetch_federal_awards()` Modal function in modal_ingest.py with:
+  - Multi-jurisdiction iteration via get_active_jurisdictions()
+  - Multiple name searches with deduplication by award_id
+  - False positive filtering (e.g., "COUNTY OF MARINETTE" excluded from county-marin results)
+  - Jurisdiction normalization with graceful skipping for unregistered IDs
+  - Auto-indexing support
+- Added `federal_awards` to index_vectors() corpus types for city jurisdictions
+- Added `fetch_federal_awards` to scheduled_low_velocity_refresh() (weekly)
+- Added --federal-awards CLI flag to modal_ingest.py entrypoint
+
+**Results:**
+- city-san-rafael: 7 awards ($18.1M) — Treasury SLFRF, DHS port security, DHS firefighters, DOJ COVID
+- city-mill-valley: 3 awards ($63K) — small direct awards
+- county-marin: SKIPPED — `county-marin` not in jurisdiction registry (uses `marin-county`)
+
+**Known issues:**
+- county-marin jurisdiction ID mismatch: config uses `county-marin`, registry uses `marin-county`
+- Some duplicate awards in DB with different USAspending internal IDs (same underlying award)
+- Small cities get few direct federal awards — most federal money flows via county pass-through
+
+**Next P0:** congressional_votes — Congress.gov API vote retrieval (sessions 3-4 of federal data plan)
