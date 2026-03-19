@@ -32,6 +32,14 @@ data_sources:
 financial:
   state: CA
   county: Marin
+federal_programs:
+  hud_grantee: Marin County
+  hud_relationship: consortium
+  usaspending:
+    search_names:
+      - "CITY OF MILL VALLEY"
+    allowed_names:
+      - "CITY OF MILL VALLEY"
 ingestion:
   meetings: true
   pdf_chunks: true

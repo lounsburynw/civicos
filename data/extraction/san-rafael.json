@@ -33,9 +33,5 @@
     "hud_grantee": "Marin County",
     "hud_relationship": "consortium",
     "notes": "San Rafael receives HUD funds via Marin County Urban County Program, not as direct entitlement"
-  },
-  "usaspending": {
-    "search_names": ["CITY OF SAN RAFAEL", "SAN RAFAEL, CITY OF"],
-    "allowed_names": ["CITY OF SAN RAFAEL", "SAN RAFAEL, CITY OF"]
   }
 }

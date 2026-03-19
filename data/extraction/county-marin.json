@@ -14,10 +14,6 @@
     "granicus_domain": "marin",
     "default_view_id": "36"
   },
-  "usaspending": {
-    "recipient_name": "COUNTY OF MARIN",
-    "allowed_names": ["COUNTY OF MARIN", "HOUSING AUTHORITY OF THE COUNTY OF MARIN"]
-  },
   "financial": {
     "state": "CA",
     "county": "Marin"

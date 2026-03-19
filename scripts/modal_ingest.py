@@ -1744,54 +1744,41 @@ def fetch_federal_awards(
         raise ValueError("DATABASE_URL not set")
 
     from civicos.storage import get_storage_backend
-    from civicos_extraction.config import get_active_jurisdictions
+    from civicos.jurisdiction_config import get_jurisdictions_with_usaspending
     from civicos_extraction.clients.usaspending import USAspendingClient
 
     backend = get_storage_backend(database_url)
-    jurisdictions = get_active_jurisdictions()
+
+    # Read USAspending config from jurisdiction YAML (data/jurisdictions/*.yaml)
+    jurisdictions = get_jurisdictions_with_usaspending()
+    logger.info(f"Found {len(jurisdictions)} jurisdictions with USAspending config")
 
     start_time = time.time()
     results = {}
     total_stored = 0
 
     for jid, config in jurisdictions.items():
-        usa_config = config.get("usaspending")
-        if not usa_config:
+        usa = config.federal_programs.usaspending
+        search_names = usa.search_names
+        allowed_names = usa.allowed_names
+        recipient_uei = usa.recipient_uei
+
+        if not search_names and not recipient_uei:
+            logger.warning(f"[{jid}] usaspending config has no search_names or recipient_uei, skipping")
             continue
 
-        recipient_name = usa_config.get("recipient_name")
-        recipient_uei = usa_config.get("recipient_uei")
-
-        if not recipient_name and not recipient_uei:
-            logger.warning(f"[{jid}] usaspending config has no recipient_name or recipient_uei, skipping")
-            continue
-
-        # Validate jurisdiction ID is registered (skip unregistered ones)
-        from civicos._internal.jurisdiction import normalize_jurisdiction, JurisdictionError
-        try:
-            canonical_jid = normalize_jurisdiction(jid)
-        except JurisdictionError:
-            logger.warning(f"[{jid}] Not registered in jurisdiction registry, skipping")
-            continue
-
-        # Support multiple search names (deduplicates by award_id)
-        search_names = usa_config.get("search_names", [])
-        if not search_names and recipient_name:
-            search_names = [recipient_name]
-
-        # Get allowed recipient names for filtering false positives
-        allowed_names = usa_config.get("allowed_names", [])
+        # Ensure allowed_names includes all search_names
         for sn in search_names:
             if sn not in allowed_names:
                 allowed_names.append(sn)
 
-        logger.info(f"[{canonical_jid}] Fetching federal awards (names={search_names}, uei={recipient_uei})")
+        logger.info(f"[{jid}] Fetching federal awards (names={search_names}, uei={recipient_uei})")
 
         # Run one search per name, deduplicate by award_id
         all_awards = {}
         for search_name in search_names:
             client = USAspendingClient(
-                jurisdiction_id=canonical_jid,
+                jurisdiction_id=jid,
                 recipient_name=search_name,
                 recipient_uei=recipient_uei,
             )
@@ -1811,22 +1798,22 @@ def fetch_federal_awards(
             allowed_upper = {n.upper() for n in allowed_names}
             awards = [a for a in awards if a.get("recipient_name", "").upper() in allowed_upper]
             if len(awards) < raw_count:
-                logger.info(f"[{canonical_jid}] Filtered {raw_count - len(awards)} false positives (kept {len(awards)})")
+                logger.info(f"[{jid}] Filtered {raw_count - len(awards)} false positives (kept {len(awards)})")
 
-        logger.info(f"[{canonical_jid}] Fetched {len(awards)} awards from USAspending")
+        logger.info(f"[{jid}] Fetched {len(awards)} awards from USAspending")
 
         if dry_run:
-            results[canonical_jid] = {"fetched": len(awards), "stored": 0, "dry_run": True}
+            results[jid] = {"fetched": len(awards), "stored": 0, "dry_run": True}
             continue
 
         if not awards:
-            results[canonical_jid] = {"fetched": 0, "stored": 0}
+            results[jid] = {"fetched": 0, "stored": 0}
             continue
 
-        stored = backend.store_federal_awards(canonical_jid, awards)
+        stored = backend.store_federal_awards(jid, awards)
         total_stored += stored
-        logger.info(f"[{canonical_jid}] Stored {stored} awards")
-        results[canonical_jid] = {"fetched": len(awards), "stored": stored}
+        logger.info(f"[{jid}] Stored {stored} awards")
+        results[jid] = {"fetched": len(awards), "stored": stored}
 
     # Auto-index vectors for jurisdictions that got awards
     vector_result = None

@@ -130,10 +130,19 @@ class FinancialContext:
 
 
 @dataclass
+class USAspendingConfig:
+    """USAspending.gov configuration for federal award lookups."""
+    search_names: List[str] = field(default_factory=list)  # Recipient names to search
+    allowed_names: List[str] = field(default_factory=list)  # Filter false positives
+    recipient_uei: str = ""  # Unique Entity Identifier (precise matching)
+
+
+@dataclass
 class FederalPrograms:
     """Federal program relationships."""
     hud_grantee: str = ""
     hud_relationship: str = ""  # "direct", "consortium", "subrecipient"
+    usaspending: USAspendingConfig = field(default_factory=USAspendingConfig)
     notes: str = ""
 
 
@@ -261,6 +270,19 @@ class JurisdictionConfig:
             }
             if self.federal_programs.notes:
                 result["federal_programs"]["notes"] = self.federal_programs.notes
+
+        # USAspending config (only include if configured)
+        usa = self.federal_programs.usaspending
+        if usa.search_names or usa.recipient_uei:
+            result.setdefault("federal_programs", {})
+            usa_dict: Dict[str, Any] = {}
+            if usa.search_names:
+                usa_dict["search_names"] = usa.search_names
+            if usa.allowed_names:
+                usa_dict["allowed_names"] = usa.allowed_names
+            if usa.recipient_uei:
+                usa_dict["recipient_uei"] = usa.recipient_uei
+            result["federal_programs"]["usaspending"] = usa_dict
 
         return result
 
@@ -445,9 +467,16 @@ def load_jurisdiction_config(jurisdiction_id: str) -> JurisdictionConfig:
 
     # Parse federal programs
     fed_data = data.get("federal_programs", {})
+    usa_data = fed_data.get("usaspending", {})
+    usaspending = USAspendingConfig(
+        search_names=usa_data.get("search_names", []),
+        allowed_names=usa_data.get("allowed_names", []),
+        recipient_uei=usa_data.get("recipient_uei", ""),
+    )
     federal_programs = FederalPrograms(
         hud_grantee=fed_data.get("hud_grantee", ""),
         hud_relationship=fed_data.get("hud_relationship", ""),
+        usaspending=usaspending,
         notes=fed_data.get("notes", ""),
     )
 
@@ -544,6 +573,20 @@ def get_hud_relationship(jurisdiction_id: str) -> Optional[str]:
     """Get the HUD relationship type for a jurisdiction."""
     config = load_jurisdiction_config(jurisdiction_id)
     return config.federal_programs.hud_relationship or None
+
+
+def get_jurisdictions_with_usaspending() -> Dict[str, "JurisdictionConfig"]:
+    """Get jurisdictions that have USAspending config (search_names or UEI).
+
+    Returns:
+        Dict mapping jurisdiction_id to JurisdictionConfig
+    """
+    all_jurisdictions = get_active_jurisdictions()
+    return {
+        jid: config for jid, config in all_jurisdictions.items()
+        if config.federal_programs.usaspending.search_names
+        or config.federal_programs.usaspending.recipient_uei
+    }
 
 
 def get_extraction_config(jurisdiction_id: str) -> Dict[str, Any]:

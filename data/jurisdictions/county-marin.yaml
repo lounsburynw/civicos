@@ -83,6 +83,16 @@ financial:
   state: CA
   county: Marin
 
+federal_programs:
+  hud_grantee: Marin County
+  hud_relationship: direct
+  usaspending:
+    search_names:
+      - "COUNTY OF MARIN"
+    allowed_names:
+      - "COUNTY OF MARIN"
+      - "HOUSING AUTHORITY OF THE COUNTY OF MARIN"
+
 # =============================================================================
 # Metadata
 # =============================================================================
