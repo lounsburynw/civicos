@@ -6,9 +6,6 @@
   "archives": {
     "multiple_bodies": "3"
   },
-  "usaspending": {
-    "recipient_name": "CITY OF MILL VALLEY"
-  },
   "metadata": {
     "granicus_domain": "cityofmillvalley",
     "default_view_id": "3",

@@ -111,6 +111,12 @@ financial:
 federal_programs:
   hud_grantee: string             # HUD grantee name (may be county)
   hud_relationship: string        # "direct", "consortium", "subrecipient"
+  usaspending:                    # USAspending.gov config (auto-discovered during onboarding)
+    search_names:                 # Recipient names to search (e.g., ["CITY OF SAN RAFAEL"])
+      - string
+    allowed_names:                # Filter false positives (e.g., exclude "SAN RAFAEL COOP")
+      - string
+    recipient_uei: string         # Unique Entity Identifier for precise matching (optional)
   notes: string                   # Explanation of federal program relationships
 
 # =============================================================================
