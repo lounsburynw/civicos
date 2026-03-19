@@ -579,7 +579,7 @@ async def execute_upcoming(
                 corpus_status["hearings"] = "ok"
 
             elif event_type == "comment_periods":
-                # Comment periods from upcoming meetings with comment-eligible items
+                # Local comment periods from upcoming meetings
                 meetings = civic.whats_next(days=request.days)
                 for m in meetings:
                     comment_items = [
@@ -595,6 +595,47 @@ async def execute_upcoming(
                             summary=f"{len(comment_items)} items open for comment",
                             details={"location": m.location},
                         ))
+
+                # Federal comment periods from regulations.gov data
+                if hasattr(civic.storage, "get_open_comment_periods"):
+                    try:
+                        from datetime import date as _date
+                        federal_rules = civic.storage.get_open_comment_periods(
+                            limit=20,
+                        )
+                        for rule in federal_rules:
+                            close_date = rule.get("comments_close_on")
+                            days_remaining = None
+                            if close_date:
+                                if isinstance(close_date, str):
+                                    close_date = _date.fromisoformat(close_date)
+                                days_remaining = (close_date - _date.today()).days
+
+                            agency_names = rule.get("agency_names") or []
+                            if isinstance(agency_names, str):
+                                agency_names = [agency_names]
+
+                            results.append(CivicResult(
+                                type="comment_period",
+                                ref=f"rule:us-federal:{rule.get('document_number', '')}",
+                                title=rule.get("title", ""),
+                                date=str(close_date) if close_date else None,
+                                summary=rule.get("abstract", ""),
+                                details={
+                                    "document_number": rule.get("document_number", ""),
+                                    "agency_names": agency_names,
+                                    "days_remaining": days_remaining,
+                                    "comment_url": rule.get("comment_url", ""),
+                                    "html_url": rule.get("html_url", ""),
+                                    "document_type": rule.get("document_type", ""),
+                                    "topics": rule.get("topics") or [],
+                                    "publication_date": str(rule["publication_date"]) if rule.get("publication_date") else None,
+                                    "level": "federal",
+                                },
+                            ))
+                    except Exception:
+                        pass  # Federal rules not available in this backend
+
                 corpus_status["comment_periods"] = "ok"
 
             elif event_type == "elections":
