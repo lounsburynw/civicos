@@ -73,6 +73,42 @@ Leave TODOs for fields that require manual lookup:
 - `governing_body` (meeting schedule, location)
 - `zip_codes`, `neighborhoods`
 
+### Step 4.5: Confirm Federal Funding Recipients (USAspending)
+
+The onboarding function automatically searches USAspending.gov for federal award recipients matching the jurisdiction name. If candidates were found (`result.usaspending_candidates`), present them to the user:
+
+```
+Federal Funding Recipients (USAspending.gov):
+
+The following recipients were found matching "{jurisdiction_name}".
+Government entities are marked with [GOV]. Select which ones belong to this jurisdiction:
+
+  [1] [GOV] CITY OF SAN RAFAEL — 2 awards, $904,988
+  [2] [GOV] SAN RAFAEL, CITY OF — 1 award, $16,088,886
+  [3]       SAN RAFAEL COOP — 5 awards, $717,900
+  [4]       SAN RAFAEL ELEMENTARY SCHOOL — 1 award, $50,000
+
+Which recipients belong to this jurisdiction? (e.g., "1,2" or "all gov" or "none")
+```
+
+Based on the user's selection, write the `federal_programs.usaspending` block in the jurisdiction YAML:
+
+```yaml
+federal_programs:
+  usaspending:
+    search_names:
+      - "CITY OF SAN RAFAEL"
+      - "SAN RAFAEL, CITY OF"
+    allowed_names:
+      - "CITY OF SAN RAFAEL"
+      - "SAN RAFAEL, CITY OF"
+```
+
+- `search_names`: the selected recipient names (used as API search terms)
+- `allowed_names`: same list (used to filter false positives from broad searches)
+
+If no candidates were found or user selects "none", omit the `usaspending` section.
+
 ### Step 5: Present Ingestion Tiers + Cost Estimate
 
 Show the user the 4-tier ingestion model and ask which tiers to enable:
