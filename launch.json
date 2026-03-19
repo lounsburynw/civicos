@@ -1,8 +1,8 @@
 {
   "version": "1.0",
   "phase": "launch",
-  "last_updated": "2026-03-17",
-  "summary": "Launch readiness: billing infrastructure, acceptance policy enforcement, token issuance, operator tooling, observability",
+  "last_updated": "2026-03-18",
+  "summary": "Launch readiness: billing infrastructure, acceptance policy enforcement, token issuance, operator tooling, observability, multi-scale participation",
   "category_order": [
     "security_fixes",
     "observability",
@@ -10,7 +10,8 @@
     "acceptance_policy",
     "token_issuance",
     "operator_readiness",
-    "federation_testbed"
+    "federation_testbed",
+    "multi_scale_participation"
   ],
   "security_fixes": {
     "description": "Fix existing security vulnerabilities that undermine the trust model (Phase 0 from acceptance policy spec)",
@@ -526,7 +527,7 @@
         "name": "cross_marin_query_prototype",
         "description": "Cross-jurisdiction queries within Marin County via v2 query layer. SearchRequest.include_parents/include_siblings with tier-based relevance boosting.",
         "status": "in_progress",
-        "priority": 0,
+        "priority": 1,
         "phase": "A",
         "source": "federation testbed \u2014 query federation",
         "spec": "docs/internal/cross-jurisdiction-query-spec.md",
@@ -620,16 +621,18 @@
       {
         "name": "cross_county_query_prototype",
         "description": "Prototype cross-county queries: Berkeley (Alameda) vs San Rafael (Marin). Test relevance filtering \u2014 when are cross-county results useful vs noise?",
-        "status": "not_started",
-        "priority": 0,
+        "status": "in_progress",
+        "priority": 1,
         "phase": "B",
         "source": "federation testbed \u2014 cross-county federation",
         "spec": "docs/internal/cross-county-relevance-spec.md",
         "files": [
-          "packages/civicos/src/civicos/civicos.py"
+          "packages/civicos-services/src/civicos_services/query/models.py",
+          "packages/civicos-services/src/civicos_services/query/verbs.py",
+          "packages/civicos-services/src/civicos_services/query/jurisdictions.py"
         ],
-        "test_file": null,
-        "notes": "Key question: a San Rafael user doesn't care about EBMUD. How does the query layer filter by relevance across county boundaries? State legislation is shared; county/regional is not."
+        "test_file": "packages/civicos-services/tests/test_query_v2.py",
+        "notes": "also_include field added to SearchRequest (d2d20f4), jurisdiction ID validation (622423b). Validated 5 spec questions with real data. 138 tests pass. Remaining: officially onboard Marin cities and cross-county jurisdictions before marking done."
       },
       {
         "name": "pagination_protocol_update",
@@ -731,6 +734,146 @@
         ],
         "test_file": null,
         "notes": "Trivial implementation: POST endpoint accepts {title, date, board, pdf_file}, runs AgendaPacketParser, calls store_meetings() + store_chunks(). Auth via API key per jurisdiction. Extension gets Upload Agenda button. Scraping pipeline remains as fallback for historical data and non-adopting cities. 1-2 sessions of work."
+      }
+    ]
+  },
+  "multi_scale_participation": {
+    "description": "Civic participation at every government level \u2014 federal comment periods, state legislative hearings, and cross-scale query support",
+    "items": [
+      {
+        "name": "extension_tab_fix",
+        "description": "Fix CA/Federal extension tabs that show loading/error state because no servers exist at those endpoints. Either route existing what_applies() legislation data to those tabs, or hide tabs gracefully until servers are deployed.",
+        "status": "not_started",
+        "priority": 0,
+        "phase": "0",
+        "source": "multi-scale participation \u2014 UX inconsistency",
+        "files": [
+          "apps/civicos-extension/src/side-panel/SidePanel.svelte",
+          "packages/civicos-client/src/registry.ts"
+        ],
+        "test_file": null,
+        "notes": "Extension calls getCityPulseFromServer() on california.civicosproject.org and federal.civicosproject.org, which don't exist. what_applies() data (LegiScan, Federal Register) already comes through the city's LegislationAdapter on the city tab. Quick fix: show that data on parent tabs instead of calling nonexistent servers. 1 session."
+      },
+      {
+        "name": "federal_comment_periods",
+        "description": "Ingest federal comment periods from regulations.gov API. Store as upcoming events with deadlines. Enable civic.act submission. Highest-value federal participation surface.",
+        "status": "not_started",
+        "priority": 2,
+        "phase": "1",
+        "source": "multi-scale participation \u2014 federal",
+        "files": [
+          "packages/civicos-extraction/src/civicos_extraction/clients/",
+          "packages/civicos/src/civicos/storage/"
+        ],
+        "test_file": null,
+        "notes": "regulations.gov has a well-documented REST API (api.regulations.gov). Comment periods have structured deadlines, map cleanly to civic.upcoming (type=comment_periods) and civic.act (action=submit_comment). Need: (1) API client for open comment periods, (2) store as upcoming events with deadline dates, (3) civic.act handler that formats and submits comments. UpcomingType.comment_periods enum already exists but nothing implements it. 1-2 sessions."
+      },
+      {
+        "name": "federal_server_deployment",
+        "description": "Deploy country-united-states Modal server. Wire federal comment periods + executive orders + rulemaking into the server's data. Connect extension Federal tab.",
+        "status": "not_started",
+        "priority": 2,
+        "phase": "1",
+        "source": "multi-scale participation \u2014 federal infrastructure",
+        "files": [
+          "apps/civicos-mcp/modal_mcp.py"
+        ],
+        "test_file": null,
+        "notes": "Same server code, different jurisdiction config (like Marin relay deployments). federal.civicosproject.org/mcp endpoint already registered in config/registry.json. 1 session."
+      },
+      {
+        "name": "state_legislative_client",
+        "description": "Build California legislature data client using leginfo.legislature.ca.gov. Ingest committee hearing schedules, bill status with vote dates, public comment windows.",
+        "status": "not_started",
+        "priority": 2,
+        "phase": "2",
+        "source": "multi-scale participation \u2014 state",
+        "files": [
+          "packages/civicos-extraction/src/civicos_extraction/clients/"
+        ],
+        "test_file": null,
+        "notes": "LegiScan gives bill text/status but not participation data (hearing schedules, comment windows, testimony). leginfo.legislature.ca.gov has structured data for CA. Need to determine API vs scraping approach. Messier than regulations.gov. 2-3 sessions."
+      },
+      {
+        "name": "state_server_deployment",
+        "description": "Deploy state-california Modal server. Wire committee hearings, bill votes, and comment windows into the server's data. Connect extension CA tab.",
+        "status": "not_started",
+        "priority": 3,
+        "phase": "2",
+        "source": "multi-scale participation \u2014 state infrastructure",
+        "files": [
+          "apps/civicos-mcp/modal_mcp.py"
+        ],
+        "test_file": null,
+        "notes": "california.civicosproject.org/mcp endpoint already registered. Depends on state_legislative_client data. 1 session."
+      },
+      {
+        "name": "vertical_query_tier_tuning",
+        "description": "Tune tier weights for upward queries (city\u2192state\u2192federal). Parent tier is currently 1.0 (same as self), which means state/federal results compete equally with local decisions. May need level-aware weighting or separate result grouping.",
+        "status": "not_started",
+        "priority": 2,
+        "phase": "1",
+        "source": "multi-scale participation \u2014 query layer",
+        "files": [
+          "packages/civicos-services/src/civicos_services/query/jurisdictions.py",
+          "packages/civicos-services/src/civicos_services/query/verbs.py"
+        ],
+        "test_file": "packages/civicos-services/tests/test_query_v2.py",
+        "notes": "With real state/federal data, include_parents=True will return results from 3+ levels. Questions: (1) Should parent weight stay 1.0 or decrease with distance (county=0.9, state=0.7, federal=0.5)? (2) Should jurisdiction_results group by level (local/state/federal) not just jurisdiction ID? (3) How does the extension render mixed-level results? Needs real data to validate \u2014 run after federal_comment_periods. 1 session."
+      },
+      {
+        "name": "downward_query_scaling",
+        "description": "Cap or paginate downward resolution for state/county-level queries. Querying state-california with include_siblings (downward) would fan out to every CA city \u2014 works with 4, breaks with hundreds.",
+        "status": "not_started",
+        "priority": 3,
+        "phase": "2",
+        "source": "multi-scale participation \u2014 query scaling",
+        "files": [
+          "packages/civicos-services/src/civicos_services/query/jurisdictions.py",
+          "packages/civicos-services/src/civicos_services/query/verbs.py"
+        ],
+        "test_file": "packages/civicos-services/tests/test_query_v2.py",
+        "notes": "Options: (1) cap fan-out at N jurisdictions (e.g., 10), (2) require explicit also_include for large fan-outs, (3) aggregate mode returns counts per jurisdiction without full search. Not urgent until CA has more than ~10 cities. 1 session."
+      },
+      {
+        "name": "upcoming_comment_periods",
+        "description": "Implement UpcomingType.comment_periods and UpcomingType.hearings in civic.upcoming. Surface federal comment deadlines and state hearing dates alongside local meetings.",
+        "status": "not_started",
+        "priority": 2,
+        "phase": "1",
+        "source": "multi-scale participation \u2014 participation surface",
+        "files": [
+          "packages/civicos-services/src/civicos_services/query/verbs.py",
+          "packages/civicos-services/src/civicos_services/query/models.py"
+        ],
+        "test_file": "packages/civicos-services/tests/test_query_v2.py",
+        "notes": "UpcomingType enum already has comment_periods and hearings but execute_upcoming() only handles meetings. Need adapters that query stored comment periods/hearings with deadlines. Key UX: show 'Comment period closes in 3 days' alongside 'City Council meets Tuesday'. 1 session, depends on federal_comment_periods data."
+      },
+      {
+        "name": "civic_act_federal_comment",
+        "description": "Add civic.act handler for submitting public comments to regulations.gov. Format comment, validate against regulations.gov requirements, submit via API.",
+        "status": "not_started",
+        "priority": 2,
+        "phase": "1",
+        "source": "multi-scale participation \u2014 federal action",
+        "files": [
+          "packages/civicos-services/src/civicos_services/query/verbs.py"
+        ],
+        "test_file": null,
+        "notes": "regulations.gov API supports comment submission. Need: (1) action handler in execute_act(), (2) comment formatting (plain text, structured fields), (3) submission confirmation and tracking ID. This is the flagship multi-scale participation action \u2014 a citizen using CivicOS to comment on a federal rule. 1 session."
+      },
+      {
+        "name": "legislation_adapter_unification",
+        "description": "Unify legislation data path: query stored state/federal legislation first, fall back to what_applies() API calls. Currently all legislation comes via on-demand API calls regardless of what's stored.",
+        "status": "not_started",
+        "priority": 3,
+        "phase": "2",
+        "source": "multi-scale participation \u2014 data architecture",
+        "files": [
+          "packages/civicos-services/src/civicos_services/query/adapters.py"
+        ],
+        "test_file": "packages/civicos-services/tests/test_query_v2.py",
+        "notes": "LegislationAdapter currently calls what_applies() which hits LegiScan/Federal Register APIs on every query. With stored state/federal data, should check storage first for faster responses and offline capability. API calls become the refresh mechanism, not the query path. 1 session."
       }
     ]
   }

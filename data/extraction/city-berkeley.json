@@ -1,0 +1,14 @@
+{
+  "source_id": "granicus-city-berkeley",
+  "source_type": "granicus",
+  "jurisdiction_id": "city-berkeley",
+  "base_url": "https://berkeley.granicus.com",
+  "archives": {
+    "view_2": "2",
+    "view_5": "5"
+  },
+  "metadata": {
+    "granicus_domain": "berkeley",
+    "default_view_id": "2"
+  }
+}

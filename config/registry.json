@@ -35,6 +35,12 @@
       "domain": "berkeley.civicosproject.org",
       "display_name": "Berkeley",
       "modal_app_name": "civicos-berkeley",
+      "parent_jurisdictions": ["county-alameda", "state-california", "country-united-states"]
+    },
+    "county-alameda": {
+      "domain": "alameda-county.civicosproject.org",
+      "display_name": "Alameda County",
+      "modal_app_name": "civicos-alameda-county",
       "parent_jurisdictions": ["state-california", "country-united-states"]
     },
     "city-mill-valley": {

@@ -159,3 +159,31 @@ package-lock.json
 
 # Federation test issuer configs (contain private keys)
 config/federation/
+
+# Ingestion checkpoints (machine-specific, regenerable)
+data/checkpoints/
+
+# Extracted chunks and decisions (large, regenerable from sources)
+data/chunks/
+data/decisions/
+
+# Municipal code data (regenerable)
+data/municipal_code/
+
+# Test/debug extraction configs
+data/extraction/city-ghost.json
+data/extraction/city-test.json
+data/extraction/city-warn.json
+data/jurisdictions/city-warn.yaml
+
+# Claude session state (ephemeral, machine-specific)
+claude-progress.txt
+apps/*/claude-progress.txt
+.claude/
+.serena/
+
+# Local MCP config
+apps/civicos-mcp/config/
+
+# Package-level vector data (local dev, large binary)
+packages/civicos/data/
