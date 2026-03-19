@@ -52,6 +52,7 @@ class CorpusType(str, Enum):
     CODIFIED_LAW = "codified_law" # Statutes (U.S. Code, CA Codes, etc.) - parameterized by jurisdiction
     EXECUTIVE_ORDERS = "executive_orders"  # Presidential executive orders (SESSION 432)
     FEDERAL_RULES = "federal_rules"        # Federal rulemaking (proposed rules, final rules, notices)
+    FEDERAL_AWARDS = "federal_awards"      # Federal awards/grants from USAspending.gov
 
     def __str__(self) -> str:
         return self.value
@@ -256,6 +257,17 @@ CORPUS_REGISTRY: Dict[CorpusType, CorpusConfig] = {
         sql_table="federal_rules",
         vector_collection_suffix="federal_rules",
         aliases=("federal_rule", "rulemaking", "nprm"),
+        has_meeting_context=False,
+    ),
+    CorpusType.FEDERAL_AWARDS: CorpusConfig(
+        display_name="Federal Awards",
+        storage_method="get_federal_awards",
+        count_method="get_federal_awards_count",
+        text_extractor="_federal_award_to_text",
+        jurisdiction_type="city",  # Per-jurisdiction awards from USAspending
+        sql_table="federal_awards",
+        vector_collection_suffix="federal_awards",
+        aliases=("federal_award", "grant", "grants", "award"),
         has_meeting_context=False,
     ),
 }
