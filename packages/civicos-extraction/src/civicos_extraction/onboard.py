@@ -279,6 +279,7 @@ class OnboardResult:
     config: Optional[Dict[str, Any]] = None
     config_path: Optional[str] = None
     discovered_bodies: Optional[Dict[str, str]] = None
+    usaspending_candidates: List[Dict[str, Any]] = field(default_factory=list)
     next_steps: List[str] = field(default_factory=list)
     errors: List[str] = field(default_factory=list)
     validation: Optional[Any] = None  # ValidationReport from validate.py
@@ -677,86 +678,112 @@ def _discover_civicclerk(subdomain: str, jurisdiction_id: str) -> Dict[str, Any]
     }
 
 
-def _discover_usaspending(
+def discover_usaspending_candidates(
     display_name: str,
     level: str = "city",
-) -> Dict[str, Any]:
-    """Discover USAspending.gov recipient for a jurisdiction.
+) -> List[Dict[str, Any]]:
+    """Search USAspending.gov for recipient candidates matching a jurisdiction.
 
-    Auto-derives the recipient name from the display name and level,
-    then probes the USAspending API to validate data exists.
+    Searches broadly by display name, then groups results by unique recipient
+    name. Returns all candidates — the caller decides which to keep.
+
+    Government entities are sorted first (by award count), followed by
+    non-government entities, so the most likely matches appear at the top.
 
     Args:
-        display_name: Human-readable name (e.g., "San Rafael", "Marin")
+        display_name: Human-readable name (e.g., "San Rafael", "Marin County")
         level: Jurisdiction level ("city", "county", "state")
 
     Returns:
-        Dict with search_names, allowed_names, and award_count.
-        Empty dict if no data found.
+        List of candidate dicts, each with:
+          - recipient_name: str
+          - award_count: int
+          - total_dollars: float
+          - is_government: bool (heuristic)
     """
-    # Build recipient name from display_name and level
-    if level == "county":
-        primary_name = f"COUNTY OF {display_name.upper()}"
-    elif level == "city":
-        primary_name = f"CITY OF {display_name.upper()}"
-    else:
-        return {}
+    import time
 
-    # Also try the inverted form: "SAN RAFAEL, CITY OF"
-    variant_name = f"{display_name.upper()}, {level.upper()} OF"
+    # Strip level suffixes (e.g., "Marin County" -> "Marin")
+    clean_name = re.sub(
+        r"\s*(City|County|Town|District)$", "", display_name, flags=re.IGNORECASE
+    ).strip()
+
+    # Build search terms — the API searches recipient_name as substring
+    # Use the bare name to cast a wide net
+    search_terms = [clean_name.upper()]
+
+    # Also try the formal "CITY OF X" / "COUNTY OF X" form
+    if level == "county":
+        search_terms.append(f"COUNTY OF {clean_name.upper()}")
+    elif level == "city":
+        search_terms.append(f"CITY OF {clean_name.upper()}")
+
+    # Government name patterns (case-insensitive)
+    gov_patterns = [
+        "CITY OF ", "COUNTY OF ", "TOWN OF ", "VILLAGE OF ",
+        "BOROUGH OF ", "TOWNSHIP OF ", "DISTRICT OF ",
+        "HOUSING AUTHORITY", "TRANSIT DISTRICT", "WATER DISTRICT",
+        "FIRE DISTRICT", "SCHOOL DISTRICT", "PORT AUTHORITY",
+        ", CITY OF", ", COUNTY OF", ", TOWN OF",
+        "METROPOLITAN", "MUNICIPALITY",
+    ]
 
     try:
         from civicos_extraction.clients.usaspending import USAspendingClient
 
-        # Probe with primary name
-        client = USAspendingClient(
-            jurisdiction_id="probe",
-            recipient_name=primary_name,
-        )
-        awards = client.get_awards(max_pages=1)
-
-        # Filter to exact matches only
-        exact_matches = [
-            a for a in awards
-            if a.get("recipient_name", "").upper() == primary_name
-        ]
-
-        # Also check the variant name
-        variant_matches = []
-        if level == "city":
-            import time
-            time.sleep(0.5)
-            client2 = USAspendingClient(
+        # Collect all awards across search terms, deduplicate by award_id
+        all_awards: Dict[str, Dict[str, Any]] = {}
+        for term in search_terms:
+            client = USAspendingClient(
                 jurisdiction_id="probe",
-                recipient_name=variant_name,
+                recipient_name=term,
             )
-            variant_awards = client2.get_awards(max_pages=1)
-            variant_matches = [
-                a for a in variant_awards
-                if a.get("recipient_name", "").upper() == variant_name
-            ]
+            batch = client.get_awards(max_pages=2)
+            for a in batch:
+                aid = a.get("award_id")
+                if aid and aid not in all_awards:
+                    all_awards[aid] = a
+            time.sleep(0.5)
 
-        total = len(exact_matches) + len(variant_matches)
-        if total == 0:
-            logger.info(f"USAspending: no awards found for '{primary_name}'")
-            return {}
+        if not all_awards:
+            logger.info(f"USAspending: no awards found for '{clean_name}'")
+            return []
 
-        search_names = [primary_name]
-        allowed_names = [primary_name]
-        if variant_matches:
-            search_names.append(variant_name)
-            allowed_names.append(variant_name)
+        # Group by recipient name
+        by_name: Dict[str, Dict[str, Any]] = {}
+        for award in all_awards.values():
+            name = award.get("recipient_name", "").strip()
+            if not name:
+                continue
+            if name not in by_name:
+                by_name[name] = {"count": 0, "total_cents": 0}
+            by_name[name]["count"] += 1
+            by_name[name]["total_cents"] += award.get("amount_cents", 0)
 
-        logger.info(f"USAspending: found {total} awards for '{primary_name}'")
-        return {
-            "search_names": search_names,
-            "allowed_names": allowed_names,
-            "award_count": total,
-        }
+        # Build candidates
+        candidates = []
+        for name, stats in by_name.items():
+            name_upper = name.upper()
+            is_gov = any(pat in name_upper for pat in gov_patterns)
+            candidates.append({
+                "recipient_name": name,
+                "award_count": stats["count"],
+                "total_dollars": stats["total_cents"] / 100,
+                "is_government": is_gov,
+            })
+
+        # Sort: government entities first (by award count desc), then non-gov
+        candidates.sort(key=lambda c: (not c["is_government"], -c["award_count"]))
+
+        logger.info(
+            f"USAspending: found {len(candidates)} candidates for '{clean_name}' "
+            f"({sum(1 for c in candidates if c['is_government'])} government)"
+        )
+        return candidates
 
     except Exception as e:
         logger.warning(f"USAspending discovery failed: {e}")
-        return {}
+        return []
 
 
 def _generate_jurisdiction_yaml(
@@ -878,16 +905,6 @@ def _generate_jurisdiction_yaml(
             "notes": "Auto-generated by onboard_jurisdiction().",
         },
     }
-
-    # Discover USAspending data (free API, no key needed)
-    if level in ("city", "county"):
-        usa_result = _discover_usaspending(display_name, level=level)
-        if usa_result:
-            doc.setdefault("federal_programs", {})
-            doc["federal_programs"]["usaspending"] = {
-                "search_names": usa_result["search_names"],
-                "allowed_names": usa_result["allowed_names"],
-            }
 
     header = f"# {display_name} Configuration\n#\n# Auto-generated by onboard_jurisdiction().\n\n"
     return header + yaml.dump(doc, default_flow_style=False, sort_keys=False, allow_unicode=True)
@@ -1196,6 +1213,19 @@ def onboard_jurisdiction(
                 f"zip {geo_data.get('zip_code', '?')}"
             )
 
+    # Step 3.7: Discover USAspending candidates (free API, no key needed)
+    usaspending_candidates: List[Dict[str, Any]] = []
+    if level in ("city", "county"):
+        inferred_display = city_name or re.sub(
+            r"^(city|county|town|district|state|province|council)-", "",
+            jurisdiction_id
+        ).replace("-", " ").title()
+        _progress("usaspending", f"Searching USAspending for '{inferred_display}'...")
+        usaspending_candidates = discover_usaspending_candidates(inferred_display, level=level)
+        if usaspending_candidates:
+            gov_count = sum(1 for c in usaspending_candidates if c["is_government"])
+            _progress("usaspending", f"Found {len(usaspending_candidates)} candidates ({gov_count} government)")
+
     # Step 4: Generate jurisdiction YAML (optional)
     yaml_path = None
     if generate_yaml:
@@ -1282,6 +1312,7 @@ def onboard_jurisdiction(
             config=config,
             config_path=str(config_path),
             discovered_bodies={},
+            usaspending_candidates=usaspending_candidates,
             errors=errors,
             next_steps=[
                 "Add archives manually to config before extraction",
@@ -1529,6 +1560,7 @@ def onboard_jurisdiction(
         config=config,
         config_path=str(config_path),
         discovered_bodies=discovered_bodies,
+        usaspending_candidates=usaspending_candidates,
         next_steps=next_steps,
         validation=validation_report,
         pipeline_result=pipeline_result_obj,
