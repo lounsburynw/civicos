@@ -588,7 +588,7 @@ Report ID: {uuid.uuid4()}
         print("🧪 Generating demo civic participation data...")
 
         demo_users = ['user1', 'user2', 'user3', 'user4']
-        demo_jurisdictions = ['city-san-rafael', 'city-berkeley', 'marin-county']
+        demo_jurisdictions = ['city-san-rafael', 'city-berkeley', 'county-marin']
 
         for i, user_id in enumerate(demo_users):
             # Create engagement session

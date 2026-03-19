@@ -39,9 +39,9 @@ JURISDICTIONS = {
         "worker": "civicos-federal-proxy",
         "mcp_origin": "https://civicos--civicos-federal-mcpserver-mcp-endpoint.modal.run",
     },
-    "marin-county": {
-        "worker": "civicos-marin-county-proxy",
-        "mcp_origin": "https://civicos--civicos-marin-county-mcpserver-mcp-endpoint.modal.run",
+    "county-marin": {
+        "worker": "civicos-county-marin-proxy",
+        "mcp_origin": "https://civicos--civicos-county-marin-mcpserver-mcp-endpoint.modal.run",
     },
 }
 

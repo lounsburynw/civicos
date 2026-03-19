@@ -90,7 +90,7 @@ class TestRelayConfig:
             peers=[
                 PeerConfig(
                     url="https://peer.example.org",
-                    namespaces=["marin-county:*"],
+                    namespaces=["county-marin:*"],
                 )
             ],
         )

@@ -138,7 +138,7 @@ _REGISTRY: Dict[str, JurisdictionConfig] = {
 
     # ---------- Marin County ----------
     "marin_county": JurisdictionConfig(
-        jurisdiction_id="marin-county",
+        jurisdiction_id="county-marin",
         agent_type="standard",
         meeting_urls=["https://www.marincounty.org/depts/bs/board-of-supervisors/meetings-agendas-and-minutes"],
         contact_email="boardclerk@marincounty.org",
@@ -187,7 +187,7 @@ _REGISTRY: Dict[str, JurisdictionConfig] = {
         domains=("oaklandca.gov", "oakland.legistar.com"),
     ),
     "sonoma_county": JurisdictionConfig(
-        jurisdiction_id="sonoma-county",
+        jurisdiction_id="county-sonoma",
         agent_type="legistar",
         meeting_urls=["https://sonoma-county.legistar.com/Calendar.aspx"],
         contact_email="clerk@sonoma-county.org",

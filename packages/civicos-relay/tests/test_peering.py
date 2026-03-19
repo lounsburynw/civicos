@@ -82,7 +82,7 @@ relay:
       sync_interval: 600
     - url: https://peer.example.org
       namespaces:
-        - marin-county:*
+        - county-marin:*
       enabled: false
   health_check_timeout: 15
   max_consecutive_failures: 5

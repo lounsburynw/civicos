@@ -66,7 +66,7 @@ def main():
 
         # Special district
         ("BART meetings", "bart"),
-        ("Sonoma County events", "sonoma-county"),
+        ("Sonoma County events", "county-sonoma"),
     ]
 
     passed = 0
