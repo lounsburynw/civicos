@@ -743,7 +743,7 @@
       {
         "name": "extension_tab_fix",
         "description": "Fix CA/Federal extension tabs that show loading/error state because no servers exist at those endpoints. Either route existing what_applies() legislation data to those tabs, or hide tabs gracefully until servers are deployed.",
-        "status": "not_started",
+        "status": "done",
         "priority": 0,
         "phase": "0",
         "source": "multi-scale participation \u2014 UX inconsistency",
@@ -757,8 +757,8 @@
       {
         "name": "federal_comment_periods",
         "description": "Ingest federal comment periods from regulations.gov API. Store as upcoming events with deadlines. Enable civic.act submission. Highest-value federal participation surface.",
-        "status": "not_started",
-        "priority": 2,
+        "status": "done",
+        "priority": 0,
         "phase": "1",
         "source": "multi-scale participation \u2014 federal",
         "files": [
@@ -838,7 +838,7 @@
       {
         "name": "upcoming_comment_periods",
         "description": "Implement UpcomingType.comment_periods and UpcomingType.hearings in civic.upcoming. Surface federal comment deadlines and state hearing dates alongside local meetings.",
-        "status": "not_started",
+        "status": "done",
         "priority": 2,
         "phase": "1",
         "source": "multi-scale participation \u2014 participation surface",
@@ -853,7 +853,7 @@
         "name": "civic_act_federal_comment",
         "description": "Add civic.act handler for submitting public comments to regulations.gov. Format comment, validate against regulations.gov requirements, submit via API.",
         "status": "not_started",
-        "priority": 2,
+        "priority": 0,
         "phase": "1",
         "source": "multi-scale participation \u2014 federal action",
         "files": [

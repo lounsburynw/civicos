@@ -22631,3 +22631,77 @@ instead of going through CivicOS query methods.
 - docs/internal/cross-jurisdiction-query-spec.md (QC report updated)
 
 **Tests:** 130 v2 query + 20 smoke = 150 all passing
+
+## Session — 2026-03-18: Cross-County Query + Multi-Scale Planning
+
+**Item:** cross_county_query_prototype (P0)
+**Status:** Implementation complete, awaiting onboarding completion
+
+**Changes:**
+1. **Cross-county query prototype** — Added `also_include: Optional[List[str]]` to SearchRequest for explicit cross-county comparisons. Wired into fan-out with deduplication. Tier weights handle scoring (cross_county=0.5). Validated 5 spec questions with real data (Berkeley 257 decisions, SR 83). Commit: d2d20f4
+
+2. **Jurisdiction ID validation** — `validate_jurisdiction_ids()` in jurisdictions.py rejects unknown IDs in also_include with explicit error response. Commit: 622423b
+
+3. **Multi-scale participation planning** — Added `multi_scale_participation` category to launch.json with 10 items across 3 phases (extension tab fix, federal comment periods, state legislative client, vertical query tuning, etc.). Key architectural decision: v2 query layer does NOT need structural changes for multi-scale — just new corpus adapters and action handlers.
+
+4. **Extension tab inconsistency identified** — CA/Federal tabs call nonexistent servers. Set `extension_tab_fix` as new P0 (prerequisite for turnkey onboarding). Demoted cross_marin and cross_county to P1.
+
+**Files changed:**
+- packages/civicos-services/src/civicos_services/query/models.py (also_include field)
+- packages/civicos-services/src/civicos_services/query/verbs.py (fan-out wiring, validation)
+- packages/civicos-services/src/civicos_services/query/jurisdictions.py (validate_jurisdiction_ids)
+- packages/civicos-services/tests/test_query_v2.py (8 new tests, 138 total)
+- scripts/validate_cross_county.py (new — 5 spec question validation)
+- launch.json (multi_scale_participation category, P0 reassignment)
+
+**Tests:** 138 v2 query + 20 smoke = 158 all passing
+
+**Next P0:** extension_tab_fix — Fix broken CA/Federal extension tabs before turnkey onboarding
+
+## Session — 2026-03-18: Extension Tab Fix (P0)
+
+**Item:** extension_tab_fix (multi_scale_participation)
+**Status:** Done
+
+**Changes:**
+1. **Parent jurisdiction proxy** — Added `parent_jurisdiction` parameter to city-pulse endpoint. City server now returns legislation pulse on behalf of state/federal parents via `_legislation_pulse()`. Extension CA/Federal tabs route through city server instead of calling nonexistent parent servers. Commit: ca5379f
+
+2. **Gitignore cleanup** — Added rules for data artifacts (checkpoints, chunks, decisions, municipal code), Claude session state, Serena config, test extraction configs. Tracked Berkeley and Travis County extraction configs. Commit: ee9d584
+
+**Files changed:**
+- apps/civicos-mcp/tools/handlers.py (parent_jurisdiction proxy in city_pulse)
+- apps/civicos-mcp/rest_api.py (CityPulseRequest.parent_jurisdiction field)
+- apps/civicos-mcp/tools/registry.py (tool schema update)
+- packages/civicos-client/src/api.ts (getCityPulseFromServer parentJurisdiction param)
+- apps/civicos-extension/src/side-panel/SidePanel.svelte (loadParentPulse routes through city server)
+- .gitignore (data artifacts, session state, tool configs)
+
+**Verified:** City pulse, CA proxy, Federal proxy all return correct data. Extension builds clean.
+
+**Next P0:** federal_comment_periods — Ingest federal comment periods from regulations.gov API
+
+---
+## Session — 2026-03-18 (continued)
+**Item:** federal_comment_periods (multi_scale_participation)
+**Status:** Done
+
+**Changes:**
+1. **v2 upcoming verb** — Fixed `execute_upcoming()` for `comment_periods` type to query the `federal_rules` table via `get_open_comment_periods()`, alongside existing local meeting comment periods. Returns federal rules with agency names, deadlines, days remaining, comment URLs, and document metadata. Now returns 20+ results (vs 1 local-only result before).
+
+2. **upcoming_comment_periods** — Also marked as done since `execute_upcoming()` now handles both `comment_periods` and `hearings` types with real data.
+
+**Discovery:** Previous sessions built much more infrastructure than the launch.json notes indicated:
+- `FederalRegisterClient` extraction client (fully implemented)
+- `federal_rules` PostgreSQL table with 4,115 records
+- `get_open_comment_periods()` in PostgresBackend (100+ open periods)
+- MCP handler `get_open_comment_periods` (working)
+- `_legislation_pulse()` includes comment periods for extension (working)
+- `CivicReadOnlyPulse.svelte` renders comment periods with AI drafting (complete)
+
+**Files changed:**
+- packages/civicos-services/src/civicos_services/query/verbs.py (execute_upcoming comment_periods + federal rules)
+- launch.json (federal_comment_periods → done, upcoming_comment_periods → done, civic_act_federal_comment → P0)
+
+**Verified:** v2 civic.upcoming returns 21 results (20 federal + 1 local). Extension builds clean. 20/20 smoke tests pass.
+
+**Next P0:** civic_act_federal_comment — Add civic.act handler for submitting federal comments via regulations.gov API

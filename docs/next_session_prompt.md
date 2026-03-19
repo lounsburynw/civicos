@@ -1,51 +1,58 @@
-# Recommended: Query Engine Performance (Session B)
+# Recommended: Federal Comment Submission (civic.act)
 
-**Priority:** P0 (cross_marin_query_prototype) / P1 (query_engine_performance)
-**Area:** federation_testbed > operator_readiness
-**Date:** 2026-03-17
+**Priority:** P0 (civic_act_federal_comment)
+**Area:** multi_scale_participation
+**Date:** 2026-03-18
 
 > This is recommended context from the previous session. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
 
 ## Context
 
-Session A of a 4-session game plan is complete. Cross-jurisdiction queries work end-to-end: querying `county-marin` fans out to all 3 child cities (SR, MV, SA) with semantic relevance scores. Decision IDs migrated to stable meeting-scoped ordinals. v2 mounted on REST API. **But query latency is 9.4s** — mostly from opening a new TCP connection per query (no connection pooling).
+Federal comment periods are fully operational — 4,115 rules ingested, 100+ open comment periods, v2 `civic.upcoming(types=["comment_periods"])` returns them, extension Federal tab renders them with AI drafting and "Submit Official Comment" links to regulations.gov.
 
-## Recommended Task
+The missing piece is **programmatic comment submission** via `civic.act`. Currently users click through to regulations.gov manually. Adding a `submit_federal_comment` action would close the participation loop.
 
-**Session B: Query Engine Performance** — make cross-jurisdiction queries fast under load.
+## What Already Exists
+
+- `civic.act` verb dispatcher at `packages/civicos-services/src/civicos_services/query/verbs.py:864`
+- Action-to-handler map at line 851: `_ACTION_TO_HANDLER` dict
+- `compose_public_comment` handler at `apps/civicos-mcp/tools/handlers.py:292` (local only, San Rafael specific)
+- Extension "Draft with AI" button generates prompts (client-side, `CivicReadOnlyPulse.svelte:701`)
+- Extension "Submit Official Comment" is currently just `<a href={period.comment_url}>` — opens regulations.gov
 
 ## Key Files
-- `packages/civicos/src/civicos/storage/postgres_backend.py:133` — `_get_connection()` opens fresh TCP connection every call
-- `packages/civicos/src/civicos/storage/pgvector_backend.py:1384` — `SET hnsw.ef_search = 200` (overkill for 17k vectors)
-- `packages/civicos-services/src/civicos_services/query/verbs.py:37` — `CORPUS_TIMEOUT_S = 20`
-- `packages/civicos-services/src/civicos_services/query/jurisdictions.py` — freshly rewritten with caching + downward resolution
+
+- `packages/civicos-services/src/civicos_services/query/verbs.py:851` — `_ACTION_TO_HANDLER` map
+- `apps/civicos-mcp/tools/handlers.py:292` — `compose_public_comment` (local template)
+- `apps/civicos-mcp/tools/registry.py` — Tool registry for MCP
+- `packages/civicos-extraction/src/civicos_extraction/clients/federal_register.py` — Federal Register client
+- `packages/civicos-components/src/components/CivicReadOnlyPulse.svelte:899` — Action button row
 
 ## Suggested Approach
-1. **Connection pooling** — Replace per-call `psycopg2.connect()` with `ThreadedConnectionPool` in PostgresBackend. Biggest single win. civicos-relay already uses `SimpleConnectionPool` (see `packages/civicos-relay/src/civicos_relay/storage/postgres.py`).
-2. **Tune ef_search** — Drop from 200 to ~80. At 17k vectors, 200 is extreme overkill trading latency for marginal recall.
-3. **Profile end-to-end** — Measure cross-jurisdiction query latency with 3 cities. Target: <3s for a 3-city fan-out.
-4. **Deploy** — Push updated API + MCP to Modal with pooling.
+
+1. **Research regulations.gov comment submission API** — `api.regulations.gov/v4/comments` with API key. Check if programmatic submission is supported (it is, but requires DEMO_KEY → production key).
+2. **Add `submit_federal_comment` handler** — In handlers.py. Takes document_number, comment_text, submitter_name (optional). Calls regulations.gov API.
+3. **Add `draft_federal_comment` handler** — Generates AI-assisted draft using rule context (title, abstract, agency). Similar to extension's prompt template but server-side.
+4. **Wire into civic.act** — Add to `_ACTION_TO_HANDLER` map: `"submit_federal_comment": "submit_federal_comment"`, `"draft_federal_comment": "draft_federal_comment"`.
+5. **Wire extension** — Replace `<a href>` with API call through `civic.act` for tracked submissions.
+
+## Important Notes
+
+- regulations.gov API key: Check `.env` for `REGULATIONS_GOV_API_KEY`. `DEMO_KEY` has strict rate limits.
+- Comment submission may require specific fields (first_name, last_name, organization, etc.)
+- Submitted comments get a tracking number — store for user reference
+- Consider privacy: should CivicOS store submitted comments? User consent needed.
 
 ## Tests to Run
+
 ```bash
-pytest packages/civicos-services/tests/test_query_v2.py -q --override-ini="addopts="
-pytest packages/civicos/tests/test_civicos.py -q --override-ini="addopts="
+pytest packages/civicos/tests/test_civicos.py -q --override-ini="addopts="  # Smoke
+cd apps/civicos-extension && npm run build  # Extension builds
 ```
 
 ## Success Criteria
-- [ ] ConnectionPool in PostgresBackend (min=2, max=10 or similar)
-- [ ] ef_search tuned to 80 (or data-driven value)
-- [ ] Cross-jurisdiction query (3 cities) completes in <3s
-- [ ] 150 tests still passing
-- [ ] Deployed to Modal
 
-## Game Plan Context
-
-| Session | Item | Status |
-|---------|------|--------|
-| **A** | Downward resolution, registry cache, v2 on REST | **Done** (this session) |
-| **B** | Connection pooling, ef_search tuning, profiling | **Next** |
-| **C** | Configurable refresh policies (GH Actions cron) | Planned |
-| **D** | Pagination protocol, monitoring, docs sweep | Planned |
-
-All items tracked in `launch.json` under `federation_testbed` and `operator_readiness`.
+- [ ] `civic.act(action="draft_federal_comment", ref="rule:us-federal:DOC_NUM")` returns AI draft
+- [ ] `civic.act(action="submit_federal_comment", params={...})` submits to regulations.gov
+- [ ] Submission returns tracking/confirmation ID
+- [ ] Extension "Submit" button uses API instead of link (optional, could be next session)
