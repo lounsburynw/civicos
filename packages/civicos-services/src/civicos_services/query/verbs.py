@@ -899,6 +899,8 @@ _ACTION_TO_HANDLER = {
     "prepare_initiative": "prepare_initiative",
     "broadcast_initiative": "broadcast_initiative",
     "subscribe": "subscribe_to_topic",
+    "draft_federal_comment": "draft_federal_comment",
+    "prepare_federal_comment": "prepare_federal_comment",
 }
 
 
@@ -930,6 +932,8 @@ async def execute_act(
                 args.setdefault("meeting_id", parsed["item_id"])
             elif request.action == "subscribe":
                 args.setdefault("topic", parsed["item_id"])
+            elif request.action in ("draft_federal_comment", "prepare_federal_comment"):
+                args.setdefault("document_number", parsed["item_id"])
         except ValueError:
             pass  # Invalid ref, let handler decide
 
@@ -1138,5 +1142,7 @@ def _action_description(action: str) -> str:
         "prepare_initiative": "Prepare a community initiative",
         "broadcast_initiative": "Broadcast an initiative to the relay network",
         "subscribe": "Subscribe to updates on a topic",
+        "draft_federal_comment": "Draft a public comment for a federal rulemaking with rule context and guidance",
+        "prepare_federal_comment": "Get submission context (URL, deadline, instructions) for a federal comment",
     }
     return descriptions.get(action, action)

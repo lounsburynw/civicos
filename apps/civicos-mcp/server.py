@@ -154,6 +154,8 @@ async def startup():
         # Action tools
         "get_comment_template": config_driven["get_comment_template"],
         "prepare_for_meeting": handlers.prepare_for_meeting,
+        "draft_federal_comment": handlers.draft_federal_comment,
+        "prepare_federal_comment": handlers.prepare_federal_comment,
         # Coordination tools
         "get_voice_counts": handlers.get_voice_counts,
         "subscribe_to_topic": handlers.subscribe_to_topic,

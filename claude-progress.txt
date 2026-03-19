@@ -22705,3 +22705,35 @@ instead of going through CivicOS query methods.
 **Verified:** v2 civic.upcoming returns 21 results (20 federal + 1 local). Extension builds clean. 20/20 smoke tests pass.
 
 **Next P0:** civic_act_federal_comment — Add civic.act handler for submitting federal comments via regulations.gov API
+
+## Session — 2026-03-18 — civic_act_federal_comment (P0)
+
+**Item:** civic_act_federal_comment
+**Status:** DONE
+
+**Discovery:** regulations.gov does NOT support programmatic comment submission via POST API (ToS restriction). Pivoted from "submit comments programmatically" to "draft and prepare comments for manual submission."
+
+**Changes:**
+1. **draft_federal_comment handler** (`handlers.py`) — Fetches rule from federal_rules table by document_number, returns structured draft guidance with: rule context (title, agency, abstract, docket), stance-aware comment structure (support/oppose/concern/question), key points integration, deadline urgency warnings, submission URL and tips.
+
+2. **prepare_federal_comment handler** (`handlers.py`) — Returns structured JSON with rule details, comment_url, days_remaining, is_open flag, and step-by-step submission instructions. Designed for extension UI consumption.
+
+3. **_get_rule_by_document_number** helper — Direct SQL lookup by document_number on federal_rules table (no existing single-lookup method existed).
+
+4. **MCP tool definitions** (`registry.py`) — Both tools registered with inputSchema.
+
+5. **FEDERAL_TOOLS** (`loader.py`) — Added both tools so they're available at all jurisdiction levels.
+
+6. **civic.act wiring** (`verbs.py`) — Added to _ACTION_TO_HANDLER map, ref parsing for `rule:us-federal:{doc_number}`, action descriptions for civic.explore.
+
+7. **Handler maps** (`server.py`, `modal_mcp.py`) — Both tools added to handler maps in local and Modal servers.
+
+**Verified:**
+- Both handlers work end-to-end with real data (doc 2026-03077)
+- Error cases handled (missing doc, invalid doc, closed periods)
+- civic.act ref parsing works: `rule:us-federal:2026-03077` → document_number
+- 20/20 smoke tests pass
+- 138/138 v2 query tests pass
+- Extension builds clean
+
+**Next P0:** federal_server_deployment — Deploy country-united-states Modal server with federal-level tools including the new comment handlers.

@@ -33,6 +33,8 @@ FEDERAL_TOOLS = frozenset([
     "get_recent_executive_orders",    # Recent EOs
     "get_open_comment_periods",       # Federal rules with open comment periods
     "search_federal_rules",           # Search federal rulemaking documents
+    "draft_federal_comment",          # Draft a public comment for federal rulemaking
+    "prepare_federal_comment",        # Get submission context for federal comment
 ])
 
 STATE_TOOLS = frozenset([

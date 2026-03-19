@@ -4153,3 +4153,208 @@ def query_feedback(
         "counts_by_type": type_counts,
         "jurisdiction": target_jurisdiction,
     }
+
+
+# ─────────── Federal Comment Handlers ───────────
+
+
+def _get_rule_by_document_number(storage, document_number: str) -> dict | None:
+    """Look up a single federal rule by document number via StorageBackend."""
+    rules = storage.get_federal_rules(document_number=document_number, limit=1)
+    return rules[0] if rules else None
+
+
+def draft_federal_comment(
+    civic: CivicClient,
+    jurisdiction: str,
+    validate_input: ValidateInput,
+    logger: Logger,
+    args: dict,
+) -> str:
+    """Draft a public comment for a federal rulemaking using rule context.
+
+    Returns a structured draft prompt with full rule context that an AI
+    can use to generate a substantive comment, or returns a pre-formatted
+    draft template if no AI is available.
+    """
+    document_number = args.get("document_number", "")
+    stance = args.get("stance", "")  # support, oppose, concern, question
+    key_points = args.get("key_points", "")
+
+    if not document_number:
+        return "Error: document_number is required. Use the document number from a federal rule (e.g., '2026-03077')."
+
+    try:
+        rule = _get_rule_by_document_number(civic.storage, document_number)
+        if not rule:
+            return f"Error: No federal rule found with document number '{document_number}'."
+
+        title = rule.get("title", "Untitled Rule")
+        agencies = rule.get("agency_names", [])
+        agency_str = ", ".join(agencies) if agencies else "Unknown Agency"
+        abstract = rule.get("abstract", "")
+        close_date = rule.get("comments_close_on", "Unknown")
+        comment_url = rule.get("comment_url", "")
+        html_url = rule.get("html_url", "")
+        docket_ids = rule.get("docket_ids", [])
+        docket_str = ", ".join(docket_ids) if docket_ids else document_number
+
+        # Calculate days remaining
+        days_remaining = None
+        if close_date and close_date != "Unknown":
+            try:
+                from datetime import date as _date
+                close = _date.fromisoformat(close_date)
+                days_remaining = (close - _date.today()).days
+            except (ValueError, TypeError):
+                pass
+
+        # Build draft context
+        parts = [
+            f"# Draft Federal Comment: {title}",
+            "",
+            f"**Agency:** {agency_str}",
+            f"**Docket:** {docket_str}",
+            f"**Document:** {document_number}",
+            f"**Comment Deadline:** {close_date}",
+        ]
+        if days_remaining is not None:
+            if days_remaining < 0:
+                parts.append("**Status:** Comment period has CLOSED")
+                parts.append("")
+                parts.append("This comment period is no longer accepting submissions.")
+                return "\n".join(parts)
+            elif days_remaining <= 3:
+                parts.append(f"**URGENT:** Only {days_remaining} day(s) remaining!")
+            else:
+                parts.append(f"**Days Remaining:** {days_remaining}")
+
+        parts.append("")
+
+        if abstract:
+            parts.append("## Rule Summary")
+            parts.append(abstract[:1000])
+            parts.append("")
+
+        # Stance-aware guidance
+        stance_lower = stance.lower() if stance else ""
+        parts.append("## Comment Structure Guide")
+        parts.append("")
+        if stance_lower == "support":
+            parts.append("1. **Opening** — State your support for the proposed rule")
+            parts.append("2. **Specific provisions** — Identify which aspects you support and why")
+            parts.append("3. **Impact** — Describe how this rule benefits you, your community, or the public interest")
+            parts.append("4. **Strengthening** — Suggest any ways the rule could be made more effective")
+        elif stance_lower == "oppose":
+            parts.append("1. **Opening** — State your opposition to the proposed rule")
+            parts.append("2. **Specific concerns** — Identify problematic provisions with evidence")
+            parts.append("3. **Impact** — Describe negative effects on you, your community, or the public interest")
+            parts.append("4. **Alternatives** — Propose what the agency should do instead")
+        elif stance_lower in ("concern", "question"):
+            parts.append("1. **Opening** — State your interest and concern about the proposed rule")
+            parts.append("2. **Questions** — Ask specific questions about implementation or impact")
+            parts.append("3. **Impact** — Describe how uncertainty or specific provisions affect you")
+            parts.append("4. **Recommendations** — Suggest modifications or additional considerations")
+        else:
+            parts.append("1. **Opening** — State your position on the proposed rule")
+            parts.append("2. **Specific concerns** — Address provisions in the rule, cite impacts")
+            parts.append("3. **Personal/community impact** — How this affects real people")
+            parts.append("4. **Recommendation** — What the agency should do")
+
+        parts.append("")
+
+        if key_points:
+            parts.append("## Key Points to Address")
+            for point in key_points.split("\n"):
+                point = point.strip()
+                if point:
+                    parts.append(f"- {point}")
+            parts.append("")
+
+        parts.append("## Submission Tips")
+        parts.append("")
+        parts.append("- Agencies must respond to **substantive** comments — cite specific data or impacts")
+        parts.append("- Reference the docket number in your comment")
+        parts.append("- Personal experience is powerful — describe how the rule affects your community")
+        parts.append("- Keep it focused: 150-400 words is ideal")
+        parts.append("- Be respectful and factual — avoid form-letter language")
+        parts.append("")
+
+        if comment_url:
+            parts.append(f"## Submit Your Comment")
+            parts.append(f"**Submit at:** {comment_url}")
+            parts.append("")
+
+        if html_url:
+            parts.append(f"**Read the full rule:** {html_url}")
+
+        return "\n".join(parts)
+
+    except Exception as e:
+        logger.error(f"Error in draft_federal_comment: {e}")
+        return f"Error preparing federal comment draft: {str(e)}"
+
+
+def prepare_federal_comment(
+    civic: CivicClient,
+    jurisdiction: str,
+    validate_input: ValidateInput,
+    logger: Logger,
+    args: dict,
+) -> dict:
+    """Prepare context for submitting a federal comment.
+
+    Returns structured data with rule details, submission URL, guidelines,
+    and deadline info. Designed for the extension UI to display alongside
+    the AI draft.
+    """
+    document_number = args.get("document_number", "")
+
+    if not document_number:
+        return {"error": "document_number is required"}
+
+    try:
+        rule = _get_rule_by_document_number(civic.storage, document_number)
+        if not rule:
+            return {"error": f"No federal rule found: {document_number}"}
+
+        agencies = rule.get("agency_names", [])
+        close_date = rule.get("comments_close_on")
+        comment_url = rule.get("comment_url", "")
+
+        # Calculate days remaining
+        days_remaining = None
+        is_open = True
+        if close_date:
+            try:
+                from datetime import date as _date
+                close = _date.fromisoformat(close_date)
+                days_remaining = (close - _date.today()).days
+                is_open = days_remaining >= 0
+            except (ValueError, TypeError):
+                pass
+
+        return {
+            "document_number": document_number,
+            "title": rule.get("title", ""),
+            "agencies": agencies,
+            "abstract": rule.get("abstract", "")[:500],
+            "comment_url": comment_url,
+            "html_url": rule.get("html_url", ""),
+            "comments_close_on": close_date,
+            "days_remaining": days_remaining,
+            "is_open": is_open,
+            "docket_ids": rule.get("docket_ids", []),
+            "submission_method": "web_form",
+            "submission_instructions": (
+                "1. Click the submission link to open regulations.gov\n"
+                "2. Paste your drafted comment into the comment field\n"
+                "3. Fill in your name and any optional fields\n"
+                "4. Click Submit — you'll receive a tracking number\n"
+                "5. Save your tracking number for your records"
+            ),
+        }
+
+    except Exception as e:
+        logger.error(f"Error in prepare_federal_comment: {e}")
+        return {"error": str(e)}

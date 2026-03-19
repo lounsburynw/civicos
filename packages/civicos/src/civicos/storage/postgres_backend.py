@@ -6279,6 +6279,7 @@ class PostgresBackend:
         self,
         document_type: Optional[str] = None,
         comments_open: bool = False,
+        document_number: Optional[str] = None,
         limit: Optional[int] = None,
         offset: int = 0,
     ) -> List[Dict[str, Any]]:
@@ -6288,6 +6289,7 @@ class PostgresBackend:
         Args:
             document_type: Filter by type ("proposed_rule", "final_rule", "notice")
             comments_open: If True, only return rules with comments_close_on > today
+            document_number: Filter by exact document number (e.g., "2026-03077")
             limit: Maximum number of rules to return
             offset: Skip first N results
 
@@ -6300,6 +6302,10 @@ class PostgresBackend:
 
         query = "SELECT * FROM federal_rules WHERE 1=1"
         params: List[Any] = []
+
+        if document_number is not None:
+            query += " AND document_number = %s"
+            params.append(document_number)
 
         if document_type is not None:
             query += " AND document_type = %s"

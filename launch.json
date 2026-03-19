@@ -772,7 +772,7 @@
         "name": "federal_server_deployment",
         "description": "Deploy country-united-states Modal server. Wire federal comment periods + executive orders + rulemaking into the server's data. Connect extension Federal tab.",
         "status": "not_started",
-        "priority": 2,
+        "priority": 0,
         "phase": "1",
         "source": "multi-scale participation \u2014 federal infrastructure",
         "files": [
@@ -851,16 +851,21 @@
       },
       {
         "name": "civic_act_federal_comment",
-        "description": "Add civic.act handler for submitting public comments to regulations.gov. Format comment, validate against regulations.gov requirements, submit via API.",
-        "status": "not_started",
-        "priority": 0,
+        "description": "civic.act handlers for federal comment drafting and submission preparation. draft_federal_comment returns structured draft guidance with rule context; prepare_federal_comment returns submission URL, deadline, and instructions. Programmatic submission not supported by regulations.gov — users submit via web form.",
+        "status": "done",
+        "priority": 1,
         "phase": "1",
         "source": "multi-scale participation \u2014 federal action",
         "files": [
-          "packages/civicos-services/src/civicos_services/query/verbs.py"
+          "packages/civicos-services/src/civicos_services/query/verbs.py",
+          "apps/civicos-mcp/tools/handlers.py",
+          "apps/civicos-mcp/tools/registry.py",
+          "apps/civicos-mcp/handlers/loader.py",
+          "apps/civicos-mcp/server.py",
+          "apps/civicos-mcp/modal_mcp.py"
         ],
-        "test_file": null,
-        "notes": "regulations.gov API supports comment submission. Need: (1) action handler in execute_act(), (2) comment formatting (plain text, structured fields), (3) submission confirmation and tracking ID. This is the flagship multi-scale participation action \u2014 a citizen using CivicOS to comment on a federal rule. 1 session."
+        "test_file": "packages/civicos-services/tests/test_query_v2.py",
+        "notes": "regulations.gov does not support programmatic POST comment submission (ToS restriction). Implemented draft_federal_comment (AI-assisted draft with stance-aware guidance, rule context, deadline urgency) and prepare_federal_comment (structured submission context for extension UI). Both wired into civic.act via _ACTION_TO_HANDLER, registered as MCP tools in FEDERAL_TOOLS, and ref-parseable from rule:us-federal:{doc_number}."
       },
       {
         "name": "legislation_adapter_unification",
