@@ -662,6 +662,10 @@ def city_pulse(
 ) -> dict:
     """Get comprehensive civic activity snapshot. Returns meetings/decisions for
     city-level servers, legislation/bills for state/federal servers."""
+    # Parent jurisdiction proxy: city server returns legislation pulse on behalf of parent
+    parent_jurisdiction = args.get("parent_jurisdiction")
+    if parent_jurisdiction and (parent_jurisdiction.startswith("state-") or parent_jurisdiction.startswith("country-")):
+        return _legislation_pulse(civic, parent_jurisdiction, logger)
     # State/federal: return legislation pulse instead of meeting-centric data
     if jurisdiction.startswith("state-") or jurisdiction.startswith("country-"):
         return _legislation_pulse(civic, jurisdiction, logger)

@@ -22,6 +22,7 @@ class CityPulseRequest(BaseModel):
     """Request for city_pulse tool."""
     days_ahead: int = Field(default=7, description="Days to look ahead for upcoming meetings")
     days_back: int = Field(default=30, description="Days to look back for recent decisions")
+    parent_jurisdiction: Optional[str] = Field(default=None, description="If set, return legislation pulse for this parent jurisdiction (e.g. state-california, country-united-states) using data from the city server")
 
 
 class SearchMeetingHistoryRequest(BaseModel):
