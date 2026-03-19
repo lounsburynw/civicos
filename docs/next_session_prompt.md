@@ -1,6 +1,6 @@
-# Recommended: Federal Comment Submission (civic.act)
+# Recommended: Federal Server Deployment
 
-**Priority:** P0 (civic_act_federal_comment)
+**Priority:** P0 (federal_server_deployment)
 **Area:** multi_scale_participation
 **Date:** 2026-03-18
 
@@ -8,40 +8,34 @@
 
 ## Context
 
-Federal comment periods are fully operational — 4,115 rules ingested, 100+ open comment periods, v2 `civic.upcoming(types=["comment_periods"])` returns them, extension Federal tab renders them with AI drafting and "Submit Official Comment" links to regulations.gov.
+Federal comment tools (`draft_federal_comment`, `prepare_federal_comment`) are now implemented and wired into civic.act. The missing piece is a **dedicated federal-level Modal server** (`country-united-states`) that serves these tools alongside executive orders and rulemaking search.
 
-The missing piece is **programmatic comment submission** via `civic.act`. Currently users click through to regulations.gov manually. Adding a `submit_federal_comment` action would close the participation loop.
+Currently all federal tools are served through city-level servers (e.g., `city-san-rafael`). A dedicated federal server would:
+- Serve federal data without city-level overhead
+- Be reusable across all city jurisdictions
+- Enable `federal.civicosproject.org/mcp` endpoint
 
 ## What Already Exists
 
-- `civic.act` verb dispatcher at `packages/civicos-services/src/civicos_services/query/verbs.py:864`
-- Action-to-handler map at line 851: `_ACTION_TO_HANDLER` dict
-- `compose_public_comment` handler at `apps/civicos-mcp/tools/handlers.py:292` (local only, San Rafael specific)
-- Extension "Draft with AI" button generates prompts (client-side, `CivicReadOnlyPulse.svelte:701`)
-- Extension "Submit Official Comment" is currently just `<a href={period.comment_url}>` — opens regulations.gov
+- `FEDERAL_TOOLS` set in `apps/civicos-mcp/handlers/loader.py` — 8 tools including new comment handlers
+- `TOOL_LEVELS["federal"]` computes the full tool set for federal level
+- `modal_mcp.py` already supports jurisdiction-level configuration
+- `jurisdictions/` directory has YAML configs for cities — needs a federal config
+- `config/registry.json` already has `federal.civicosproject.org` registered
 
 ## Key Files
 
-- `packages/civicos-services/src/civicos_services/query/verbs.py:851` — `_ACTION_TO_HANDLER` map
-- `apps/civicos-mcp/tools/handlers.py:292` — `compose_public_comment` (local template)
-- `apps/civicos-mcp/tools/registry.py` — Tool registry for MCP
-- `packages/civicos-extraction/src/civicos_extraction/clients/federal_register.py` — Federal Register client
-- `packages/civicos-components/src/components/CivicReadOnlyPulse.svelte:899` — Action button row
+- `apps/civicos-mcp/modal_mcp.py` — Modal MCP server (needs federal deployment entry)
+- `apps/civicos-mcp/handlers/loader.py` — Tool levels and jurisdiction config
+- `apps/civicos-mcp/jurisdictions/` — YAML configs per jurisdiction
+- `config/registry.json` — Endpoint registry
 
 ## Suggested Approach
 
-1. **Research regulations.gov comment submission API** — `api.regulations.gov/v4/comments` with API key. Check if programmatic submission is supported (it is, but requires DEMO_KEY → production key).
-2. **Add `submit_federal_comment` handler** — In handlers.py. Takes document_number, comment_text, submitter_name (optional). Calls regulations.gov API.
-3. **Add `draft_federal_comment` handler** — Generates AI-assisted draft using rule context (title, abstract, agency). Similar to extension's prompt template but server-side.
-4. **Wire into civic.act** — Add to `_ACTION_TO_HANDLER` map: `"submit_federal_comment": "submit_federal_comment"`, `"draft_federal_comment": "draft_federal_comment"`.
-5. **Wire extension** — Replace `<a href>` with API call through `civic.act` for tracked submissions.
-
-## Important Notes
-
-- regulations.gov API key: Check `.env` for `REGULATIONS_GOV_API_KEY`. `DEMO_KEY` has strict rate limits.
-- Comment submission may require specific fields (first_name, last_name, organization, etc.)
-- Submitted comments get a tracking number — store for user reference
-- Consider privacy: should CivicOS store submitted comments? User consent needed.
+1. Create `apps/civicos-mcp/jurisdictions/united-states.yaml` — Federal jurisdiction config
+2. Add Modal deployment function for `country-united-states` in `modal_mcp.py`
+3. Deploy and verify federal tools are served correctly
+4. Update extension to route federal queries to dedicated server (optional, could be next session)
 
 ## Tests to Run
 
@@ -52,7 +46,7 @@ cd apps/civicos-extension && npm run build  # Extension builds
 
 ## Success Criteria
 
-- [ ] `civic.act(action="draft_federal_comment", ref="rule:us-federal:DOC_NUM")` returns AI draft
-- [ ] `civic.act(action="submit_federal_comment", params={...})` submits to regulations.gov
-- [ ] Submission returns tracking/confirmation ID
-- [ ] Extension "Submit" button uses API instead of link (optional, could be next session)
+- [ ] `country-united-states` Modal app deployed
+- [ ] Federal tools (8) served at federal endpoint
+- [ ] `draft_federal_comment` and `prepare_federal_comment` work via federal server
+- [ ] Extension Federal tab can optionally route through federal server

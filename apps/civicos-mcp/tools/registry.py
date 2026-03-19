@@ -443,6 +443,28 @@ TOOL_DEFINITIONS: dict[str, ToolDefinition] = {
     },
 
     # ─────────── Action Tools ───────────
+    "draft_federal_comment": {
+        "description": "Draft a public comment for a federal rulemaking. Returns structured guidance, rule context, and submission instructions.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "document_number": {"type": "string", "description": "Federal Register document number (e.g., '2026-03077')"},
+                "stance": {"type": "string", "enum": ["support", "oppose", "concern", "question"], "description": "Your stance on the proposed rule"},
+                "key_points": {"type": "string", "description": "Newline-separated key points to address in the comment"},
+            },
+            "required": ["document_number"],
+        },
+    },
+    "prepare_federal_comment": {
+        "description": "Get submission context for a federal comment: rule details, deadline, submission URL, and instructions.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "document_number": {"type": "string", "description": "Federal Register document number (e.g., '2026-03077')"},
+            },
+            "required": ["document_number"],
+        },
+    },
     "get_comment_template": {
         "description": "Get a fill-in-the-blank public comment template",
         "inputSchema": {
