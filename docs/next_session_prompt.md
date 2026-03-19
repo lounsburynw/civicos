@@ -1,6 +1,6 @@
-# Recommended: Federal Server Deployment
+# Recommended: Federal Funding Pipeline (USAspending)
 
-**Priority:** P0 (federal_server_deployment)
+**Priority:** P0 (federal_funding_pipeline)
 **Area:** multi_scale_participation
 **Date:** 2026-03-18
 
@@ -8,45 +8,44 @@
 
 ## Context
 
-Federal comment tools (`draft_federal_comment`, `prepare_federal_comment`) are now implemented and wired into civic.act. The missing piece is a **dedicated federal-level Modal server** (`country-united-states`) that serves these tools alongside executive orders and rulemaking search.
+This is session 1 of a 10-session federal data enrichment plan (see `docs/internal/federal-data-plan.md`). The plan transforms federal data from a catalog of DC activity into locally-relevant, actionable civic information that mirrors city-level data structures.
 
-Currently all federal tools are served through city-level servers (e.g., `city-san-rafael`). A dedicated federal server would:
-- Serve federal data without city-level overhead
-- Be reusable across all city jurisdictions
-- Enable `federal.civicosproject.org/mcp` endpoint
+Currently we have 5 federal awards totaling $17.2M for San Rafael. The `USAspendingClient` exists and works. The USAspending API is free (no key needed) and supports geographic filtering. This session should produce hundreds of awards across all configured jurisdictions.
 
 ## What Already Exists
 
-- `FEDERAL_TOOLS` set in `apps/civicos-mcp/handlers/loader.py` — 8 tools including new comment handlers
-- `TOOL_LEVELS["federal"]` computes the full tool set for federal level
-- `modal_mcp.py` already supports jurisdiction-level configuration
-- `jurisdictions/` directory has YAML configs for cities — needs a federal config
-- `config/registry.json` already has `federal.civicosproject.org` registered
-
-## Key Files
-
-- `apps/civicos-mcp/modal_mcp.py` — Modal MCP server (needs federal deployment entry)
-- `apps/civicos-mcp/handlers/loader.py` — Tool levels and jurisdiction config
-- `apps/civicos-mcp/jurisdictions/` — YAML configs per jurisdiction
-- `config/registry.json` — Endpoint registry
+- `packages/civicos-extraction/src/civicos_extraction/clients/usaspending.py` — `USAspendingClient` with `get_awards()` and `get_awards_by_cfda()` methods
+- `federal_awards` table in PostgreSQL — schema: `award_id`, `jurisdiction_id`, `cfda_number`, `recipient_name`, `amount_cents`, `period_start`, `period_end`, `program_name`, `awarding_agency`, etc.
+- `federal_programs` table — 2,346 CFDA programs with descriptions and eligibility
+- `scripts/modal_ingest.py` — has pattern for adding to `scheduled_low_velocity_refresh()`
+- 5 existing awards for `city-san-rafael` (proof the pipeline works end-to-end)
 
 ## Suggested Approach
 
-1. Create `apps/civicos-mcp/jurisdictions/united-states.yaml` — Federal jurisdiction config
-2. Add Modal deployment function for `country-united-states` in `modal_mcp.py`
-3. Deploy and verify federal tools are served correctly
-4. Update extension to route federal queries to dedicated server (optional, could be next session)
+1. **Review USAspendingClient** — understand current `get_awards()` parameters, pagination, geographic filtering
+2. **Bulk ingest** — run for all configured jurisdictions (San Rafael, Mill Valley, San Anselmo, Marin County). USAspending filters by recipient name or location.
+3. **Add to weekly refresh** — add `fetch_federal_awards()` function to `modal_ingest.py`, call from `scheduled_low_velocity_refresh()`
+4. **Index vector embeddings** — enable semantic search over award descriptions
+5. **Verify data quality** — check amounts, date ranges, deduplication
 
 ## Tests to Run
 
 ```bash
-pytest packages/civicos/tests/test_civicos.py -q --override-ini="addopts="  # Smoke
-cd apps/civicos-extension && npm run build  # Extension builds
+pytest packages/civicos/tests/test_civicos.py -q --override-ini="addopts="
 ```
 
 ## Success Criteria
 
-- [ ] `country-united-states` Modal app deployed
-- [ ] Federal tools (8) served at federal endpoint
-- [ ] `draft_federal_comment` and `prepare_federal_comment` work via federal server
-- [ ] Extension Federal tab can optionally route through federal server
+- [ ] Hundreds of federal awards ingested (not just 5)
+- [ ] All configured jurisdictions have award data
+- [ ] Awards added to weekly refresh schedule
+- [ ] Vector embeddings indexed for semantic search
+- [ ] Can query: "What federal funding does San Rafael receive for housing?"
+
+## Session 2 (follow-up)
+
+After ingest, build the query layer:
+- `FundingAdapter` for v2 search
+- `civic.upcoming` for grants with approaching expiration dates
+- Extension display
+- MCP tool: `search_federal_funding`

@@ -769,17 +769,91 @@
         "notes": "regulations.gov has a well-documented REST API (api.regulations.gov). Comment periods have structured deadlines, map cleanly to civic.upcoming (type=comment_periods) and civic.act (action=submit_comment). Need: (1) API client for open comment periods, (2) store as upcoming events with deadline dates, (3) civic.act handler that formats and submits comments. UpcomingType.comment_periods enum already exists but nothing implements it. 1-2 sessions."
       },
       {
-        "name": "federal_server_deployment",
-        "description": "Deploy country-united-states Modal server. Wire federal comment periods + executive orders + rulemaking into the server's data. Connect extension Federal tab.",
+        "name": "federal_funding_pipeline",
+        "description": "Bulk ingest federal awards via USAspending API for all configured jurisdictions. Client exists (usaspending.py), API is free. Store in federal_awards table, add to weekly refresh, index vectors.",
         "status": "not_started",
         "priority": 0,
         "phase": "1",
-        "source": "multi-scale participation \u2014 federal infrastructure",
+        "source": "multi-scale participation \u2014 federal data (plan: docs/internal/federal-data-plan.md, sessions 1-2)",
+        "files": [
+          "packages/civicos-extraction/src/civicos_extraction/clients/usaspending.py",
+          "packages/civicos/src/civicos/storage/postgres_backend.py",
+          "scripts/modal_ingest.py"
+        ],
+        "test_file": null,
+        "notes": "Currently 5 awards totaling $17.2M for San Rafael. USAspending API supports geographic filtering, no key needed. Target: hundreds of awards across all Marin jurisdictions. Session 2: build FundingAdapter for v2 search, wire into civic.upcoming for expiring grants, add to extension."
+      },
+      {
+        "name": "congressional_votes",
+        "description": "Extend CongressGovClient with vote retrieval. Store in congressional_votes table linked to legislation + elected_officials. Wire into v2 query and extension.",
+        "status": "not_started",
+        "priority": 1,
+        "phase": "1",
+        "source": "multi-scale participation \u2014 federal data (plan: sessions 3-4)",
+        "files": [
+          "packages/civicos-extraction/src/civicos_extraction/clients/representatives.py",
+          "packages/civicos/src/civicos/storage/postgres_backend.py",
+          "apps/civicos-mcp/tools/handlers.py"
+        ],
+        "test_file": null,
+        "notes": "Congress.gov API v3: /member/{id}/voted-on, /bill/{congress}/{type}/{number}/actions. 5000 req/hour. CONGRESS_GOV_API_KEY available. Parallels city council get_voting_record tool. 2 sessions."
+      },
+      {
+        "name": "congressional_hearings",
+        "description": "Ingest congressional committee hearings from Congress.gov API. Store as events, wire into civic.upcoming alongside comment periods. Federal equivalent of city council meetings.",
+        "status": "not_started",
+        "priority": 1,
+        "phase": "1",
+        "source": "multi-scale participation \u2014 federal data (plan: sessions 5-6)",
+        "files": [
+          "packages/civicos-extraction/src/civicos_extraction/clients/representatives.py",
+          "packages/civicos/src/civicos/storage/postgres_backend.py",
+          "packages/civicos-services/src/civicos_services/query/verbs.py"
+        ],
+        "test_file": null,
+        "notes": "Congress.gov API: /committee-meeting, /hearing endpoints. Filter to committees relevant to locally-stored topics. Wire into civic.upcoming(types=['hearings']) for federal hearings. Depends on sessions 3-4 (shared client). 2 sessions."
+      },
+      {
+        "name": "local_impact_relevance",
+        "description": "Score federal rules by local relevance. Agency-to-topic mapping, geographic text matching, CFR part matching. Extension sorts by relevance, draft_federal_comment shows local context.",
+        "status": "not_started",
+        "priority": 2,
+        "phase": "1",
+        "source": "multi-scale participation \u2014 federal data (plan: sessions 7-8)",
+        "files": [
+          "packages/civicos/src/civicos/storage/postgres_backend.py",
+          "apps/civicos-mcp/tools/handlers.py",
+          "packages/civicos-services/src/civicos_services/query/adapters.py"
+        ],
+        "test_file": null,
+        "notes": "Heuristic scoring (no LLM cost): agency names → local topic categories, text mentions of CA/Marin/San Rafael, CFR part matching. Add local_relevance_score + relevance_reasons to federal_rules. Backfill existing 4,115 rules. Depends on sessions 1-6 for enough data. 2 sessions."
+      },
+      {
+        "name": "federal_pipeline_hardening",
+        "description": "Fix US legislation refresh gap (only CA syncs), debug CA sync failure, close 12% embedding gap on federal_rules, verify all new corpora have scheduled refreshes.",
+        "status": "not_started",
+        "priority": 2,
+        "phase": "1",
+        "source": "multi-scale participation \u2014 federal data (plan: session 9)",
+        "files": [
+          "scripts/modal_ingest.py",
+          ".github/workflows/cron-low-velocity-refresh.yml"
+        ],
+        "test_file": null,
+        "notes": "US federal legislation (14,855 bills) has NO scheduled refresh. CA legislation sync failing. 509 federal rules missing vector embeddings. Must run after sessions 1-8 to cover all new corpora. 1 session."
+      },
+      {
+        "name": "federal_server_deployment",
+        "description": "Deploy country-united-states Modal server with full federal tool suite: funding search, congressional votes, hearing timeline, relevance-scored comment periods.",
+        "status": "not_started",
+        "priority": 2,
+        "phase": "1",
+        "source": "multi-scale participation \u2014 federal infrastructure (plan: session 10)",
         "files": [
           "apps/civicos-mcp/modal_mcp.py"
         ],
         "test_file": null,
-        "notes": "Same server code, different jurisdiction config (like Marin relay deployments). federal.civicosproject.org/mcp endpoint already registered in config/registry.json. 1 session."
+        "notes": "Meaningful after sessions 1-9 create real federal-specific tools and data. Federal server becomes the peer that city MCPs federate with when the shared DB splits. Create civicos-federal-env Modal secret. 1 session."
       },
       {
         "name": "state_legislative_client",

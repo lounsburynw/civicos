@@ -22737,3 +22737,22 @@ instead of going through CivicOS query methods.
 - Extension builds clean
 
 **Next P0:** federal_server_deployment — Deploy country-united-states Modal server with federal-level tools including the new comment handlers.
+
+## Session — 2026-03-18 — Federal Data Strategy (continued)
+
+**Post-commit work:** Researched and planned 10-session federal data enrichment.
+
+**Key findings:**
+- regulations.gov has no POST API for comment submission (ToS restriction)
+- Single shared DB is bootstrap constraint; target is full federation with per-jurisdiction DBs
+- Federal data catalog exists (4,115 rules, 1,525 EOs, 14,855 US bills) but no relevance layer
+- USAspending barely used (5 awards vs hundreds available, free API)
+- US legislation has no scheduled refresh (only CA refreshes weekly, and that's failing)
+- Congressional votes and hearings not ingested (Congress.gov API available, key in .env)
+
+**Documented:**
+- `docs/internal/federal-data-plan.md` — 10-session plan with structural parallels to local data
+- Updated `launch.json` — 6 new items replacing single federal_server_deployment
+- Updated memory: federation architecture intent (single DB is bootstrap, not target)
+
+**New P0:** federal_funding_pipeline — USAspending bulk ingest, highest impact-to-effort ratio
