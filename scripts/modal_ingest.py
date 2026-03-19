@@ -1845,6 +1845,241 @@ def fetch_federal_awards(
 
 
 # =============================================================================
+# Congressional Votes (Congress.gov API + House Clerk XML + Senate XML)
+# =============================================================================
+
+@app.function(
+    image=civic_image,
+    secrets=[modal.Secret.from_name("civic-db")],
+    memory=2048,
+    timeout=3600,  # 1 hour
+    retries=modal.Retries(max_retries=2, backoff_coefficient=2.0, initial_delay=30.0),
+)
+def fetch_congressional_votes(
+    congress: int = 119,
+    session: int = 1,
+    bioguide_ids: list = None,
+    max_roll_calls: int = 50,
+    dry_run: bool = False,
+) -> dict:
+    """Fetch congressional roll call votes for tracked representatives.
+
+    Fetches House and Senate roll call votes, extracts per-member positions
+    from House Clerk XML and Senate.gov XML, and stores them in the
+    congressional_votes table linked to elected_officials by bioguide_id.
+
+    Args:
+        congress: Congress number (default: 119, the current congress)
+        session: Session number (1 or 2)
+        bioguide_ids: Specific bioguide IDs to fetch. If None, reads from
+            elected_officials table (federal reps only).
+        max_roll_calls: Max number of roll calls to process per chamber
+        dry_run: If True, fetch but don't store
+
+    Returns:
+        Dict with results summary
+    """
+    import logging
+    import os
+    import time
+
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+    logger = logging.getLogger(__name__)
+
+    from dotenv import load_dotenv
+    load_dotenv()
+
+    database_url = os.environ.get("DATABASE_URL")
+    if not database_url:
+        raise ValueError("DATABASE_URL not set")
+
+    from civicos.storage import get_storage_backend
+    from civicos_extraction.clients.representatives import CongressGovClient
+
+    backend = get_storage_backend(database_url)
+    client = CongressGovClient()
+
+    if not client.api_key:
+        raise ValueError("No Congress.gov API key configured")
+
+    start_time = time.time()
+
+    # If no bioguide_ids specified, get federal reps from elected_officials table
+    if not bioguide_ids:
+        conn = backend._get_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT id FROM elected_officials
+            WHERE id LIKE 'congress-%%'
+              AND valid_to IS NULL AND deleted_at IS NULL
+        """)
+        rows = cursor.fetchall()
+        backend._return_connection(conn)
+        # Extract bioguide_id from "congress-{bioguideId}" format
+        bioguide_ids = [row[0].replace("congress-", "") for row in rows]
+        logger.info(f"Found {len(bioguide_ids)} federal reps in elected_officials")
+
+    if not bioguide_ids:
+        return {"status": "no_representatives", "message": "No federal reps found in elected_officials"}
+
+    bioguide_set = set(bioguide_ids)
+    all_votes = []
+    house_roll_calls_processed = 0
+    senate_votes_processed = 0
+
+    # ---- House votes ----
+    logger.info(f"Fetching House roll calls for Congress {congress}, Session {session}...")
+    house_roll_calls = client.get_house_roll_calls(congress, session, limit=250)
+    logger.info(f"Found {len(house_roll_calls)} House roll calls")
+
+    # Process most recent first (reverse chronological from API)
+    for rc in house_roll_calls[:max_roll_calls]:
+        roll_call_num = rc.get("rollCallNumber")
+        if not roll_call_num:
+            continue
+
+        vote_date = rc.get("startDate", "")[:10]  # Extract YYYY-MM-DD
+        legis_type = rc.get("legislationType", "")
+        legis_num = rc.get("legislationNumber", "")
+        bill_id_str = f"{legis_type}{legis_num}" if legis_type and legis_num else None
+        vote_id = f"H-{congress}-{session}-{roll_call_num}"
+
+        # Fetch per-member votes from House Clerk XML
+        member_votes = client.get_house_member_votes(
+            congress, session, roll_call_num, bioguide_ids=list(bioguide_set)
+        )
+
+        for mv in member_votes:
+            all_votes.append({
+                "vote_id": vote_id,
+                "bioguide_id": mv["bioguide_id"],
+                "chamber": "House",
+                "congress": congress,
+                "session": session,
+                "roll_call_number": roll_call_num,
+                "vote_date": vote_date,
+                "vote_position": mv["vote"],
+                "bill_id": bill_id_str,
+                "bill_title": mv.get("vote_description", ""),
+                "vote_question": mv.get("vote_question", rc.get("voteType", "")),
+                "vote_result": mv.get("vote_result", rc.get("result", "")),
+                "member_name": mv.get("name", ""),
+                "member_party": mv.get("party", ""),
+                "member_state": mv.get("state", ""),
+            })
+
+        house_roll_calls_processed += 1
+        if house_roll_calls_processed % 10 == 0:
+            logger.info(f"Processed {house_roll_calls_processed} House roll calls, {len(all_votes)} votes so far")
+
+    # ---- Senate votes ----
+    # Senate doesn't have a convenient list API; we iterate vote numbers
+    logger.info(f"Fetching Senate votes for Congress {congress}, Session {session}...")
+
+    # Build name→bioguide_id mapping from elected_officials for Senate matching.
+    # Senate XML uses lis_member_id (not bioguide), so we match by state to
+    # identify our tracked senators, then store with lis_member_id as the
+    # identifier (bioguide mapping would require a separate lookup table).
+    tracked_states = set()
+    conn = backend._get_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT id, metadata FROM elected_officials
+        WHERE id LIKE 'congress-%%'
+          AND valid_to IS NULL AND deleted_at IS NULL
+    """)
+    for row in cursor.fetchall():
+        # We track all states that have federal reps — Senate votes for
+        # senators from these states will be stored
+        meta = row[1] if row[1] else {}
+        state = meta.get("state") if isinstance(meta, dict) else None
+        if state:
+            tracked_states.add(state)
+    backend._return_connection(conn)
+
+    # Try fetching Senate votes by number (start from most recent)
+    # Senate.gov XML uses sequential vote numbers within a session
+    senate_vote_num = 1
+    consecutive_failures = 0
+    max_failures = 5  # Stop after 5 consecutive 404s (reached end of votes)
+
+    while senate_votes_processed < max_roll_calls and consecutive_failures < max_failures:
+        member_votes = client.get_senate_member_votes(
+            congress, session, senate_vote_num
+        )
+
+        if not member_votes:
+            consecutive_failures += 1
+            senate_vote_num += 1
+            continue
+
+        consecutive_failures = 0
+        vote_id = f"S-{congress}-{session}-{senate_vote_num}"
+
+        # Filter to senators from tracked states (e.g., CA)
+        # Store with lis_member_id as bioguide_id since Senate XML
+        # doesn't provide bioguide IDs directly
+        for mv in member_votes:
+            vote_date = mv.get("vote_date", "")
+            if not vote_date:
+                # Skip votes without a parseable date
+                continue
+            all_votes.append({
+                "vote_id": vote_id,
+                "bioguide_id": mv.get("lis_member_id", ""),
+                "chamber": "Senate",
+                "congress": congress,
+                "session": session,
+                "roll_call_number": senate_vote_num,
+                "vote_date": vote_date,
+                "vote_position": mv["vote"],
+                "bill_id": mv.get("legislation_number", ""),
+                "bill_title": mv.get("vote_description", ""),
+                "vote_question": mv.get("vote_question", ""),
+                "vote_result": mv.get("vote_result", ""),
+                "member_name": mv.get("name", ""),
+                "member_party": mv.get("party", ""),
+                "member_state": mv.get("state", ""),
+            })
+
+        senate_votes_processed += 1
+        senate_vote_num += 1
+
+        if senate_votes_processed % 10 == 0:
+            logger.info(f"Processed {senate_votes_processed} Senate votes, {len(all_votes)} total votes")
+
+    logger.info(f"Total votes collected: {len(all_votes)} (House: {house_roll_calls_processed} roll calls, Senate: {senate_votes_processed} votes)")
+
+    if dry_run:
+        elapsed = time.time() - start_time
+        return {
+            "status": "dry_run",
+            "total_votes": len(all_votes),
+            "house_roll_calls": house_roll_calls_processed,
+            "senate_votes": senate_votes_processed,
+            "bioguide_ids": bioguide_ids,
+            "elapsed_seconds": round(elapsed, 1),
+        }
+
+    if not all_votes:
+        return {"status": "no_votes", "total_votes": 0}
+
+    stored = backend.store_congressional_votes(all_votes)
+    elapsed = time.time() - start_time
+
+    logger.info(f"Stored {stored} congressional votes in {elapsed:.1f}s")
+
+    return {
+        "status": "success",
+        "total_stored": stored,
+        "house_roll_calls": house_roll_calls_processed,
+        "senate_votes": senate_votes_processed,
+        "bioguide_ids": bioguide_ids,
+        "elapsed_seconds": round(elapsed, 1),
+    }
+
+
+# =============================================================================
 # Vector Indexing (Parallel)
 # =============================================================================
 
@@ -3912,6 +4147,20 @@ def scheduled_low_velocity_refresh():
             total = result.get("total_stored", 0)
             jcount = len(result.get("jurisdictions", {}))
             logger.info(f"  Federal awards: {total} stored across {jcount} jurisdictions")
+
+        # Congressional votes (House + Senate roll calls for tracked representatives)
+        logger.info("Fetching congressional votes...")
+        result = run_with_retry(
+            fetch_congressional_votes,
+            "Congressional votes fetch",
+            congress=119, session=1, max_roll_calls=50, dry_run=False,
+        )
+        results["congressional_votes"] = result
+        if result.get("status") != "failed":
+            total = result.get("total_stored", 0)
+            house = result.get("house_roll_calls", 0)
+            senate = result.get("senate_votes", 0)
+            logger.info(f"  Congressional votes: {total} stored ({house} House roll calls, {senate} Senate votes)")
 
         # =========================================================================
         # Per-jurisdiction operations

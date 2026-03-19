@@ -284,17 +284,19 @@ class PostgresBackend:
             if self._schema_ensured:
                 return
 
-            # Fast probe: check if schema already exists by looking for a
-            # late-migration column (item_type on decisions). If present,
-            # the schema is current — skip all DDL.
+            # Fast probe: check if schema already exists by looking for
+            # late-migration artifacts. All must be present to skip DDL.
             try:
                 probe = conn.cursor()
                 probe.execute("""
-                    SELECT 1 FROM information_schema.columns
-                    WHERE table_name = 'decisions' AND column_name = 'item_type'
-                    LIMIT 1
+                    SELECT
+                        EXISTS(SELECT 1 FROM information_schema.columns
+                               WHERE table_name = 'decisions' AND column_name = 'item_type'),
+                        EXISTS(SELECT 1 FROM information_schema.tables
+                               WHERE table_name = 'congressional_votes')
                 """)
-                if probe.fetchone():
+                row = probe.fetchone()
+                if row and all(row):
                     self._schema_ensured = True
                     PostgresBackend._schemas_verified.add(self._conn_string)
                     logger.debug("Schema probe: tables exist, skipping DDL")
@@ -1666,6 +1668,62 @@ class PostgresBackend:
         cursor.execute("""
             CREATE INDEX IF NOT EXISTS idx_federal_allocations_temporal
             ON federal_program_allocations(jurisdiction_id, valid_from, valid_to)
+        """)
+
+        # Congressional Votes table
+        # Per-member roll call vote positions from House and Senate
+        # Data source: House Clerk XML + Senate.gov XML via CongressGovClient
+        # Links to elected_officials by bioguide_id, legislation by bill_id
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS congressional_votes (
+                id SERIAL PRIMARY KEY,
+                vote_id TEXT NOT NULL,
+                bioguide_id TEXT NOT NULL,
+                chamber TEXT NOT NULL,
+                congress INTEGER NOT NULL,
+                session INTEGER NOT NULL,
+                roll_call_number INTEGER NOT NULL,
+                vote_date DATE NOT NULL,
+                vote_position TEXT NOT NULL,
+                bill_id TEXT,
+                bill_title TEXT,
+                vote_question TEXT,
+                vote_result TEXT,
+                member_name TEXT,
+                member_party TEXT,
+                member_state TEXT,
+                metadata JSONB,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                valid_from TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                valid_to TIMESTAMP,
+                deleted_at TIMESTAMP,
+                UNIQUE (vote_id, bioguide_id, valid_from),
+                CHECK (valid_to IS NULL OR valid_to > valid_from),
+                CHECK (chamber IN ('House', 'Senate')),
+                CHECK (vote_position IN ('Yea', 'Nay', 'Not Voting', 'Present'))
+            )
+        """)
+
+        # Congressional votes indexes
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_congressional_votes_bioguide
+            ON congressional_votes(bioguide_id)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_congressional_votes_bill
+            ON congressional_votes(bill_id)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_congressional_votes_chamber_date
+            ON congressional_votes(chamber, vote_date)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_congressional_votes_roll_call
+            ON congressional_votes(congress, chamber, session, roll_call_number)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_congressional_votes_temporal
+            ON congressional_votes(bioguide_id, valid_from, valid_to)
         """)
 
         # Migration: Add meeting_id and agenda_item_id FK columns to decisions
@@ -7203,6 +7261,241 @@ class PostgresBackend:
             WHERE jurisdiction_id = %s
               AND valid_to IS NULL AND deleted_at IS NULL
         """, (jurisdiction_id,))
+        count = cursor.fetchone()[0]
+        self._return_connection(conn)
+
+        return count
+
+    # =======================================================================
+    # CONGRESSIONAL VOTES
+    # =======================================================================
+
+    def store_congressional_votes(
+        self,
+        votes: List[Dict[str, Any]],
+        as_of: Optional[datetime] = None,
+    ) -> int:
+        """
+        Store congressional vote records with temporal versioning.
+
+        Args:
+            votes: List of vote dictionaries
+            as_of: Timestamp for temporal versioning (default: now)
+
+        Returns:
+            Number of votes successfully stored
+        """
+        as_of = as_of or datetime.now(timezone.utc).replace(tzinfo=None)
+        as_of_str = as_of.isoformat()
+
+        conn = self._get_connection()
+        self._ensure_schema(conn)
+        cursor = conn.cursor()
+
+        try:
+            # Filter to valid votes with required fields
+            valid_votes = [
+                v for v in votes
+                if v.get("vote_id") and v.get("bioguide_id") and v.get("vote_position")
+            ]
+
+            # Close previous versions for these (vote_id, bioguide_id) pairs
+            vote_keys = [(v["vote_id"], v["bioguide_id"]) for v in valid_votes]
+            if vote_keys:
+                for i in range(0, len(vote_keys), 500):
+                    chunk = vote_keys[i:i + 500]
+                    # Build WHERE clause for (vote_id, bioguide_id) pairs
+                    conditions = " OR ".join(
+                        ["(vote_id = %s AND bioguide_id = %s)"] * len(chunk)
+                    )
+                    params = []
+                    for vid, bid in chunk:
+                        params.extend([vid, bid])
+                    cursor.execute(f"""
+                        UPDATE congressional_votes
+                        SET valid_to = %s
+                        WHERE ({conditions})
+                          AND valid_to IS NULL
+                    """, [as_of_str] + params)
+
+            # Insert new versions
+            values = []
+            for v in valid_votes:
+                metadata = {
+                    k: val for k, val in v.items()
+                    if k not in [
+                        "vote_id", "bioguide_id", "chamber", "congress", "session",
+                        "roll_call_number", "vote_date", "vote_position", "bill_id",
+                        "bill_title", "vote_question", "vote_result", "member_name",
+                        "member_party", "member_state",
+                    ]
+                }
+                values.append((
+                    v["vote_id"],
+                    v["bioguide_id"],
+                    v.get("chamber", ""),
+                    v.get("congress", 0),
+                    v.get("session", 0),
+                    v.get("roll_call_number", 0),
+                    v.get("vote_date"),
+                    v["vote_position"],
+                    v.get("bill_id"),
+                    v.get("bill_title"),
+                    v.get("vote_question"),
+                    v.get("vote_result"),
+                    v.get("member_name"),
+                    v.get("member_party"),
+                    v.get("member_state"),
+                    json.dumps(metadata, cls=DateTimeEncoder) if metadata else None,
+                    as_of_str,
+                    as_of_str,
+                ))
+
+            if values:
+                psycopg2.extras.execute_values(
+                    cursor,
+                    """
+                    INSERT INTO congressional_votes (
+                        vote_id, bioguide_id, chamber, congress, session,
+                        roll_call_number, vote_date, vote_position, bill_id,
+                        bill_title, vote_question, vote_result, member_name,
+                        member_party, member_state, metadata,
+                        created_at, valid_from, valid_to
+                    ) VALUES %s
+                    """,
+                    values,
+                    template="(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NULL)",
+                    page_size=500,
+                )
+
+            conn.commit()
+            return len(valid_votes)
+
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            self._return_connection(conn)
+
+    def get_congressional_votes(
+        self,
+        bioguide_id: Optional[str] = None,
+        bill_id: Optional[str] = None,
+        chamber: Optional[str] = None,
+        congress: Optional[int] = None,
+        vote_date_start: Optional[str] = None,
+        vote_date_end: Optional[str] = None,
+        as_of: Optional[datetime] = None,
+        limit: Optional[int] = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        Retrieve congressional votes with optional filtering.
+
+        Args:
+            bioguide_id: Filter by member's bioguide ID
+            bill_id: Filter by legislation identifier
+            chamber: Filter by chamber ("House" or "Senate")
+            congress: Filter by congress number
+            vote_date_start: Filter votes on/after this date (YYYY-MM-DD)
+            vote_date_end: Filter votes on/before this date (YYYY-MM-DD)
+            as_of: Point-in-time query (for temporal versioning)
+            limit: Maximum number of votes to return
+
+        Returns:
+            List of vote dictionaries
+        """
+        as_of = as_of or datetime.now(timezone.utc).replace(tzinfo=None)
+        conn = self._get_connection()
+        self._ensure_schema(conn)
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+        query = """
+            SELECT * FROM congressional_votes
+            WHERE valid_from <= %s
+              AND (valid_to IS NULL OR valid_to > %s)
+              AND deleted_at IS NULL
+        """
+        params: List[Any] = [as_of.isoformat(), as_of.isoformat()]
+
+        if bioguide_id is not None:
+            query += " AND bioguide_id = %s"
+            params.append(bioguide_id)
+
+        if bill_id is not None:
+            query += " AND bill_id = %s"
+            params.append(bill_id)
+
+        if chamber is not None:
+            query += " AND chamber = %s"
+            params.append(chamber)
+
+        if congress is not None:
+            query += " AND congress = %s"
+            params.append(congress)
+
+        if vote_date_start is not None:
+            query += " AND vote_date >= %s"
+            params.append(vote_date_start)
+
+        if vote_date_end is not None:
+            query += " AND vote_date <= %s"
+            params.append(vote_date_end)
+
+        query += " ORDER BY vote_date DESC, roll_call_number DESC"
+
+        if limit is not None:
+            query += " LIMIT %s"
+            params.append(limit)
+
+        cursor.execute(query, params)
+        rows = cursor.fetchall()
+        self._return_connection(conn)
+
+        results = []
+        for row in rows:
+            vote = dict(row)
+            for key in ['created_at', 'valid_from', 'valid_to', 'vote_date']:
+                if key in vote and vote[key] is not None:
+                    if isinstance(vote[key], (datetime, date)):
+                        vote[key] = vote[key].isoformat()
+            results.append(vote)
+
+        return results
+
+    def get_congressional_votes_count(
+        self,
+        bioguide_id: Optional[str] = None,
+        chamber: Optional[str] = None,
+    ) -> int:
+        """
+        Get count of current congressional votes.
+
+        Args:
+            bioguide_id: Filter by member (optional)
+            chamber: Filter by chamber (optional)
+
+        Returns:
+            Number of current (non-expired) vote records
+        """
+        conn = self._get_connection()
+        self._ensure_schema(conn)
+        cursor = conn.cursor()
+
+        query = """
+            SELECT COUNT(*) FROM congressional_votes
+            WHERE valid_to IS NULL AND deleted_at IS NULL
+        """
+        params: List[Any] = []
+
+        if bioguide_id is not None:
+            query += " AND bioguide_id = %s"
+            params.append(bioguide_id)
+
+        if chamber is not None:
+            query += " AND chamber = %s"
+            params.append(chamber)
+
+        cursor.execute(query, params)
         count = cursor.fetchone()[0]
         self._return_connection(conn)
 

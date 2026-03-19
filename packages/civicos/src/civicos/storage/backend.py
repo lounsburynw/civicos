@@ -1552,6 +1552,94 @@ class StorageBackend(
         ...
 
     # =======================================================================
+    # CONGRESSIONAL VOTES - Per-member roll call vote positions
+    # =======================================================================
+    # Stores how individual members of Congress voted on roll call votes.
+    # Data source: House Clerk XML + Senate.gov XML via CongressGovClient.
+    # Links to elected_officials by bioguide_id and legislation by bill_id.
+
+    def store_congressional_votes(
+        self,
+        votes: List[Dict[str, Any]],
+        as_of: Optional[datetime] = None,
+    ) -> int:
+        """
+        Store congressional vote records with temporal versioning.
+
+        Atomic operation: either all votes are stored or none.
+        Uses upsert semantics based on (vote_id, bioguide_id).
+
+        Args:
+            votes: List of vote dictionaries with keys:
+                - vote_id: Unique vote identifier (e.g., "H-119-1-240")
+                - bioguide_id: Member's bioguide ID
+                - chamber: "House" or "Senate"
+                - congress: Congress number (e.g., 119)
+                - session: Session number (1 or 2)
+                - roll_call_number: Roll call number
+                - vote_date: Date of vote (YYYY-MM-DD)
+                - vote_position: "Yea", "Nay", "Not Voting", or "Present"
+                - bill_id: Legislation identifier (optional)
+                - bill_title: Bill title (optional)
+                - vote_question: What was being voted on (optional)
+                - vote_result: Overall result (optional)
+                - member_name: Member's name (optional)
+                - member_party: Party affiliation (optional)
+                - member_state: State (optional)
+            as_of: Timestamp for temporal versioning (default: now)
+
+        Returns:
+            Number of votes successfully stored
+        """
+        ...
+
+    def get_congressional_votes(
+        self,
+        bioguide_id: Optional[str] = None,
+        bill_id: Optional[str] = None,
+        chamber: Optional[str] = None,
+        congress: Optional[int] = None,
+        vote_date_start: Optional[str] = None,
+        vote_date_end: Optional[str] = None,
+        as_of: Optional[datetime] = None,
+        limit: Optional[int] = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        Retrieve congressional votes with optional filtering.
+
+        Args:
+            bioguide_id: Filter by member's bioguide ID
+            bill_id: Filter by legislation identifier
+            chamber: Filter by chamber ("House" or "Senate")
+            congress: Filter by congress number
+            vote_date_start: Filter votes on/after this date (YYYY-MM-DD)
+            vote_date_end: Filter votes on/before this date (YYYY-MM-DD)
+            as_of: Point-in-time query (for temporal versioning)
+            limit: Maximum number of votes to return
+
+        Returns:
+            List of vote dictionaries
+        """
+        ...
+
+    def get_congressional_votes_count(
+        self,
+        bioguide_id: Optional[str] = None,
+        chamber: Optional[str] = None,
+    ) -> int:
+        """
+        Get count of current congressional votes.
+
+        Args:
+            bioguide_id: Filter by member (optional)
+            chamber: Filter by chamber (optional)
+
+        Returns:
+            Number of current (non-expired) vote records
+        """
+        ...
+
+    # =======================================================================
     # STATE PASS-THROUGH FUNDING - Federal funds via state agencies to local
     # =======================================================================
 
