@@ -785,18 +785,36 @@
       },
       {
         "name": "congressional_votes",
-        "description": "Extend CongressGovClient with vote retrieval. Store in congressional_votes table linked to legislation + elected_officials. Wire into v2 query and extension.",
-        "status": "not_started",
-        "priority": 0,
+        "description": "Extend CongressGovClient with vote retrieval. Store in congressional_votes table linked to legislation + elected_officials.",
+        "status": "done",
+        "priority": 2,
         "phase": "1",
-        "source": "multi-scale participation \u2014 federal data (plan: sessions 3-4)",
+        "source": "multi-scale participation \u2014 federal data (plan: session 3)",
         "files": [
           "packages/civicos-extraction/src/civicos_extraction/clients/representatives.py",
           "packages/civicos/src/civicos/storage/postgres_backend.py",
-          "apps/civicos-mcp/tools/handlers.py"
+          "packages/civicos/src/civicos/storage/backend.py",
+          "packages/civicos/src/civicos/storage/sqlite_backend.py",
+          "packages/civicos/src/civicos/storage/corpus_types.py",
+          "scripts/modal_ingest.py"
         ],
         "test_file": null,
-        "notes": "Congress.gov API v3: /member/{id}/voted-on, /bill/{congress}/{type}/{number}/actions. 5000 req/hour. CONGRESS_GOV_API_KEY available. Parallels city council get_voting_record tool. 2 sessions."
+        "notes": "DONE: CongressGovClient extended with House Clerk XML + Senate XML parsing. congressional_votes table + storage protocol. 1,491 votes ingested (173 House/Huffman, 1318 Senate/Schiff+Padilla). Added to weekly refresh."
+      },
+      {
+        "name": "congressional_votes_query",
+        "description": "Wire congressional votes into v2 query layer, MCP tool, and extension. Enable 'How did my representative vote on [bill]?' queries.",
+        "status": "not_started",
+        "priority": 0,
+        "phase": "1",
+        "source": "multi-scale participation \u2014 federal data (plan: session 4)",
+        "files": [
+          "packages/civicos-services/src/civicos_services/query/",
+          "apps/civicos-mcp/tools/handlers.py",
+          "apps/civicos-extension/"
+        ],
+        "test_file": null,
+        "notes": "1,491 votes in DB. Wire into v2 search (civic.search 'housing votes'), MCP get_congressional_votes tool, extension 'How They Voted' view on Federal tab. Parallels city council get_voting_record."
       },
       {
         "name": "congressional_hearings",

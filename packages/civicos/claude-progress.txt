@@ -180,3 +180,53 @@ civicos-deploy city-berkeley --skip-ingest
 - Small cities get few direct federal awards — most federal money flows via county pass-through
 
 **Next P0:** congressional_votes — Congress.gov API vote retrieval (sessions 3-4 of federal data plan)
+
+## Session — 2026-03-19 — USAspending onboarding refactor + county ID standardization
+
+**Additional work (same session as federal_funding_pipeline):**
+
+1. **USAspending config → jurisdiction YAML onboarding**
+   - Moved usaspending config from data/extraction/*.json to data/jurisdictions/*.yaml
+   - Added USAspendingConfig dataclass to jurisdiction_config.py
+   - Created discover_usaspending_candidates() — search-then-confirm flow
+   - Searches USAspending API broadly, returns all candidates grouped by recipient name
+   - Government entities sorted first via pattern matching (CITY OF, COUNTY OF, HOUSING AUTHORITY, etc.)
+   - OnboardResult.usaspending_candidates field for interactive onboard flow
+   - /onboard Step 4.5 presents candidates for operator confirmation
+   - get_jurisdictions_with_usaspending() reads from YAML for fetch_federal_awards()
+
+2. **County jurisdiction ID standardization**
+   - Canonical form: county-{name} (e.g., county-marin, county-sonoma)
+   - Fixed civicos-config registry: marin-county → county-marin, sonoma-county → county-sonoma
+   - Added legacy aliases so marin-county and sonoma-county still resolve
+   - Updated 14 files across services, tests, relay, deploy scripts
+   - county-marin now passes normalize_jurisdiction() — federal awards can store
+
+**Next P0:** congressional_votes
+
+## Congressional Votes Ingest (2026-03-19)
+
+### Completed — Session 3 of federal data plan
+- **CongressGovClient extended** with 3 vote retrieval methods:
+  - `get_house_roll_calls()` — lists House roll call votes from Congress.gov API
+  - `get_house_member_votes()` — parses per-member positions from House Clerk XML
+  - `get_senate_member_votes()` — parses per-member positions from Senate.gov XML
+  - Vote position normalization: Aye→Yea, No→Nay for consistency
+- **congressional_votes table** — temporal versioning, CHECK constraints, 5 indexes
+- **StorageBackend protocol** — store/get/count methods on backend.py + postgres_backend.py
+- **SQLite stubs** for protocol compliance
+- **CorpusType.CONGRESSIONAL_VOTES** added to corpus registry (SQL-only, no vectors)
+- **Schema probe updated** — ensures congressional_votes table exists before skipping DDL
+- **Weekly refresh** — added to scheduled_low_velocity_refresh() in modal_ingest.py
+- **1,491 votes ingested**: 173 House (Huffman CA-02), 1,318 Senate (Schiff + Padilla)
+- All 20 smoke tests pass
+
+### Key files modified
+- packages/civicos-extraction/src/civicos_extraction/clients/representatives.py
+- packages/civicos/src/civicos/storage/postgres_backend.py
+- packages/civicos/src/civicos/storage/backend.py
+- packages/civicos/src/civicos/storage/sqlite_backend.py
+- packages/civicos/src/civicos/storage/corpus_types.py
+- scripts/modal_ingest.py
+
+**Next P0:** congressional_votes_query (Session 4 — v2 query + MCP tool + extension UX)

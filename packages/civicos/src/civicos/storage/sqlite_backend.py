@@ -2599,6 +2599,40 @@ class SQLiteBackend:
             conn.close()
 
     # =======================================================================
+    # CONGRESSIONAL VOTES
+    # =======================================================================
+
+    def store_congressional_votes(
+        self,
+        votes: List[Dict[str, Any]],
+        as_of: Optional[datetime] = None,
+    ) -> int:
+        """Store congressional votes (stub — data lives in Postgres)."""
+        return 0
+
+    def get_congressional_votes(
+        self,
+        bioguide_id: Optional[str] = None,
+        bill_id: Optional[str] = None,
+        chamber: Optional[str] = None,
+        congress: Optional[int] = None,
+        vote_date_start: Optional[str] = None,
+        vote_date_end: Optional[str] = None,
+        as_of: Optional[datetime] = None,
+        limit: Optional[int] = None,
+    ) -> List[Dict[str, Any]]:
+        """Retrieve congressional votes (stub — data lives in Postgres)."""
+        return []
+
+    def get_congressional_votes_count(
+        self,
+        bioguide_id: Optional[str] = None,
+        chamber: Optional[str] = None,
+    ) -> int:
+        """Get count of congressional votes (stub — data lives in Postgres)."""
+        return 0
+
+    # =======================================================================
     # STATE PASS-THROUGH FUNDING
     # =======================================================================
 

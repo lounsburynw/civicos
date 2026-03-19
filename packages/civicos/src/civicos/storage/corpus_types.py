@@ -53,6 +53,7 @@ class CorpusType(str, Enum):
     EXECUTIVE_ORDERS = "executive_orders"  # Presidential executive orders (SESSION 432)
     FEDERAL_RULES = "federal_rules"        # Federal rulemaking (proposed rules, final rules, notices)
     FEDERAL_AWARDS = "federal_awards"      # Federal awards/grants from USAspending.gov
+    CONGRESSIONAL_VOTES = "congressional_votes"  # Per-member roll call vote positions
 
     def __str__(self) -> str:
         return self.value
@@ -268,6 +269,17 @@ CORPUS_REGISTRY: Dict[CorpusType, CorpusConfig] = {
         sql_table="federal_awards",
         vector_collection_suffix="federal_awards",
         aliases=("federal_award", "grant", "grants", "award"),
+        has_meeting_context=False,
+    ),
+    CorpusType.CONGRESSIONAL_VOTES: CorpusConfig(
+        display_name="Congressional Votes",
+        storage_method="get_congressional_votes",
+        count_method="get_congressional_votes_count",
+        text_extractor=None,  # Not vectorized — structured data, queried by filters
+        jurisdiction_type="shared",  # Not per-jurisdiction, global
+        sql_table="congressional_votes",
+        vector_collection_suffix=None,  # No vectors — structured queries only
+        aliases=("congressional_vote", "roll_call", "roll_calls", "voting_record"),
         has_meeting_context=False,
     ),
 }

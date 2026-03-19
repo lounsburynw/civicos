@@ -22,6 +22,7 @@ import logging
 import os
 import requests
 import time
+import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Dict, List, Optional, Any
@@ -203,6 +204,280 @@ class CongressGovClient:
 
         members = result.get("members", [])
         return [self._normalize_member(m) for m in members]
+
+    # ==================== Vote Retrieval ====================
+
+    def get_house_roll_calls(
+        self,
+        congress: int = 119,
+        session: int = 1,
+        limit: int = 250,
+        offset: int = 0,
+    ) -> List[Dict[str, Any]]:
+        """
+        List House roll call votes for a congress/session.
+
+        Args:
+            congress: Congress number (e.g., 119)
+            session: Session number (1 or 2)
+            limit: Max results per page
+            offset: Pagination offset
+
+        Returns:
+            List of roll call vote summary dicts
+        """
+        result = self._make_request(
+            f"house-vote/{congress}/{session}",
+            params={"limit": limit, "offset": offset},
+        )
+        if not result:
+            return []
+        return result.get("houseRollCallVotes", [])
+
+    def get_house_vote_detail(
+        self,
+        congress: int,
+        session: int,
+        roll_call: int,
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Get detail for a specific House roll call vote (summary only, no member votes).
+
+        Args:
+            congress: Congress number
+            session: Session number
+            roll_call: Roll call number
+
+        Returns:
+            Vote detail dict or None
+        """
+        result = self._make_request(f"house-vote/{congress}/{session}/{roll_call}")
+        if not result:
+            return None
+        return result.get("houseRollCallVote")
+
+    def get_house_member_votes(
+        self,
+        congress: int,
+        session: int,
+        roll_call: int,
+        bioguide_ids: Optional[List[str]] = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        Get individual member vote positions from House Clerk XML.
+
+        The Congress.gov API doesn't expose per-member votes, so we parse
+        the authoritative House Clerk XML source directly.
+
+        Args:
+            congress: Congress number (e.g., 119)
+            session: Session number (1 or 2)
+            roll_call: Roll call number
+            bioguide_ids: If provided, only return votes for these members
+
+        Returns:
+            List of dicts with keys: bioguide_id, name, party, state, vote
+        """
+        # House Clerk XML: https://clerk.house.gov/evs/{year}/roll{number}.xml
+        # We need to map congress+session to year. Congress 119 session 1 = 2025.
+        year = 2013 + (congress - 113) * 2 + (session - 1)
+        url = f"https://clerk.house.gov/evs/{year}/roll{roll_call}.xml"
+
+        self._throttle_request()
+        try:
+            response = self.session.get(url, timeout=30)
+            if response.status_code != 200:
+                logger.warning(f"House Clerk XML {response.status_code}: {url}")
+                return []
+        except (requests.Timeout, requests.ConnectionError) as e:
+            logger.warning(f"House Clerk XML request failed: {e}")
+            return []
+
+        try:
+            root = ET.fromstring(response.content)
+        except ET.ParseError as e:
+            logger.warning(f"Failed to parse House Clerk XML: {e}")
+            return []
+
+        # Parse vote metadata
+        metadata = root.find("vote-metadata")
+        vote_question = ""
+        vote_desc = ""
+        legis_num = ""
+        vote_result = ""
+        if metadata is not None:
+            vq = metadata.find("vote-question")
+            vote_question = vq.text if vq is not None and vq.text else ""
+            vd = metadata.find("vote-desc")
+            vote_desc = vd.text if vd is not None and vd.text else ""
+            ln = metadata.find("legis-num")
+            legis_num = ln.text if ln is not None and ln.text else ""
+            vr = metadata.find("vote-result")
+            vote_result = vr.text if vr is not None and vr.text else ""
+
+        bioguide_set = set(bioguide_ids) if bioguide_ids else None
+        votes = []
+
+        vote_data = root.find("vote-data")
+        if vote_data is None:
+            return []
+
+        for recorded_vote in vote_data.findall("recorded-vote"):
+            legislator = recorded_vote.find("legislator")
+            vote_el = recorded_vote.find("vote")
+            if legislator is None or vote_el is None:
+                continue
+
+            bioguide_id = legislator.get("name-id", "")
+            if bioguide_set and bioguide_id not in bioguide_set:
+                continue
+
+            # Normalize vote positions: House uses both Yea/Nay and Aye/No
+            raw_vote = vote_el.text or ""
+            vote_normalized = {
+                "Yea": "Yea", "Aye": "Yea",
+                "Nay": "Nay", "No": "Nay",
+                "Not Voting": "Not Voting",
+                "Present": "Present",
+            }.get(raw_vote, raw_vote)
+
+            votes.append({
+                "bioguide_id": bioguide_id,
+                "name": legislator.get("unaccented-name", legislator.text or ""),
+                "party": legislator.get("party", ""),
+                "state": legislator.get("state", ""),
+                "vote": vote_normalized,
+                "vote_question": vote_question,
+                "vote_description": vote_desc,
+                "legislation_number": legis_num,
+                "vote_result": vote_result,
+            })
+
+        return votes
+
+    def get_senate_member_votes(
+        self,
+        congress: int,
+        session: int,
+        vote_number: int,
+        bioguide_ids: Optional[List[str]] = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        Get individual senator vote positions from Senate XML.
+
+        Args:
+            congress: Congress number (e.g., 119)
+            session: Session number (1 or 2)
+            vote_number: Senate vote number
+            bioguide_ids: If provided, only return votes for these senators
+
+        Returns:
+            List of dicts with keys: bioguide_id, name, party, state, vote
+        """
+        # Senate XML: https://www.senate.gov/legislative/LIS/roll_call_votes/
+        #   vote{congress}{session}/vote_{congress}_{session}_{vote_number:05d}.xml
+        url = (
+            f"https://www.senate.gov/legislative/LIS/roll_call_votes/"
+            f"vote{congress}{session}/"
+            f"vote_{congress}_{session}_{vote_number:05d}.xml"
+        )
+
+        self._throttle_request()
+        try:
+            response = self.session.get(url, timeout=30)
+            if response.status_code != 200:
+                logger.warning(f"Senate XML {response.status_code}: {url}")
+                return []
+        except (requests.Timeout, requests.ConnectionError) as e:
+            logger.warning(f"Senate XML request failed: {e}")
+            return []
+
+        try:
+            root = ET.fromstring(response.content)
+        except ET.ParseError as e:
+            logger.warning(f"Failed to parse Senate XML: {e}")
+            return []
+
+        # Parse vote metadata
+        vote_question = ""
+        vote_title = ""
+        vote_result = ""
+        vote_date = ""
+        doc_number = ""
+        vq = root.find("question")
+        if vq is not None and vq.text:
+            vote_question = vq.text
+        vt = root.find("vote_title")
+        if vt is not None and vt.text:
+            vote_title = vt.text
+        vr = root.find("vote_result")
+        if vr is not None and vr.text:
+            vote_result = vr.text
+        vd = root.find("vote_date")
+        if vd is not None and vd.text:
+            # Senate date format: "January 9, 2025,  02:54 PM" → parse to YYYY-MM-DD
+            try:
+                raw_date = vd.text.split(",")[0] + "," + vd.text.split(",")[1]
+                vote_date = datetime.strptime(raw_date.strip(), "%B %d, %Y").strftime("%Y-%m-%d")
+            except (ValueError, IndexError):
+                vote_date = ""
+        doc = root.find("document")
+        if doc is not None:
+            dn = doc.find("document_name")
+            if dn is not None and dn.text:
+                doc_number = dn.text
+
+        # Senate XML uses lis_member_id, not bioguide_id directly
+        # We'll need to map via name for now (bioguide_ids filter uses name matching)
+        bioguide_set = set(bioguide_ids) if bioguide_ids else None
+        votes = []
+
+        members = root.find("members")
+        if members is None:
+            return []
+
+        for member in members.findall("member"):
+            last_name_el = member.find("last_name")
+            first_name_el = member.find("first_name")
+            party_el = member.find("party")
+            state_el = member.find("state")
+            vote_el = member.find("vote_cast")
+            lis_id_el = member.find("lis_member_id")
+
+            if vote_el is None:
+                continue
+
+            last_name = last_name_el.text if last_name_el is not None else ""
+            first_name = first_name_el.text if first_name_el is not None else ""
+            name = f"{first_name} {last_name}".strip() or last_name
+            lis_id = lis_id_el.text if lis_id_el is not None else ""
+
+            # Map Senate vote values to consistent format
+            vote_text = vote_el.text or ""
+            vote_map = {"Yea": "Yea", "Nay": "Nay", "Not Voting": "Not Voting", "Present": "Present"}
+            vote_text = vote_map.get(vote_text, vote_text)
+
+            # We store lis_member_id as a placeholder — the ingest function
+            # maps to bioguide_id via elected_officials table
+            votes.append({
+                "lis_member_id": lis_id,
+                "bioguide_id": "",  # Filled by ingest function via elected_officials lookup
+                "name": name,
+                "party": party_el.text if party_el is not None else "",
+                "state": state_el.text if state_el is not None else "",
+                "vote": vote_text,
+                "vote_date": vote_date,
+                "vote_question": vote_question,
+                "vote_description": vote_title,
+                "legislation_number": doc_number,
+                "vote_result": vote_result,
+            })
+
+        # Filter by bioguide_ids if provided (after mapping)
+        if bioguide_set:
+            votes = [v for v in votes if v["bioguide_id"] in bioguide_set]
+
+        return votes
 
     def _normalize_member(self, raw: Dict[str, Any]) -> Representative:
         """Normalize Congress.gov member to Representative."""
