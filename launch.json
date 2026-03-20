@@ -839,7 +839,7 @@
         "name": "local_impact_relevance",
         "description": "Score federal rules by local relevance. Agency-to-topic mapping, geographic text matching, CFR part matching. Extension sorts by relevance, draft_federal_comment shows local context.",
         "status": "not_started",
-        "priority": 2,
+        "priority": 0,
         "phase": "1",
         "source": "multi-scale participation \u2014 federal data (plan: sessions 7-8)",
         "files": [
@@ -853,16 +853,17 @@
       {
         "name": "federal_pipeline_hardening",
         "description": "Fix US legislation refresh gap (only CA syncs), debug CA sync failure, close 12% embedding gap on federal_rules, verify all new corpora have scheduled refreshes.",
-        "status": "not_started",
+        "status": "done",
         "priority": 0,
         "phase": "1",
         "source": "multi-scale participation \u2014 federal data (plan: session 9)",
         "files": [
           "scripts/modal_ingest.py",
-          ".github/workflows/cron-low-velocity-refresh.yml"
+          ".github/workflows/cron-low-velocity-refresh.yml",
+          "packages/civicos/src/civicos/_internal/legal/embeddings/chunker.py"
         ],
         "test_file": null,
-        "notes": "US federal legislation (14,855 bills) has NO scheduled refresh. CA legislation sync failing. 509 federal rules missing vector embeddings. Must run after sessions 1-8 to cover all new corpora. 1 session."
+        "notes": "Done: (1) Added US federal legislation to scheduled_low_velocity_refresh loop alongside CA. (2) CA sync confirmed working (last cron success 2026-03-15). (3) Created expand_federal_rules_to_chunks() in chunker.py — adds document_type, topics, fallback text for rules without title/abstract, closing embedding gap. (4) Added 'legislation' to federal-US corpus types in index_vectors. All 8 federal corpora now have scheduled refreshes."
       },
       {
         "name": "federal_server_deployment",

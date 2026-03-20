@@ -2541,6 +2541,7 @@ def index_vectors(
         expand_municipal_code_to_chunks,
         expand_legislation_to_chunks,
         expand_executive_orders_to_chunks,
+        expand_federal_rules_to_chunks,
     )
 
     database_url = os.environ.get("DATABASE_URL")
@@ -2560,7 +2561,7 @@ def index_vectors(
     if jurisdiction.startswith("state-"):
         all_corpus_types = ["legislation"]
     elif jurisdiction.startswith("federal-"):
-        all_corpus_types = ["programs", "executive_orders", "federal_rules"]
+        all_corpus_types = ["programs", "executive_orders", "federal_rules", "legislation"]
     else:
         all_corpus_types = ["chunks", "decisions", "meetings", "transcripts", "municipal_code", "issues", "agenda_items", "budget_items", "federal_awards"]
 
@@ -2619,32 +2620,7 @@ def index_vectors(
             chunks = backend.get_programs()
         elif ct == "federal_rules":
             raw = backend.get_federal_rules()
-            chunks = []
-            for rule in raw:
-                agencies = rule.get("agency_names") or []
-                parts = []
-                if agencies:
-                    parts.append(f"Agency: {', '.join(agencies)}")
-                if rule.get("title"):
-                    parts.append(rule["title"])
-                if rule.get("abstract"):
-                    parts.append(rule["abstract"])
-                text = "\n".join(parts)
-                if not text.strip():
-                    continue
-                chunks.append({
-                    "id": f"rule-{rule.get('document_number', rule.get('id', ''))}",
-                    "text": text,
-                    "title": rule.get("title"),
-                    "document_type": rule.get("document_type"),
-                    "publication_date": rule.get("publication_date"),
-                    "comments_close_on": rule.get("comments_close_on"),
-                    "metadata": {
-                        "document_number": rule.get("document_number"),
-                        "agency_names": agencies,
-                        "html_url": rule.get("html_url"),
-                    },
-                })
+            chunks = expand_federal_rules_to_chunks(raw)
         elif ct == "budget_items":
             chunks = backend.get_budget_items(jurisdiction)
         elif ct == "federal_awards":
@@ -4234,25 +4210,27 @@ def scheduled_low_velocity_refresh():
         # Global operations (not per-jurisdiction)
         # =========================================================================
 
-        # Legislation CA (run weekly to avoid quota issues, auto-index vectors)
+        # Legislation sync (run weekly to avoid quota issues, auto-index vectors)
         # Uses sync_legislation() which:
-        #   1. Fetches master list to discover new bills and status updates (1 API call)
+        #   1. Fetches master list to discover new bills and status updates (1 API call per state)
         #   2. Stores/upserts bills with temporal versioning
         #   3. Populates full_text for bills missing it
         #   4. Auto-indexes vectors
-        logger.info("Syncing CA legislation...")
-        result = run_with_retry(
-            sync_legislation,
-            "CA legislation sync",
-            jurisdiction="state-CA", dry_run=False, auto_index=True,
-        )
-        results["legislation_CA"] = result
-        if result.get("status") != "failed":
-            new_bills = result.get('new_bills', 0)
-            stored = result.get('bills_stored', 0)
-            text_updated = result.get('text_result', {}).get('bills_with_text', 0)
-            indexed = result.get('vector_result', {}).get('total_indexed', 0) if result.get('auto_index') else 0
-            logger.info(f"  CA Legislation: {new_bills} new bills, {stored} total stored, {text_updated} texts populated, {indexed} vectors indexed")
+        for leg_jurisdiction, leg_label in [("state-CA", "CA"), ("federal", "US Federal")]:
+            logger.info(f"Syncing {leg_label} legislation...")
+            result = run_with_retry(
+                sync_legislation,
+                f"{leg_label} legislation sync",
+                jurisdiction=leg_jurisdiction, dry_run=False, auto_index=True,
+            )
+            result_key = f"legislation_{leg_label.replace(' ', '_')}"
+            results[result_key] = result
+            if result.get("status") != "failed":
+                new_bills = result.get('new_bills', 0)
+                stored = result.get('bills_stored', 0)
+                text_updated = result.get('text_result', {}).get('bills_with_text', 0)
+                indexed = result.get('vector_result', {}).get('total_indexed', 0) if result.get('auto_index') else 0
+                logger.info(f"  {leg_label} Legislation: {new_bills} new bills, {stored} total stored, {text_updated} texts populated, {indexed} vectors indexed")
 
         # Executive Orders from Federal Register (incremental, auto-index vectors)
         logger.info("Fetching Executive Orders from Federal Register...")

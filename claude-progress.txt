@@ -22848,3 +22848,34 @@ Deployed country-united-states Modal server with full federal tool suite (23 too
 - All 20 smoke tests pass
 
 **Key learning:** Supabase pooler requires `postgres.{project_ref}` username format for external connections (Modal). Direct `db.` endpoint also resolves to pooler but uses different auth.
+
+---
+Session: Federal Pipeline Hardening
+Date: 2026-03-20
+Item: federal_pipeline_hardening (P0)
+
+**Status:** DONE
+
+Fixed 3 issues in federal data pipeline:
+
+1. **US Federal Legislation Refresh Gap** — Added `jurisdiction="federal"` to the `sync_legislation` loop in `scheduled_low_velocity_refresh()`. US federal bills (14,855) now sync weekly alongside CA legislation via the same LegiScan API pathway.
+
+2. **CA Legislation Sync Status** — Investigated and confirmed CA sync is working. Last successful cron run: 2026-03-15. The "CA sync failing" note in launch.json was stale (pre-dates cron setup).
+
+3. **Federal Rules Embedding Gap** — Created `expand_federal_rules_to_chunks()` in `chunker.py`. The old inline code in `index_vectors` skipped rules without title/abstract (~12% of corpus). New function:
+   - Includes document_type label, topics, and comment deadlines in text
+   - Falls back to document_number for rules with no text content
+   - Handles agency_names as string or list
+   - Added "legislation" to federal-US corpus types in index_vectors
+
+**Refresh Coverage (all 8 federal corpora now scheduled):**
+- ✅ CA Legislation (weekly, LegiScan)
+- ✅ US Federal Legislation (weekly, LegiScan) — NEW
+- ✅ Executive Orders (weekly, Federal Register)
+- ✅ Federal Rules (weekly, Federal Register)
+- ✅ Congressional Votes (weekly, Congress.gov)
+- ✅ Congressional Hearings (weekly, Congress.gov)
+- ✅ Federal Programs (weekly, SAM.gov)
+- ✅ Federal Awards (weekly, USAspending.gov)
+
+**Next P0:** local_impact_relevance — Score federal rules by local relevance
