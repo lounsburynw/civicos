@@ -22905,3 +22905,29 @@ Implemented heuristic-based local relevance scoring for federal rules:
 **Next P0:** vertical_query_tier_tuning — Tune tier weights for upward queries (city→state→federal)
 
 **Update:** Replaced `vertical_query_tier_tuning` as next P0 with `vector_llm_relevance_pipeline`. User review of heuristic scoring identified key weakness: most federal rules don't mention specific geographies even when they're locally relevant. Tested vector similarity approach — using San Rafael municipal_code embeddings as query vectors against federal_rules embeddings finds genuinely relevant rules (0.69 similarity for housing, 0.68 for water) that heuristics miss. New pipeline: vector candidate retrieval → LLM confirmation on ~300 candidates → store score + summary. Cost: ~$0.05 vs $0.20 for brute-force LLM, with higher precision.
+
+## Session: vector_llm_relevance_pipeline (2026-03-20)
+
+Completed P0: vector_llm_relevance_pipeline
+
+Built 3-stage pipeline replacing heuristic-only federal rule scoring with vector+LLM hybrid:
+
+1. **Stage 1: Policy vectors** — Built 12 policy area vectors (housing, water, climate, etc.) by averaging municipal_code embeddings from San Rafael. Each is a 768-dim unit vector representing what that policy area "looks like" semantically.
+
+2. **Stage 2: Vector candidate retrieval** — For each policy vector, queried pgvector cosine similarity against federal_rules embeddings. Threshold 0.45, limit 40/area. Result: 157 candidates from 4,115 rules (3.8% selectivity). Good deduplication — rules matching multiple areas tracked.
+
+3. **Stage 3: LLM confirmation** — gpt-4o-mini scored 149 candidates in 7 batches (25/batch). Each gets a 0-1 score + one-sentence local impact summary. Top results: flood hazard determinations (0.80), HUD housing verification (0.70), traffic standards (0.70), water quality cert (0.70).
+
+Key files:
+- `packages/civicos/src/civicos/_internal/legal/vector_relevance.py` — Pipeline module (3 stages)
+- `packages/civicos/src/civicos/storage/postgres_backend.py` — Added `update_federal_rules_relevance()`
+- `scripts/modal_ingest.py` — Added `score_federal_rules_llm` Modal function + CLI `--score-rules`
+- `scripts/sql/add_federal_rules_relevance.sql` — Added `local_relevance_summary TEXT` column
+- `packages/civicos-services/src/civicos_services/query/verbs.py` — Added summary to v2 search results
+- `apps/civicos-mcp/tools/handlers.py` — Added "Local impact" line to MCP tool output
+
+Results: 149 rules scored and written to DB. 33,743 tokens used (~$0.005). Cost-effective at scale.
+
+Pipeline auto-runs after `fetch_federal_rules --auto-index`. Also runnable standalone: `modal run scripts/modal_ingest.py --score-rules`.
+
+**Next P0:** vertical_query_tier_tuning — Tune tier weights for upward queries (city→state→federal)

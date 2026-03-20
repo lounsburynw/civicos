@@ -633,6 +633,7 @@ async def execute_upcoming(
                                     "level": "federal",
                                     "local_relevance_score": rule.get("local_relevance_score", 0.0),
                                     "relevance_reasons": rule.get("relevance_reasons") or [],
+                                    "local_relevance_summary": rule.get("local_relevance_summary") or "",
                                 },
                             ))
                         # Sort federal comment periods by relevance (highest first)

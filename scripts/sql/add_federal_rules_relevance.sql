@@ -7,3 +7,6 @@ ALTER TABLE federal_rules ADD COLUMN IF NOT EXISTS relevance_reasons JSONB;
 -- Index for sorting by relevance (most relevant first)
 CREATE INDEX IF NOT EXISTS idx_federal_rules_local_relevance_score
     ON federal_rules(local_relevance_score DESC);
+
+-- LLM-generated local impact summary (vector_llm_relevance_pipeline)
+ALTER TABLE federal_rules ADD COLUMN IF NOT EXISTS local_relevance_summary TEXT;
