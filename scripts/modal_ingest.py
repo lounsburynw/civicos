@@ -2080,6 +2080,192 @@ def fetch_congressional_votes(
 
 
 # =============================================================================
+# Congressional Hearings
+# =============================================================================
+
+
+@app.function(
+    image=civic_image,
+    secrets=[modal.Secret.from_name("civic-db")],
+    memory=2048,
+    timeout=3600,
+    retries=modal.Retries(max_retries=2, backoff_coefficient=2.0, initial_delay=30.0),
+)
+def fetch_congressional_hearings(
+    congress: int = 119,
+    days_back: int = 90,
+    days_ahead: int = 60,
+    dry_run: bool = False,
+) -> dict:
+    """Fetch congressional committee hearings from Congress.gov API.
+
+    Fetches both House and Senate committee hearings and stores them in
+    the congressional_hearings table. Retrieves detail for each meeting
+    to get committee info, location, and related bills.
+
+    Args:
+        congress: Congress number (default: 119)
+        days_back: How many days back to look for past hearings
+        days_ahead: How many days ahead to look for upcoming hearings
+        dry_run: If True, fetch but don't store
+
+    Returns:
+        Dict with results summary
+    """
+    import logging
+    import os
+    import time
+    from datetime import datetime, timedelta, timezone
+
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+    logger = logging.getLogger(__name__)
+
+    from dotenv import load_dotenv
+    load_dotenv()
+
+    database_url = os.environ.get("DATABASE_URL")
+    if not database_url:
+        raise ValueError("DATABASE_URL not set")
+
+    from civicos.storage import get_storage_backend
+    from civicos_extraction.clients.representatives import CongressGovClient
+
+    backend = get_storage_backend(database_url)
+    client = CongressGovClient()
+
+    if not client.api_key:
+        raise ValueError("No Congress.gov API key configured")
+
+    start_time = time.time()
+    now = datetime.now(timezone.utc)
+    date_start = now - timedelta(days=days_back)
+    date_end = now + timedelta(days=days_ahead)
+
+    all_hearings = []
+    errors = 0
+
+    for chamber in ["house", "senate"]:
+        logger.info(f"Fetching {chamber} committee meetings for congress {congress}...")
+
+        # Paginate through the list endpoint
+        offset = 0
+        page_limit = 250
+        chamber_meetings = []
+
+        while True:
+            meetings = client.get_committee_hearings(
+                congress=congress, chamber=chamber,
+                limit=page_limit, offset=offset,
+            )
+            if not meetings:
+                break
+
+            chamber_meetings.extend(meetings)
+            offset += page_limit
+
+            # Congress.gov returns all meetings for the congress, so we
+            # fetch until we have them all (or hit a reasonable cap)
+            if len(meetings) < page_limit or offset >= 5000:
+                break
+
+        logger.info(f"  Found {len(chamber_meetings)} {chamber} committee meetings total")
+
+        # Fetch detail for each meeting to get full info
+        detailed = 0
+        for meeting_summary in chamber_meetings:
+            event_id = meeting_summary.get("eventId")
+            if not event_id:
+                continue
+
+            detail = client.get_committee_hearing_detail(
+                congress=congress,
+                chamber=chamber,
+                event_id=str(event_id),
+            )
+            if not detail:
+                errors += 1
+                continue
+
+            # Parse hearing date and filter to our window
+            hearing_date_str = detail.get("date")
+            if hearing_date_str:
+                try:
+                    hearing_dt = datetime.fromisoformat(hearing_date_str.replace("Z", "+00:00"))
+                    if hearing_dt < date_start or hearing_dt > date_end:
+                        continue
+                except (ValueError, TypeError):
+                    pass
+
+            # Extract committee info
+            committees = detail.get("committees", [])
+            committee_name = committees[0].get("name", "") if committees else ""
+            committee_code = committees[0].get("systemCode", "") if committees else ""
+
+            # Extract related bills from meetingDocuments
+            related_bills = []
+            for doc in detail.get("meetingDocuments", []):
+                if doc.get("documentType") == "Bills and Resolutions":
+                    related_bills.append({
+                        "name": doc.get("name", ""),
+                        "url": doc.get("url", ""),
+                    })
+
+            # Extract location
+            location = detail.get("location", {})
+
+            chamber_title = chamber.capitalize()
+            if chamber == "house":
+                chamber_title = "House"
+
+            hearing_record = {
+                "event_id": str(event_id),
+                "chamber": chamber_title,
+                "congress": congress,
+                "hearing_date": hearing_date_str,
+                "title": detail.get("title", ""),
+                "hearing_type": detail.get("type", ""),
+                "meeting_status": detail.get("meetingStatus", ""),
+                "committee_name": committee_name,
+                "committee_code": committee_code,
+                "location_building": location.get("building", ""),
+                "location_room": location.get("room", ""),
+                "related_bills": related_bills if related_bills else None,
+                "hearing_url": f"https://www.congress.gov/event/{congress}th-congress/{chamber}/{event_id}",
+            }
+
+            all_hearings.append(hearing_record)
+            detailed += 1
+
+        logger.info(f"  Detailed {detailed} {chamber} hearings within date window")
+
+    logger.info(f"Total hearings collected: {len(all_hearings)} ({errors} detail fetch errors)")
+
+    if dry_run:
+        elapsed = time.time() - start_time
+        return {
+            "status": "dry_run",
+            "total_hearings": len(all_hearings),
+            "errors": errors,
+            "elapsed_seconds": round(elapsed, 1),
+        }
+
+    if not all_hearings:
+        return {"status": "no_hearings", "total_hearings": 0}
+
+    stored = backend.store_congressional_hearings(all_hearings)
+    elapsed = time.time() - start_time
+
+    logger.info(f"Stored {stored} congressional hearings in {elapsed:.1f}s")
+
+    return {
+        "status": "success",
+        "total_stored": stored,
+        "errors": errors,
+        "elapsed_seconds": round(elapsed, 1),
+    }
+
+
+# =============================================================================
 # Vector Indexing (Parallel)
 # =============================================================================
 
@@ -4161,6 +4347,18 @@ def scheduled_low_velocity_refresh():
             house = result.get("house_roll_calls", 0)
             senate = result.get("senate_votes", 0)
             logger.info(f"  Congressional votes: {total} stored ({house} House roll calls, {senate} Senate votes)")
+
+        # Congressional hearings (committee meetings from Congress.gov)
+        logger.info("Fetching congressional hearings...")
+        result = run_with_retry(
+            fetch_congressional_hearings,
+            "Congressional hearings fetch",
+            congress=119, days_back=90, days_ahead=60, dry_run=False,
+        )
+        results["congressional_hearings"] = result
+        if result.get("status") != "failed":
+            total = result.get("total_stored", 0)
+            logger.info(f"  Congressional hearings: {total} stored")
 
         # =========================================================================
         # Per-jurisdiction operations

@@ -2633,6 +2633,38 @@ class SQLiteBackend:
         return 0
 
     # =======================================================================
+    # CONGRESSIONAL HEARINGS (stub — data lives in Postgres)
+    # =======================================================================
+
+    def store_congressional_hearings(
+        self,
+        hearings: List[Dict[str, Any]],
+        as_of: Optional[datetime] = None,
+    ) -> int:
+        """Store congressional hearings (stub — data lives in Postgres)."""
+        return 0
+
+    def get_congressional_hearings(
+        self,
+        committee_code: Optional[str] = None,
+        chamber: Optional[str] = None,
+        hearing_date_start: Optional[str] = None,
+        hearing_date_end: Optional[str] = None,
+        hearing_type: Optional[str] = None,
+        as_of: Optional[datetime] = None,
+        limit: Optional[int] = None,
+    ) -> List[Dict[str, Any]]:
+        """Get congressional hearings (stub — data lives in Postgres)."""
+        return []
+
+    def get_congressional_hearings_count(
+        self,
+        chamber: Optional[str] = None,
+    ) -> int:
+        """Get count of congressional hearings (stub — data lives in Postgres)."""
+        return 0
+
+    # =======================================================================
     # STATE PASS-THROUGH FUNDING
     # =======================================================================
 

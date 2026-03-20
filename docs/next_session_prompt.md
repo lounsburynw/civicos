@@ -1,6 +1,6 @@
-# Recommended: Congressional Votes Query + UX
+# Recommended: Congressional Hearings — Query + UX (Session 2 of 2)
 
-**Priority:** P0 (congressional_votes_query)
+**Priority:** P0 (congressional_hearings)
 **Area:** multi_scale_participation
 **Date:** 2026-03-19
 
@@ -8,49 +8,68 @@
 
 ## Context
 
-Session 3 of the federal data plan (ingest) is complete. 1,491 congressional votes are stored in the `congressional_votes` table — 173 House votes for Huffman (CA-02) and 1,318 Senate votes for Schiff and Padilla. The data is refreshed weekly via `scheduled_low_velocity_refresh()`. Session 4 is wiring this data into the query and UX layers so users can actually ask "How did my representative vote on [bill]?"
+Session 1 (ingest) is complete. 421 congressional hearings are stored in the `congressional_hearings` table — 274 House, 147 Senate. Types: 215 Hearings, 170 Meetings, 36 Markups. The data is refreshed weekly via `scheduled_low_velocity_refresh()`. Session 2 is wiring this data into the query and UX layers so users can see upcoming federal hearings.
 
 ## What Already Exists
 
-- `congressional_votes` table in Postgres with 1,491 rows, temporal versioning, 5 indexes
-- `StorageBackend.get_congressional_votes(bioguide_id, bill_id, chamber, congress, ...)` — filtering works
-- `StorageBackend.get_congressional_votes_count(bioguide_id, chamber)` — counts work
-- `CorpusType.CONGRESSIONAL_VOTES` registered in corpus_types.py (SQL-only, no vectors)
-- `CongressGovClient` with `get_house_member_votes()`, `get_senate_member_votes()`, `get_house_roll_calls()`
-- Vote positions normalized to: Yea, Nay, Not Voting, Present
+- `congressional_hearings` table in Postgres with 421 rows, temporal versioning, 4 indexes
+- `StorageBackend.get_congressional_hearings(committee_code, chamber, hearing_date_start, hearing_date_end, hearing_type, ...)` — filtering works
+- `StorageBackend.get_congressional_hearings_count(chamber)` — counts work
+- `CorpusType.CONGRESSIONAL_HEARINGS` registered in corpus_types.py (SQL-only, no vectors)
+- `CongressGovClient.get_committee_hearings()` and `get_committee_hearing_detail()` methods
+- `fetch_congressional_hearings()` Modal function in modal_ingest.py, added to weekly refresh
 
-## Suggested Approach
+## What Needs to Be Done (Session 2)
 
-1. **v2 search adapter** — `civic.search("housing votes")` should return how local reps voted on housing-related bills. Add congressional vote results to search responses when query matches legislation topics. Key decision: match votes to search queries by joining `congressional_votes.bill_id` against `legislation.bill_id` where legislation matches the search term.
-2. **MCP tool** — `get_congressional_votes` tool in `apps/civicos-mcp/tools/handlers.py`. Parameters: member name or bioguide_id, bill keyword, date range. Parallels existing `get_voting_record` for city council.
-3. **Extension UX** — "How They Voted" view on the Federal tab. Show recent votes for the user's representatives, grouped by bill. Link from legislation items to vote positions.
+### 1. Wire into `civic.upcoming(types=["hearings"])`
+
+**File:** `packages/civicos-services/src/civicos_services/query/verbs.py` (~line 562)
+
+Currently, the "hearings" event type in `execute_upcoming()` only looks at local meetings that have hearing agenda items. Extend to also query `backend.get_congressional_hearings()` with `hearing_date_start=now, hearing_date_end=now+days`. Return as `CivicResult(type="hearing", ref="hearing:federal-us:{event_id}")`.
+
+### 2. v2 Search Adapter
+
+**File:** `packages/civicos-services/src/civicos_services/query/adapters.py`
+
+Add `CongressionalHearingsAdapter` to search for hearings by topic (title match) or committee. Follow the pattern of `CongressionalVotesAdapter`.
+
+### 3. MCP Tool
+
+**File:** `apps/civicos-mcp/tools/handlers.py`, `apps/civicos-mcp/tools/registry.py`
+
+Add `get_upcoming_hearings` tool. Parameters: chamber, committee, days_ahead, topic keyword. Returns formatted hearing list with date, committee, title, location, related bills.
+
+### 4. Extension UX
+
+**File:** `apps/civicos-extension/` (Svelte components)
+
+Add "Congressional Hearings" section on Federal tab showing upcoming hearings with date, committee, title. Group by date. Link to hearing URL.
 
 ## Key Files
 
-- `packages/civicos/src/civicos/storage/postgres_backend.py` — `get_congressional_votes()` at ~line 7380, `store_congressional_votes()` at ~line 7280
-- `packages/civicos/src/civicos/storage/backend.py` — protocol definition at ~line 1555
-- `packages/civicos-services/src/civicos_services/query/` — v2 query adapters (search, context)
-- `apps/civicos-mcp/tools/handlers.py` — MCP tool definitions
-- `apps/civicos-extension/` — browser extension (Svelte)
-- `packages/civicos/src/civicos/storage/corpus_types.py` — CONGRESSIONAL_VOTES corpus type
+- `packages/civicos/src/civicos/storage/postgres_backend.py` — `get_congressional_hearings()` at ~line 7630, `store_congressional_hearings()` at ~line 7570
+- `packages/civicos/src/civicos/storage/protocols/legislation.py` — protocol at ~line 351
+- `packages/civicos-services/src/civicos_services/query/verbs.py` — `execute_upcoming()` at ~line 562
+- `packages/civicos-services/src/civicos_services/query/adapters.py` — v2 search adapters
+- `apps/civicos-mcp/tools/handlers.py` — MCP tools
+- `apps/civicos-extension/` — browser extension
 
 ## Data Shape
 
-```sql
--- Sample: How did Huffman vote recently?
-SELECT vote_date, vote_position, bill_id, bill_title, vote_question
-FROM congressional_votes
-WHERE bioguide_id = 'H001068' AND valid_to IS NULL
-ORDER BY vote_date DESC LIMIT 10;
-
--- Linking to legislation table
-SELECT cv.vote_position, cv.vote_date, l.title, l.summary
-FROM congressional_votes cv
-JOIN legislation l ON cv.bill_id = l.bill_id
-WHERE cv.bioguide_id = 'H001068' AND cv.valid_to IS NULL;
+```python
+backend.get_congressional_hearings(hearing_date_start="2026-03-20", limit=5)
+# Returns: [{
+#   "event_id": "119107", "chamber": "House", "congress": 119,
+#   "hearing_date": "2026-03-26T18:00:00Z",
+#   "title": "Policies to Protect Our Communities From Illicit Drug Threats",
+#   "hearing_type": "Hearing", "meeting_status": "Scheduled",
+#   "committee_name": "House Energy and Commerce Subcommittee on Health",
+#   "committee_code": "hsif14",
+#   "location_building": "Rayburn House Office Building", "location_room": "2123",
+#   "related_bills": [{"name": "H.R. 1266, Combatting Illicit Xylazine Act", "url": "..."}],
+#   "hearing_url": "https://www.congress.gov/event/119th-congress/house/119107",
+# }]
 ```
-
-Note: `bill_id` format in congressional_votes is like "HR3424", "HRES682". Check if this matches the `legislation.bill_id` format or if normalization is needed.
 
 ## Tests to Run
 
@@ -60,7 +79,8 @@ pytest packages/civicos/tests/test_civicos.py -q --override-ini="addopts="
 
 ## Success Criteria
 
-- [ ] v2 search returns vote positions when query matches legislation topics
-- [ ] MCP `get_congressional_votes` tool works (by member, by bill, by keyword)
-- [ ] Extension shows "How They Voted" on Federal tab
-- [ ] Can answer: "How did Huffman vote on HR3424?" through all three surfaces
+- [ ] `civic.upcoming(types=["hearings"])` returns federal hearings alongside local
+- [ ] v2 search finds hearings by topic keyword
+- [ ] MCP `get_upcoming_hearings` tool works
+- [ ] Extension shows "Congressional Hearings" on Federal tab
+- [ ] Can answer: "What hearings are coming up about housing?" through all three surfaces

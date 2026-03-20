@@ -54,6 +54,7 @@ class CorpusType(str, Enum):
     FEDERAL_RULES = "federal_rules"        # Federal rulemaking (proposed rules, final rules, notices)
     FEDERAL_AWARDS = "federal_awards"      # Federal awards/grants from USAspending.gov
     CONGRESSIONAL_VOTES = "congressional_votes"  # Per-member roll call vote positions
+    CONGRESSIONAL_HEARINGS = "congressional_hearings"  # Committee hearings from Congress.gov
 
     def __str__(self) -> str:
         return self.value
@@ -280,6 +281,17 @@ CORPUS_REGISTRY: Dict[CorpusType, CorpusConfig] = {
         sql_table="congressional_votes",
         vector_collection_suffix=None,  # No vectors — structured queries only
         aliases=("congressional_vote", "roll_call", "roll_calls", "voting_record"),
+        has_meeting_context=False,
+    ),
+    CorpusType.CONGRESSIONAL_HEARINGS: CorpusConfig(
+        display_name="Congressional Hearings",
+        storage_method="get_congressional_hearings",
+        count_method="get_congressional_hearings_count",
+        text_extractor=None,  # Not vectorized — structured event data
+        jurisdiction_type="shared",  # Not per-jurisdiction, global
+        sql_table="congressional_hearings",
+        vector_collection_suffix=None,
+        aliases=("congressional_hearing", "committee_hearing", "committee_meeting"),
         has_meeting_context=False,
     ),
 }
