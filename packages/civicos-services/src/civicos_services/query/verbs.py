@@ -638,6 +638,39 @@ async def execute_upcoming(
 
                 corpus_status["comment_periods"] = "ok"
 
+            elif event_type == "congressional_hearings":
+                # Upcoming federal committee hearings
+                from datetime import date as _date, timedelta as _td
+                now_date = _date.today()
+                end_date = now_date + _td(days=request.days)
+                ch_hearings = civic.storage.get_congressional_hearings(
+                    hearing_date_start=now_date.isoformat(),
+                    hearing_date_end=end_date.isoformat(),
+                    limit=50,
+                )
+                for h in ch_hearings:
+                    committee = h.get("committee_name", "")
+                    hearing_type = h.get("hearing_type", "Hearing")
+                    location = f"{h.get('location_building', '')} {h.get('location_room', '')}".strip()
+                    results.append(CivicResult(
+                        type="congressional_hearing",
+                        ref=f"congressional_hearing:{jid}:{h.get('event_id', '')}",
+                        title=f"{committee} — {hearing_type}" if committee else h.get("title", ""),
+                        date=h.get("hearing_date"),
+                        summary=h.get("title", ""),
+                        details={
+                            "chamber": h.get("chamber"),
+                            "hearing_type": hearing_type,
+                            "committee_name": committee,
+                            "committee_code": h.get("committee_code"),
+                            "location": location or None,
+                            "meeting_status": h.get("meeting_status"),
+                            "related_bills": h.get("related_bills"),
+                            "url": h.get("hearing_url"),
+                        },
+                    ))
+                corpus_status["congressional_hearings"] = "ok" if ch_hearings else "empty"
+
             elif event_type == "elections":
                 meetings_and_elections = civic.whats_next(
                     days=request.days, include_elections=True,

@@ -819,17 +819,21 @@
       {
         "name": "congressional_hearings",
         "description": "Ingest congressional committee hearings from Congress.gov API. Store as events, wire into civic.upcoming alongside comment periods. Federal equivalent of city council meetings.",
-        "status": "not_started",
-        "priority": 0,
+        "status": "done",
+        "priority": 2,
         "phase": "1",
         "source": "multi-scale participation \u2014 federal data (plan: sessions 5-6)",
         "files": [
           "packages/civicos-extraction/src/civicos_extraction/clients/representatives.py",
           "packages/civicos/src/civicos/storage/postgres_backend.py",
-          "packages/civicos-services/src/civicos_services/query/verbs.py"
+          "packages/civicos-services/src/civicos_services/query/verbs.py",
+          "packages/civicos-services/src/civicos_services/query/adapters.py",
+          "apps/civicos-mcp/tools/handlers.py",
+          "apps/civicos-mcp/tools/registry.py",
+          "packages/civicos-components/src/components/CivicReadOnlyPulse.svelte"
         ],
         "test_file": null,
-        "notes": "Session 1 (ingest) DONE: 421 hearings stored (274 House, 147 Senate). Client methods, storage protocol, PostgresBackend, corpus type, ingestion pipeline all complete. Added to weekly refresh. Session 2 needed: wire into civic.upcoming, v2 search adapter, MCP tool, extension UX."
+        "notes": "COMPLETE. Session 1: 421 hearings ingested (274 House, 147 Senate). Session 2: Wired into v2 search (CongressionalHearingsAdapter), upcoming verb (congressional_hearings event type), MCP tool (get_congressional_hearings), extension UX (Congressional Hearings section in pulse), and city_pulse data. All verified against live data."
       },
       {
         "name": "local_impact_relevance",
@@ -864,7 +868,7 @@
         "name": "federal_server_deployment",
         "description": "Deploy country-united-states Modal server with full federal tool suite: funding search, congressional votes, hearing timeline, relevance-scored comment periods.",
         "status": "not_started",
-        "priority": 2,
+        "priority": 0,
         "phase": "1",
         "source": "multi-scale participation \u2014 federal infrastructure (plan: session 10)",
         "files": [

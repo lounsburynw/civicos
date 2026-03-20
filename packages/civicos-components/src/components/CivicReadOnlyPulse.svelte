@@ -22,6 +22,7 @@
     comment_periods?: Array<{ document_number: string; title: string; abstract?: string; agency_names: string[]; comments_close_on: string; comment_url?: string; html_url?: string; days_remaining: number; document_type?: string; topics?: string[]; pdf_url?: string; publication_date?: string }>;
     upcoming_hearings?: Array<{ bill_id: string; bill_number?: string; bill_name?: string; event_date: string; committee?: string; location?: string; description?: string; summary?: string; official_url?: string; days_until: number }>;
     governors_desk?: Array<{ bill_id: string; bill_number?: string; bill_name?: string; summary?: string; enrolled_date?: string }>;
+    congressional_hearings?: Array<{ event_id: string; chamber: string; hearing_date: string; title: string; hearing_type: string; committee_name: string; committee_code: string; location?: string | null; meeting_status?: string; related_bills?: Array<{ name?: string; url?: string }>; hearing_url?: string; days_until?: number | null }>;
   };
 
   interface Comment {
@@ -222,6 +223,7 @@
   const hasHearings = $derived((data.upcoming_hearings ?? []).length > 0);
   const hasGovernorsDesk = $derived((data.governors_desk ?? []).length > 0);
   const hasCongressionalVotes = $derived((data.congressional_votes ?? []).length > 0);
+  const hasCongressionalHearings = $derived((data.congressional_hearings ?? []).length > 0);
 
   // Reference time for relative date calculations (uses data timestamp for consistency with mock data)
   const referenceTime = $derived(data.generated_at ? new Date(data.generated_at) : new Date());
@@ -233,7 +235,7 @@
       : []
   );
   const hasCityFocal = $derived(cityFocalMeetings.length > 0);
-  const hasFocalPoints = $derived(hasCommentPeriods || hasHearings || hasGovernorsDesk || hasCongressionalVotes || hasCityFocal);
+  const hasFocalPoints = $derived(hasCommentPeriods || hasHearings || hasGovernorsDesk || hasCongressionalVotes || hasCongressionalHearings || hasCityFocal);
 
   // --- Topic Classification & Filtering ---
 
@@ -250,6 +252,9 @@
     }
     for (const b of data.governors_desk ?? []) {
       entries.push({ id: b.bill_id, topics: classifyTopics(b.bill_name || b.bill_number || '', b.summary) });
+    }
+    for (const ch of data.congressional_hearings ?? []) {
+      entries.push({ id: ch.event_id, topics: classifyTopics(ch.title, ch.committee_name) });
     }
     for (const i of data.upcoming_items ?? []) {
       entries.push({ id: i.id || i.title, topics: classifyTopics(i.title, i.summary || i.description) });
@@ -294,6 +299,7 @@
   let filteredCommentPeriods = $derived((data.comment_periods ?? []).filter(p => topicsMatch(p.document_number)));
   let filteredHearings = $derived((data.upcoming_hearings ?? []).filter(h => topicsMatch(h.bill_id)));
   let filteredGovernorsDesk = $derived((data.governors_desk ?? []).filter(b => topicsMatch(b.bill_id)));
+  let filteredCongressionalHearings = $derived((data.congressional_hearings ?? []).filter(ch => topicsMatch(ch.event_id)));
   let filteredItems = $derived((data.upcoming_items ?? []).filter(i => topicsMatch(i.id || i.title)));
   let filteredOutcomes = $derived(data.recent_outcomes.filter(o => topicsMatch(o.id || o.title)));
 
@@ -398,6 +404,7 @@
     hearings: true,
     governorsDesk: true,
     congressionalVotes: true,
+    congressionalHearings: true,
     cityFocal: true,
   });
 
@@ -439,6 +446,10 @@
     }
     for (const b of data.governors_desk ?? []) {
       items.push({ title: b.bill_name || b.bill_number || b.bill_id, when: 'Awaiting signature', section: 'governorsDesk' });
+    }
+    for (const ch of data.congressional_hearings ?? []) {
+      const du = ch.days_until;
+      items.push({ title: ch.committee_name || ch.title, when: du === 0 ? 'Today' : du === 1 ? 'Tomorrow' : du != null ? `In ${du} days` : ch.hearing_date, section: 'congressionalHearings' });
     }
     return items;
   });
@@ -1352,6 +1363,63 @@ Keep it substantive but accessible (150-300 words). Reference the docket number.
                     {/if}
                   </div>
                 {/each}
+              </div>
+            {/each}
+          </div>
+        {/if}
+      </section>
+    {/if}
+
+    <!-- Congressional Hearings (Federal) -->
+    {#if hasCongressionalHearings}
+      <section class="feed-section" data-section="congressionalHearings">
+        <button class="section-header" onclick={() => toggle('congressionalHearings')}>
+          <span class="section-title">
+            Congressional Hearings
+            <span class="count-badge">{filteredCongressionalHearings.length}</span>
+          </span>
+          <span class="chevron" class:open={expanded.congressionalHearings}></span>
+        </button>
+        {#if expanded.congressionalHearings}
+          <div class="section-body">
+            <div class="section-hint">Upcoming committee hearings, meetings, and markups in Congress</div>
+            {#each filteredCongressionalHearings as hearing}
+              {@const hearingId = `congressional_hearing:${hearing.event_id}`}
+              <div class="card">
+                <CivicProcessBar level="federal" stage="comment" />
+                <div class="card-title">{hearing.title}</div>
+                <div class="card-meta">
+                  <span class="meta-date">{hearing.hearing_date}</span>
+                  {#if hearing.days_until != null}
+                    <span class="deadline-tag {hearing.days_until <= 1 ? 'deadline-urgent' : hearing.days_until <= 7 ? 'deadline-soon' : ''}">
+                      {#if hearing.days_until === 0}
+                        Today
+                      {:else if hearing.days_until === 1}
+                        Tomorrow
+                      {:else}
+                        In {hearing.days_until} days
+                      {/if}
+                    </span>
+                  {/if}
+                </div>
+                <div class="card-meta">
+                  <span class="chamber-tag">{hearing.chamber}</span>
+                  <span>{hearing.hearing_type}</span>
+                </div>
+                <div class="card-meta"><span>{hearing.committee_name}</span></div>
+                {#if hearing.location}
+                  <div class="card-meta"><span>{hearing.location}</span></div>
+                {/if}
+                {#if hearing.related_bills && hearing.related_bills.length > 0}
+                  <div class="card-meta related-bills">
+                    <span>Related: {hearing.related_bills.map(b => b.name || b).join(', ')}</span>
+                  </div>
+                {/if}
+                {#if hearing.hearing_url}
+                  <div class="card-meta">
+                    <a href={hearing.hearing_url} target="_blank" rel="noopener" class="hearing-link">View on Congress.gov</a>
+                  </div>
+                {/if}
               </div>
             {/each}
           </div>

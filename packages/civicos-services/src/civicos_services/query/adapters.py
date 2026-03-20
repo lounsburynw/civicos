@@ -406,6 +406,60 @@ class CongressionalVotesAdapter(CorpusAdapter):
         return results
 
 
+class CongressionalHearingsAdapter(CorpusAdapter):
+    corpus_name = "congressional_hearings"
+    supported_filters = {"query", "committee_code", "chamber", "hearing_date_start", "hearing_date_end"}
+
+    def search(self, storage, vectors, jurisdiction: str, query: str, limit: int, offset: int = 0, **filters) -> List[CivicResult]:
+        committee_code = filters.get("committee_code")
+        chamber = filters.get("chamber")
+        hearing_date_start = filters.get("hearing_date_start")
+        hearing_date_end = filters.get("hearing_date_end")
+
+        hearings = storage.get_congressional_hearings(
+            committee_code=committee_code,
+            chamber=chamber,
+            hearing_date_start=hearing_date_start,
+            hearing_date_end=hearing_date_end,
+            limit=offset + limit,
+        )
+
+        # Client-side text filter when query is a topic keyword
+        if query:
+            q_lower = query.lower()
+            hearings = [
+                h for h in hearings
+                if q_lower in (h.get("title", "") + " " + h.get("committee_name", "")).lower()
+            ]
+
+        results = []
+        for i, h in enumerate(hearings[offset:offset + limit]):
+            event_id = h.get("event_id", "")
+            committee = h.get("committee_name", "")
+            hearing_type = h.get("hearing_type", "Hearing")
+            location = f"{h.get('location_building', '')} {h.get('location_room', '')}".strip()
+
+            results.append(CivicResult(
+                type="congressional_hearing",
+                ref=self._make_ref("congressional_hearing", jurisdiction, event_id),
+                title=f"{committee} — {hearing_type}" if committee else h.get("title", ""),
+                date=h.get("hearing_date"),
+                summary=h.get("title", ""),
+                relevance=max(0.0, 1.0 - i * 0.03),
+                details={
+                    "chamber": h.get("chamber"),
+                    "hearing_type": hearing_type,
+                    "committee_name": committee,
+                    "committee_code": h.get("committee_code"),
+                    "location": location or None,
+                    "meeting_status": h.get("meeting_status"),
+                    "related_bills": h.get("related_bills"),
+                    "url": h.get("hearing_url"),
+                },
+            ))
+        return results
+
+
 class FederalAwardsAdapter(CorpusAdapter):
     corpus_name = "federal_awards"
     supported_filters = {"query"}
@@ -506,6 +560,7 @@ def _build_adapter_registry() -> Dict[str, CorpusAdapter]:
         OrdersAdapter,
         RulesAdapter,
         CongressionalVotesAdapter,
+        CongressionalHearingsAdapter,
         FederalAwardsAdapter,
     ]:
         instance = adapter_cls()

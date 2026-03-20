@@ -22801,3 +22801,25 @@ instead of going through CivicOS query methods.
 - Date filtering, committee filtering work correctly
 
 **Next P0 (session 2):** congressional_hearings — Wire into civic.upcoming, v2 search adapter, MCP tool, extension UX
+
+## Session: Congressional Hearings — Query + UX (Session 2 of 2)
+**Date:** 2026-03-19
+**Item:** congressional_hearings (P0)
+**Status:** DONE
+
+Wired 421 congressional hearings (from Session 1) into all query and UX layers:
+
+1. **v2 Search Adapter** (`adapters.py`) — `CongressionalHearingsAdapter` with client-side text filtering on title + committee name. Registered in adapter registry + CorpusName enum.
+2. **Upcoming Verb** (`verbs.py`) — `congressional_hearings` event type in `execute_upcoming()`. Returns hearings within `request.days` window. Verified: 50 upcoming hearings in next 30 days.
+3. **MCP Tool** (`registry.py`, `handlers.py`, `server.py`) — `get_congressional_hearings` tool with chamber, committee_code, topic, days_ahead filters. Formatted as markdown with committee, date, location, related bills, URL.
+4. **Extension UX** (`CivicReadOnlyPulse.svelte`) — "Congressional Hearings" section in pulse feed with date, committee, chamber, location, related bills, and Congress.gov links. Added to pulse data in `city_pulse` handler.
+5. **Pulse Data** (`handlers.py:city_pulse`) — Added congressional hearings block after congressional votes, fetching next 30 days of hearings.
+
+**Verified:**
+- Smoke tests: 20/20 pass
+- Search adapter: topic keyword filtering works ("health" → 1 result)
+- Upcoming verb: returns 50 hearings from real Postgres data
+- MCP handler: returns well-formatted markdown
+- Extension: builds cleanly
+
+**Next P0:** federal_server_deployment — Deploy country-united-states Modal server with full federal tool suite
