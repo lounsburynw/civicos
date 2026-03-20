@@ -487,6 +487,11 @@
         if (bill.bill_id) ids.push(`bill:${bill.bill_id}`);
       }
     }
+    if (p.congressional_hearings) {
+      for (const hearing of p.congressional_hearings) {
+        if (hearing.event_id) ids.push(`congressional_hearing:${hearing.event_id}`);
+      }
+    }
     return ids;
   }
 

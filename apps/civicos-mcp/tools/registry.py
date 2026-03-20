@@ -413,6 +413,19 @@ TOOL_DEFINITIONS: dict[str, ToolDefinition] = {
             },
         },
     },
+    "get_congressional_hearings": {
+        "description": "Get upcoming congressional committee hearings (House and Senate). Shows committee meetings, hearings, and markups with dates, locations, and related bills.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "chamber": {"type": "string", "enum": ["House", "Senate"], "description": "Filter by chamber"},
+                "committee_code": {"type": "string", "description": "Filter by committee code (e.g., 'hsif14', 'ssbk00')"},
+                "topic": {"type": "string", "description": "Filter hearings by topic keyword in title or committee name"},
+                "days_ahead": {"type": "integer", "default": 30, "description": "Days to look ahead (default 30)"},
+                "limit": {"type": "integer", "default": 20, "description": "Maximum results (default 20, max 50)"},
+            },
+        },
+    },
     "get_governors_desk": {
         "description": "Get bills awaiting governor's signature (Enrolled status). These represent a 12-day action window where constituent calls to the governor's office can influence whether a bill is signed or vetoed.",
         "inputSchema": {

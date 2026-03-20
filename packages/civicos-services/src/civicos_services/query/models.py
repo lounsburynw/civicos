@@ -36,6 +36,7 @@ class CorpusName(str, Enum):
     municipal_code = "municipal_code"
     packets = "packets"
     congressional_votes = "congressional_votes"
+    congressional_hearings = "congressional_hearings"
     federal_awards = "federal_awards"
 
 

@@ -679,6 +679,46 @@ def _legislation_pulse(
     except Exception as e:
         logger.error(f"Error fetching congressional votes: {e}")
 
+    # ── Congressional hearings (upcoming committee hearings) ──
+    try:
+        now_date = datetime.now().date()
+        end_date = now_date + timedelta(days=30)
+        ch_hearings = storage.get_congressional_hearings(
+            hearing_date_start=now_date.isoformat(),
+            hearing_date_end=end_date.isoformat(),
+            limit=20,
+        )
+        if ch_hearings:
+            congressional_hearings = []
+            for h in ch_hearings:
+                hearing_date = h.get("hearing_date", "")
+                date_str = hearing_date[:10] if hearing_date else ""
+                days_until = None
+                if date_str:
+                    try:
+                        h_date = datetime.strptime(date_str, "%Y-%m-%d").date()
+                        days_until = (h_date - now_date).days
+                    except ValueError:
+                        pass
+                location = f"{h.get('location_building', '')} {h.get('location_room', '')}".strip()
+                congressional_hearings.append({
+                    "event_id": h.get("event_id", ""),
+                    "chamber": h.get("chamber", ""),
+                    "hearing_date": date_str,
+                    "title": h.get("title", ""),
+                    "hearing_type": h.get("hearing_type", "Hearing"),
+                    "committee_name": h.get("committee_name", ""),
+                    "committee_code": h.get("committee_code", ""),
+                    "location": location or None,
+                    "meeting_status": h.get("meeting_status"),
+                    "related_bills": h.get("related_bills") or [],
+                    "hearing_url": h.get("hearing_url"),
+                    "days_until": days_until,
+                })
+            result["congressional_hearings"] = congressional_hearings
+    except Exception as e:
+        logger.error(f"Error fetching congressional hearings: {e}")
+
     # Clean up internal fields added during processing
     for b in bills:
         b.pop("_label", None)
@@ -3019,6 +3059,99 @@ def get_upcoming_hearings(
     except Exception as e:
         logger.error(f"Error in get_upcoming_hearings: {e}")
         return f"Error getting upcoming hearings: {str(e)}"
+
+
+def get_congressional_hearings(
+    civic: CivicClient,
+    jurisdiction: str,
+    validate_input: ValidateInput,
+    logger: Logger,
+    args: dict,
+) -> str:
+    """Get upcoming congressional committee hearings."""
+    chamber = args.get("chamber")
+    committee_code = args.get("committee_code")
+    topic = args.get("topic")
+    days_ahead = args.get("days_ahead", 30)
+    limit = min(args.get("limit", 20), 50)
+
+    try:
+        storage = civic._storage
+        now_date = datetime.now().date()
+        end_date = now_date + timedelta(days=days_ahead)
+
+        hearings = storage.get_congressional_hearings(
+            chamber=chamber,
+            committee_code=committee_code,
+            hearing_date_start=now_date.isoformat(),
+            hearing_date_end=end_date.isoformat(),
+            limit=limit * 3,  # Fetch extra for topic filtering
+        )
+
+        # Topic filter on title + committee_name
+        if topic and hearings:
+            topic_lower = topic.lower()
+            hearings = [
+                h for h in hearings
+                if topic_lower in (h.get("title", "") + " " + h.get("committee_name", "")).lower()
+            ]
+
+        hearings = hearings[:limit]
+
+        if not hearings:
+            qualifier = f" on '{topic}'" if topic else ""
+            chamber_q = f" ({chamber})" if chamber else ""
+            return f"No upcoming congressional hearings found{qualifier}{chamber_q} in the next {days_ahead} days."
+
+        result_parts = [
+            f"# Upcoming Congressional Hearings",
+            f"**{len(hearings)} hearings in next {days_ahead} days**",
+            "",
+        ]
+
+        for h in hearings:
+            hearing_date = h.get("hearing_date", "")
+            date_str = hearing_date[:10] if hearing_date else ""
+
+            # Calculate days until
+            days_until = ""
+            if date_str:
+                try:
+                    h_date = datetime.strptime(date_str, "%Y-%m-%d").date()
+                    delta = (h_date - now_date).days
+                    if delta == 0:
+                        days_until = " (TODAY)"
+                    elif delta == 1:
+                        days_until = " (tomorrow)"
+                    else:
+                        days_until = f" (in {delta} days)"
+                except ValueError:
+                    pass
+
+            result_parts.append(f"## {h.get('committee_name', 'Unknown Committee')}")
+            result_parts.append(f"- **{h.get('hearing_type', 'Hearing')}**: {h.get('title', '')}")
+            result_parts.append(f"- Date: {date_str}{days_until}")
+            result_parts.append(f"- Chamber: {h.get('chamber', '')}")
+
+            location = f"{h.get('location_building', '')} {h.get('location_room', '')}".strip()
+            if location:
+                result_parts.append(f"- Location: {location}")
+
+            related_bills = h.get("related_bills") or []
+            if related_bills:
+                bills_str = ", ".join(b.get("name", str(b)) if isinstance(b, dict) else str(b) for b in related_bills[:5])
+                result_parts.append(f"- Related bills: {bills_str}")
+
+            if h.get("hearing_url"):
+                result_parts.append(f"- URL: {h['hearing_url']}")
+
+            result_parts.append("")
+
+        return "\n".join(result_parts)
+
+    except Exception as e:
+        logger.error(f"Error in get_congressional_hearings: {e}")
+        return f"Error getting congressional hearings: {str(e)}"
 
 
 def get_governors_desk(
