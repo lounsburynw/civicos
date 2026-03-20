@@ -645,6 +645,40 @@ def _legislation_pulse(
     except Exception as e:
         logger.error(f"Error fetching governor's desk bills: {e}")
 
+    # ── Congressional votes (recent roll call votes by local reps) ──
+    try:
+        # Get recent votes for all tracked members (limit to most recent)
+        all_votes = storage.get_congressional_votes(limit=50)
+        if all_votes:
+            # Group by member, show most recent per member
+            member_votes: dict[str, list] = {}
+            for v in all_votes:
+                bio = v.get("bioguide_id", "")
+                if bio not in member_votes:
+                    member_votes[bio] = []
+                if len(member_votes[bio]) < 5:
+                    member_votes[bio].append({
+                        "vote_id": v.get("vote_id", ""),
+                        "member_name": v.get("member_name", ""),
+                        "member_party": v.get("member_party", ""),
+                        "chamber": v.get("chamber", ""),
+                        "vote_position": v.get("vote_position", ""),
+                        "bill_id": v.get("bill_id", ""),
+                        "bill_title": v.get("bill_title", ""),
+                        "vote_question": v.get("vote_question", ""),
+                        "vote_date": str(v["vote_date"]) if v.get("vote_date") else None,
+                        "vote_result": v.get("vote_result", ""),
+                    })
+            # Flatten to a list of recent votes across all members
+            congressional_votes = []
+            for bio_votes in member_votes.values():
+                congressional_votes.extend(bio_votes)
+            # Sort by date descending
+            congressional_votes.sort(key=lambda v: v.get("vote_date") or "", reverse=True)
+            result["congressional_votes"] = congressional_votes[:30]
+    except Exception as e:
+        logger.error(f"Error fetching congressional votes: {e}")
+
     # Clean up internal fields added during processing
     for b in bills:
         b.pop("_label", None)
@@ -1680,6 +1714,100 @@ def get_voting_record(
         return f"Official not found: {official_name}"
     except Exception as e:
         return f"Error getting voting record: {str(e)}"
+
+
+def get_congressional_votes(
+    civic: CivicClient,
+    jurisdiction: str,
+    validate_input: ValidateInput,
+    logger: Logger,
+    args: dict,
+) -> str:
+    """Get congressional voting records for specific members or bills."""
+    member_name = args.get("member_name", "")
+    bill_id = args.get("bill_id")
+    topic = args.get("topic")
+    chamber = args.get("chamber")
+    limit = min(args.get("limit", 20), 50)
+
+    storage = civic._storage
+
+    # Resolve member_name to bioguide_id by searching votes
+    bioguide_id = None
+    if member_name:
+        # Look up by searching existing votes for matching member_name
+        sample = storage.get_congressional_votes(limit=500)
+        name_lower = member_name.strip().lower()
+        for v in sample:
+            vm = (v.get("member_name") or "").lower()
+            if name_lower in vm or vm.endswith(name_lower):
+                bioguide_id = v.get("bioguide_id")
+                member_name = v.get("member_name")  # Normalize to full name
+                break
+        if not bioguide_id:
+            return f"No congressional vote records found for '{member_name}'. Available members can be found by calling this tool without a member_name filter."
+
+    try:
+        votes = storage.get_congressional_votes(
+            bioguide_id=bioguide_id,
+            bill_id=bill_id,
+            chamber=chamber,
+            limit=limit * 3,  # Fetch extra for topic filtering
+        )
+
+        # Topic filter on bill_title/vote_question
+        if topic:
+            t_lower = topic.lower()
+            votes = [
+                v for v in votes
+                if t_lower in (v.get("bill_title", "") + " " + v.get("vote_question", "")).lower()
+            ]
+
+        votes = votes[:limit]
+
+        if not votes:
+            parts = []
+            if member_name:
+                parts.append(f"member '{member_name}'")
+            if bill_id:
+                parts.append(f"bill '{bill_id}'")
+            if topic:
+                parts.append(f"topic '{topic}'")
+            return f"No congressional votes found for {', '.join(parts) or 'these filters'}."
+
+        # Build summary
+        result_parts = ["# Congressional Voting Record", ""]
+
+        if bioguide_id and votes:
+            v0 = votes[0]
+            result_parts.append(f"**{v0.get('member_name', member_name)}** ({v0.get('member_party', '?')}-{v0.get('member_state', '?')}, {v0.get('chamber', '')})")
+            result_parts.append("")
+
+        # Tally
+        yea = sum(1 for v in votes if v.get("vote_position") == "Yea")
+        nay = sum(1 for v in votes if v.get("vote_position") == "Nay")
+        other = len(votes) - yea - nay
+        result_parts.append(f"**Showing {len(votes)} votes** — Yea: {yea}, Nay: {nay}, Other: {other}")
+        result_parts.append("")
+
+        for v in votes:
+            pos = v.get("vote_position", "?")
+            pos_icon = {"Yea": "Y", "Nay": "N", "Not Voting": "-", "Present": "P"}.get(pos, "?")
+            bill = v.get("bill_id") or ""
+            title = (v.get("bill_title") or v.get("vote_question") or "")[:70]
+            date = v.get("vote_date", "")
+            result = v.get("vote_result", "")
+            line = f"- [{pos_icon}] **{bill}** {title}"
+            if date:
+                line += f" ({date})"
+            if result:
+                line += f" — {result}"
+            result_parts.append(line)
+
+        return "\n".join(result_parts)
+
+    except Exception as e:
+        return f"Error getting congressional votes: {str(e)}"
 
 
 def get_decision_context(

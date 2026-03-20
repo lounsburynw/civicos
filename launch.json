@@ -804,7 +804,7 @@
       {
         "name": "congressional_votes_query",
         "description": "Wire congressional votes into v2 query layer, MCP tool, and extension. Enable 'How did my representative vote on [bill]?' queries.",
-        "status": "not_started",
+        "status": "done",
         "priority": 0,
         "phase": "1",
         "source": "multi-scale participation \u2014 federal data (plan: session 4)",
@@ -820,7 +820,7 @@
         "name": "congressional_hearings",
         "description": "Ingest congressional committee hearings from Congress.gov API. Store as events, wire into civic.upcoming alongside comment periods. Federal equivalent of city council meetings.",
         "status": "not_started",
-        "priority": 1,
+        "priority": 0,
         "phase": "1",
         "source": "multi-scale participation \u2014 federal data (plan: sessions 5-6)",
         "files": [

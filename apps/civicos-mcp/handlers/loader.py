@@ -35,6 +35,7 @@ FEDERAL_TOOLS = frozenset([
     "search_federal_rules",           # Search federal rulemaking documents
     "draft_federal_comment",          # Draft a public comment for federal rulemaking
     "prepare_federal_comment",        # Get submission context for federal comment
+    "get_congressional_votes",        # How members of Congress voted on bills
 ])
 
 STATE_TOOLS = frozenset([

@@ -140,6 +140,7 @@ async def startup():
         "neighborhood_report": handlers.neighborhood_report,
         # Council/voting tools
         "get_voting_record": handlers.get_voting_record,
+        "get_congressional_votes": handlers.get_congressional_votes,
         "get_decision_context": handlers.get_decision_context,
         # Legislation & Executive Order tools
         "search_legislation": handlers.search_legislation,

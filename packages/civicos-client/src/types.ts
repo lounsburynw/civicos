@@ -27,6 +27,8 @@ export interface CityPulseData {
   upcoming_hearings?: LegislativeHearing[];
   /** Bills on the governor's desk (action window) */
   governors_desk?: GovernorsDeskBill[];
+  /** Recent congressional votes by local representatives */
+  congressional_votes?: CongressionalVote[];
 }
 
 export interface PulseMeeting {
@@ -102,6 +104,19 @@ export interface GovernorsDeskBill {
   bill_name?: string;
   summary?: string;
   enrolled_date?: string;
+}
+
+export interface CongressionalVote {
+  vote_id: string;
+  member_name: string;
+  member_party?: string;
+  chamber: string;
+  vote_position: string;
+  bill_id?: string;
+  bill_title?: string;
+  vote_question?: string;
+  vote_date?: string;
+  vote_result?: string;
 }
 
 // === Decision Detail (from /decision-detail) ===

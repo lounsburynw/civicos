@@ -42,6 +42,7 @@ from .handlers import (
     neighborhood_report,
     # Council handlers
     get_voting_record,
+    get_congressional_votes,
     get_decision_context,
     decision_detail,
     # Financial handlers
@@ -96,6 +97,7 @@ __all__ = [
     "compare_zip_codes",
     "neighborhood_report",
     "get_voting_record",
+    "get_congressional_votes",
     "get_decision_context",
     "decision_detail",
     "get_funding_flow",

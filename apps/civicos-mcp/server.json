@@ -87,6 +87,10 @@
       "description": "Get voting history for council members"
     },
     {
+      "name": "get_congressional_votes",
+      "description": "Get how members of Congress voted on specific bills or topics"
+    },
+    {
       "name": "get_decision_context",
       "description": "Get full context around a specific council decision"
     },

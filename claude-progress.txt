@@ -22756,3 +22756,22 @@ instead of going through CivicOS query methods.
 - Updated memory: federation architecture intent (single DB is bootstrap, not target)
 
 **New P0:** federal_funding_pipeline — USAspending bulk ingest, highest impact-to-effort ratio
+
+## Session — 2026-03-19 — Congressional Votes Query + UX
+
+**Completed:** congressional_votes_query (P0) — Wire congressional votes into all three surfaces.
+
+**Changes:**
+1. **v2 search adapter** (`CongressionalVotesAdapter`) — Added to `packages/civicos-services/src/civicos_services/query/adapters.py`. Supports bill ID detection (HR3424 → bill_id filter), topic keyword filter on bill_title/vote_question, bioguide_id/chamber filters. Also added `FederalAwardsAdapter` (was missing).
+2. **MCP tool** (`get_congressional_votes`) — Added to registry, handlers, loader, server.py, modal_mcp.py. Accepts member_name (fuzzy match), bill_id, topic, chamber. Returns formatted voting record with tally.
+3. **Extension UX** — "How They Voted" section in CivicReadOnlyPulse.svelte. Groups votes by member, shows party/chamber tags, vote position badges (Yea/Nay/NV), bill ID, title, date. Added CongressionalVote type to client types.ts.
+4. **Pulse API** — Added congressional_votes to _legislation_pulse() in handlers.py so federal pulse includes recent votes grouped by member.
+5. **Models** — Added congressional_votes and federal_awards to CorpusName enum in query models.
+
+**Verified:**
+- Smoke tests pass (20/20)
+- Extension builds clean
+- Adapter returns correct results for bill ID, bioguide_id, topic queries
+- MCP handler formats voting records correctly
+
+**Next P0:** congressional_hearings — Ingest congressional committee hearings from Congress.gov API
