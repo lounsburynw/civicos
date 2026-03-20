@@ -766,6 +766,21 @@ def expand_federal_rules_to_chunks(rules: list[dict]) -> list[dict]:
         if rule.get("comments_close_on"):
             parts.append(f"Comments close: {rule['comments_close_on']}")
 
+        # Local relevance context for semantic search
+        relevance_reasons = rule.get("relevance_reasons") or []
+        if relevance_reasons:
+            # Extract human-readable reasons
+            readable = []
+            for r in relevance_reasons:
+                if r.startswith("agency_topic:"):
+                    readable.append(r.split(":", 1)[1].replace("_", " "))
+                elif r.startswith("geo:"):
+                    readable.append(r.split(":", 1)[1])
+                elif r.startswith("cfr:"):
+                    readable.append(f"CFR Title {r.split(':', 1)[1]}")
+            if readable:
+                parts.append(f"Local relevance: {', '.join(readable)}")
+
         text = "\n".join(parts)
 
         # Fallback: if no title/abstract/topics, use document number as minimal text

@@ -6330,8 +6330,11 @@ class PostgresBackend:
                 self._return_connection(conn)
                 return 0
 
+            # Score local relevance for each rule
+            from civicos._internal.legal.relevance import score_federal_rule
             values = []
             for rule in valid_rules:
+                score, reasons = score_federal_rule(rule)
                 values.append((
                     rule.get("document_number"),
                     rule.get("title"),
@@ -6346,6 +6349,8 @@ class PostgresBackend:
                     json.dumps(rule.get("docket_ids", [])),
                     rule.get("document_type", "proposed_rule"),
                     json.dumps(rule.get("topics", [])),
+                    score,
+                    json.dumps(reasons) if reasons else None,
                 ))
 
             if values:
@@ -6356,7 +6361,7 @@ class PostgresBackend:
                         document_number, title, abstract, agency_names,
                         publication_date, comments_close_on, comment_url,
                         html_url, pdf_url, regulation_id_numbers, docket_ids,
-                        document_type, topics
+                        document_type, topics, local_relevance_score, relevance_reasons
                     ) VALUES %s
                     ON CONFLICT (document_number) DO UPDATE SET
                         title = EXCLUDED.title,
@@ -6365,10 +6370,12 @@ class PostgresBackend:
                         comments_close_on = EXCLUDED.comments_close_on,
                         comment_url = EXCLUDED.comment_url,
                         document_type = EXCLUDED.document_type,
-                        topics = EXCLUDED.topics
+                        topics = EXCLUDED.topics,
+                        local_relevance_score = EXCLUDED.local_relevance_score,
+                        relevance_reasons = EXCLUDED.relevance_reasons
                     """,
                     values,
-                    template="(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
+                    template="(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
                     page_size=500,
                 )
 
@@ -6442,7 +6449,7 @@ class PostgresBackend:
                     if isinstance(rule[key], (datetime, date)):
                         rule[key] = rule[key].isoformat()
             # Parse JSONB fields that may be strings
-            for key in ["agency_names", "regulation_id_numbers", "docket_ids", "topics"]:
+            for key in ["agency_names", "regulation_id_numbers", "docket_ids", "topics", "relevance_reasons"]:
                 if key in rule and isinstance(rule[key], str):
                     try:
                         rule[key] = json.loads(rule[key])
@@ -6519,7 +6526,7 @@ class PostgresBackend:
                 if key in rule and rule[key] is not None:
                     if isinstance(rule[key], (datetime, date)):
                         rule[key] = rule[key].isoformat()
-            for key in ["agency_names", "regulation_id_numbers", "docket_ids", "topics"]:
+            for key in ["agency_names", "regulation_id_numbers", "docket_ids", "topics", "relevance_reasons"]:
                 if key in rule and isinstance(rule[key], str):
                     try:
                         rule[key] = json.loads(rule[key])

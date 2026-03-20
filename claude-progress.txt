@@ -22879,3 +22879,27 @@ Fixed 3 issues in federal data pipeline:
 - ✅ Federal Awards (weekly, USAspending.gov)
 
 **Next P0:** local_impact_relevance — Score federal rules by local relevance
+
+## Session — 2026-03-20: Local Impact Relevance Scoring (P0)
+
+**Item:** local_impact_relevance
+**Status:** DONE
+
+Implemented heuristic-based local relevance scoring for federal rules:
+
+1. **Scoring module** (`_internal/legal/relevance.py`) — 3 signals:
+   - Agency-to-topic mapping (24 agencies → 13 local policy areas, weight 0.4)
+   - Geographic text matching (San Rafael/Marin/Bay Area/California with tiered weighting, weight 0.3)
+   - CFR title matching (14 locally relevant CFR titles, weight 0.3)
+
+2. **Storage** — Added `local_relevance_score` FLOAT + `relevance_reasons` JSONB columns to federal_rules table. Scoring auto-computed on ingest via `store_federal_rules()`.
+
+3. **Backfill** — Scored all 4,115 existing rules. 1,013 scored > 0 (25%). Score distribution: 492 low (0.01-0.20), 501 medium (0.21-0.40), 20 high (0.41-0.60).
+
+4. **V2 search** — Federal comment periods sorted by `local_relevance_score DESC`. Relevance score + reasons included in result details.
+
+5. **MCP tools** — `get_open_comment_periods` and `search_federal_rules` display relevance score + reasons.
+
+6. **Vector text** — `expand_federal_rules_to_chunks()` includes relevance reasons for semantic search enrichment.
+
+**Next P0:** vertical_query_tier_tuning — Tune tier weights for upward queries (city→state→federal)

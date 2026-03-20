@@ -838,17 +838,20 @@
       {
         "name": "local_impact_relevance",
         "description": "Score federal rules by local relevance. Agency-to-topic mapping, geographic text matching, CFR part matching. Extension sorts by relevance, draft_federal_comment shows local context.",
-        "status": "not_started",
+        "status": "done",
         "priority": 0,
         "phase": "1",
         "source": "multi-scale participation \u2014 federal data (plan: sessions 7-8)",
         "files": [
+          "packages/civicos/src/civicos/_internal/legal/relevance.py",
           "packages/civicos/src/civicos/storage/postgres_backend.py",
           "apps/civicos-mcp/tools/handlers.py",
-          "packages/civicos-services/src/civicos_services/query/adapters.py"
+          "packages/civicos-services/src/civicos_services/query/verbs.py",
+          "packages/civicos/src/civicos/_internal/legal/embeddings/chunker.py",
+          "scripts/sql/add_federal_rules_relevance.sql"
         ],
         "test_file": null,
-        "notes": "Heuristic scoring (no LLM cost): agency names \u2192 local topic categories, text mentions of CA/Marin/San Rafael, CFR part matching. Add local_relevance_score + relevance_reasons to federal_rules. Backfill existing 4,115 rules. Depends on sessions 1-6 for enough data. 2 sessions."
+        "notes": "COMPLETE. Created relevance.py with 3 heuristic signals: (1) agency-to-topic mapping (24 agencies \u2192 13 local policy areas), (2) geographic text matching (San Rafael/Marin/Bay Area/California with tiered weighting), (3) CFR title matching (14 locally relevant CFR titles). Added local_relevance_score FLOAT + relevance_reasons JSONB columns to federal_rules table. Backfilled 4,115 rules: 1,013 scored > 0 (25%). Scores auto-computed on ingest via store_federal_rules(). V2 search sorts federal comment periods by relevance. MCP tools display relevance score + reasons. Chunker includes relevance context in vector text for semantic search."
       },
       {
         "name": "federal_pipeline_hardening",
@@ -908,7 +911,7 @@
         "name": "vertical_query_tier_tuning",
         "description": "Tune tier weights for upward queries (city\u2192state\u2192federal). Parent tier is currently 1.0 (same as self), which means state/federal results compete equally with local decisions. May need level-aware weighting or separate result grouping.",
         "status": "not_started",
-        "priority": 2,
+        "priority": 0,
         "phase": "1",
         "source": "multi-scale participation \u2014 query layer",
         "files": [

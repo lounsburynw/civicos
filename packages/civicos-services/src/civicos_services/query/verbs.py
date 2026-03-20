@@ -631,8 +631,18 @@ async def execute_upcoming(
                                     "topics": rule.get("topics") or [],
                                     "publication_date": str(rule["publication_date"]) if rule.get("publication_date") else None,
                                     "level": "federal",
+                                    "local_relevance_score": rule.get("local_relevance_score", 0.0),
+                                    "relevance_reasons": rule.get("relevance_reasons") or [],
                                 },
                             ))
+                        # Sort federal comment periods by relevance (highest first)
+                        federal_start = len(results) - len(federal_rules)
+                        federal_results = results[federal_start:]
+                        federal_results.sort(
+                            key=lambda r: r.details.get("local_relevance_score", 0.0),
+                            reverse=True,
+                        )
+                        results[federal_start:] = federal_results
                     except Exception:
                         pass  # Federal rules not available in this backend
 
