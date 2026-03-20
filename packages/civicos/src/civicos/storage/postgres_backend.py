@@ -6558,6 +6558,68 @@ class PostgresBackend:
 
         return count
 
+    def update_federal_rules_relevance(
+        self,
+        updates: List[Dict[str, Any]],
+    ) -> int:
+        """
+        Batch update relevance scores and summaries for federal rules.
+
+        Used by the vector+LLM relevance pipeline to write back results.
+
+        Args:
+            updates: List of dicts with:
+                - document_number (required)
+                - local_relevance_score (float 0-1)
+                - relevance_reasons (list of strings)
+                - local_relevance_summary (str, optional)
+
+        Returns:
+            Number of rules updated
+        """
+        if not updates:
+            return 0
+
+        conn = self._get_connection()
+        cursor = conn.cursor()
+
+        try:
+            updated = 0
+            for update in updates:
+                doc_num = update.get("document_number")
+                if not doc_num:
+                    continue
+
+                score = update.get("local_relevance_score")
+                reasons = update.get("relevance_reasons")
+                summary = update.get("local_relevance_summary")
+
+                cursor.execute(
+                    """
+                    UPDATE federal_rules
+                    SET local_relevance_score = %s,
+                        relevance_reasons = %s,
+                        local_relevance_summary = %s
+                    WHERE document_number = %s
+                    """,
+                    (
+                        score,
+                        json.dumps(reasons) if reasons else None,
+                        summary,
+                        doc_num,
+                    ),
+                )
+                updated += cursor.rowcount
+
+            conn.commit()
+            return updated
+
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            self._return_connection(conn)
+
     # ========== Legislative Events Methods (Hearings, Votes, Signings) ==========
 
     def store_legislative_events(

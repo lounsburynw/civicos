@@ -1229,6 +1229,11 @@ def fetch_federal_rules(
         )
         logger.info(f"  Vectors indexed: {vector_result.get('total_indexed', 0)}")
 
+        # Run vector+LLM relevance scoring after indexing
+        logger.info("[RULES] Running vector+LLM relevance scoring...")
+        llm_result = score_federal_rules_llm.remote(dry_run=dry_run)
+        logger.info(f"  LLM scoring: {llm_result.get('candidates_scored', 0)} rules scored")
+
     elapsed = time.time() - start_time
     result = {
         "task": "federal_rules",
@@ -1243,6 +1248,60 @@ def fetch_federal_rules(
     }
     if vector_result:
         result["vector_result"] = vector_result
+    return result
+
+
+# =============================================================================
+# Vector+LLM Relevance Scoring for Federal Rules
+# =============================================================================
+
+@app.function(
+    image=civic_image,
+    secrets=[modal.Secret.from_name("civic-db")],
+    memory=4096,
+    timeout=3600,  # 1 hour (LLM calls)
+)
+def score_federal_rules_llm(
+    jurisdiction: str = "city-san-rafael",
+    dry_run: bool = False,
+) -> dict:
+    """Score federal rules using vector similarity + LLM confirmation pipeline.
+
+    3-stage pipeline:
+    1. Build policy vectors from municipal_code embeddings
+    2. Retrieve candidate federal rules via pgvector cosine similarity
+    3. Score candidates with gpt-4o-mini for local relevance + summary
+
+    Args:
+        jurisdiction: Source jurisdiction for policy vectors
+        dry_run: If True, run but don't write results
+    """
+    import logging
+    import os
+
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+    logger = logging.getLogger(__name__)
+
+    from civicos.storage.postgres_backend import PostgresBackend
+    from civicos.storage.pgvector_backend import PgVectorBackend
+    from civicos._internal.legal.vector_relevance import run_vector_llm_pipeline
+
+    database_url = os.environ.get("DATABASE_URL")
+    if not database_url:
+        raise ValueError("DATABASE_URL not set")
+
+    backend = PostgresBackend(database_url)
+    vector_backend = PgVectorBackend(database_url)
+
+    result = run_vector_llm_pipeline(
+        storage_backend=backend,
+        pgvector_backend=vector_backend,
+        jurisdiction_id=jurisdiction,
+        federal_jurisdiction="federal-US",
+        dry_run=dry_run,
+    )
+
+    logger.info(f"[LLM-RELEVANCE] Pipeline complete: {result}")
     return result
 
 
@@ -5203,6 +5262,7 @@ def main(
     agenda: bool = False,
     decisions: bool = False,
     vectors: bool = False,
+    score_rules: bool = False,
     refresh: bool = False,
     force: bool = False,
     jurisdiction: str = "city-san-rafael",
@@ -5331,9 +5391,10 @@ def main(
     run_decisions = decisions  # Explicitly not in --all (weekly only)
     run_videos = videos  # Not in --all (YouTube jurisdictions need explicit flag)
     run_vectors = all or vectors
+    run_score_rules = score_rules  # Not in --all (explicit or auto after fetch)
     run_refresh = refresh  # Not in --all (explicit only)
 
-    if not (run_municipal or run_legislation or run_executive_orders or run_federal_programs or run_federal_rules or run_federal_awards or run_legislative_events or run_meetings or run_issues or run_elections or run_elected_officials or run_videos or run_transcripts or run_chunks or run_agenda or run_decisions or run_vectors or run_refresh):
+    if not (run_municipal or run_legislation or run_executive_orders or run_federal_programs or run_federal_rules or run_federal_awards or run_legislative_events or run_meetings or run_issues or run_elections or run_elected_officials or run_videos or run_transcripts or run_chunks or run_agenda or run_decisions or run_vectors or run_score_rules or run_refresh):
         print("No tasks specified. Use --all, --municipal, --legislation, --executive-orders, --federal-programs, --federal-rules, --federal-awards, --legislative-events, --meetings, --issues, --elections, --elected-officials, --videos, --transcripts, --chunks, --agenda, --decisions, --vectors, or --refresh")
         print("Use --stats-only to check current state")
         return
@@ -5475,6 +5536,14 @@ def main(
             auto_index=auto_index,
         )
         handles.append(("federal_rules", handle))
+
+    if run_score_rules:
+        print("Spawning federal rules LLM relevance scoring...")
+        handle = score_federal_rules_llm.spawn(
+            jurisdiction=jurisdiction,
+            dry_run=dry_run,
+        )
+        handles.append(("score_rules", handle))
 
     if run_federal_awards:
         print("Spawning federal awards fetch...")
