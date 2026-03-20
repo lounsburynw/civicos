@@ -340,6 +340,106 @@ class PacketsAdapter(CorpusAdapter):
         return results
 
 
+class CongressionalVotesAdapter(CorpusAdapter):
+    corpus_name = "congressional_votes"
+    supported_filters = {"query", "bioguide_id", "bill_id", "chamber"}
+
+    def search(self, storage, vectors, jurisdiction: str, query: str, limit: int, offset: int = 0, **filters) -> List[CivicResult]:
+        bioguide_id = filters.get("bioguide_id")
+        bill_id = filters.get("bill_id")
+        chamber = filters.get("chamber")
+
+        # If query looks like a bill ID (e.g., "HR3424", "S 1947"), treat it as bill_id filter
+        if query and not bill_id:
+            q_upper = query.strip().upper().replace(".", "").replace(" ", "")
+            if q_upper.startswith(("HR", "S", "HRES", "SRES", "HJRES", "SJRES", "HCONRES", "SCONRES")):
+                bill_id = q_upper
+
+        votes = storage.get_congressional_votes(
+            bioguide_id=bioguide_id,
+            bill_id=bill_id,
+            chamber=chamber,
+            limit=offset + limit,
+        )
+
+        # Client-side text filter when query is a topic keyword (not a bill ID)
+        if query and not bill_id:
+            q_lower = query.lower()
+            votes = [
+                v for v in votes
+                if q_lower in (v.get("bill_title", "") + " " + v.get("vote_question", "")).lower()
+            ]
+
+        results = []
+        for i, v in enumerate(votes[offset:offset + limit]):
+            vote_id = v.get("vote_id", "")
+            member = v.get("member_name", v.get("bioguide_id", ""))
+            position = v.get("vote_position", "")
+            bill_title = v.get("bill_title", "")
+            vote_question = v.get("vote_question", "")
+
+            title_parts = []
+            if member:
+                title_parts.append(member)
+            title_parts.append(f"voted {position}")
+            if bill_title:
+                title_parts.append(f"on {bill_title[:60]}")
+
+            results.append(CivicResult(
+                type="congressional_vote",
+                ref=self._make_ref("congressional_vote", jurisdiction, vote_id),
+                title=" ".join(title_parts),
+                date=v.get("vote_date"),
+                summary=vote_question or bill_title,
+                relevance=max(0.0, 1.0 - i * 0.03),
+                details={
+                    "vote_position": position,
+                    "member_name": member,
+                    "member_party": v.get("member_party"),
+                    "chamber": v.get("chamber"),
+                    "bill_id": v.get("bill_id"),
+                    "bill_title": bill_title,
+                    "roll_call_number": v.get("roll_call_number"),
+                    "vote_result": v.get("vote_result"),
+                },
+            ))
+        return results
+
+
+class FederalAwardsAdapter(CorpusAdapter):
+    corpus_name = "federal_awards"
+    supported_filters = {"query"}
+
+    def search(self, storage, vectors, jurisdiction: str, query: str, limit: int, offset: int = 0, **filters) -> List[CivicResult]:
+        awards = storage.get_federal_awards(jurisdiction_id=jurisdiction, limit=offset + limit)
+
+        if query:
+            q_lower = query.lower()
+            awards = [
+                a for a in awards
+                if q_lower in (a.get("description", "") + " " + a.get("awarding_agency_name", "")).lower()
+            ]
+
+        results = []
+        for i, a in enumerate(awards[offset:offset + limit]):
+            amount_cents = a.get("total_obligation_cents", 0)
+            amount_dollars = amount_cents / 100.0 if amount_cents else 0.0
+            results.append(CivicResult(
+                type="federal_award",
+                ref=self._make_ref("federal_award", jurisdiction, a.get("award_id", "")),
+                title=a.get("description", "")[:100] or a.get("award_id", ""),
+                date=a.get("start_date"),
+                summary=f"{a.get('awarding_agency_name', '')} — ${amount_dollars:,.0f}",
+                relevance=max(0.0, 1.0 - i * 0.05),
+                details={
+                    "amount": amount_dollars,
+                    "agency": a.get("awarding_agency_name"),
+                    "cfda_number": a.get("cfda_number"),
+                },
+            ))
+        return results
+
+
 class OrdersAdapter(CorpusAdapter):
     corpus_name = "orders"
     supported_filters = {"query"}
@@ -405,6 +505,8 @@ def _build_adapter_registry() -> Dict[str, CorpusAdapter]:
         PacketsAdapter,
         OrdersAdapter,
         RulesAdapter,
+        CongressionalVotesAdapter,
+        FederalAwardsAdapter,
     ]:
         instance = adapter_cls()
         adapters[instance.corpus_name] = instance

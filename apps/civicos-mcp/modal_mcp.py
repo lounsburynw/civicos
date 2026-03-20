@@ -271,6 +271,7 @@ class MCPServer:
             "neighborhood_report": handlers.neighborhood_report,
             # Council/Voting Tools (city level)
             "get_voting_record": handlers.get_voting_record,
+            "get_congressional_votes": handlers.get_congressional_votes,
             "get_decision_context": handlers.get_decision_context,
             "decision_detail": handlers.decision_detail,
             # Legislation & Executive Order Tools (federal/state/city)

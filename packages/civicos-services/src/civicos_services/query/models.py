@@ -35,6 +35,8 @@ class CorpusName(str, Enum):
     orders = "orders"
     municipal_code = "municipal_code"
     packets = "packets"
+    congressional_votes = "congressional_votes"
+    federal_awards = "federal_awards"
 
 
 class SearchMode(str, Enum):

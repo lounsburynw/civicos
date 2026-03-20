@@ -127,6 +127,16 @@
     return text.slice(0, max).replace(/\s+\S*$/, '') + '...';
   }
 
+  function groupVotesByMember(votes: Array<{ member_name: string; [key: string]: unknown }>): Record<string, typeof votes> {
+    const groups: Record<string, typeof votes> = {};
+    for (const v of votes) {
+      const name = v.member_name || 'Unknown';
+      if (!groups[name]) groups[name] = [];
+      groups[name].push(v);
+    }
+    return groups;
+  }
+
   function composeLegislationContext(item: { id?: string; title: string; meeting_title?: string; status?: string; summary?: string; description?: string; official_url?: string }): string {
     const today = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
     const source = jurisdiction || level || 'legislation';
@@ -211,6 +221,7 @@
   const hasCommentPeriods = $derived((data.comment_periods ?? []).length > 0);
   const hasHearings = $derived((data.upcoming_hearings ?? []).length > 0);
   const hasGovernorsDesk = $derived((data.governors_desk ?? []).length > 0);
+  const hasCongressionalVotes = $derived((data.congressional_votes ?? []).length > 0);
 
   // Reference time for relative date calculations (uses data timestamp for consistency with mock data)
   const referenceTime = $derived(data.generated_at ? new Date(data.generated_at) : new Date());
@@ -222,7 +233,7 @@
       : []
   );
   const hasCityFocal = $derived(cityFocalMeetings.length > 0);
-  const hasFocalPoints = $derived(hasCommentPeriods || hasHearings || hasGovernorsDesk || hasCityFocal);
+  const hasFocalPoints = $derived(hasCommentPeriods || hasHearings || hasGovernorsDesk || hasCongressionalVotes || hasCityFocal);
 
   // --- Topic Classification & Filtering ---
 
@@ -386,6 +397,7 @@
     commentPeriods: true,
     hearings: true,
     governorsDesk: true,
+    congressionalVotes: true,
     cityFocal: true,
   });
 
@@ -1301,6 +1313,45 @@ Keep it substantive but accessible (150-300 words). Reference the docket number.
                     {#if activeProviderName}<span class="ai-response-provider">via {activeProviderName}</span>{/if}
                   </div>
                 {/if}
+              </div>
+            {/each}
+          </div>
+        {/if}
+      </section>
+    {/if}
+
+    <!-- How They Voted (Congressional) -->
+    {#if hasCongressionalVotes}
+      <section class="feed-section" data-section="congressionalVotes">
+        <button class="section-header" onclick={() => toggle('congressionalVotes')}>
+          <span class="section-title">
+            How They Voted
+            <span class="count-badge">{(data.congressional_votes ?? []).length}</span>
+          </span>
+          <span class="chevron" class:open={expanded.congressionalVotes}></span>
+        </button>
+        {#if expanded.congressionalVotes}
+          <div class="section-body">
+            <div class="section-hint">Recent roll call votes by your representatives in Congress</div>
+            {#each Object.entries(groupVotesByMember(data.congressional_votes ?? [])) as [memberName, memberVotes]}
+              <div class="votes-member-group">
+                <div class="votes-member-name">
+                  {memberName}
+                  {#if memberVotes[0]?.member_party}
+                    <span class="party-tag party-{memberVotes[0].member_party?.charAt(0)}">{memberVotes[0].member_party}</span>
+                  {/if}
+                  <span class="chamber-tag">{memberVotes[0]?.chamber}</span>
+                </div>
+                {#each memberVotes.slice(0, 5) as vote}
+                  <div class="vote-row">
+                    <span class="vote-position vote-{vote.vote_position.toLowerCase().replace(/\s+/g, '-')}">{vote.vote_position === 'Not Voting' ? 'NV' : vote.vote_position}</span>
+                    <span class="vote-bill">{vote.bill_id || ''}</span>
+                    <span class="vote-title">{(vote.bill_title || vote.vote_question || '').slice(0, 60)}{(vote.bill_title || vote.vote_question || '').length > 60 ? '...' : ''}</span>
+                    {#if vote.vote_date}
+                      <span class="vote-date">{vote.vote_date}</span>
+                    {/if}
+                  </div>
+                {/each}
               </div>
             {/each}
           </div>
@@ -2461,6 +2512,73 @@ Keep it substantive but accessible (150-300 words). Reference the docket number.
     font-size: 10px;
     color: var(--civic-text-dim);
   }
+  /* Congressional Votes */
+  .votes-member-group {
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--civic-border-default);
+  }
+  .votes-member-group:last-child { border-bottom: none; }
+  .votes-member-name {
+    font-weight: 600;
+    font-size: 12px;
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .party-tag {
+    font-size: 10px;
+    font-weight: 500;
+    padding: 1px 5px;
+    border-radius: 3px;
+    color: var(--civic-text-secondary);
+    background: var(--civic-surface-elevated);
+  }
+  .party-tag.party-D { color: #2563eb; background: #dbeafe; }
+  .party-tag.party-R { color: #dc2626; background: #fee2e2; }
+  .party-tag.party-I { color: #7c3aed; background: #ede9fe; }
+  .chamber-tag {
+    font-size: 10px;
+    color: var(--civic-text-dim);
+  }
+  .vote-row {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    padding: 2px 0;
+    font-size: 11px;
+    line-height: 1.4;
+  }
+  .vote-position {
+    font-weight: 600;
+    font-size: 10px;
+    min-width: 28px;
+    text-align: center;
+    padding: 1px 4px;
+    border-radius: 3px;
+  }
+  .vote-position.vote-yea { color: #16a34a; background: #dcfce7; }
+  .vote-position.vote-nay { color: #dc2626; background: #fee2e2; }
+  .vote-position.vote-not-voting { color: #9ca3af; background: #f3f4f6; }
+  .vote-position.vote-present { color: #d97706; background: #fef3c7; }
+  .vote-bill {
+    font-weight: 500;
+    color: var(--civic-text-secondary);
+    white-space: nowrap;
+  }
+  .vote-title {
+    color: var(--civic-text-primary);
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .vote-date {
+    color: var(--civic-text-dim);
+    font-size: 10px;
+    white-space: nowrap;
+  }
+
   .pulse-footer {
     display: flex;
     justify-content: space-between;

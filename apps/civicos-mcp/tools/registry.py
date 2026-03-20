@@ -305,6 +305,21 @@ TOOL_DEFINITIONS: dict[str, ToolDefinition] = {
         },
     },
 
+    # ─────────── Congressional Votes Tools ───────────
+    "get_congressional_votes": {
+        "description": "Get how members of Congress voted on specific bills or topics. Shows vote positions (Yea/Nay/Not Voting) for representatives like Huffman (CA-02), Schiff, or Padilla.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "member_name": {"type": "string", "description": "Representative name (e.g., 'Huffman', 'Schiff', 'Padilla')"},
+                "bill_id": {"type": "string", "description": "Bill identifier (e.g., 'HR3424', 'S1947')"},
+                "topic": {"type": "string", "description": "Topic keyword to filter by bill title (e.g., 'housing', 'climate')"},
+                "chamber": {"type": "string", "enum": ["House", "Senate"], "description": "Filter by chamber"},
+                "limit": {"type": "integer", "default": 20, "description": "Maximum results (default 20)"},
+            },
+        },
+    },
+
     # ─────────── Legislation & Executive Order Tools ───────────
     "search_legislation": {
         "description": "Search state or federal legislation by topic, keyword, or status. Returns bills with sponsor info, status, and citizen leverage points where available.",
