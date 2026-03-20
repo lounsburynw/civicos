@@ -1,6 +1,6 @@
-# Recommended: Federal Pipeline Hardening
+# Recommended: Local Impact Relevance Scoring
 
-**Priority:** P0 (federal_pipeline_hardening)
+**Priority:** P0 (local_impact_relevance)
 **Area:** multi_scale_participation
 **Date:** 2026-03-20
 
@@ -8,44 +8,52 @@
 
 ## Context
 
-The federal MCP server is now deployed at `civicos-federal` on Modal (23 tools, jurisdiction=country-united-states). All federal data sources work: congressional votes, hearings, executive orders, federal rules/comment periods, legislation. The next step is ensuring this data stays fresh via automated pipeline hardening.
+Federal data pipelines are now fully hardened — all 8 federal corpora (legislation, executive orders, federal rules, congressional votes/hearings, programs, awards, HUD allocations) have automated weekly refreshes via GitHub Actions cron. Refresh windows were tightened to match weekly cadence. The next step is making this data *actionable* for local users by scoring federal rules by their relevance to San Rafael / Marin County.
 
 ## What Needs to Be Done
 
-### Federal Pipeline Hardening
+Add heuristic-based local relevance scoring to federal rules (no LLM cost). Three scoring signals:
 
-The federal data was ingested manually during development sessions. For production reliability, the pipelines need:
+1. **Agency-to-topic mapping** — Map federal agency names (EPA, HUD, DOT, etc.) to local topic categories (environment, housing, transportation). San Rafael's active policy areas should score higher.
 
-1. **Cron-based refresh** — GitHub Actions workflows (`.github/workflows/cron-*.yml`) to periodically re-ingest federal data sources:
-   - Congressional votes: daily or weekly
-   - Congressional hearings: daily (committee schedules change)
-   - Executive orders: daily (via Federal Register API)
-   - Federal rules/comment periods: daily (regulations.gov)
-   - Legislation: weekly (LegiScan updates)
+2. **Geographic text matching** — Scan title/abstract for mentions of CA, California, Marin, San Rafael, Bay Area, etc. Direct geographic mentions are strong relevance signals.
 
-2. **Checkpoint management** — Ensure ingestion checkpoints track what's been fetched to avoid duplicates and enable incremental updates. See `/checkpoint` command.
+3. **CFR part matching** — Match regulation_id_numbers / docket_ids against locally relevant Code of Federal Regulations parts (e.g., Title 24 = housing, Title 40 = environment).
 
-3. **Error alerting** — Pipeline failures should notify (via existing `civic-notify` secret).
-
-4. **Data freshness monitoring** — The `/data-status` and admin tools should show when federal data was last refreshed.
+The output is two new columns on `federal_rules`: `local_relevance_score` (float 0-1) and `relevance_reasons` (JSONB array of matched signals). Backfill existing ~4,115 rules.
 
 ## Key Files
 
-- `.github/workflows/` — Existing cron workflow examples
-- `scripts/modal_ingest.py` — Modal-based ingestion runner
-- `packages/civicos-extraction/` — Extraction modules for each data source
-- `packages/civicos/src/civicos/storage/` — Storage backends with upsert methods
-- Existing cron patterns: `cron-refresh-*.yml` workflows
+- `packages/civicos/src/civicos/storage/postgres_backend.py:6310` — `store_federal_rules()` (add new columns)
+- `packages/civicos/src/civicos/storage/postgres_backend.py:6384` — `get_federal_rules()` (return new fields)
+- `packages/civicos-services/src/civicos_services/query/verbs.py:600` — federal comment periods in v2 search (add sort-by-relevance)
+- `apps/civicos-mcp/tools/handlers.py` — MCP tools for federal rules (expose relevance)
+- `packages/civicos/src/civicos/_internal/legal/embeddings/chunker.py:704` — `expand_federal_rules_to_chunks()` (include relevance in vector text)
+
+## Suggested Approach
+
+1. **Define scoring function** — Pure Python function that takes a federal rule dict and a jurisdiction config, returns `(score: float, reasons: list[str])`. Put it in `packages/civicos/src/civicos/_internal/legal/` as a new module (e.g., `relevance.py`).
+
+2. **Add DB columns** — ALTER TABLE federal_rules ADD COLUMN local_relevance_score FLOAT, ADD COLUMN relevance_reasons JSONB. Add migration to `scripts/sql/`.
+
+3. **Integrate into storage** — Update `store_federal_rules()` to compute and store relevance on ingest. Update `get_federal_rules()` to return the new fields.
+
+4. **Backfill existing rules** — One-time script or Modal function to score all ~4,115 existing rules.
+
+5. **Surface in UX** — Sort federal rules by relevance in v2 search results and MCP tool responses. Extension can show relevance badge.
 
 ## Infrastructure Notes
 
-- **Modal Secrets:** `civicos-federal-env` has DATABASE_URL (pooler format: `postgres.{project_ref}@pooler.supabase.com`), OPENAI_API_KEY, CONGRESS_GOV_API_KEY, CIVICOS_JURISDICTION
-- **Placeholder secrets:** `civicos-attestation` and `civicos-platform` exist with placeholder values (created for deploy compatibility)
-- **Scheduling:** Use GitHub Actions cron, NOT `modal.Cron()` (Modal starter plan limits)
+- Federal rules table has ~4,115 rows (check with `/data-status`)
+- The `expand_federal_rules_to_chunks()` function (created this session in `chunker.py:704`) should include relevance_reasons in vector text for semantic search
+- Scheduled refresh (`fetch_federal_rules` in `scripts/modal_ingest.py:1117`) should score new rules on ingest via `auto_index=True` path
+- No LLM calls needed — this is pure heuristic matching
+- launch.json notes say this is a 2-session item
 
 ## Success Criteria
 
-- [ ] At least 3 federal data sources have automated refresh workflows
-- [ ] Ingestion checkpoints prevent duplicate data
-- [ ] Pipeline failures produce notifications
-- [ ] `/data-status` shows last-refreshed timestamps for federal corpora
+- [ ] Scoring function covers all 3 signals (agency mapping, geographic text, CFR parts)
+- [ ] New columns added to federal_rules table with migration
+- [ ] Existing ~4,115 rules backfilled with scores
+- [ ] v2 search results sort federal rules by local_relevance_score
+- [ ] MCP tools expose relevance score and reasons
