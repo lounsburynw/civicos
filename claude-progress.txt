@@ -22903,3 +22903,5 @@ Implemented heuristic-based local relevance scoring for federal rules:
 6. **Vector text** — `expand_federal_rules_to_chunks()` includes relevance reasons for semantic search enrichment.
 
 **Next P0:** vertical_query_tier_tuning — Tune tier weights for upward queries (city→state→federal)
+
+**Update:** Replaced `vertical_query_tier_tuning` as next P0 with `vector_llm_relevance_pipeline`. User review of heuristic scoring identified key weakness: most federal rules don't mention specific geographies even when they're locally relevant. Tested vector similarity approach — using San Rafael municipal_code embeddings as query vectors against federal_rules embeddings finds genuinely relevant rules (0.69 similarity for housing, 0.68 for water) that heuristics miss. New pipeline: vector candidate retrieval → LLM confirmation on ~300 candidates → store score + summary. Cost: ~$0.05 vs $0.20 for brute-force LLM, with higher precision.

@@ -854,6 +854,21 @@
         "notes": "COMPLETE. Created relevance.py with 3 heuristic signals: (1) agency-to-topic mapping (24 agencies \u2192 13 local policy areas), (2) geographic text matching (San Rafael/Marin/Bay Area/California with tiered weighting), (3) CFR title matching (14 locally relevant CFR titles). Added local_relevance_score FLOAT + relevance_reasons JSONB columns to federal_rules table. Backfilled 4,115 rules: 1,013 scored > 0 (25%). Scores auto-computed on ingest via store_federal_rules(). V2 search sorts federal comment periods by relevance. MCP tools display relevance score + reasons. Chunker includes relevance context in vector text for semantic search."
       },
       {
+        "name": "vector_llm_relevance_pipeline",
+        "description": "Vector-first relevance pipeline: embed local policy descriptions as query vectors, retrieve candidate federal rules by similarity, LLM-confirm relevance on candidates only. Replaces heuristic-only scoring with semantic + LLM hybrid.",
+        "status": "not_started",
+        "priority": 0,
+        "phase": "1",
+        "source": "multi-scale participation \u2014 federal data (refinement of local_impact_relevance)",
+        "files": [
+          "packages/civicos/src/civicos/_internal/legal/relevance.py",
+          "packages/civicos/src/civicos/storage/postgres_backend.py",
+          "scripts/modal_ingest.py"
+        ],
+        "test_file": null,
+        "notes": "3-stage pipeline: (1) Define 10-15 policy area query vectors for San Rafael (can bootstrap from existing municipal_code embeddings — tested and works, 0.69 similarity for housing, 0.68 for water). (2) For each policy vector, retrieve top 30-50 most similar federal rules via pgvector cosine similarity, deduplicate across policy areas (~200-400 candidates from 4,115 total). (3) Send candidates to gpt-4o-mini in batches of 20-30 for confirmation + local_relevance_summary generation. Store score + summary. Cost: ~$0.05 for full corpus, pennies/week for new rules. Follows existing classify_topics.py batch pattern. Ongoing: new rules auto-scored on ingest after embedding. 1-2 sessions."
+      },
+      {
         "name": "federal_pipeline_hardening",
         "description": "Fix US legislation refresh gap (only CA syncs), debug CA sync failure, close 12% embedding gap on federal_rules, verify all new corpora have scheduled refreshes.",
         "status": "done",
@@ -911,7 +926,7 @@
         "name": "vertical_query_tier_tuning",
         "description": "Tune tier weights for upward queries (city\u2192state\u2192federal). Parent tier is currently 1.0 (same as self), which means state/federal results compete equally with local decisions. May need level-aware weighting or separate result grouping.",
         "status": "not_started",
-        "priority": 0,
+        "priority": 2,
         "phase": "1",
         "source": "multi-scale participation \u2014 query layer",
         "files": [
