@@ -854,7 +854,7 @@
         "name": "federal_pipeline_hardening",
         "description": "Fix US legislation refresh gap (only CA syncs), debug CA sync failure, close 12% embedding gap on federal_rules, verify all new corpora have scheduled refreshes.",
         "status": "not_started",
-        "priority": 2,
+        "priority": 0,
         "phase": "1",
         "source": "multi-scale participation \u2014 federal data (plan: session 9)",
         "files": [
