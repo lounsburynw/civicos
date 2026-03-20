@@ -848,7 +848,7 @@
           "packages/civicos-services/src/civicos_services/query/adapters.py"
         ],
         "test_file": null,
-        "notes": "Heuristic scoring (no LLM cost): agency names → local topic categories, text mentions of CA/Marin/San Rafael, CFR part matching. Add local_relevance_score + relevance_reasons to federal_rules. Backfill existing 4,115 rules. Depends on sessions 1-6 for enough data. 2 sessions."
+        "notes": "Heuristic scoring (no LLM cost): agency names \u2192 local topic categories, text mentions of CA/Marin/San Rafael, CFR part matching. Add local_relevance_score + relevance_reasons to federal_rules. Backfill existing 4,115 rules. Depends on sessions 1-6 for enough data. 2 sessions."
       },
       {
         "name": "federal_pipeline_hardening",
@@ -867,7 +867,7 @@
       {
         "name": "federal_server_deployment",
         "description": "Deploy country-united-states Modal server with full federal tool suite: funding search, congressional votes, hearing timeline, relevance-scored comment periods.",
-        "status": "not_started",
+        "status": "done",
         "priority": 0,
         "phase": "1",
         "source": "multi-scale participation \u2014 federal infrastructure (plan: session 10)",
@@ -947,7 +947,7 @@
       },
       {
         "name": "civic_act_federal_comment",
-        "description": "civic.act handlers for federal comment drafting and submission preparation. draft_federal_comment returns structured draft guidance with rule context; prepare_federal_comment returns submission URL, deadline, and instructions. Programmatic submission not supported by regulations.gov — users submit via web form.",
+        "description": "civic.act handlers for federal comment drafting and submission preparation. draft_federal_comment returns structured draft guidance with rule context; prepare_federal_comment returns submission URL, deadline, and instructions. Programmatic submission not supported by regulations.gov \u2014 users submit via web form.",
         "status": "done",
         "priority": 1,
         "phase": "1",

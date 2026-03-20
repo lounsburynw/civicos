@@ -36,6 +36,7 @@ FEDERAL_TOOLS = frozenset([
     "draft_federal_comment",          # Draft a public comment for federal rulemaking
     "prepare_federal_comment",        # Get submission context for federal comment
     "get_congressional_votes",        # How members of Congress voted on bills
+    "get_congressional_hearings",     # Upcoming/recent congressional hearings
 ])
 
 STATE_TOOLS = frozenset([

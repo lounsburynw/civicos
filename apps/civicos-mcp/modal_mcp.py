@@ -280,6 +280,9 @@ class MCPServer:
             "get_leverage_points": handlers.get_leverage_points,
             "search_executive_orders": handlers.search_executive_orders,
             "get_recent_executive_orders": handlers.get_recent_executive_orders,
+            "get_open_comment_periods": handlers.get_open_comment_periods,
+            "search_federal_rules": handlers.search_federal_rules,
+            "get_congressional_hearings": handlers.get_congressional_hearings,
             # Financial Tools (federal/state/city)
             "get_funding_flow": handlers.get_funding_flow,
             "get_federal_expenditures": handlers.get_federal_expenditures,

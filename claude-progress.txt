@@ -22823,3 +22823,28 @@ Wired 421 congressional hearings (from Session 1) into all query and UX layers:
 - Extension: builds cleanly
 
 **Next P0:** federal_server_deployment — Deploy country-united-states Modal server with full federal tool suite
+
+---
+
+**Date:** 2026-03-20
+**Item:** federal_server_deployment (P0)
+**Status:** DONE
+
+Deployed country-united-states Modal server with full federal tool suite (23 tools):
+
+1. **FEDERAL_TOOLS update** (`loader.py`) — Added `get_congressional_hearings` to FEDERAL_TOOLS frozenset.
+2. **Handler map fixes** (`modal_mcp.py`, `server.py`) — Added `get_open_comment_periods`, `search_federal_rules`, `get_congressional_hearings` to handler maps (were defined in handlers.py but not wired).
+3. **Modal secret** (`civicos-federal-env`) — Recreated with correct Supabase pooler URL format (`postgres.{project_ref}@pooler.supabase.com`), plus OPENAI_API_KEY, CONGRESS_GOV_API_KEY, CIVICOS_JURISDICTION.
+4. **Placeholder secrets** — Created `civicos-attestation` and `civicos-platform` secrets (referenced by all deployments but didn't exist).
+5. **Registry** (`registry_data.json`) — Added federal server entry with 23 tools, `federal.civicosproject.org/mcp` endpoint.
+6. **Deployment** — `CIVICOS_JURISDICTION=country-united-states modal deploy apps/civicos-mcp/modal_mcp.py` succeeded. App: `civicos-federal`.
+
+**Verified:**
+- Health: healthy, jurisdiction=country-united-states, level=federal, 23 tools
+- Congressional hearings search: ok
+- Legislation search: ok
+- Federal rules search: ok
+- MCP tools/list: 23 tools, 9 federal-specific
+- All 20 smoke tests pass
+
+**Key learning:** Supabase pooler requires `postgres.{project_ref}` username format for external connections (Modal). Direct `db.` endpoint also resolves to pooler but uses different auth.
