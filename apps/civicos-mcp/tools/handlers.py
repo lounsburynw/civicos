@@ -2897,9 +2897,14 @@ def get_open_comment_periods(
                 except ValueError:
                     pass
 
+            relevance_score = rule.get("local_relevance_score", 0.0)
+            relevance_reasons = rule.get("relevance_reasons") or []
+
             result_parts.append(f"## {title[:100]}")
             result_parts.append(f"- Agency: {agency_str}")
             result_parts.append(f"- Comment deadline: {close_date}{days_remaining}")
+            if relevance_score > 0:
+                result_parts.append(f"- Local relevance: {relevance_score:.0%} ({', '.join(relevance_reasons[:3])})")
             if comment_url:
                 result_parts.append(f"- Submit comment: {comment_url}")
             if rule.get("html_url"):
@@ -2961,9 +2966,14 @@ def search_federal_rules(
             agency_str = ", ".join(agencies) if agencies else "Unknown"
             close_date = rule.get("comments_close_on", "")
 
+            relevance_score = rule.get("local_relevance_score", 0.0)
+            relevance_reasons = rule.get("relevance_reasons") or []
+
             result_parts.append(f"## {title[:100]}")
             result_parts.append(f"- Type: {doc_type}")
             result_parts.append(f"- Agency: {agency_str}")
+            if relevance_score > 0:
+                result_parts.append(f"- Local relevance: {relevance_score:.0%} ({', '.join(relevance_reasons[:3])})")
             if close_date:
                 result_parts.append(f"- Comment deadline: {close_date}")
             if rule.get("comment_url"):
