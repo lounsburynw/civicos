@@ -1906,17 +1906,21 @@ def fetch_congressional_votes(
 
     # If no bioguide_ids specified, get federal reps from elected_officials table
     if not bioguide_ids:
-        conn = backend._get_connection()
-        cursor = conn.cursor()
-        cursor.execute("""
-            SELECT id FROM elected_officials
-            WHERE id LIKE 'congress-%%'
-              AND valid_to IS NULL AND deleted_at IS NULL
-        """)
-        rows = cursor.fetchall()
-        backend._return_connection(conn)
+        from civicos_extraction.config import get_active_jurisdictions
+        jurisdictions = get_active_jurisdictions()
+        all_officials = []
+        for jid in jurisdictions:
+            try:
+                officials = backend.get_elected_officials(jid, current_only=True)
+                all_officials.extend(officials)
+            except Exception:
+                pass  # Skip jurisdictions without elected_officials support
         # Extract bioguide_id from "congress-{bioguideId}" format
-        bioguide_ids = [row[0].replace("congress-", "") for row in rows]
+        bioguide_ids = list({
+            o["id"].replace("congress-", "")
+            for o in all_officials
+            if o.get("id", "").startswith("congress-")
+        })
         logger.info(f"Found {len(bioguide_ids)} federal reps in elected_officials")
 
     if not bioguide_ids:
