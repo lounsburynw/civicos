@@ -311,3 +311,39 @@ class LegislationStorage(Protocol):
     ) -> int:
         """Get count of legislative events."""
         ...
+
+    # ========== Congressional Votes Methods ==========
+
+    def store_congressional_votes(
+        self,
+        votes: List[Dict[str, Any]],
+        as_of: Optional[datetime] = None,
+    ) -> int:
+        """Store congressional vote records with temporal versioning.
+
+        Atomic operation: either all votes are stored or none.
+        Uses upsert semantics based on (vote_id, bioguide_id).
+        """
+        ...
+
+    def get_congressional_votes(
+        self,
+        bioguide_id: Optional[str] = None,
+        bill_id: Optional[str] = None,
+        chamber: Optional[str] = None,
+        congress: Optional[int] = None,
+        vote_date_start: Optional[str] = None,
+        vote_date_end: Optional[str] = None,
+        as_of: Optional[datetime] = None,
+        limit: Optional[int] = None,
+    ) -> List[Dict[str, Any]]:
+        """Retrieve congressional votes with optional filtering."""
+        ...
+
+    def get_congressional_votes_count(
+        self,
+        bioguide_id: Optional[str] = None,
+        chamber: Optional[str] = None,
+    ) -> int:
+        """Get count of current congressional votes."""
+        ...
