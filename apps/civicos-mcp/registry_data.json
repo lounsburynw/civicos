@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "updated": "2026-02-02T00:00:00Z",
+  "updated": "2026-03-19T00:00:00Z",
   "registry_url": "https://civicosproject.org/mcp/registry",
   "operators": [
     {
@@ -17,6 +17,24 @@
         "city": "San Rafael",
         "county": "Marin",
         "state": "CA"
+      },
+      "contact": {
+        "organization": "CivicOS Project",
+        "url": "https://civicosproject.org"
+      }
+    },
+    {
+      "id": "civicos-federal",
+      "jurisdiction_id": "country-united-states",
+      "name": "United States (Federal)",
+      "description": "Federal civic data - legislation, executive orders, congressional votes, hearings, federal rules, comment periods, funding",
+      "mcp_endpoint": "https://federal.civicosproject.org/mcp",
+      "type": "official",
+      "status": "active",
+      "authoritative_for": ["legislation", "executive_orders", "congressional_votes", "congressional_hearings", "federal_rules", "comment_periods", "federal_expenditures"],
+      "tools_count": 23,
+      "location": {
+        "country": "United States"
       },
       "contact": {
         "organization": "CivicOS Project",
