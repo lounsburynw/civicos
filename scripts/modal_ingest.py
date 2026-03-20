@@ -4317,11 +4317,13 @@ def scheduled_low_velocity_refresh():
             logger.info(f"  Federal awards: {total} stored across {jcount} jurisdictions")
 
         # Congressional votes (House + Senate roll calls for tracked representatives)
+        # Weekly cron: process last 25 roll calls per chamber (typical week: 10-20).
+        # For initial/manual fetch, use a higher max_roll_calls.
         logger.info("Fetching congressional votes...")
         result = run_with_retry(
             fetch_congressional_votes,
             "Congressional votes fetch",
-            congress=119, session=1, max_roll_calls=50, dry_run=False,
+            congress=119, session=1, max_roll_calls=25, dry_run=False,
         )
         results["congressional_votes"] = result
         if result.get("status") != "failed":
@@ -4331,11 +4333,13 @@ def scheduled_low_velocity_refresh():
             logger.info(f"  Congressional votes: {total} stored ({house} House roll calls, {senate} Senate votes)")
 
         # Congressional hearings (committee meetings from Congress.gov)
+        # Weekly cron: look back 14 days (7-day overlap) + 60 days ahead.
+        # For initial/manual fetch, use the default days_back=90.
         logger.info("Fetching congressional hearings...")
         result = run_with_retry(
             fetch_congressional_hearings,
             "Congressional hearings fetch",
-            congress=119, days_back=90, days_ahead=60, dry_run=False,
+            congress=119, days_back=14, days_ahead=60, dry_run=False,
         )
         results["congressional_hearings"] = result
         if result.get("status") != "failed":
