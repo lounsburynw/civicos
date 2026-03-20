@@ -205,6 +205,67 @@ class CongressGovClient:
         members = result.get("members", [])
         return [self._normalize_member(m) for m in members]
 
+    # ==================== Committee Hearings ====================
+
+    def get_committee_hearings(
+        self,
+        congress: int = 119,
+        chamber: Optional[str] = None,
+        limit: int = 250,
+        offset: int = 0,
+    ) -> List[Dict[str, Any]]:
+        """
+        List committee meetings/hearings for a congress.
+
+        Uses the /committee-meeting endpoint which returns scheduled hearings,
+        markups, and other committee events.
+
+        Args:
+            congress: Congress number (e.g., 119)
+            chamber: Filter by "house" or "senate" (optional)
+            limit: Max results per page
+            offset: Pagination offset
+
+        Returns:
+            List of committee meeting summary dicts with eventId, chamber, url
+        """
+        if chamber:
+            endpoint = f"committee-meeting/{congress}/{chamber.lower()}"
+        else:
+            endpoint = f"committee-meeting/{congress}"
+
+        result = self._make_request(endpoint, params={"limit": limit, "offset": offset})
+        if not result:
+            return []
+        return result.get("committeeMeetings", [])
+
+    def get_committee_hearing_detail(
+        self,
+        congress: int,
+        chamber: str,
+        event_id: str,
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Get detail for a specific committee meeting/hearing.
+
+        Returns title, date, committees, location, meetingStatus, type,
+        and meetingDocuments (related bills, hearing notices).
+
+        Args:
+            congress: Congress number
+            chamber: "house" or "senate"
+            event_id: Event ID from the list endpoint
+
+        Returns:
+            Meeting detail dict or None
+        """
+        result = self._make_request(
+            f"committee-meeting/{congress}/{chamber.lower()}/{event_id}"
+        )
+        if not result:
+            return None
+        return result.get("committeeMeeting")
+
     # ==================== Vote Retrieval ====================
 
     def get_house_roll_calls(

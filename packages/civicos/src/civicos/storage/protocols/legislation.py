@@ -347,3 +347,37 @@ class LegislationStorage(Protocol):
     ) -> int:
         """Get count of current congressional votes."""
         ...
+
+    # ========== Congressional Hearings Methods ==========
+
+    def store_congressional_hearings(
+        self,
+        hearings: List[Dict[str, Any]],
+        as_of: Optional[datetime] = None,
+    ) -> int:
+        """Store congressional committee hearings with temporal versioning.
+
+        Atomic operation: either all hearings are stored or none.
+        Uses upsert semantics based on (event_id, chamber).
+        """
+        ...
+
+    def get_congressional_hearings(
+        self,
+        committee_code: Optional[str] = None,
+        chamber: Optional[str] = None,
+        hearing_date_start: Optional[str] = None,
+        hearing_date_end: Optional[str] = None,
+        hearing_type: Optional[str] = None,
+        as_of: Optional[datetime] = None,
+        limit: Optional[int] = None,
+    ) -> List[Dict[str, Any]]:
+        """Retrieve congressional hearings with optional filtering."""
+        ...
+
+    def get_congressional_hearings_count(
+        self,
+        chamber: Optional[str] = None,
+    ) -> int:
+        """Get count of current congressional hearings."""
+        ...

@@ -293,7 +293,9 @@ class PostgresBackend:
                         EXISTS(SELECT 1 FROM information_schema.columns
                                WHERE table_name = 'decisions' AND column_name = 'item_type'),
                         EXISTS(SELECT 1 FROM information_schema.tables
-                               WHERE table_name = 'congressional_votes')
+                               WHERE table_name = 'congressional_votes'),
+                        EXISTS(SELECT 1 FROM information_schema.tables
+                               WHERE table_name = 'congressional_hearings')
                 """)
                 row = probe.fetchone()
                 if row and all(row):
@@ -1724,6 +1726,52 @@ class PostgresBackend:
         cursor.execute("""
             CREATE INDEX IF NOT EXISTS idx_congressional_votes_temporal
             ON congressional_votes(bioguide_id, valid_from, valid_to)
+        """)
+
+        # Congressional hearings table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS congressional_hearings (
+                id SERIAL PRIMARY KEY,
+                event_id TEXT NOT NULL,
+                chamber TEXT NOT NULL,
+                congress INTEGER NOT NULL,
+                hearing_date TIMESTAMP,
+                title TEXT,
+                hearing_type TEXT,
+                meeting_status TEXT,
+                committee_name TEXT,
+                committee_code TEXT,
+                location_building TEXT,
+                location_room TEXT,
+                related_bills JSONB,
+                hearing_url TEXT,
+                metadata JSONB,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                valid_from TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                valid_to TIMESTAMP,
+                deleted_at TIMESTAMP,
+                UNIQUE (event_id, chamber, valid_from),
+                CHECK (valid_to IS NULL OR valid_to > valid_from),
+                CHECK (chamber IN ('House', 'Senate'))
+            )
+        """)
+
+        # Congressional hearings indexes
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_congressional_hearings_date
+            ON congressional_hearings(hearing_date)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_congressional_hearings_committee
+            ON congressional_hearings(committee_code)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_congressional_hearings_chamber
+            ON congressional_hearings(chamber, hearing_date)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_congressional_hearings_temporal
+            ON congressional_hearings(event_id, valid_from, valid_to)
         """)
 
         # Migration: Add meeting_id and agenda_item_id FK columns to decisions
@@ -7490,6 +7538,220 @@ class PostgresBackend:
         if bioguide_id is not None:
             query += " AND bioguide_id = %s"
             params.append(bioguide_id)
+
+        if chamber is not None:
+            query += " AND chamber = %s"
+            params.append(chamber)
+
+        cursor.execute(query, params)
+        count = cursor.fetchone()[0]
+        self._return_connection(conn)
+
+        return count
+
+    # =======================================================================
+    # CONGRESSIONAL HEARINGS
+    # =======================================================================
+
+    def store_congressional_hearings(
+        self,
+        hearings: List[Dict[str, Any]],
+        as_of: Optional[datetime] = None,
+    ) -> int:
+        """Store congressional committee hearings with temporal versioning.
+
+        Args:
+            hearings: List of hearing dictionaries
+            as_of: Timestamp for temporal versioning (default: now)
+
+        Returns:
+            Number of hearings successfully stored
+        """
+        as_of = as_of or datetime.now(timezone.utc).replace(tzinfo=None)
+        as_of_str = as_of.isoformat()
+
+        conn = self._get_connection()
+        self._ensure_schema(conn)
+        cursor = conn.cursor()
+
+        try:
+            valid_hearings = [
+                h for h in hearings
+                if h.get("event_id") and h.get("chamber")
+            ]
+
+            # Close previous versions for these (event_id, chamber) pairs
+            hearing_keys = [(h["event_id"], h["chamber"]) for h in valid_hearings]
+            if hearing_keys:
+                for i in range(0, len(hearing_keys), 500):
+                    chunk = hearing_keys[i:i + 500]
+                    conditions = " OR ".join(
+                        ["(event_id = %s AND chamber = %s)"] * len(chunk)
+                    )
+                    params = []
+                    for eid, ch in chunk:
+                        params.extend([eid, ch])
+                    cursor.execute(f"""
+                        UPDATE congressional_hearings
+                        SET valid_to = %s
+                        WHERE ({conditions})
+                          AND valid_to IS NULL
+                    """, [as_of_str] + params)
+
+            # Insert new versions
+            values = []
+            for h in valid_hearings:
+                known_keys = {
+                    "event_id", "chamber", "congress", "hearing_date", "title",
+                    "hearing_type", "meeting_status", "committee_name",
+                    "committee_code", "location_building", "location_room",
+                    "related_bills", "hearing_url",
+                }
+                extra = {k: v for k, v in h.items() if k not in known_keys}
+                values.append((
+                    h["event_id"],
+                    h["chamber"],
+                    h.get("congress", 0),
+                    h.get("hearing_date"),
+                    h.get("title"),
+                    h.get("hearing_type"),
+                    h.get("meeting_status"),
+                    h.get("committee_name"),
+                    h.get("committee_code"),
+                    h.get("location_building"),
+                    h.get("location_room"),
+                    json.dumps(h["related_bills"], cls=DateTimeEncoder) if h.get("related_bills") else None,
+                    h.get("hearing_url"),
+                    json.dumps(extra, cls=DateTimeEncoder) if extra else None,
+                    as_of_str,
+                    as_of_str,
+                ))
+
+            if values:
+                psycopg2.extras.execute_values(
+                    cursor,
+                    """
+                    INSERT INTO congressional_hearings (
+                        event_id, chamber, congress, hearing_date, title,
+                        hearing_type, meeting_status, committee_name,
+                        committee_code, location_building, location_room,
+                        related_bills, hearing_url, metadata,
+                        created_at, valid_from, valid_to
+                    ) VALUES %s
+                    """,
+                    values,
+                    template="(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NULL)",
+                    page_size=500,
+                )
+
+            conn.commit()
+            return len(valid_hearings)
+
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            self._return_connection(conn)
+
+    def get_congressional_hearings(
+        self,
+        committee_code: Optional[str] = None,
+        chamber: Optional[str] = None,
+        hearing_date_start: Optional[str] = None,
+        hearing_date_end: Optional[str] = None,
+        hearing_type: Optional[str] = None,
+        as_of: Optional[datetime] = None,
+        limit: Optional[int] = None,
+    ) -> List[Dict[str, Any]]:
+        """Retrieve congressional hearings with optional filtering.
+
+        Args:
+            committee_code: Filter by committee system code (e.g., "ssbk00")
+            chamber: Filter by chamber ("House" or "Senate")
+            hearing_date_start: Filter hearings on/after this date
+            hearing_date_end: Filter hearings on/before this date
+            hearing_type: Filter by type ("Hearing", "Meeting", "Markup")
+            as_of: Point-in-time query (for temporal versioning)
+            limit: Maximum number of hearings to return
+
+        Returns:
+            List of hearing dictionaries
+        """
+        as_of = as_of or datetime.now(timezone.utc).replace(tzinfo=None)
+        conn = self._get_connection()
+        self._ensure_schema(conn)
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+        query = """
+            SELECT * FROM congressional_hearings
+            WHERE valid_from <= %s
+              AND (valid_to IS NULL OR valid_to > %s)
+              AND deleted_at IS NULL
+        """
+        params: List[Any] = [as_of.isoformat(), as_of.isoformat()]
+
+        if committee_code is not None:
+            query += " AND committee_code = %s"
+            params.append(committee_code)
+
+        if chamber is not None:
+            query += " AND chamber = %s"
+            params.append(chamber)
+
+        if hearing_date_start is not None:
+            query += " AND hearing_date >= %s"
+            params.append(hearing_date_start)
+
+        if hearing_date_end is not None:
+            query += " AND hearing_date <= %s"
+            params.append(hearing_date_end)
+
+        if hearing_type is not None:
+            query += " AND hearing_type = %s"
+            params.append(hearing_type)
+
+        query += " ORDER BY hearing_date DESC"
+
+        if limit is not None:
+            query += " LIMIT %s"
+            params.append(limit)
+
+        cursor.execute(query, params)
+        rows = cursor.fetchall()
+        self._return_connection(conn)
+
+        results = []
+        for row in rows:
+            hearing = dict(row)
+            for key in ['created_at', 'valid_from', 'valid_to', 'hearing_date']:
+                if key in hearing and hearing[key] is not None:
+                    if isinstance(hearing[key], (datetime, date)):
+                        hearing[key] = hearing[key].isoformat()
+            results.append(hearing)
+
+        return results
+
+    def get_congressional_hearings_count(
+        self,
+        chamber: Optional[str] = None,
+    ) -> int:
+        """Get count of current congressional hearings.
+
+        Args:
+            chamber: Filter by chamber (optional)
+
+        Returns:
+            Number of current (non-expired) hearing records
+        """
+        conn = self._get_connection()
+        self._ensure_schema(conn)
+        cursor = conn.cursor()
+
+        query = """
+            SELECT COUNT(*) FROM congressional_hearings
+            WHERE valid_to IS NULL AND deleted_at IS NULL
+        """
+        params: List[Any] = []
 
         if chamber is not None:
             query += " AND chamber = %s"

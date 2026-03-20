@@ -829,7 +829,7 @@
           "packages/civicos-services/src/civicos_services/query/verbs.py"
         ],
         "test_file": null,
-        "notes": "Congress.gov API: /committee-meeting, /hearing endpoints. Filter to committees relevant to locally-stored topics. Wire into civic.upcoming(types=['hearings']) for federal hearings. Depends on sessions 3-4 (shared client). 2 sessions."
+        "notes": "Session 1 (ingest) DONE: 421 hearings stored (274 House, 147 Senate). Client methods, storage protocol, PostgresBackend, corpus type, ingestion pipeline all complete. Added to weekly refresh. Session 2 needed: wire into civic.upcoming, v2 search adapter, MCP tool, extension UX."
       },
       {
         "name": "local_impact_relevance",

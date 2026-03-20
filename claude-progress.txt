@@ -22775,3 +22775,29 @@ instead of going through CivicOS query methods.
 - MCP handler formats voting records correctly
 
 **Next P0:** congressional_hearings — Ingest congressional committee hearings from Congress.gov API
+
+## Session — 2026-03-19 — Congressional Hearings Ingest (Session 1 of 2)
+
+**Working on:** congressional_hearings (P0) — Session 1: Ingest pipeline
+
+**Changes:**
+1. **CongressGovClient** (`representatives.py`) — Added `get_committee_hearings(congress, chamber, limit, offset)` for listing committee meetings and `get_committee_hearing_detail(congress, chamber, event_id)` for fetching full detail including committees, location, related bills.
+2. **CorpusType** (`corpus_types.py`) — Added `CONGRESSIONAL_HEARINGS` enum and corpus config (shared jurisdiction, no vectors, aliases: congressional_hearing, committee_hearing, committee_meeting).
+3. **LegislationStorage protocol** (`protocols/legislation.py`) — Added `store_congressional_hearings()`, `get_congressional_hearings()`, `get_congressional_hearings_count()` method signatures.
+4. **PostgresBackend** (`postgres_backend.py`) — Full implementation: `congressional_hearings` table with temporal versioning, indexes (date, committee, chamber, temporal), store/get/count methods with upsert semantics. Updated schema probe to include new table.
+5. **SQLiteBackend** (`sqlite_backend.py`) — Stub implementations returning empty results (data lives in Postgres).
+6. **Ingestion pipeline** (`modal_ingest.py`) — Added `fetch_congressional_hearings()` Modal function that paginates both House and Senate committee-meeting endpoints, fetches detail for each, filters by date window (90 days back, 60 ahead), extracts committee info/related bills/location. Added to `scheduled_low_velocity_refresh()`.
+
+**Data ingested:**
+- 421 congressional hearings (274 House, 147 Senate)
+- Types: 215 Hearings, 170 Meetings, 36 Markups
+- Date range: Dec 2025 – May 2026
+- Zero API errors
+
+**Verified:**
+- Smoke tests pass (20/20)
+- Client methods work against live Congress.gov API
+- Storage round-trip: store, retrieve, count, upsert all verified
+- Date filtering, committee filtering work correctly
+
+**Next P0 (session 2):** congressional_hearings — Wire into civic.upcoming, v2 search adapter, MCP tool, extension UX
