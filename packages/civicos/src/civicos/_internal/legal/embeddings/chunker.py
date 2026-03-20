@@ -701,3 +701,98 @@ def expand_executive_orders_to_chunks(
         f"Expanded {len(orders)} Executive Orders into {len(all_chunks)} chunks"
     )
     return all_chunks
+
+
+def expand_federal_rules_to_chunks(rules: list[dict]) -> list[dict]:
+    """
+    Expand federal rules into chunks for vector embedding.
+
+    Federal rules (proposed rules, final rules, notices) are typically short enough
+    to embed as single chunks. This function builds rich text from available fields
+    to maximize search relevance, including fallbacks for rules missing title/abstract.
+
+    Args:
+        rules: List of rule dicts from storage backend (via get_federal_rules).
+               Expected fields: document_number, title, abstract, agency_names,
+               document_type, publication_date, comments_close_on, topics,
+               comment_url, html_url.
+
+    Returns:
+        List of chunk dicts ready for indexing.
+    """
+    chunks = []
+    skipped = 0
+
+    for rule in rules:
+        doc_num = rule.get("document_number") or rule.get("id")
+        if not doc_num:
+            skipped += 1
+            continue
+
+        # Build text from all available fields
+        parts = []
+
+        # Agency context
+        agencies = rule.get("agency_names") or []
+        if isinstance(agencies, str):
+            agencies = [agencies]
+        if agencies:
+            parts.append(f"Agency: {', '.join(agencies)}")
+
+        # Document type context
+        doc_type = rule.get("document_type", "")
+        type_label = {
+            "proposed_rule": "Proposed Rule",
+            "final_rule": "Final Rule",
+            "notice": "Notice",
+        }.get(doc_type, doc_type.replace("_", " ").title() if doc_type else "")
+        if type_label:
+            parts.append(f"Type: {type_label}")
+
+        # Title and abstract (primary content)
+        if rule.get("title"):
+            parts.append(rule["title"])
+        if rule.get("abstract"):
+            parts.append(rule["abstract"])
+
+        # Topics for search relevance
+        topics = rule.get("topics") or []
+        if isinstance(topics, str):
+            topics = [topics]
+        if topics:
+            parts.append(f"Topics: {', '.join(topics)}")
+
+        # Comment period info
+        if rule.get("comments_close_on"):
+            parts.append(f"Comments close: {rule['comments_close_on']}")
+
+        text = "\n".join(parts)
+
+        # Fallback: if no title/abstract/topics, use document number as minimal text
+        if not text.strip():
+            text = f"Federal Register Document {doc_num}"
+            if type_label:
+                text = f"{type_label}: {text}"
+
+        chunks.append({
+            "id": f"rule-{doc_num}",
+            "text": text,
+            "title": rule.get("title"),
+            "document_type": doc_type,
+            "publication_date": rule.get("publication_date"),
+            "comments_close_on": rule.get("comments_close_on"),
+            "metadata": {
+                "document_number": doc_num,
+                "agency_names": agencies,
+                "html_url": rule.get("html_url"),
+            },
+        })
+
+    if skipped:
+        logger.warning(f"Skipped {skipped} rules with no document_number")
+
+    logger.info(
+        f"Expanded {len(rules)} federal rules into {len(chunks)} chunks "
+        f"({skipped} skipped)"
+    )
+    return chunks
