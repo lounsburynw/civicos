@@ -5062,9 +5062,10 @@ class PostgresBackend:
                         continue
 
                     # Close the old version (data changed)
+                    # Use GREATEST to ensure valid_to > valid_from (check constraint)
                     cursor.execute("""
                         UPDATE legislation
-                        SET valid_to = %s
+                        SET valid_to = GREATEST(%s, valid_from + interval '1 second')
                         WHERE bill_id = %s AND state = %s AND valid_to IS NULL
                     """, (as_of.isoformat(), bill_id, state))
 

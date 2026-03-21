@@ -22950,3 +22950,38 @@ Key files:
 All 143 v2 query tests pass. No regressions.
 
 **Next P0:** state_legislative_client — Build California legislature data client to fill state-level data gap (0 legislation rows for state-california)
+
+## Session: state_legislative_client (2026-03-21)
+
+Completed P0: state_legislative_client
+
+Built California Legislature bulk data client using official downloads from downloads.leginfo.legislature.ca.gov. This is the same data format already used by modal_cacode.py for codified law sections.
+
+**New files:**
+- `packages/civicos-extraction/src/civicos_extraction/clients/california_legislature.py` — CaliforniaLegislatureClient class
+- `scripts/modal_ca_legislation.py` — Modal function for scheduled ingestion
+
+**Data parsed from bulk downloads:**
+- BILL_TBL: Master bill records (4,799 total, 4,248 AB/SB)
+- BILL_VERSION_TBL: Subject, flags, author enrichment
+- BILL_HISTORY_TBL: 53,549 action records
+- BILL_SUMMARY_VOTE_TBL: 10,970 vote tallies with ayes/noes/abstain
+- COMMITTEE_HEARING_TBL: 9,202 hearing records
+- COMMITTEE_AGENDA_TBL: 13,336 agenda items
+- LOCATION_CODE_TBL: 128 committee/location names
+
+**Initial ingestion results:**
+- CA legislation: 4,804 → 4,823 (+19 net new, rest upserted against existing LegiScan data)
+- CA legislative events: 4,904 → 78,625 (+73,721 new events)
+
+**Bug fix:** Fixed `store_legislation()` check constraint violation when closing temporal versions with same timestamp. Used `GREATEST(as_of, valid_from + interval '1 second')`.
+
+**Special sessions:** Discovered CA Legislature uses session_num to distinguish regular (0) vs extraordinary (1+) sessions. Same bill number can exist in both. Solution: `-x1` suffix for special session bills (e.g., ca-ab2-x1).
+
+**Decisions:**
+- Used bulk downloads instead of scraping (official, reliable, complete)
+- Skipped Open States API (acquired by VC/Plural, not suitable for civic infrastructure)
+- AB/SB bills only for initial load (resolutions can be added later)
+- Daily delta files available for incremental refresh (~4MB vs 700MB full archive)
+
+**Next P0:** state_server_deployment — Deploy state-california Modal server, wire hearings/votes/comment windows, connect extension CA tab

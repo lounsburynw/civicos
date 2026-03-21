@@ -899,21 +899,22 @@
       {
         "name": "state_legislative_client",
         "description": "Build California legislature data client using leginfo.legislature.ca.gov. Ingest committee hearing schedules, bill status with vote dates, public comment windows.",
-        "status": "not_started",
-        "priority": 0,
+        "status": "done",
+        "priority": 1,
         "phase": "2",
         "source": "multi-scale participation \u2014 state",
         "files": [
-          "packages/civicos-extraction/src/civicos_extraction/clients/"
+          "packages/civicos-extraction/src/civicos_extraction/clients/california_legislature.py",
+          "scripts/modal_ca_legislation.py"
         ],
         "test_file": null,
-        "notes": "LegiScan gives bill text/status but not participation data (hearing schedules, comment windows, testimony). leginfo.legislature.ca.gov has structured data for CA. Need to determine API vs scraping approach. Messier than regulations.gov. 2-3 sessions."
+        "notes": "Uses official bulk downloads from downloads.leginfo.legislature.ca.gov (same format as modal_cacode.py). Parses BILL_TBL, BILL_VERSION_TBL, BILL_HISTORY_TBL, BILL_SUMMARY_VOTE_TBL, COMMITTEE_HEARING_TBL, COMMITTEE_AGENDA_TBL. Initial ingest: 4,248 AB/SB bills + 73,721 events (hearings, votes, history). Special session bills use -x1 suffix. Daily deltas available for refresh."
       },
       {
         "name": "state_server_deployment",
         "description": "Deploy state-california Modal server. Wire committee hearings, bill votes, and comment windows into the server's data. Connect extension CA tab.",
         "status": "not_started",
-        "priority": 3,
+        "priority": 0,
         "phase": "2",
         "source": "multi-scale participation \u2014 state infrastructure",
         "files": [
