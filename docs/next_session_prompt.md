@@ -1,6 +1,6 @@
-# Recommended: Vertical Query Tier Tuning
+# Recommended: State Legislative Client
 
-**Priority:** P0 (vertical_query_tier_tuning)
+**Priority:** P0 (state_legislative_client)
 **Area:** multi_scale_participation
 **Date:** 2026-03-20
 
@@ -8,67 +8,85 @@
 
 ## Context
 
-Session completed `vector_llm_relevance_pipeline` — federal rules now have LLM-scored local relevance (149 rules with impact summaries in `local_relevance_summary` column). The multi-scale participation stack is nearly complete: city, county, state, and federal data all flow through the v2 query layer with `include_parents`/`include_siblings` cross-jurisdiction support. The remaining gap is **tier weighting**: parent jurisdictions (state, federal) currently have weight 1.0, meaning a generic CA bill competes equally with a San Rafael city council decision in search results.
+Session completed `vertical_query_tier_tuning` — parent jurisdictions now have level-aware tier weights: county 0.9, state 0.7, federal 0.5 (was all 1.0). `get_jurisdiction_tier()` returns `parent_county`/`parent_state`/`parent_federal` instead of generic `parent`. The multi-scale stack is functionally complete at the query layer, but **state-california has zero legislation rows** in the DB. County, city, and federal all have data. State is the gap.
 
 ## What Needs to Be Done
 
-Tune the `TIER_WEIGHTS` system so upward queries (city→county→state→federal) return results weighted by relevance proximity. Current weights in `jurisdictions.py:24-30`:
+Build a California legislature data client that ingests:
+1. **Committee hearing schedules** — when bills are heard, which committee
+2. **Bill status with vote dates** — passage/failure, vote counts
+3. **Public comment windows** — testimony opportunities (the participation data LegiScan lacks)
 
-```python
-TIER_WEIGHTS = {
-    "self": 1.0,     # Local results — should stay highest
-    "child": 1.0,    # Downward — fine as-is
-    "parent": 1.0,   # ← PROBLEM: state/federal compete equally with local
-    "sibling": 0.8,  # Neighboring cities
-    "cross_county": 0.5,
-}
-```
-
-Options to consider:
-1. **Simple weight reduction**: `parent: 0.7` or level-aware (`county: 0.9, state: 0.7, federal: 0.5`)
-2. **Separate result grouping**: Return results in tiers (local first, then state, then federal)
-3. **Level-aware weighting**: Differentiate county parent vs state parent vs federal parent
-4. **Hybrid**: Weight within tier + group between tiers
-
-The current `get_tier_weight()` only knows "parent" — it doesn't distinguish county from state from federal. May need `get_jurisdiction_level()` to determine depth.
+The existing `LegiScanClient` (`clients/legiscan.py`) already fetches bill text/status from the LegiScan API, but it doesn't provide participation-oriented data (hearings, comment windows, testimony). The new client targets `leginfo.legislature.ca.gov` which has this structured data for California specifically.
 
 ## Key Files
 
-- `packages/civicos-services/src/civicos_services/query/jurisdictions.py:24` — `TIER_WEIGHTS` dict (the main target)
-- `packages/civicos-services/src/civicos_services/query/jurisdictions.py:122` — `get_jurisdiction_tier()` returns "self"/"parent"/"sibling" etc.
-- `packages/civicos-services/src/civicos_services/query/jurisdictions.py:164` — `get_tier_weight()` applies weights
-- `packages/civicos-services/src/civicos_services/query/verbs.py:383-409` — Where tier boosting is applied to cross-jurisdiction results
-- `packages/civicos-services/src/civicos_services/query/verbs.py:54-62` — Cross-jurisdiction search dispatch
-- `packages/civicos-services/src/civicos_services/query/models.py:123` — `include_parents` field on SearchRequest
-- `data/jurisdictions.yml` — Jurisdiction registry with `parent_jurisdictions` hierarchy
+- `packages/civicos-extraction/src/civicos_extraction/clients/legiscan.py` — Existing bill discovery client (LegiScan API). Good pattern reference, but covers different data.
+- `packages/civicos-extraction/src/civicos_extraction/clients/federal_register.py` — Best pattern reference: API client with throttling, pagination, retry logic.
+- `packages/civicos-extraction/src/civicos_extraction/clients/base.py` — `HealthStatus` and `ValidationResult` types for standardized health checks.
+- `packages/civicos/src/civicos/storage/backend.py:1085` — `store_legislation()` method: takes `state`, `bills: List[Dict]`, `topic`, `as_of`. Uses upsert on `(bill_id, state)`.
+- `packages/civicos-extraction/src/civicos_extraction/legislative/legislative_discovery.py` — Existing discovery pipeline (LegiScan + LLM filtering). May need extension for CA leginfo data.
+- `config/registry.json:19` — `state-california` jurisdiction entry (parent: `country-united-states`)
+- `scripts/modal_ingest.py` — Where ingestion functions are registered for Modal. New client needs a Modal function.
 
-## What's Already Working
+## Data Source: leginfo.legislature.ca.gov
 
-- `include_parents=True` on a city query fans out to county → state → federal
-- Results from all levels are collected and merged
-- `tier_weight` is multiplied against `relevance` score before sorting
-- Federal rules now have `local_relevance_score` (0-0.8) and `local_relevance_summary` (LLM text) — these quality signals could inform weighting
-- The `vector_relevance.py` pipeline (just completed) scores how relevant federal content is to San Rafael
+The CA Legislature site has structured data but **no official API**. Approach options:
+1. **Open States API** (openstates.org) — Free API with CA bill data, hearing schedules, votes. May be sufficient and cleaner than scraping.
+2. **Direct scraping** with Playwright — `leginfo.legislature.ca.gov` has structured HTML. The site is NOT Cloudflare-protected (simpler than some other sources). See `memory/feedback_browser_automation.md` for scraping guidance.
+3. **Hybrid** — Open States for bill metadata + direct scraping for hearing schedules and comment windows not in Open States.
+
+Recommendation: Start with Open States API to assess coverage, fall back to scraping only for participation data gaps.
+
+## Storage Schema
+
+The `store_legislation()` method expects bills as dicts. Check existing LegiScan bills for field names:
+```python
+# From legiscan.py search_bills() return format:
+{
+    "bill_id": str,        # e.g., "CA-AB1234"
+    "bill_number": str,    # e.g., "AB 1234"
+    "title": str,
+    "description": str,
+    "state": str,          # "CA"
+    "status": str,         # e.g., "Introduced", "Passed Assembly"
+    "status_date": str,    # ISO date
+    "url": str,
+    "last_action": str,
+    "last_action_date": str,
+}
+```
+
+For participation data, the legislation table may need new columns (e.g., `next_hearing_date`, `comment_deadline`). Check `docs/internal/storage-schema.md` and the Postgres schema.
 
 ## Suggested Approach
 
-1. **Analyze current behavior** — Run a cross-jurisdiction search with `include_parents=True` and observe how local vs state vs federal results interleave
-2. **Add level-aware tier detection** — Extend `get_jurisdiction_tier()` to return "parent_county"/"parent_state"/"parent_federal" instead of just "parent". The `parent_jurisdictions` list in `jurisdictions.yml` has the hierarchy (city→county→state→federal)
-3. **Implement level-aware weights** — E.g., `parent_county: 0.9, parent_state: 0.7, parent_federal: 0.5`. Potentially boost federal results that have high `local_relevance_score`
-4. **Consider result grouping** — The v2 response already has a `metadata` dict where tier/level info could be exposed for UI grouping
-5. **Test with real queries** — "housing" and "water" are good test queries (strong federal relevance from LLM pipeline)
+1. **Research Open States API** — Check coverage for CA committee hearings and vote data. Docs at `https://v3.openstates.org/docs`. Free tier may suffice.
+2. **Build `ca_legislature.py` client** — Follow `federal_register.py` pattern: session-based, throttled, paginated. Place in `packages/civicos-extraction/src/civicos_extraction/clients/`.
+3. **Ingest initial data** — Fetch current session bills (2025-2026), committee hearing schedules, recent votes.
+4. **Store via `store_legislation()`** — Map API response to the bill dict format. Jurisdiction: `state-california`, state: `CA`.
+5. **Add Modal function** — Register in `scripts/modal_ingest.py` for scheduled ingestion.
+6. **Verify tier weighting** — Run a cross-jurisdiction search with `include_parents=True` from `city-san-rafael` and confirm state results now appear with 0.7 weight.
 
 ## Tests to Run
 
 ```bash
+# Smoke tests
 pytest packages/civicos/tests/test_civicos.py -q --override-ini="addopts="
-pytest packages/civicos-services/tests/ -q --override-ini="addopts=" -k "jurisdiction or tier or cross"
+# Cross-jurisdiction (verifies state data flows through)
+pytest packages/civicos-services/tests/test_query_v2.py -q --override-ini="addopts=" -k "jurisdiction or tier"
 ```
 
 ## Success Criteria
 
-- [ ] Parent tier weight differentiates county vs state vs federal
-- [ ] Local results rank above equivalent-quality state/federal results
-- [ ] Federal rules with high `local_relevance_score` still surface prominently
-- [ ] Cross-jurisdiction search returns intuitive ordering for "housing" query
-- [ ] No regression in single-jurisdiction queries
+- [ ] `ca_legislature.py` client fetches CA bill data (hearing schedules, votes, status)
+- [ ] `store_legislation()` populated for `state-california` (non-zero count)
+- [ ] Data includes participation-oriented fields (hearing dates, comment windows)
+- [ ] Modal function registered for scheduled ingestion
+- [ ] Cross-jurisdiction search surfaces state legislation with 0.7 tier weight
+
+## Notes
+
+- This is estimated at 2-3 sessions. Session 1 should focus on API research + initial client skeleton.
+- LegiScan API key is in `.env` (`LEGISCAN_API_KEY`). Open States may need a separate key.
+- The `state_server_deployment` item (P3) depends on this data being available.

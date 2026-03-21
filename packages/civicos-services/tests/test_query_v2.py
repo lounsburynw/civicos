@@ -1668,9 +1668,17 @@ class TestJurisdictionResolution:
         from civicos_services.query.jurisdictions import get_jurisdiction_tier
         assert get_jurisdiction_tier("city-san-rafael", "city-san-rafael") == "self"
 
-    def test_tier_parent(self):
+    def test_tier_parent_county(self):
         from civicos_services.query.jurisdictions import get_jurisdiction_tier
-        assert get_jurisdiction_tier("city-san-rafael", "county-marin") == "parent"
+        assert get_jurisdiction_tier("city-san-rafael", "county-marin") == "parent_county"
+
+    def test_tier_parent_state(self):
+        from civicos_services.query.jurisdictions import get_jurisdiction_tier
+        assert get_jurisdiction_tier("city-san-rafael", "state-california") == "parent_state"
+
+    def test_tier_parent_federal(self):
+        from civicos_services.query.jurisdictions import get_jurisdiction_tier
+        assert get_jurisdiction_tier("city-san-rafael", "country-united-states") == "parent_federal"
 
     def test_tier_sibling(self):
         from civicos_services.query.jurisdictions import get_jurisdiction_tier
@@ -1683,6 +1691,18 @@ class TestJurisdictionResolution:
     def test_tier_weight_self(self):
         from civicos_services.query.jurisdictions import get_tier_weight
         assert get_tier_weight("city-san-rafael", "city-san-rafael") == 1.0
+
+    def test_tier_weight_parent_county(self):
+        from civicos_services.query.jurisdictions import get_tier_weight
+        assert get_tier_weight("city-san-rafael", "county-marin") == 0.9
+
+    def test_tier_weight_parent_state(self):
+        from civicos_services.query.jurisdictions import get_tier_weight
+        assert get_tier_weight("city-san-rafael", "state-california") == 0.7
+
+    def test_tier_weight_parent_federal(self):
+        from civicos_services.query.jurisdictions import get_tier_weight
+        assert get_tier_weight("city-san-rafael", "country-united-states") == 0.5
 
     def test_tier_weight_sibling(self):
         from civicos_services.query.jurisdictions import get_tier_weight
