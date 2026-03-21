@@ -22931,3 +22931,22 @@ Results: 149 rules scored and written to DB. 33,743 tokens used (~$0.005). Cost-
 Pipeline auto-runs after `fetch_federal_rules --auto-index`. Also runnable standalone: `modal run scripts/modal_ingest.py --score-rules`.
 
 **Next P0:** vertical_query_tier_tuning — Tune tier weights for upward queries (city→state→federal)
+
+## Session: vertical_query_tier_tuning (2026-03-20)
+
+Completed P0: vertical_query_tier_tuning
+
+Added level-aware parent tier weighting to cross-jurisdiction queries. Previously all parent jurisdictions (county, state, federal) competed equally with local results (weight 1.0). Now:
+- `parent_county`: 0.9 (one hop up)
+- `parent_state`: 0.7 (two hops up)
+- `parent_federal`: 0.5 (three hops up)
+
+`get_jurisdiction_tier()` now returns `parent_county`/`parent_state`/`parent_federal` instead of generic `parent`, using jurisdiction ID prefix detection (`county-`, `state-`, `country-`).
+
+Key files:
+- `packages/civicos-services/src/civicos_services/query/jurisdictions.py` — TIER_WEIGHTS dict + _PARENT_TIER_BY_PREFIX mapping + updated get_jurisdiction_tier()
+- `packages/civicos-services/tests/test_query_v2.py` — Added level-specific tier and weight tests (13 tier tests pass)
+
+All 143 v2 query tests pass. No regressions.
+
+**Next P0:** state_legislative_client — Build California legislature data client to fill state-level data gap (0 legislation rows for state-california)

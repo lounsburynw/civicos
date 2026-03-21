@@ -20,13 +20,24 @@ from typing import Dict, List, Set
 
 logger = logging.getLogger(__name__)
 
-# Tier weights for relevance boosting
+# Tier weights for relevance boosting.
+# Parent tiers are level-aware: county (1 hop) > state (2 hops) > federal (3 hops).
 TIER_WEIGHTS = {
     "self": 1.0,
     "child": 1.0,
-    "parent": 1.0,
+    "parent": 0.7,            # fallback for unrecognized parent level
+    "parent_county": 0.9,     # one level up
+    "parent_state": 0.7,      # two levels up
+    "parent_federal": 0.5,    # three levels up
     "sibling": 0.8,
     "cross_county": 0.5,
+}
+
+# Maps jurisdiction ID prefix to parent tier name
+_PARENT_TIER_BY_PREFIX = {
+    "county-": "parent_county",
+    "state-": "parent_state",
+    "country-": "parent_federal",
 }
 
 
@@ -123,7 +134,8 @@ def get_jurisdiction_tier(base_jurisdiction: str, target_jurisdiction: str) -> s
     """
     Determine the tier relationship between two jurisdictions.
 
-    Returns: "self", "child", "parent", "sibling", or "cross_county"
+    Returns: "self", "child", "parent_county", "parent_state", "parent_federal",
+    "parent" (fallback), "sibling", or "cross_county"
     """
     if base_jurisdiction == target_jurisdiction:
         return "self"
@@ -134,8 +146,11 @@ def get_jurisdiction_tier(base_jurisdiction: str, target_jurisdiction: str) -> s
     base_entry = all_jurisdictions.get(base_jurisdiction, {})
     base_parents = base_entry.get("parent_jurisdictions", [])
 
-    # Target is a parent of base (upward)
+    # Target is a parent of base (upward) — return level-specific tier
     if target_jurisdiction in base_parents:
+        for prefix, tier in _PARENT_TIER_BY_PREFIX.items():
+            if target_jurisdiction.startswith(prefix):
+                return tier
         return "parent"
 
     # Target is a child of base (downward)

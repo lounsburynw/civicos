@@ -900,7 +900,7 @@
         "name": "state_legislative_client",
         "description": "Build California legislature data client using leginfo.legislature.ca.gov. Ingest committee hearing schedules, bill status with vote dates, public comment windows.",
         "status": "not_started",
-        "priority": 2,
+        "priority": 0,
         "phase": "2",
         "source": "multi-scale participation \u2014 state",
         "files": [
@@ -925,8 +925,8 @@
       {
         "name": "vertical_query_tier_tuning",
         "description": "Tune tier weights for upward queries (city\u2192state\u2192federal). Parent tier is currently 1.0 (same as self), which means state/federal results compete equally with local decisions. May need level-aware weighting or separate result grouping.",
-        "status": "not_started",
-        "priority": 0,
+        "status": "done",
+        "priority": 1,
         "phase": "1",
         "source": "multi-scale participation \u2014 query layer",
         "files": [
