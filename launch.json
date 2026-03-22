@@ -406,7 +406,7 @@
       {
         "name": "configurable_refresh_policies",
         "description": "Generalize RefreshRunner to all corpus types (meetings, issues, legislation, transcripts). Wire cron orchestrators to use RefreshRunner instead of bespoke logic. Complete the configurable refresh system.",
-        "status": "in_progress",
+        "status": "not_started",
         "priority": 0,
         "files": [
           "data/jurisdictions/",
@@ -415,7 +415,7 @@
           "packages/civicos/src/civicos/storage/postgres_backend.py"
         ],
         "test_file": "packages/civicos/tests/test_refresh.py",
-        "notes": "Core infrastructure done (fd77c05): RefreshRunner, CorpusProvider protocol (Municode fingerprint gate, AMLegal interval-only), YAML refresh: block, modal run --refresh CLI, safety valves, normalized text comparison, 41 tests. ROADMAP (agreed 2026-03-22): Phase 1 — Extend RefreshableCorpus to meetings (ProudCity/Granicus), issues (SeeClickFix), legislation (LegiScan/CA Legislature), transcripts. Add generic refresh_corpus(jurisdiction_id, corpus_type) method. Phase 2 — Wire scheduled_high/low_velocity_refresh() to call RefreshRunner.should_refresh() instead of bespoke logic. Phase 3 — Operator notifications on detected changes. Est: 2-3 sessions for Phase 1, 1 session for Phase 2."
+        "notes": "PRIOR WORK: RefreshRunner exists for municipal_code only (41 tests, safety valves, content hash diffing). THIS ITEM: Generalize to all corpus types. Phase 1 — Extend RefreshableCorpus to meetings (ProudCity/Granicus), issues (SeeClickFix), legislation (LegiScan/CA Legislature). Add generic refresh_corpus(jurisdiction_id, corpus_type) method. Phase 2 — Wire scheduled_high/low_velocity_refresh() to call RefreshRunner. Est: 2-3 sessions for Phase 1, 1 session for Phase 2."
       },
       {
         "name": "query_interface_operators",
