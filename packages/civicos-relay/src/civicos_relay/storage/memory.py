@@ -708,6 +708,28 @@ class InMemoryPeerHealthStorage:
         }
 
 
+class InMemorySpentTokenStorage:
+    """In-memory spent token storage for testing.
+
+    Thread-safe via the GIL for single-process tests. For concurrent
+    integration tests, use the Postgres implementation.
+    """
+
+    def __init__(self):
+        self._spent: dict[str, Optional[str]] = {}  # token_hash -> relay_write_id
+
+    def check_and_mark_spent(
+        self, token_hash: str, relay_write_id: Optional[str] = None
+    ) -> bool:
+        if token_hash in self._spent:
+            return False
+        self._spent[token_hash] = relay_write_id
+        return True
+
+    def is_spent(self, token_hash: str) -> bool:
+        return token_hash in self._spent
+
+
 class InMemoryStorage:
     """Combined in-memory storage for all relay data."""
 
@@ -729,3 +751,4 @@ class InMemoryStorage:
         self.attestations = InMemoryAttestationStorage()
         self.issuers = InMemoryIssuerRegistryStorage()
         self.issuers.set_attestation_storage(self.attestations)
+        self.spent_tokens = InMemorySpentTokenStorage()

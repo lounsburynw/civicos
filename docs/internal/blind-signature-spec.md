@@ -1,6 +1,6 @@
 # Blind Signature Token Scheme Spec
 
-**Status:** Not started
+**Status:** Done — crypto primitives implemented in `packages/civicos-relay/src/civicos_relay/voice/blind.py`
 **Date:** 2026-03-11
 **Launch.json item:** `blind_signature_scheme_design`
 **Depends on:** `token_issuance_service`, `token_verification_in_policy`, `extension_token_wallet`
