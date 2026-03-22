@@ -1,6 +1,6 @@
-# Recommended: Generalize RefreshRunner
+# Recommended: Wire Cron Orchestrators to RefreshRunner
 
-**Priority:** P0 (configurable_refresh_policies)
+**Priority:** P0 (cron_refresh_wiring)
 **Area:** operator_readiness
 **Date:** 2026-03-22
 
@@ -8,74 +8,83 @@
 
 ## Context
 
-Roadmap decision (2026-03-22): Reordered priorities to focus on data pipeline scalability before token issuance. RefreshRunner currently only handles municipal code. All other corpora (meetings, issues, legislation, transcripts) have bespoke ingestion logic in `modal_ingest.py`. The YAML `refresh:` blocks in jurisdiction configs define policies that nothing reads except for municipal_code.
+Phase 1 of the scalability roadmap is complete: `CorpusProvider` protocol + 3 providers + `RefreshRunner.refresh_corpus()`. This session (Phase 2) wires the cron orchestrators in `modal_ingest.py` to use the new infrastructure instead of bespoke per-corpus ingestion logic.
 
-The goal: make RefreshRunner the single refresh path for all corpus types, so adding a new jurisdiction means writing a YAML config — not custom ingestion code.
+The goal: `scheduled_high_velocity_refresh()` and `scheduled_low_velocity_refresh()` in `modal_ingest.py` should instantiate providers and call `runner.refresh_corpus(provider)` instead of calling `fetch_meetings()`, `fetch_issues()`, `sync_legislation()` directly.
 
-## What Exists Today
+## What Exists Now (Phase 1 Output)
 
-- `RefreshRunner` class with `refresh_municipal_code()` — works, tested, 41 tests
-- `RefreshableCorpus` protocol — `check_for_update()`, `get_fingerprint()`, `stream_sections()`
-- `RefreshPolicy` + `load_refresh_policies()` — reads YAML, parses interval/strategy
-- Content hash diffing with safety valves (>50% modified or >20% removed = abort)
-- `MunicipalCodeCorpus` implements `RefreshableCorpus` (Municode fingerprint gate)
-- YAML `refresh:` blocks in `data/jurisdictions/*.yaml` (san-rafael has meetings: 1d, issues: 1d, legislation: 7d, municipal_code: 90d)
+- `CorpusProvider` protocol with `fetch_and_store(storage) -> int` — provider owns data + storage dispatch
+- `MeetingCorpusProvider` — wraps ProudCity/Granicus, calls `storage.store_meetings()`
+- `IssueCorpusProvider` — wraps SeeClickFix, paginates + normalizes, calls `storage.store_issues()`
+- `LegislationCorpusProvider` — wraps LegiScan master list, batch stores via `storage.store_legislation()`
+- `RefreshRunner.refresh_corpus(provider)` — scheduling, change detection, metadata, re-embedding
+- `source_name` threaded through metadata lookups for correct interval checks
+- `index_from_storage` (not `index_corpus`) — fixed to match VectorBackend protocol
+- 79 tests passing, validated against real Postgres + APIs
 
-## What Needs to Be Done (Phase 1)
+## What Needs to Be Done (Phase 2)
 
-Extend `RefreshableCorpus` to non-legal corpora and add a generic `refresh_corpus()` method:
+1. **`scheduled_high_velocity_refresh()`** (~line 4513): Currently calls `fetch_meetings()` and `fetch_issues()` per jurisdiction. Replace with:
+   - Create `MeetingCorpusProvider` + `IssueCorpusProvider` per jurisdiction
+   - Call `runner.refresh_corpus(provider)` for each
+   - Preserve the reactive downstream logic (extract_chunks, extract_agenda_items only if meetings changed)
 
-1. **Meetings** — ProudCity/Granicus clients need `check_for_update()` (compare latest meeting date vs stored) and `get_fingerprint()` (latest meeting datetime as string)
-2. **Issues** — SeeClickFix client needs `check_for_update()` (compare latest issue date vs stored) and `get_fingerprint()` (latest issue created_at)
-3. **Legislation** — LegiScan/CA Legislature clients need the same pattern (latest bill update date)
-4. **Generic dispatch** — Add `RefreshRunner.refresh_corpus(jurisdiction_id, corpus_type)` that looks up the right provider by corpus type, calls check_for_update, fetches if changed, diffs, upserts
-5. **Tests** — Extend `test_refresh.py` with tests for each new corpus type
+2. **`scheduled_low_velocity_refresh()`** (~line 4202): Currently calls `sync_legislation()`. Replace with:
+   - Create `LegislationCorpusProvider` per state
+   - Call `runner.refresh_corpus(provider)`
+   - Preserve text population step (`fetch_legislation`) and other low-velocity stages
+
+3. **Preserve the reactive pipeline**: The bespoke `fetch_meetings()` returns `has_new_material`, `new_meeting_ids`, etc. via `MeetingStoreResult`. The provider's `fetch_and_store()` returns just `int`. The downstream stages (chunks, agenda items, transcripts) need change signals. Options:
+   - Have the cron check `MeetingStoreResult` details via a separate call after refresh
+   - Or keep reactive stages as-is, only replacing the fetch+store portion
 
 ## Key Files
 
-- `packages/civicos/src/civicos/_internal/legal/corpus/refresh.py:66` — `RefreshableCorpus` protocol
-- `packages/civicos/src/civicos/_internal/legal/corpus/refresh.py:242` — `RefreshRunner` class
-- `packages/civicos/src/civicos/_internal/legal/corpus/refresh.py:283` — `refresh_municipal_code()` (pattern to follow)
-- `packages/civicos/src/civicos/_internal/legal/corpus/municipal.py:561` — `MunicipalCodeCorpus.check_for_update()` (reference implementation)
-- `scripts/modal_ingest.py:4202` — `scheduled_low_velocity_refresh()` (bespoke logic to replace)
-- `scripts/modal_ingest.py:4513` — `scheduled_high_velocity_refresh()` (bespoke logic to replace)
-- `data/jurisdictions/city-san-rafael.yaml:155` — refresh policy block (already has meetings/issues/legislation)
-- `packages/civicos/tests/test_refresh.py` — existing 41 tests
+- `scripts/modal_ingest.py:4513` — `scheduled_high_velocity_refresh()` (daily cron)
+- `scripts/modal_ingest.py:4202` — `scheduled_low_velocity_refresh()` (weekly cron)
+- `scripts/modal_ingest.py:2799` — `fetch_meetings()` (bespoke, to be replaced)
+- `scripts/modal_ingest.py:3147` — `fetch_issues()` (bespoke, to be replaced)
+- `scripts/modal_ingest.py:593` — `sync_legislation()` (bespoke, to be replaced)
+- `packages/civicos/src/civicos/_internal/legal/corpus/refresh.py:564` — `refresh_corpus()` method
+- `packages/civicos/src/civicos/_internal/legal/corpus/providers.py` — 3 provider implementations
+- `.github/workflows/cron-high-velocity-refresh.yml` — GH Actions trigger
+- `.github/workflows/cron-low-velocity-refresh.yml` — GH Actions trigger
 
 ## Suggested Approach
 
-1. Start by reading `refresh.py` in full — understand the RefreshRunner pattern
-2. Read the bespoke ingestion logic for meetings in `modal_ingest.py` — find `fetch_meetings`
-3. Implement `RefreshableCorpus` on the meeting extraction client (ProudCity first)
-4. Add `RefreshRunner.refresh_meetings()` following the `refresh_municipal_code()` pattern
-5. Test with san-rafael meetings
-6. Repeat for issues, then legislation
-7. Add generic `refresh_corpus()` dispatch method
+1. Read `scheduled_high_velocity_refresh()` in full — understand the reactive pipeline
+2. Refactor meetings portion: instantiate `MeetingCorpusProvider`, call `runner.refresh_corpus()`
+3. Handle the reactive downstream (chunks/agenda_items need `has_new_material` signal)
+4. Refactor issues portion similarly
+5. Test the high-velocity flow with `modal run scripts/modal_ingest.py::scheduled_high_velocity_refresh --dry-run` or similar
+6. Refactor `scheduled_low_velocity_refresh()` for legislation
+7. Do NOT delete the old `fetch_meetings()`, `fetch_issues()`, `sync_legislation()` functions yet — they're still used by `modal run` CLI entrypoints
 
 ## Tests to Run
 
 ```bash
-# Existing refresh tests
+# Refresh tests (must stay green)
 pytest packages/civicos/tests/test_refresh.py -q --override-ini="addopts="
 
-# Smoke test
+# Smoke tests
 pytest packages/civicos/tests/test_civicos.py -q --override-ini="addopts="
 ```
 
 ## Success Criteria
 
-- [ ] `RefreshableCorpus` implemented on ProudCity meeting client
-- [ ] `RefreshableCorpus` implemented on SeeClickFix issue client
-- [ ] `RefreshableCorpus` implemented on legislation clients (LegiScan or CA Legislature)
-- [ ] `RefreshRunner.refresh_corpus()` generic dispatch method works
-- [ ] Existing 41 refresh tests still pass
-- [ ] New tests for meeting/issue/legislation refresh
+- [ ] `scheduled_high_velocity_refresh()` uses `RefreshRunner.refresh_corpus()` for meetings + issues
+- [ ] `scheduled_low_velocity_refresh()` uses `RefreshRunner.refresh_corpus()` for legislation
+- [ ] Reactive downstream stages (chunks, agenda_items) still triggered correctly
+- [ ] YAML interval policies respected (meetings: 1d, issues: 1d, legislation: 7d)
+- [ ] All 79 refresh tests pass
+- [ ] No regression in scheduled cron behavior
 
 ## Roadmap Context
 
-This is Phase 1 of the agreed scalability roadmap:
-- **Phase 1 (P0):** Generalize RefreshRunner <-- YOU ARE HERE
-- **Phase 2 (P1):** Wire cron orchestrators to use RefreshRunner (`cron_refresh_wiring`)
-- **Phase 3 (P2):** Onboarding YAML generation
-- **Phase 4 (P2):** Token issuance track
-- **Phase 5 (P3):** Turnkey state onboarding (post-launch)
+- **Phase 1 (DONE):** Generalize RefreshRunner — CorpusProvider protocol + 3 providers
+- **Phase 2 (P0):** Wire cron orchestrators <-- YOU ARE HERE
+- **Phase 3 (P1):** Deploy remaining servers + fix Cloudflare proxies
+- **Phase 4 (P2):** Onboarding YAML generation
+- **Phase 5 (P2):** Token issuance track
+- **Phase 6 (P3):** Turnkey state onboarding
