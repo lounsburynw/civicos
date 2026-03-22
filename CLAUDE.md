@@ -424,6 +424,7 @@ Full test suite runs automatically on GitHub Actions:
 - **Use smoke tests for quick validation** - 31 tests, ~75s
 - **Use targeted tests during dev** - each launch.json item has a `test_file` field
 - **Check CI status before merging** - full coverage runs there
+- **Integration tests required for wiring/orchestration code** - when implementing code that connects multiple real components (cron orchestrators, API endpoints, provider dispatch), write integration tests that validate the full chain against real Postgres with mock external APIs. Unit tests with mocks alone are insufficient for orchestration code — they prove the right methods are called but not that the chain actually works. See `test_integration_cron_wiring.py` for the pattern.
 
 ## Storage Backends
 
