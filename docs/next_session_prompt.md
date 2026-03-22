@@ -1,80 +1,91 @@
-# Recommended: Onboarding YAML Generation
+# Recommended: Token Verification in Acceptance Policy
 
-**Priority:** P0 (onboarding_yaml_generation)
-**Area:** federation_testbed
+**Priority:** P0 (token_verification_in_policy)
+**Area:** token_issuance
 **Date:** 2026-03-22
 
 > This is recommended context from the previous session. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
 
 ## Context
 
-The scalability roadmap Phase 1 (generalize RefreshRunner) and Phase 2 (wire cron orchestrators) are complete. The refresh pipeline now uses `RefreshRunner.refresh_corpus()` with `CorpusProvider` instances for meetings, issues, and legislation. Config-driven provider dispatch reads source types from jurisdiction YAML. A new `configuration.critic.md` catches hardcoded provider assumptions going forward.
-
-This session (Phase 4) extends the onboard workflow to generate complete jurisdiction YAML files — making onboarding produce all config needed for a functioning jurisdiction, not just extraction JSON.
+The previous session implemented Schnorr blind signature crypto primitives (`blind.py`) and a `SpentTokenStorage` protocol with Postgres and InMemory implementations. The acceptance policy's `_verify_payment()` at line 367 is still a stub that always returns `False`. This session wires in real token verification using the new primitives, completing the relay's payment tier.
 
 ## What Exists Now
 
-- `data/jurisdictions/*.yaml` — 11 jurisdiction YAML files (manually created)
-- `data/extraction/*.json` — Extraction JSON configs (created by onboard workflow)
-- `packages/civicos/src/civicos/jurisdiction_config.py` — `JurisdictionConfig`, `DataSources`, `load_jurisdiction_config()`, `validate_jurisdiction_config()`
-- `data/jurisdictions/schema.yaml` — YAML schema reference
-- `.claude/commands/onboard.md` — Current onboard slash command
+- `packages/civicos-relay/src/civicos_relay/voice/blind.py` — `verify_token()`, `compute_token_hash()`, `SpendableToken`, `SpentTokenStorage` Protocol
+- `packages/civicos-relay/src/civicos_relay/storage/postgres.py` — `PostgresSpentTokenStorage` (atomic `INSERT ON CONFLICT DO NOTHING`)
+- `packages/civicos-relay/src/civicos_relay/storage/memory.py` — `InMemorySpentTokenStorage`
+- Both composites (`PostgresStorage`, `InMemoryStorage`) expose `.spent_tokens`
+- `scripts/sql/add_spent_tokens.sql` — migration for `coordination_spent_tokens` table
 
 ## What Needs to Be Done
 
-1. **Extend the onboard workflow** to generate a jurisdiction YAML alongside the extraction JSON. The YAML should include:
-   - Identity (jurisdiction_id, level, display_name)
-   - Hierarchy (parent_jurisdictions)
-   - Data sources (meetings source_type + base_url, issues source, municipal_code source)
-   - Refresh policies (default intervals: meetings 1d, issues 1d, municipal_code 90d, legislation 7d)
-   - Ingestion tiers (all true by default for new cities)
-   - Contact info (placeholder or scraped if available)
+1. **Inject `SpentTokenStorage` into `AcceptancePolicy`** — Add a `spent_token_storage` parameter to `__init__` (line 180). When not provided, fall back gracefully (payment always fails, matching current behavior).
 
-2. **Use existing YAML files as templates** — `data/jurisdictions/city-san-rafael.yaml` is the most complete example.
+2. **Replace `_verify_payment()` stub** (line 367-369) with real verification:
+   - Parse `payment_proof` dict into `SpendableToken.from_dict()`
+   - Call `verify_token(token)` to check the Schnorr signature
+   - Call `spent_token_storage.check_and_mark_spent(compute_token_hash(token))` for atomic double-spend prevention
+   - Return `True` only if both signature is valid AND token was not already spent
 
-3. **Validate generated YAML** via `validate_jurisdiction_config()` from `jurisdiction_config.py`.
+3. **Add issuer pubkey validation** — The relay should only accept tokens signed by known issuer public keys. Follow the pattern from `_verify_attestation()` (line 303-306) which uses `self._issuer_lookup`. Add a `known_token_issuers` config or reuse the issuer registry.
+
+4. **Update tests** in `packages/civicos-relay/tests/test_acceptance_policy.py`:
+   - Replace `test_payment_stub_always_fails` (line 84-89) with real verification tests
+   - Test: valid token accepted with tier="paid"
+   - Test: invalid signature falls through to rate limit
+   - Test: double-spend (same token twice) second attempt falls through
+   - Test: unknown issuer pubkey rejected
+   - Test: no spent_token_storage provided payment always fails (backwards compat)
 
 ## Key Files
 
-- `data/jurisdictions/city-san-rafael.yaml` — Reference template (most complete)
-- `data/jurisdictions/schema.yaml` — YAML schema
-- `packages/civicos/src/civicos/jurisdiction_config.py:392` — `load_jurisdiction_config()`
-- `packages/civicos/src/civicos/jurisdiction_config.py:663` — `validate_jurisdiction_config()`
-- `.claude/commands/onboard.md` — Current onboard workflow
+- `packages/civicos-relay/src/civicos_relay/server/acceptance.py:170` — `AcceptancePolicy` class
+- `packages/civicos-relay/src/civicos_relay/server/acceptance.py:236-239` — Payment tier check in `check()`
+- `packages/civicos-relay/src/civicos_relay/server/acceptance.py:367-369` — `_verify_payment()` stub
+- `packages/civicos-relay/src/civicos_relay/voice/blind.py:70` — `SpentTokenStorage` Protocol
+- `packages/civicos-relay/src/civicos_relay/voice/blind.py:201` — `verify_token()`
+- `packages/civicos-relay/src/civicos_relay/voice/blind.py:248` — `compute_token_hash()`
+- `packages/civicos-relay/tests/test_acceptance_policy.py:84-89` — Current payment stub test
+- `packages/civicos-relay/tests/test_blind_signatures.py` — 28 existing crypto tests
 
 ## Suggested Approach
 
-1. Read the onboard command/script to understand current flow
-2. Read `city-san-rafael.yaml` as the reference template
-3. Read `schema.yaml` for the YAML schema
-4. Add YAML generation to the onboard workflow (after extraction JSON creation)
-5. Derive fields from user input and extraction config (source_type, base_url, jurisdiction_id)
-6. Default refresh policies and ingestion tiers
-7. Validate with `validate_jurisdiction_config()`
-8. Test by onboarding a test city and verifying the generated YAML loads correctly
+1. Read `acceptance.py` fully to understand the `check()` flow and `_verify_attestation()` pattern
+2. Add `spent_token_storage: Optional[SpentTokenStorage] = None` to `AcceptancePolicy.__init__`
+3. Replace `_verify_payment()` with real verification (signature check + atomic spend)
+4. Add issuer pubkey allowlist (simple list or reuse issuer registry)
+5. Write tests using `InMemorySpentTokenStorage` and tokens from `_issue_token()` helper
+6. Run existing acceptance tests to ensure no regressions
 
 ## Tests to Run
 
 ```bash
-# Smoke tests
-pytest packages/civicos/tests/test_civicos.py -q --override-ini="addopts="
+# Blind signature tests (should still pass)
+pytest packages/civicos-relay/tests/test_blind_signatures.py -q --override-ini="addopts="
 
-# Jurisdiction config tests
-pytest packages/civicos/tests/ -k "jurisdiction_config" -q --override-ini="addopts="
+# Acceptance policy tests
+pytest packages/civicos-relay/tests/test_acceptance_policy.py -q --override-ini="addopts="
+
+# All relay tests
+pytest packages/civicos-relay/tests/ -q --override-ini="addopts="
 ```
 
 ## Success Criteria
 
-- [ ] Onboard workflow generates a valid `data/jurisdictions/{jid}.yaml` file
-- [ ] Generated YAML passes `validate_jurisdiction_config()`
-- [ ] Generated YAML includes: identity, hierarchy, data_sources, refresh policies, ingestion tiers
-- [ ] Refresh policies default to sensible intervals (meetings: 1d, issues: 1d, municipal_code: 90d)
-- [ ] Existing manually-created YAMLs are not affected
+- [ ] `_verify_payment()` validates `SpendableToken` signatures via `verify_token()`
+- [ ] Double-spend prevented via `SpentTokenStorage.check_and_mark_spent()` (atomic)
+- [ ] Only tokens from known issuer pubkeys are accepted
+- [ ] Backwards compatible: no `spent_token_storage` means payment tier always fails (existing behavior)
+- [ ] Existing acceptance policy tests still pass
+- [ ] New tests cover: valid token, invalid sig, double-spend, unknown issuer
 
 ## Roadmap Context
 
-- **Phase 1 (DONE):** Generalize RefreshRunner — CorpusProvider protocol + 3 providers
-- **Phase 2 (DONE):** Wire cron orchestrators to use RefreshRunner
-- **Phase 4 (P0):** Onboarding YAML generation <-- YOU ARE HERE
-- **Phase 5 (P2):** Token issuance track (blind signatures, service, verification)
-- **Phase 6 (P3):** Turnkey state onboarding
+- **Phase 1 (DONE):** Generalize RefreshRunner
+- **Phase 2 (DONE):** Wire cron orchestrators
+- **Phase 3 (DONE):** Onboarding YAML generation
+- **Phase 4 (DONE):** Blind signature scheme design + SpentTokenStorage
+- **Phase 5 (P0):** Token verification in acceptance policy <-- NEXT
+- **Phase 6 (P3):** Token issuance service (Stripe/Lightning)
+- **Phase 7 (P3):** Extension token wallet + purchase UI
