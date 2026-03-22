@@ -22,6 +22,8 @@ Run `/critic` to check for architectural issues. This analyzes the staged diff a
 - `.critics/security.critic.md` - Trust model integrity
 - `.critics/jurisdiction.critic.md` - Jurisdiction isolation
 - `.critics/data.critic.md` - ETL data quality
+- `.critics/refresh.critic.md` - Refresh/upsert integrity
+- `.critics/configuration.critic.md` - Config-driven behavior
 - `.critics/docs.critic.md` - Documentation accuracy
 - `.critics/session.critic.md` - Session hygiene
 
