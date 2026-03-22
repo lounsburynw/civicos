@@ -1,3 +1,35 @@
+## Session — 2026-03-22: Generalize RefreshRunner (P0, Phase 1)
+
+**Item:** configurable_refresh_policies
+**Status:** Phase 1 COMPLETE — CorpusProvider protocol + 3 providers + generic RefreshRunner.refresh_corpus()
+
+**What was done:**
+- Added `CorpusProvider` protocol to refresh.py with `fetch_and_store(storage) -> int` design
+  - Provider owns both data fetching AND storage dispatch (not the runner)
+  - RefreshRunner stays corpus-agnostic: scheduling, metadata, re-embedding only
+- Created 3 providers in `providers.py`:
+  - `MeetingCorpusProvider` — wraps ProudCity/Granicus clients
+  - `IssueCorpusProvider` — wraps SeeClickFix, handles pagination + normalization
+  - `LegislationCorpusProvider` — wraps LegiScan, handles master list + batch storage
+- Added `RefreshRunner.refresh_corpus(provider)` — generic orchestration method
+- All 3 providers satisfy `CorpusProvider` protocol (runtime-checkable)
+- 78 tests passing (41 existing + 37 new), smoke tests pass
+
+**Design decision:** `fetch_and_store(storage)` instead of `fetch() -> List[Dict]` + runner dispatch.
+This avoids a growing if/elif chain in the runner and keeps provider-specific knowledge (data shapes,
+storage method signatures, normalization) encapsulated in the provider.
+
+**Next:** Phase 2 — Wire cron orchestrators (modal_ingest.py scheduled_*_refresh) to use these providers
+instead of bespoke logic. Item: `cron_refresh_wiring` (P1).
+
+**Files changed:**
+- `packages/civicos/src/civicos/_internal/legal/corpus/refresh.py` — CorpusProvider protocol, refresh_corpus()
+- `packages/civicos/src/civicos/_internal/legal/corpus/providers.py` — NEW: 3 provider implementations
+- `packages/civicos/src/civicos/_internal/legal/corpus/__init__.py` — exports
+- `packages/civicos/tests/test_refresh.py` — 37 new tests
+
+---
+
 ## Session — 2026-03-17: Query Engine Performance (P0)
 
 **Item:** query_engine_performance

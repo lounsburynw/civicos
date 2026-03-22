@@ -406,16 +406,16 @@
       {
         "name": "configurable_refresh_policies",
         "description": "Generalize RefreshRunner to all corpus types (meetings, issues, legislation, transcripts). Wire cron orchestrators to use RefreshRunner instead of bespoke logic. Complete the configurable refresh system.",
-        "status": "not_started",
-        "priority": 0,
+        "status": "done",
+        "priority": 1,
         "files": [
           "data/jurisdictions/",
-          "scripts/modal_ingest.py",
           "packages/civicos/src/civicos/_internal/legal/corpus/refresh.py",
+          "packages/civicos/src/civicos/_internal/legal/corpus/providers.py",
           "packages/civicos/src/civicos/storage/postgres_backend.py"
         ],
         "test_file": "packages/civicos/tests/test_refresh.py",
-        "notes": "PRIOR WORK: RefreshRunner exists for municipal_code only (41 tests, safety valves, content hash diffing). THIS ITEM: Generalize to all corpus types. Phase 1 — Extend RefreshableCorpus to meetings (ProudCity/Granicus), issues (SeeClickFix), legislation (LegiScan/CA Legislature). Add generic refresh_corpus(jurisdiction_id, corpus_type) method. Phase 2 — Wire scheduled_high/low_velocity_refresh() to call RefreshRunner. Est: 2-3 sessions for Phase 1, 1 session for Phase 2."
+        "notes": "DONE (Phase 1): CorpusProvider protocol with fetch_and_store() design. 3 providers (Meeting, Issue, Legislation). RefreshRunner.refresh_corpus() generic orchestration. 78 tests. Phase 2 (cron wiring) is tracked as cron_refresh_wiring item."
       },
       {
         "name": "query_interface_operators",
@@ -433,7 +433,7 @@
         "name": "cron_refresh_wiring",
         "description": "Wire scheduled_high/low_velocity_refresh() cron orchestrators to use RefreshRunner.should_refresh() + refresh_corpus() instead of bespoke per-corpus ingestion logic.",
         "status": "not_started",
-        "priority": 1,
+        "priority": 0,
         "phase": "1",
         "source": "scalability roadmap 2026-03-22",
         "files": [

@@ -1,24 +1,33 @@
 """
 Configurable refresh policies for corpus data.
 
-Provides a protocol for corpus providers to report whether their data has changed,
-and a runner that orchestrates check → diff → upsert → re-embed workflows.
+Provides protocols for corpus providers and a runner that orchestrates refresh.
 
 Architecture:
-    CorpusProvider (publisher-specific)
-        └── check_for_update() → ChangeSignal (changed/unchanged/unknown)
-        └── get_fingerprint() → str (e.g., supplement string, publish date)
+    RefreshableCorpus (change detection only — municipal code legacy)
+        └── check_for_update() → ChangeSignal
+        └── get_fingerprint() → str
 
-    RefreshRunner (generic)
+    CorpusProvider (full refresh cycle — meetings, issues, legislation, etc.)
+        └── check_for_update() → ChangeSignal
+        └── get_fingerprint() → str
+        └── fetch_and_store(storage) → int  (provider owns data + storage dispatch)
+
+    RefreshRunner (generic orchestrator)
         └── reads policy from jurisdiction YAML
         └── calls provider.check_for_update()
-        └── if changed: fetch → diff by content hash → upsert deltas → re-embed
+        └── if changed: provider.fetch_and_store() → metadata update → re-embed
+        └── refresh_municipal_code() — legacy method using RefreshableCorpus
+        └── refresh_corpus(provider) — generic method using CorpusProvider
 
     Jurisdiction YAML:
         refresh:
           municipal_code:
             interval: 90d
             strategy: content_hash
+          meetings:
+            interval: 1d
+            strategy: incremental
 
 Scheduling is external (GH Actions cron → modal run). The YAML defines what to check.
 """
@@ -91,6 +100,46 @@ class RefreshableCorpus(Protocol):
         This is a lightweight check (no full fetch). Examples:
         - Municode: job publish date
         - AMLegal: supplement string from first 10 lines
+        """
+        ...
+
+
+@runtime_checkable
+class CorpusProvider(Protocol):
+    """Protocol for corpus providers that support full refresh cycle.
+
+    Unlike RefreshableCorpus (which only does change detection), CorpusProvider
+    also owns fetching and storage. This keeps RefreshRunner corpus-agnostic —
+    it handles scheduling, metadata, and re-embedding while the provider handles
+    data acquisition and storage dispatch.
+
+    Implementations wrap extraction clients (ProudCity, SeeClickFix, LegiScan)
+    and are instantiated by the caller — no cross-package imports needed.
+    """
+
+    jurisdiction_id: str
+    corpus_type: str    # "meetings", "issues", "legislation", etc.
+    source_name: str    # "proudcity", "seeclickfix", "legiscan", etc.
+
+    def check_for_update(self, last_fingerprint: Optional[str] = None) -> ChangeSignal:
+        """Check if the corpus has changed since the last fetch."""
+        ...
+
+    def get_fingerprint(self) -> str:
+        """Get the current fingerprint (lightweight, no full fetch)."""
+        ...
+
+    def fetch_and_store(self, storage) -> int:
+        """Fetch records from source and store via the appropriate backend method.
+
+        The provider knows its data shape and which storage method to call
+        (store_meetings, store_issues, store_legislation, etc.).
+
+        Args:
+            storage: StorageBackend instance.
+
+        Returns:
+            Number of records stored.
         """
         ...
 
@@ -240,14 +289,21 @@ class RefreshResult:
 
 
 class RefreshRunner:
-    """Orchestrates corpus refresh: check → diff → upsert → re-embed.
+    """Orchestrates corpus refresh: scheduling → change detection → store → re-embed.
 
-    Publisher-agnostic. Gets the appropriate provider from the existing
-    MunicipalCodeCorpus factory.
+    Two modes:
+    - refresh_municipal_code(jurisdiction_id) — legacy, couples to MunicipalCodeCorpus
+    - refresh_corpus(provider) — generic, provider owns fetch + storage dispatch
 
     Usage:
         runner = RefreshRunner(backend, vector_backend)
+
+        # Legacy (municipal code only):
         result = runner.refresh_municipal_code("city-san-rafael")
+
+        # Generic (any corpus):
+        provider = MeetingCorpusProvider(client, "city-san-rafael")
+        result = runner.refresh_corpus(provider)
     """
 
     def __init__(self, storage_backend, vector_backend=None):
@@ -259,6 +315,7 @@ class RefreshRunner:
         jurisdiction_id: str,
         corpus_type: str,
         policy: Optional[RefreshPolicy] = None,
+        source_name: Optional[str] = None,
     ) -> bool:
         """Check if a corpus is due for refresh based on policy and last fetch time."""
         if policy and not policy.enabled:
@@ -266,7 +323,9 @@ class RefreshRunner:
 
         interval_days = policy.interval_days if policy else 90
 
-        meta = self.storage.get_refresh_metadata(jurisdiction_id, corpus_type)
+        meta = self.storage.get_refresh_metadata(
+            jurisdiction_id, corpus_type, source_name,
+        )
         if not meta:
             return True  # Never fetched
 
@@ -505,37 +564,167 @@ class RefreshRunner:
             elapsed_seconds=elapsed,
         )
 
+    def refresh_corpus(
+        self,
+        provider: "CorpusProvider",
+        force: bool = False,
+        dry_run: bool = False,
+        reindex_vectors: bool = True,
+    ) -> RefreshResult:
+        """Generic refresh for any corpus type via a CorpusProvider.
+
+        RefreshRunner owns scheduling, change detection, metadata, and re-embedding.
+        The provider owns data acquisition and storage dispatch via fetch_and_store().
+
+        Steps:
+        1. Load refresh policy from YAML (or use defaults)
+        2. Check if refresh is due (skip if not, unless force=True)
+        3. Call provider.check_for_update()
+        4. If changed: call provider.fetch_and_store(storage)
+        5. Update refresh metadata
+        6. Re-embed if requested
+        """
+        import time
+        start = time.time()
+
+        corpus_type = provider.corpus_type
+        jurisdiction_id = provider.jurisdiction_id
+        source_name = provider.source_name
+
+        # 1. Load policy
+        policies = load_refresh_policies(jurisdiction_id)
+        policy = policies.get(corpus_type)
+
+        # 2. Check if due
+        if not force and not self.should_refresh(
+            jurisdiction_id, corpus_type, policy, source_name,
+        ):
+            logger.info(f"[REFRESH] {jurisdiction_id} {corpus_type}: not due yet, skipping")
+            return RefreshResult(
+                jurisdiction_id=jurisdiction_id,
+                corpus_type=corpus_type,
+                status="skipped",
+                elapsed_seconds=time.time() - start,
+            )
+
+        # 3. Change detection
+        meta = self.storage.get_refresh_metadata(
+            jurisdiction_id, corpus_type, source_name,
+        )
+        last_fp = meta.get("last_fetch_hash") if meta else None
+
+        signal = ChangeSignal(status=ChangeStatus.UNKNOWN)
+        try:
+            signal = provider.check_for_update(last_fp)
+        except Exception as e:
+            logger.warning(f"[REFRESH] {corpus_type} check_for_update failed: {e}")
+            signal = ChangeSignal(status=ChangeStatus.ERROR, message=str(e))
+
+        if signal.status == ChangeStatus.UNCHANGED and not force:
+            logger.info(
+                f"[REFRESH] {jurisdiction_id} {corpus_type}: unchanged "
+                f"(fingerprint={signal.new_fingerprint})"
+            )
+            return RefreshResult(
+                jurisdiction_id=jurisdiction_id,
+                corpus_type=corpus_type,
+                status="unchanged",
+                change_signal=signal,
+                elapsed_seconds=time.time() - start,
+            )
+
+        if signal.status == ChangeStatus.ERROR and not force:
+            return RefreshResult(
+                jurisdiction_id=jurisdiction_id,
+                corpus_type=corpus_type,
+                status="error",
+                change_signal=signal,
+                error=signal.message,
+                elapsed_seconds=time.time() - start,
+            )
+
+        # 4. Fetch and store (provider owns both)
+        logger.info(f"[REFRESH] {jurisdiction_id} {corpus_type}: fetching and storing...")
+
+        if dry_run:
+            return RefreshResult(
+                jurisdiction_id=jurisdiction_id,
+                corpus_type=corpus_type,
+                status="updated",
+                change_signal=signal,
+                elapsed_seconds=time.time() - start,
+            )
+
+        try:
+            stored = provider.fetch_and_store(self.storage)
+        except Exception as e:
+            logger.warning(f"[REFRESH] {corpus_type} fetch_and_store failed: {e}")
+            return RefreshResult(
+                jurisdiction_id=jurisdiction_id,
+                corpus_type=corpus_type,
+                status="error",
+                change_signal=signal,
+                error=str(e),
+                elapsed_seconds=time.time() - start,
+            )
+
+        # 5. Update refresh metadata
+        new_fp = signal.new_fingerprint
+        self.storage.update_refresh_metadata(
+            jurisdiction_id, corpus_type,
+            source_name=source_name,
+            items_fetched=stored,
+            items_stored=stored,
+            status="completed",
+            last_fetch_hash=new_fp,
+        )
+
+        # 6. Re-embed
+        vectors_reindexed = 0
+        if reindex_vectors and self.vectors and stored > 0:
+            try:
+                vectors_reindexed = self.vectors.index_from_storage(
+                    storage_backend=self.storage,
+                    jurisdiction_id=jurisdiction_id,
+                    corpus_type=corpus_type,
+                )
+            except Exception as e:
+                logger.warning(f"[REFRESH] Vector reindex failed for {corpus_type}: {e}")
+
+        elapsed = time.time() - start
+        logger.info(
+            f"[REFRESH] {jurisdiction_id} {corpus_type}: "
+            f"stored={stored}, vectors={vectors_reindexed}, "
+            f"elapsed={elapsed:.1f}s"
+        )
+        return RefreshResult(
+            jurisdiction_id=jurisdiction_id,
+            corpus_type=corpus_type,
+            status="updated" if stored > 0 else "unchanged",
+            change_signal=signal,
+            sections_added=stored,
+            vectors_reindexed=vectors_reindexed,
+            elapsed_seconds=elapsed,
+        )
+
     def _reindex_changed_sections(
         self,
         jurisdiction_id: str,
         changed_sections: List[Dict[str, Any]],
     ) -> int:
-        """Re-embed only the changed sections.
-
-        Uses the vector backend's index_corpus method with a filter
-        to only process sections that were added or modified.
-        """
+        """Re-embed changed municipal code sections via VectorBackend."""
         if not self.vectors:
             return 0
 
-        # Build document IDs for changed sections
-        changed_ids = set()
-        for s in changed_sections:
-            sec_num = s.get("section_number", "")
-            doc_id = f"{jurisdiction_id}-muni-{sec_num.replace('.', '-')}"
-            changed_ids.add(doc_id)
-
         logger.info(
-            f"[REFRESH] Re-indexing {len(changed_ids)} changed sections "
+            f"[REFRESH] Re-indexing {len(changed_sections)} changed sections "
             f"for {jurisdiction_id}"
         )
 
-        # Full reindex of municipal_code corpus
-        # The vector backend will handle chunking and embedding
-        count = self.vectors.index_corpus(
+        count = self.vectors.index_from_storage(
+            storage_backend=self.storage,
             jurisdiction_id=jurisdiction_id,
             corpus_type="municipal_code",
-            reindex=True,  # Force reindex to pick up changes
         )
 
         return count
