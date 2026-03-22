@@ -754,7 +754,7 @@
       {
         "name": "onboarding_yaml_generation",
         "description": "Extend onboard.py to generate complete jurisdiction YAML (refresh policies, contact info, hierarchy, modal config) in addition to extraction JSON. Makes onboarding produce all config needed for a functioning jurisdiction.",
-        "status": "not_started",
+        "status": "done",
         "priority": 0,
         "phase": "2",
         "source": "scalability roadmap 2026-03-22",

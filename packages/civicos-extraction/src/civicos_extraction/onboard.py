@@ -786,6 +786,89 @@ def discover_usaspending_candidates(
         return []
 
 
+def _default_refresh_policies(level: str) -> Dict[str, Dict[str, str]]:
+    """Return sensible default refresh policies based on jurisdiction level."""
+    if level in ("city", "county", "town", "district", "council"):
+        return {
+            "meetings": {"interval": "1d", "strategy": "incremental"},
+            "issues": {"interval": "1d", "strategy": "incremental"},
+            "municipal_code": {"interval": "90d", "strategy": "content_hash"},
+            "legislation": {"interval": "7d", "strategy": "incremental"},
+        }
+    elif level in ("state", "province"):
+        return {
+            "legislation": {"interval": "7d", "strategy": "incremental"},
+        }
+    elif level == "federal":
+        return {
+            "legislation": {"interval": "7d", "strategy": "incremental"},
+        }
+    return {}
+
+
+def _default_governing_body(display_name: str, level: str) -> Dict[str, Optional[str]]:
+    """Return placeholder governing body based on jurisdiction level."""
+    if level == "city":
+        return {
+            "name": f"{display_name} City Council",
+            "members_title": "Mayor and Council Members",
+            "meeting_schedule": None,
+            "meeting_location": None,
+        }
+    elif level == "town":
+        return {
+            "name": f"{display_name} Town Council",
+            "members_title": "Mayor and Council Members",
+            "meeting_schedule": None,
+            "meeting_location": None,
+        }
+    elif level == "county":
+        return {
+            "name": f"{display_name} County Board of Supervisors",
+            "members_title": "Supervisors",
+            "meeting_schedule": None,
+            "meeting_location": None,
+        }
+    return {
+        "name": None,
+        "members_title": None,
+        "meeting_schedule": None,
+        "meeting_location": None,
+    }
+
+
+def _usaspending_from_candidates(
+    display_name: str,
+    candidates: List[Dict[str, Any]],
+) -> Optional[Dict[str, Any]]:
+    """Build federal_programs block from USAspending discovery candidates.
+
+    Picks the top government candidate (highest award count) and builds
+    search_names + allowed_names from it.
+    """
+    if not candidates:
+        return None
+
+    # Prefer government entities, then by award count
+    gov_candidates = [c for c in candidates if c.get("is_government")]
+    best = gov_candidates[0] if gov_candidates else candidates[0]
+
+    recipient_name = best.get("recipient_name", display_name.upper())
+    search_names = [recipient_name]
+
+    # Add reversed form ("SAN RAFAEL, CITY OF") if it looks like "CITY OF SAN RAFAEL"
+    match = re.match(r"^(CITY|COUNTY|TOWN|DISTRICT) OF (.+)$", recipient_name)
+    if match:
+        search_names.append(f"{match.group(2)}, {match.group(1)} OF")
+
+    return {
+        "usaspending": {
+            "search_names": search_names,
+            "allowed_names": list(search_names),
+        },
+    }
+
+
 def _generate_jurisdiction_yaml(
     jurisdiction_id: str,
     display_name: str,
@@ -798,11 +881,13 @@ def _generate_jurisdiction_yaml(
     zip_code: str = "",
     state_abbrev: str = "CA",
     country: str = "United States",
+    usaspending_candidates: Optional[List[Dict[str, Any]]] = None,
 ) -> str:
-    """Generate jurisdiction YAML content from onboarding results.
+    """Generate complete jurisdiction YAML content from onboarding results.
 
-    Level-aware: produces correct parent chains, financial fields, and contact
-    info for cities, counties, states, provinces, councils, and districts
+    Level-aware: produces correct parent chains, financial fields, contact
+    info, governing body, refresh policies, modal config, and federal programs
+    for cities, counties, states, provinces, councils, and districts
     across US, Canada, UK, and other countries — without caller cleanup.
     """
     try:
@@ -868,42 +953,115 @@ def _generate_jurisdiction_yaml(
 
     today = date.today().isoformat()
 
+    # Build contact_info with all fields (level-aware)
+    contact_info: Dict[str, Any] = {
+        "clerk_email": contact_email or None,
+        "website": website or None,
+    }
+    if level in ("city", "county", "town", "district", "council"):
+        contact_info.update({
+            "city_hall_address": None,
+            "phone": None,
+            "public_comment_deadline": "5:00 PM day of meeting",
+            "in_person_time_limit": "3 minutes",
+            "public_comment_subject": "Public Comment - [Agenda Item Title]",
+        })
+
+    # Build data_sources with all corpus types
+    data_sources: Dict[str, Any] = {
+        "meetings": meetings_source,
+        "issues": None,
+        "budget": None,
+        "municipal_code": None,
+        "transcripts": {"source": None, "playlist_id": None},
+    }
+    if level in ("state", "province"):
+        data_sources["legislation"] = "leginfo_api"
+        data_sources["revenue"] = None
+    elif level == "federal":
+        data_sources["legislation"] = "congress_api"
+        data_sources["expenditures"] = None
+        data_sources["funding"] = None
+
+    # Build governing_body (level-aware defaults)
+    governing_body = _default_governing_body(display_name, level)
+
+    # Build financial context
+    financial: Dict[str, Any] = {
+        "state": state_abbrev,
+    }
+    if level != "county":
+        financial["county"] = county_short
+
+    # Build federal_programs from USAspending discovery
+    federal_programs: Optional[Dict[str, Any]] = None
+    if level in ("city", "county") and usaspending_candidates:
+        federal_programs = _usaspending_from_candidates(
+            display_name, usaspending_candidates
+        )
+
+    # Zip codes list (single zip from geocoding if available)
+    zip_codes: List[str] = []
+    if zip_code and level not in ("county", "state", "province"):
+        zip_codes = [zip_code]
+
     doc: Dict[str, Any] = {
         "jurisdiction_id": jurisdiction_id,
         "level": level,
         "display_name": display_name,
         "parent_jurisdictions": parents,
-        "contact_info": {
-            "clerk_email": contact_email or None,
-            "website": website,
-            "zip_code": zip_code,
-        },
-        "data_sources": {
-            "meetings": meetings_source,
-            "issues": None,
-            "municipal_code": None,
-        },
-        "financial": {
-            "state": state_abbrev,
-            "county": county_short,
-        },
-        "ingestion": {
-            "meetings": True,
-            "pdf_chunks": True,
-            "issues": False,
-            "municipal_code": False,
-            "agenda_items": True,
-            "decisions": True,
-            "legislation": True,
-            "transcription": False,
-            "diarization": False,
-            "vector_indexing": True,
-        },
-        "metadata": {
-            "created": today,
-            "updated": today,
-            "notes": "Auto-generated by onboard_jurisdiction().",
-        },
+        "contact_info": contact_info,
+    }
+
+    # Governing body (city/county levels)
+    if level in ("city", "county", "town", "district", "council"):
+        doc["governing_body"] = governing_body
+
+    # State info (state-level only)
+    if level in ("state", "province"):
+        doc["state_info"] = {
+            "abbreviation": state_abbrev,
+            "timezone": None,
+            "legislature": None,
+            "governor_title": "Governor",
+        }
+
+    doc["data_sources"] = data_sources
+    doc["financial"] = financial
+
+    if federal_programs:
+        doc["federal_programs"] = federal_programs
+
+    if zip_codes:
+        doc["zip_codes"] = zip_codes
+
+    doc["ingestion"] = {
+        "meetings": True,
+        "pdf_chunks": True,
+        "issues": True,
+        "municipal_code": True,
+        "agenda_items": True,
+        "decisions": True,
+        "legislation": True,
+        "transcription": False,
+        "diarization": False,
+        "vector_indexing": True,
+    }
+
+    doc["refresh"] = _default_refresh_policies(level)
+
+    doc["tools_enabled"] = None
+    doc["tool_overrides"] = {}
+
+    doc["modal"] = {
+        "min_containers": 0,
+        "secrets": ["civicos-env"],
+    }
+
+    doc["metadata"] = {
+        "created": today,
+        "updated": today,
+        "notes": "Auto-generated by onboard_jurisdiction().",
     }
 
     header = f"# {display_name} Configuration\n#\n# Auto-generated by onboard_jurisdiction().\n\n"
@@ -1256,6 +1414,7 @@ def onboard_jurisdiction(
             zip_code=zip_code,
             state_abbrev=state_abbrev,
             country=geo_country,
+            usaspending_candidates=usaspending_candidates,
         )
         yaml_dir = Path(__file__).parents[4] / "data" / "jurisdictions"
         yaml_dir.mkdir(parents=True, exist_ok=True)
@@ -1266,6 +1425,28 @@ def onboard_jurisdiction(
             logger.info(f"Jurisdiction YAML saved to {yaml_path}")
         except Exception as e:
             errors.append(f"Failed to save YAML: {e}")
+
+        # Validate generated YAML against JurisdictionConfig schema
+        if yaml_path and yaml_path.exists():
+            try:
+                from civicos.jurisdiction_config import (
+                    load_jurisdiction_config,
+                    validate_jurisdiction_config,
+                )
+                loaded_config = load_jurisdiction_config(jurisdiction_id)
+                validation = validate_jurisdiction_config(loaded_config)
+                if not validation.is_valid:
+                    for issue in validation.issues:
+                        if issue.severity == "error":
+                            errors.append(f"YAML validation error: {issue.field} — {issue.message}")
+                            _progress("yaml_validate", f"Error: {issue.field} — {issue.message}")
+                else:
+                    warn_count = sum(1 for i in validation.issues if i.severity == "warning")
+                    _progress("yaml_validate", f"YAML valid ({warn_count} warnings)")
+                    logger.info(f"Generated YAML passes validation ({warn_count} warnings)")
+            except Exception as e:
+                logger.warning(f"YAML validation skipped: {e}")
+                _progress("yaml_validate", f"Validation skipped: {e}")
 
     # Step 5: Patch registries (optional)
     if generate_registries and yaml_path and yaml_path.exists():
