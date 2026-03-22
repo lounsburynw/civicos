@@ -23066,3 +23066,31 @@ Built California Legislature bulk data client using official downloads from down
 - New items added: cron_refresh_wiring (P1), onboarding_yaml_generation (P2), turnkey_state_onboarding (P3)
 
 **Rationale:** Everything else depends on RefreshRunner being the single refresh path. Token issuance is important but independent — it can happen after the pipeline is hardened.
+
+## Session: 2026-03-22 — Wire Cron Orchestrators to RefreshRunner (Phase 2)
+
+**Item:** cron_refresh_wiring (P0) — DONE
+**Phase:** Launch
+
+**What was done:**
+- Wired `scheduled_high_velocity_refresh()` to use `RefreshRunner.refresh_corpus()` for meetings + issues
+- Wired `scheduled_low_velocity_refresh()` to use `RefreshRunner.refresh_corpus()` for legislation
+- Added `last_store_result` to `MeetingCorpusProvider` for reactive pipeline signals
+- Issues provider dispatch reads `data_sources.issues` from jurisdiction YAML (config-driven)
+- Legislation uses `LegiScanClient` + `LegislationCorpusProvider` with text population as downstream step
+- Created `configuration.critic.md` — catches hardcoded providers, YAML policy bypass, missing ingestion gates
+- 9 integration tests against real Postgres (test_integration_cron_wiring.py)
+- 3 unit tests for last_store_result (82 total refresh tests, 91 total with integration)
+- Fixed missing refresh + configuration critics in /critic and /commit slash commands
+- All 10 critics pass on full session diff
+
+**Files changed:**
+- packages/civicos/src/civicos/_internal/legal/corpus/providers.py — last_store_result
+- scripts/modal_ingest.py — cron wiring for meetings, issues, legislation
+- packages/civicos/tests/test_refresh.py — 3 new unit tests
+- packages/civicos/tests/test_integration_cron_wiring.py — 9 integration tests (NEW)
+- .critics/configuration.critic.md — new critic (NEW)
+- .critics/README.md, CLAUDE.md — critic table updates
+- .claude/commands/critic.md, .claude/commands/commit.md — added refresh + configuration critics
+
+**Next P0:** onboarding_yaml_generation
