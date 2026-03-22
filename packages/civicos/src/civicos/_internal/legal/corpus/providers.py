@@ -48,6 +48,7 @@ class MeetingCorpusProvider:
         self.days_past = days_past
         self.days_ahead = days_ahead
         self.source_name = source_name
+        self.last_store_result = None  # MeetingStoreResult for reactive pipelines
 
     def check_for_update(self, last_fingerprint: Optional[str] = None) -> ChangeSignal:
         """No lightweight change check available — return UNKNOWN to trigger fetch."""
@@ -89,6 +90,7 @@ class MeetingCorpusProvider:
         )
 
         result = storage.store_meetings(self.jurisdiction_id, meeting_dicts)
+        self.last_store_result = result  # Preserve for reactive pipeline access
         stored = int(result)
 
         if hasattr(result, "new_meeting_ids") and result.new_meeting_ids:
