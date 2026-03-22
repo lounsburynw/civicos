@@ -331,6 +331,7 @@ LLM-based code review prompts in `.critics/` catch architectural issues before c
 | `jurisdiction.critic.md` | Jurisdiction isolation (missing filters, hardcoded jurisdictions, data leakage) |
 | `data.critic.md` | ETL data quality (schema violations, type mismatches) |
 | `refresh.critic.md` | Refresh/upsert integrity (accumulation, truncated fetch, whitespace drift) |
+| `configuration.critic.md` | Config-driven behavior (hardcoded providers, bypass of YAML policies, missing ingestion gates) |
 | `docs.critic.md` | Documentation accuracy (stale paths, orphaned docs, bloat) |
 
 **Usage:**

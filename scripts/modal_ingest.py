@@ -4256,7 +4256,20 @@ def scheduled_low_velocity_refresh():
     logger.info("Starting scheduled low-velocity refresh")
     start_time = time.time()
 
+    import os
+    from civicos.storage.postgres_backend import PostgresBackend
+    from civicos.storage.pgvector_backend import PgVectorBackend
+    from civicos._internal.legal.corpus.refresh import RefreshRunner
+    from civicos._internal.legal.corpus.providers import LegislationCorpusProvider
     from civicos_extraction.config import get_active_jurisdictions
+
+    database_url = os.environ.get("DATABASE_URL")
+    if not database_url:
+        raise ValueError("DATABASE_URL not set")
+
+    backend = PostgresBackend(database_url)
+    vectors = PgVectorBackend(database_url)
+    runner = RefreshRunner(backend, vectors)
 
     jurisdictions = get_active_jurisdictions()
     logger.info(f"Found {len(jurisdictions)} configured jurisdictions: {list(jurisdictions.keys())}")
@@ -4269,27 +4282,57 @@ def scheduled_low_velocity_refresh():
         # Global operations (not per-jurisdiction)
         # =========================================================================
 
-        # Legislation sync (run weekly to avoid quota issues, auto-index vectors)
-        # Uses sync_legislation() which:
-        #   1. Fetches master list to discover new bills and status updates (1 API call per state)
-        #   2. Stores/upserts bills with temporal versioning
-        #   3. Populates full_text for bills missing it
-        #   4. Auto-indexes vectors
-        for leg_jurisdiction, leg_label in [("state-CA", "CA"), ("federal", "US Federal")]:
-            logger.info(f"Syncing {leg_label} legislation...")
-            result = run_with_retry(
-                sync_legislation,
-                f"{leg_label} legislation sync",
-                jurisdiction=leg_jurisdiction, dry_run=False, auto_index=True,
-            )
+        # Legislation sync via RefreshRunner (weekly, auto-index vectors)
+        # Provider handles: master list fetch → normalize → store_legislation()
+        # RefreshRunner handles: scheduling, metadata, vector reindexing
+        # Text population is a downstream step (fetch_legislation) after storage
+        from civicos_extraction.clients.legiscan import LegiScanClient
+        legiscan_client = LegiScanClient()  # Uses LEGISCAN_API_KEY from env
+
+        for leg_jurisdiction, leg_label, state_code in [
+            ("state-CA", "CA", "CA"),
+            ("federal", "US Federal", "US"),
+        ]:
+            logger.info(f"Syncing {leg_label} legislation via RefreshRunner...")
             result_key = f"legislation_{leg_label.replace(' ', '_')}"
-            results[result_key] = result
-            if result.get("status") != "failed":
-                new_bills = result.get('new_bills', 0)
-                stored = result.get('bills_stored', 0)
-                text_updated = result.get('text_result', {}).get('bills_with_text', 0)
-                indexed = result.get('vector_result', {}).get('total_indexed', 0) if result.get('auto_index') else 0
-                logger.info(f"  {leg_label} Legislation: {new_bills} new bills, {stored} total stored, {text_updated} texts populated, {indexed} vectors indexed")
+            try:
+                leg_provider = LegislationCorpusProvider(
+                    client=legiscan_client,
+                    jurisdiction_id=leg_jurisdiction,
+                    state_code=state_code,
+                )
+                leg_refresh = runner.refresh_corpus(leg_provider, reindex_vectors=True)
+                leg_result = {
+                    "task": "sync_legislation",
+                    "jurisdiction": leg_jurisdiction,
+                    "status": leg_refresh.status,
+                    "bills_stored": leg_refresh.sections_added,
+                    "vectors_indexed": leg_refresh.vectors_reindexed,
+                }
+                if leg_refresh.status == "error":
+                    leg_result["error"] = leg_refresh.error
+
+                # Downstream: populate full_text for bills missing it
+                if leg_refresh.status == "updated" and leg_refresh.sections_added > 0:
+                    logger.info(f"  Populating full_text for {leg_label} bills...")
+                    text_result = run_with_retry(
+                        fetch_legislation,
+                        f"{leg_label} text population",
+                        jurisdiction=leg_jurisdiction, dry_run=False, auto_index=False,
+                    )
+                    leg_result["text_result"] = text_result
+                    text_updated = text_result.get("bills_with_text", 0)
+                    logger.info(f"  {leg_label} text population: {text_updated} bills updated")
+
+            except Exception as e:
+                logger.exception(f"  {leg_label} legislation sync failed")
+                leg_result = {"status": "failed", "error": str(e)}
+
+            results[result_key] = leg_result
+            if leg_result.get("status") not in ("failed", "error"):
+                stored = leg_result.get("bills_stored", 0)
+                indexed = leg_result.get("vectors_indexed", 0)
+                logger.info(f"  {leg_label} Legislation: {stored} stored, {indexed} vectors indexed")
 
         # Executive Orders from Federal Register (incremental, auto-index vectors)
         logger.info("Fetching Executive Orders from Federal Register...")
@@ -4571,7 +4614,21 @@ def scheduled_high_velocity_refresh():
     logger.info("Starting scheduled high-velocity refresh")
     start_time = time.time()
 
+    import os
+    from civicos.storage.postgres_backend import PostgresBackend
+    from civicos.storage.pgvector_backend import PgVectorBackend
+    from civicos._internal.legal.corpus.refresh import RefreshRunner
+    from civicos._internal.legal.corpus.providers import MeetingCorpusProvider, IssueCorpusProvider
     from civicos_extraction.config import get_active_jurisdictions
+    from civicos_extraction.clients.base import ExtractionConfig
+
+    database_url = os.environ.get("DATABASE_URL")
+    if not database_url:
+        raise ValueError("DATABASE_URL not set")
+
+    backend = PostgresBackend(database_url)
+    vectors = PgVectorBackend(database_url)
+    runner = RefreshRunner(backend, vectors)
 
     jurisdictions = get_active_jurisdictions()
     logger.info(f"Found {len(jurisdictions)} configured jurisdictions: {list(jurisdictions.keys())}")
@@ -4589,35 +4646,97 @@ def scheduled_high_velocity_refresh():
         logger.info(f"Processing jurisdiction: {jid}")
         results[jid] = {}
 
-        # === STAGE 1: Always run cheap polls (meetings + issues) ===
-        logger.info(f"  [{jid}] Fetching meetings (incremental)...")
-        meetings_result = run_with_retry(
-            fetch_meetings,
-            f"[{jid}] Meetings fetch",
-            jurisdiction=jid,
-            incremental=True,
-            dry_run=False,
-            auto_index=True,
-        )
+        # === STAGE 1: Meetings + Issues via RefreshRunner ===
+        # Meetings: create source-specific client, wrap in provider, refresh
+        meeting_provider = None
+        logger.info(f"  [{jid}] Refreshing meetings via RefreshRunner...")
+        try:
+            ext_config = ExtractionConfig.from_jurisdiction(jid)
+            src_type = ext_config.source_type
+
+            if src_type == "proudcity":
+                from civicos_extraction.clients.proudcity import ProudCityClient
+                client = ProudCityClient(base_url=ext_config.base_url, jurisdiction_id=jid)
+            elif src_type == "granicus":
+                from civicos_extraction.clients.granicus import GranicusSource
+                client = GranicusSource(ext_config)
+            else:
+                raise ValueError(f"Unsupported source_type '{src_type}' for {jid}")
+
+            meeting_provider = MeetingCorpusProvider(
+                client=client, jurisdiction_id=jid, source_name=src_type,
+            )
+            meeting_refresh = runner.refresh_corpus(meeting_provider, reindex_vectors=True)
+
+            # Extract reactive signals from MeetingStoreResult for downstream stages
+            sr = meeting_provider.last_store_result
+            meetings_result = {
+                "task": "meetings",
+                "jurisdiction": jid,
+                "status": meeting_refresh.status,
+                "meetings_stored": meeting_refresh.sections_added,
+                "vectors_indexed": meeting_refresh.vectors_reindexed,
+                # Reactive signals (from MeetingStoreResult, None-safe)
+                "new_meeting_ids": getattr(sr, "new_meeting_ids", []) if sr else [],
+                "updated_meeting_ids": getattr(sr, "updated_meeting_ids", []) if sr else [],
+                "minutes_appeared_ids": getattr(sr, "minutes_appeared", []) if sr else [],
+                "video_appeared_ids": getattr(sr, "video_appeared", []) if sr else [],
+                "agenda_appeared_ids": getattr(sr, "agenda_appeared", []) if sr else [],
+                "has_new_material": getattr(sr, "has_new_material", False) if sr else False,
+                "has_minutes_updates": getattr(sr, "has_minutes_updates", False) if sr else False,
+                "has_video_updates": getattr(sr, "has_video_updates", False) if sr else False,
+                "has_agenda_updates": getattr(sr, "has_agenda_updates", False) if sr else False,
+            }
+            if meeting_refresh.status == "error":
+                meetings_result["error"] = meeting_refresh.error
+        except Exception as e:
+            logger.exception(f"  [{jid}] Meeting refresh failed")
+            meetings_result = {"status": "failed", "error": str(e)}
+
         results[jid]["meetings"] = meetings_result
-        if meetings_result.get("status") != "failed":
-            stored = meetings_result.get('meetings_stored', 0)
-            indexed = meetings_result.get('vector_result', {}).get('total_indexed', 0) if meetings_result.get('auto_index') else 0
+        if meetings_result.get("status") not in ("failed", "error"):
+            stored = meetings_result.get("meetings_stored", 0)
+            indexed = meetings_result.get("vectors_indexed", 0)
             logger.info(f"    Meetings: {stored} stored, {indexed} vectors indexed")
 
-        logger.info(f"  [{jid}] Fetching issues (incremental)...")
-        result = run_with_retry(
-            fetch_issues,
-            f"[{jid}] Issues fetch",
-            jurisdiction=jid,
-            incremental=True,
-            dry_run=False,
-            auto_index=True,
-        )
-        results[jid]["issues"] = result
-        if result.get("status") != "failed":
-            stored = result.get('issues_stored', 0)
-            indexed = result.get('vector_result', {}).get('total_indexed', 0) if result.get('auto_index') else 0
+        # Issues: refresh via RefreshRunner (source from jurisdiction config)
+        from civicos.jurisdiction_config import load_jurisdiction_config
+        jur_config = load_jurisdiction_config(jid)
+        issues_source = jur_config.data_sources.issues
+
+        if not issues_source:
+            logger.info(f"  [{jid}] No issues source configured — skipping")
+            issues_result = {"status": "skipped", "reason": "no issues source configured"}
+        else:
+            logger.info(f"  [{jid}] Refreshing issues via RefreshRunner (source={issues_source})...")
+            try:
+                if issues_source == "seeclickfix":
+                    from civicos_services.clients.seeclickfix_client import SeeClickFixClient
+                    issues_client = SeeClickFixClient()
+                else:
+                    raise ValueError(f"Unsupported issues source '{issues_source}' for {jid}")
+
+                issue_provider = IssueCorpusProvider(
+                    client=issues_client, jurisdiction_id=jid, source_name=issues_source,
+                )
+                issue_refresh = runner.refresh_corpus(issue_provider, reindex_vectors=True)
+                issues_result = {
+                    "task": "issues",
+                    "jurisdiction": jid,
+                    "status": issue_refresh.status,
+                    "issues_stored": issue_refresh.sections_added,
+                    "vectors_indexed": issue_refresh.vectors_reindexed,
+                }
+                if issue_refresh.status == "error":
+                    issues_result["error"] = issue_refresh.error
+            except Exception as e:
+                logger.exception(f"  [{jid}] Issue refresh failed")
+                issues_result = {"status": "failed", "error": str(e)}
+
+        results[jid]["issues"] = issues_result
+        if issues_result.get("status") not in ("failed", "error", "skipped"):
+            stored = issues_result.get("issues_stored", 0)
+            indexed = issues_result.get("vectors_indexed", 0)
             logger.info(f"    Issues: {stored} stored, {indexed} vectors indexed")
 
         # === STAGE 2: Reactive — only run expensive stages if meetings changed ===

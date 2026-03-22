@@ -581,6 +581,39 @@ class TestMeetingCorpusProvider:
         stored = provider.fetch_and_store(storage)
         assert stored == 1
 
+    def test_last_store_result_preserved(self):
+        """last_store_result exposes MeetingStoreResult for reactive pipelines."""
+        provider = self._make_provider([{"id": "m1", "title": "Test"}])
+        storage = MagicMock()
+
+        # Simulate MeetingStoreResult with reactive signals
+        mock_result = MagicMock()
+        mock_result.__int__ = MagicMock(return_value=1)
+        mock_result.new_meeting_ids = ["m1"]
+        mock_result.minutes_appeared = []
+        mock_result.has_new_material = True
+        mock_result.has_agenda_updates = False
+        storage.store_meetings.return_value = mock_result
+
+        stored = provider.fetch_and_store(storage)
+        assert stored == 1
+        assert provider.last_store_result is mock_result
+        assert provider.last_store_result.has_new_material is True
+        assert provider.last_store_result.new_meeting_ids == ["m1"]
+
+    def test_last_store_result_none_when_empty(self):
+        """last_store_result is None when no meetings fetched."""
+        provider = self._make_provider([])
+        storage = MagicMock()
+
+        provider.fetch_and_store(storage)
+        assert provider.last_store_result is None
+
+    def test_last_store_result_initialized_none(self):
+        """last_store_result starts as None before any fetch."""
+        provider = self._make_provider()
+        assert provider.last_store_result is None
+
 
 # ---------------------------------------------------------------------------
 # IssueCorpusProvider
