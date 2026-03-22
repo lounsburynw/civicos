@@ -12,6 +12,8 @@ Run LLM-based code review on staged changes to catch architectural issues.
 - `/critic jurisdiction` - Run only jurisdiction critic
 - `/critic session` - Run only session critic
 - `/critic data` - Run only data critic
+- `/critic refresh` - Run only refresh critic
+- `/critic configuration` - Run only configuration critic
 - `/critic docs` - Run only docs critic
 
 ## Steps
@@ -67,6 +69,8 @@ Respond with JSON only:
 - Agent: "Run jurisdiction critic" → reads `.critics/jurisdiction.critic.md`
 - Agent: "Run session critic" → reads `.critics/session.critic.md`
 - Agent: "Run data critic" → reads `.critics/data.critic.md`
+- Agent: "Run refresh critic" → reads `.critics/refresh.critic.md`
+- Agent: "Run configuration critic" → reads `.critics/configuration.critic.md`
 - Agent: "Run docs critic" → reads `.critics/docs.critic.md`
 
 Use `model: "haiku"` for fast, cost-effective critic runs.
