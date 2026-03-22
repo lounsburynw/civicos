@@ -23094,3 +23094,29 @@ Built California Legislature bulk data client using official downloads from down
 - .claude/commands/critic.md, .claude/commands/commit.md — added refresh + configuration critics
 
 **Next P0:** onboarding_yaml_generation
+
+## Session — 2026-03-22: blind_signature_scheme_design
+
+**Item:** blind_signature_scheme_design (token_issuance, P2)
+**Status:** Done
+
+**Summary:**
+Implemented Schnorr blind signature primitives for privacy-preserving token issuance.
+Also committed previous session's onboarding_yaml_generation work (was left uncommitted).
+
+**Deliverables:**
+- `packages/civicos-relay/src/civicos_relay/voice/blind.py` — Full blind sig protocol:
+  generate_token_message(), generate_nonce(), blind(), sign_blinded(), unblind(),
+  verify_token(), compute_token_hash(), SpendableToken dataclass, SpentTokenStorage Protocol
+- `scripts/sql/add_spent_tokens.sql` — coordination_spent_tokens table migration
+- `PostgresSpentTokenStorage` in storage/postgres.py — atomic INSERT ON CONFLICT for double-spend prevention
+- `InMemorySpentTokenStorage` in storage/memory.py — set-based impl for testing
+- Both wired into PostgresStorage/InMemoryStorage composites as .spent_tokens
+- `packages/civicos-relay/tests/test_blind_signatures.py` — 28 tests (roundtrip, rejection, hashing, serialization, multi-issuer, storage)
+- Updated docs/internal/blind-signature-spec.md status to Done
+
+**Architecture decision:** SpentTokenStorage follows the relay's Protocol → Postgres/InMemory pattern,
+avoiding the raw-SQL-in-acceptance-policy antipattern from rate limiting. Downstream items
+(token_verification_in_policy) can depend on this protocol.
+
+**Next P0:** TBD — no P0 currently set

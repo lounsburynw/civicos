@@ -277,13 +277,18 @@
       {
         "name": "blind_signature_scheme_design",
         "description": "Design blind signature scheme using existing secp256k1 primitives. Define token format, blinding protocol, and spent-token storage.",
-        "status": "not_started",
+        "status": "done",
         "priority": 2,
         "source": "docs/internal/relay-acceptance-policy-spec.md (Phase 4)",
         "spec": "docs/internal/blind-signature-spec.md",
-        "files": [],
-        "test_file": null,
-        "notes": "Use secp256k1 blind signatures, not Cashu (deferred due to pre-1.0 status and regulatory risk)"
+        "files": [
+          "packages/civicos-relay/src/civicos_relay/voice/blind.py",
+          "packages/civicos-relay/src/civicos_relay/storage/postgres.py",
+          "packages/civicos-relay/src/civicos_relay/storage/memory.py",
+          "scripts/sql/add_spent_tokens.sql"
+        ],
+        "test_file": "packages/civicos-relay/tests/test_blind_signatures.py",
+        "notes": "Schnorr blind sigs on secp256k1 via coincurve. SpentTokenStorage protocol with Postgres + InMemory impls."
       },
       {
         "name": "token_issuance_service",

@@ -2566,6 +2566,61 @@ class PostgresFeedbackStorage:
             self._return_connection(conn)
 
 
+class PostgresSpentTokenStorage:
+    """PostgreSQL storage for spent blind-signature tokens.
+
+    Uses INSERT ... ON CONFLICT DO NOTHING for atomic double-spend prevention.
+    """
+
+    def __init__(self, connection_url: str):
+        self._connection_url = connection_url
+        self._pool = None
+
+    def _get_connection(self):
+        if self._pool is None:
+            import psycopg2.pool
+            self._pool = psycopg2.pool.SimpleConnectionPool(
+                1, 10, self._connection_url
+            )
+        return self._pool.getconn()
+
+    def _return_connection(self, conn):
+        self._pool.putconn(conn)
+
+    def check_and_mark_spent(
+        self, token_hash: str, relay_write_id: Optional[str] = None
+    ) -> bool:
+        """Atomically mark a token as spent. Returns True if it was unspent."""
+        conn = self._get_connection()
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    INSERT INTO coordination_spent_tokens (token_hash, relay_write_id)
+                    VALUES (%s, %s)
+                    ON CONFLICT (token_hash) DO NOTHING
+                    """,
+                    (token_hash, relay_write_id),
+                )
+                conn.commit()
+                return cur.rowcount == 1
+        finally:
+            self._return_connection(conn)
+
+    def is_spent(self, token_hash: str) -> bool:
+        """Check whether a token has been spent."""
+        conn = self._get_connection()
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT 1 FROM coordination_spent_tokens WHERE token_hash = %s",
+                    (token_hash,),
+                )
+                return cur.fetchone() is not None
+        finally:
+            self._return_connection(conn)
+
+
 class PostgresStorage:
     """Combined PostgreSQL storage for all relay data."""
 
@@ -2586,3 +2641,4 @@ class PostgresStorage:
         self.attestations = PostgresAttestationStorage(connection_url)
         self.issuers = PostgresIssuerRegistryStorage(connection_url)
         self.feedback = PostgresFeedbackStorage(connection_url)
+        self.spent_tokens = PostgresSpentTokenStorage(connection_url)
