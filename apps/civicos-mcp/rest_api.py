@@ -658,7 +658,7 @@ def create_keys_router(logger):
     Separate from the tools router — no API key required to create a key.
     Rate limited to 5 signups per hour per IP to prevent abuse.
     """
-    from fastapi import APIRouter
+    from fastapi import APIRouter, Request
 
     router = APIRouter(prefix="/api/keys", tags=["API Keys"])
     handler = _create_key_handler(logger)
@@ -669,7 +669,7 @@ def create_keys_router(logger):
         summary="Create an API key",
         description="Self-serve key provisioning (free or builder tier). Returns the raw key once — save it immediately.",
     )
-    async def create_key(request, body: CreateKeyRequest):
+    async def create_key(request: Request, body: CreateKeyRequest):
         return await handler(request, body)
 
     return router
@@ -681,7 +681,7 @@ def create_register_router(logger):
 
     Same handler as /api/keys but at the path referenced in the spec.
     """
-    from fastapi import APIRouter
+    from fastapi import APIRouter, Request
 
     router = APIRouter(prefix="/api", tags=["Registration"])
     handler = _create_key_handler(logger)
@@ -692,7 +692,7 @@ def create_register_router(logger):
         summary="Register for an API key",
         description="Self-serve API key registration. Supports 'free' and 'builder' tiers. Returns the raw key once — save it immediately.",
     )
-    async def register(request, body: CreateKeyRequest):
+    async def register(request: Request, body: CreateKeyRequest):
         return await handler(request, body)
 
     return router

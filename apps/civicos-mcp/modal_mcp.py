@@ -42,10 +42,23 @@ JURISDICTION = os.getenv("CIVICOS_JURISDICTION", "city-san-rafael")
 from civicos.registry import get_modal_app_name as get_app_name
 
 def get_secrets(jurisdiction: str) -> list[str]:
-    """Get list of Modal secret names for this jurisdiction."""
+    """Get list of Modal secret names for this jurisdiction.
+
+    Order matters: Modal merges env vars left-to-right, so later secrets
+    override earlier ones for the same key.  The primary jurisdiction secret
+    is loaded LAST so its DATABASE_URL always wins.
+    """
     secrets = []
 
-    # Primary secret based on jurisdiction
+    # Shared secrets first (lower precedence)
+    secrets.append("civicos-attestation")  # CIVICOS_ATTESTATION_PRIVATE_KEY
+    secrets.append("civicos-platform")  # PLATFORM_DATABASE_URL
+
+    # City-level servers may need additional secrets for geocoding
+    if jurisdiction.startswith("city-"):
+        secrets.append("civic-google")  # GOOGLE_MAPS_API_KEY for geocoding
+
+    # Primary secret LAST so its DATABASE_URL takes precedence
     if jurisdiction == "country-united-states":
         secrets.append("civicos-federal-env")
     elif jurisdiction == "state-california":
@@ -55,16 +68,6 @@ def get_secrets(jurisdiction: str) -> list[str]:
     else:
         # Default: use civicos-env (shared secret for cities)
         secrets.append("civicos-env")
-
-    # City-level servers may need additional secrets for geocoding
-    if jurisdiction.startswith("city-"):
-        secrets.append("civic-google")  # GOOGLE_MAPS_API_KEY for geocoding
-
-    # Attestation issuer keypair for signing kind-30850 events
-    secrets.append("civicos-attestation")  # CIVICOS_ATTESTATION_PRIVATE_KEY
-
-    # Platform DB for usage logging
-    secrets.append("civicos-platform")  # PLATFORM_DATABASE_URL
 
     return secrets
 

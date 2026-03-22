@@ -1,0 +1,104 @@
+# California Legislature Data Refresh (weekly)
+#
+# Syncs CA legislation (bills, hearings, votes, history) from official
+# bulk downloads at downloads.leginfo.legislature.ca.gov.
+#
+# Schedule: Weekly Sunday 4:00 AM UTC (Saturday 8:00 PM Pacific)
+# Offset from low-velocity refresh (3 AM UTC) to avoid overlap.
+#
+# Triggers:
+#   - Weekly on Sunday at 4:00 AM UTC (Saturday 8:00 PM Pacific)
+#   - Manual trigger via workflow_dispatch
+
+name: "Cron: California Legislation"
+
+on:
+  schedule:
+    - cron: '0 4 * * 0'
+  workflow_dispatch:
+
+permissions:
+  issues: write
+  contents: read
+
+jobs:
+  run:
+    name: CA Legislation Sync
+    runs-on: ubuntu-latest
+    timeout-minutes: 135  # Modal timeout (2h) + 15 min buffer
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Modal CLI and local packages
+        run: |
+          pip install modal
+          pip install -e packages/civicos-config
+          pip install -e packages/civicos
+          pip install -e packages/civicos-extraction
+
+      - name: Sync California legislation
+        env:
+          MODAL_TOKEN_ID: ${{ secrets.MODAL_TOKEN_ID }}
+          MODAL_TOKEN_SECRET: ${{ secrets.MODAL_TOKEN_SECRET }}
+        run: modal run scripts/modal_ca_legislation.py::sync_california_legislation --bills-only
+
+  notify-failure:
+    name: Create Alert Issue
+    runs-on: ubuntu-latest
+    needs: run
+    if: failure()
+
+    steps:
+      - name: Create or Update Issue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const today = new Date().toISOString().split('T')[0];
+            const title = `Cron failure: california-legislation - ${today}`;
+            const body = `## Cron Failure Alert
+
+            **Workflow:** California Legislation Sync
+            **Time:** ${new Date().toISOString()}
+            **Schedule:** Weekly Sunday 4 AM UTC (Sat 8 PM Pacific)
+
+            The scheduled CA legislation sync failed. This affects:
+            - AB/SB bill updates
+            - Committee hearing data
+            - Vote tally data
+            - Legislative action history
+
+            **Manual retry:**
+            \`\`\`bash
+            gh workflow run cron-california-legislation.yml
+            # or directly:
+            modal run scripts/modal_ca_legislation.py::sync_california_legislation --bills-only
+            \`\`\`
+
+            **Workflow Run:** [View logs](${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID})
+            `;
+
+            const issues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              labels: 'cron-failure',
+              state: 'open'
+            });
+
+            const existing = issues.data.find(i => i.title.includes('california-legislation'));
+            if (!existing) {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: title,
+                body: body,
+                labels: ['cron-failure', 'automated']
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: existing.number,
+                body: `## Recurrence - ${today}\n\n${body}`
+              });
+            }
