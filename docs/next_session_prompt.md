@@ -1,90 +1,80 @@
-# Recommended: Wire Cron Orchestrators to RefreshRunner
+# Recommended: Onboarding YAML Generation
 
-**Priority:** P0 (cron_refresh_wiring)
-**Area:** operator_readiness
+**Priority:** P0 (onboarding_yaml_generation)
+**Area:** federation_testbed
 **Date:** 2026-03-22
 
 > This is recommended context from the previous session. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
 
 ## Context
 
-Phase 1 of the scalability roadmap is complete: `CorpusProvider` protocol + 3 providers + `RefreshRunner.refresh_corpus()`. This session (Phase 2) wires the cron orchestrators in `modal_ingest.py` to use the new infrastructure instead of bespoke per-corpus ingestion logic.
+The scalability roadmap Phase 1 (generalize RefreshRunner) and Phase 2 (wire cron orchestrators) are complete. The refresh pipeline now uses `RefreshRunner.refresh_corpus()` with `CorpusProvider` instances for meetings, issues, and legislation. Config-driven provider dispatch reads source types from jurisdiction YAML. A new `configuration.critic.md` catches hardcoded provider assumptions going forward.
 
-The goal: `scheduled_high_velocity_refresh()` and `scheduled_low_velocity_refresh()` in `modal_ingest.py` should instantiate providers and call `runner.refresh_corpus(provider)` instead of calling `fetch_meetings()`, `fetch_issues()`, `sync_legislation()` directly.
+This session (Phase 4) extends the onboard workflow to generate complete jurisdiction YAML files — making onboarding produce all config needed for a functioning jurisdiction, not just extraction JSON.
 
-## What Exists Now (Phase 1 Output)
+## What Exists Now
 
-- `CorpusProvider` protocol with `fetch_and_store(storage) -> int` — provider owns data + storage dispatch
-- `MeetingCorpusProvider` — wraps ProudCity/Granicus, calls `storage.store_meetings()`
-- `IssueCorpusProvider` — wraps SeeClickFix, paginates + normalizes, calls `storage.store_issues()`
-- `LegislationCorpusProvider` — wraps LegiScan master list, batch stores via `storage.store_legislation()`
-- `RefreshRunner.refresh_corpus(provider)` — scheduling, change detection, metadata, re-embedding
-- `source_name` threaded through metadata lookups for correct interval checks
-- `index_from_storage` (not `index_corpus`) — fixed to match VectorBackend protocol
-- 79 tests passing, validated against real Postgres + APIs
+- `data/jurisdictions/*.yaml` — 11 jurisdiction YAML files (manually created)
+- `data/extraction/*.json` — Extraction JSON configs (created by onboard workflow)
+- `packages/civicos/src/civicos/jurisdiction_config.py` — `JurisdictionConfig`, `DataSources`, `load_jurisdiction_config()`, `validate_jurisdiction_config()`
+- `data/jurisdictions/schema.yaml` — YAML schema reference
+- `.claude/commands/onboard.md` — Current onboard slash command
 
-## What Needs to Be Done (Phase 2)
+## What Needs to Be Done
 
-1. **`scheduled_high_velocity_refresh()`** (~line 4513): Currently calls `fetch_meetings()` and `fetch_issues()` per jurisdiction. Replace with:
-   - Create `MeetingCorpusProvider` + `IssueCorpusProvider` per jurisdiction
-   - Call `runner.refresh_corpus(provider)` for each
-   - Preserve the reactive downstream logic (extract_chunks, extract_agenda_items only if meetings changed)
+1. **Extend the onboard workflow** to generate a jurisdiction YAML alongside the extraction JSON. The YAML should include:
+   - Identity (jurisdiction_id, level, display_name)
+   - Hierarchy (parent_jurisdictions)
+   - Data sources (meetings source_type + base_url, issues source, municipal_code source)
+   - Refresh policies (default intervals: meetings 1d, issues 1d, municipal_code 90d, legislation 7d)
+   - Ingestion tiers (all true by default for new cities)
+   - Contact info (placeholder or scraped if available)
 
-2. **`scheduled_low_velocity_refresh()`** (~line 4202): Currently calls `sync_legislation()`. Replace with:
-   - Create `LegislationCorpusProvider` per state
-   - Call `runner.refresh_corpus(provider)`
-   - Preserve text population step (`fetch_legislation`) and other low-velocity stages
+2. **Use existing YAML files as templates** — `data/jurisdictions/city-san-rafael.yaml` is the most complete example.
 
-3. **Preserve the reactive pipeline**: The bespoke `fetch_meetings()` returns `has_new_material`, `new_meeting_ids`, etc. via `MeetingStoreResult`. The provider's `fetch_and_store()` returns just `int`. The downstream stages (chunks, agenda items, transcripts) need change signals. Options:
-   - Have the cron check `MeetingStoreResult` details via a separate call after refresh
-   - Or keep reactive stages as-is, only replacing the fetch+store portion
+3. **Validate generated YAML** via `validate_jurisdiction_config()` from `jurisdiction_config.py`.
 
 ## Key Files
 
-- `scripts/modal_ingest.py:4513` — `scheduled_high_velocity_refresh()` (daily cron)
-- `scripts/modal_ingest.py:4202` — `scheduled_low_velocity_refresh()` (weekly cron)
-- `scripts/modal_ingest.py:2799` — `fetch_meetings()` (bespoke, to be replaced)
-- `scripts/modal_ingest.py:3147` — `fetch_issues()` (bespoke, to be replaced)
-- `scripts/modal_ingest.py:593` — `sync_legislation()` (bespoke, to be replaced)
-- `packages/civicos/src/civicos/_internal/legal/corpus/refresh.py:564` — `refresh_corpus()` method
-- `packages/civicos/src/civicos/_internal/legal/corpus/providers.py` — 3 provider implementations
-- `.github/workflows/cron-high-velocity-refresh.yml` — GH Actions trigger
-- `.github/workflows/cron-low-velocity-refresh.yml` — GH Actions trigger
+- `data/jurisdictions/city-san-rafael.yaml` — Reference template (most complete)
+- `data/jurisdictions/schema.yaml` — YAML schema
+- `packages/civicos/src/civicos/jurisdiction_config.py:392` — `load_jurisdiction_config()`
+- `packages/civicos/src/civicos/jurisdiction_config.py:663` — `validate_jurisdiction_config()`
+- `.claude/commands/onboard.md` — Current onboard workflow
 
 ## Suggested Approach
 
-1. Read `scheduled_high_velocity_refresh()` in full — understand the reactive pipeline
-2. Refactor meetings portion: instantiate `MeetingCorpusProvider`, call `runner.refresh_corpus()`
-3. Handle the reactive downstream (chunks/agenda_items need `has_new_material` signal)
-4. Refactor issues portion similarly
-5. Test the high-velocity flow with `modal run scripts/modal_ingest.py::scheduled_high_velocity_refresh --dry-run` or similar
-6. Refactor `scheduled_low_velocity_refresh()` for legislation
-7. Do NOT delete the old `fetch_meetings()`, `fetch_issues()`, `sync_legislation()` functions yet — they're still used by `modal run` CLI entrypoints
+1. Read the onboard command/script to understand current flow
+2. Read `city-san-rafael.yaml` as the reference template
+3. Read `schema.yaml` for the YAML schema
+4. Add YAML generation to the onboard workflow (after extraction JSON creation)
+5. Derive fields from user input and extraction config (source_type, base_url, jurisdiction_id)
+6. Default refresh policies and ingestion tiers
+7. Validate with `validate_jurisdiction_config()`
+8. Test by onboarding a test city and verifying the generated YAML loads correctly
 
 ## Tests to Run
 
 ```bash
-# Refresh tests (must stay green)
-pytest packages/civicos/tests/test_refresh.py -q --override-ini="addopts="
-
 # Smoke tests
 pytest packages/civicos/tests/test_civicos.py -q --override-ini="addopts="
+
+# Jurisdiction config tests
+pytest packages/civicos/tests/ -k "jurisdiction_config" -q --override-ini="addopts="
 ```
 
 ## Success Criteria
 
-- [ ] `scheduled_high_velocity_refresh()` uses `RefreshRunner.refresh_corpus()` for meetings + issues
-- [ ] `scheduled_low_velocity_refresh()` uses `RefreshRunner.refresh_corpus()` for legislation
-- [ ] Reactive downstream stages (chunks, agenda_items) still triggered correctly
-- [ ] YAML interval policies respected (meetings: 1d, issues: 1d, legislation: 7d)
-- [ ] All 79 refresh tests pass
-- [ ] No regression in scheduled cron behavior
+- [ ] Onboard workflow generates a valid `data/jurisdictions/{jid}.yaml` file
+- [ ] Generated YAML passes `validate_jurisdiction_config()`
+- [ ] Generated YAML includes: identity, hierarchy, data_sources, refresh policies, ingestion tiers
+- [ ] Refresh policies default to sensible intervals (meetings: 1d, issues: 1d, municipal_code: 90d)
+- [ ] Existing manually-created YAMLs are not affected
 
 ## Roadmap Context
 
 - **Phase 1 (DONE):** Generalize RefreshRunner — CorpusProvider protocol + 3 providers
-- **Phase 2 (P0):** Wire cron orchestrators <-- YOU ARE HERE
-- **Phase 3 (P1):** Deploy remaining servers + fix Cloudflare proxies
-- **Phase 4 (P2):** Onboarding YAML generation
-- **Phase 5 (P2):** Token issuance track
+- **Phase 2 (DONE):** Wire cron orchestrators to use RefreshRunner
+- **Phase 4 (P0):** Onboarding YAML generation <-- YOU ARE HERE
+- **Phase 5 (P2):** Token issuance track (blind signatures, service, verification)
 - **Phase 6 (P3):** Turnkey state onboarding
