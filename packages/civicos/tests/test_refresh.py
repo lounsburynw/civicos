@@ -7,6 +7,8 @@ Validates:
 - MunicipalCodeCorpus.get_fingerprint() and check_for_update()
 - AmericanLegalCorpus.get_fingerprint() and check_for_update()
 - RefreshRunner.should_refresh() logic
+- CorpusProvider protocol and providers (MeetingCorpusProvider, etc.)
+- RefreshRunner.refresh_corpus() generic dispatch
 """
 
 import re
@@ -17,12 +19,18 @@ from unittest.mock import MagicMock, patch
 from civicos._internal.legal.corpus.refresh import (
     ChangeSignal,
     ChangeStatus,
+    CorpusProvider,
     RefreshPolicy,
     RefreshResult,
     RefreshRunner,
     content_hash,
     diff_sections,
     load_refresh_policies,
+)
+from civicos._internal.legal.corpus.providers import (
+    IssueCorpusProvider,
+    LegislationCorpusProvider,
+    MeetingCorpusProvider,
 )
 
 
@@ -465,3 +473,556 @@ class TestLoadRefreshPolicies:
     def test_nonexistent_jurisdiction(self):
         policies = load_refresh_policies("city-nonexistent")
         assert policies == {}
+
+
+# ---------------------------------------------------------------------------
+# CorpusProvider protocol compliance
+# ---------------------------------------------------------------------------
+
+
+class TestCorpusProviderProtocol:
+    def test_meeting_provider_satisfies_protocol(self):
+        provider = MeetingCorpusProvider(client=MagicMock(), jurisdiction_id="city-test")
+        assert isinstance(provider, CorpusProvider)
+        assert provider.corpus_type == "meetings"
+        assert provider.jurisdiction_id == "city-test"
+
+    def test_issue_provider_satisfies_protocol(self):
+        provider = IssueCorpusProvider(client=MagicMock(), jurisdiction_id="city-test")
+        assert isinstance(provider, CorpusProvider)
+        assert provider.corpus_type == "issues"
+
+    def test_legislation_provider_satisfies_protocol(self):
+        provider = LegislationCorpusProvider(
+            client=MagicMock(), jurisdiction_id="state-CA", state_code="CA"
+        )
+        assert isinstance(provider, CorpusProvider)
+        assert provider.corpus_type == "legislation"
+
+
+# ---------------------------------------------------------------------------
+# MeetingCorpusProvider
+# ---------------------------------------------------------------------------
+
+
+class TestMeetingCorpusProvider:
+    def _make_provider(self, meetings=None):
+        client = MagicMock()
+        # Simulate Meeting objects with to_dict()
+        mock_meetings = []
+        for m in (meetings or []):
+            meeting = MagicMock()
+            meeting.to_dict.return_value = m
+            mock_meetings.append(meeting)
+        client.get_meetings.return_value = mock_meetings
+        return MeetingCorpusProvider(
+            client=client, jurisdiction_id="city-test", days_past=30, days_ahead=90
+        )
+
+    def test_check_for_update_returns_unknown(self):
+        provider = self._make_provider()
+        signal = provider.check_for_update("some-fingerprint")
+        assert signal.status == ChangeStatus.UNKNOWN
+
+    def test_check_for_update_no_prior(self):
+        provider = self._make_provider()
+        signal = provider.check_for_update(None)
+        assert signal.status == ChangeStatus.UNKNOWN
+
+    def test_fetch_and_store_calls_client(self):
+        meetings = [
+            {"id": "m1", "title": "Council Meeting", "meeting_datetime": "2026-03-01"},
+            {"id": "m2", "title": "Planning Commission", "meeting_datetime": "2026-03-08"},
+        ]
+        provider = self._make_provider(meetings)
+
+        storage = MagicMock()
+        storage.store_meetings.return_value = 2
+
+        stored = provider.fetch_and_store(storage)
+
+        provider.client.get_meetings.assert_called_once_with(days_ahead=90, days_past=30)
+        storage.store_meetings.assert_called_once()
+        assert stored == 2
+
+    def test_fetch_and_store_converts_to_dict(self):
+        provider = self._make_provider([{"id": "m1", "title": "Test"}])
+        storage = MagicMock()
+        storage.store_meetings.return_value = 1
+
+        provider.fetch_and_store(storage)
+
+        # Verify dicts (not Mock objects) were passed to store
+        call_args = storage.store_meetings.call_args
+        assert call_args[0][0] == "city-test"
+        assert call_args[0][1] == [{"id": "m1", "title": "Test"}]
+
+    def test_fetch_and_store_empty(self):
+        provider = self._make_provider([])
+        storage = MagicMock()
+
+        stored = provider.fetch_and_store(storage)
+
+        assert stored == 0
+        storage.store_meetings.assert_not_called()
+
+    def test_fetch_and_store_handles_dict_meetings(self):
+        """Meetings that are already dicts (no to_dict method)."""
+        client = MagicMock()
+        # Return plain dicts, not Mock objects
+        client.get_meetings.return_value = [
+            {"id": "m1", "title": "Test"},
+        ]
+        provider = MeetingCorpusProvider(client=client, jurisdiction_id="city-test")
+
+        storage = MagicMock()
+        storage.store_meetings.return_value = 1
+
+        stored = provider.fetch_and_store(storage)
+        assert stored == 1
+
+
+# ---------------------------------------------------------------------------
+# IssueCorpusProvider
+# ---------------------------------------------------------------------------
+
+
+class TestIssueCorpusProvider:
+    def _make_provider(self, pages=None):
+        """Create provider with mock client that returns paginated results."""
+        client = MagicMock()
+
+        pages = pages or []
+        page_iter = iter(pages)
+
+        def mock_get_issues(**kwargs):
+            try:
+                return next(page_iter)
+            except StopIteration:
+                return {"issues": [], "metadata": {"has_more": False}}
+
+        client.get_issues.side_effect = mock_get_issues
+        return IssueCorpusProvider(
+            client=client, jurisdiction_id="city-test", place_url="test"
+        )
+
+    def test_check_for_update_returns_unknown(self):
+        provider = self._make_provider()
+        signal = provider.check_for_update("some-fp")
+        assert signal.status == ChangeStatus.UNKNOWN
+
+    def test_place_url_derived_from_jurisdiction(self):
+        provider = IssueCorpusProvider(
+            client=MagicMock(), jurisdiction_id="city-san-rafael"
+        )
+        assert provider.place_url == "san-rafael"
+
+    def test_place_url_strips_county_prefix(self):
+        provider = IssueCorpusProvider(
+            client=MagicMock(), jurisdiction_id="county-marin"
+        )
+        assert provider.place_url == "marin"
+
+    def test_place_url_explicit(self):
+        provider = IssueCorpusProvider(
+            client=MagicMock(), jurisdiction_id="city-test", place_url="custom"
+        )
+        assert provider.place_url == "custom"
+
+    def test_fetch_and_store_single_page(self):
+        provider = self._make_provider([
+            {
+                "issues": [
+                    {"id": "scf-1", "source": "seeclickfix", "external_id": 123, "title": "Pothole"},
+                    {"id": "scf-2", "source": "seeclickfix", "external_id": 456, "title": "Graffiti"},
+                ],
+                "metadata": {"has_more": False},
+            },
+        ])
+
+        storage = MagicMock()
+        storage.store_issues.return_value = 2
+
+        stored = provider.fetch_and_store(storage)
+        assert stored == 2
+        storage.store_issues.assert_called_once()
+
+    def test_fetch_and_store_paginates(self):
+        provider = self._make_provider([
+            {
+                "issues": [{"id": "scf-1", "source": "seeclickfix", "external_id": 1, "title": "A"}],
+                "metadata": {"has_more": True},
+            },
+            {
+                "issues": [{"id": "scf-2", "source": "seeclickfix", "external_id": 2, "title": "B"}],
+                "metadata": {"has_more": False},
+            },
+        ])
+
+        storage = MagicMock()
+        storage.store_issues.return_value = 2
+
+        stored = provider.fetch_and_store(storage)
+        assert stored == 2
+        # Should have been called with 2 issues
+        call_args = storage.store_issues.call_args
+        assert len(call_args[0][1]) == 2
+
+    def test_fetch_and_store_normalizes_issues(self):
+        """Verify source→provider rename, external_id→str, location flattening."""
+        provider = self._make_provider([
+            {
+                "issues": [{
+                    "id": "scf-1",
+                    "source": "seeclickfix",
+                    "external_id": 789,
+                    "title": "Pothole",
+                    "location": {"address": "123 Main St", "lat": 37.9, "lng": -122.5},
+                }],
+                "metadata": {"has_more": False},
+            },
+        ])
+
+        storage = MagicMock()
+        storage.store_issues.return_value = 1
+
+        provider.fetch_and_store(storage)
+
+        stored_issues = storage.store_issues.call_args[0][1]
+        issue = stored_issues[0]
+        assert issue["provider"] == "seeclickfix"
+        assert "source" not in issue
+        assert issue["external_id"] == "789"
+        assert issue["address"] == "123 Main St"
+        assert issue["latitude"] == 37.9
+        assert issue["longitude"] == -122.5
+        assert "location" not in issue
+
+    def test_fetch_and_store_empty(self):
+        provider = self._make_provider([
+            {"issues": [], "metadata": {"has_more": False}},
+        ])
+        storage = MagicMock()
+
+        stored = provider.fetch_and_store(storage)
+        assert stored == 0
+        storage.store_issues.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# LegislationCorpusProvider
+# ---------------------------------------------------------------------------
+
+
+class TestLegislationCorpusProvider:
+    def _make_provider(self, master_list=None):
+        client = MagicMock()
+        client.get_master_list.return_value = master_list or []
+        return LegislationCorpusProvider(
+            client=client, jurisdiction_id="state-CA", state_code="CA"
+        )
+
+    def test_check_for_update_returns_unknown(self):
+        provider = self._make_provider()
+        signal = provider.check_for_update("some-fp")
+        assert signal.status == ChangeStatus.UNKNOWN
+
+    def test_fetch_and_store_transforms_bills(self):
+        provider = self._make_provider([
+            {
+                "number": "AB 1234",
+                "title": "Housing Act",
+                "description": "A bill about housing",
+                "status": "1",
+                "url": "https://legiscan.com/...",
+                "bill_id": 99999,
+                "last_action": "Passed Assembly",
+                "last_action_date": "2026-03-01",
+                "status_date": "2026-03-01",
+            },
+        ])
+
+        storage = MagicMock()
+        storage.store_legislation.return_value = 1
+
+        stored = provider.fetch_and_store(storage)
+        assert stored == 1
+
+        call_args = storage.store_legislation.call_args
+        assert call_args[1]["state"] == "CA"
+        bills = call_args[1]["bills"]
+        assert bills[0]["bill_id"] == "ca-ab1234"
+        assert bills[0]["bill_number"] == "AB 1234"
+        assert bills[0]["bill_name"] == "Housing Act"
+        assert bills[0]["legiscan_id"] == 99999
+
+    def test_fetch_and_store_batches(self):
+        """Bills are stored in batches of 500."""
+        # 600 bills → 2 batches
+        bills = [
+            {"number": f"AB {i}", "title": f"Bill {i}", "bill_id": i}
+            for i in range(600)
+        ]
+        provider = self._make_provider(bills)
+
+        storage = MagicMock()
+        storage.store_legislation.return_value = 500
+
+        stored = provider.fetch_and_store(storage)
+        assert stored == 1000  # 500 * 2
+        assert storage.store_legislation.call_count == 2
+
+    def test_fetch_and_store_empty(self):
+        provider = self._make_provider([])
+        storage = MagicMock()
+
+        stored = provider.fetch_and_store(storage)
+        assert stored == 0
+        storage.store_legislation.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# RefreshRunner.refresh_corpus() — generic dispatch
+# ---------------------------------------------------------------------------
+
+
+class TestRefreshCorpus:
+    def _make_runner(self, meta=None):
+        storage = MagicMock()
+        storage.get_refresh_metadata.return_value = meta
+        storage.update_refresh_metadata.return_value = 1
+        vectors = MagicMock()
+        vectors.index_from_storage.return_value = 10
+        return RefreshRunner(storage_backend=storage, vector_backend=vectors)
+
+    def _make_provider(self, corpus_type="meetings", jurisdiction_id="city-test"):
+        provider = MagicMock()
+        provider.jurisdiction_id = jurisdiction_id
+        provider.corpus_type = corpus_type
+        provider.source_name = corpus_type  # e.g., "meetings" as source_name
+        provider.check_for_update.return_value = ChangeSignal(
+            status=ChangeStatus.UNKNOWN
+        )
+        provider.fetch_and_store.return_value = 5
+        return provider
+
+    def test_skipped_when_not_due(self):
+        """When recently refreshed, should skip."""
+        meta = {"last_fetch_at": datetime.now().isoformat(), "last_fetch_hash": "abc"}
+        runner = self._make_runner(meta=meta)
+        provider = self._make_provider()
+
+        # Set a policy with 1d interval
+        with patch(
+            "civicos._internal.legal.corpus.refresh.load_refresh_policies",
+            return_value={"meetings": RefreshPolicy("meetings", interval_days=1)},
+        ):
+            result = runner.refresh_corpus(provider)
+
+        assert result.status == "skipped"
+        provider.fetch_and_store.assert_not_called()
+
+    def test_runs_when_force(self):
+        """Force=True bypasses interval check."""
+        meta = {"last_fetch_at": datetime.now().isoformat(), "last_fetch_hash": "abc"}
+        runner = self._make_runner(meta=meta)
+        provider = self._make_provider()
+
+        with patch(
+            "civicos._internal.legal.corpus.refresh.load_refresh_policies",
+            return_value={"meetings": RefreshPolicy("meetings", interval_days=1)},
+        ):
+            result = runner.refresh_corpus(provider, force=True)
+
+        assert result.status == "updated"
+        provider.fetch_and_store.assert_called_once()
+
+    def test_runs_when_never_fetched(self):
+        """Never fetched before → should run."""
+        runner = self._make_runner(meta=None)
+        provider = self._make_provider()
+
+        result = runner.refresh_corpus(provider)
+
+        assert result.status == "updated"
+        provider.fetch_and_store.assert_called_once()
+
+    def test_unchanged_skips_fetch(self):
+        """Provider says UNCHANGED → skip fetch."""
+        runner = self._make_runner(meta=None)
+        provider = self._make_provider()
+        provider.check_for_update.return_value = ChangeSignal(
+            status=ChangeStatus.UNCHANGED,
+            new_fingerprint="same",
+        )
+
+        result = runner.refresh_corpus(provider)
+
+        assert result.status == "unchanged"
+        provider.fetch_and_store.assert_not_called()
+
+    def test_error_in_check_skips_fetch(self):
+        """Provider check_for_update errors → skip fetch."""
+        runner = self._make_runner(meta=None)
+        provider = self._make_provider()
+        provider.check_for_update.return_value = ChangeSignal(
+            status=ChangeStatus.ERROR,
+            message="API down",
+        )
+
+        result = runner.refresh_corpus(provider)
+
+        assert result.status == "error"
+        assert result.error == "API down"
+        provider.fetch_and_store.assert_not_called()
+
+    def test_error_in_check_forced(self):
+        """Provider check error + force=True → still runs."""
+        runner = self._make_runner(meta=None)
+        provider = self._make_provider()
+        provider.check_for_update.return_value = ChangeSignal(
+            status=ChangeStatus.ERROR, message="API flaky"
+        )
+
+        result = runner.refresh_corpus(provider, force=True)
+
+        assert result.status == "updated"
+        provider.fetch_and_store.assert_called_once()
+
+    def test_check_exception_handled(self):
+        """Exception in check_for_update → treated as error."""
+        runner = self._make_runner(meta=None)
+        provider = self._make_provider()
+        provider.check_for_update.side_effect = Exception("Network timeout")
+
+        result = runner.refresh_corpus(provider)
+
+        assert result.status == "error"
+        assert "Network timeout" in result.error
+
+    def test_fetch_and_store_exception_handled(self):
+        """Exception in fetch_and_store → error result."""
+        runner = self._make_runner(meta=None)
+        provider = self._make_provider()
+        provider.fetch_and_store.side_effect = Exception("Database connection lost")
+
+        result = runner.refresh_corpus(provider)
+
+        assert result.status == "error"
+        assert "Database connection lost" in result.error
+
+    def test_dry_run_skips_fetch_and_store(self):
+        """dry_run=True → don't call fetch_and_store."""
+        runner = self._make_runner(meta=None)
+        provider = self._make_provider()
+
+        result = runner.refresh_corpus(provider, dry_run=True)
+
+        assert result.status == "updated"
+        provider.fetch_and_store.assert_not_called()
+
+    def test_metadata_updated(self):
+        """Verify refresh metadata is updated after successful store."""
+        runner = self._make_runner(meta=None)
+        provider = self._make_provider()
+        provider.check_for_update.return_value = ChangeSignal(
+            status=ChangeStatus.CHANGED, new_fingerprint="new-fp"
+        )
+
+        result = runner.refresh_corpus(provider)
+
+        runner.storage.update_refresh_metadata.assert_called_once_with(
+            "city-test", "meetings",
+            source_name="meetings",  # matches provider.source_name
+            items_fetched=5,
+            items_stored=5,
+            status="completed",
+            last_fetch_hash="new-fp",
+        )
+
+    def test_source_name_threaded_to_metadata_lookup(self):
+        """Verify source_name is passed to get_refresh_metadata for should_refresh."""
+        meta = {"last_fetch_at": datetime.now().isoformat(), "last_fetch_hash": "abc"}
+        runner = self._make_runner(meta=meta)
+        provider = self._make_provider()
+        provider.source_name = "proudcity"
+
+        with patch(
+            "civicos._internal.legal.corpus.refresh.load_refresh_policies",
+            return_value={"meetings": RefreshPolicy("meetings", interval_days=1)},
+        ):
+            result = runner.refresh_corpus(provider)
+
+        # should_refresh should have called get_refresh_metadata with source_name
+        runner.storage.get_refresh_metadata.assert_any_call(
+            "city-test", "meetings", "proudcity"
+        )
+
+    def test_vectors_reindexed(self):
+        """Vectors are reindexed after successful store."""
+        runner = self._make_runner(meta=None)
+        provider = self._make_provider()
+
+        result = runner.refresh_corpus(provider)
+
+        runner.vectors.index_from_storage.assert_called_once_with(
+            storage_backend=runner.storage,
+            jurisdiction_id="city-test",
+            corpus_type="meetings",
+        )
+        assert result.vectors_reindexed == 10
+
+    def test_vectors_skipped_when_nothing_stored(self):
+        """No re-embed if nothing was stored."""
+        runner = self._make_runner(meta=None)
+        provider = self._make_provider()
+        provider.fetch_and_store.return_value = 0
+
+        result = runner.refresh_corpus(provider)
+
+        runner.vectors.index_from_storage.assert_not_called()
+        assert result.status == "unchanged"
+
+    def test_vectors_skipped_when_disabled(self):
+        """reindex_vectors=False → skip re-embed."""
+        runner = self._make_runner(meta=None)
+        provider = self._make_provider()
+
+        result = runner.refresh_corpus(provider, reindex_vectors=False)
+
+        runner.vectors.index_from_storage.assert_not_called()
+
+    def test_vector_failure_does_not_fail_result(self):
+        """Vector reindex failure → warning, not error."""
+        runner = self._make_runner(meta=None)
+        runner.vectors.index_from_storage.side_effect = Exception("Embedding API down")
+        provider = self._make_provider()
+
+        result = runner.refresh_corpus(provider)
+
+        assert result.status == "updated"
+        assert result.vectors_reindexed == 0
+
+    def test_result_fields(self):
+        """Verify RefreshResult has correct fields."""
+        runner = self._make_runner(meta=None)
+        provider = self._make_provider(corpus_type="issues")
+
+        result = runner.refresh_corpus(provider)
+
+        assert result.jurisdiction_id == "city-test"
+        assert result.corpus_type == "issues"
+        assert result.status == "updated"
+        assert result.sections_added == 5  # stored count
+        assert result.elapsed_seconds > 0
+
+    def test_works_with_different_corpus_types(self):
+        """Verify generic dispatch works for meetings, issues, legislation."""
+        for ctype in ("meetings", "issues", "legislation"):
+            runner = self._make_runner(meta=None)
+            provider = self._make_provider(corpus_type=ctype)
+
+            result = runner.refresh_corpus(provider)
+
+            assert result.status == "updated"
+            assert result.corpus_type == ctype
