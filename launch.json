@@ -1,8 +1,8 @@
 {
   "version": "1.0",
   "phase": "launch",
-  "last_updated": "2026-03-18",
-  "summary": "Launch readiness: billing infrastructure, acceptance policy enforcement, token issuance, operator tooling, observability, multi-scale participation",
+  "last_updated": "2026-03-22",
+  "summary": "Launch readiness: scalable data pipeline (refresh generalization, cron wiring), billing infrastructure, acceptance policy enforcement, token issuance, operator tooling, multi-scale participation",
   "category_order": [
     "security_fixes",
     "observability",
@@ -18,7 +18,7 @@
     "items": [
       {
         "name": "coincurve_import_hard_fail",
-        "description": "Make coincurve ImportError a hard failure in production. Currently silently disables ALL signature verification \u2014 _schnorr_verify() returns True for any input if library missing.",
+        "description": "Make coincurve ImportError a hard failure in production. Currently silently disables ALL signature verification — _schnorr_verify() returns True for any input if library missing.",
         "status": "done",
         "priority": 0,
         "source": "docs/internal/relay-acceptance-policy-spec.md (Phase 0, item 1)",
@@ -148,12 +148,12 @@
         "priority": 3,
         "files": [],
         "test_file": null,
-        "notes": "Deferred: need usage data to decide billing model (flat subscription vs metered vs hybrid). Usage logging pipeline is live \u2014 collect data first, then set up Stripe with the right model. Also need to decide whether to use Stripe metered billing for read API. See relay-acceptance-policy-spec.md for write-side blinded token billing."
+        "notes": "Deferred: need usage data to decide billing model (flat subscription vs metered vs hybrid). Usage logging pipeline is live — collect data first, then set up Stripe with the right model. Also need to decide whether to use Stripe metered billing for read API. See relay-acceptance-policy-spec.md for write-side blinded token billing."
       }
     ]
   },
   "acceptance_policy": {
-    "description": "Relay acceptance policy enforcement \u2014 attestation verification and rate limiting hardening (Phases 2-3 from spec)",
+    "description": "Relay acceptance policy enforcement — attestation verification and rate limiting hardening (Phases 2-3 from spec)",
     "items": [
       {
         "name": "http_ip_rate_limiting",
@@ -194,7 +194,7 @@
       },
       {
         "name": "attestation_proof_on_requests",
-        "description": "Add attestation_proof field to CastVoiceRequest and other write request schemas. Currently missing \u2014 prerequisite for attestation enforcement.",
+        "description": "Add attestation_proof field to CastVoiceRequest and other write request schemas. Currently missing — prerequisite for attestation enforcement.",
         "status": "done",
         "priority": 1,
         "source": "docs/internal/relay-acceptance-policy-spec.md (Phase 3)",
@@ -225,21 +225,21 @@
         "description": "Move DEFAULT_POLICY from hardcoded module-level constant to per-jurisdiction configuration (config file or DB table). Currently every relay instance has identical rate limits and PoW difficulty regardless of jurisdiction.",
         "status": "done",
         "priority": 99,
-        "source": "architectural review \u2014 scaling prerequisite",
+        "source": "architectural review — scaling prerequisite",
         "spec": "docs/internal/config-driven-rate-limits-spec.md",
         "files": [
           "packages/civicos-relay/src/civicos_relay/server/acceptance.py",
           "config/relay_policies.json"
         ],
         "test_file": "packages/civicos-relay/tests/test_acceptance_policy.py",
-        "notes": "load_policy() resolves: RELAY_POLICY_FILE env var \u2192 config/relay_policies.json[jurisdiction] \u2192 file defaults \u2192 DEFAULT_POLICY. Deep merge preserves per-event-type fields. AcceptancePolicy accepts jurisdiction_id param, RelayConfig reads RELAY_JURISDICTION env var. 10 new tests."
+        "notes": "load_policy() resolves: RELAY_POLICY_FILE env var → config/relay_policies.json[jurisdiction] → file defaults → DEFAULT_POLICY. Deep merge preserves per-event-type fields. AcceptancePolicy accepts jurisdiction_id param, RelayConfig reads RELAY_JURISDICTION env var. 10 new tests."
       },
       {
         "name": "extension_pow_generation",
-        "description": "Add NIP-13 proof-of-work generation to browser extension for free-tier writes. Server-side PoW verification is wired but no client generates it \u2014 dead code path until this ships.",
+        "description": "Add NIP-13 proof-of-work generation to browser extension for free-tier writes. Server-side PoW verification is wired but no client generates it — dead code path until this ships.",
         "status": "done",
         "priority": 2,
-        "source": "architectural review \u2014 completes PoW tier",
+        "source": "architectural review — completes PoW tier",
         "files": [
           "packages/civicos-client/src/pow.ts",
           "packages/civicos-client/src/api.ts"
@@ -272,7 +272,7 @@
     ]
   },
   "token_issuance": {
-    "description": "Blinded token payment system for relay writes \u2014 privacy-preserving per-action billing (Phase 4 from spec)",
+    "description": "Blinded token payment system for relay writes — privacy-preserving per-action billing (Phase 4 from spec)",
     "items": [
       {
         "name": "blind_signature_scheme_design",
@@ -289,7 +289,7 @@
         "name": "token_issuance_service",
         "description": "Implement token issuance service (separate from relay). Accepts Stripe/Lightning payment, returns blinded tokens. Cannot link issued tokens to payment session.",
         "status": "not_started",
-        "priority": 2,
+        "priority": 3,
         "source": "docs/internal/relay-acceptance-policy-spec.md (Phase 4)",
         "files": [],
         "test_file": null,
@@ -313,7 +313,7 @@
         "name": "token_verification_in_policy",
         "description": "Add token verification + spent-token tracking to acceptance policy. Atomic: token must be marked spent BEFORE write is persisted.",
         "status": "not_started",
-        "priority": 2,
+        "priority": 3,
         "source": "docs/internal/relay-acceptance-policy-spec.md (Phase 4)",
         "files": [
           "packages/civicos-relay/src/civicos_relay/server/acceptance.py"
@@ -324,7 +324,7 @@
         "name": "extension_token_wallet",
         "description": "Add token wallet to browser extension. Store blinded tokens in local-wallet.ts (already handles secp256k1). Include tokens in write requests automatically.",
         "status": "not_started",
-        "priority": 2,
+        "priority": 3,
         "source": "docs/internal/relay-acceptance-policy-spec.md (Phase 4)",
         "files": [
           "apps/civicos-extension/src/"
@@ -349,7 +349,7 @@
     "items": [
       {
         "name": "data_ingestion_guide",
-        "description": "Public-facing guide for operators to ingest data for their jurisdiction. Currently noted as a gap in operator-guide.md \u2014 links to internal docs only.",
+        "description": "Public-facing guide for operators to ingest data for their jurisdiction. Currently noted as a gap in operator-guide.md — links to internal docs only.",
         "status": "done",
         "priority": 2,
         "files": [
@@ -381,7 +381,7 @@
           "packages/civicos-relay/src/civicos_relay/storage/postgres.py"
         ],
         "test_file": null,
-        "notes": "Three wins: (1) ThreadedConnectionPool in PostgresBackend \u2014 currently opens new TCP connection per query, biggest latency source. (2) Tune ef_search from 200 to ~80 \u2014 overkill for 17k vectors, trades unnecessary recall for speed. (3) Profile cross-jurisdiction latency with 3 cities, set performance baseline. Also unifies retry logic between civicos and civicos-relay backends."
+        "notes": "Three wins: (1) ThreadedConnectionPool in PostgresBackend — currently opens new TCP connection per query, biggest latency source. (2) Tune ef_search from 200 to ~80 — overkill for 17k vectors, trades unnecessary recall for speed. (3) Profile cross-jurisdiction latency with 3 cities, set performance baseline. Also unifies retry logic between civicos and civicos-relay backends."
       },
       {
         "name": "operator_relay_dockerfile",
@@ -405,9 +405,9 @@
       },
       {
         "name": "configurable_refresh_policies",
-        "description": "Configurable per-corpus refresh policies in jurisdiction YAML. Operators set interval and strategy for each data source (municipal_code, meetings, transcripts, etc.). System checks for changes and re-ingests only what changed.",
+        "description": "Generalize RefreshRunner to all corpus types (meetings, issues, legislation, transcripts). Wire cron orchestrators to use RefreshRunner instead of bespoke logic. Complete the configurable refresh system.",
         "status": "in_progress",
-        "priority": 1,
+        "priority": 0,
         "files": [
           "data/jurisdictions/",
           "scripts/modal_ingest.py",
@@ -415,7 +415,7 @@
           "packages/civicos/src/civicos/storage/postgres_backend.py"
         ],
         "test_file": "packages/civicos/tests/test_refresh.py",
-        "notes": "Core infrastructure done (fd77c05): RefreshRunner, CorpusProvider protocol (Municode fingerprint gate, AMLegal interval-only), YAML refresh: block, modal run --refresh CLI, safety valves (>50% modified or >20% removed), normalized text comparison, duplicate row defense, refresh.critic.md. 41 tests + real-data simulation. Remaining: (1) GH Actions cron workflow for scheduled --refresh, (2) extend RefreshRunner to meetings/issues/legislation corpus types, (3) operator notification on detected changes."
+        "notes": "Core infrastructure done (fd77c05): RefreshRunner, CorpusProvider protocol (Municode fingerprint gate, AMLegal interval-only), YAML refresh: block, modal run --refresh CLI, safety valves, normalized text comparison, 41 tests. ROADMAP (agreed 2026-03-22): Phase 1 — Extend RefreshableCorpus to meetings (ProudCity/Granicus), issues (SeeClickFix), legislation (LegiScan/CA Legislature), transcripts. Add generic refresh_corpus(jurisdiction_id, corpus_type) method. Phase 2 — Wire scheduled_high/low_velocity_refresh() to call RefreshRunner.should_refresh() instead of bespoke logic. Phase 3 — Operator notifications on detected changes. Est: 2-3 sessions for Phase 1, 1 session for Phase 2."
       },
       {
         "name": "query_interface_operators",
@@ -428,6 +428,22 @@
         ],
         "test_file": "packages/civicos-services/tests/test_query_v2.py",
         "notes": "Done: diff mode, intersect mode, concept lookup (prev session). This session: 23 integration tests against PostgreSQL, RRF calibration (k=60 shows good 4:4 interleaving). Found: legislation/municipal_code timeout at 10s (what_applies takes ~40s due to external API calls). Multi-jurisdiction fan-out deferred until more cities onboarded."
+      },
+      {
+        "name": "cron_refresh_wiring",
+        "description": "Wire scheduled_high/low_velocity_refresh() cron orchestrators to use RefreshRunner.should_refresh() + refresh_corpus() instead of bespoke per-corpus ingestion logic.",
+        "status": "not_started",
+        "priority": 1,
+        "phase": "1",
+        "source": "scalability roadmap 2026-03-22",
+        "files": [
+          "scripts/modal_ingest.py",
+          "packages/civicos/src/civicos/_internal/legal/corpus/refresh.py",
+          ".github/workflows/cron-high-velocity-refresh.yml",
+          ".github/workflows/cron-low-velocity-refresh.yml"
+        ],
+        "test_file": "packages/civicos/tests/test_refresh.py",
+        "notes": "Depends on configurable_refresh_policies completing Phase 1 (RefreshRunner generalization). ~1 session."
       }
     ]
   },
@@ -440,7 +456,7 @@
         "status": "done",
         "priority": 1,
         "phase": "A",
-        "source": "federation testbed \u2014 same-county validation",
+        "source": "federation testbed — same-county validation",
         "files": [
           "data/extraction/city-mill-valley.json",
           "data/jurisdictions/city-mill-valley.yaml"
@@ -454,13 +470,13 @@
         "status": "done",
         "priority": 1,
         "phase": "A",
-        "source": "federation testbed \u2014 same-county validation",
+        "source": "federation testbed — same-county validation",
         "files": [
           "data/extraction/san-anselmo.json",
           "data/jurisdictions/city-san-anselmo.yaml"
         ],
         "test_file": null,
-        "notes": "Done 2026-03-11. 169 meetings, 337+ agenda items (extraction continuing). 28 body types. 0 new code fixes needed \u2014 Mill Valley fixes generalized. 3 pre-existing friction points remain (F1, F4, F5). Friction log updated."
+        "notes": "Done 2026-03-11. 169 meetings, 337+ agenda items (extraction continuing). 28 body types. 0 new code fixes needed — Mill Valley fixes generalized. 3 pre-existing friction points remain (F1, F4, F5). Friction log updated."
       },
       {
         "name": "deploy_marin_test_relays",
@@ -468,7 +484,7 @@
         "status": "done",
         "priority": 1,
         "phase": "A",
-        "source": "federation testbed \u2014 multi-relay infrastructure",
+        "source": "federation testbed — multi-relay infrastructure",
         "files": [
           "packages/civicos-relay/src/civicos_relay/server/app.py"
         ],
@@ -481,7 +497,7 @@
         "status": "done",
         "priority": 99,
         "phase": "A",
-        "source": "federation testbed \u2014 multi-issuer trust",
+        "source": "federation testbed — multi-issuer trust",
         "files": [
           "config/registry.json",
           "packages/civicos-signer/"
@@ -495,7 +511,7 @@
         "status": "done",
         "priority": 1,
         "phase": "A",
-        "source": "federation testbed \u2014 data prerequisite for cross_marin_query_prototype + operator experience validation",
+        "source": "federation testbed — data prerequisite for cross_marin_query_prototype + operator experience validation",
         "files": [
           "scripts/onboard.py",
           "scripts/modal_ingest.py",
@@ -506,7 +522,7 @@
           "docs/public/data-ingestion.md"
         ],
         "test_file": null,
-        "notes": "Done 2026-03-15. Turnkey onboard script (scripts/onboard.py) generates configs + runs Modal ingestion in one command. Mill Valley: 57 meetings, 166 agenda items, 2 decisions, 591 vectors. San Anselmo: 152 meetings, 34 new agenda items, 112 decisions, 1037 vectors. Both jurisdictions now have non-zero decisions + vectors. Chunks were 0/14 due to Granicus HTML agendas (MV) and SSL cert errors (SA) \u2014 not blocking."
+        "notes": "Done 2026-03-15. Turnkey onboard script (scripts/onboard.py) generates configs + runs Modal ingestion in one command. Mill Valley: 57 meetings, 166 agenda items, 2 decisions, 591 vectors. San Anselmo: 152 meetings, 34 new agenda items, 112 decisions, 1037 vectors. Both jurisdictions now have non-zero decisions + vectors. Chunks were 0/14 due to Granicus HTML agendas (MV) and SSL cert errors (SA) — not blocking."
       },
       {
         "name": "turnkey_onboard_hardening",
@@ -514,14 +530,14 @@
         "status": "done",
         "priority": 0,
         "phase": "A",
-        "source": "marin_sibling_ingestion validation \u2014 gaps found during Mill Valley + San Anselmo onboarding",
+        "source": "marin_sibling_ingestion validation — gaps found during Mill Valley + San Anselmo onboarding",
         "files": [
           "scripts/onboard.py",
           "packages/civicos-extraction/src/civicos_extraction/onboard.py",
           "scripts/modal_ingest.py"
         ],
         "test_file": null,
-        "notes": "Eight gaps identified: (0) No validation gate \u2014 ingests 365 days blind, should sample 30 days first, verify quality (chunks>0? decisions>0?), then scale up only if quality passes. Prevents burning $3-4 on jurisdictions with unextractable data. (1) Chunks=0 for Granicus HTML AgendaViewer sites \u2014 need to extract text from GeneratedAgendaViewer HTML pages when no PDF link exists. (2) Only 2/57 decisions for Mill Valley \u2014 thin HTML minutes, need quality signal. (3) Duplicate meetings from multi-view archives \u2014 view 2 and 3 contain same meetings, wastes LLM spend. (4) No post-onboard quality report \u2014 operator can't tell if results are good or bad. (5) County enrichment is fragile string patching on YAML. (6) No idempotency \u2014 re-run doubles LLM spend on agenda/decisions. (7) City name sensitivity \u2014 slug derivation is case/prefix sensitive. Must fix before open sourcing and before cross-jurisdiction queries can rely on this data."
+        "notes": "Eight gaps identified: (0) No validation gate — ingests 365 days blind, should sample 30 days first, verify quality (chunks>0? decisions>0?), then scale up only if quality passes. Prevents burning $3-4 on jurisdictions with unextractable data. (1) Chunks=0 for Granicus HTML AgendaViewer sites — need to extract text from GeneratedAgendaViewer HTML pages when no PDF link exists. (2) Only 2/57 decisions for Mill Valley — thin HTML minutes, need quality signal. (3) Duplicate meetings from multi-view archives — view 2 and 3 contain same meetings, wastes LLM spend. (4) No post-onboard quality report — operator can't tell if results are good or bad. (5) County enrichment is fragile string patching on YAML. (6) No idempotency — re-run doubles LLM spend on agenda/decisions. (7) City name sensitivity — slug derivation is case/prefix sensitive. Must fix before open sourcing and before cross-jurisdiction queries can rely on this data."
       },
       {
         "name": "cross_marin_query_prototype",
@@ -529,7 +545,7 @@
         "status": "in_progress",
         "priority": 1,
         "phase": "A",
-        "source": "federation testbed \u2014 query federation",
+        "source": "federation testbed — query federation",
         "spec": "docs/internal/cross-jurisdiction-query-spec.md",
         "files": [
           "packages/civicos-services/src/civicos_services/query/jurisdictions.py",
@@ -537,7 +553,7 @@
           "packages/civicos-services/src/civicos_services/query/models.py"
         ],
         "test_file": "packages/civicos-services/tests/test_query_v2.py",
-        "notes": "Infrastructure done: jurisdiction resolution, tier boosting (self=1.0, sibling=0.8), parallel fan-out, semantic relevance scores (04792c2), noise filter MIN_RELEVANCE=0.45, 130+ tests. Data ready: SR 83 decisions, MV 60, SA 96. Decision IDs migrated to meeting-scoped ordinals (f08025f). Remaining: (1) downward resolution \u2014 query county-marin should fan out to child cities, (2) cache registry.json in memory, (3) mount v2 on REST API server."
+        "notes": "Infrastructure done: jurisdiction resolution, tier boosting (self=1.0, sibling=0.8), parallel fan-out, semantic relevance scores (04792c2), noise filter MIN_RELEVANCE=0.45, 130+ tests. Data ready: SR 83 decisions, MV 60, SA 96. Decision IDs migrated to meeting-scoped ordinals (f08025f). Remaining: (1) downward resolution — query county-marin should fan out to child cities, (2) cache registry.json in memory, (3) mount v2 on REST API server."
       },
       {
         "name": "onboarding_friction_log",
@@ -545,13 +561,13 @@
         "status": "done",
         "priority": 2,
         "phase": "A",
-        "source": "federation testbed \u2014 turnkey onboarding",
+        "source": "federation testbed — turnkey onboarding",
         "files": [
           ".claude/commands/onboard.md",
           "docs/public/"
         ],
         "test_file": null,
-        "notes": "This is the real deliverable of Phase A \u2014 a battle-tested onboarding flow, not a theoretical one."
+        "notes": "This is the real deliverable of Phase A — a battle-tested onboarding flow, not a theoretical one."
       },
       {
         "name": "turnkey_onboarding",
@@ -559,7 +575,7 @@
         "status": "done",
         "priority": 0,
         "phase": "A",
-        "source": "federation testbed \u2014 turnkey onboarding",
+        "source": "federation testbed — turnkey onboarding",
         "files": [
           "packages/civicos-extraction/src/civicos_extraction/onboard.py",
           "packages/civicos-extraction/src/civicos_extraction/platform_detection.py",
@@ -576,7 +592,7 @@
         "status": "done",
         "priority": 0,
         "phase": "B",
-        "source": "federation testbed \u2014 generalized onboarding",
+        "source": "federation testbed — generalized onboarding",
         "files": [
           "packages/civicos-extraction/src/civicos_extraction/platform_detection.py",
           "packages/civicos-extraction/src/civicos_extraction/onboard.py",
@@ -592,7 +608,7 @@
         "status": "done",
         "priority": 0,
         "phase": "B",
-        "source": "federation testbed \u2014 cross-county parent",
+        "source": "federation testbed — cross-county parent",
         "files": [
           "data/extraction/county-alameda.json",
           "data/jurisdictions/county-alameda.yaml",
@@ -607,7 +623,7 @@
         "status": "done",
         "priority": 99,
         "phase": "B",
-        "source": "platform coverage gap \u2014 Portland OR uses eScribe, only unsupported platform found in stress testing",
+        "source": "platform coverage gap — Portland OR uses eScribe, only unsupported platform found in stress testing",
         "files": [
           "packages/civicos-extraction/src/civicos_extraction/clients/escribe.py",
           "packages/civicos-extraction/src/civicos_extraction/clients/factory.py",
@@ -616,15 +632,15 @@
           "packages/civicos-extraction/src/civicos_extraction/onboard.py"
         ],
         "test_file": "packages/civicos-extraction/tests/test_platform_detection.py",
-        "notes": "Portland OR is the only major US city that failed platform discovery. eScribe is used by Portland and other Pacific NW cities. Existing abstraction (BaseExtractor + factory + discovery) is already generalizable \u2014 just needs a new client implementation."
+        "notes": "Portland OR is the only major US city that failed platform discovery. eScribe is used by Portland and other Pacific NW cities. Existing abstraction (BaseExtractor + factory + discovery) is already generalizable — just needs a new client implementation."
       },
       {
         "name": "cross_county_query_prototype",
-        "description": "Prototype cross-county queries: Berkeley (Alameda) vs San Rafael (Marin). Test relevance filtering \u2014 when are cross-county results useful vs noise?",
+        "description": "Prototype cross-county queries: Berkeley (Alameda) vs San Rafael (Marin). Test relevance filtering — when are cross-county results useful vs noise?",
         "status": "in_progress",
         "priority": 1,
         "phase": "B",
-        "source": "federation testbed \u2014 cross-county federation",
+        "source": "federation testbed — cross-county federation",
         "spec": "docs/internal/cross-county-relevance-spec.md",
         "files": [
           "packages/civicos-services/src/civicos_services/query/models.py",
@@ -640,7 +656,7 @@
         "status": "not_started",
         "priority": 2,
         "phase": "B",
-        "source": "architectural review \u2014 federation prerequisite",
+        "source": "architectural review — federation prerequisite",
         "spec": "docs/internal/pagination-protocol-spec.md",
         "files": [
           "packages/civicos/src/civicos/storage/backend.py",
@@ -671,7 +687,7 @@
         "status": "done",
         "priority": 0,
         "phase": "B",
-        "source": "architectural review \u2014 federation prerequisite",
+        "source": "architectural review — federation prerequisite",
         "spec": "docs/internal/multi-issuer-lookup-spec.md",
         "files": [
           "packages/civicos-relay/src/civicos_relay/server/acceptance.py",
@@ -686,7 +702,7 @@
         "status": "not_started",
         "priority": 3,
         "phase": "B",
-        "source": "architectural review \u2014 documentation",
+        "source": "architectural review — documentation",
         "files": [
           "docs/public/decisions/"
         ],
@@ -713,7 +729,7 @@
         "status": "done",
         "priority": 1,
         "phase": "B",
-        "source": "architectural review \u2014 v2 query layer cleanup",
+        "source": "architectural review — v2 query layer cleanup",
         "files": [
           "packages/civicos-services/src/civicos_services/query/adapters.py",
           "packages/civicos-services/src/civicos_services/query/verbs.py"
@@ -727,18 +743,33 @@
         "status": "not_started",
         "priority": 3,
         "phase": "B",
-        "source": "onboarding friction \u2014 scraping is fragile, cities already have the data",
+        "source": "onboarding friction — scraping is fragile, cities already have the data",
         "files": [
           "packages/civicos-services/src/civicos_services/servers/routers/",
           "apps/civicos-extension/src/"
         ],
         "test_file": null,
         "notes": "Trivial implementation: POST endpoint accepts {title, date, board, pdf_file}, runs AgendaPacketParser, calls store_meetings() + store_chunks(). Auth via API key per jurisdiction. Extension gets Upload Agenda button. Scraping pipeline remains as fallback for historical data and non-adopting cities. 1-2 sessions of work."
+      },
+      {
+        "name": "onboarding_yaml_generation",
+        "description": "Extend onboard.py to generate complete jurisdiction YAML (refresh policies, contact info, hierarchy, modal config) in addition to extraction JSON. Makes onboarding produce all config needed for a functioning jurisdiction.",
+        "status": "not_started",
+        "priority": 2,
+        "phase": "2",
+        "source": "scalability roadmap 2026-03-22",
+        "files": [
+          "scripts/onboard.py",
+          "data/jurisdictions/schema.yaml",
+          "data/jurisdictions/"
+        ],
+        "test_file": null,
+        "notes": "onboard.py currently generates extraction JSON but not jurisdiction YAML. YAML needed for refresh policies, modal deployment config, contact info. ~1 session."
       }
     ]
   },
   "multi_scale_participation": {
-    "description": "Civic participation at every government level \u2014 federal comment periods, state legislative hearings, and cross-scale query support",
+    "description": "Civic participation at every government level — federal comment periods, state legislative hearings, and cross-scale query support",
     "items": [
       {
         "name": "extension_tab_fix",
@@ -746,7 +777,7 @@
         "status": "done",
         "priority": 0,
         "phase": "0",
-        "source": "multi-scale participation \u2014 UX inconsistency",
+        "source": "multi-scale participation — UX inconsistency",
         "files": [
           "apps/civicos-extension/src/side-panel/SidePanel.svelte",
           "packages/civicos-client/src/registry.ts"
@@ -760,7 +791,7 @@
         "status": "done",
         "priority": 0,
         "phase": "1",
-        "source": "multi-scale participation \u2014 federal",
+        "source": "multi-scale participation — federal",
         "files": [
           "packages/civicos-extraction/src/civicos_extraction/clients/",
           "packages/civicos/src/civicos/storage/"
@@ -774,7 +805,7 @@
         "status": "done",
         "priority": 2,
         "phase": "1",
-        "source": "multi-scale participation \u2014 federal data (plan: docs/internal/federal-data-plan.md, sessions 1-2)",
+        "source": "multi-scale participation — federal data (plan: docs/internal/federal-data-plan.md, sessions 1-2)",
         "files": [
           "packages/civicos-extraction/src/civicos_extraction/clients/usaspending.py",
           "packages/civicos/src/civicos/storage/postgres_backend.py",
@@ -789,7 +820,7 @@
         "status": "done",
         "priority": 2,
         "phase": "1",
-        "source": "multi-scale participation \u2014 federal data (plan: session 3)",
+        "source": "multi-scale participation — federal data (plan: session 3)",
         "files": [
           "packages/civicos-extraction/src/civicos_extraction/clients/representatives.py",
           "packages/civicos/src/civicos/storage/postgres_backend.py",
@@ -807,7 +838,7 @@
         "status": "done",
         "priority": 0,
         "phase": "1",
-        "source": "multi-scale participation \u2014 federal data (plan: session 4)",
+        "source": "multi-scale participation — federal data (plan: session 4)",
         "files": [
           "packages/civicos-services/src/civicos_services/query/",
           "apps/civicos-mcp/tools/handlers.py",
@@ -822,7 +853,7 @@
         "status": "done",
         "priority": 2,
         "phase": "1",
-        "source": "multi-scale participation \u2014 federal data (plan: sessions 5-6)",
+        "source": "multi-scale participation — federal data (plan: sessions 5-6)",
         "files": [
           "packages/civicos-extraction/src/civicos_extraction/clients/representatives.py",
           "packages/civicos/src/civicos/storage/postgres_backend.py",
@@ -841,7 +872,7 @@
         "status": "done",
         "priority": 0,
         "phase": "1",
-        "source": "multi-scale participation \u2014 federal data (plan: sessions 7-8)",
+        "source": "multi-scale participation — federal data (plan: sessions 7-8)",
         "files": [
           "packages/civicos/src/civicos/_internal/legal/relevance.py",
           "packages/civicos/src/civicos/storage/postgres_backend.py",
@@ -851,7 +882,7 @@
           "scripts/sql/add_federal_rules_relevance.sql"
         ],
         "test_file": null,
-        "notes": "COMPLETE. Created relevance.py with 3 heuristic signals: (1) agency-to-topic mapping (24 agencies \u2192 13 local policy areas), (2) geographic text matching (San Rafael/Marin/Bay Area/California with tiered weighting), (3) CFR title matching (14 locally relevant CFR titles). Added local_relevance_score FLOAT + relevance_reasons JSONB columns to federal_rules table. Backfilled 4,115 rules: 1,013 scored > 0 (25%). Scores auto-computed on ingest via store_federal_rules(). V2 search sorts federal comment periods by relevance. MCP tools display relevance score + reasons. Chunker includes relevance context in vector text for semantic search."
+        "notes": "COMPLETE. Created relevance.py with 3 heuristic signals: (1) agency-to-topic mapping (24 agencies → 13 local policy areas), (2) geographic text matching (San Rafael/Marin/Bay Area/California with tiered weighting), (3) CFR title matching (14 locally relevant CFR titles). Added local_relevance_score FLOAT + relevance_reasons JSONB columns to federal_rules table. Backfilled 4,115 rules: 1,013 scored > 0 (25%). Scores auto-computed on ingest via store_federal_rules(). V2 search sorts federal comment periods by relevance. MCP tools display relevance score + reasons. Chunker includes relevance context in vector text for semantic search."
       },
       {
         "name": "vector_llm_relevance_pipeline",
@@ -859,14 +890,14 @@
         "status": "done",
         "priority": 0,
         "phase": "1",
-        "source": "multi-scale participation \u2014 federal data (refinement of local_impact_relevance)",
+        "source": "multi-scale participation — federal data (refinement of local_impact_relevance)",
         "files": [
           "packages/civicos/src/civicos/_internal/legal/relevance.py",
           "packages/civicos/src/civicos/storage/postgres_backend.py",
           "scripts/modal_ingest.py"
         ],
         "test_file": null,
-        "notes": "3-stage pipeline: (1) Define 10-15 policy area query vectors for San Rafael (can bootstrap from existing municipal_code embeddings \u2014 tested and works, 0.69 similarity for housing, 0.68 for water). (2) For each policy vector, retrieve top 30-50 most similar federal rules via pgvector cosine similarity, deduplicate across policy areas (~200-400 candidates from 4,115 total). (3) Send candidates to gpt-4o-mini in batches of 20-30 for confirmation + local_relevance_summary generation. Store score + summary. Cost: ~$0.05 for full corpus, pennies/week for new rules. Follows existing classify_topics.py batch pattern. Ongoing: new rules auto-scored on ingest after embedding. 1-2 sessions."
+        "notes": "3-stage pipeline: (1) Define 10-15 policy area query vectors for San Rafael (can bootstrap from existing municipal_code embeddings — tested and works, 0.69 similarity for housing, 0.68 for water). (2) For each policy vector, retrieve top 30-50 most similar federal rules via pgvector cosine similarity, deduplicate across policy areas (~200-400 candidates from 4,115 total). (3) Send candidates to gpt-4o-mini in batches of 20-30 for confirmation + local_relevance_summary generation. Store score + summary. Cost: ~$0.05 for full corpus, pennies/week for new rules. Follows existing classify_topics.py batch pattern. Ongoing: new rules auto-scored on ingest after embedding. 1-2 sessions."
       },
       {
         "name": "federal_pipeline_hardening",
@@ -874,14 +905,14 @@
         "status": "done",
         "priority": 0,
         "phase": "1",
-        "source": "multi-scale participation \u2014 federal data (plan: session 9)",
+        "source": "multi-scale participation — federal data (plan: session 9)",
         "files": [
           "scripts/modal_ingest.py",
           ".github/workflows/cron-low-velocity-refresh.yml",
           "packages/civicos/src/civicos/_internal/legal/embeddings/chunker.py"
         ],
         "test_file": null,
-        "notes": "Done: (1) Added US federal legislation to scheduled_low_velocity_refresh loop alongside CA. (2) CA sync confirmed working (last cron success 2026-03-15). (3) Created expand_federal_rules_to_chunks() in chunker.py \u2014 adds document_type, topics, fallback text for rules without title/abstract, closing embedding gap. (4) Added 'legislation' to federal-US corpus types in index_vectors. All 8 federal corpora now have scheduled refreshes."
+        "notes": "Done: (1) Added US federal legislation to scheduled_low_velocity_refresh loop alongside CA. (2) CA sync confirmed working (last cron success 2026-03-15). (3) Created expand_federal_rules_to_chunks() in chunker.py — adds document_type, topics, fallback text for rules without title/abstract, closing embedding gap. (4) Added 'legislation' to federal-US corpus types in index_vectors. All 8 federal corpora now have scheduled refreshes."
       },
       {
         "name": "federal_server_deployment",
@@ -889,7 +920,7 @@
         "status": "done",
         "priority": 0,
         "phase": "1",
-        "source": "multi-scale participation \u2014 federal infrastructure (plan: session 10)",
+        "source": "multi-scale participation — federal infrastructure (plan: session 10)",
         "files": [
           "apps/civicos-mcp/modal_mcp.py"
         ],
@@ -902,7 +933,7 @@
         "status": "done",
         "priority": 1,
         "phase": "2",
-        "source": "multi-scale participation \u2014 state",
+        "source": "multi-scale participation — state",
         "files": [
           "packages/civicos-extraction/src/civicos_extraction/clients/california_legislature.py",
           "scripts/modal_ca_legislation.py"
@@ -913,37 +944,40 @@
       {
         "name": "state_server_deployment",
         "description": "Deploy state-california Modal server. Wire committee hearings, bill votes, and comment windows into the server's data. Connect extension CA tab.",
-        "status": "not_started",
-        "priority": 0,
+        "status": "done",
+        "priority": 2,
         "phase": "2",
-        "source": "multi-scale participation \u2014 state infrastructure",
+        "source": "multi-scale participation — state infrastructure",
         "files": [
-          "apps/civicos-mcp/modal_mcp.py"
+          "apps/civicos-mcp/modal_mcp.py",
+          "apps/civicos-mcp/rest_api.py",
+          "scripts/modal_ca_legislation.py",
+          ".github/workflows/cron-california-legislation.yml"
         ],
         "test_file": null,
-        "notes": "california.civicosproject.org/mcp endpoint already registered. Depends on state_legislative_client data. 1 session."
+        "notes": "Deployed 2026-03-21. Direct URL: lounsburynw--civicos-california-mcpserver-mcp-endpoint.modal.run. 24 tools (state+federal). Fixed: Modal secret ordering (primary last), REST API register endpoint type annotation, CA legislation cron secret name. Cloudflare proxy (california.civicosproject.org) still routes to stale old deploy — needs DNS/Worker update to point to new Modal URL. Weekly cron registered (Sunday 4 AM UTC). Extension CA tab has voice/coordination support but not state-specific content rendering (acceptable for MVP)."
       },
       {
         "name": "vertical_query_tier_tuning",
-        "description": "Tune tier weights for upward queries (city\u2192state\u2192federal). Parent tier is currently 1.0 (same as self), which means state/federal results compete equally with local decisions. May need level-aware weighting or separate result grouping.",
+        "description": "Tune tier weights for upward queries (city→state→federal). Parent tier is currently 1.0 (same as self), which means state/federal results compete equally with local decisions. May need level-aware weighting or separate result grouping.",
         "status": "done",
         "priority": 1,
         "phase": "1",
-        "source": "multi-scale participation \u2014 query layer",
+        "source": "multi-scale participation — query layer",
         "files": [
           "packages/civicos-services/src/civicos_services/query/jurisdictions.py",
           "packages/civicos-services/src/civicos_services/query/verbs.py"
         ],
         "test_file": "packages/civicos-services/tests/test_query_v2.py",
-        "notes": "With real state/federal data, include_parents=True will return results from 3+ levels. Questions: (1) Should parent weight stay 1.0 or decrease with distance (county=0.9, state=0.7, federal=0.5)? (2) Should jurisdiction_results group by level (local/state/federal) not just jurisdiction ID? (3) How does the extension render mixed-level results? Needs real data to validate \u2014 run after federal_comment_periods. 1 session."
+        "notes": "With real state/federal data, include_parents=True will return results from 3+ levels. Questions: (1) Should parent weight stay 1.0 or decrease with distance (county=0.9, state=0.7, federal=0.5)? (2) Should jurisdiction_results group by level (local/state/federal) not just jurisdiction ID? (3) How does the extension render mixed-level results? Needs real data to validate — run after federal_comment_periods. 1 session."
       },
       {
         "name": "downward_query_scaling",
-        "description": "Cap or paginate downward resolution for state/county-level queries. Querying state-california with include_siblings (downward) would fan out to every CA city \u2014 works with 4, breaks with hundreds.",
+        "description": "Cap or paginate downward resolution for state/county-level queries. Querying state-california with include_siblings (downward) would fan out to every CA city — works with 4, breaks with hundreds.",
         "status": "not_started",
         "priority": 3,
         "phase": "2",
-        "source": "multi-scale participation \u2014 query scaling",
+        "source": "multi-scale participation — query scaling",
         "files": [
           "packages/civicos-services/src/civicos_services/query/jurisdictions.py",
           "packages/civicos-services/src/civicos_services/query/verbs.py"
@@ -957,7 +991,7 @@
         "status": "done",
         "priority": 2,
         "phase": "1",
-        "source": "multi-scale participation \u2014 participation surface",
+        "source": "multi-scale participation — participation surface",
         "files": [
           "packages/civicos-services/src/civicos_services/query/verbs.py",
           "packages/civicos-services/src/civicos_services/query/models.py"
@@ -967,11 +1001,11 @@
       },
       {
         "name": "civic_act_federal_comment",
-        "description": "civic.act handlers for federal comment drafting and submission preparation. draft_federal_comment returns structured draft guidance with rule context; prepare_federal_comment returns submission URL, deadline, and instructions. Programmatic submission not supported by regulations.gov \u2014 users submit via web form.",
+        "description": "civic.act handlers for federal comment drafting and submission preparation. draft_federal_comment returns structured draft guidance with rule context; prepare_federal_comment returns submission URL, deadline, and instructions. Programmatic submission not supported by regulations.gov — users submit via web form.",
         "status": "done",
         "priority": 1,
         "phase": "1",
-        "source": "multi-scale participation \u2014 federal action",
+        "source": "multi-scale participation — federal action",
         "files": [
           "packages/civicos-services/src/civicos_services/query/verbs.py",
           "apps/civicos-mcp/tools/handlers.py",
@@ -989,12 +1023,27 @@
         "status": "not_started",
         "priority": 3,
         "phase": "2",
-        "source": "multi-scale participation \u2014 data architecture",
+        "source": "multi-scale participation — data architecture",
         "files": [
           "packages/civicos-services/src/civicos_services/query/adapters.py"
         ],
         "test_file": "packages/civicos-services/tests/test_query_v2.py",
         "notes": "LegislationAdapter currently calls what_applies() which hits LegiScan/Federal Register APIs on every query. With stored state/federal data, should check storage first for faster responses and offline capability. API calls become the refresh mechanism, not the query path. 1 session."
+      },
+      {
+        "name": "turnkey_state_onboarding",
+        "description": "Generalize state-level onboarding beyond hardcoded CA. Framework for adding other states (legislation source detection, bulk download client generation, server deployment).",
+        "status": "not_started",
+        "priority": 3,
+        "phase": "3",
+        "source": "scalability roadmap 2026-03-22",
+        "files": [
+          "packages/civicos-extraction/src/civicos_extraction/clients/",
+          "apps/civicos-mcp/modal_mcp.py",
+          "scripts/"
+        ],
+        "test_file": null,
+        "notes": "CA is hardcoded to leginfo.legislature.ca.gov. Other states have different legislation platforms. Deprioritized per roadmap — CA is the only state needed pre-launch. Post-launch work."
       }
     ]
   }

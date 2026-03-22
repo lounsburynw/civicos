@@ -51,7 +51,7 @@ civic_image = (
 
 @app.function(
     image=civic_image,
-    secrets=[modal.Secret.from_name("civic-db")],
+    secrets=[modal.Secret.from_name("civicos-california-env")],
     memory=8192,   # 8GB — session archive is ~700MB
     timeout=7200,  # 2 hours
     retries=modal.Retries(max_retries=1, backoff_coefficient=2.0, initial_delay=60.0),

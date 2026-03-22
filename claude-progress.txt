@@ -22985,3 +22985,52 @@ Built California Legislature bulk data client using official downloads from down
 - Daily delta files available for incremental refresh (~4MB vs 700MB full archive)
 
 **Next P0:** state_server_deployment — Deploy state-california Modal server, wire hearings/votes/comment windows, connect extension CA tab
+
+## Session: 2026-03-21 — State Server Deployment (P0)
+
+**Item:** state_server_deployment → DONE
+
+**What was done:**
+- Deployed state-california MCP server on Modal (24 tools: state + federal)
+- Direct URL: lounsburynw--civicos-california-mcpserver-mcp-endpoint.modal.run
+- Fixed Modal secret ordering bug: primary jurisdiction secret now loads LAST so its DATABASE_URL takes precedence over shared secrets (civicos-platform)
+- Added CIVICOS_JURISDICTION=state-california to civicos-california-env Modal secret (required for container-side module init)
+- Fixed REST API register endpoint bug: missing `Request` type annotation on `request` parameter caused FastAPI to treat it as a required query param (affects all jurisdictions)
+- Updated CA legislation Modal script to use civicos-california-env secret (was civic-db)
+- Created GitHub Actions cron workflow: cron-california-legislation.yml (weekly Sunday 4 AM UTC)
+- Cross-jurisdiction tests: 31 passed (tier weights, jurisdiction resolution)
+- Server verified: 10 CA hearings, 5 bills on governor's desk, 10 federal comment periods, 15 congressional votes
+
+**Known issues:**
+- Cloudflare proxy (california.civicosproject.org) routes to stale old deployment — needs DNS/Worker update to point to new Modal URL
+- Register endpoint returns "temporarily unavailable" — PLATFORM_DATABASE_URL config issue in civicos-platform secret
+- Extension CA tab renders voice/coordination but not state-specific content (acceptable for MVP)
+
+**Files changed:**
+- apps/civicos-mcp/modal_mcp.py — secret ordering fix
+- apps/civicos-mcp/rest_api.py — Request type annotation fix
+- scripts/modal_ca_legislation.py — secret name update
+- .github/workflows/cron-california-legislation.yml — new cron workflow
+- launch.json — item marked done, new P0 set
+
+**Next P0:** blind_signature_scheme_design
+
+## Roadmap Decision: 2026-03-22 — Scalability Before Launch
+
+**Decision:** Reordered priorities to focus on data pipeline scalability before token issuance.
+
+**Agreed roadmap:**
+- Phase 1 (P0): Generalize RefreshRunner to all corpus types (2-3 sessions)
+- Phase 2 (P1): Wire cron orchestrators to use RefreshRunner (1 session)  
+- Phase 3 (P1): Deploy remaining servers + fix Cloudflare proxies
+- Phase 4 (P2): Onboarding YAML generation (1 session)
+- Phase 5 (P2): Token issuance track (blind signatures, service, verification)
+- Phase 6 (P3): Turnkey state onboarding (post-launch)
+
+**Priority changes in launch.json:**
+- configurable_refresh_policies: P1 → P0 (the real scalability blocker)
+- blind_signature_scheme_design: P0 → P2 (after pipeline hardening)
+- token_issuance_service, token_verification_in_policy, extension_token_wallet: P2 → P3
+- New items added: cron_refresh_wiring (P1), onboarding_yaml_generation (P2), turnkey_state_onboarding (P3)
+
+**Rationale:** Everything else depends on RefreshRunner being the single refresh path. Token issuance is important but independent — it can happen after the pipeline is hardened.
