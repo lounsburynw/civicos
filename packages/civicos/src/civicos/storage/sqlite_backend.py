@@ -816,6 +816,7 @@ class SQLiteBackend:
         since: Optional[datetime] = None,
         until: Optional[datetime] = None,
         limit: Optional[int] = None,
+        offset: int = 0,
     ) -> List[Dict[str, Any]]:
         """
         Retrieve meetings with optional temporal query.
@@ -857,6 +858,10 @@ class SQLiteBackend:
         if limit:
             query += " LIMIT ?"
             params.append(limit)
+
+        if offset > 0:
+            query += " OFFSET ?"
+            params.append(offset)
 
         cursor.execute(query, params)
         rows = cursor.fetchall()
@@ -1182,6 +1187,7 @@ class SQLiteBackend:
         since: Optional[str] = None,
         until: Optional[str] = None,
         limit: Optional[int] = None,
+        offset: int = 0,
     ) -> List[Dict[str, Any]]:
         """
         Retrieve decisions with optional filtering.
@@ -1223,6 +1229,10 @@ class SQLiteBackend:
         if limit:
             query += " LIMIT ?"
             params.append(limit)
+
+        if offset > 0:
+            query += " OFFSET ?"
+            params.append(offset)
 
         cursor.execute(query, params)
         rows = cursor.fetchall()
@@ -1358,6 +1368,7 @@ class SQLiteBackend:
         agenda_item: Optional[str] = None,
         source_type: Optional[str] = None,
         limit: Optional[int] = None,
+        offset: int = 0,
     ) -> List[Dict[str, Any]]:
         """
         Retrieve chunks with optional filtering.
@@ -1404,6 +1415,10 @@ class SQLiteBackend:
         if limit:
             query += " LIMIT ?"
             params.append(limit)
+
+        if offset > 0:
+            query += " OFFSET ?"
+            params.append(offset)
 
         cursor.execute(query, params)
         rows = cursor.fetchall()
@@ -1653,6 +1668,7 @@ class SQLiteBackend:
         jurisdiction_id: Optional[str] = None,
         status: Optional[str] = None,
         limit: int = 20,
+        offset: int = 0,
     ) -> List[Dict[str, Any]]:
         """
         Query operations with optional filters.
@@ -1685,6 +1701,10 @@ class SQLiteBackend:
 
             query += " ORDER BY started_at DESC LIMIT ?"
             params.append(limit)
+
+            if offset > 0:
+                query += " OFFSET ?"
+                params.append(offset)
 
             cursor.execute(query, params)
             rows = cursor.fetchall()
@@ -1933,6 +1953,7 @@ class SQLiteBackend:
         issue_type: Optional[str] = None,
         limit: Optional[int] = None,
         created_after: Optional[datetime] = None,
+        offset: int = 0,
     ) -> List[Dict[str, Any]]:
         """
         Retrieve 311 issues (stub for SQLite - issues use Postgres in production).
@@ -1973,6 +1994,7 @@ class SQLiteBackend:
         chapter: Optional[str] = None,
         as_of: Optional[datetime] = None,
         limit: Optional[int] = None,
+        offset: int = 0,
     ) -> List[Dict[str, Any]]:
         """
         Get municipal code sections (stub for SQLite - uses Postgres in production).
@@ -2026,6 +2048,7 @@ class SQLiteBackend:
         jurisdiction_id: str,
         as_of: Optional[datetime] = None,
         limit: Optional[int] = None,
+        offset: int = 0,
         meeting_type: Optional[str] = None,
     ) -> List[Dict[str, Any]]:
         """
@@ -2084,6 +2107,7 @@ class SQLiteBackend:
         jurisdiction_id: str,
         as_of: Optional[datetime] = None,
         limit: Optional[int] = None,
+        offset: int = 0,
     ) -> List[Dict[str, Any]]:
         """
         Get transcripts (stub for SQLite - uses Postgres in production).
@@ -2134,6 +2158,7 @@ class SQLiteBackend:
         jurisdiction_id: Optional[str] = None,
         pipeline: Optional[str] = None,
         limit: int = 100,
+        offset: int = 0,
     ) -> List[Dict[str, Any]]:
         """Get ETL costs (stub for SQLite - uses Postgres in production)."""
         return []
@@ -2168,6 +2193,7 @@ class SQLiteBackend:
         since: Optional[str] = None,
         until: Optional[str] = None,
         limit: int = 100,
+        offset: int = 0,
     ) -> List[Dict[str, Any]]:
         """Get operating costs (stub for SQLite - uses Postgres in production)."""
         return []
@@ -2202,6 +2228,7 @@ class SQLiteBackend:
         status: Optional[str] = None,
         as_of: Optional[datetime] = None,
         limit: Optional[int] = None,
+        offset: int = 0,
     ) -> List[Dict[str, Any]]:
         """Get legislation (stub for SQLite - uses Postgres in production)."""
         return []
@@ -2271,6 +2298,7 @@ class SQLiteBackend:
         status: Optional[str] = None,
         as_of: Optional[datetime] = None,
         limit: Optional[int] = None,
+        offset: int = 0,
     ) -> List[Dict[str, Any]]:
         """Get codified law (stub for SQLite - uses Postgres in production)."""
         return []
@@ -2312,6 +2340,7 @@ class SQLiteBackend:
         signing_date_after: Optional[Any] = None,
         signing_date_before: Optional[Any] = None,
         limit: Optional[int] = None,
+        offset: int = 0,
     ) -> List[Dict[str, Any]]:
         """Get executive orders (stub for SQLite - uses Postgres in production)."""
         return []
@@ -2353,6 +2382,7 @@ class SQLiteBackend:
         department: Optional[str] = None,
         as_of: Optional[datetime] = None,
         limit: Optional[int] = None,
+        offset: int = 0,
     ) -> List[Dict[str, Any]]:
         """Get budget items (stub for SQLite - uses Postgres in production)."""
         return []
@@ -2490,6 +2520,7 @@ class SQLiteBackend:
         period_end: Optional[str] = None,
         as_of: Optional[datetime] = None,
         limit: Optional[int] = None,
+        offset: int = 0,
     ) -> List[Dict[str, Any]]:
         """
         Get federal awards with optional filtering and point-in-time queries.
@@ -2548,6 +2579,10 @@ class SQLiteBackend:
             if limit:
                 query += " LIMIT ?"
                 params.append(limit)
+
+            if offset > 0:
+                query += " OFFSET ?"
+                params.append(offset)
 
             cursor.execute(query, params)
             rows = cursor.fetchall()
@@ -2620,6 +2655,7 @@ class SQLiteBackend:
         vote_date_end: Optional[str] = None,
         as_of: Optional[datetime] = None,
         limit: Optional[int] = None,
+        offset: int = 0,
     ) -> List[Dict[str, Any]]:
         """Retrieve congressional votes (stub — data lives in Postgres)."""
         return []
@@ -2653,6 +2689,7 @@ class SQLiteBackend:
         hearing_type: Optional[str] = None,
         as_of: Optional[datetime] = None,
         limit: Optional[int] = None,
+        offset: int = 0,
     ) -> List[Dict[str, Any]]:
         """Get congressional hearings (stub — data lives in Postgres)."""
         return []
@@ -2797,6 +2834,7 @@ class SQLiteBackend:
         federal_fiscal_year: Optional[int] = None,
         as_of: Optional[datetime] = None,
         limit: Optional[int] = None,
+        offset: int = 0,
     ) -> List[Dict[str, Any]]:
         """
         Get state pass-through funds with optional filtering and point-in-time queries.
@@ -2863,6 +2901,10 @@ class SQLiteBackend:
             if limit:
                 query += " LIMIT ?"
                 params.append(limit)
+
+            if offset > 0:
+                query += " OFFSET ?"
+                params.append(offset)
 
             cursor.execute(query, params)
             rows = cursor.fetchall()
@@ -3021,6 +3063,7 @@ class SQLiteBackend:
         confirmed_only: bool = False,
         as_of: Optional[datetime] = None,
         limit: Optional[int] = None,
+        offset: int = 0,
     ) -> List[Dict[str, Any]]:
         """
         Retrieve budget funding links with optional filtering.
@@ -3087,6 +3130,10 @@ class SQLiteBackend:
             if limit is not None:
                 query += " LIMIT ?"
                 params.append(limit)
+
+            if offset > 0:
+                query += " OFFSET ?"
+                params.append(offset)
 
             cursor.execute(query, params)
             links = cursor.fetchall()
@@ -3263,6 +3310,7 @@ class SQLiteBackend:
         include_past: bool = False,
         election_type: Optional[str] = None,
         limit: Optional[int] = None,
+        offset: int = 0,
     ) -> List[Dict[str, Any]]:
         """
         Retrieve elections with optional filtering.
@@ -3299,6 +3347,10 @@ class SQLiteBackend:
             if limit is not None:
                 query += " LIMIT ?"
                 params.append(limit)
+
+            if offset > 0:
+                query += " OFFSET ?"
+                params.append(offset)
 
             cursor.execute(query, params)
             rows = cursor.fetchall()
@@ -3748,6 +3800,7 @@ class SQLiteBackend:
         agency: Optional[str] = None,
         as_of: Optional[datetime] = None,
         limit: Optional[int] = None,
+        offset: int = 0,
     ) -> List[Dict[str, Any]]:
         """Retrieve federal programs (stub for SQLite - use PostgreSQL for full functionality)."""
         return []
@@ -3775,6 +3828,7 @@ class SQLiteBackend:
         fiscal_year: Optional[str] = None,
         as_of: Optional[datetime] = None,
         limit: Optional[int] = None,
+        offset: int = 0,
     ) -> List[Dict[str, Any]]:
         """Retrieve federal program allocations (stub for SQLite - use PostgreSQL for full functionality)."""
         return []
@@ -3803,7 +3857,7 @@ class SQLiteBackend:
         """Retrieve federal rules (stub for SQLite)."""
         return []
 
-    def get_open_comment_periods(self, limit: int = 20) -> list[dict]:
+    def get_open_comment_periods(self, limit: int = 20, offset: int = 0) -> list[dict]:
         """Get open comment periods (stub for SQLite)."""
         return []
 
@@ -3834,6 +3888,7 @@ class SQLiteBackend:
         upcoming_only: bool = False,
         days_ahead: int = 30,
         limit: Optional[int] = None,
+        offset: int = 0,
     ) -> list[dict]:
         """Retrieve legislative events (stub for SQLite)."""
         return []
@@ -3843,6 +3898,7 @@ class SQLiteBackend:
         state: Optional[str] = None,
         days_ahead: int = 30,
         limit: int = 20,
+        offset: int = 0,
     ) -> list[dict]:
         """Get upcoming hearings (stub for SQLite)."""
         return []

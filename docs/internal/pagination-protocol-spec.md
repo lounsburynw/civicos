@@ -1,6 +1,6 @@
 # Pagination Protocol Update Spec
 
-**Status:** Not started
+**Status:** Done (Phases 1-2 complete: protocol + both backends)
 **Date:** 2026-03-11
 **Launch.json item:** `pagination_protocol_update`
 

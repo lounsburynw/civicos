@@ -513,3 +513,105 @@ class TestSQLiteBackendOperations:
         assert op["status"] == "completed"
         assert op["progress_percent"] == 100
 
+
+class TestPagination:
+    """Tests for limit/offset pagination on get_*() methods."""
+
+    @pytest.fixture
+    def backend_with_meetings(self, backend):
+        """Backend with 10 meetings for pagination testing."""
+        meetings = [
+            {
+                "id": f"mtg-{i:03d}",
+                "title": f"Meeting {i}",
+                "meeting_datetime": f"2025-12-{i:02d}T18:00:00",
+                "meeting_type": "city_council",
+                "status": "scheduled",
+                "source_platform": "test",
+            }
+            for i in range(1, 11)
+        ]
+        backend.store_meetings("city-test", meetings)
+        return backend
+
+    def test_limit_returns_exact_count(self, backend_with_meetings):
+        """limit=5 should return exactly 5 results."""
+        results = backend_with_meetings.get_meetings("city-test", limit=5)
+        assert len(results) == 5
+
+    def test_limit_none_returns_all(self, backend_with_meetings):
+        """limit=None should return all results (backward compat)."""
+        results = backend_with_meetings.get_meetings("city-test", limit=None)
+        assert len(results) == 10
+
+    def test_offset_skips_results(self, backend_with_meetings):
+        """offset=5 with limit=5 should return the second page."""
+        page1 = backend_with_meetings.get_meetings("city-test", limit=5, offset=0)
+        page2 = backend_with_meetings.get_meetings("city-test", limit=5, offset=5)
+        assert len(page1) == 5
+        assert len(page2) == 5
+        # Pages should not overlap
+        page1_ids = {m["id"] for m in page1}
+        page2_ids = {m["id"] for m in page2}
+        assert page1_ids.isdisjoint(page2_ids)
+
+    def test_offset_beyond_results_returns_empty(self, backend_with_meetings):
+        """offset beyond result count should return empty list."""
+        results = backend_with_meetings.get_meetings("city-test", limit=5, offset=100)
+        assert results == []
+
+    def test_offset_zero_is_default(self, backend_with_meetings):
+        """offset=0 should behave same as no offset."""
+        with_offset = backend_with_meetings.get_meetings("city-test", limit=5, offset=0)
+        without_offset = backend_with_meetings.get_meetings("city-test", limit=5)
+        assert len(with_offset) == len(without_offset)
+        assert [m["id"] for m in with_offset] == [m["id"] for m in without_offset]
+
+    def test_pagination_covers_all_results(self, backend_with_meetings):
+        """Paginating through all results should cover every item."""
+        all_ids = set()
+        offset = 0
+        page_size = 3
+        while True:
+            page = backend_with_meetings.get_meetings(
+                "city-test", limit=page_size, offset=offset
+            )
+            if not page:
+                break
+            all_ids.update(m["id"] for m in page)
+            offset += page_size
+        assert len(all_ids) == 10
+
+    def test_decisions_pagination(self, backend):
+        """Pagination works on get_decisions()."""
+        decisions = [
+            {
+                "id": f"dec-{i:03d}",
+                "title": f"Decision {i}",
+                "meeting_date": f"2025-12-{i:02d}",
+                "agenda_item": f"item-{i}",
+                "outcome": "approved",
+            }
+            for i in range(1, 6)
+        ]
+        backend.store_decisions("city-test", decisions)
+        page1 = backend.get_decisions("city-test", limit=2, offset=0)
+        page2 = backend.get_decisions("city-test", limit=2, offset=2)
+        assert len(page1) == 2
+        assert len(page2) == 2
+        assert page1[0]["id"] != page2[0]["id"]
+
+    def test_operations_pagination(self, backend):
+        """Pagination works on get_operations()."""
+        # Create multiple operations
+        for i in range(5):
+            backend.store_meetings("city-test", [
+                {"id": f"m-{i}", "title": "T", "meeting_datetime": "2025-01-01", "source_platform": "test"}
+            ])
+            backend.create_operation(f"op-{i}", "city-test", "test_op")
+        page1 = backend.get_operations(limit=2, offset=0)
+        page2 = backend.get_operations(limit=2, offset=2)
+        assert len(page1) == 2
+        assert len(page2) == 2
+        assert page1[0]["id"] != page2[0]["id"]
+

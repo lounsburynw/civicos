@@ -200,6 +200,7 @@ class ContentStorage(Protocol):
         jurisdiction_id: str,
         as_of: Optional[datetime] = None,
         limit: Optional[int] = None,
+        offset: int = 0,
         meeting_type: Optional[str] = None,
     ) -> List[Dict[str, Any]]:
         """Retrieve videos with temporal filtering.

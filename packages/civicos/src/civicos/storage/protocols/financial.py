@@ -86,6 +86,7 @@ class FinancialStorage(Protocol):
         period_end: Optional[str] = None,
         as_of: Optional[datetime] = None,
         limit: Optional[int] = None,
+        offset: int = 0,
     ) -> List[Dict[str, Any]]:
         """Retrieve federal awards with optional filtering."""
         ...
@@ -144,6 +145,7 @@ class FinancialStorage(Protocol):
         confirmed_only: bool = False,
         as_of: Optional[datetime] = None,
         limit: Optional[int] = None,
+        offset: int = 0,
     ) -> List[Dict[str, Any]]:
         """Retrieve budget funding links with optional filtering."""
         ...
@@ -182,6 +184,7 @@ class FinancialStorage(Protocol):
         agency: Optional[str] = None,
         as_of: Optional[datetime] = None,
         limit: Optional[int] = None,
+        offset: int = 0,
     ) -> List[Dict[str, Any]]:
         """Retrieve federal program definitions with optional filtering."""
         ...
@@ -209,6 +212,7 @@ class FinancialStorage(Protocol):
         fiscal_year: Optional[str] = None,
         as_of: Optional[datetime] = None,
         limit: Optional[int] = None,
+        offset: int = 0,
     ) -> List[Dict[str, Any]]:
         """Retrieve federal program allocations for a jurisdiction."""
         ...
