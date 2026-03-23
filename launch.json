@@ -349,6 +349,18 @@
           "apps/civicos-extension/src/"
         ],
         "test_file": null
+      },
+      {
+        "name": "token_issuer_env_config",
+        "description": "Make TokenIssuer deployment parameters configurable via env vars: TOKEN_ISSUER_SECRET (issuer private key), TOKEN_ISSUER_MAX_SESSIONS (Wagner's attack cap, default 5), TOKEN_ISSUER_SESSION_TTL (nonce expiry in seconds, default 300). Wire into issuer service deployment (Modal). Add to civicos-secrets.",
+        "status": "not_started",
+        "priority": 2,
+        "source": "configuration critic — flagged in sessions 2026-03-22 (token_issuance_service, extension_token_wallet)",
+        "files": [
+          "packages/civicos-relay/src/civicos_relay/server/token_issuer.py"
+        ],
+        "test_file": null,
+        "notes": "TokenIssuer constructor already accepts max_concurrent_sessions and session_ttl_seconds params. This item covers: (1) reading these from env vars when the issuer is deployed as a service, (2) adding TOKEN_ISSUER_SECRET to Modal secrets, (3) documenting all token-related env vars in deployment docs."
       }
     ]
   },

@@ -186,7 +186,7 @@ class AcceptancePolicy:
         issuer_lookup: Optional[IssuerLookup] = None,
         attestation_validity_seconds: int = DEFAULT_ATTESTATION_VALIDITY_SECONDS,
         jurisdiction_id: Optional[str] = None,
-        spent_token_storage=None,
+        spent_token_storage: Optional[_blind.SpentTokenStorage] = None,
         known_token_issuers: Optional[Set[str]] = None,
     ):
         self._config = config or load_policy(jurisdiction_id)
