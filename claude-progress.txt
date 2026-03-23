@@ -23257,3 +23257,25 @@ token_issuer_deploy (deploy TOKEN_ISSUER_SECRET to Modal secrets)
 **Remaining (Phase 3-4):** REST API limit/offset query params, X-Total-Count header, cross-jurisdiction.
 
 **Next P0:** TBD — need to set before running /nextsesh.
+
+## Session — 2026-03-23 (token_issuer_env_config)
+
+**Item:** token_issuer_env_config (P0)
+**Status:** DONE
+
+Completed the token issuer deployment configuration:
+
+1. **Modal secrets** — Created `civicos-token-issuer` secret group with TOKEN_ISSUER_SECRET (32-byte hex),
+   TOKEN_ISSUER_MAX_SESSIONS (5), TOKEN_ISSUER_SESSION_TTL (300), and TOKEN_ISSUER_PUBKEYS (compressed pubkey).
+
+2. **Relay deployment** — Added `civicos-token-issuer` to `get_relay_secrets()` in `modal_relay.py`.
+   Also recreated missing `civic-anthropic` secret (pre-existing gap).
+
+3. **Documentation** — Updated `docs/internal/deployment.md` with all TOKEN_ISSUER_* env vars.
+   Added Token Issuance endpoint section to `docs/public/relay/overview.md` documenting
+   /coordination/tokens/{info,session,sign} endpoints and blind signature flow.
+
+4. **Deployed and verified** — Relay deployed to Modal. GET /coordination/tokens/info returns
+   `{"enabled": true, "issuer_pubkey": "02daf210..."}`. All tests pass (25 token_issuer, 99 acceptance, 20 smoke).
+
+**Next P0:** TBD — need to set before running /nextsesh.

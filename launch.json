@@ -43,7 +43,7 @@
       {
         "name": "amlegal_client_hardening",
         "description": "Harden American Legal Publishing client: test parser on 2-3 more cities (LA, SF, Chicago), store Sacramento to Postgres, verify vector indexing pipeline.",
-        "priority": 1,
+        "priority": 0,
         "status": "in_progress",
         "test_file": "packages/civicos/tests/test_integration_pgvector.py",
         "notes": "Parser rewritten with deterministic format detection + LLM fallback (1956d3a). Tested on 4 cities: Sacramento (8,236 sections), Gridley (2,071), Fairfax (1,649), Pinole (1,978). 6 new cities in JURISDICTION_MAP. Remaining: store Sacramento to Postgres, verify vector indexing.",
@@ -361,16 +361,18 @@
       {
         "name": "token_issuer_env_config",
         "description": "Make TokenIssuer deployment parameters configurable via env vars: TOKEN_ISSUER_SECRET (issuer private key), TOKEN_ISSUER_MAX_SESSIONS (Wagner's attack cap, default 5), TOKEN_ISSUER_SESSION_TTL (nonce expiry in seconds, default 300). Wire into issuer service deployment (Modal). Add to civicos-secrets. Document token endpoints and env vars.",
-        "status": "not_started",
+        "status": "done",
         "priority": 0,
         "source": "configuration critic \u2014 flagged in sessions 2026-03-22 (token_issuance_service, extension_token_wallet)",
         "files": [
           "packages/civicos-relay/src/civicos_relay/server/app.py",
+          "apps/civicos-relay/modal_relay.py",
           "docs/internal/deployment.md",
           "docs/public/relay/overview.md"
         ],
         "test_file": null,
-        "notes": "Env var reading implemented in app.py lifespan (2026-03-23). Remaining: (1) add TOKEN_ISSUER_SECRET to Modal civicos-secrets, (2) document TOKEN_ISSUER_* env vars in docs/internal/deployment.md, (3) document /coordination/tokens/{info,session,sign} endpoints in relay API docs. Flagged by docs critic 2026-03-23."
+        "notes": "Complete. Modal secret 'civicos-token-issuer' created with TOKEN_ISSUER_SECRET, TOKEN_ISSUER_MAX_SESSIONS, TOKEN_ISSUER_SESSION_TTL, TOKEN_ISSUER_PUBKEYS. Wired into get_relay_secrets(). Deployed and verified: GET /coordination/tokens/info returns enabled=true with correct pubkey. Docs updated in deployment.md and relay/overview.md.",
+        "completed_in": "2026-03-23"
       }
     ]
   },

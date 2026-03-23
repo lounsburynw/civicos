@@ -107,7 +107,7 @@ If a write exceeds the rate limit without an attestation or payment proof, the r
 
 Write tools are not exposed in the MCP server — all writes go through the relay directly.
 
-> **Current status:** Rate limiting (tier 3) and attestation verification (tier 1) are active. Attestation codes are issued via multi-issuer registry — organizations register their signers and the relay verifies attestation proofs against trusted issuer pubkeys. Payment proof verification (tier 2) is designed but not yet enforced. Rate limits are persistent (PostgreSQL-backed), unlike REST API rate limits which are in-memory.
+> **Current status:** Rate limiting (tier 3) and attestation verification (tier 1) are active. Attestation codes are issued via multi-issuer registry — organizations register their signers and the relay verifies attestation proofs against trusted issuer pubkeys. Token-based payment verification (tier 2) is implemented — the relay issues blind signature tokens via `/coordination/tokens/*` and the acceptance policy verifies them against `TOKEN_ISSUER_PUBKEYS`. Rate limits are persistent (PostgreSQL-backed), unlike REST API rate limits which are in-memory.
 
 ## HTTP Endpoints
 
@@ -167,6 +167,18 @@ All endpoints are under the relay's base URL. Write endpoints require Nostr-sign
 | GET | `/coordination/issuers/{jurisdiction}` | None | List trusted issuers |
 | POST | `/coordination/admin/issuer/{id}/verify` | Admin | Verify an issuer |
 | POST | `/coordination/admin/issuer/{id}/revoke` | Admin | Revoke an issuer |
+
+### Token Issuance
+
+Blind signature token endpoints for paid relay access. Tokens provide privacy-preserving proof of payment — the issuer signs blinded challenges so it cannot link tokens to identities.
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| GET | `/coordination/tokens/info` | None | Check if token issuance is enabled, get issuer pubkey |
+| POST | `/coordination/tokens/session` | None | Create a nonce session for blind signing |
+| POST | `/coordination/tokens/sign` | None | Submit a blinded challenge for signing |
+
+**Flow:** Client calls `/tokens/info` to get the issuer pubkey, creates a nonce session via `/tokens/session`, blinds a challenge locally, submits it to `/tokens/sign`, then unblinds the signature. The resulting token can be presented to any relay that trusts the issuer (via `TOKEN_ISSUER_PUBKEYS`).
 
 ### Feedback
 

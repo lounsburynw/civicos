@@ -52,6 +52,7 @@ def get_relay_secrets(jurisdiction: str) -> list[str]:
     secrets.append("civicos-attestation")  # Attestation keypair
     secrets.append("civic-anthropic")  # AI proxy
     secrets.append("civicos-platform")  # PLATFORM_DATABASE_URL for usage logging
+    secrets.append("civicos-token-issuer")  # Token issuer blind signature keys
     return secrets
 
 
@@ -285,5 +286,8 @@ def main():
     print("  POST /coordination/subscribe")
     print("  POST /coordination/initiative")
     print("  GET  /coordination/initiatives/{jurisdiction}")
+    print("  GET  /coordination/tokens/info")
+    print("  POST /coordination/tokens/session")
+    print("  POST /coordination/tokens/sign")
     print("  POST /api/ai/draft")
     print("  POST /api/ai/chat")
