@@ -1,6 +1,6 @@
-# Recommended: Token Issuance Service
+# Recommended: Extension Token Wallet
 
-**Priority:** P0 (token_issuance_service)
+**Priority:** P0 (extension_token_wallet)
 **Area:** token_issuance
 **Date:** 2026-03-22
 
@@ -8,83 +8,91 @@
 
 ## Context
 
-The previous two sessions built the full crypto + verification chain for privacy-preserving payment tokens:
-- Session N-1: Schnorr blind signature primitives (`blind.py`), `SpentTokenStorage` protocol, Postgres + InMemory implementations
-- Session N: Wired real token verification into `AcceptancePolicy._verify_payment()` — issuer allowlist, signature check, atomic double-spend prevention (12 new tests, all passing)
-
-The relay can now **verify and spend** tokens. What's missing is the **issuance** side: a service that accepts payment (Stripe), runs the blind signing protocol, and returns tokens the user can spend. This is the privacy boundary — the issuer sees payment identity but not which tokens get spent; the relay sees tokens but not who paid.
+The last three sessions built the complete server-side token pipeline: blind signature primitives (`blind.py`), token verification in `AcceptancePolicy`, spent-token tracking (`SpentTokenStorage`), and the `TokenIssuer` service. The relay can now issue, verify, and reject double-spent tokens. What's missing is the **client side**: the browser extension needs to request tokens from the issuer, store them locally, and attach them to relay writes as `payment_proof`.
 
 ## What Exists Now
 
-- `packages/civicos-relay/src/civicos_relay/voice/blind.py` — Full protocol: `generate_nonce()`, `blind()`, `sign_blinded()`, `unblind()`, `verify_token()`, `compute_token_hash()`
-- `packages/civicos-relay/src/civicos_relay/server/acceptance.py:189-200` — `AcceptancePolicy` accepts `spent_token_storage` and `known_token_issuers` params
-- `packages/civicos-relay/src/civicos_relay/server/acceptance.py:371-410` — `_verify_payment()` validates tokens end-to-end
-- `packages/civicos-relay/src/civicos_relay/server/app.py:148-152` — Where `AcceptancePolicy` is instantiated (needs `spent_token_storage` + `known_token_issuers` wired in)
-- `docs/internal/blind-signature-spec.md` — Full design spec including issuance flow diagram
+**Server side (complete):**
+- `packages/civicos-relay/src/civicos_relay/voice/blind.py` — Full Schnorr blind signature protocol: `generate_nonce()`, `blind()`, `sign_blinded()`, `unblind()`, `verify_token()`, `compute_token_hash()`
+- `packages/civicos-relay/src/civicos_relay/server/token_issuer.py` — `TokenIssuer` class: 2-step protocol (nonce session + sign), Wagner's attack mitigation, batch issuance
+- `packages/civicos-relay/src/civicos_relay/server/acceptance.py:373-411` — `_verify_payment()` validates tokens end-to-end with atomic double-spend check
+- `packages/civicos-relay/src/civicos_relay/server/app.py:148-170` — `AcceptancePolicy` wired with `spent_token_storage` and `known_token_issuers`
+
+**Extension side (infrastructure exists, tokens don't):**
+- `apps/civicos-extension/src/lib/providers/local-wallet.ts:67-340` — BIP-39 wallet with AES-256-GCM encryption, uses `chrome.storage.local`
+- `apps/civicos-extension/src/lib/providers/crypto.ts:79-103` — secp256k1 Schnorr signing via `@noble/curves`
+- `apps/civicos-extension/src/lib/identity.ts:32-271` — `IdentityManager`, session persistence via `chrome.storage.session`
+- `apps/civicos-extension/src/lib/messaging.ts:15-28` — Message types enum (has `REDEEM_ATTESTATION` placeholder, no token types yet)
+- `apps/civicos-extension/src/lib/adapters/extension-signer.ts:12-36` — `ExtensionSigner` delegates to service worker
+- `apps/civicos-extension/src/background/service-worker.ts:21-100` — Message handler routes to `identityManager`
+- `apps/civicos-extension/src/lib/storage.ts:37-50` — `ChromeStorageWalletStorage` pattern (reuse for tokens)
+
+**Crypto deps already in extension:** `@noble/curves@^1.4.0`, `@noble/hashes@^1.4.0` (secp256k1 Schnorr — same curve as token protocol).
 
 ## What Needs to Be Done
 
-1. **Create the token issuance service** — A new module (likely `packages/civicos-relay/src/civicos_relay/server/token_issuer.py` or a standalone service). This service:
-   - Holds the issuer's private key (NOT the relay's key — separate identity)
-   - Exposes an endpoint: user sends blinded challenges, issuer returns blind signatures
-   - Must NOT see the unblinded token message (this is the privacy guarantee)
+1. **TypeScript blind signature client** — Port the user-side of `blind()` and `unblind()` from `blind.py` using `@noble/curves/secp256k1`. The math: `R' = R + alpha*G + beta*P`, `e' = SHA256(R'||P||m) mod n`, `e = e' + beta mod n` (blind), `s' = s + alpha mod n` (unblind). All secp256k1 operations already available via `@noble/curves`.
 
-2. **Payment integration** — Accept Stripe checkout session ID (or Lightning invoice) as proof of payment before signing tokens. For MVP, a simple webhook or session verification.
+2. **Token storage module** — New `src/lib/token-wallet.ts` that persists `SpendableToken[]` in `chrome.storage.local` (matching wallet pattern). Functions: `storeTokens()`, `getAvailableToken()`, `removeSpentToken()`, `getTokenCount()`.
 
-3. **Issuance protocol endpoints** (2-step):
-   - `POST /tokens/nonce` — Issuer generates nonce (k, R=kG), returns R to user. Requires payment proof.
-   - `POST /tokens/sign` — User sends blinded challenge, issuer returns blind signature s = k + e*d mod n
+3. **Token acquisition flow** — Function that talks to the issuer service: request nonce session, blind locally, send blinded challenge, unblind response, store token. For MVP, can be triggered manually.
 
-4. **Wire `AcceptancePolicy` in `app.py:148-152`** — Add `spent_token_storage=storage.spent_tokens` and `known_token_issuers={ISSUER_PUBKEY_HEX}` to the constructor call.
+4. **Attach tokens to relay writes** — When extension sends a voice/comment/action to the relay, auto-attach a token as `payment_proof` if available. Modify the relay write path in service worker.
 
-5. **Token batch support** — Spec suggests packages of 10/50/100 tokens per purchase. Each token requires a separate nonce+sign round.
+5. **Message types** — Add to `messaging.ts:15-28`: token-related message types for service worker communication.
 
 ## Key Files
 
-- `packages/civicos-relay/src/civicos_relay/voice/blind.py:98-171` — Issuer-side functions: `generate_nonce()`, `sign_blinded()`
-- `packages/civicos-relay/src/civicos_relay/server/app.py:148-152` — AcceptancePolicy instantiation (needs wiring)
-- `packages/civicos-relay/src/civicos_relay/server/acceptance.py:189-200` — Constructor params ready for `spent_token_storage` + `known_token_issuers`
-- `docs/internal/blind-signature-spec.md:81-100` — Issuance flow diagram
-- `docs/internal/blind-signature-spec.md:118-124` — Open questions (batch size, expiry, key rotation, rate limiting)
+| File | Purpose | Key Lines |
+|------|---------|-----------|
+| `apps/civicos-extension/src/lib/providers/local-wallet.ts` | Storage pattern to follow | 67-340 |
+| `apps/civicos-extension/src/lib/providers/crypto.ts` | Schnorr with @noble/curves | 79-103 |
+| `apps/civicos-extension/src/lib/messaging.ts` | Message type enum to extend | 15-28 |
+| `apps/civicos-extension/src/background/service-worker.ts` | Message handler to extend | 21-100 |
+| `apps/civicos-extension/src/lib/storage.ts` | Chrome storage adapter pattern | 37-50 |
+| `packages/civicos-relay/src/civicos_relay/voice/blind.py` | `blind()` to port to TS | 109-150 |
+| `packages/civicos-relay/src/civicos_relay/voice/blind.py` | `unblind()` to port to TS | 174-198 |
+| `packages/civicos-relay/src/civicos_relay/voice/blind.py` | `SpendableToken` (TS interface) | 41-67 |
+| `docs/internal/blind-signature-spec.md` | Protocol spec + flow diagram | 83-100 |
 
 ## Suggested Approach
 
-1. Read `blind-signature-spec.md` fully — it has the design decisions and flow diagram
-2. Create `packages/civicos-relay/src/civicos_relay/server/token_issuer.py` with `TokenIssuer` class
-3. Implement the 2-step protocol: nonce generation + blind signing
-4. Add rate limiting on signing endpoint (Wagner's attack mitigation — spec says max 5 concurrent sessions)
-5. Wire `AcceptancePolicy` in `app.py` with `spent_token_storage` and `known_token_issuers`
-6. Write tests using `_issue_token()` pattern from `test_blind_signatures.py:40-46`
-7. Defer Stripe integration to a follow-up if needed — focus on the signing protocol first
+1. Port `blind()` and `unblind()` to TypeScript using `@noble/curves/secp256k1` — this is the critical crypto piece
+2. Write tests for the TS blind client against known test vectors from `test_blind_signatures.py` (deterministic issuer key `(42).to_bytes(32, "big")`)
+3. Create `token-wallet.ts` for persistent token storage in `chrome.storage.local`
+4. Wire token attachment into the relay write path
+5. Add minimal UI indicator (token count) — can be basic for MVP
 
 ## Tests to Run
 
 ```bash
-# Blind signature tests (existing, should still pass)
+# Server-side (should still pass — no server changes expected)
 pytest packages/civicos-relay/tests/test_blind_signatures.py -q --override-ini="addopts="
-
-# Acceptance policy tests (existing, should still pass)
+pytest packages/civicos-relay/tests/test_token_issuer.py -q --override-ini="addopts="
 pytest packages/civicos-relay/tests/test_acceptance_policy.py -q --override-ini="addopts="
 
-# All relay tests
-pytest packages/civicos-relay/tests/ -q --override-ini="addopts="
+# Extension
+cd apps/civicos-extension && npm run build   # verify build succeeds
 ```
 
 ## Success Criteria
 
-- [ ] `TokenIssuer` class implements nonce generation + blind signing
-- [ ] Issuer holds its own keypair (separate from relay identity)
-- [ ] Rate limiting on concurrent signing sessions (Wagner's attack mitigation)
-- [ ] `AcceptancePolicy` in `app.py` wired with `spent_token_storage` and `known_token_issuers`
-- [ ] Integration test: issue token via `TokenIssuer` -> spend via `AcceptancePolicy` -> double-spend rejected
-- [ ] Existing blind signature and acceptance policy tests still pass
+- [ ] TypeScript blind signature client (blind + unblind) produces tokens that pass Python `verify_token()`
+- [ ] Token storage persists across browser sessions via `chrome.storage.local`
+- [ ] Relay writes automatically attach a token as `payment_proof` when tokens are available
+- [ ] Token count decrements after each spend
+- [ ] Extension builds without errors (`npm run build`)
+- [ ] Server-side tests still pass (no regressions)
+
+## Deferred Items (tracked in launch.json)
+
+- **token_issuer_env_config** (P2) — Env vars for issuer deployment params (TOKEN_ISSUER_SECRET, TOKEN_ISSUER_MAX_SESSIONS, TOKEN_ISSUER_SESSION_TTL). Tracked in launch.json, source: configuration critic flagged across two sessions.
+- **token_purchase_ui** (P3) — Stripe checkout flow for buying tokens.
 
 ## Roadmap Context
 
-- **Phase 1 (DONE):** Generalize RefreshRunner
-- **Phase 2 (DONE):** Wire cron orchestrators
-- **Phase 3 (DONE):** Onboarding YAML generation
 - **Phase 4 (DONE):** Blind signature primitives + SpentTokenStorage
 - **Phase 5 (DONE):** Token verification in acceptance policy
-- **Phase 6 (P0):** Token issuance service <-- THIS SESSION
-- **Phase 7 (P3):** Extension token wallet + purchase UI
+- **Phase 6 (DONE):** Token issuance service (TokenIssuer)
+- **Phase 7 (P0):** Extension token wallet + spending <-- NEXT SESSION
+- **Phase 8 (P3):** Token purchase UI (Stripe checkout)
