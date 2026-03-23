@@ -19,22 +19,12 @@ from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Callable, Optional, Set
 
+from civicos_relay.voice import blind as _blind
+
 logger = logging.getLogger(__name__)
 
 # Type for issuer registry lookup: (jurisdiction) -> list of verified issuer pubkeys
 IssuerLookup = Callable[[str], list[str]]
-
-# Lazy import holder for blind signature module (avoid import-time coincurve dependency)
-_blind_mod = None
-
-
-def _get_blind_mod():
-    """Lazy import of civicos_relay.voice.blind to avoid hard coincurve dependency."""
-    global _blind_mod
-    if _blind_mod is None:
-        from civicos_relay.voice import blind as _mod
-        _blind_mod = _mod
-    return _blind_mod
 
 
 @dataclass
@@ -394,8 +384,7 @@ class AcceptancePolicy:
             return False
 
         try:
-            blind = _get_blind_mod()
-            token = blind.SpendableToken.from_dict(proof)
+            token = _blind.SpendableToken.from_dict(proof)
 
             # Check issuer is trusted
             if self._known_token_issuers and token.issuer_pubkey not in self._known_token_issuers:
@@ -403,12 +392,12 @@ class AcceptancePolicy:
                 return False
 
             # Verify Schnorr signature
-            if not blind.verify_token(token):
+            if not _blind.verify_token(token):
                 logger.debug("Token signature verification failed")
                 return False
 
             # Atomic double-spend check: mark spent BEFORE accepting the write
-            token_hash = blind.compute_token_hash(token)
+            token_hash = _blind.compute_token_hash(token)
             if not self._spent_token_storage.check_and_mark_spent(token_hash):
                 logger.debug("Token already spent: %s", token_hash[:16])
                 return False
