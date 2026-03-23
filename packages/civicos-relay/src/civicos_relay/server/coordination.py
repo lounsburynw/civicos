@@ -47,6 +47,7 @@ from civicos_relay.voice.crypto import (
     _compute_nostr_event_id,
     _schnorr_verify,
 )
+from civicos_relay.voice.blind import SpendableToken, verify_token, compute_token_hash
 from civicos_relay.voice.models import (
     CivicActionType,
     Comment,
@@ -818,7 +819,6 @@ async def cast_voice(request: CastVoiceRequest):
 
         # Verify payment proof (blinded token) if provided
         if request.payment_proof and not request.attestation_proof:
-            from civicos_relay.voice.blind import SpendableToken, verify_token, compute_token_hash
             from civicos_relay.server.app import get_acceptance_policy
 
             try:
