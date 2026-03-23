@@ -133,23 +133,30 @@ def _get_ingestion_stages(jid: str) -> list:
     if extraction_path.exists():
         with open(extraction_path) as f:
             ext_config = json.load(f)
-        source_type = ext_config.get("source_type", "")
+        if not isinstance(ext_config, dict) or "source_type" not in ext_config:
+            print(f"  Warning: extraction config for {jid} missing source_type field")
+        else:
+            source_type = ext_config["source_type"]
 
     # Meeting-dependent stages only if source_type is supported
-    supported_meeting_sources = {"proudcity", "granicus"}
-    if source_type in supported_meeting_sources:
+    from civicos_extraction.clients import SUPPORTED_MEETING_SOURCES
+    if source_type in SUPPORTED_MEETING_SOURCES:
         stages.extend(["meetings", "chunks", "agenda", "decisions"])
     elif source_type:
-        print(f"  Note: source_type '{source_type}' not yet supported for meetings — skipping meeting pipeline")
+        print(f"  Note: source_type '{source_type}' not yet supported for meetings — "
+              f"skipping meeting stages (supported: {', '.join(sorted(SUPPORTED_MEETING_SOURCES))})")
 
     # Check jurisdiction YAML for municipal code
     yaml_path = PROJECT_ROOT / "data" / "jurisdictions" / f"{jid}.yaml"
     if yaml_path.exists():
         with open(yaml_path) as f:
             jur_config = _yaml.safe_load(f) or {}
-        ingestion = jur_config.get("ingestion", {})
-        if ingestion.get("municipal_code"):
-            stages.append("municipal")
+        if not isinstance(jur_config, dict):
+            print(f"  Warning: jurisdiction YAML for {jid} is not a valid config")
+        else:
+            ingestion = jur_config.get("ingestion", {})
+            if isinstance(ingestion, dict) and ingestion.get("municipal_code"):
+                stages.append("municipal")
 
     # Always include vectors (indexes whatever data exists)
     stages.append("vectors")

@@ -1,69 +1,65 @@
-# Recommended: AmLegal Client Hardening
+# Recommended: Legistar Client
 
-**Priority:** P0 (amlegal_client_hardening)
-**Area:** security_fixes
+**Priority:** P0 (legistar_client)
+**Area:** federation_testbed
 **Date:** 2026-03-23
 
 > This is recommended context from the previous session. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
 
 ## Context
 
-The American Legal Publishing (AmLegal) municipal code parser was rewritten with deterministic format detection + LLM fallback (1956d3a). It's been tested on 4 cities: Sacramento (8,236 sections), Gridley (2,071), Fairfax (1,649), Pinole (1,978). Six new cities are in JURISDICTION_MAP. **Remaining: store Sacramento to Postgres, verify vector indexing pipeline.**
+Turnkey onboarding was tested end-to-end with Sacramento. The system successfully detected Sacramento's meeting platform (Legistar, 35 bodies), generated the extraction config, loaded municipal code (5,871 sections), and indexed vectors (9,224 embeddings). Six pipeline issues were fixed along the way.
 
-Previous session completed `token_issuer_env_config` — token issuer is deployed and verified on Modal (`GET /coordination/tokens/info` returns `enabled: true`). Also recreated missing `civic-anthropic` Modal secret.
+**The one remaining gap: `fetch_meetings` doesn't support Legistar source type.** Sacramento has a complete extraction config but zero meetings because the ingestion pipeline only handles `proudcity` and `granicus` today.
 
 ## What Exists Now
 
-- **Parser** (`american_legal.py`) — works for 4+ cities, deterministic format detection with LLM fallback
-- **JURISDICTION_MAP** — includes Sacramento, Gridley, Fairfax, Pinole, plus San Rafael and others
-- **RefreshRunner** (`refresh.py`) — orchestrates corpus refresh (scheduling, change detection, store, re-embed)
-- **`refresh_municipal_code()`** method already exists in RefreshRunner
-- **PostgresBackend** has `upsert_municipal_code()` method
-- **Vector indexing** pipeline exists for municipal_code corpus type
+- **Extraction config** (`data/extraction/city-sacramento.json`) — Legistar source, 35 meeting bodies discovered
+- **Jurisdiction YAML** (`data/jurisdictions/city-sacramento.yaml`) — Full config with data sources, ingestion tiers, refresh policies
+- **Municipal code** — 5,871 sections in Postgres, 9,224 vector embeddings
+- **SUPPORTED_MEETING_SOURCES** registry in `civicos_extraction/clients/__init__.py` — shared constant used by onboard.py and modal_ingest.py
+- **LegistarClient** already exists (`civicos_extraction/clients/legistar.py`) — for API discovery, but not wired into the fetch pipeline
 
 ## Key Files
 
 | File | Purpose |
 |------|---------|
-| `packages/civicos/src/civicos/_internal/legal/corpus/american_legal.py` | AmLegal parser + JURISDICTION_MAP |
-| `packages/civicos/src/civicos/_internal/legal/corpus/refresh.py` | RefreshRunner, RefreshPolicy, RefreshableCorpus |
-| `packages/civicos/src/civicos/storage/postgres_backend.py` | `upsert_municipal_code()` |
-| `packages/civicos/tests/test_refresh.py` | Refresh/upsert tests |
-| `packages/civicos/tests/test_integration_pgvector.py` | Vector indexing integration tests |
-| `packages/civicos-extraction/src/civicos_extraction/cli/municipal_code.py` | CLI for municipal code operations |
+| `scripts/modal_ingest.py` | `fetch_meetings()` — add `elif source_type == "legistar":` branch |
+| `packages/civicos-extraction/src/civicos_extraction/clients/legistar.py` | Existing Legistar API client |
+| `packages/civicos-extraction/src/civicos_extraction/clients/__init__.py` | Add "legistar" to `SUPPORTED_MEETING_SOURCES` |
+| `data/extraction/city-sacramento.json` | Sacramento's Legistar config (base_url, 35 body IDs) |
 
 ## Suggested Approach
 
-1. **Parse Sacramento** — run the AmLegal parser for `city-sacramento` to extract sections
-2. **Store to Postgres** — use `upsert_municipal_code()` or `RefreshRunner.refresh_municipal_code()` to store Sacramento's 8,236 sections to Postgres
-3. **Verify storage** — check section count with `/data-status city-sacramento` or direct query
-4. **Vector indexing** — run vector indexing for Sacramento's municipal code (`/vectors` or `modal run scripts/modal_ingest.py`)
-5. **Verify vectors** — check embedding coverage with `/vector-coverage city-sacramento`
-6. **Test queries** — verify `what_applies("housing", jurisdiction="city-sacramento")` returns results
+1. **Extend LegistarClient** — add `get_meetings(days_ahead, days_past)` method that queries the Legistar API for events/meetings within the date range
+2. **Wire into fetch_meetings** — add `elif source_type == "legistar":` branch in `modal_ingest.py`
+3. **Update registry** — add `"legistar"` to `SUPPORTED_MEETING_SOURCES`
+4. **Run turnkey onboard for Sacramento** — verify meetings are fetched, chunks extracted, agenda items parsed
+5. **Verify data quality** — compare ratios against San Rafael baseline
+
+## Legistar API Reference
+
+Base URL: `https://webapi.legistar.com/v1/{client}`
+
+Key endpoints:
+- `GET /Events` — meetings/events (filterable by date)
+- `GET /EventItems/{eventId}` — agenda items for a meeting
+- `GET /MatterAttachments/{matterId}` — attached PDFs
+- `GET /Bodies` — meeting bodies (committees, councils)
+
+Sacramento client name: `sacramento`
 
 ## Tests to Run
 
 ```bash
-# Refresh/upsert tests
-pytest packages/civicos/tests/test_refresh.py -q --override-ini="addopts="
-
-# Vector integration tests
-pytest packages/civicos/tests/test_integration_pgvector.py -q --override-ini="addopts="
-
-# Smoke test
 pytest packages/civicos/tests/test_civicos.py -q --override-ini="addopts="
 ```
 
 ## Success Criteria
 
-- [ ] Sacramento municipal code sections stored in Postgres (8,000+ rows)
-- [ ] Vector embeddings generated for Sacramento municipal_code corpus
-- [ ] `what_applies()` returns relevant Sacramento results
-- [ ] Existing San Rafael data unaffected (no regressions)
-- [ ] All tests pass
-
-## Deferred Items
-
-- **token_purchase_ui** (P3) — Stripe checkout flow for buying tokens (now unblocked — issuer deployed)
-- **cross_marin_query_prototype** (P1, in_progress) — Cross-jurisdiction queries within Marin County
-- **cross_county_query_prototype** (P1, in_progress) — Cross-county queries (Berkeley vs San Rafael)
+- [ ] Sacramento meetings fetched from Legistar API (30+ days of data)
+- [ ] Chunks extracted from meeting attachments
+- [ ] Agenda items parsed
+- [ ] Vector embeddings generated for all corpora
+- [ ] `what_happened("housing", jurisdiction="city-sacramento")` returns results
+- [ ] San Rafael data unaffected

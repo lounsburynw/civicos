@@ -143,7 +143,10 @@ civic_image = (
         "fastapi>=0.100.0",  # Required by Modal for web endpoints
     )
     # Environment variables (must come before add_local_* per Modal requirements)
-    .env({"CIVICOS_CONFIG_DIR": "/config/extraction"})
+    .env({
+        "CIVICOS_CONFIG_DIR": "/config/extraction",
+        "CIVICOS_JURISDICTIONS_DIR": "/config/jurisdictions",
+    })
     # Add local civicos packages (add_local_* must be last)
     .add_local_python_source("civicos", "civicos_config", "civicos_extraction", "civicos_services")
     # Add jurisdiction config files for config-driven pipeline iteration
@@ -2602,6 +2605,7 @@ def index_vectors(
 
     from civicos.storage import get_storage_backend
     from civicos.storage.pgvector_backend import PgVectorBackend
+    from civicos._internal.jurisdiction import JurisdictionError
     from civicos._internal.meetings.transcript import expand_transcripts_to_chunks
     from civicos._internal.legal.embeddings.chunker import (
         expand_municipal_code_to_chunks,
@@ -2690,16 +2694,16 @@ def index_vectors(
         elif ct == "budget_items":
             try:
                 chunks = backend.get_budget_items(jurisdiction)
-            except Exception as e:
-                logger.warning(f"  Skipping budget_items: {e}")
+            except JurisdictionError:
+                logger.warning(f"  Skipping budget_items: {jurisdiction} not in jurisdiction registry")
                 pgvector.rebuild_hnsw_index(ct)
                 results[ct] = {"status": "skipped", "indexed": 0}
                 continue
         elif ct == "federal_awards":
             try:
                 raw = backend.get_federal_awards(jurisdiction)
-            except Exception as e:
-                logger.warning(f"  Skipping federal_awards: {e}")
+            except JurisdictionError:
+                logger.warning(f"  Skipping federal_awards: {jurisdiction} not in jurisdiction registry")
                 pgvector.rebuild_hnsw_index(ct)
                 results[ct] = {"status": "skipped", "indexed": 0}
                 continue
@@ -2868,7 +2872,9 @@ def fetch_meetings(
             days_past = min(days_past, max(7, days_since + 1))  # At least 7 days overlap
             logger.info(f"  Incremental mode: last fetch {days_since} days ago, fetching {days_past} days back")
 
-    # Instantiate source-specific client based on extraction config
+    # Instantiate source-specific client based on extraction config.
+    # When adding a new source type here, also add it to
+    # SUPPORTED_MEETING_SOURCES in civicos_extraction/clients/__init__.py.
     try:
         if source_type == "proudcity":
             from civicos_extraction.clients.proudcity import ProudCityClient
@@ -2882,7 +2888,9 @@ def fetch_meetings(
             source = GranicusSource(config)
             meetings = source.get_meetings(days_ahead=days_ahead, days_past=days_past)
         else:
-            logger.warning(f"[MEETINGS] source_type '{source_type}' not yet supported for meeting fetch — skipping")
+            from civicos_extraction.clients import SUPPORTED_MEETING_SOURCES
+            logger.warning(f"[MEETINGS] source_type '{source_type}' not yet supported "
+                           f"(supported: {', '.join(sorted(SUPPORTED_MEETING_SOURCES))}) — skipping")
             return {
                 "meetings_fetched": 0,
                 "meetings_stored": 0,
@@ -4689,7 +4697,9 @@ def scheduled_high_velocity_refresh():
                 from civicos_extraction.clients.granicus import GranicusSource
                 client = GranicusSource(ext_config)
             else:
-                logger.warning(f"  [{jid}] source_type '{src_type}' not yet supported for meetings — skipping")
+                from civicos_extraction.clients import SUPPORTED_MEETING_SOURCES
+                logger.warning(f"  [{jid}] source_type '{src_type}' not supported "
+                               f"(supported: {', '.join(sorted(SUPPORTED_MEETING_SOURCES))}) — skipping")
                 results[jid]["meetings"] = {"skipped": True, "reason": f"source_type '{src_type}' not supported"}
                 continue
 
