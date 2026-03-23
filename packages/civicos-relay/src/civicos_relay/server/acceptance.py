@@ -2,7 +2,7 @@
 
 Tiers checked in order:
 1. Attestation proof → unlimited (verifies kind-30850 Nostr event from trusted issuer)
-2. Payment proof → unlimited (Phase 4 stub — always fails through)
+2. Payment proof → unlimited (verifies Schnorr blind signature token + double-spend check)
 3. Proof-of-work → bypass rate limit (NIP-13, active for voice/comment)
 4. Rate limit → per-event-type daily limit
 """
@@ -17,12 +17,24 @@ from copy import deepcopy
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
-from typing import Callable, Optional
+from typing import Callable, Optional, Set
 
 logger = logging.getLogger(__name__)
 
 # Type for issuer registry lookup: (jurisdiction) -> list of verified issuer pubkeys
 IssuerLookup = Callable[[str], list[str]]
+
+# Lazy import holder for blind signature module (avoid import-time coincurve dependency)
+_blind_mod = None
+
+
+def _get_blind_mod():
+    """Lazy import of civicos_relay.voice.blind to avoid hard coincurve dependency."""
+    global _blind_mod
+    if _blind_mod is None:
+        from civicos_relay.voice import blind as _mod
+        _blind_mod = _mod
+    return _blind_mod
 
 
 @dataclass
@@ -172,7 +184,7 @@ class AcceptancePolicy:
 
     Checks writes against a tiered policy:
     1. Attestation proof → unlimited (verifies kind-30850 signed by trusted issuer)
-    2. Payment proof → unlimited (Phase 4 stub — always fails)
+    2. Payment proof → unlimited (verifies Schnorr blind signature + double-spend check)
     3. Proof-of-work → bypass rate limit (NIP-13 leading zero bits)
     4. Rate limit → per-event-type daily limit
     """
@@ -184,6 +196,8 @@ class AcceptancePolicy:
         issuer_lookup: Optional[IssuerLookup] = None,
         attestation_validity_seconds: int = DEFAULT_ATTESTATION_VALIDITY_SECONDS,
         jurisdiction_id: Optional[str] = None,
+        spent_token_storage=None,
+        known_token_issuers: Optional[Set[str]] = None,
     ):
         self._config = config or load_policy(jurisdiction_id)
         self._jurisdiction_id = jurisdiction_id
@@ -192,6 +206,8 @@ class AcceptancePolicy:
         self._issuer_lookup = issuer_lookup
         self._attestation_validity_seconds = attestation_validity_seconds
         self._revoked_attestations: set[str] = set()
+        self._spent_token_storage = spent_token_storage
+        self._known_token_issuers: set[str] = set(known_token_issuers) if known_token_issuers else set()
 
         if connection_url:
             try:
@@ -233,7 +249,7 @@ class AcceptancePolicy:
             if self._verify_attestation(attestation_proof, public_key):
                 return PolicyResult(accepted=True, tier="attested", reason="Valid attestation proof")
 
-        # Tier 2: Payment proof (Phase 4 stub)
+        # Tier 2: Payment proof (Schnorr blind signature token)
         if payment_proof is not None:
             if self._verify_payment(payment_proof):
                 return PolicyResult(accepted=True, tier="paid", reason="Valid payment proof")
@@ -365,8 +381,45 @@ class AcceptancePolicy:
             logger.warning("Failed to persist revocation: %s", e)
 
     def _verify_payment(self, proof: dict) -> bool:
-        """Verify payment proof. Phase 4 stub — always returns False."""
-        return False
+        """Verify a Schnorr blind signature payment token.
+
+        Checks (in order):
+        1. Storage — reject if no spent_token_storage configured (graceful fallback)
+        2. Parse — reject if proof dict is missing required fields
+        3. Issuer — reject if issuer_pubkey not in known_token_issuers
+        4. Signature — reject if Schnorr signature is invalid
+        5. Double-spend — atomically mark token as spent; reject if already spent
+        """
+        if self._spent_token_storage is None:
+            return False
+
+        try:
+            blind = _get_blind_mod()
+            token = blind.SpendableToken.from_dict(proof)
+
+            # Check issuer is trusted
+            if self._known_token_issuers and token.issuer_pubkey not in self._known_token_issuers:
+                logger.debug("Token issuer %s not in known issuers", token.issuer_pubkey[:16])
+                return False
+
+            # Verify Schnorr signature
+            if not blind.verify_token(token):
+                logger.debug("Token signature verification failed")
+                return False
+
+            # Atomic double-spend check: mark spent BEFORE accepting the write
+            token_hash = blind.compute_token_hash(token)
+            if not self._spent_token_storage.check_and_mark_spent(token_hash):
+                logger.debug("Token already spent: %s", token_hash[:16])
+                return False
+
+            return True
+        except (KeyError, ValueError, TypeError) as e:
+            logger.debug("Payment proof parsing failed: %s", e)
+            return False
+        except Exception:
+            logger.warning("Payment verification failed", exc_info=True)
+            return False
 
     def _check_rate_limit(self, pubkey_hash: str, event_type: str, max_per_day: int) -> bool:
         """Check and increment rate limit counter. Returns True if under limit."""
