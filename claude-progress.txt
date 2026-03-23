@@ -23156,3 +23156,35 @@ signature token verification. The payment tier now validates tokens end-to-end:
 452 relay tests pass (1 pre-existing email test failure, unrelated).
 
 **Next P0:** token_issuance_service
+
+=== Session: 2026-03-22 — token_issuance_service (P0) ===
+
+**Completed:** token_issuance_service
+
+**What was built:**
+- `packages/civicos-relay/src/civicos_relay/server/token_issuer.py` — TokenIssuer class
+  implementing the issuer side of the Schnorr blind signature protocol:
+  - 2-step protocol: create_nonce_session() → sign()
+  - Wagner's attack mitigation: max 5 concurrent signing sessions
+  - Session TTL (default 5 min) with automatic cleanup
+  - Batch issuance: issue_token_batch(count) for token packages
+  - Single-use sessions: sign() consumes the nonce (prevents reuse)
+
+- `packages/civicos-relay/src/civicos_relay/server/app.py` — Wired AcceptancePolicy
+  with spent_token_storage=storage.spent_tokens and known_token_issuers from
+  TOKEN_ISSUER_PUBKEYS env var (comma-separated hex pubkeys)
+
+- `packages/civicos-relay/tests/test_token_issuer.py` — 25 tests:
+  - Nonce session lifecycle (create, unique IDs, counting)
+  - Signing (roundtrip, session consumption, pubkey matching)
+  - Rate limiting (max concurrent, signing frees slots, default=5)
+  - Session expiry (rejection, slot freeing, non-expired works)
+  - Batch issuance (success, exceeds limit, partial capacity)
+  - Invalid sessions (unknown, empty)
+  - Integration: issue via TokenIssuer → spend via AcceptancePolicy → double-spend rejected
+  - Unknown issuer rejected, batch all spendable, unique hashes
+
+**Test results:** 25 token issuer tests pass, 28 blind sig tests pass,
+74 acceptance policy tests pass. No regressions.
+
+**Next P0:** extension_token_wallet

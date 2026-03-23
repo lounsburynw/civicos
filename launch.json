@@ -293,12 +293,15 @@
       {
         "name": "token_issuance_service",
         "description": "Implement token issuance service (separate from relay). Accepts Stripe/Lightning payment, returns blinded tokens. Cannot link issued tokens to payment session.",
-        "status": "not_started",
+        "status": "done",
         "priority": 0,
         "source": "docs/internal/relay-acceptance-policy-spec.md (Phase 4)",
-        "files": [],
-        "test_file": null,
-        "notes": "New service, likely deployed on Modal. Separate from relay for privacy boundary."
+        "files": [
+          "packages/civicos-relay/src/civicos_relay/server/token_issuer.py",
+          "packages/civicos-relay/tests/test_token_issuer.py"
+        ],
+        "test_file": "packages/civicos-relay/tests/test_token_issuer.py",
+        "notes": "TokenIssuer class with 2-step Schnorr blind signing protocol, Wagner's attack mitigation (max 5 concurrent sessions), session expiry, batch issuance. AcceptancePolicy wired with spent_token_storage and known_token_issuers in app.py. 25 tests including full integration flow. Stripe payment verification deferred to extension_token_wallet phase."
       },
       {
         "name": "payment_proof_on_models",
@@ -329,7 +332,7 @@
         "name": "extension_token_wallet",
         "description": "Add token wallet to browser extension. Store blinded tokens in local-wallet.ts (already handles secp256k1). Include tokens in write requests automatically.",
         "status": "not_started",
-        "priority": 3,
+        "priority": 0,
         "source": "docs/internal/relay-acceptance-policy-spec.md (Phase 4)",
         "files": [
           "apps/civicos-extension/src/"
