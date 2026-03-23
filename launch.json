@@ -360,15 +360,17 @@
       },
       {
         "name": "token_issuer_env_config",
-        "description": "Make TokenIssuer deployment parameters configurable via env vars: TOKEN_ISSUER_SECRET (issuer private key), TOKEN_ISSUER_MAX_SESSIONS (Wagner's attack cap, default 5), TOKEN_ISSUER_SESSION_TTL (nonce expiry in seconds, default 300). Wire into issuer service deployment (Modal). Add to civicos-secrets.",
-        "status": "done",
+        "description": "Make TokenIssuer deployment parameters configurable via env vars: TOKEN_ISSUER_SECRET (issuer private key), TOKEN_ISSUER_MAX_SESSIONS (Wagner's attack cap, default 5), TOKEN_ISSUER_SESSION_TTL (nonce expiry in seconds, default 300). Wire into issuer service deployment (Modal). Add to civicos-secrets. Document token endpoints and env vars.",
+        "status": "not_started",
         "priority": 2,
         "source": "configuration critic — flagged in sessions 2026-03-22 (token_issuance_service, extension_token_wallet)",
         "files": [
-          "packages/civicos-relay/src/civicos_relay/server/app.py"
+          "packages/civicos-relay/src/civicos_relay/server/app.py",
+          "docs/internal/deployment.md",
+          "docs/public/relay/overview.md"
         ],
         "test_file": null,
-        "notes": "Implemented in app.py lifespan: reads TOKEN_ISSUER_SECRET (hex), TOKEN_ISSUER_MAX_SESSIONS (int, default 5), TOKEN_ISSUER_SESSION_TTL (float, default 300) from env vars. Creates TokenIssuer instance and stores in _relay_state. Still needs: (2) adding TOKEN_ISSUER_SECRET to Modal secrets, (3) documenting env vars in deployment docs."
+        "notes": "Env var reading implemented in app.py lifespan (2026-03-23). Remaining: (1) add TOKEN_ISSUER_SECRET to Modal civicos-secrets, (2) document TOKEN_ISSUER_* env vars in docs/internal/deployment.md, (3) document /coordination/tokens/{info,session,sign} endpoints in relay API docs. Flagged by docs critic 2026-03-23."
       }
     ]
   },
