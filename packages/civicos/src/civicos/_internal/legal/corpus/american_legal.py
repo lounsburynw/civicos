@@ -509,6 +509,14 @@ class AmericanLegalCorpus:
             else:
                 self._cache_dir = Path("data/municipal_code")
 
+        # Fail early if no Playwright and no cached text available
+        if not PLAYWRIGHT_AVAILABLE and not self._cached_text_path().exists():
+            raise ImportError(
+                "playwright is required for downloading from American Legal Publishing. "
+                "Install with: pip install playwright && playwright install chromium\n"
+                f"No cached text found at {self._cached_text_path()}"
+            )
+
     def _get_jurisdiction_info(self) -> dict:
         if self.jurisdiction_id in self.JURISDICTION_MAP:
             return self.JURISDICTION_MAP[self.jurisdiction_id]

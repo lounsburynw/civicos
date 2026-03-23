@@ -130,19 +130,18 @@ def _is_amlegal_jurisdiction(jurisdiction_id: str) -> bool:
     except ImportError:
         pass
 
-    # Check jurisdiction YAML (local repo or Modal-mounted config)
+    # Check jurisdiction YAML (env-configured dir, then local repo traversal)
     try:
-        search_roots = [Path(__file__).resolve()]
-        # Also check Modal-mounted config directory
-        modal_config = Path("/config/jurisdictions")
-        if modal_config.exists():
-            config_path = modal_config / f"{jurisdiction_id}.yaml"
+        import os
+        jurisdictions_dir = os.environ.get("CIVICOS_JURISDICTIONS_DIR")
+        if jurisdictions_dir:
+            config_path = Path(jurisdictions_dir) / f"{jurisdiction_id}.yaml"
             if config_path.exists():
                 import yaml
                 with open(config_path) as f:
                     data = yaml.safe_load(f)
                 return data.get("data_sources", {}).get("municipal_code") == "amlegal"
-        for parent in search_roots[0].parents:
+        for parent in Path(__file__).resolve().parents:
             config_path = parent / "data" / "jurisdictions" / f"{jurisdiction_id}.yaml"
             if config_path.exists():
                 import yaml
