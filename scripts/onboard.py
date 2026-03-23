@@ -41,16 +41,18 @@ def _get_data_counts(database_url: str, jid: str) -> dict:
     decision_count = backend.get_decision_count(jid)
     chunk_count = backend.get_chunk_count(jid)
     agenda_item_count = backend.get_agenda_item_count(jid)
+    municipal_code_count = backend.get_municipal_code_count(jid)
 
     return {
         "meetings": meeting_count,
         "decisions": decision_count,
         "chunks": chunk_count,
         "agenda_items": agenda_item_count,
+        "municipal_code": municipal_code_count,
     }
 
 
-def _quality_report(counts: dict, label: str = "") -> list:
+def _quality_report(counts: dict, label: str = "", has_meetings: bool = True) -> list:
     """Generate quality report lines with red flag detection.
 
     Returns list of report lines and a list of red flags.
@@ -58,48 +60,51 @@ def _quality_report(counts: dict, label: str = "") -> list:
     lines = []
     red_flags = []
     meetings = counts["meetings"]
+    municipal_code = counts.get("municipal_code", 0)
 
     header = f"Quality Report{f' ({label})' if label else ''}"
     lines.append(f"\n  {header}")
     lines.append(f"  {'─' * len(header)}")
-    lines.append(f"  Meetings:      {meetings}")
-    lines.append(f"  Chunks:        {counts['chunks']}")
-    lines.append(f"  Agenda items:  {counts['agenda_items']}")
-    lines.append(f"  Decisions:     {counts['decisions']}")
+    lines.append(f"  Meetings:       {meetings}")
+    lines.append(f"  Chunks:         {counts['chunks']}")
+    lines.append(f"  Agenda items:   {counts['agenda_items']}")
+    lines.append(f"  Decisions:      {counts['decisions']}")
+    lines.append(f"  Municipal code: {municipal_code}")
 
-    if meetings == 0:
+    if meetings == 0 and has_meetings:
         red_flags.append("meetings = 0 → Extraction config is broken (bad view ID, wrong platform)")
         lines.append(f"\n  ⚠ RED FLAG: {red_flags[-1]}")
         return lines, red_flags
 
-    chunks_per = counts["chunks"] / meetings
-    agenda_per = counts["agenda_items"] / meetings
-    decisions_per = counts["decisions"] / meetings
-    lines.append(f"\n  Ratios (vs San Rafael baseline):")
-    lines.append(f"    chunks/meeting:       {chunks_per:.1f}  (baseline: ~52)")
-    lines.append(f"    agenda_items/meeting: {agenda_per:.1f}  (baseline: ~3)")
-    lines.append(f"    decisions/meeting:    {decisions_per:.2f}  (baseline: ~0.45)")
+    if meetings > 0:
+        chunks_per = counts["chunks"] / meetings
+        agenda_per = counts["agenda_items"] / meetings
+        decisions_per = counts["decisions"] / meetings
+        lines.append(f"\n  Ratios (vs San Rafael baseline):")
+        lines.append(f"    chunks/meeting:       {chunks_per:.1f}  (baseline: ~52)")
+        lines.append(f"    agenda_items/meeting: {agenda_per:.1f}  (baseline: ~3)")
+        lines.append(f"    decisions/meeting:    {decisions_per:.2f}  (baseline: ~0.45)")
 
-    if chunks_per == 0:
-        red_flags.append(
-            "chunks/meeting = 0 → Platform uses HTML agendas, not PDFs. "
-            "Chunk search won't work for this jurisdiction."
-        )
-    if agenda_per == 0:
-        red_flags.append(
-            "agenda_items/meeting = 0 → LLM extraction failing. "
-            "Check if agendas are behind auth or unsupported format."
-        )
-    if decisions_per == 0:
-        red_flags.append(
-            "decisions/meeting = 0 → Minutes are too thin or not posted. "
-            "Decision search won't work."
-        )
-    elif decisions_per < 0.1:
-        red_flags.append(
-            f"decisions/meeting = {decisions_per:.2f} (low) → Minutes may be thin. "
-            "Decision quality may be limited."
-        )
+        if chunks_per == 0:
+            red_flags.append(
+                "chunks/meeting = 0 → Platform uses HTML agendas, not PDFs. "
+                "Chunk search won't work for this jurisdiction."
+            )
+        if agenda_per == 0:
+            red_flags.append(
+                "agenda_items/meeting = 0 → LLM extraction failing. "
+                "Check if agendas are behind auth or unsupported format."
+            )
+        if decisions_per == 0:
+            red_flags.append(
+                "decisions/meeting = 0 → Minutes are too thin or not posted. "
+                "Decision search won't work."
+            )
+        elif decisions_per < 0.1:
+            red_flags.append(
+                f"decisions/meeting = {decisions_per:.2f} (low) → Minutes may be thin. "
+                "Decision quality may be limited."
+            )
 
     if red_flags:
         lines.append(f"\n  ⚠ RED FLAGS:")
@@ -111,13 +116,57 @@ def _quality_report(counts: dict, label: str = "") -> list:
     return lines, red_flags
 
 
+def _get_ingestion_stages(jid: str) -> list:
+    """Determine Modal ingestion stages from jurisdiction config.
+
+    Reads the jurisdiction YAML and extraction config to decide which
+    stages are appropriate. Avoids running meeting-dependent stages when
+    the meeting platform isn't yet supported.
+    """
+    import yaml as _yaml
+
+    stages = []
+
+    # Check extraction config for meeting source type
+    extraction_path = PROJECT_ROOT / "data" / "extraction" / f"{jid}.json"
+    source_type = None
+    if extraction_path.exists():
+        with open(extraction_path) as f:
+            ext_config = json.load(f)
+        source_type = ext_config.get("source_type", "")
+
+    # Meeting-dependent stages only if source_type is supported
+    supported_meeting_sources = {"proudcity", "granicus"}
+    if source_type in supported_meeting_sources:
+        stages.extend(["meetings", "chunks", "agenda", "decisions"])
+    elif source_type:
+        print(f"  Note: source_type '{source_type}' not yet supported for meetings — skipping meeting pipeline")
+
+    # Check jurisdiction YAML for municipal code
+    yaml_path = PROJECT_ROOT / "data" / "jurisdictions" / f"{jid}.yaml"
+    if yaml_path.exists():
+        with open(yaml_path) as f:
+            jur_config = _yaml.safe_load(f) or {}
+        ingestion = jur_config.get("ingestion", {})
+        if ingestion.get("municipal_code"):
+            stages.append("municipal")
+
+    # Always include vectors (indexes whatever data exists)
+    stages.append("vectors")
+
+    return stages
+
+
 def _run_modal_ingestion(jid: str, days_past: int, dry_run: bool = False,
                          stages: str = "all") -> int:
     """Run Modal ingestion and return exit code."""
     modal_cmd = ["modal", "run", "scripts/modal_ingest.py"]
 
     if stages == "all":
-        modal_cmd.extend(["--meetings", "--chunks", "--agenda", "--decisions", "--vectors"])
+        # Use dynamic stages based on jurisdiction config
+        stage_list = _get_ingestion_stages(jid)
+        for stage in stage_list:
+            modal_cmd.append(f"--{stage}")
     else:
         for stage in stages.split(","):
             modal_cmd.append(f"--{stage.strip()}")
@@ -258,14 +307,20 @@ def main():
     # -------------------------------------------------------------------
     print(f"\n[Phase 2] Checking existing data for {jid}...")
 
+    # Pre-compute stages to inform quality checks
+    ingestion_stages = _get_ingestion_stages(jid)
+    has_meetings = "meetings" in ingestion_stages
+    print(f"  Ingestion stages: {', '.join(ingestion_stages)}")
+
     database_url = os.environ.get("DATABASE_URL")
     if database_url:
         try:
             counts_before = _get_data_counts(database_url, jid)
-            print(f"  Existing meetings:      {counts_before['meetings']}")
-            print(f"  Existing chunks:        {counts_before['chunks']}")
-            print(f"  Existing agenda items:  {counts_before['agenda_items']}")
-            print(f"  Existing decisions:     {counts_before['decisions']}")
+            print(f"  Existing meetings:       {counts_before['meetings']}")
+            print(f"  Existing chunks:         {counts_before['chunks']}")
+            print(f"  Existing agenda items:   {counts_before['agenda_items']}")
+            print(f"  Existing decisions:      {counts_before['decisions']}")
+            print(f"  Existing municipal code: {counts_before['municipal_code']}")
         except Exception as e:
             print(f"  Could not check: {e}")
             counts_before = None
@@ -274,10 +329,10 @@ def main():
         counts_before = None
 
     if args.skip_ingestion:
+        stage_flags = " ".join(f"--{s}" for s in ingestion_stages)
         print(f"\n[DONE] Configs generated. To ingest:")
-        print(f"  modal run scripts/modal_ingest.py --meetings --chunks --agenda "
-              f"--decisions --vectors --jurisdiction {jid} "
-              f"--meetings-days-past {args.days_past}")
+        print(f"  modal run scripts/modal_ingest.py {stage_flags} "
+              f"--jurisdiction {jid} --meetings-days-past {args.days_past}")
         return
 
     # -------------------------------------------------------------------
@@ -297,7 +352,8 @@ def main():
             try:
                 sample_counts = _get_data_counts(database_url, jid)
                 report_lines, red_flags = _quality_report(sample_counts,
-                                                          f"{args.sample_days}-day sample")
+                                                          f"{args.sample_days}-day sample",
+                                                          has_meetings=has_meetings)
                 for line in report_lines:
                     print(line)
 
@@ -336,14 +392,15 @@ def main():
     if database_url:
         try:
             final_counts = _get_data_counts(database_url, jid)
-            report_lines, red_flags = _quality_report(final_counts, "final")
+            report_lines, red_flags = _quality_report(final_counts, "final",
+                                                          has_meetings=has_meetings)
             for line in report_lines:
                 print(line)
 
             # Show delta from before
             if counts_before:
                 print(f"\n  Delta from start:")
-                for key in ["meetings", "chunks", "agenda_items", "decisions"]:
+                for key in ["meetings", "chunks", "agenda_items", "decisions", "municipal_code"]:
                     delta = final_counts[key] - counts_before[key]
                     if delta > 0:
                         print(f"    {key}: +{delta}")

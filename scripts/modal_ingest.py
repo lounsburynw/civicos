@@ -148,6 +148,10 @@ civic_image = (
     .add_local_python_source("civicos", "civicos_config", "civicos_extraction", "civicos_services")
     # Add jurisdiction config files for config-driven pipeline iteration
     .add_local_dir("data/extraction", remote_path="/config/extraction")
+    # Add jurisdiction YAML configs (for data_sources routing, e.g. amlegal detection)
+    .add_local_dir("data/jurisdictions", remote_path="/config/jurisdictions")
+    # Add municipal code cache (AMLegal cached text + format specs)
+    .add_local_dir("data/municipal_code", remote_path="/data/municipal_code")
 )
 
 
@@ -194,7 +198,10 @@ def fetch_municipal_code(
 
     logger.info(f"[MUNICIPAL] Starting fetch: jurisdiction={jurisdiction}")
 
-    corpus = MunicipalCodeCorpus(jurisdiction_id=jurisdiction, rate_limit=rate_limit)
+    # Pass cache_dir for AMLegal jurisdictions (cached text mounted from local)
+    cache_dir = "/data/municipal_code" if os.path.isdir("/data/municipal_code") else None
+    corpus = MunicipalCodeCorpus.for_jurisdiction(jurisdiction, rate_limit=rate_limit,
+                                                   cache_dir=cache_dir)
 
     sections = []
     titles_seen = set()
@@ -2681,9 +2688,21 @@ def index_vectors(
             raw = backend.get_federal_rules()
             chunks = expand_federal_rules_to_chunks(raw)
         elif ct == "budget_items":
-            chunks = backend.get_budget_items(jurisdiction)
+            try:
+                chunks = backend.get_budget_items(jurisdiction)
+            except Exception as e:
+                logger.warning(f"  Skipping budget_items: {e}")
+                pgvector.rebuild_hnsw_index(ct)
+                results[ct] = {"status": "skipped", "indexed": 0}
+                continue
         elif ct == "federal_awards":
-            raw = backend.get_federal_awards(jurisdiction)
+            try:
+                raw = backend.get_federal_awards(jurisdiction)
+            except Exception as e:
+                logger.warning(f"  Skipping federal_awards: {e}")
+                pgvector.rebuild_hnsw_index(ct)
+                results[ct] = {"status": "skipped", "indexed": 0}
+                continue
             chunks = []
             for award in raw:
                 parts = []
@@ -2863,7 +2882,16 @@ def fetch_meetings(
             source = GranicusSource(config)
             meetings = source.get_meetings(days_ahead=days_ahead, days_past=days_past)
         else:
-            raise ValueError(f"Unsupported source_type '{source_type}' for jurisdiction '{jurisdiction}'")
+            logger.warning(f"[MEETINGS] source_type '{source_type}' not yet supported for meeting fetch — skipping")
+            return {
+                "meetings_fetched": 0,
+                "meetings_stored": 0,
+                "incremental": incremental,
+                "skipped": True,
+                "skip_reason": f"source_type '{source_type}' not yet supported",
+                "elapsed_seconds": 0,
+                "cost_usd": 0,
+            }
     except Exception as e:
         logger.error(f"Error fetching meetings: {e}")
         backend.update_refresh_metadata(
@@ -4661,7 +4689,9 @@ def scheduled_high_velocity_refresh():
                 from civicos_extraction.clients.granicus import GranicusSource
                 client = GranicusSource(ext_config)
             else:
-                raise ValueError(f"Unsupported source_type '{src_type}' for {jid}")
+                logger.warning(f"  [{jid}] source_type '{src_type}' not yet supported for meetings — skipping")
+                results[jid]["meetings"] = {"skipped": True, "reason": f"source_type '{src_type}' not supported"}
+                continue
 
             meeting_provider = MeetingCorpusProvider(
                 client=client, jurisdiction_id=jid, source_name=src_type,

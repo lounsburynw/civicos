@@ -23256,7 +23256,7 @@ token_issuer_deploy (deploy TOKEN_ISSUER_SECRET to Modal secrets)
 
 **Remaining (Phase 3-4):** REST API limit/offset query params, X-Total-Count header, cross-jurisdiction.
 
-**Next P0:** TBD — need to set before running /nextsesh.
+\*\*Next P0:\*\* legistar_client — wire Legistar meeting fetch into Modal pipeline for Sacramento (35 bodies discovered, extraction config exists).
 
 ## Session — 2026-03-23 (token_issuer_env_config)
 
@@ -23279,3 +23279,34 @@ Completed the token issuer deployment configuration:
    `{"enabled": true, "issuer_pubkey": "02daf210..."}`. All tests pass (25 token_issuer, 99 acceptance, 20 smoke).
 
 **Next P0:** TBD — need to set before running /nextsesh.
+
+---
+**Session: 2026-03-23 (amlegal_client_hardening P0)**
+
+**Item:** amlegal_client_hardening (P0)
+**Status:** DONE
+
+Tested the turnkey onboarding system by running it for Sacramento as if it were a new city.
+This exposed and fixed 6 issues:
+
+1. **fetch_meetings crash on unsupported source types** — legistar detected but not supported;
+   now returns graceful skip instead of ValueError (modal_ingest.py)
+2. **Hardcoded meeting stages in onboard.py** — stages are now dynamic based on jurisdiction
+   config; includes --municipal when municipal_code is configured (scripts/onboard.py)
+3. **fetch_municipal_code used wrong corpus class** — was using MunicipalCodeCorpus directly
+   instead of .for_jurisdiction() factory; now routes to AMLegal correctly (modal_ingest.py)
+4. **AmericanLegalCorpus required Playwright at init** — deferred check to download time so
+   cached text works without Playwright (american_legal.py)
+5. **Modal missing cache/config mounts** — added data/municipal_code and data/jurisdictions
+   as Modal image mounts for AMLegal cached text and jurisdiction routing (modal_ingest.py)
+6. **index_vectors crashed on unregistered jurisdictions** — budget_items/federal_awards now
+   gracefully skip jurisdictions not in the registry (modal_ingest.py)
+
+Sacramento results:
+- 5,871 municipal code sections in Postgres
+- 9,224 vector embeddings (up from 3,162)
+- what_applies("zoning") returns relevant Sacramento results
+- San Rafael data unaffected (8,325 vectors intact)
+- All tests pass (82 refresh, 20 smoke)
+
+**Next P0:** legistar_client — wire Legistar meeting fetch into Modal pipeline for Sacramento (35 bodies discovered, extraction config exists).
