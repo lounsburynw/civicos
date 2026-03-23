@@ -7,7 +7,8 @@
 
 import { IdentityManager } from '../lib/identity.js';
 import { ChromeStorageWalletStorage, ChromeStoragePasskeyStorage } from '../lib/storage.js';
-import { api } from '../lib/client.js';
+import { api, registry } from '../lib/client.js';
+import { getTokenCount, getAvailableToken, requestTokens } from '../lib/token-wallet.js';
 import type { ExtensionRequest, ExtensionResponse } from '../lib/messaging.js';
 import type { NostrEvent } from '../lib/providers/types.js';
 
@@ -189,6 +190,34 @@ async function handleMessage(message: ExtensionRequest): Promise<ExtensionRespon
         }
 
         return { success: false, error: redeemResult.error || 'Attestation failed' };
+      }
+
+      case 'GET_TOKEN_COUNT': {
+        const count = await getTokenCount();
+        return { success: true, data: count };
+      }
+
+      case 'REQUEST_TOKENS': {
+        // Discover issuer config from relay, then acquire tokens
+        const relayUrl = await registry.getRelayUrl();
+        const infoRes = await fetch(`${relayUrl}/coordination/tokens/info`);
+        if (!infoRes.ok) {
+          return { success: false, error: 'Failed to reach token issuer' };
+        }
+        const info = await infoRes.json();
+        if (!info.enabled || !info.issuer_pubkey) {
+          return { success: false, error: 'Token issuance not enabled on this relay' };
+        }
+        const acquired = await requestTokens(
+          { issuerUrl: relayUrl, issuerPubkey: info.issuer_pubkey },
+          message.count,
+        );
+        return { success: true, data: acquired };
+      }
+
+      case 'SPEND_TOKEN': {
+        const token = await getAvailableToken();
+        return { success: true, data: token };
       }
 
       default:

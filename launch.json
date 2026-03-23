@@ -331,13 +331,21 @@
       {
         "name": "extension_token_wallet",
         "description": "Add token wallet to browser extension. Store blinded tokens in local-wallet.ts (already handles secp256k1). Include tokens in write requests automatically.",
-        "status": "not_started",
+        "status": "done",
         "priority": 0,
         "source": "docs/internal/relay-acceptance-policy-spec.md (Phase 4)",
         "files": [
-          "apps/civicos-extension/src/"
+          "apps/civicos-extension/src/lib/blind.ts",
+          "apps/civicos-extension/src/lib/token-wallet.ts",
+          "apps/civicos-extension/src/lib/messaging.ts",
+          "apps/civicos-extension/src/background/service-worker.ts",
+          "apps/civicos-extension/src/side-panel/SidePanel.svelte",
+          "packages/civicos-client/src/api.ts",
+          "packages/civicos-relay/src/civicos_relay/server/app.py",
+          "packages/civicos-relay/src/civicos_relay/server/coordination.py"
         ],
-        "test_file": null
+        "test_file": null,
+        "notes": "Full client-side blind signature implementation: blind.ts ports blind()/unblind()/verifyToken() from Python using @noble/curves secp256k1 point arithmetic. token-wallet.ts provides persistent chrome.storage.local token storage with requestTokens() 2-step issuer protocol. Service worker handles GET_TOKEN_COUNT/REQUEST_TOKENS/SPEND_TOKEN messages. SidePanel auto-attaches payment_proof to castVoice(). Server-side: token issuer HTTP endpoints (/coordination/tokens/{info,session,sign}) added to app.py, coordination.py accepts payment_proof as alternative to attestation_proof with full token verification and double-spend check."
       },
       {
         "name": "token_purchase_ui",
@@ -353,14 +361,14 @@
       {
         "name": "token_issuer_env_config",
         "description": "Make TokenIssuer deployment parameters configurable via env vars: TOKEN_ISSUER_SECRET (issuer private key), TOKEN_ISSUER_MAX_SESSIONS (Wagner's attack cap, default 5), TOKEN_ISSUER_SESSION_TTL (nonce expiry in seconds, default 300). Wire into issuer service deployment (Modal). Add to civicos-secrets.",
-        "status": "not_started",
+        "status": "done",
         "priority": 2,
         "source": "configuration critic — flagged in sessions 2026-03-22 (token_issuance_service, extension_token_wallet)",
         "files": [
-          "packages/civicos-relay/src/civicos_relay/server/token_issuer.py"
+          "packages/civicos-relay/src/civicos_relay/server/app.py"
         ],
         "test_file": null,
-        "notes": "TokenIssuer constructor already accepts max_concurrent_sessions and session_ttl_seconds params. This item covers: (1) reading these from env vars when the issuer is deployed as a service, (2) adding TOKEN_ISSUER_SECRET to Modal secrets, (3) documenting all token-related env vars in deployment docs."
+        "notes": "Implemented in app.py lifespan: reads TOKEN_ISSUER_SECRET (hex), TOKEN_ISSUER_MAX_SESSIONS (int, default 5), TOKEN_ISSUER_SESSION_TTL (float, default 300) from env vars. Creates TokenIssuer instance and stores in _relay_state. Still needs: (2) adding TOKEN_ISSUER_SECRET to Modal secrets, (3) documenting env vars in deployment docs."
       }
     ]
   },
@@ -674,7 +682,7 @@
         "name": "pagination_protocol_update",
         "description": "Add limit/offset parameters to StorageBackend.get_*() methods. Informed by real cross-jurisdiction query patterns from testbed.",
         "status": "not_started",
-        "priority": 2,
+        "priority": 0,
         "phase": "B",
         "source": "architectural review \u2014 federation prerequisite",
         "spec": "docs/internal/pagination-protocol-spec.md",

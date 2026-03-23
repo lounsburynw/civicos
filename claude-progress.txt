@@ -23188,3 +23188,45 @@ signature token verification. The payment tier now validates tokens end-to-end:
 74 acceptance policy tests pass. No regressions.
 
 **Next P0:** extension_token_wallet
+
+## Session 2026-03-23: Extension Token Wallet (P0)
+
+**Item:** extension_token_wallet + token_issuer_env_config
+**Status:** Done
+
+**What was built:**
+
+1. **TypeScript blind signature client** (`apps/civicos-extension/src/lib/blind.ts`)
+   - Ported blind(), unblind(), verifyToken(), generateTokenMessage(), computeTokenHash()
+   - Uses @noble/curves/secp256k1 ProjectivePoint for EC point arithmetic
+   - Same math as Python blind.py: R' = R + α·G + β·P, SHA-256 hash, mod N operations
+   - Cross-language compatible with Python server-side verification
+
+2. **Token wallet storage** (`apps/civicos-extension/src/lib/token-wallet.ts`)
+   - Persistent SpendableToken[] in chrome.storage.local
+   - storeTokens(), getAvailableToken() (pop), getTokenCount(), clearTokens()
+   - requestTokens() — 2-step blind signing with issuer: session → blind → sign → unblind
+   - Auto-discovers issuer config via /coordination/tokens/info endpoint
+
+3. **Extension message protocol** (messaging.ts + service-worker.ts)
+   - Added GET_TOKEN_COUNT, REQUEST_TOKENS, SPEND_TOKEN message types
+   - Service worker handles all three, discovers issuer from relay registry
+
+4. **Payment proof in write path** (SidePanel.svelte + api.ts + coordination.py)
+   - SidePanel auto-spends a token before castVoice() if tokens available
+   - castVoice()/submitVoice() now accept optional paymentProof parameter
+   - Relay coordination.py accepts payment_proof as alternative to attestation_proof
+   - Full verification: blind token signature check + atomic double-spend prevention
+
+5. **Token issuer HTTP endpoints** (app.py)
+   - GET /coordination/tokens/info — pubkey discovery
+   - POST /coordination/tokens/session — nonce session creation
+   - POST /coordination/tokens/sign — blind signature issuance
+   - TokenIssuer configured from TOKEN_ISSUER_SECRET, TOKEN_ISSUER_MAX_SESSIONS,
+     TOKEN_ISSUER_SESSION_TTL env vars
+
+**Test results:** 28 blind sig, 25 token issuer, 74 acceptance policy tests pass.
+Extension builds cleanly. No new type errors.
+
+**Next P0:** token_purchase_ui (Stripe checkout for buying tokens) or
+token_issuer_deploy (deploy TOKEN_ISSUER_SECRET to Modal secrets)
