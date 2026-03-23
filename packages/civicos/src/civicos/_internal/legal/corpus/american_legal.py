@@ -496,11 +496,6 @@ class AmericanLegalCorpus:
         cache_dir: Optional[str] = None,
         **kwargs,
     ):
-        if not PLAYWRIGHT_AVAILABLE:
-            raise ImportError(
-                "playwright is required for American Legal Publishing. "
-                "Install with: pip install playwright && playwright install chromium"
-            )
         self.jurisdiction_id = jurisdiction_id
         self.headless = headless
         if cache_dir:
@@ -551,6 +546,12 @@ class AmericanLegalCorpus:
 
     async def _download_text(self) -> str:
         """Download the full municipal code as text via AMLegal export."""
+        if not PLAYWRIGHT_AVAILABLE:
+            raise ImportError(
+                "playwright is required for downloading from American Legal Publishing. "
+                "Install with: pip install playwright && playwright install chromium\n"
+                "If cached text exists, ensure cache_dir is set correctly."
+            )
         jur = self._get_jurisdiction_info()
         slug, code_id = jur["slug"], jur["code_id"]
 
