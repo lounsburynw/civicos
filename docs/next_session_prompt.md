@@ -1,68 +1,54 @@
-# Recommended: Token Issuer Environment Configuration
+# Recommended: AmLegal Client Hardening
 
-**Priority:** P0 (token_issuer_env_config)
-**Area:** token_issuance
+**Priority:** P0 (amlegal_client_hardening)
+**Area:** security_fixes
 **Date:** 2026-03-23
 
 > This is recommended context from the previous session. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
 
 ## Context
 
-The token issuance pipeline is functionally complete: blind signatures, token wallet, issuer HTTP endpoints, and acceptance policy all work locally and pass tests. But the TokenIssuer is **not yet deployable** — its env vars (`TOKEN_ISSUER_SECRET`, `TOKEN_ISSUER_MAX_SESSIONS`, `TOKEN_ISSUER_SESSION_TTL`) are not in any Modal secret group, the relay Modal deployment doesn't reference them, and docs don't mention them.
+The American Legal Publishing (AmLegal) municipal code parser was rewritten with deterministic format detection + LLM fallback (1956d3a). It's been tested on 4 cities: Sacramento (8,236 sections), Gridley (2,071), Fairfax (1,649), Pinole (1,978). Six new cities are in JURISDICTION_MAP. **Remaining: store Sacramento to Postgres, verify vector indexing pipeline.**
+
+Previous session completed `token_issuer_env_config` — token issuer is deployed and verified on Modal (`GET /coordination/tokens/info` returns `enabled: true`). Also recreated missing `civic-anthropic` Modal secret.
 
 ## What Exists Now
 
-- **Token issuer code** reads env vars at startup in `app.py:178-187` — already wired
-- **Relay Modal deployment** (`apps/civicos-relay/modal_relay.py:49-55`) uses these secrets: `civicos-env`, `civicos-attestation`, `civic-anthropic`, `civicos-platform` — **no token issuer secret group**
-- **Token endpoints** (`GET /coordination/tokens/info`, `POST /coordination/tokens/session`, `POST /coordination/tokens/sign`) are defined in `app.py:256-295`
-- **Acceptance policy** (`acceptance.py:190,379-390`) validates tokens against `TOKEN_ISSUER_PUBKEYS`
-- **deployment.md** has no mention of TOKEN_ISSUER_* env vars
-- **relay/overview.md** doesn't document the token endpoints
+- **Parser** (`american_legal.py`) — works for 4+ cities, deterministic format detection with LLM fallback
+- **JURISDICTION_MAP** — includes Sacramento, Gridley, Fairfax, Pinole, plus San Rafael and others
+- **RefreshRunner** (`refresh.py`) — orchestrates corpus refresh (scheduling, change detection, store, re-embed)
+- **`refresh_municipal_code()`** method already exists in RefreshRunner
+- **PostgresBackend** has `upsert_municipal_code()` method
+- **Vector indexing** pipeline exists for municipal_code corpus type
 
 ## Key Files
 
 | File | Purpose |
 |------|---------|
-| `packages/civicos-relay/src/civicos_relay/server/app.py:178-187` | TokenIssuer env var reading (already implemented) |
-| `packages/civicos-relay/src/civicos_relay/server/app.py:154-172` | TOKEN_ISSUER_PUBKEYS + known_token_issuers wiring |
-| `packages/civicos-relay/src/civicos_relay/server/app.py:256-295` | Token HTTP endpoints |
-| `apps/civicos-relay/modal_relay.py:49-55` | `get_relay_secrets()` — needs token issuer secret |
-| `docs/internal/deployment.md` | Needs TOKEN_ISSUER_* documentation |
-| `docs/public/relay/overview.md` | Needs token endpoint documentation |
+| `packages/civicos/src/civicos/_internal/legal/corpus/american_legal.py` | AmLegal parser + JURISDICTION_MAP |
+| `packages/civicos/src/civicos/_internal/legal/corpus/refresh.py` | RefreshRunner, RefreshPolicy, RefreshableCorpus |
+| `packages/civicos/src/civicos/storage/postgres_backend.py` | `upsert_municipal_code()` |
+| `packages/civicos/tests/test_refresh.py` | Refresh/upsert tests |
+| `packages/civicos/tests/test_integration_pgvector.py` | Vector indexing integration tests |
+| `packages/civicos-extraction/src/civicos_extraction/cli/municipal_code.py` | CLI for municipal code operations |
 
 ## Suggested Approach
 
-1. **Generate a TOKEN_ISSUER_SECRET** (32-byte hex key for blind signatures)
-   ```python
-   import os; print(os.urandom(32).hex())
-   ```
-
-2. **Add to Modal secrets** — either create a new `civicos-token-issuer` secret or add to existing `civicos-attestation`:
-   ```bash
-   modal secret create civicos-token-issuer \
-     TOKEN_ISSUER_SECRET=<hex_key> \
-     TOKEN_ISSUER_MAX_SESSIONS=5 \
-     TOKEN_ISSUER_SESSION_TTL=300
-   ```
-
-3. **Wire into relay deployment** — update `get_relay_secrets()` in `apps/civicos-relay/modal_relay.py` to include the new secret group
-
-4. **Derive and set TOKEN_ISSUER_PUBKEYS** — the public key derived from the secret must be added to `civicos-env` (or wherever the relay reads it) so the acceptance policy can verify tokens
-
-5. **Document in deployment.md** — add TOKEN_ISSUER_* env vars to the secrets reference table
-
-6. **Document token endpoints in relay/overview.md** — the three `/coordination/tokens/*` endpoints
-
-7. **Deploy and smoke test** — `modal deploy apps/civicos-relay/modal_relay.py` then hit the `/coordination/tokens/info` endpoint
+1. **Parse Sacramento** — run the AmLegal parser for `city-sacramento` to extract sections
+2. **Store to Postgres** — use `upsert_municipal_code()` or `RefreshRunner.refresh_municipal_code()` to store Sacramento's 8,236 sections to Postgres
+3. **Verify storage** — check section count with `/data-status city-sacramento` or direct query
+4. **Vector indexing** — run vector indexing for Sacramento's municipal code (`/vectors` or `modal run scripts/modal_ingest.py`)
+5. **Verify vectors** — check embedding coverage with `/vector-coverage city-sacramento`
+6. **Test queries** — verify `what_applies("housing", jurisdiction="city-sacramento")` returns results
 
 ## Tests to Run
 
 ```bash
-# Token issuer unit tests
-pytest packages/civicos-relay/tests/ -k "token_issuer" -q --override-ini="addopts="
+# Refresh/upsert tests
+pytest packages/civicos/tests/test_refresh.py -q --override-ini="addopts="
 
-# Acceptance policy tests (verify token verification still works)
-pytest packages/civicos-relay/tests/ -k "acceptance" -q --override-ini="addopts="
+# Vector integration tests
+pytest packages/civicos/tests/test_integration_pgvector.py -q --override-ini="addopts="
 
 # Smoke test
 pytest packages/civicos/tests/test_civicos.py -q --override-ini="addopts="
@@ -70,15 +56,14 @@ pytest packages/civicos/tests/test_civicos.py -q --override-ini="addopts="
 
 ## Success Criteria
 
-- [ ] TOKEN_ISSUER_SECRET exists in a Modal secret group
-- [ ] `get_relay_secrets()` includes the token issuer secret
-- [ ] TOKEN_ISSUER_PUBKEYS is set for acceptance policy verification
-- [ ] `deployment.md` documents all TOKEN_ISSUER_* env vars
-- [ ] `relay/overview.md` documents `/coordination/tokens/*` endpoints
-- [ ] Deployed relay responds to `GET /coordination/tokens/info` with issuer pubkey
-- [ ] Existing tests pass (no regressions)
+- [ ] Sacramento municipal code sections stored in Postgres (8,000+ rows)
+- [ ] Vector embeddings generated for Sacramento municipal_code corpus
+- [ ] `what_applies()` returns relevant Sacramento results
+- [ ] Existing San Rafael data unaffected (no regressions)
+- [ ] All tests pass
 
 ## Deferred Items
 
-- **token_purchase_ui** (P3) — Stripe checkout flow for buying tokens (depends on issuer being deployed)
-- **pagination Phase 3-4** (unscheduled) — REST API limit/offset params, X-Total-Count header
+- **token_purchase_ui** (P3) — Stripe checkout flow for buying tokens (now unblocked — issuer deployed)
+- **cross_marin_query_prototype** (P1, in_progress) — Cross-jurisdiction queries within Marin County
+- **cross_county_query_prototype** (P1, in_progress) — Cross-county queries (Berkeley vs San Rafael)
