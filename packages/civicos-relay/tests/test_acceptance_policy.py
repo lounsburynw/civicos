@@ -3,11 +3,17 @@
 import json
 import time
 import pytest
+from coincurve import PrivateKey
 from unittest.mock import patch
 from civicos_relay.server.acceptance import (
     AcceptancePolicy, PolicyResult, InMemoryRateLimiter, DEFAULT_POLICY,
     DEFAULT_ATTESTATION_VALIDITY_SECONDS, load_policy, _merge_policy,
 )
+from civicos_relay.voice.blind import (
+    blind, compute_token_hash, generate_nonce, generate_token_message,
+    sign_blinded, unblind, verify_token,
+)
+from civicos_relay.storage.memory import InMemorySpentTokenStorage
 
 
 class TestPolicyResult:
@@ -81,8 +87,8 @@ class TestAcceptancePolicy:
         assert result.accepted
         assert result.tier == "rate_limited"
 
-    def test_payment_stub_always_fails(self):
-        """Phase 4 stub: payment proof is always rejected, falls through to rate limit."""
+    def test_payment_without_storage_falls_through(self):
+        """Without spent_token_storage, payment proof falls through to rate limit."""
         policy = AcceptancePolicy()
         result = policy.check("voice", "a" * 64, payment_proof={"type": "lightning"})
         assert result.accepted
@@ -120,6 +126,168 @@ class TestAcceptancePolicy:
         assert not AcceptancePolicy._verify_pow("ff" * 32, 1)
         assert not AcceptancePolicy._verify_pow(None, 1)
         assert AcceptancePolicy._verify_pow("00" * 32, 256)
+
+
+# --- Payment token helpers ---
+
+_ISSUER_SECRET = (42).to_bytes(32, "big")
+_ISSUER = PrivateKey(_ISSUER_SECRET)
+_ISSUER_PUBKEY = _ISSUER.public_key.format(compressed=True)
+_ISSUER_PUBKEY_HEX = _ISSUER_PUBKEY.hex()
+
+
+def _issue_token(issuer=_ISSUER, issuer_pubkey=_ISSUER_PUBKEY):
+    """Issue a valid SpendableToken for testing."""
+    msg = generate_token_message()
+    nonce_secret, nonce_point = generate_nonce()
+    challenge, ctx = blind(msg, issuer_pubkey, nonce_point)
+    blind_sig = sign_blinded(challenge, issuer.secret, nonce_secret)
+    return unblind(blind_sig, ctx, issuer_pubkey)
+
+
+def _make_payment_policy(known_issuers=None, max_per_day=1):
+    """Create an AcceptancePolicy wired for token payment testing."""
+    storage = InMemorySpentTokenStorage()
+    if known_issuers is None:
+        known_issuers = {_ISSUER_PUBKEY_HEX}
+    return AcceptancePolicy(
+        config={"voice": {"max_per_day": max_per_day, "pow_difficulty": None}},
+        spent_token_storage=storage,
+        known_token_issuers=known_issuers,
+    ), storage
+
+
+class TestPaymentVerification:
+    """Tests for Schnorr blind signature token payment tier."""
+
+    def test_valid_token_accepted_as_paid(self):
+        """Valid token from known issuer should be accepted with tier='paid'."""
+        policy, _ = _make_payment_policy()
+        token = _issue_token()
+        result = policy.check("voice", "a" * 64, payment_proof=token.to_dict())
+        assert result.accepted
+        assert result.tier == "paid"
+        assert "Valid payment proof" in result.reason
+
+    def test_valid_token_bypasses_exhausted_rate_limit(self):
+        """Payment proof should bypass rate limit even when quota exhausted."""
+        policy, _ = _make_payment_policy(max_per_day=1)
+        policy.check("voice", "a" * 64)  # exhaust rate limit
+        result = policy.check("voice", "a" * 64)
+        assert not result.accepted  # confirm exhausted
+
+        token = _issue_token()
+        result = policy.check("voice", "a" * 64, payment_proof=token.to_dict())
+        assert result.accepted
+        assert result.tier == "paid"
+
+    def test_invalid_signature_falls_through(self):
+        """Token with tampered signature should fall through to lower tiers."""
+        policy, _ = _make_payment_policy(max_per_day=5)
+        token = _issue_token()
+        proof = token.to_dict()
+        # Tamper with signature (flip a byte)
+        sig = bytes.fromhex(proof["signature"])
+        tampered = bytes([sig[0] ^ 0xFF]) + sig[1:]
+        proof["signature"] = tampered.hex()
+        result = policy.check("voice", "a" * 64, payment_proof=proof)
+        assert result.accepted
+        assert result.tier == "rate_limited"  # fell through
+
+    def test_double_spend_rejected(self):
+        """Same token used twice: first accepted, second falls through."""
+        policy, _ = _make_payment_policy(max_per_day=5)
+        token = _issue_token()
+        proof = token.to_dict()
+
+        result1 = policy.check("voice", "a" * 64, payment_proof=proof)
+        assert result1.accepted
+        assert result1.tier == "paid"
+
+        result2 = policy.check("voice", "a" * 64, payment_proof=proof)
+        assert result2.accepted
+        assert result2.tier == "rate_limited"  # fell through due to double-spend
+
+    def test_double_spend_with_exhausted_rate_limit_rejected(self):
+        """Double-spend + exhausted rate limit = rejected."""
+        policy, _ = _make_payment_policy(max_per_day=1)
+        token = _issue_token()
+        proof = token.to_dict()
+
+        result1 = policy.check("voice", "a" * 64, payment_proof=proof)
+        assert result1.accepted
+        assert result1.tier == "paid"
+
+        # Rate limit now exhausted (1/day used by the non-payment check)
+        policy.check("voice", "a" * 64)  # exhaust rate limit
+
+        result2 = policy.check("voice", "a" * 64, payment_proof=proof)
+        assert not result2.accepted  # double-spend AND rate limit exhausted
+
+    def test_unknown_issuer_rejected(self):
+        """Token from an issuer not in known_token_issuers falls through."""
+        other_issuer = PrivateKey((99).to_bytes(32, "big"))
+        other_pubkey = other_issuer.public_key.format(compressed=True)
+        token = _issue_token(issuer=other_issuer, issuer_pubkey=other_pubkey)
+
+        # Policy only trusts _ISSUER, not other_issuer
+        policy, _ = _make_payment_policy(max_per_day=5)
+        result = policy.check("voice", "a" * 64, payment_proof=token.to_dict())
+        assert result.accepted
+        assert result.tier == "rate_limited"  # fell through
+
+    def test_no_storage_always_fails(self):
+        """Without spent_token_storage, payment always falls through (backwards compat)."""
+        policy = AcceptancePolicy(
+            config={"voice": {"max_per_day": 5, "pow_difficulty": None}},
+            known_token_issuers={_ISSUER_PUBKEY_HEX},
+        )
+        token = _issue_token()
+        result = policy.check("voice", "a" * 64, payment_proof=token.to_dict())
+        assert result.accepted
+        assert result.tier == "rate_limited"
+
+    def test_empty_known_issuers_accepts_any_issuer(self):
+        """Empty known_token_issuers set means no issuer restriction (accept any)."""
+        policy = AcceptancePolicy(
+            config={"voice": {"max_per_day": 5, "pow_difficulty": None}},
+            spent_token_storage=InMemorySpentTokenStorage(),
+            known_token_issuers=set(),
+        )
+        token = _issue_token()
+        result = policy.check("voice", "a" * 64, payment_proof=token.to_dict())
+        assert result.accepted
+        assert result.tier == "paid"
+
+    def test_missing_fields_falls_through(self):
+        """Payment proof missing required fields falls through gracefully."""
+        policy, _ = _make_payment_policy(max_per_day=5)
+        result = policy.check("voice", "a" * 64, payment_proof={"message": "abc"})
+        assert result.accepted
+        assert result.tier == "rate_limited"
+
+    def test_malformed_hex_falls_through(self):
+        """Payment proof with invalid hex values falls through."""
+        policy, _ = _make_payment_policy(max_per_day=5)
+        proof = {"message": "not_hex", "signature": "not_hex", "issuer_pubkey": "not_hex"}
+        result = policy.check("voice", "a" * 64, payment_proof=proof)
+        assert result.accepted
+        assert result.tier == "rate_limited"
+
+    def test_multiple_tokens_each_spend_once(self):
+        """Multiple distinct tokens can each be spent exactly once."""
+        policy, _ = _make_payment_policy(max_per_day=0)  # rate limit exhausted from start
+        tokens = [_issue_token() for _ in range(3)]
+
+        for token in tokens:
+            result = policy.check("voice", "a" * 64, payment_proof=token.to_dict())
+            assert result.accepted
+            assert result.tier == "paid"
+
+        # All are now spent — second use should fail
+        for token in tokens:
+            result = policy.check("voice", "a" * 64, payment_proof=token.to_dict())
+            assert not result.accepted  # double-spend + rate limit exhausted
 
 
 def _make_attestation_proof(

@@ -294,7 +294,7 @@
         "name": "token_issuance_service",
         "description": "Implement token issuance service (separate from relay). Accepts Stripe/Lightning payment, returns blinded tokens. Cannot link issued tokens to payment session.",
         "status": "not_started",
-        "priority": 3,
+        "priority": 0,
         "source": "docs/internal/relay-acceptance-policy-spec.md (Phase 4)",
         "files": [],
         "test_file": null,
@@ -317,8 +317,8 @@
       {
         "name": "token_verification_in_policy",
         "description": "Add token verification + spent-token tracking to acceptance policy. Atomic: token must be marked spent BEFORE write is persisted.",
-        "status": "not_started",
-        "priority": 0,
+        "status": "done",
+        "priority": 1,
         "source": "docs/internal/relay-acceptance-policy-spec.md (Phase 4)",
         "files": [
           "packages/civicos-relay/src/civicos_relay/server/acceptance.py"

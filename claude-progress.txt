@@ -23120,3 +23120,39 @@ avoiding the raw-SQL-in-acceptance-policy antipattern from rate limiting. Downst
 (token_verification_in_policy) can depend on this protocol.
 
 **Next P0:** TBD — no P0 currently set
+
+## Session — 2026-03-22: Token Verification in Acceptance Policy (P0)
+
+**Item:** token_verification_in_policy
+**Status:** Done
+
+**Summary:**
+Replaced the `_verify_payment()` stub in AcceptancePolicy with real Schnorr blind
+signature token verification. The payment tier now validates tokens end-to-end:
+1. Parse proof dict → SpendableToken
+2. Check issuer pubkey is in known_token_issuers set
+3. Verify Schnorr signature via verify_token()
+4. Atomic double-spend prevention via SpentTokenStorage.check_and_mark_spent()
+
+**Deliverables:**
+- `packages/civicos-relay/src/civicos_relay/server/acceptance.py` — Updated:
+  - Added `spent_token_storage` and `known_token_issuers` params to __init__
+  - Lazy import of blind module (avoids hard coincurve dependency at import time)
+  - `_verify_payment()` now performs full verification chain
+- `packages/civicos-relay/tests/test_acceptance_policy.py` — 12 new tests in
+  TestPaymentVerification class:
+  - Valid token accepted as paid tier
+  - Bypasses exhausted rate limit
+  - Invalid signature falls through
+  - Double-spend (second use) falls through
+  - Double-spend + exhausted rate limit = rejected
+  - Unknown issuer falls through
+  - No storage = always fails (backwards compat)
+  - Empty known issuers = accept any issuer
+  - Missing fields / malformed hex handled gracefully
+  - Multiple tokens each spent exactly once
+
+**Test results:** 74 acceptance policy tests pass, 28 blind sig tests pass,
+452 relay tests pass (1 pre-existing email test failure, unrelated).
+
+**Next P0:** token_issuance_service
