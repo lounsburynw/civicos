@@ -53,6 +53,10 @@ Modal secrets are stored in the `civicos-secrets` (or jurisdiction-specific) sec
 - `RELAY_ACCEPTANCE_POLICY` — Set `true` to enable rate limiting on relay writes (default: `false`)
 - `RELAY_JURISDICTION` — Jurisdiction ID for per-jurisdiction rate limit policy (e.g., `city-san-rafael`)
 - `RELAY_POLICY_FILE` — Override path for relay rate limit policies (see `config/relay_policies.json`)
+- `TOKEN_ISSUER_SECRET` — 32-byte hex key for blind signature token issuance (in `civicos-token-issuer` secret)
+- `TOKEN_ISSUER_MAX_SESSIONS` — Max concurrent nonce sessions per issuer (default: `5`, in `civicos-token-issuer` secret)
+- `TOKEN_ISSUER_SESSION_TTL` — Nonce session expiry in seconds (default: `300`, in `civicos-token-issuer` secret)
+- `TOKEN_ISSUER_PUBKEYS` — Comma-separated hex pubkeys of trusted token issuers for acceptance policy verification (in `civicos-env` secret)
 
 Check secrets: `modal secret list`
 
