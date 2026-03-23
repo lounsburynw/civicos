@@ -223,6 +223,7 @@ export class ApiClient {
     createdAt: number,
     attestationProof?: Record<string, unknown>,
     eventId?: string,
+    paymentProof?: Record<string, unknown>,
   ): Promise<WriteResult> {
     try {
       const relayUrl = await this.registry.getRelayUrl();
@@ -238,6 +239,7 @@ export class ApiClient {
           jurisdiction,
           attestation_proof: attestationProof ?? null,
           event_id: eventId ?? null,
+          payment_proof: paymentProof ?? null,
         }),
       });
       return this.parseWriteResult(response);
@@ -620,6 +622,7 @@ export class ApiClient {
     stance: 'support' | 'oppose' | 'watching',
     jurisdiction: string,
     attestationProof?: Record<string, unknown>,
+    paymentProof?: Record<string, unknown>,
   ): Promise<WriteResult> {
     const signer = this.requireSigner();
     const pubkey = await signer.getPublicKey();
@@ -627,7 +630,7 @@ export class ApiClient {
     let tags = createVoiceTags(entityId, jurisdiction, stance);
 
     // Mine NIP-13 proof-of-work for unattested writes (16-bit difficulty)
-    if (!attestationProof) {
+    if (!attestationProof && !paymentProof) {
       const mined = minePoW(
         { pubkey, created_at: createdAt, kind: CivicEventKinds.VOICE, tags, content: createVoiceContent(entityId, stance, createdAt) },
         16,
@@ -641,7 +644,7 @@ export class ApiClient {
       content: createVoiceContent(entityId, stance, createdAt),
       created_at: createdAt,
     });
-    return this.submitVoice(entityId, stance, jurisdiction, signed.pubkey, signed.sig, createdAt, attestationProof, signed.id);
+    return this.submitVoice(entityId, stance, jurisdiction, signed.pubkey, signed.sig, createdAt, attestationProof, signed.id, paymentProof);
   }
 
   async castRevokeVoice(entityId: string): Promise<boolean> {

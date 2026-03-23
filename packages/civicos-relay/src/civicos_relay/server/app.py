@@ -9,7 +9,7 @@ import os
 from contextlib import asynccontextmanager
 from typing import Optional
 
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
@@ -25,6 +25,7 @@ from civicos_relay.delivery import EmailDelivery, EmailConfig
 from civicos_relay.attestation.service import AttestationService
 from civicos_relay.server.acceptance import AcceptancePolicy
 from civicos_relay.server.ip_rate_limit import IPRateLimitMiddleware, DEFAULT_IP_RATE_LIMIT, DEFAULT_IP_RATE_WINDOW
+from civicos_relay.server.token_issuer import TokenIssuer, TooManyConcurrentSessions, InvalidSession
 
 logger = logging.getLogger(__name__)
 
@@ -82,6 +83,10 @@ def get_attestation_service() -> AttestationService:
 
 def get_acceptance_policy() -> Optional[AcceptancePolicy]:
     return _relay_state.get("acceptance_policy")
+
+
+def get_token_issuer() -> Optional[TokenIssuer]:
+    return _relay_state.get("token_issuer")
 
 
 @asynccontextmanager
@@ -169,6 +174,19 @@ async def lifespan(app: FastAPI):
         else:
             logger.info("Acceptance policy enabled (attestation verification, tokens accept any issuer)")
 
+    # Initialize token issuer if secret is configured
+    token_issuer_secret = os.environ.get("TOKEN_ISSUER_SECRET")
+    if token_issuer_secret:
+        max_sessions = int(os.environ.get("TOKEN_ISSUER_MAX_SESSIONS", "5"))
+        session_ttl = float(os.environ.get("TOKEN_ISSUER_SESSION_TTL", "300"))
+        issuer = TokenIssuer(
+            issuer_secret=bytes.fromhex(token_issuer_secret),
+            max_concurrent_sessions=max_sessions,
+            session_ttl_seconds=session_ttl,
+        )
+        _relay_state["token_issuer"] = issuer
+        logger.info("Token issuer enabled (pubkey=%s)", issuer.public_key_hex[:16] + "...")
+
     if config.sync_enabled:
         await _relay_state["sync_service"].start()
 
@@ -216,6 +234,60 @@ def create_app() -> FastAPI:
     # Mount the coordination router (all /coordination/* endpoints)
     from civicos_relay.server.coordination import router as coordination_router
     app.include_router(coordination_router)
+
+    # --- Token issuance endpoints ---
+
+    class TokenInfoResponse(BaseModel):
+        enabled: bool
+        issuer_pubkey: Optional[str] = None
+
+    class NonceSessionRequest(BaseModel):
+        count: int = 1
+
+    class NonceSessionResponse(BaseModel):
+        session_id: str
+        nonce_point: str
+
+    class SignRequest(BaseModel):
+        session_id: str
+        blinded_challenge: str
+
+    class SignResponse(BaseModel):
+        blind_signature: str
+
+    @app.get("/coordination/tokens/info", response_model=TokenInfoResponse)
+    async def token_info():
+        issuer = get_token_issuer()
+        if not issuer:
+            return TokenInfoResponse(enabled=False)
+        return TokenInfoResponse(enabled=True, issuer_pubkey=issuer.public_key_hex)
+
+    @app.post("/coordination/tokens/session", response_model=NonceSessionResponse)
+    async def token_session(req: NonceSessionRequest):
+        issuer = get_token_issuer()
+        if not issuer:
+            raise HTTPException(status_code=503, detail="Token issuance not enabled")
+        try:
+            session_id, nonce_point = issuer.create_nonce_session()
+            return NonceSessionResponse(
+                session_id=session_id,
+                nonce_point=nonce_point.hex(),
+            )
+        except TooManyConcurrentSessions as e:
+            raise HTTPException(status_code=429, detail=str(e))
+
+    @app.post("/coordination/tokens/sign", response_model=SignResponse)
+    async def token_sign(req: SignRequest):
+        issuer = get_token_issuer()
+        if not issuer:
+            raise HTTPException(status_code=503, detail="Token issuance not enabled")
+        try:
+            blind_sig = issuer.sign(req.session_id, bytes.fromhex(req.blinded_challenge))
+            return SignResponse(blind_signature=blind_sig.hex())
+        except InvalidSession as e:
+            raise HTTPException(status_code=404, detail=str(e))
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
 
     return app
 

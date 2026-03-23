@@ -91,6 +91,7 @@ class CastVoiceRequest(BaseModel):
     created_at: int = Field(description="Unix timestamp from the signed Nostr event")
     jurisdiction: Optional[str] = Field(default=None, description="Jurisdiction code for Nostr event reconstruction")
     attestation_proof: Optional[dict] = Field(default=None, description="Full kind-30850 Nostr event signed by jurisdiction issuer")
+    payment_proof: Optional[dict] = Field(default=None, description="Blinded token {message, signature, issuer_pubkey}")
 
 
 class VoiceResponse(BaseModel):
@@ -782,6 +783,7 @@ async def cast_voice(request: CastVoiceRequest):
             created_at=request.created_at,
             jurisdiction=request.jurisdiction,
             attestation_proof=request.attestation_proof,
+            payment_proof=request.payment_proof,
         )
 
         # Verify signature
@@ -791,26 +793,49 @@ async def cast_voice(request: CastVoiceRequest):
                 detail="Invalid voice signature"
             )
 
-        # Hard gate: attestation_proof required
-        if not request.attestation_proof:
+        # Hard gate: attestation_proof or payment_proof required
+        if not request.attestation_proof and not request.payment_proof:
             raise HTTPException(
                 status_code=403,
-                detail="attestation_proof required"
+                detail="attestation_proof or payment_proof required"
             )
 
-        issuer_keypair = _get_attestation_issuer_keypair()
-        if not issuer_keypair:
-            raise HTTPException(status_code=503, detail="Attestation issuer not configured")
-        if not verify_attestation_proof(
-            request.attestation_proof,
-            subject_pubkey=request.public_key,
-            jurisdiction=request.jurisdiction or "",
-            issuer_pubkey=issuer_keypair.public_key_hex,
-        ):
-            raise HTTPException(
-                status_code=400,
-                detail="Invalid attestation_proof"
-            )
+        # Verify attestation proof if provided
+        if request.attestation_proof:
+            issuer_keypair = _get_attestation_issuer_keypair()
+            if not issuer_keypair:
+                raise HTTPException(status_code=503, detail="Attestation issuer not configured")
+            if not verify_attestation_proof(
+                request.attestation_proof,
+                subject_pubkey=request.public_key,
+                jurisdiction=request.jurisdiction or "",
+                issuer_pubkey=issuer_keypair.public_key_hex,
+            ):
+                raise HTTPException(
+                    status_code=400,
+                    detail="Invalid attestation_proof"
+                )
+
+        # Verify payment proof (blinded token) if provided
+        if request.payment_proof and not request.attestation_proof:
+            from civicos_relay.voice.blind import SpendableToken, verify_token, compute_token_hash
+            from civicos_relay.server.app import get_acceptance_policy
+
+            try:
+                token = SpendableToken.from_dict(request.payment_proof)
+                if not verify_token(token):
+                    raise HTTPException(status_code=400, detail="Invalid payment token signature")
+
+                # Check double-spend via acceptance policy's spent token storage
+                policy = get_acceptance_policy()
+                if policy and policy._spent_token_storage:
+                    token_hash = compute_token_hash(token)
+                    if not policy._spent_token_storage.check_and_mark_spent(token_hash, voice.entity):
+                        raise HTTPException(status_code=409, detail="Token already spent")
+            except HTTPException:
+                raise
+            except Exception:
+                raise HTTPException(status_code=400, detail="Malformed payment_proof")
 
         # Check for existing voice and revoke if present
         existing = storage.get_voice(request.public_key, request.entity)

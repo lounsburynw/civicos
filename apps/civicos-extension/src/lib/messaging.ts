@@ -7,6 +7,7 @@
  */
 
 import type { IdentityTier, IdentityInfo, NostrEvent, SignedNostrEvent } from './providers/types.js';
+import type { SpendableToken } from './blind.js';
 
 // ============================================================================
 // Message types
@@ -25,7 +26,10 @@ export type MessageType =
   | 'REDEEM_ATTESTATION'
   | 'NIP07_GET_PUBLIC_KEY'
   | 'NIP07_SIGN_EVENT'
-  | 'NIP07_GET_RELAYS';
+  | 'NIP07_GET_RELAYS'
+  | 'GET_TOKEN_COUNT'
+  | 'REQUEST_TOKENS'
+  | 'SPEND_TOKEN';
 
 // ============================================================================
 // Request types
@@ -93,6 +97,19 @@ export interface RedeemAttestationRequest {
   code: string;
 }
 
+export interface GetTokenCountRequest {
+  type: 'GET_TOKEN_COUNT';
+}
+
+export interface RequestTokensRequest {
+  type: 'REQUEST_TOKENS';
+  count: number;
+}
+
+export interface SpendTokenRequest {
+  type: 'SPEND_TOKEN';
+}
+
 export type ExtensionRequest =
   | GetIdentityRequest
   | GetPublicKeyRequest
@@ -106,7 +123,10 @@ export type ExtensionRequest =
   | RedeemAttestationRequest
   | Nip07GetPublicKeyRequest
   | Nip07SignEventRequest
-  | Nip07GetRelaysRequest;
+  | Nip07GetRelaysRequest
+  | GetTokenCountRequest
+  | RequestTokensRequest
+  | SpendTokenRequest;
 
 // ============================================================================
 // Response types
@@ -136,6 +156,9 @@ export type SignEventResponse = ExtensionResponse<SignedNostrEvent>;
 export type Nip07GetPublicKeyResponse = ExtensionResponse<string>;
 export type Nip07SignEventResponse = ExtensionResponse<SignedNostrEvent>;
 export type Nip07GetRelaysResponse = ExtensionResponse<Record<string, { read: boolean; write: boolean }>>;
+export type GetTokenCountResponse = ExtensionResponse<number>;
+export type RequestTokensResponse = ExtensionResponse<number>;
+export type SpendTokenResponse = ExtensionResponse<SpendableToken | null>;
 
 // ============================================================================
 // Helper to send typed messages

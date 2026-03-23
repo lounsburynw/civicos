@@ -808,7 +808,19 @@
 
     // Sign and submit (fire-and-forget — stance is persisted locally regardless)
     const jurisdiction = overrideJurisdiction || pulseData?.jurisdiction || activeJurisdiction;
-    api.castVoice(entityId, stance, jurisdiction, attestationProof).then((result) => {
+
+    // Auto-attach a blinded token as payment proof if available
+    let paymentProof: Record<string, unknown> | undefined;
+    try {
+      const tokenRes = await chrome.runtime.sendMessage({ type: 'SPEND_TOKEN' });
+      if (tokenRes?.success && tokenRes.data) {
+        paymentProof = tokenRes.data as Record<string, unknown>;
+      }
+    } catch {
+      // No tokens available — proceed without payment proof
+    }
+
+    api.castVoice(entityId, stance, jurisdiction, attestationProof, paymentProof).then((result) => {
       if (!result.ok && result.rejection) {
         const reason = result.rejection.reason;
         if (reason.includes('rate limit')) {
