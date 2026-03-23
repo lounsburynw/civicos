@@ -2050,6 +2050,7 @@ class SQLiteBackend:
         limit: Optional[int] = None,
         offset: int = 0,
         meeting_type: Optional[str] = None,
+        since_days: Optional[int] = None,
     ) -> List[Dict[str, Any]]:
         """
         Get videos (stub for SQLite - uses Postgres in production).
