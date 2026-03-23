@@ -202,6 +202,7 @@ class ContentStorage(Protocol):
         limit: Optional[int] = None,
         offset: int = 0,
         meeting_type: Optional[str] = None,
+        since_days: Optional[int] = None,
     ) -> List[Dict[str, Any]]:
         """Retrieve videos with temporal filtering.
 
@@ -210,6 +211,7 @@ class ContentStorage(Protocol):
             as_of: Point-in-time query (for temporal versioning)
             limit: Maximum number of videos to return
             meeting_type: Filter by meeting type (joins with meetings table via meeting_id)
+            since_days: Only return videos discovered within this many days
         """
         ...
 
