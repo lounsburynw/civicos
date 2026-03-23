@@ -145,15 +145,29 @@ async def lifespan(app: FastAPI):
                 if issuer.get("verified") and not issuer.get("revoked")
             ]
 
+        # Token issuer pubkeys for blind signature payment verification
+        token_issuer_pubkeys_str = os.environ.get("TOKEN_ISSUER_PUBKEYS", "")
+        known_token_issuers = {
+            pk.strip() for pk in token_issuer_pubkeys_str.split(",") if pk.strip()
+        } or None  # None = accept any issuer (empty set in AcceptancePolicy)
+
         policy = AcceptancePolicy(
             connection_url=relay_db_url,
             issuer_lookup=issuer_lookup,
             jurisdiction_id=config.jurisdiction_id,
+            spent_token_storage=storage.spent_tokens,
+            known_token_issuers=known_token_issuers,
         )
         policy.cleanup_old_limits()
         policy.cleanup_old_logs()
         _relay_state["acceptance_policy"] = policy
-        logger.info("Acceptance policy enabled (with attestation verification)")
+        if known_token_issuers:
+            logger.info(
+                "Acceptance policy enabled (attestation + %d token issuer(s))",
+                len(known_token_issuers),
+            )
+        else:
+            logger.info("Acceptance policy enabled (attestation verification, tokens accept any issuer)")
 
     if config.sync_enabled:
         await _relay_state["sync_service"].start()
