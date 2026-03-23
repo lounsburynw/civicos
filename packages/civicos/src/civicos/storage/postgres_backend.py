@@ -2511,6 +2511,7 @@ class PostgresBackend:
         jurisdiction_id: Optional[str] = None,
         status: Optional[str] = None,
         limit: int = 20,
+        offset: int = 0,
     ) -> List[Dict[str, Any]]:
         """
         Query operations with optional filters.
@@ -2540,6 +2541,10 @@ class PostgresBackend:
 
             query += " ORDER BY started_at DESC LIMIT %s"
             params.append(limit)
+
+            if offset > 0:
+                query += " OFFSET %s"
+                params.append(offset)
 
             cursor.execute(query, params)
             rows = cursor.fetchall()
@@ -3373,6 +3378,7 @@ class PostgresBackend:
         jurisdiction_id: str,
         as_of: Optional[datetime] = None,
         limit: Optional[int] = None,
+        offset: int = 0,
         meeting_type: Optional[str] = None,
         since_days: Optional[int] = None,
     ) -> List[Dict[str, Any]]:
@@ -3418,6 +3424,10 @@ class PostgresBackend:
         if limit:
             query += " LIMIT %s"
             params.append(limit)
+
+        if offset > 0:
+            query += " OFFSET %s"
+            params.append(offset)
 
         cursor.execute(query, params)
         rows = cursor.fetchall()
@@ -4434,6 +4444,7 @@ class PostgresBackend:
         jurisdiction_id: Optional[str] = None,
         pipeline: Optional[str] = None,
         limit: int = 100,
+        offset: int = 0,
     ) -> List[Dict[str, Any]]:
         """
         Retrieve ETL cost records with optional filtering.
@@ -4464,6 +4475,10 @@ class PostgresBackend:
 
             query += " ORDER BY run_date DESC LIMIT %s"
             params.append(limit)
+
+            if offset > 0:
+                query += " OFFSET %s"
+                params.append(offset)
 
             cursor.execute(query, params)
             rows = cursor.fetchall()
@@ -4597,6 +4612,7 @@ class PostgresBackend:
         since: Optional[str] = None,
         until: Optional[str] = None,
         limit: int = 100,
+        offset: int = 0,
     ) -> List[Dict[str, Any]]:
         """
         Retrieve operating cost records with filtering.
@@ -4642,6 +4658,10 @@ class PostgresBackend:
 
             query += " ORDER BY timestamp DESC LIMIT %s"
             params.append(limit)
+
+            if offset > 0:
+                query += " OFFSET %s"
+                params.append(offset)
 
             cursor.execute(query, params)
             rows = cursor.fetchall()
@@ -6463,6 +6483,7 @@ class PostgresBackend:
     def get_open_comment_periods(
         self,
         limit: int = 20,
+        offset: int = 0,
     ) -> List[Dict[str, Any]]:
         """
         Get federal rules with open comment periods, sorted by deadline.
@@ -6474,6 +6495,7 @@ class PostgresBackend:
             document_type="proposed_rule",
             comments_open=True,
             limit=limit,
+            offset=offset,
         )
 
     def search_federal_rules(
@@ -6698,6 +6720,7 @@ class PostgresBackend:
         upcoming_only: bool = False,
         days_ahead: int = 30,
         limit: Optional[int] = None,
+        offset: int = 0,
     ) -> List[Dict[str, Any]]:
         """
         Retrieve legislative events with optional filtering.
@@ -6750,6 +6773,10 @@ class PostgresBackend:
             query += " LIMIT %s"
             params.append(limit)
 
+        if offset > 0:
+            query += " OFFSET %s"
+            params.append(offset)
+
         cursor.execute(query, params)
         rows = cursor.fetchall()
         self._return_connection(conn)
@@ -6770,6 +6797,7 @@ class PostgresBackend:
         state: Optional[str] = None,
         days_ahead: int = 30,
         limit: int = 20,
+        offset: int = 0,
     ) -> List[Dict[str, Any]]:
         """
         Get upcoming legislative hearings.
@@ -6783,6 +6811,7 @@ class PostgresBackend:
             upcoming_only=True,
             days_ahead=days_ahead,
             limit=limit,
+            offset=offset,
         )
 
     def get_legislative_events_count(
@@ -7292,6 +7321,7 @@ class PostgresBackend:
         period_end: Optional[str] = None,
         as_of: Optional[datetime] = None,
         limit: Optional[int] = None,
+        offset: int = 0,
     ) -> List[Dict[str, Any]]:
         """
         Retrieve federal awards with optional filtering.
@@ -7342,6 +7372,10 @@ class PostgresBackend:
         if limit is not None:
             query += " LIMIT %s"
             params.append(limit)
+
+        if offset > 0:
+            query += " OFFSET %s"
+            params.append(offset)
 
         cursor.execute(query, params)
         rows = cursor.fetchall()
@@ -7505,6 +7539,7 @@ class PostgresBackend:
         vote_date_end: Optional[str] = None,
         as_of: Optional[datetime] = None,
         limit: Optional[int] = None,
+        offset: int = 0,
     ) -> List[Dict[str, Any]]:
         """
         Retrieve congressional votes with optional filtering.
@@ -7564,6 +7599,10 @@ class PostgresBackend:
         if limit is not None:
             query += " LIMIT %s"
             params.append(limit)
+
+        if offset > 0:
+            query += " OFFSET %s"
+            params.append(offset)
 
         cursor.execute(query, params)
         rows = cursor.fetchall()
@@ -7732,6 +7771,7 @@ class PostgresBackend:
         hearing_type: Optional[str] = None,
         as_of: Optional[datetime] = None,
         limit: Optional[int] = None,
+        offset: int = 0,
     ) -> List[Dict[str, Any]]:
         """Retrieve congressional hearings with optional filtering.
 
@@ -7785,6 +7825,10 @@ class PostgresBackend:
         if limit is not None:
             query += " LIMIT %s"
             params.append(limit)
+
+        if offset > 0:
+            query += " OFFSET %s"
+            params.append(offset)
 
         cursor.execute(query, params)
         rows = cursor.fetchall()
@@ -8454,6 +8498,7 @@ class PostgresBackend:
         confirmed_only: bool = False,
         as_of: Optional[datetime] = None,
         limit: Optional[int] = None,
+        offset: int = 0,
     ) -> List[Dict[str, Any]]:
         """
         Retrieve budget funding links with optional filtering.
@@ -8523,6 +8568,10 @@ class PostgresBackend:
         if limit is not None:
             query += " LIMIT %s"
             params.append(limit)
+
+        if offset > 0:
+            query += " OFFSET %s"
+            params.append(offset)
 
         cursor.execute(query, params)
         links = cursor.fetchall()
@@ -9324,6 +9373,7 @@ class PostgresBackend:
         agency: Optional[str] = None,
         as_of: Optional[datetime] = None,
         limit: Optional[int] = None,
+        offset: int = 0,
     ) -> List[Dict[str, Any]]:
         """
         Retrieve federal program definitions with optional filtering.
@@ -9368,6 +9418,10 @@ class PostgresBackend:
         if limit is not None:
             query += " LIMIT %s"
             params.append(limit)
+
+        if offset > 0:
+            query += " OFFSET %s"
+            params.append(offset)
 
         cursor.execute(query, params)
         rows = cursor.fetchall()
@@ -9584,6 +9638,7 @@ class PostgresBackend:
         fiscal_year: Optional[str] = None,
         as_of: Optional[datetime] = None,
         limit: Optional[int] = None,
+        offset: int = 0,
     ) -> List[Dict[str, Any]]:
         """
         Retrieve federal program allocations for a jurisdiction.
@@ -9628,6 +9683,10 @@ class PostgresBackend:
         if limit is not None:
             query += " LIMIT %s"
             params.append(limit)
+
+        if offset > 0:
+            query += " OFFSET %s"
+            params.append(offset)
 
         cursor.execute(query, params)
         rows = cursor.fetchall()

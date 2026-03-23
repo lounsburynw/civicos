@@ -362,8 +362,8 @@
         "name": "token_issuer_env_config",
         "description": "Make TokenIssuer deployment parameters configurable via env vars: TOKEN_ISSUER_SECRET (issuer private key), TOKEN_ISSUER_MAX_SESSIONS (Wagner's attack cap, default 5), TOKEN_ISSUER_SESSION_TTL (nonce expiry in seconds, default 300). Wire into issuer service deployment (Modal). Add to civicos-secrets. Document token endpoints and env vars.",
         "status": "not_started",
-        "priority": 2,
-        "source": "configuration critic — flagged in sessions 2026-03-22 (token_issuance_service, extension_token_wallet)",
+        "priority": 0,
+        "source": "configuration critic \u2014 flagged in sessions 2026-03-22 (token_issuance_service, extension_token_wallet)",
         "files": [
           "packages/civicos-relay/src/civicos_relay/server/app.py",
           "docs/internal/deployment.md",
@@ -683,7 +683,7 @@
       {
         "name": "pagination_protocol_update",
         "description": "Add limit/offset parameters to StorageBackend.get_*() methods. Informed by real cross-jurisdiction query patterns from testbed.",
-        "status": "not_started",
+        "status": "done",
         "priority": 0,
         "phase": "B",
         "source": "architectural review \u2014 federation prerequisite",

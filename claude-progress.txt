@@ -23230,3 +23230,30 @@ Extension builds cleanly. No new type errors.
 
 **Next P0:** token_purchase_ui (Stripe checkout for buying tokens) or
 token_issuer_deploy (deploy TOKEN_ISSUER_SECRET to Modal secrets)
+
+## Session — 2026-03-23: Pagination Protocol Update (P0)
+
+**Item:** pagination_protocol_update
+**Status:** COMPLETE — Phases 1-2 (Protocol + PostgresBackend + SQLiteBackend)
+
+**Changes:**
+1. **Protocol layer** (6 sub-protocol files) — Added `offset: int = 0` to all `get_*()` methods
+   that had `limit` but lacked `offset`. 13 methods in the original scope, plus 12 pre-existing
+   gaps in SQLite where offset existed in protocol/Postgres but was never propagated.
+
+2. **PostgresBackend** (`postgres_backend.py`) — Added `OFFSET %s` SQL clause (conditional on
+   `offset > 0`) to 13 methods. Pattern: `if offset > 0: query += " OFFSET %s"; params.append(offset)`
+
+3. **SQLiteBackend** (`sqlite_backend.py`) — Same pattern with `?` placeholders. Updated 25 total
+   method signatures (13 new + 12 pre-existing gaps). Added OFFSET to all methods with real SQL.
+
+4. **Tests** — 8 new pagination tests in `test_sqlite_backend.py::TestPagination`:
+   - limit returns exact count, limit=None returns all (backward compat)
+   - offset skips results, offset beyond count returns empty
+   - full pagination covers all results, decisions/operations pagination
+
+**Test results:** 46/46 SQLite backend, 91/92 protocol (1 pre-existing boto3 issue), 20/20 smoke.
+
+**Remaining (Phase 3-4):** REST API limit/offset query params, X-Total-Count header, cross-jurisdiction.
+
+**Next P0:** TBD — need to set before running /nextsesh.

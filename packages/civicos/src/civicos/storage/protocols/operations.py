@@ -62,6 +62,7 @@ class OperationsStorage(Protocol):
         jurisdiction_id: Optional[str] = None,
         status: Optional[str] = None,
         limit: int = 20,
+        offset: int = 0,
     ) -> List[Dict[str, Any]]:
         """Query operations with optional filters."""
         ...
@@ -85,6 +86,7 @@ class OperationsStorage(Protocol):
         jurisdiction_id: Optional[str] = None,
         pipeline: Optional[str] = None,
         limit: int = 100,
+        offset: int = 0,
     ) -> List[Dict[str, Any]]:
         """Retrieve ETL cost records with optional filtering."""
         ...
@@ -132,6 +134,7 @@ class OperationsStorage(Protocol):
         since: Optional[str] = None,
         until: Optional[str] = None,
         limit: int = 100,
+        offset: int = 0,
     ) -> List[Dict[str, Any]]:
         """
         Retrieve operating cost records with filtering.

@@ -254,6 +254,7 @@ class LegislationStorage(Protocol):
     def get_open_comment_periods(
         self,
         limit: int = 20,
+        offset: int = 0,
     ) -> List[Dict[str, Any]]:
         """Get federal rules with open comment periods, sorted by deadline."""
         ...
@@ -291,6 +292,7 @@ class LegislationStorage(Protocol):
         upcoming_only: bool = False,
         days_ahead: int = 30,
         limit: Optional[int] = None,
+        offset: int = 0,
     ) -> List[Dict[str, Any]]:
         """Retrieve legislative events with optional filtering."""
         ...
@@ -300,6 +302,7 @@ class LegislationStorage(Protocol):
         state: Optional[str] = None,
         days_ahead: int = 30,
         limit: int = 20,
+        offset: int = 0,
     ) -> List[Dict[str, Any]]:
         """Get upcoming legislative hearings."""
         ...
@@ -336,6 +339,7 @@ class LegislationStorage(Protocol):
         vote_date_end: Optional[str] = None,
         as_of: Optional[datetime] = None,
         limit: Optional[int] = None,
+        offset: int = 0,
     ) -> List[Dict[str, Any]]:
         """Retrieve congressional votes with optional filtering."""
         ...
@@ -371,6 +375,7 @@ class LegislationStorage(Protocol):
         hearing_type: Optional[str] = None,
         as_of: Optional[datetime] = None,
         limit: Optional[int] = None,
+        offset: int = 0,
     ) -> List[Dict[str, Any]]:
         """Retrieve congressional hearings with optional filtering."""
         ...
