@@ -9,11 +9,15 @@ Ranking Modes:
 - auto: Detect based on query content (uses bill_first if query mentions bill numbers)
 """
 
+import functools
+import logging
 import re
 from typing import Optional, List, Any, Dict, Literal, TYPE_CHECKING
 from dataclasses import dataclass, field
 from datetime import datetime
 from collections import defaultdict
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from civicos.storage.protocols import StorageBackend
@@ -161,39 +165,53 @@ CITY_TO_COUNTY = {
 }
 
 
+@functools.lru_cache(maxsize=1)
+def _load_jurisdiction_registry() -> dict:
+    """Load config/registry.json once and cache for process lifetime."""
+    import json as _json
+    import os as _os
+    here = _os.path.dirname(_os.path.abspath(__file__))
+    root = _os.path.dirname(_os.path.dirname(_os.path.dirname(_os.path.dirname(here))))
+    registry_path = _os.path.join(root, "config", "registry.json")
+    try:
+        with open(registry_path) as f:
+            return _json.load(f)
+    except (FileNotFoundError, OSError) as e:
+        logger.warning(f"Could not load registry.json for state resolution: {e}")
+        return {}
+
+
 def _extract_state_from_jurisdiction(jurisdiction_id: str) -> Optional[str]:
     """Extract state from jurisdiction_id.
 
     Uses registry parent_jurisdictions to resolve city/county → state.
-    Falls back to state-* prefix parsing for state-level jurisdictions.
+    Returns None if state cannot be determined (caller should handle).
     """
     if not jurisdiction_id:
         return None
 
     # state-* jurisdictions: extract directly
-    # e.g., "state-california" -> "california", "state-new-york" -> "new-york"
     if jurisdiction_id.startswith("state-"):
-        return jurisdiction_id[6:]  # everything after "state-"
+        return jurisdiction_id[6:]
 
     # city-*/county-*: look up parent state from registry
-    try:
-        import json
-        import os
-        here = os.path.dirname(os.path.abspath(__file__))
-        root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(here))))
-        registry_path = os.path.join(root, "config", "registry.json")
-        with open(registry_path) as f:
-            registry = json.load(f)
-        entry = registry.get("jurisdictions", {}).get(jurisdiction_id, {})
-        for parent in entry.get("parent_jurisdictions", []):
-            if parent.startswith("state-"):
-                return parent[6:]
-    except Exception:
-        pass
+    registry = _load_jurisdiction_registry()
+    entry = registry.get("jurisdictions", {}).get(jurisdiction_id, {})
+    for parent in entry.get("parent_jurisdictions", []):
+        if parent.startswith("state-"):
+            return parent[6:]
 
-    # Fallback: assume California for known prefixes (backwards compat)
+    if entry:
+        # Jurisdiction exists in registry but has no state parent — return None
+        logger.debug(f"Jurisdiction {jurisdiction_id} has no state parent in registry")
+        return None
+
+    # Not in registry at all — log and return None (no silent CA assumption)
     if jurisdiction_id.startswith(("city-", "county-")):
-        return "california"
+        logger.warning(
+            f"Jurisdiction {jurisdiction_id} not found in registry — "
+            f"cannot determine state. Add it to config/registry.json."
+        )
 
     return None
 

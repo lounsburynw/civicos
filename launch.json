@@ -854,7 +854,7 @@
         "name": "query_monitoring_and_docs",
         "description": "Production polish: query latency logging, connection pool metrics, alert thresholds, and docs sweep to update stale decision ID format references across ~10 doc files.",
         "status": "not_started",
-        "priority": 2,
+        "priority": 0,
         "phase": "B",
         "source": "performance assessment 2026-03-17",
         "files": [
