@@ -52,13 +52,30 @@ def _get_data_counts(database_url: str, jid: str) -> dict:
     }
 
 
-def _quality_report(counts: dict, label: str = "", has_meetings: bool = True) -> list:
-    """Generate quality report lines with red flag detection.
+class QualityIssue:
+    """A quality issue with severity and remediation guidance."""
 
-    Returns list of report lines and a list of red flags.
+    CRITICAL = "CRITICAL"  # Blocks progression — likely config error or platform failure
+    WARNING = "WARNING"    # Informational — may be expected for this platform
+
+    def __init__(self, severity: str, message: str, remediation: str):
+        self.severity = severity
+        self.message = message
+        self.remediation = remediation
+
+    def __str__(self):
+        return f"[{self.severity}] {self.message}"
+
+
+def _quality_report(counts: dict, label: str = "", has_meetings: bool = True,
+                    jid: str = "") -> tuple:
+    """Generate quality report with severity-classified issues.
+
+    Returns (lines, issues) where issues is a list of QualityIssue objects.
+    CRITICAL issues should block progression; WARNING issues are informational.
     """
     lines = []
-    red_flags = []
+    issues = []
     meetings = counts["meetings"]
     municipal_code = counts.get("municipal_code", 0)
 
@@ -71,10 +88,20 @@ def _quality_report(counts: dict, label: str = "", has_meetings: bool = True) ->
     lines.append(f"  Decisions:      {counts['decisions']}")
     lines.append(f"  Municipal code: {municipal_code}")
 
+    config_hint = f"data/extraction/{jid}.json" if jid else "extraction config"
+
     if meetings == 0 and has_meetings:
-        red_flags.append("meetings = 0 → Extraction config is broken (bad view ID, wrong platform)")
-        lines.append(f"\n  ⚠ RED FLAG: {red_flags[-1]}")
-        return lines, red_flags
+        issues.append(QualityIssue(
+            QualityIssue.CRITICAL,
+            "meetings = 0 on a meeting-capable platform",
+            f"Check {config_hint}: verify source_type and base_url are correct. "
+            f"Try opening the platform URL in a browser to confirm meetings are listed. "
+            f"If the platform requires auth or uses a non-standard format, this may need "
+            f"a custom extractor."
+        ))
+    elif meetings == 0 and not has_meetings:
+        # No meeting stages — this is expected, not a failure
+        pass
 
     if meetings > 0:
         chunks_per = counts["chunks"] / meetings
@@ -86,34 +113,55 @@ def _quality_report(counts: dict, label: str = "", has_meetings: bool = True) ->
         lines.append(f"    decisions/meeting:    {decisions_per:.2f}  (baseline: ~0.45)")
 
         if chunks_per == 0:
-            red_flags.append(
-                "chunks/meeting = 0 → Platform uses HTML agendas, not PDFs. "
-                "Chunk search won't work for this jurisdiction."
-            )
+            issues.append(QualityIssue(
+                QualityIssue.WARNING,
+                "chunks/meeting = 0",
+                "This platform likely uses HTML agendas instead of PDFs. "
+                "Chunk-based search won't work, but agenda item extraction may still succeed. "
+                "This is expected for some platforms — not an error."
+            ))
         if agenda_per == 0:
-            red_flags.append(
-                "agenda_items/meeting = 0 → LLM extraction failing. "
-                "Check if agendas are behind auth or unsupported format."
-            )
+            issues.append(QualityIssue(
+                QualityIssue.CRITICAL,
+                "agenda_items/meeting = 0 — LLM extraction produced nothing",
+                f"Check if agendas are behind auth, in an unsupported format (scanned PDF), "
+                f"or if the platform URL in {config_hint} points to pages without agenda content. "
+                f"Try fetching one meeting URL manually to verify content is accessible."
+            ))
         if decisions_per == 0:
-            red_flags.append(
-                "decisions/meeting = 0 → Minutes are too thin or not posted. "
-                "Decision search won't work."
-            )
+            issues.append(QualityIssue(
+                QualityIssue.WARNING,
+                "decisions/meeting = 0 — no decisions extracted from minutes",
+                "Minutes may not be posted yet, or may be too thin for decision extraction. "
+                "Decision search won't work until minutes with outcomes are available. "
+                "Re-run ingestion after more meetings have occurred."
+            ))
         elif decisions_per < 0.1:
-            red_flags.append(
-                f"decisions/meeting = {decisions_per:.2f} (low) → Minutes may be thin. "
-                "Decision quality may be limited."
-            )
+            issues.append(QualityIssue(
+                QualityIssue.WARNING,
+                f"decisions/meeting = {decisions_per:.2f} (low)",
+                "Minutes may be thin or only partially posted. "
+                "Decision quality will be limited. This often improves over time."
+            ))
 
-    if red_flags:
-        lines.append(f"\n  ⚠ RED FLAGS:")
-        for flag in red_flags:
-            lines.append(f"    • {flag}")
-    else:
+    # Format issues into report lines
+    critical = [i for i in issues if i.severity == QualityIssue.CRITICAL]
+    warnings = [i for i in issues if i.severity == QualityIssue.WARNING]
+
+    if critical:
+        lines.append(f"\n  CRITICAL ({len(critical)}):")
+        for issue in critical:
+            lines.append(f"    ✗ {issue.message}")
+            lines.append(f"      → {issue.remediation}")
+    if warnings:
+        lines.append(f"\n  WARNINGS ({len(warnings)}):")
+        for issue in warnings:
+            lines.append(f"    • {issue.message}")
+            lines.append(f"      → {issue.remediation}")
+    if not issues:
         lines.append(f"\n  ✓ All quality checks passed")
 
-    return lines, red_flags
+    return lines, issues
 
 
 def _get_ingestion_stages(jid: str) -> list:
@@ -212,6 +260,8 @@ def main():
     parser.add_argument("--no-validate", action="store_true",
                         help="Skip validation gate, run full ingestion immediately")
     parser.add_argument("--force", action="store_true", help="Regenerate configs")
+    parser.add_argument("--force-continue", action="store_true",
+                        help="Continue past critical quality issues (for debugging)")
     parser.add_argument("--detect-issues", action="store_true",
                         help="Re-detect issue provider for existing config and exit")
     args = parser.parse_args()
@@ -409,17 +459,27 @@ def main():
         if database_url:
             try:
                 sample_counts = _get_data_counts(database_url, jid)
-                report_lines, red_flags = _quality_report(sample_counts,
-                                                          f"{args.sample_days}-day sample",
-                                                          has_meetings=has_meetings)
+                report_lines, issues = _quality_report(
+                    sample_counts, f"{args.sample_days}-day sample",
+                    has_meetings=has_meetings, jid=jid)
                 for line in report_lines:
                     print(line)
 
-                if red_flags:
-                    print(f"\n  {len(red_flags)} quality issue(s) detected in sample.")
-                    print(f"  Full backfill ({args.days_past} days) will cost LLM tokens.")
-                    print(f"  Proceeding anyway — review red flags above after completion.")
-                    print(f"  (Use --no-validate to skip this check)")
+                critical = [i for i in issues if i.severity == QualityIssue.CRITICAL]
+                warnings = [i for i in issues if i.severity == QualityIssue.WARNING]
+
+                if critical:
+                    print(f"\n  {len(critical)} CRITICAL issue(s) in sample.")
+                    print(f"  Full backfill ({args.days_past} days) would waste LLM tokens.")
+                    if args.force_continue:
+                        print(f"  --force-continue: proceeding despite critical issues.")
+                    else:
+                        print(f"  Fix the issues above, then re-run.")
+                        print(f"  (Use --force-continue to override this gate)")
+                        sys.exit(2)
+                elif warnings:
+                    print(f"\n  {len(warnings)} warning(s) in sample (non-blocking).")
+                    print(f"  Proceeding to full backfill...")
                 else:
                     print(f"\n  Sample looks good. Proceeding to full backfill...")
             except Exception as e:
@@ -447,11 +507,13 @@ def main():
     print(f"Total time: {elapsed:.0f}s ({elapsed / 60:.1f}m)")
     print("=" * 60)
 
+    exit_code = 0
+
     if database_url:
         try:
             final_counts = _get_data_counts(database_url, jid)
-            report_lines, red_flags = _quality_report(final_counts, "final",
-                                                          has_meetings=has_meetings)
+            report_lines, issues = _quality_report(final_counts, "final",
+                                                   has_meetings=has_meetings, jid=jid)
             for line in report_lines:
                 print(line)
 
@@ -463,11 +525,14 @@ def main():
                     if delta > 0:
                         print(f"    {key}: +{delta}")
 
-            if red_flags:
-                print(f"\n  Action items:")
-                print(f"    • Review red flags above before relying on this data")
-                print(f"    • chunks=0 may require HTML agenda extraction (not yet supported)")
-                print(f"    • Low decisions may improve as more minutes are posted")
+            if issues:
+                critical = [i for i in issues if i.severity == QualityIssue.CRITICAL]
+                warnings = [i for i in issues if i.severity == QualityIssue.WARNING]
+                if critical:
+                    print(f"\n  {len(critical)} CRITICAL issue(s) — data may not be usable.")
+                if warnings:
+                    print(f"\n  {len(warnings)} warning(s) — review remediation steps above.")
+                exit_code = 2
         except Exception as e:
             print(f"\n  Could not generate quality report: {e}")
             print(f"\n  Verify manually:")
@@ -475,6 +540,8 @@ def main():
     else:
         print(f"\nVerify:")
         print(f"  modal run scripts/modal_ingest.py --stats-only --jurisdiction {jid}")
+
+    sys.exit(exit_code)
 
 
 if __name__ == "__main__":
