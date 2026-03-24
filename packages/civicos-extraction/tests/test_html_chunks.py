@@ -1,5 +1,7 @@
 """Tests for HTML agenda chunk extraction (Granicus AgendaViewer fallback)."""
 
+import json
+import os
 import pytest
 from bs4 import BeautifulSoup
 from unittest.mock import patch, MagicMock
@@ -8,6 +10,8 @@ from civicos_extraction.cli.chunks import (
     _extract_agenda_sections_from_html,
     _split_text_into_chunks,
     extract_chunks_from_html_agenda,
+    extract_chunks_from_meeting,
+    DownloadResult,
 )
 
 
@@ -170,3 +174,122 @@ class TestExtractChunksFromHtmlAgenda:
 
         assert len(chunks) >= 2
         assert any("Zoning Amendment" in c["text"] for c in chunks)
+
+    def test_html_content_skips_download(self):
+        """When html_content is provided, no HTTP request is made."""
+        chunks = extract_chunks_from_html_agenda(
+            "https://example.com/meeting/123",
+            "meeting-789",
+            html_content=SAMPLE_AGENDA_HTML,
+        )
+
+        assert len(chunks) >= 3
+        for chunk in chunks:
+            assert chunk["meeting_id"] == "meeting-789"
+            assert chunk["metadata"]["source_type"] == "html_agenda"
+
+    def test_html_content_heading_based(self):
+        """html_content works with heading-based HTML too."""
+        chunks = extract_chunks_from_html_agenda(
+            "https://example.com/meeting/456",
+            "meeting-heading",
+            html_content=SAMPLE_HEADING_HTML,
+        )
+        assert len(chunks) >= 2
+        assert any("Zoning Amendment" in c["text"] for c in chunks)
+
+    def test_html_content_minimal_returns_empty(self):
+        """html_content with too-short content returns empty."""
+        chunks = extract_chunks_from_html_agenda(
+            "https://example.com/meeting/123",
+            "meeting-min",
+            html_content=MINIMAL_HTML,
+        )
+        assert chunks == []
+
+
+class TestExtractChunksFromMeetingHtmlFallback:
+    """Test that extract_chunks_from_meeting falls back to HTML chunks correctly."""
+
+    @patch("civicos_extraction.cli.chunks.chunks_exist_in_cloud")
+    @patch("civicos_extraction.cli.chunks.download_and_validate_pdf")
+    @patch("civicos_extraction.cli.chunks.extract_pdf_urls_from_meeting_page")
+    def test_degenerate_case_no_pdf_links_uses_html(
+        self, mock_extract_pdfs, mock_download, mock_cloud_exists
+    ):
+        """When agenda_url returns HTML and no PDF links are found, use HTML chunks."""
+        mock_cloud_exists.return_value = False
+
+        # First download returns HTML (degenerate case)
+        mock_download.return_value = DownloadResult(
+            content=SAMPLE_AGENDA_HTML.encode('utf-8'),
+            content_type="text/html",
+            is_valid_pdf=False,
+            validation_warnings=["DEGENERATE CASE: Content-Type is HTML"],
+        )
+
+        # No PDF links found on page
+        mock_extract_pdfs.return_value = {}
+
+        meeting = {
+            "id": "mtg-html-1",
+            "meeting_date": "2026-03-01",
+            "agenda_url": "https://example.com/meeting/123",
+        }
+
+        result = extract_chunks_from_meeting(
+            meeting, "/tmp/test_chunks", "city-test", cloud=False
+        )
+
+        assert result.status == "success"
+        assert result.chunks_count >= 3
+        # Should NOT have tried to download PDF links
+        assert mock_download.call_count == 1  # Only the initial download
+
+    @patch("civicos_extraction.cli.chunks.chunks_exist_in_cloud")
+    @patch("civicos_extraction.cli.chunks.download_and_validate_pdf")
+    @patch("civicos_extraction.cli.chunks.extract_pdf_urls_from_meeting_page")
+    def test_degenerate_case_pdf_link_also_invalid_falls_back_to_html(
+        self, mock_extract_pdfs, mock_download, mock_cloud_exists
+    ):
+        """When found PDF URL also returns non-PDF, fall back to HTML chunks.
+
+        This was the main bug: the dead-end at the second is_valid_pdf check
+        returned error instead of using HTML fallback.
+        """
+        mock_cloud_exists.return_value = False
+
+        # First download: HTML (degenerate case)
+        html_result = DownloadResult(
+            content=SAMPLE_AGENDA_HTML.encode('utf-8'),
+            content_type="text/html",
+            is_valid_pdf=False,
+            validation_warnings=["DEGENERATE CASE: Content-Type is HTML"],
+        )
+        # Second download: also not a valid PDF (the "found" PDF URL is also HTML)
+        bad_pdf_result = DownloadResult(
+            content=b"<html><body>Not a PDF</body></html>",
+            content_type="text/html",
+            is_valid_pdf=False,
+            validation_warnings=["DEGENERATE CASE: Content-Type is HTML"],
+        )
+        mock_download.side_effect = [html_result, bad_pdf_result]
+
+        # Page scraping finds a PDF link (but it's actually broken)
+        mock_extract_pdfs.return_value = {
+            'agenda_packet_url': 'https://example.com/fake.pdf',
+        }
+
+        meeting = {
+            "id": "mtg-html-2",
+            "meeting_date": "2026-03-01",
+            "agenda_url": "https://example.com/meeting/456",
+        }
+
+        result = extract_chunks_from_meeting(
+            meeting, "/tmp/test_chunks", "city-test", cloud=False
+        )
+
+        # Should succeed with HTML chunks instead of returning error
+        assert result.status == "success"
+        assert result.chunks_count >= 3
