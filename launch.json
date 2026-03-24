@@ -130,7 +130,7 @@
         "name": "onboard_batch_mode",
         "description": "Support onboarding multiple cities in a single command. Iterate over a list of jurisdiction IDs, run discovery + ingestion for each, produce aggregate quality report. Enables rapid expansion.",
         "priority": 1,
-        "status": "not_started",
+        "status": "done",
         "files": [
           "scripts/onboard.py"
         ],

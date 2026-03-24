@@ -37,6 +37,7 @@ _get_data_counts = onboard._get_data_counts
 _update_registry = onboard._update_registry
 _verify_jurisdiction = onboard._verify_jurisdiction
 _estimate_cost = onboard._estimate_cost
+_run_batch = onboard._run_batch
 
 
 # ---------------------------------------------------------------------------
@@ -1098,3 +1099,82 @@ class TestCostEstimatePrompt:
         # Only sample ingestion ran (30 days), full was aborted
         assert len(modal_calls) == 1
         assert modal_calls[0] == 30
+
+
+# ---------------------------------------------------------------------------
+# _run_batch() — batch onboarding
+# ---------------------------------------------------------------------------
+
+class TestBatchMode:
+    """Tests for batch onboarding via --cities flag."""
+
+    def test_batch_runs_subprocess_per_city(self):
+        """Each city in the batch gets its own subprocess invocation."""
+        calls = []
+
+        def fake_run(cmd, cwd=None):
+            # Extract the --city value from the command
+            city_idx = cmd.index("--city") + 1
+            calls.append(cmd[city_idx])
+            return MagicMock(returncode=0)
+
+        with patch("subprocess.run", side_effect=fake_run):
+            rc = _run_batch(["Alpha", "Beta", "Gamma"], ["--state", "CA", "--yes"])
+
+        assert rc == 0
+        assert calls == ["Alpha", "Beta", "Gamma"]
+
+    def test_batch_reports_failures(self):
+        """Failed cities reported in summary, returns 1."""
+        call_count = [0]
+
+        def fake_run(cmd, cwd=None):
+            call_count[0] += 1
+            # Second city fails
+            rc = 2 if call_count[0] == 2 else 0
+            return MagicMock(returncode=rc)
+
+        with patch("subprocess.run", side_effect=fake_run):
+            rc = _run_batch(["Alpha", "Beta", "Gamma"], ["--state", "CA"])
+
+        assert rc == 1  # at least one failure
+
+    def test_batch_all_succeed_returns_zero(self):
+        """All cities succeed -> return 0."""
+        with patch("subprocess.run", return_value=MagicMock(returncode=0)):
+            rc = _run_batch(["Alpha", "Beta"], ["--state", "CA"])
+
+        assert rc == 0
+
+    def test_batch_passes_shared_flags(self):
+        """Shared flags (--state, --county, --yes) passed to each subprocess."""
+        last_cmd = [None]
+
+        def fake_run(cmd, cwd=None):
+            last_cmd[0] = cmd
+            return MagicMock(returncode=0)
+
+        with patch("subprocess.run", side_effect=fake_run):
+            _run_batch(["TestCity"], ["--state", "CA", "--county", "Marin", "--yes"])
+
+        cmd = last_cmd[0]
+        assert "--state" in cmd
+        assert "CA" in cmd
+        assert "--county" in cmd
+        assert "Marin" in cmd
+        assert "--yes" in cmd
+
+    def test_cli_cities_flag_triggers_batch(self):
+        """--cities flag in CLI triggers batch mode."""
+        with patch.object(onboard, "_run_batch", return_value=0) as mock_batch:
+            with patch.object(sys, "argv", [
+                "onboard.py", "--cities", "Alpha,Beta", "--state", "CA", "--yes"
+            ]):
+                try:
+                    onboard.main()
+                except SystemExit:
+                    pass
+
+        mock_batch.assert_called_once()
+        cities = mock_batch.call_args[0][0]
+        assert cities == ["Alpha", "Beta"]
