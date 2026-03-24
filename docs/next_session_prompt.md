@@ -1,6 +1,6 @@
-# Recommended: Issue Provider Detection
+# Recommended: Onboard Quality Gates
 
-**Priority:** P0 (issue_provider_detection)
+**Priority:** P0 (onboard_quality_gates)
 **Area:** turnkey_onboarding
 **Date:** 2026-03-23
 
@@ -8,49 +8,60 @@
 
 ## Context
 
-We just completed `issue_provider_dispatch` (done). `fetch_issues()` now reads `issue_source` from `ExtractionConfig` and dispatches to the correct 311 client. `SUPPORTED_ISSUE_SOURCES` registry exists. SeeClickFix is default.
+We've been building out the turnkey onboarding pipeline. Recent sessions completed `issue_provider_dispatch` (config-driven 311 client routing) and `issue_provider_detection` (auto-detect SeeClickFix via API probe). The onboarding script (`scripts/onboard.py`) now generates configs, detects platforms, detects issue providers, runs ingestion, and produces a quality report.
 
-**Issue provider detection is next** because onboarding a new city currently requires manually knowing which 311 provider they use. Auto-detection probes known APIs by city/county name and writes the result to the extraction config. This completes the turnkey onboarding story for issues.
+**The quality report is currently advisory only.** It prints red flags but doesn't block progression. A city with zero meetings still proceeds to vector indexing (wasting resources). Transient API errors (rate limits, timeouts) look the same as genuine platform limitations (no PDFs, no minutes).
 
 ## What Was Done This Session
 
-1. `ExtractionConfig.issue_source` — new optional field (default None → "seeclickfix")
-2. `SUPPORTED_ISSUE_SOURCES` registry in `clients/__init__.py`
-3. `fetch_issues()` — config-driven dispatch with parameterized checkpoint keys
-4. `onboard.py` — issue stages gated by `SUPPORTED_ISSUE_SOURCES`
-5. `san-rafael.json` — explicit `"issue_source": "seeclickfix"`
+1. `detect_issue_source()` in `packages/civicos-extraction/src/civicos_extraction/onboard.py:466` — probes SeeClickFix API
+2. Wired into `onboard_jurisdiction()` at line 1376 (Step 2.5)
+3. `--detect-issues` CLI flag in `scripts/onboard.py:259` for re-running detection
+4. Exported from `__init__.py`
 
 ## Key Files
 
-| File | Purpose |
-|------|---------|
-| `scripts/onboard.py` | Where detection logic should live (discovery phase) |
-| `packages/civicos-extraction/src/civicos_extraction/clients/seeclickfix.py` | Existing SeeClickFix client — probe `get_issues()` with small page |
-| `packages/civicos-extraction/src/civicos_extraction/clients/__init__.py:118` | `SUPPORTED_ISSUE_SOURCES` registry |
-| `packages/civicos-extraction/src/civicos_extraction/clients/base.py:194` | `ExtractionConfig.issue_source` field |
-| `data/extraction/san-rafael.json` | Example config with `issue_source` set |
+| File | Lines | Purpose |
+|------|-------|---------|
+| `scripts/onboard.py:55-116` | `_quality_report()` | Current quality report — needs strengthening |
+| `scripts/onboard.py:397-427` | Phase 2.5 validation gate | Sample ingestion + quality check (advisory) |
+| `scripts/onboard.py:440-475` | Phase 4 final report | Post-ingestion quality report |
+| `scripts/onboard.py:35-52` | `_get_data_counts()` | Queries PostgreSQL for corpus counts |
+| `scripts/onboard.py:175-196` | `_run_modal_ingestion()` | Runs Modal ingestion stages |
 
 ## Suggested Approach
 
-1. **Read `onboard.py` discovery phase** — understand how it currently detects meeting sources
-2. **Add `detect_issue_source()` function** — probe known 311 APIs by city name:
-   - SeeClickFix: `GET /api/v2/issues?place_url={city_name}&per_page=1` — if returns issues, SeeClickFix is active
-   - Future: FixItMarin, QAlert probes
-3. **Wire into onboard discovery** — call during the discovery phase, write `issue_source` to extraction config JSON
-4. **Make re-runnable** — detection can update an existing config's `issue_source` if provider changes
-5. **Test with San Rafael** (SeeClickFix) and a city without SeeClickFix presence
+1. **Distinguish transient errors from platform limitations** in `_quality_report()`:
+   - `chunks/meeting = 0` could be HTML-only agendas (permanent) OR failed PDF downloads (transient)
+   - Add retry logic or separate error categories
+   - Consider checking if the platform type is known to use HTML agendas vs PDFs
+
+2. **Gate progression to vector indexing** on minimum data thresholds:
+   - If meetings = 0 and platform should have meetings → fail-fast, don't proceed to chunks/vectors
+   - If chunks = 0 but meetings > 0 → warn but continue (HTML agenda platforms are valid)
+   - Configurable thresholds via CLI flags (e.g., `--min-meetings 5`)
+
+3. **Generate actionable remediation steps** instead of generic warnings:
+   - "meetings = 0" → "Check extraction config: verify view_id {X} returns data at {URL}"
+   - "chunks = 0" → "This platform uses HTML agendas. Chunks come from HTML extraction (supported since commit 05feb38)"
+   - "decisions = 0" → "Minutes may not be posted yet. Re-run after {N} days"
+
+4. **Add exit codes** reflecting quality status:
+   - 0 = clean (all quality checks pass)
+   - 1 = error (ingestion failed)
+   - 2 = warning (completed but quality issues found)
 
 ## Important Context
 
-- See memory `memory/project_311_providers.md` — Marin County switching to FixItMarin
-- SeeClickFix API is public, no auth needed — safe to probe
-- Detection should be best-effort: if no provider found, leave `issue_source` as None (will default to seeclickfix in fetch, but won't crash)
+- San Rafael baseline ratios: ~52 chunks/meeting, ~3 agenda_items/meeting, ~0.45 decisions/meeting
+- HTML agenda extraction was added in commit `05feb38` — some platforms legitimately have 0 PDF chunks
+- The validation gate (Phase 2.5) runs a 30-day sample before full backfill — this is the right place to fail-fast
 
 ## Success Criteria
 
-- [ ] `detect_issue_source()` probes SeeClickFix API by city name
-- [ ] Integrated into `onboard.py` discovery phase
-- [ ] Writes detected `issue_source` to extraction config JSON
-- [ ] Re-runnable (can update existing config)
-- [ ] Graceful fallback when no provider detected
+- [ ] Quality report distinguishes transient errors from platform limitations
+- [ ] Vector indexing gated on minimum data thresholds (meetings > 0 for meeting platforms)
+- [ ] Actionable remediation steps in quality report output
+- [ ] Exit codes reflect quality status
+- [ ] Existing onboarding flow still works (San Rafael, Mill Valley, San Anselmo)
 - [ ] Smoke tests pass
