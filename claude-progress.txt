@@ -1,3 +1,27 @@
+## Session — 2026-03-23: legistar_client (P0) + turnkey onboarding roadmap
+
+**Item:** legistar_client (federation_testbed)
+**Status:** DONE
+
+Changes:
+1. **Wired Legistar into fetch_meetings()** — added elif branch in modal_ingest.py, added to
+   SUPPORTED_MEETING_SOURCES registry (now: proudcity, granicus, legistar)
+2. **Fixed datetime parsing bug** — Legistar returns EventTime as "1:00 PM" (12-hour), not ISO.
+   normalize_event() was silently falling back to datetime.now(). Added strptime parsing.
+3. **Added 6 unit tests** — TestLegistarDatetimeParsing in test_integration_extraction_failures.py
+4. **Stored 76 Sacramento meetings in Postgres** — verified via live API, 14 upcoming
+5. **Tested on Oakland (17) and Denver (50)** — client generalizes across Legistar cities
+
+Roadmap updates:
+- Created `turnkey_onboarding` category in launch.json (10 items, top priority)
+- Split issue tracking into provider dispatch + detection (prompted by Marin County
+  switching to FixItMarin — 311 providers change, can't hardcode SeeClickFix)
+- Demoted query_monitoring_and_docs from P0 to P2
+
+**Next P0:** civicclerk_pipeline_wiring — same wiring pattern as legistar, ~15 min. Cities: El Cerrito, Hayward, San Pablo.
+
+---
+
 ## Session — 2026-03-22: Generalize RefreshRunner (P0, Phase 1)
 
 **Item:** configurable_refresh_policies
