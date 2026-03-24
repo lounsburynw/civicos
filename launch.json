@@ -45,22 +45,21 @@
       },
       {
         "name": "html_agenda_extraction",
-        "description": "Extract chunks from HTML agendas when PDF is unavailable. Some Legistar/Granicus cities serve agendas as HTML only — chunks=0 for these cities, breaking chunk search. Detect format and route to HTML parser.",
+        "description": "Extract chunks from HTML agendas when PDF is unavailable. Some Legistar/Granicus cities serve agendas as HTML only \u2014 chunks=0 for these cities, breaking chunk search. Detect format and route to HTML parser.",
         "priority": 0,
         "status": "done",
-        "notes": "Added html_content param to extract_chunks_from_html_agenda() to accept pre-downloaded HTML. Restructured degenerate case in extract_chunks_from_meeting() to pre-extract HTML chunks upfront and use them as fallback. Fixed dead-end bug where found-but-invalid PDF URL returned error instead of falling back to HTML.",
+        "notes": "Currently silent failure: onboarding quality report warns chunks=0 but no remediation. Need to detect HTML vs PDF agenda format and extract text content from HTML agendas into chunks. ~1-2 sessions.",
         "files": [
           "scripts/modal_ingest.py",
           "packages/civicos-extraction/src/civicos_extraction/clients/base.py"
         ],
-        "test_file": null,
-        "notes": "Currently silent failure: onboarding quality report warns chunks=0 but no remediation. Need to detect HTML vs PDF agenda format and extract text content from HTML agendas into chunks. ~1-2 sessions."
+        "test_file": null
       },
       {
         "name": "onboard_quality_gates",
         "description": "Strengthen onboard.py quality validation: fail-fast on zero meetings, auto-retry on transient API errors, compare ratios against baseline, and generate actionable remediation steps instead of just warnings.",
         "priority": 0,
-        "status": "not_started",
+        "status": "done",
         "files": [
           "scripts/onboard.py"
         ],
@@ -69,7 +68,7 @@
       },
       {
         "name": "issue_provider_dispatch",
-        "description": "Generalize fetch_issues() to support multiple 311 providers (SeeClickFix, FixItMarin, QAlert, etc.) via source-type dispatch — same pattern as fetch_meetings(). Add SUPPORTED_ISSUE_SOURCES registry. Currently hardcoded to SeeClickFix.",
+        "description": "Generalize fetch_issues() to support multiple 311 providers (SeeClickFix, FixItMarin, QAlert, etc.) via source-type dispatch \u2014 same pattern as fetch_meetings(). Add SUPPORTED_ISSUE_SOURCES registry. Currently hardcoded to SeeClickFix.",
         "priority": 0,
         "status": "done",
         "files": [
@@ -77,11 +76,11 @@
           "packages/civicos-extraction/src/civicos_extraction/clients/__init__.py"
         ],
         "test_file": null,
-        "notes": "fetch_issues() is hardcoded to SeeClickFixClient. Needs the same config-driven dispatch pattern as meetings: load jurisdiction YAML → read issues source_type → route to correct client. Cities change 311 providers (e.g., Marin County switching to FixItMarin). YAML should specify provider, not assume SeeClickFix. ~1 session."
+        "notes": "fetch_issues() is hardcoded to SeeClickFixClient. Needs the same config-driven dispatch pattern as meetings: load jurisdiction YAML \u2192 read issues source_type \u2192 route to correct client. Cities change 311 providers (e.g., Marin County switching to FixItMarin). YAML should specify provider, not assume SeeClickFix. ~1 session."
       },
       {
         "name": "issue_provider_detection",
-        "description": "Auto-detect 311/issue provider during onboarding discovery. Probe known APIs (SeeClickFix, FixItMarin, QAlert) by city/county name, write detected provider to extraction config JSON. Provider can change over time — detection is re-runnable via --detect-issues.",
+        "description": "Auto-detect 311/issue provider during onboarding discovery. Probe known APIs (SeeClickFix, FixItMarin, QAlert) by city/county name, write detected provider to extraction config JSON. Provider can change over time \u2014 detection is re-runnable via --detect-issues.",
         "priority": 0,
         "status": "done",
         "files": [
@@ -105,7 +104,7 @@
       },
       {
         "name": "onboard_end_to_end_test",
-        "description": "Integration test for the full onboarding pipeline: mock city with Legistar source, run onboard.py, verify all stages complete (discovery → config → fetch → store → index → quality report). Catches regressions.",
+        "description": "Integration test for the full onboarding pipeline: mock city with Legistar source, run onboard.py, verify all stages complete (discovery \u2192 config \u2192 fetch \u2192 store \u2192 index \u2192 quality report). Catches regressions.",
         "priority": 2,
         "status": "not_started",
         "files": [
