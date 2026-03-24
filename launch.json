@@ -141,7 +141,7 @@
         "name": "onboard_configurable_defaults",
         "description": "Read days_past and sample_days defaults from jurisdiction YAML (ingestion.days_past, ingestion.sample_days) so operators can tune per-city. CLI flags override YAML. Falls back to current hardcoded defaults (365/30).",
         "priority": 1,
-        "status": "not_started",
+        "status": "done",
         "files": [
           "scripts/onboard.py",
           "packages/civicos/tests/test_integration_onboarding.py"
@@ -153,7 +153,7 @@
         "name": "onboard_cost_estimate",
         "description": "After the validation sample, extrapolate meeting counts to the full backfill window and estimate LLM cost (agenda + decision extraction) before proceeding. Print estimate and prompt for confirmation unless --yes flag is passed.",
         "priority": 1,
-        "status": "not_started",
+        "status": "done",
         "files": [
           "scripts/onboard.py",
           "packages/civicos/tests/test_integration_onboarding.py"

@@ -30,6 +30,44 @@ sys.path.insert(0, str(PROJECT_ROOT / "packages" / "civicos" / "src"))
 sys.path.insert(0, str(PROJECT_ROOT / "packages" / "civicos-services" / "src"))
 
 SAMPLE_DAYS = 30
+DEFAULT_DAYS_PAST = 365
+
+# Cost model (per meeting, approximate)
+# Modal compute: ~$0.002/meeting (fetch + store)
+# LLM extraction: ~$0.01/meeting (agenda items + decisions via OpenAI)
+# Chunk extraction: ~$0.003/meeting (PDF parsing)
+# Vector indexing is flat (~$0.10 regardless of meeting count)
+COST_PER_MEETING_USD = 0.015
+COST_VECTOR_FLAT_USD = 0.10
+COST_ISSUES_FLAT_USD = 0.02
+COST_MUNICIPAL_FLAT_USD = 0.05
+
+
+def _estimate_cost(sample_meetings: int, sample_days: int, full_days: int,
+                   has_meetings: bool = True, has_issues: bool = True,
+                   has_municipal: bool = False) -> dict:
+    """Extrapolate cost from sample to full backfill.
+
+    Returns dict with projected_meetings, meeting_cost, flat_cost, total.
+    """
+    if sample_days <= 0 or not has_meetings:
+        projected = 0
+    else:
+        projected = int(sample_meetings * (full_days / sample_days))
+
+    meeting_cost = projected * COST_PER_MEETING_USD
+    flat_cost = COST_VECTOR_FLAT_USD
+    if has_issues:
+        flat_cost += COST_ISSUES_FLAT_USD
+    if has_municipal:
+        flat_cost += COST_MUNICIPAL_FLAT_USD
+
+    return {
+        "projected_meetings": projected,
+        "meeting_cost": meeting_cost,
+        "flat_cost": flat_cost,
+        "total": meeting_cost + flat_cost,
+    }
 
 
 def _get_data_counts(database_url: str, jid: str) -> dict:
@@ -366,9 +404,10 @@ def main():
     parser.add_argument("--county", default="", help="County name (e.g., 'Marin')")
     parser.add_argument("--level", default="city", help="Jurisdiction level")
     parser.add_argument("--jurisdiction", default="", help="Override jurisdiction ID")
-    parser.add_argument("--days-past", type=int, default=365, help="Days of history")
-    parser.add_argument("--sample-days", type=int, default=SAMPLE_DAYS,
-                        help="Days for validation sample (default: 30)")
+    parser.add_argument("--days-past", type=int, default=None,
+                        help="Days of history (default: from YAML or 365)")
+    parser.add_argument("--sample-days", type=int, default=None,
+                        help="Days for validation sample (default: from YAML or 30)")
     parser.add_argument("--dry-run", action="store_true", help="Fetch but don't store")
     parser.add_argument("--skip-ingestion", action="store_true", help="Only generate configs")
     parser.add_argument("--no-validate", action="store_true",
@@ -380,6 +419,8 @@ def main():
                         help="Re-detect issue provider for existing config and exit")
     parser.add_argument("--deploy", action="store_true",
                         help="Deploy API to Modal after ingestion (updates registry + redeploys)")
+    parser.add_argument("--yes", "-y", action="store_true",
+                        help="Auto-confirm cost estimate (skip prompt)")
     args = parser.parse_args()
 
     if not args.city and not args.url:
@@ -398,9 +439,9 @@ def main():
     print(f"Level: {args.level}")
     if args.jurisdiction:
         print(f"Jurisdiction ID: {args.jurisdiction}")
-    print(f"Days of history: {args.days_past}")
+    print(f"Days of history: {args.days_past or '(auto)'}")
     if not args.no_validate:
-        print(f"Validation sample: {args.sample_days} days")
+        print(f"Validation sample: {args.sample_days or '(auto)'} days")
     print(f"Dry run: {args.dry_run}")
     print("=" * 60)
 
@@ -527,6 +568,23 @@ def main():
             print(f"  Enriched YAML with county: {args.county}")
 
     # -------------------------------------------------------------------
+    # Resolve defaults: CLI flags > YAML ingestion config > hardcoded
+    # -------------------------------------------------------------------
+    yaml_path = PROJECT_ROOT / "data" / "jurisdictions" / f"{jid}.yaml"
+    if yaml_path.exists():
+        import yaml as _yaml2
+        with open(yaml_path) as f:
+            _jur_cfg = _yaml2.safe_load(f) or {}
+        _ing = _jur_cfg.get("ingestion", {}) if isinstance(_jur_cfg.get("ingestion"), dict) else {}
+    else:
+        _ing = {}
+
+    if args.days_past is None:
+        args.days_past = _ing.get("days_past", DEFAULT_DAYS_PAST)
+    if args.sample_days is None:
+        args.sample_days = _ing.get("sample_days", SAMPLE_DAYS)
+
+    # -------------------------------------------------------------------
     # Phase 2: Check existing data
     # -------------------------------------------------------------------
     print(f"\n[Phase 2] Checking existing data for {jid}...")
@@ -595,9 +653,34 @@ def main():
                         sys.exit(2)
                 elif warnings:
                     print(f"\n  {len(warnings)} warning(s) in sample (non-blocking).")
-                    print(f"  Proceeding to full backfill...")
                 else:
-                    print(f"\n  Sample looks good. Proceeding to full backfill...")
+                    print(f"\n  Sample looks good.")
+
+                # Cost estimate based on sample
+                est = _estimate_cost(
+                    sample_meetings=sample_counts["meetings"],
+                    sample_days=args.sample_days,
+                    full_days=args.days_past,
+                    has_meetings=has_meetings,
+                    has_issues="issues" in ingestion_stages,
+                    has_municipal="municipal" in ingestion_stages,
+                )
+                print(f"\n  Cost Estimate ({args.days_past}-day backfill):")
+                print(f"    Projected meetings: ~{est['projected_meetings']}")
+                print(f"    Meeting processing: ~${est['meeting_cost']:.2f}")
+                print(f"    Fixed costs (vectors, issues, etc.): ~${est['flat_cost']:.2f}")
+                print(f"    Total estimated: ~${est['total']:.2f}")
+
+                if not args.yes and not args.force_continue:
+                    try:
+                        answer = input(f"\n  Proceed with full {args.days_past}-day backfill? [Y/n] ")
+                        if answer.strip().lower() in ("n", "no"):
+                            print("  Aborted by user.")
+                            sys.exit(0)
+                    except (EOFError, KeyboardInterrupt):
+                        print("\n  Aborted.")
+                        sys.exit(0)
+
             except Exception as e:
                 print(f"  Could not run quality check: {e}")
                 print(f"  Proceeding with full backfill anyway...")

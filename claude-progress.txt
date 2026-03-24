@@ -23532,3 +23532,24 @@ The API already supports per-request jurisdiction via `jid = request.jurisdictio
 - scripts/onboard.py (~100 insertions)
 - packages/civicos/tests/test_integration_onboarding.py (~200 insertions)
 - launch.json (onboard_deploy_integration → done)
+
+## Session: 2026-03-24 — onboard_cost_estimate + onboard_configurable_defaults (P1)
+
+### Summary
+Added cost estimation before full backfill and configurable defaults from jurisdiction YAML.
+
+### Changes
+1. **`_estimate_cost()`** (`scripts/onboard.py:40`) — Extrapolates meeting count from sample to full backfill, estimates cost based on per-meeting rate ($0.015) plus flat costs (vectors $0.10, issues $0.02, municipal $0.05).
+2. **Cost prompt in Phase 2.5** — After quality gate passes, prints projected meetings and estimated cost. Prompts user for confirmation (`Proceed? [Y/n]`). `--yes` flag auto-confirms.
+3. **Configurable defaults** — `--days-past` and `--sample-days` now default to `None` (auto). Resolved after Phase 1: YAML `ingestion.days_past` / `ingestion.sample_days` > hardcoded 365/30. CLI flags always override.
+4. **11 new tests** — TestEstimateCost (6), TestConfigurableDefaults (3), TestCostEstimatePrompt (2). Total now 49.
+
+### Tests
+- 49/49 tests pass (0.34s)
+- 20 smoke tests pass
+- No regressions
+
+### Files Changed
+- scripts/onboard.py (~80 insertions)
+- packages/civicos/tests/test_integration_onboarding.py (~200 insertions)
+- launch.json (onboard_cost_estimate + onboard_configurable_defaults → done)
