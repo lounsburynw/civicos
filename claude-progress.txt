@@ -23580,3 +23580,30 @@ Completed the last two onboarding items. Turnkey onboarding is now 12/12.
 - launch.json (onboard_batch_mode + onboard_transcript_auto → done)
 
 ### Turnkey Onboarding: 12/12 COMPLETE
+
+## Session: 2026-03-24 — legislation_adapter_unification (P1)
+
+### Summary
+Rewrote LegislationAdapter to query storage+vectors directly instead of delegating to get_regulatory_context(). Legislation queries are now faster (no API calls) and use real vector relevance scores.
+
+### Changes
+1. **`LegislationAdapter.search()`** — Two-path approach: vector search first (semantic relevance scores from embeddings), storage fallback (keyword + recency). Queries both state (CA) and federal (US) legislation, merges by relevance.
+2. **`_search_with_vectors()`** — Searches vector embeddings for state + federal legislation, deduplicates by bill_id keeping highest score, batch-fetches metadata from storage.
+3. **`_search_storage_only()`** — Direct `get_legislation()` call with client-side text filtering. Used when vectors unavailable.
+4. **`_resolve_state_code()`** — Maps jurisdiction IDs to state codes (city-san-rafael → CA).
+5. **Updated tests** — 3 new adapter tests (storage fallback, vector relevance, state code resolution). Updated mock_storage with legislation data.
+
+### What changed
+- Before: LegislationAdapter → _get_regulatory_context() → get_regulatory_context() (complex 500-line function with hardcoded CA, positional relevance)
+- After: LegislationAdapter → storage.get_legislation() + vectors.search() (direct, vector relevance scores)
+- get_regulatory_context() still exists for CivicOS.what_applies() (internal API) — just no longer on the v2 query path
+
+### Tests
+- 145/145 v2 query tests pass
+- 20 smoke tests pass
+- No regressions
+
+### Files Changed
+- packages/civicos-services/src/civicos_services/query/adapters.py (~120 insertions, ~30 deletions)
+- packages/civicos-services/tests/test_query_v2.py (~30 insertions, ~10 deletions)
+- launch.json (legislation_adapter_unification → done)

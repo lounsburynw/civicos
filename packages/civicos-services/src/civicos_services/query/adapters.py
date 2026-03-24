@@ -141,39 +141,159 @@ class LegislationAdapter(CorpusAdapter):
     corpus_name = "legislation"
     supported_filters = {"query"}
 
+    # Minimum vector similarity to include (filters noise)
+    MIN_RELEVANCE = 0.40
+
+    # Map jurisdiction prefixes to state codes for legislation queries
+    _JURISDICTION_TO_STATE = {
+        "state-california": "CA",
+        "county-marin": "CA",
+        "county-alameda": "CA",
+    }
+
+    def _resolve_state_code(self, jurisdiction: str) -> str:
+        """Resolve jurisdiction to legislation state code."""
+        # Direct match
+        if jurisdiction in self._JURISDICTION_TO_STATE:
+            return self._JURISDICTION_TO_STATE[jurisdiction]
+        # All city-* and county-* are currently California
+        if jurisdiction.startswith(("city-", "county-")):
+            return "CA"
+        # state-* jurisdictions
+        if jurisdiction.startswith("state-"):
+            return jurisdiction.replace("state-", "").upper()[:2]
+        return "CA"  # Default fallback
+
     def search(self, storage, vectors, jurisdiction: str, query: str, limit: int, offset: int = 0, **filters) -> List[CivicResult]:
-        reg_stack = _get_regulatory_context(jurisdiction, query, storage, vectors, max_results=offset + limit)
+        state_code = self._resolve_state_code(jurisdiction)
+        fetch_limit = offset + limit
 
+        # --- Vector search path (semantic relevance) ---
+        if vectors is not None and query:
+            results = self._search_with_vectors(
+                storage, vectors, jurisdiction, state_code, query, fetch_limit,
+            )
+            if results:
+                return results[offset:offset + limit]
+
+        # --- Storage fallback (keyword + recency) ---
+        return self._search_storage_only(
+            storage, jurisdiction, state_code, query, limit, offset,
+        )
+
+    def _search_with_vectors(self, storage, vectors, jurisdiction, state_code, query, fetch_limit) -> List[CivicResult]:
+        """Search legislation via vector embeddings, enrich from storage."""
         results = []
-        # Combine state + federal legislation
-        all_bills = []
-        for bill in reg_stack.state:
-            bill["_level"] = "state"
-            all_bills.append(bill)
-        for bill in reg_stack.federal:
-            bill["_level"] = "federal"
-            all_bills.append(bill)
 
-        for i, bill in enumerate(all_bills[offset:offset + limit]):
-            bill_number = bill.get("bill_number", "")
-            bill_id = bill.get("bill_id", bill_number)
-            status = bill.get("status_label", bill.get("status", ""))
-            state = bill.get("state", "")
+        for leg_jurisdiction, level in [
+            (f"legislation-{state_code}", "state"),
+            ("legislation-US", "federal"),
+        ]:
+            try:
+                hits = vectors.search(
+                    query=query,
+                    jurisdiction_id=leg_jurisdiction,
+                    corpus_type="legislation",
+                    top_k=fetch_limit,
+                )
+            except Exception:
+                continue
 
-            results.append(CivicResult(
-                type="legislation",
-                ref=self._make_ref("legislation", jurisdiction, bill_id),
-                title=bill.get("bill_name") or bill.get("title") or bill_number,
-                date=bill.get("enacted_date"),
-                summary=bill.get("summary", "")[:300] if bill.get("summary") else None,
-                relevance=max(0.0, 1.0 - i * 0.05),
-                details={
-                    "bill_number": bill_number,
-                    "status": status,
-                    "state": state,
-                },
-            ))
+            # Deduplicate by bill_id, keep highest score
+            seen_bills: Dict[str, float] = {}
+            bill_scores: Dict[str, float] = {}
+            for hit in hits:
+                if hit.score < self.MIN_RELEVANCE:
+                    continue
+                bill_id = hit.metadata.get("bill_id", "")
+                if not bill_id:
+                    continue
+                if bill_id not in bill_scores or hit.score > bill_scores[bill_id]:
+                    bill_scores[bill_id] = hit.score
+
+            if not bill_scores:
+                continue
+
+            # Batch fetch metadata from storage
+            ordered_ids = sorted(bill_scores, key=bill_scores.get, reverse=True)[:fetch_limit]
+            bill_metadata: Dict[str, dict] = {}
+            if storage is not None:
+                try:
+                    bill_metadata = storage.get_legislation_batch(
+                        state=state_code if level == "state" else "US",
+                        bill_ids=ordered_ids,
+                    )
+                except Exception:
+                    pass
+
+            for bill_id in ordered_ids:
+                meta = bill_metadata.get(bill_id, {})
+                score = bill_scores[bill_id]
+                bill_number = meta.get("bill_number", "")
+
+                results.append(CivicResult(
+                    type="legislation",
+                    ref=self._make_ref("legislation", jurisdiction, bill_id),
+                    title=meta.get("bill_name") or meta.get("title") or bill_number or bill_id,
+                    date=meta.get("enacted_date"),
+                    summary=meta.get("summary", "")[:300] if meta.get("summary") else None,
+                    relevance=round(max(0.0, min(1.0, score)), 3),
+                    details={
+                        "bill_number": bill_number,
+                        "status": meta.get("status_label", meta.get("status", "")),
+                        "state": meta.get("state", state_code if level == "state" else "US"),
+                    },
+                ))
+
+        # Sort combined state+federal by relevance
+        results.sort(key=lambda r: r.relevance, reverse=True)
         return results
+
+    def _search_storage_only(self, storage, jurisdiction, state_code, query, limit, offset) -> List[CivicResult]:
+        """Fallback: query storage directly with keyword filtering."""
+        results = []
+
+        for state_key, level in [(state_code, "state"), ("US", "federal")]:
+            try:
+                bills = storage.get_legislation(
+                    state=state_key, topic=query if query else None,
+                    limit=offset + limit,
+                )
+            except Exception:
+                continue
+
+            # Client-side text filter if query provided
+            if query:
+                q_lower = query.lower()
+                bills = [
+                    b for b in bills
+                    if q_lower in (
+                        (b.get("bill_name", "") or "") + " " +
+                        (b.get("summary", "") or "") + " " +
+                        (b.get("keywords", "") or "")
+                    ).lower()
+                ]
+
+            for i, bill in enumerate(bills[:offset + limit]):
+                bill_number = bill.get("bill_number", "")
+                bill_id = bill.get("bill_id", bill_number)
+                results.append(CivicResult(
+                    type="legislation",
+                    ref=self._make_ref("legislation", jurisdiction, bill_id),
+                    title=bill.get("bill_name") or bill.get("title") or bill_number,
+                    date=bill.get("enacted_date"),
+                    summary=bill.get("summary", "")[:300] if bill.get("summary") else None,
+                    relevance=max(0.0, 1.0 - i * 0.03),
+                    details={
+                        "bill_number": bill_number,
+                        "status": bill.get("status_label", bill.get("status", "")),
+                        "state": bill.get("state", state_key),
+                    },
+                ))
+
+        # Sort by relevance, take page
+        results.sort(key=lambda r: r.relevance, reverse=True)
+        return results[offset:offset + limit]
 
 
 class IssuesAdapter(CorpusAdapter):

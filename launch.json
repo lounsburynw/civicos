@@ -1212,7 +1212,7 @@
       {
         "name": "legislation_adapter_unification",
         "description": "Unify legislation data path: query stored state/federal legislation first, fall back to what_applies() API calls. Currently all legislation comes via on-demand API calls regardless of what's stored.",
-        "status": "not_started",
+        "status": "done",
         "priority": 1,
         "phase": "2",
         "source": "multi-scale participation \u2014 data architecture",

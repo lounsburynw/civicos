@@ -137,6 +137,16 @@ def make_mock_storage():
          "issue_type": "Road", "address": "123 Main St", "created_at": "2025-03-01",
          "description": "Large pothole on Main St near downtown"},
     ]
+    storage.get_legislation.return_value = [
+        {"bill_id": "ca-sb9", "bill_number": "SB-9", "bill_name": "Housing Development",
+         "status_label": "Enacted", "status": "4", "state": "CA",
+         "summary": "Allows lot splits for housing", "enacted_date": "2021-09-16"},
+    ]
+    storage.get_legislation_batch.return_value = {
+        "ca-sb9": {"bill_id": "ca-sb9", "bill_number": "SB-9", "bill_name": "Housing Development",
+                    "status_label": "Enacted", "status": "4", "state": "CA",
+                    "summary": "Allows lot splits for housing", "enacted_date": "2021-09-16"},
+    }
     return storage
 
 
@@ -243,12 +253,11 @@ class TestTestimonyAdapter:
 
 
 class TestLegislationAdapter:
-    def test_search_returns_legislation(self):
+    def test_search_returns_legislation_from_storage(self):
+        """Storage fallback: returns legislation when no vectors available."""
         adapter = LegislationAdapter()
         storage = make_mock_storage()
-        vectors = make_mock_vectors()
-        with adapter_patches():
-            results = adapter.search(storage, vectors, "city-san-rafael", "housing", 10)
+        results = adapter.search(storage, None, "city-san-rafael", "housing", 10)
 
         assert len(results) >= 1
         r = results[0]
@@ -256,6 +265,32 @@ class TestLegislationAdapter:
         assert r.details["bill_number"] == "SB-9"
         assert r.details["status"] == "Enacted"
         assert r.details["state"] == "CA"
+
+    def test_search_uses_vector_relevance(self):
+        """Vector path: uses semantic scores instead of positional."""
+        adapter = LegislationAdapter()
+        storage = make_mock_storage()
+        vectors = MagicMock()
+
+        mock_hit = MagicMock()
+        mock_hit.score = 0.78
+        mock_hit.metadata = {"bill_id": "ca-sb9"}
+        mock_hit.content = "Housing development bill"
+        vectors.search.return_value = [mock_hit]
+
+        results = adapter.search(storage, vectors, "city-san-rafael", "housing", 10)
+
+        assert len(results) >= 1
+        assert results[0].relevance == 0.78
+        assert results[0].details["bill_number"] == "SB-9"
+
+    def test_resolves_state_code_from_jurisdiction(self):
+        """city-* jurisdictions resolve to CA state code."""
+        adapter = LegislationAdapter()
+        assert adapter._resolve_state_code("city-san-rafael") == "CA"
+        assert adapter._resolve_state_code("city-berkeley") == "CA"
+        assert adapter._resolve_state_code("state-california") == "CA"
+        assert adapter._resolve_state_code("county-marin") == "CA"
 
 
 class TestIssuesAdapter:
