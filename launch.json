@@ -2,8 +2,9 @@
   "version": "1.0",
   "phase": "launch",
   "last_updated": "2026-03-23",
-  "summary": "Launch readiness: scalable data pipeline (refresh generalization, cron wiring), billing infrastructure, acceptance policy enforcement, token issuance, operator tooling, multi-scale participation",
+  "summary": "Launch readiness: turnkey onboarding (top priority), federation queries, billing, operator tooling, multi-scale participation",
   "category_order": [
+    "turnkey_onboarding",
     "security_fixes",
     "observability",
     "billing_payments",
@@ -13,6 +14,118 @@
     "federation_testbed",
     "multi_scale_participation"
   ],
+  "turnkey_onboarding": {
+    "description": "100% automated city onboarding: any US city with a supported meeting platform should go from zero to fully queryable in one command. Blocking all downstream work (federation queries, billing, operator adoption).",
+    "items": [
+      {
+        "name": "civicclerk_pipeline_wiring",
+        "description": "Wire CivicClerk client into fetch_meetings() in modal_ingest.py. Client exists (civicclerk.py), just needs elif branch + SUPPORTED_MEETING_SOURCES registration. Same pattern as legistar_client.",
+        "priority": 0,
+        "status": "not_started",
+        "files": [
+          "scripts/modal_ingest.py",
+          "packages/civicos-extraction/src/civicos_extraction/clients/__init__.py",
+          "packages/civicos-extraction/src/civicos_extraction/clients/civicclerk.py"
+        ],
+        "test_file": null,
+        "notes": "CivicClerk uses OData API. Cities: El Cerrito, Hayward, San Pablo. ~1 session. Follow legistar_client pattern exactly."
+      },
+      {
+        "name": "escribe_pipeline_wiring",
+        "description": "Wire eScribe client into fetch_meetings() in modal_ingest.py. Client exists (escribe.py), needs elif branch + SUPPORTED_MEETING_SOURCES registration. Covers Canadian cities + National City CA.",
+        "priority": 1,
+        "status": "not_started",
+        "files": [
+          "scripts/modal_ingest.py",
+          "packages/civicos-extraction/src/civicos_extraction/clients/__init__.py",
+          "packages/civicos-extraction/src/civicos_extraction/clients/escribe.py"
+        ],
+        "test_file": null,
+        "notes": "eScribe uses calendar API. ~1 session. Same wiring pattern as legistar/civicclerk."
+      },
+      {
+        "name": "html_agenda_extraction",
+        "description": "Extract chunks from HTML agendas when PDF is unavailable. Some Legistar/Granicus cities serve agendas as HTML only — chunks=0 for these cities, breaking chunk search. Detect format and route to HTML parser.",
+        "priority": 1,
+        "status": "not_started",
+        "files": [
+          "scripts/modal_ingest.py",
+          "packages/civicos-extraction/src/civicos_extraction/clients/base.py"
+        ],
+        "test_file": null,
+        "notes": "Currently silent failure: onboarding quality report warns chunks=0 but no remediation. Need to detect HTML vs PDF agenda format and extract text content from HTML agendas into chunks. ~1-2 sessions."
+      },
+      {
+        "name": "onboard_quality_gates",
+        "description": "Strengthen onboard.py quality validation: fail-fast on zero meetings, auto-retry on transient API errors, compare ratios against baseline, and generate actionable remediation steps instead of just warnings.",
+        "priority": 2,
+        "status": "not_started",
+        "files": [
+          "scripts/onboard.py"
+        ],
+        "test_file": null,
+        "notes": "Current quality report is advisory only. Should: (1) distinguish transient errors from platform limitations, (2) suggest specific fixes per failure mode, (3) gate progression to vector indexing on minimum data thresholds. ~1 session."
+      },
+      {
+        "name": "onboard_seeclickfix_auto",
+        "description": "Auto-detect and configure SeeClickFix issue tracking during onboarding. Currently requires manual jurisdiction YAML edit to enable issues. Should probe SeeClickFix API during discovery phase and auto-enable.",
+        "priority": 2,
+        "status": "not_started",
+        "files": [
+          "scripts/onboard.py",
+          "packages/civicos-extraction/src/civicos_extraction/clients/seeclickfix.py"
+        ],
+        "test_file": null,
+        "notes": "SeeClickFix covers ~400 US cities. API is public, no auth needed. Probe by city name during discovery, add to YAML if found. ~0.5 session."
+      },
+      {
+        "name": "onboard_transcript_auto",
+        "description": "Auto-detect YouTube channels for meeting recordings during onboarding. Probe YouTube Data API for city council channels, add to jurisdiction YAML if found. Gated on AssemblyAI key availability.",
+        "priority": 3,
+        "status": "not_started",
+        "files": [
+          "scripts/onboard.py"
+        ],
+        "test_file": null,
+        "notes": "Many cities post recordings to YouTube. Detection could use YouTube search API by city name + 'city council'. Only enable transcription if AssemblyAI key is configured. ~1 session."
+      },
+      {
+        "name": "onboard_end_to_end_test",
+        "description": "Integration test for the full onboarding pipeline: mock city with Legistar source, run onboard.py, verify all stages complete (discovery → config → fetch → store → index → quality report). Catches regressions.",
+        "priority": 2,
+        "status": "not_started",
+        "files": [
+          "scripts/onboard.py",
+          "packages/civicos/tests/test_integration_onboarding.py"
+        ],
+        "test_file": "packages/civicos/tests/test_integration_onboarding.py",
+        "notes": "Currently no automated test for the onboarding pipeline. Manual testing catches issues but doesn't prevent regressions. Use mock Legistar API responses. ~1 session."
+      },
+      {
+        "name": "onboard_deploy_integration",
+        "description": "Wire onboard.py to trigger Modal deployment after successful ingestion. Currently onboarding populates Postgres but doesn't deploy or update the live API. Should optionally deploy and verify the city is queryable.",
+        "priority": 3,
+        "status": "not_started",
+        "files": [
+          "scripts/onboard.py",
+          "scripts/modal_ingest.py"
+        ],
+        "test_file": null,
+        "notes": "After onboarding, cities should be immediately queryable on the live API. Currently requires manual modal deploy. Add --deploy flag to onboard.py. ~1 session."
+      },
+      {
+        "name": "onboard_batch_mode",
+        "description": "Support onboarding multiple cities in a single command. Iterate over a list of jurisdiction IDs, run discovery + ingestion for each, produce aggregate quality report. Enables rapid expansion.",
+        "priority": 3,
+        "status": "not_started",
+        "files": [
+          "scripts/onboard.py"
+        ],
+        "test_file": null,
+        "notes": "For scaling beyond one-at-a-time onboarding. Takes a file or list of jurisdiction IDs, runs them sequentially with shared config. Useful for 'onboard all Marin cities' or 'onboard all Legistar CA cities'. ~1 session."
+      }
+    ]
+  },
   "security_fixes": {
     "description": "Fix existing security vulnerabilities that undermine the trust model (Phase 0 from acceptance policy spec)",
     "items": [
@@ -702,7 +815,7 @@
         "name": "query_monitoring_and_docs",
         "description": "Production polish: query latency logging, connection pool metrics, alert thresholds, and docs sweep to update stale decision ID format references across ~10 doc files.",
         "status": "not_started",
-        "priority": 0,
+        "priority": 2,
         "phase": "B",
         "source": "performance assessment 2026-03-17",
         "files": [
