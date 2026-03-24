@@ -105,7 +105,7 @@
       {
         "name": "onboard_end_to_end_test",
         "description": "Integration test for the full onboarding pipeline: mock city with Legistar source, run onboard.py, verify all stages complete (discovery \u2192 config \u2192 fetch \u2192 store \u2192 index \u2192 quality report). Catches regressions.",
-        "priority": 2,
+        "priority": 0,
         "status": "not_started",
         "files": [
           "scripts/onboard.py",

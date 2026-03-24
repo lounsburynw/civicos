@@ -23462,3 +23462,28 @@ Added `detect_issue_source()` to auto-detect 311/issue providers during onboardi
 - 20 smoke tests pass
 - Verified: San Rafael → seeclickfix, New Haven → seeclickfix, fictional city → None
 - Verified: --detect-issues flag works on existing configs
+
+## Session — 2026-03-23: onboard_quality_gates (P0)
+
+**Item:** onboard_quality_gates (turnkey_onboarding)
+**Status:** DONE
+
+### Summary
+Added severity-classified quality gates to the onboarding pipeline.
+
+### Changes
+1. **QualityIssue class** (`scripts/onboard.py:55`) — CRITICAL (blocks progression) vs WARNING (informational), with actionable remediation text referencing specific config files.
+2. **_quality_report()** (`scripts/onboard.py:70`) — Returns severity-classified issues instead of flat red_flags. meetings=0 on meeting platform → CRITICAL; agenda=0 → CRITICAL; chunks=0 → WARNING (HTML agendas); low decisions → WARNING.
+3. **Phase 2.5 fail-fast** (`scripts/onboard.py:468`) — CRITICAL issues now block with sys.exit(2). Previously all issues were advisory.
+4. **--force-continue flag** — Override quality gate for debugging.
+5. **Exit codes** — 0=clean, 1=ingestion error, 2=quality issues.
+
+### Tests
+- 6 unit scenarios for _quality_report() verified
+- 20 smoke tests pass
+- --skip-ingestion flow verified on San Rafael
+- All 10 critics pass (1 docs warning for pre-existing missing flag docs)
+
+### Files Changed
+- scripts/onboard.py (112 insertions, 45 deletions)
+- launch.json (onboard_quality_gates → done)

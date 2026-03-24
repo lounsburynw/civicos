@@ -1,6 +1,6 @@
-# Recommended: Onboard Quality Gates
+# Recommended: Onboard End-to-End Test
 
-**Priority:** P0 (onboard_quality_gates)
+**Priority:** P0 (onboard_end_to_end_test)
 **Area:** turnkey_onboarding
 **Date:** 2026-03-23
 
@@ -8,60 +8,65 @@
 
 ## Context
 
-We've been building out the turnkey onboarding pipeline. Recent sessions completed `issue_provider_dispatch` (config-driven 311 client routing) and `issue_provider_detection` (auto-detect SeeClickFix via API probe). The onboarding script (`scripts/onboard.py`) now generates configs, detects platforms, detects issue providers, runs ingestion, and produces a quality report.
+The turnkey onboarding pipeline is now 6/10 complete. Recent sessions built out: platform pipeline wiring (CivicClerk, eScribe), HTML agenda extraction, config-driven issue provider dispatch, auto-detection of 311 providers, and (just now) severity-classified quality gates. The pipeline is functionally complete for onboarding cities — what's missing is an automated test proving it works end-to-end.
 
-**The quality report is currently advisory only.** It prints red flags but doesn't block progression. A city with zero meetings still proceeds to vector indexing (wasting resources). Transient API errors (rate limits, timeouts) look the same as genuine platform limitations (no PDFs, no minutes).
+Currently the onboarding flow has only been tested manually (`--skip-ingestion` on San Rafael). There's no integration test that exercises the full chain: config generation -> sample ingestion -> quality gate -> full ingestion -> final report.
 
 ## What Was Done This Session
 
-1. `detect_issue_source()` in `packages/civicos-extraction/src/civicos_extraction/onboard.py:466` — probes SeeClickFix API
-2. Wired into `onboard_jurisdiction()` at line 1376 (Step 2.5)
-3. `--detect-issues` CLI flag in `scripts/onboard.py:259` for re-running detection
-4. Exported from `__init__.py`
+Added severity-classified quality gates to `scripts/onboard.py`:
+- `QualityIssue` class (line 55) with CRITICAL/WARNING severity + actionable remediation text
+- Phase 2.5 validation gate now **fails-fast** on CRITICAL issues (exits 2) instead of proceeding
+- `--force-continue` flag to override the gate for debugging
+- Exit codes: 0=clean, 1=ingestion error, 2=quality issues
+- Commit: `a9f8430`
 
 ## Key Files
 
 | File | Lines | Purpose |
 |------|-------|---------|
-| `scripts/onboard.py:55-116` | `_quality_report()` | Current quality report — needs strengthening |
-| `scripts/onboard.py:397-427` | Phase 2.5 validation gate | Sample ingestion + quality check (advisory) |
-| `scripts/onboard.py:440-475` | Phase 4 final report | Post-ingestion quality report |
-| `scripts/onboard.py:35-52` | `_get_data_counts()` | Queries PostgreSQL for corpus counts |
-| `scripts/onboard.py:175-196` | `_run_modal_ingestion()` | Runs Modal ingestion stages |
+| `scripts/onboard.py` | Full file | Onboarding orchestrator — the thing being tested |
+| `scripts/onboard.py:55-67` | `QualityIssue` class | Severity classification |
+| `scripts/onboard.py:70-164` | `_quality_report()` | Quality assessment with severity |
+| `scripts/onboard.py:459-487` | Phase 2.5 gate | Fail-fast on CRITICAL issues |
+| `packages/civicos-extraction/src/civicos_extraction/onboard.py` | `onboard_jurisdiction()` | Config generation + discovery |
+| `packages/civicos-extraction/tests/test_onboard_yaml.py` | Existing test | YAML generation tests (pattern to follow) |
 
 ## Suggested Approach
 
-1. **Distinguish transient errors from platform limitations** in `_quality_report()`:
-   - `chunks/meeting = 0` could be HTML-only agendas (permanent) OR failed PDF downloads (transient)
-   - Add retry logic or separate error categories
-   - Consider checking if the platform type is known to use HTML agendas vs PDFs
+1. **Create test file** at `packages/civicos-extraction/tests/test_onboard_e2e.py` (or `tests/test_onboard_integration.py` at project root)
 
-2. **Gate progression to vector indexing** on minimum data thresholds:
-   - If meetings = 0 and platform should have meetings → fail-fast, don't proceed to chunks/vectors
-   - If chunks = 0 but meetings > 0 → warn but continue (HTML agenda platforms are valid)
-   - Configurable thresholds via CLI flags (e.g., `--min-meetings 5`)
+2. **Test the quality report function directly** (unit-level):
+   - Clean data -> 0 issues, exit 0
+   - Zero meetings on meeting platform -> CRITICAL
+   - Zero meetings, no meeting stages -> OK (expected)
+   - Zero agenda items with meetings -> CRITICAL
+   - HTML platform (chunks=0) -> WARNING, not CRITICAL
+   - Low decisions -> WARNING
 
-3. **Generate actionable remediation steps** instead of generic warnings:
-   - "meetings = 0" → "Check extraction config: verify view_id {X} returns data at {URL}"
-   - "chunks = 0" → "This platform uses HTML agendas. Chunks come from HTML extraction (supported since commit 05feb38)"
-   - "decisions = 0" → "Minutes may not be posted yet. Re-run after {N} days"
+3. **Test the CLI orchestration** (integration-level):
+   - Mock `_run_modal_ingestion()` and `_get_data_counts()` to avoid real Modal/Postgres
+   - Test that CRITICAL issues cause sys.exit(2) in Phase 2.5
+   - Test that `--force-continue` overrides the gate
+   - Test that `--skip-ingestion` still works
+   - Test that `--no-validate` skips Phase 2.5 entirely
 
-4. **Add exit codes** reflecting quality status:
-   - 0 = clean (all quality checks pass)
-   - 1 = error (ingestion failed)
-   - 2 = warning (completed but quality issues found)
+4. **Test config generation** (may already be covered by `test_onboard_yaml.py`):
+   - Verify `onboard_jurisdiction()` produces valid extraction JSON + YAML
+   - Verify `detect_issue_source()` works for known cities
 
 ## Important Context
 
+- `_quality_report()` is a pure function (dict in, list + issues out) — easy to unit test
+- The CLI `main()` calls `sys.exit()` — use `pytest.raises(SystemExit)` to test exit codes
+- Real Modal/Postgres calls should be mocked — this is a test of the orchestration logic, not the infra
 - San Rafael baseline ratios: ~52 chunks/meeting, ~3 agenda_items/meeting, ~0.45 decisions/meeting
-- HTML agenda extraction was added in commit `05feb38` — some platforms legitimately have 0 PDF chunks
-- The validation gate (Phase 2.5) runs a 30-day sample before full backfill — this is the right place to fail-fast
+- See `test_integration_cron_wiring.py` for the project's pattern of mocking external services in integration tests
 
 ## Success Criteria
 
-- [ ] Quality report distinguishes transient errors from platform limitations
-- [ ] Vector indexing gated on minimum data thresholds (meetings > 0 for meeting platforms)
-- [ ] Actionable remediation steps in quality report output
-- [ ] Exit codes reflect quality status
-- [ ] Existing onboarding flow still works (San Rafael, Mill Valley, San Anselmo)
-- [ ] Smoke tests pass
+- [ ] Unit tests for `_quality_report()` covering all severity classifications
+- [ ] Integration test for CLI flow with mocked Modal/Postgres
+- [ ] Tests verify exit codes (0, 1, 2) match expected behavior
+- [ ] Tests verify `--force-continue` and `--no-validate` flags
+- [ ] All existing smoke tests still pass
