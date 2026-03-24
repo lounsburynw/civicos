@@ -2210,6 +2210,32 @@ class SQLiteBackend:
         """Get operating cost summary (stub for SQLite - uses Postgres in production)."""
         return {"total_cost_usd": 0.0, "record_count": 0, "by_service": {}, "by_category": {}}
 
+    # ========== Refresh Metadata Methods (Postgres-only) ==========
+
+    def update_refresh_metadata(
+        self,
+        jurisdiction_id: str,
+        corpus_type: str,
+        source_name: Optional[str] = None,
+        items_fetched: Optional[int] = None,
+        items_stored: Optional[int] = None,
+        status: str = "completed",
+        error_message: Optional[str] = None,
+        fetch_window_days: Optional[int] = None,
+        next_scheduled_at: Optional[datetime] = None,
+        last_fetch_hash: Optional[str] = None,
+    ) -> int:
+        """Update refresh metadata (stub for SQLite - uses Postgres in production)."""
+        return 0
+
+    def get_refresh_metadata(
+        self,
+        jurisdiction_id: str,
+        corpus_type: Optional[str] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """Get refresh metadata (stub for SQLite - uses Postgres in production)."""
+        return None
+
     # ========== Legislation Methods (Postgres-only) ==========
 
     def store_legislation(

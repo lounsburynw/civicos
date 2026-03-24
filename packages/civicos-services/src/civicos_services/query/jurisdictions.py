@@ -12,10 +12,7 @@ Tier model (from cross-jurisdiction-query-spec.md):
   cross_county: different county (Phase B)
 """
 
-import functools
-import json
 import logging
-import os
 from typing import Dict, List, Set
 
 logger = logging.getLogger(__name__)
@@ -41,25 +38,13 @@ _PARENT_TIER_BY_PREFIX = {
 }
 
 
-@functools.lru_cache(maxsize=1)
-def _load_registry() -> str:
-    """Load config/registry.json from the repo root. Cached for process lifetime."""
-    here = os.path.dirname(os.path.abspath(__file__))
-    root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(here)))))
-    registry_path = os.path.join(root, "config", "registry.json")
-    try:
-        with open(registry_path) as f:
-            return f.read()
-    except (FileNotFoundError, OSError) as e:
-        logger.warning(f"Could not load registry.json: {e}")
-        return "{}"
-
-
 def _get_registry() -> Dict:
-    """Parse cached registry JSON."""
+    """Load registry via civicos.registry (handles all search paths + caching)."""
     try:
-        return json.loads(_load_registry())
-    except json.JSONDecodeError:
+        from civicos.registry import _load_registry
+        return _load_registry()
+    except Exception:
+        logger.warning("Could not load registry.json via civicos.registry")
         return {}
 
 
