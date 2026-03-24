@@ -63,10 +63,14 @@ def _get_registry() -> Dict:
         return {}
 
 
+MAX_DOWNWARD_FANOUT = 20
+
+
 def resolve_jurisdictions(
     base_jurisdiction: str,
     include_parents: bool = False,
     include_siblings: bool = False,
+    max_children: int = MAX_DOWNWARD_FANOUT,
 ) -> List[str]:
     """
     Expand a jurisdiction into a list based on parent/sibling flags.
@@ -76,6 +80,9 @@ def resolve_jurisdictions(
     - A city with include_parents → adds county, state, federal
     - A county with include_siblings → adds all child cities (downward)
     - A state/federal with include_siblings → adds all child jurisdictions
+
+    Downward resolution is capped at max_children to prevent fan-out
+    explosion when querying state/county-level with many child jurisdictions.
 
     Returns deduplicated list preserving insertion order.
     Base jurisdiction is always first.
@@ -99,9 +106,17 @@ def resolve_jurisdictions(
         # find all jurisdictions that list it as a parent
         children = _find_children(base_jurisdiction, all_jurisdictions)
         if children:
+            added = 0
             for child in children:
                 if child not in result:
                     result.append(child)
+                    added += 1
+                    if added >= max_children:
+                        logger.warning(
+                            f"Downward fan-out capped at {max_children} for "
+                            f"{base_jurisdiction} ({len(children)} children total)"
+                        )
+                        break
         else:
             # Sideways resolution: find cities sharing same parent county
             parent_counties: Set[str] = set()
@@ -109,12 +124,20 @@ def resolve_jurisdictions(
                 if parent.startswith("county-"):
                     parent_counties.add(parent)
 
+            added = 0
             for other_jid, other_entry in all_jurisdictions.items():
                 if other_jid in result:
                     continue
                 other_parents = other_entry.get("parent_jurisdictions", [])
                 if any(p in parent_counties for p in other_parents):
                     result.append(other_jid)
+                    added += 1
+                    if added >= max_children:
+                        logger.warning(
+                            f"Sibling fan-out capped at {max_children} for "
+                            f"{base_jurisdiction}"
+                        )
+                        break
 
     return result
 

@@ -1166,7 +1166,7 @@
       {
         "name": "downward_query_scaling",
         "description": "Cap or paginate downward resolution for state/county-level queries. Querying state-california with include_siblings (downward) would fan out to every CA city \u2014 works with 4, breaks with hundreds.",
-        "status": "not_started",
+        "status": "done",
         "priority": 1,
         "phase": "2",
         "source": "multi-scale participation \u2014 query scaling",

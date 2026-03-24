@@ -1756,6 +1756,31 @@ class TestJurisdictionResolution:
         from civicos_services.query.jurisdictions import validate_jurisdiction_ids
         assert validate_jurisdiction_ids([]) == []
 
+    def test_downward_fanout_capped(self):
+        """Downward resolution caps children at max_children."""
+        from civicos_services.query.jurisdictions import resolve_jurisdictions
+        # county-marin has 3 children (san-rafael, mill-valley, san-anselmo)
+        result = resolve_jurisdictions("county-marin", include_siblings=True, max_children=1)
+        # Base + 1 child (capped)
+        children = [j for j in result if j != "county-marin"]
+        assert len(children) == 1
+
+    def test_default_cap_allows_small_fanout(self):
+        """Default cap (20) doesn't affect small registries."""
+        from civicos_services.query.jurisdictions import resolve_jurisdictions
+        result = resolve_jurisdictions("county-marin", include_siblings=True)
+        # All Marin children should be present (well under 20)
+        assert "city-san-rafael" in result
+        assert "city-mill-valley" in result
+        assert "city-san-anselmo" in result
+
+    def test_sibling_fanout_capped(self):
+        """Sideways sibling resolution also respects max_children."""
+        from civicos_services.query.jurisdictions import resolve_jurisdictions
+        result = resolve_jurisdictions("city-san-rafael", include_siblings=True, max_children=1)
+        siblings = [j for j in result if j != "city-san-rafael"]
+        assert len(siblings) == 1
+
 
 # === Cross-Jurisdiction Search Tests ===
 
