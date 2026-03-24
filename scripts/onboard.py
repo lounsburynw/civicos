@@ -32,41 +32,68 @@ sys.path.insert(0, str(PROJECT_ROOT / "packages" / "civicos-services" / "src"))
 SAMPLE_DAYS = 30
 DEFAULT_DAYS_PAST = 365
 
-# Cost model (per meeting, approximate)
-# Modal compute: ~$0.002/meeting (fetch + store)
-# LLM extraction: ~$0.01/meeting (agenda items + decisions via OpenAI)
-# Chunk extraction: ~$0.003/meeting (PDF parsing)
-# Vector indexing is flat (~$0.10 regardless of meeting count)
-COST_PER_MEETING_USD = 0.015
-COST_VECTOR_FLAT_USD = 0.10
-COST_ISSUES_FLAT_USD = 0.02
-COST_MUNICIPAL_FLAT_USD = 0.05
+# Cost model — all rates approximate
+# Tier 1: Meeting processing (Modal compute + fetch)
+COST_MEETING_FETCH_USD = 0.002        # Modal compute per meeting
+COST_MEETING_CHUNKS_USD = 0.003       # PDF parsing per meeting
+# Tier 2: LLM extraction (OpenAI)
+COST_MEETING_AGENDA_USD = 0.005       # Agenda item extraction per meeting
+COST_MEETING_DECISIONS_USD = 0.005    # Decision extraction per meeting
+# Tier 3: Transcription (AssemblyAI)
+COST_TRANSCRIPTION_PER_HOUR = 0.21    # Universal v3 Pro
+COST_DIARIZATION_PER_HOUR = 0.02      # Speaker diarization add-on
+AVG_MEETING_HOURS = 1.5               # Default estimate for city council meetings
+# Flat costs (independent of meeting count)
+COST_VECTOR_FLAT_USD = 0.10           # Vector indexing (GPU)
+COST_ISSUES_FLAT_USD = 0.02           # SeeClickFix fetch
+COST_MUNICIPAL_FLAT_USD = 0.05        # Municipal code fetch
+COST_LEGISLATION_FLAT_USD = 0.20      # LegiScan sync
 
 
 def _estimate_cost(sample_meetings: int, sample_days: int, full_days: int,
                    has_meetings: bool = True, has_issues: bool = True,
-                   has_municipal: bool = False) -> dict:
+                   has_municipal: bool = False, has_transcription: bool = False,
+                   has_diarization: bool = False, has_legislation: bool = False,
+                   avg_meeting_hours: float = AVG_MEETING_HOURS) -> dict:
     """Extrapolate cost from sample to full backfill.
 
-    Returns dict with projected_meetings, meeting_cost, flat_cost, total.
+    Returns dict with projected_meetings, line items by tier, and total.
     """
     if sample_days <= 0 or not has_meetings:
         projected = 0
     else:
         projected = int(sample_meetings * (full_days / sample_days))
 
-    meeting_cost = projected * COST_PER_MEETING_USD
+    # Tier 1+2: Per-meeting costs
+    per_meeting = COST_MEETING_FETCH_USD + COST_MEETING_CHUNKS_USD
+    per_meeting += COST_MEETING_AGENDA_USD + COST_MEETING_DECISIONS_USD
+    meeting_cost = projected * per_meeting
+
+    # Tier 3: Transcription (per-meeting, scaled by avg duration)
+    transcription_cost = 0.0
+    if has_transcription and projected > 0:
+        hourly_rate = COST_TRANSCRIPTION_PER_HOUR
+        if has_diarization:
+            hourly_rate += COST_DIARIZATION_PER_HOUR
+        transcription_cost = projected * avg_meeting_hours * hourly_rate
+
+    # Flat costs
     flat_cost = COST_VECTOR_FLAT_USD
     if has_issues:
         flat_cost += COST_ISSUES_FLAT_USD
     if has_municipal:
         flat_cost += COST_MUNICIPAL_FLAT_USD
+    if has_legislation:
+        flat_cost += COST_LEGISLATION_FLAT_USD
 
     return {
         "projected_meetings": projected,
         "meeting_cost": meeting_cost,
+        "transcription_cost": transcription_cost,
         "flat_cost": flat_cost,
-        "total": meeting_cost + flat_cost,
+        "total": meeting_cost + transcription_cost + flat_cost,
+        "has_transcription": has_transcription,
+        "has_diarization": has_diarization,
     }
 
 
@@ -763,6 +790,24 @@ def main():
                 else:
                     print(f"\n  Sample looks good.")
 
+                # Determine transcription availability from YAML + env
+                _has_transcription = False
+                _has_diarization = False
+                _has_legislation = False
+                _yaml_check = PROJECT_ROOT / "data" / "jurisdictions" / f"{jid}.yaml"
+                if _yaml_check.exists():
+                    import yaml as _yaml_cost
+                    with open(_yaml_check) as _yf:
+                        _ycfg = _yaml_cost.safe_load(_yf) or {}
+                    _ds = _ycfg.get("data_sources", {})
+                    _ing_cfg = _ycfg.get("ingestion", {}) if isinstance(_ycfg.get("ingestion"), dict) else {}
+                    # Transcription: YouTube channel detected + AssemblyAI key available
+                    if _ds.get("transcripts", {}).get("channel_id"):
+                        _has_transcription = bool(os.environ.get("ASSEMBLYAI_API_KEY"))
+                        _has_diarization = _ing_cfg.get("diarization", True)
+                    # Legislation: state-level data
+                    _has_legislation = bool(_ds.get("legislation"))
+
                 # Cost estimate based on sample
                 est = _estimate_cost(
                     sample_meetings=sample_counts["meetings"],
@@ -771,12 +816,23 @@ def main():
                     has_meetings=has_meetings,
                     has_issues="issues" in ingestion_stages,
                     has_municipal="municipal" in ingestion_stages,
+                    has_transcription=_has_transcription,
+                    has_diarization=_has_diarization,
+                    has_legislation=_has_legislation,
                 )
                 print(f"\n  Cost Estimate ({args.days_past}-day backfill):")
                 print(f"    Projected meetings: ~{est['projected_meetings']}")
-                print(f"    Meeting processing: ~${est['meeting_cost']:.2f}")
+                print(f"    Meeting processing (fetch + LLM): ~${est['meeting_cost']:.2f}")
+                if est["has_transcription"]:
+                    label = "transcription + diarization" if est["has_diarization"] else "transcription"
+                    print(f"    Audio {label}: ~${est['transcription_cost']:.2f}")
                 print(f"    Fixed costs (vectors, issues, etc.): ~${est['flat_cost']:.2f}")
+                print(f"    ─────────────────────────────────")
                 print(f"    Total estimated: ~${est['total']:.2f}")
+                if not _has_transcription and _yaml_check.exists():
+                    _ds2 = _ycfg.get("data_sources", {})
+                    if _ds2.get("transcripts", {}).get("channel_id") and not os.environ.get("ASSEMBLYAI_API_KEY"):
+                        print(f"    (transcription available but ASSEMBLYAI_API_KEY not set)")
 
                 if not args.yes and not args.force_continue:
                     try:
