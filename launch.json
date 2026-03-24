@@ -82,7 +82,7 @@
       {
         "name": "issue_provider_detection",
         "description": "Auto-detect 311/issue provider during onboarding discovery. Probe known APIs (SeeClickFix, FixItMarin, QAlert) by city/county name, write detected provider to jurisdiction YAML. Provider can change over time — detection should be re-runnable.",
-        "priority": 2,
+        "priority": 0,
         "status": "not_started",
         "files": [
           "scripts/onboard.py"

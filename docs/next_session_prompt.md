@@ -1,6 +1,6 @@
-# Recommended: Issue Provider Dispatch
+# Recommended: Issue Provider Detection
 
-**Priority:** P0 (issue_provider_dispatch)
+**Priority:** P0 (issue_provider_detection)
 **Area:** turnkey_onboarding
 **Date:** 2026-03-23
 
@@ -8,60 +8,49 @@
 
 ## Context
 
-We just completed `html_agenda_extraction` (done). The chunk extraction pipeline now handles HTML agendas as a first-class path — pre-extracts HTML chunks from already-downloaded content and uses them as fallback when PDF strategies fail.
+We just completed `issue_provider_dispatch` (done). `fetch_issues()` now reads `issue_source` from `ExtractionConfig` and dispatches to the correct 311 client. `SUPPORTED_ISSUE_SOURCES` registry exists. SeeClickFix is default.
 
-**Issue provider dispatch is next** because `fetch_issues()` is hardcoded to SeeClickFix. Marin County is switching to FixItMarin (Mar 2026), and other cities use QAlert, PublicStuff, etc. The pattern should match `fetch_meetings()` which already has source-type dispatch via `SUPPORTED_MEETING_SOURCES`.
+**Issue provider detection is next** because onboarding a new city currently requires manually knowing which 311 provider they use. Auto-detection probes known APIs by city/county name and writes the result to the extraction config. This completes the turnkey onboarding story for issues.
 
 ## What Was Done This Session
 
-1. `extract_chunks_from_html_agenda()` — added `html_content` param to skip redundant re-download
-2. `extract_chunks_from_meeting()` — pre-extract HTML chunks upfront in degenerate case
-3. Fixed dead-end bug at second `is_valid_pdf` check — falls back to HTML instead of error
-4. 5 new tests, all 15 HTML chunk + 20 smoke tests pass
+1. `ExtractionConfig.issue_source` — new optional field (default None → "seeclickfix")
+2. `SUPPORTED_ISSUE_SOURCES` registry in `clients/__init__.py`
+3. `fetch_issues()` — config-driven dispatch with parameterized checkpoint keys
+4. `onboard.py` — issue stages gated by `SUPPORTED_ISSUE_SOURCES`
+5. `san-rafael.json` — explicit `"issue_source": "seeclickfix"`
 
 ## Key Files
 
-| File | Line | Purpose |
-|------|------|---------|
-| `scripts/modal_ingest.py:3204` | `fetch_issues()` | Hardcoded to SeeClickFix — this is what needs refactoring |
-| `scripts/modal_ingest.py:3232` | `from ...seeclickfix_client import SeeClickFixClient` | Hardcoded import |
-| `scripts/modal_ingest.py:2822` | `fetch_meetings()` | Model dispatch pattern to follow |
-| `packages/civicos-extraction/src/civicos_extraction/clients/__init__.py:115` | `SUPPORTED_MEETING_SOURCES` | Registry pattern to replicate for issues |
-| `packages/civicos-extraction/src/civicos_extraction/clients/seeclickfix.py` | SeeClickFix client | Existing provider |
-| `data/extraction/` | Per-city extraction configs | Where `issue_source` field should live |
+| File | Purpose |
+|------|---------|
+| `scripts/onboard.py` | Where detection logic should live (discovery phase) |
+| `packages/civicos-extraction/src/civicos_extraction/clients/seeclickfix.py` | Existing SeeClickFix client — probe `get_issues()` with small page |
+| `packages/civicos-extraction/src/civicos_extraction/clients/__init__.py:118` | `SUPPORTED_ISSUE_SOURCES` registry |
+| `packages/civicos-extraction/src/civicos_extraction/clients/base.py:194` | `ExtractionConfig.issue_source` field |
+| `data/extraction/san-rafael.json` | Example config with `issue_source` set |
 
 ## Suggested Approach
 
-1. **Read `fetch_issues()` at `modal_ingest.py:3204`** — understand the SeeClickFix-specific logic
-2. **Read `fetch_meetings()` at `modal_ingest.py:2822`** — see how it dispatches on `source_type` using `elif` branches and `SUPPORTED_MEETING_SOURCES`
-3. **Add `SUPPORTED_ISSUE_SOURCES` registry** in `clients/__init__.py` (next to `SUPPORTED_MEETING_SOURCES` at line 115)
-4. **Refactor `fetch_issues()`** to read `issue_source` from extraction config and dispatch to the appropriate client
-5. **Keep SeeClickFix as default** — backward-compatible for cities without explicit `issue_source`
-6. **Test with San Rafael** — ensure existing SeeClickFix issues still work
+1. **Read `onboard.py` discovery phase** — understand how it currently detects meeting sources
+2. **Add `detect_issue_source()` function** — probe known 311 APIs by city name:
+   - SeeClickFix: `GET /api/v2/issues?place_url={city_name}&per_page=1` — if returns issues, SeeClickFix is active
+   - Future: FixItMarin, QAlert probes
+3. **Wire into onboard discovery** — call during the discovery phase, write `issue_source` to extraction config JSON
+4. **Make re-runnable** — detection can update an existing config's `issue_source` if provider changes
+5. **Test with San Rafael** (SeeClickFix) and a city without SeeClickFix presence
 
 ## Important Context
 
-- See memory file `memory/project_311_providers.md` — cities change 311 providers. Don't hardcode SeeClickFix.
-- `scripts/modal_ingest.py:3278` already normalizes `issue["provider"]` — the field exists, just needs dispatch
-- `scripts/modal_ingest.py:3308-3316` — checkpoint keys are hardcoded to "seeclickfix", need parameterizing
-
-## Tests to Run
-
-```bash
-pytest packages/civicos/tests/test_civicos.py -q --override-ini="addopts="
-```
+- See memory `memory/project_311_providers.md` — Marin County switching to FixItMarin
+- SeeClickFix API is public, no auth needed — safe to probe
+- Detection should be best-effort: if no provider found, leave `issue_source` as None (will default to seeclickfix in fetch, but won't crash)
 
 ## Success Criteria
 
-- [ ] `SUPPORTED_ISSUE_SOURCES` registry created in `clients/__init__.py`
-- [ ] `fetch_issues()` dispatches on `issue_source` from extraction config
-- [ ] SeeClickFix remains default (backward-compatible)
-- [ ] Checkpoint keys parameterized (not hardcoded "seeclickfix")
-- [ ] San Rafael issue count unchanged after refactor
+- [ ] `detect_issue_source()` probes SeeClickFix API by city name
+- [ ] Integrated into `onboard.py` discovery phase
+- [ ] Writes detected `issue_source` to extraction config JSON
+- [ ] Re-runnable (can update existing config)
+- [ ] Graceful fallback when no provider detected
 - [ ] Smoke tests pass
-
-## Turnkey Onboarding Roadmap (remaining)
-
-After issue_provider_dispatch:
-- P2: `onboard_quality_gates`, `issue_provider_detection`, `onboard_end_to_end_test`
-- P3: `onboard_transcript_auto`, `onboard_deploy_integration`, `onboard_batch_mode`
