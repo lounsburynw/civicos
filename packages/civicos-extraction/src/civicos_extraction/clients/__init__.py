@@ -114,6 +114,11 @@ from civicos_extraction.clients.sam_assistance import (
 # which stages to run.  Add new source types here as clients are wired up.
 SUPPORTED_MEETING_SOURCES: frozenset[str] = frozenset({"proudcity", "granicus", "legistar", "civicclerk", "escribe"})
 
+# Registry of 311 issue source types with implemented fetch support.
+# Used by modal_ingest.py fetch_issues() to dispatch to the correct client.
+# Add new issue providers here as clients are wired up.
+SUPPORTED_ISSUE_SOURCES: frozenset[str] = frozenset({"seeclickfix"})
+
 from civicos_extraction.clients.escribe import EScribeClient
 from civicos_extraction.clients.federal_register import (
     FederalRegisterClient,
@@ -122,6 +127,7 @@ from civicos_extraction.clients.federal_register import (
 
 __all__ = [
     "SUPPORTED_MEETING_SOURCES",
+    "SUPPORTED_ISSUE_SOURCES",
     "LegistarClient",
     "CivicClerkClient",
     "EScribeClient",

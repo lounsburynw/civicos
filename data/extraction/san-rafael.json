@@ -29,6 +29,7 @@
     "state": "CA",
     "county": "Marin"
   },
+  "issue_source": "seeclickfix",
   "federal_programs": {
     "hud_grantee": "Marin County",
     "hud_relationship": "consortium",
