@@ -165,19 +165,13 @@ CITY_TO_COUNTY = {
 }
 
 
-@functools.lru_cache(maxsize=1)
 def _load_jurisdiction_registry() -> dict:
-    """Load config/registry.json once and cache for process lifetime."""
-    import json as _json
-    import os as _os
-    here = _os.path.dirname(_os.path.abspath(__file__))
-    root = _os.path.dirname(_os.path.dirname(_os.path.dirname(_os.path.dirname(here))))
-    registry_path = _os.path.join(root, "config", "registry.json")
+    """Load config/registry.json via civicos.registry (handles all search paths)."""
     try:
-        with open(registry_path) as f:
-            return _json.load(f)
-    except (FileNotFoundError, OSError) as e:
-        logger.warning(f"Could not load registry.json for state resolution: {e}")
+        from civicos.registry import _load_registry
+        return _load_registry()
+    except Exception as e:
+        logger.warning(f"Could not load registry for state resolution: {e}")
         return {}
 
 

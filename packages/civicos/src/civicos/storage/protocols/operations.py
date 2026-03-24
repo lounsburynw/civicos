@@ -1,10 +1,11 @@
 """
-OperationsStorage protocol for ETL operations and cost tracking.
+OperationsStorage protocol for ETL operations, cost tracking, and refresh metadata.
 
-Handles long-running operations (fetch_meetings, discover_videos, etc.)
-and ETL cost monitoring for budget optimization.
+Handles long-running operations (fetch_meetings, discover_videos, etc.),
+ETL cost monitoring for budget optimization, and refresh scheduling metadata.
 """
 
+from datetime import datetime
 from typing import Any, Dict, List, Optional, Protocol, runtime_checkable
 
 
@@ -173,4 +174,35 @@ class OperationsStorage(Protocol):
         Returns:
             Dictionary with total_cost_usd, record_count, and breakdown by service/category
         """
+        ...
+
+    # ========== Refresh Metadata Methods ==========
+
+    def update_refresh_metadata(
+        self,
+        jurisdiction_id: str,
+        corpus_type: str,
+        source_name: Optional[str] = None,
+        items_fetched: Optional[int] = None,
+        items_stored: Optional[int] = None,
+        status: str = "completed",
+        error_message: Optional[str] = None,
+        fetch_window_days: Optional[int] = None,
+        next_scheduled_at: Optional[datetime] = None,
+        last_fetch_hash: Optional[str] = None,
+    ) -> int:
+        """Update or insert refresh metadata after a fetch operation.
+
+        Uses upsert semantics — inserts if not exists, updates if exists.
+        Tracks when each corpus was last refreshed, with what result,
+        and when the next refresh should run.
+        """
+        ...
+
+    def get_refresh_metadata(
+        self,
+        jurisdiction_id: str,
+        corpus_type: Optional[str] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """Get refresh metadata for a jurisdiction/corpus pair."""
         ...
