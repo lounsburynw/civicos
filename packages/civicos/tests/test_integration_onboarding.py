@@ -36,6 +36,7 @@ _get_ingestion_stages = onboard._get_ingestion_stages
 _get_data_counts = onboard._get_data_counts
 _update_registry = onboard._update_registry
 _verify_jurisdiction = onboard._verify_jurisdiction
+_estimate_cost = onboard._estimate_cost
 
 
 # ---------------------------------------------------------------------------
@@ -821,3 +822,279 @@ class TestCLIDeployFlag:
 
         assert jid in registry["jurisdictions"]
         assert registry["jurisdictions"][jid]["display_name"] == "Testville"
+
+
+# ---------------------------------------------------------------------------
+# _estimate_cost() — cost extrapolation from sample
+# ---------------------------------------------------------------------------
+
+class TestEstimateCost:
+    """Tests for _estimate_cost(): extrapolates from sample to full backfill."""
+
+    def test_basic_extrapolation(self):
+        """8 meetings in 30 days -> ~97 in 365 days."""
+        est = _estimate_cost(sample_meetings=8, sample_days=30, full_days=365)
+        assert est["projected_meetings"] == 97  # int(8 * 365/30)
+        assert est["total"] > 0
+
+    def test_zero_meetings_zero_cost(self):
+        """0 meetings -> meeting cost is 0, still has flat costs."""
+        est = _estimate_cost(sample_meetings=0, sample_days=30, full_days=365)
+        assert est["projected_meetings"] == 0
+        assert est["meeting_cost"] == 0
+        assert est["flat_cost"] > 0  # vectors at minimum
+
+    def test_no_meeting_stages(self):
+        """has_meetings=False -> 0 projected meetings."""
+        est = _estimate_cost(sample_meetings=10, sample_days=30, full_days=365,
+                             has_meetings=False)
+        assert est["projected_meetings"] == 0
+
+    def test_issues_add_flat_cost(self):
+        """has_issues=True adds issue flat cost."""
+        with_issues = _estimate_cost(sample_meetings=10, sample_days=30, full_days=365,
+                                     has_issues=True)
+        without_issues = _estimate_cost(sample_meetings=10, sample_days=30, full_days=365,
+                                        has_issues=False)
+        assert with_issues["flat_cost"] > without_issues["flat_cost"]
+
+    def test_municipal_adds_flat_cost(self):
+        """has_municipal=True adds municipal flat cost."""
+        with_muni = _estimate_cost(sample_meetings=10, sample_days=30, full_days=365,
+                                   has_municipal=True)
+        without_muni = _estimate_cost(sample_meetings=10, sample_days=30, full_days=365,
+                                      has_municipal=False)
+        assert with_muni["flat_cost"] > without_muni["flat_cost"]
+
+    def test_cost_scales_with_days(self):
+        """More days -> proportionally more meetings and cost."""
+        short = _estimate_cost(sample_meetings=10, sample_days=30, full_days=90)
+        long = _estimate_cost(sample_meetings=10, sample_days=30, full_days=365)
+        assert long["projected_meetings"] > short["projected_meetings"]
+        assert long["total"] > short["total"]
+
+
+# ---------------------------------------------------------------------------
+# Configurable defaults — YAML overrides for days_past/sample_days
+# ---------------------------------------------------------------------------
+
+class TestConfigurableDefaults:
+    """Tests for YAML-based default overrides."""
+
+    @pytest.fixture
+    def temp_project(self, tmp_path):
+        """Temp project with configs and YAML containing ingestion settings."""
+        extraction_dir = tmp_path / "data" / "extraction"
+        extraction_dir.mkdir(parents=True)
+        jurisdiction_dir = tmp_path / "data" / "jurisdictions"
+        jurisdiction_dir.mkdir(parents=True)
+        config_dir = tmp_path / "config"
+        config_dir.mkdir()
+
+        jid = "city-testville"
+
+        (extraction_dir / f"{jid}.json").write_text(json.dumps({
+            "source_type": "legistar",
+            "issue_source": "seeclickfix",
+        }))
+
+        (config_dir / "registry.json").write_text(json.dumps({
+            "version": "1.0",
+            "jurisdictions": {},
+        }))
+
+        return tmp_path, jid
+
+    def _run_main(self, argv):
+        with patch.object(sys, "argv", ["onboard.py"] + argv):
+            try:
+                onboard.main()
+                return 0
+            except SystemExit as e:
+                return e.code if e.code is not None else 0
+
+    def test_yaml_defaults_used_when_no_cli_flags(self, temp_project):
+        """YAML ingestion.days_past/sample_days used when CLI flags omitted."""
+        tmp_path, jid = temp_project
+
+        (tmp_path / "data" / "jurisdictions" / f"{jid}.yaml").write_text(yaml.dump({
+            "jurisdiction_id": jid,
+            "ingestion": {"days_past": 180, "sample_days": 14},
+        }))
+
+        modal_calls = []
+
+        def track_modal(jid, days_past, dry_run=False, stages="all"):
+            modal_calls.append(days_past)
+            return 0
+
+        with patch.object(onboard, "PROJECT_ROOT", tmp_path), \
+             patch.object(onboard, "_run_modal_ingestion", side_effect=track_modal), \
+             patch.object(onboard, "_get_data_counts", return_value={
+                 "meetings": 10, "chunks": 520, "agenda_items": 30,
+                 "decisions": 5, "municipal_code": 0,
+             }), \
+             patch.dict(os.environ, {"DATABASE_URL": "postgresql://fake"}), \
+             patch("dotenv.load_dotenv"), \
+             patch("builtins.input", return_value="y"):
+            code = self._run_main([
+                "--city", "Testville", "--state", "CA",
+            ])
+
+        assert code == 0
+        # Sample should use YAML sample_days=14, full should use days_past=180
+        assert modal_calls[0] == 14
+        assert modal_calls[1] == 180
+
+    def test_cli_flags_override_yaml(self, temp_project):
+        """CLI --days-past/--sample-days override YAML values."""
+        tmp_path, jid = temp_project
+
+        (tmp_path / "data" / "jurisdictions" / f"{jid}.yaml").write_text(yaml.dump({
+            "jurisdiction_id": jid,
+            "ingestion": {"days_past": 180, "sample_days": 14},
+        }))
+
+        modal_calls = []
+
+        def track_modal(jid, days_past, dry_run=False, stages="all"):
+            modal_calls.append(days_past)
+            return 0
+
+        with patch.object(onboard, "PROJECT_ROOT", tmp_path), \
+             patch.object(onboard, "_run_modal_ingestion", side_effect=track_modal), \
+             patch.object(onboard, "_get_data_counts", return_value={
+                 "meetings": 10, "chunks": 520, "agenda_items": 30,
+                 "decisions": 5, "municipal_code": 0,
+             }), \
+             patch.dict(os.environ, {"DATABASE_URL": "postgresql://fake"}), \
+             patch("dotenv.load_dotenv"), \
+             patch("builtins.input", return_value="y"):
+            code = self._run_main([
+                "--city", "Testville", "--state", "CA",
+                "--days-past", "90", "--sample-days", "7",
+            ])
+
+        assert code == 0
+        assert modal_calls[0] == 7   # CLI override
+        assert modal_calls[1] == 90  # CLI override
+
+    def test_hardcoded_defaults_when_no_yaml_config(self, temp_project):
+        """No ingestion section in YAML -> hardcoded defaults (365/30)."""
+        tmp_path, jid = temp_project
+
+        (tmp_path / "data" / "jurisdictions" / f"{jid}.yaml").write_text(yaml.dump({
+            "jurisdiction_id": jid,
+        }))
+
+        modal_calls = []
+
+        def track_modal(jid, days_past, dry_run=False, stages="all"):
+            modal_calls.append(days_past)
+            return 0
+
+        with patch.object(onboard, "PROJECT_ROOT", tmp_path), \
+             patch.object(onboard, "_run_modal_ingestion", side_effect=track_modal), \
+             patch.object(onboard, "_get_data_counts", return_value={
+                 "meetings": 10, "chunks": 520, "agenda_items": 30,
+                 "decisions": 5, "municipal_code": 0,
+             }), \
+             patch.dict(os.environ, {"DATABASE_URL": "postgresql://fake"}), \
+             patch("dotenv.load_dotenv"), \
+             patch("builtins.input", return_value="y"):
+            code = self._run_main([
+                "--city", "Testville", "--state", "CA",
+            ])
+
+        assert code == 0
+        assert modal_calls[0] == 30   # hardcoded SAMPLE_DAYS
+        assert modal_calls[1] == 365  # hardcoded DEFAULT_DAYS_PAST
+
+
+# ---------------------------------------------------------------------------
+# CLI flow — --yes flag and cost estimate prompt
+# ---------------------------------------------------------------------------
+
+class TestCostEstimatePrompt:
+    """Tests for cost estimate and --yes flag in CLI flow."""
+
+    @pytest.fixture
+    def temp_project(self, tmp_path):
+        extraction_dir = tmp_path / "data" / "extraction"
+        extraction_dir.mkdir(parents=True)
+        jurisdiction_dir = tmp_path / "data" / "jurisdictions"
+        jurisdiction_dir.mkdir(parents=True)
+        config_dir = tmp_path / "config"
+        config_dir.mkdir()
+
+        jid = "city-testville"
+
+        (extraction_dir / f"{jid}.json").write_text(json.dumps({
+            "source_type": "legistar",
+            "issue_source": "seeclickfix",
+        }))
+        (jurisdiction_dir / f"{jid}.yaml").write_text(yaml.dump({
+            "jurisdiction_id": jid,
+        }))
+        (config_dir / "registry.json").write_text(json.dumps({
+            "version": "1.0",
+            "jurisdictions": {},
+        }))
+
+        return tmp_path, jid
+
+    def _run_main(self, argv):
+        with patch.object(sys, "argv", ["onboard.py"] + argv):
+            try:
+                onboard.main()
+                return 0
+            except SystemExit as e:
+                return e.code if e.code is not None else 0
+
+    def test_yes_flag_skips_prompt(self, temp_project):
+        """--yes auto-confirms, no input() call."""
+        tmp_path, jid = temp_project
+
+        with patch.object(onboard, "PROJECT_ROOT", tmp_path), \
+             patch.object(onboard, "_run_modal_ingestion", return_value=0), \
+             patch.object(onboard, "_get_data_counts", return_value={
+                 "meetings": 10, "chunks": 520, "agenda_items": 30,
+                 "decisions": 5, "municipal_code": 0,
+             }), \
+             patch.dict(os.environ, {"DATABASE_URL": "postgresql://fake"}), \
+             patch("dotenv.load_dotenv"), \
+             patch("builtins.input") as mock_input:
+            code = self._run_main([
+                "--city", "Testville", "--state", "CA", "--yes",
+            ])
+
+        assert code == 0
+        mock_input.assert_not_called()
+
+    def test_user_declines_aborts(self, temp_project):
+        """User answers 'n' at cost prompt -> exit 0 (clean abort)."""
+        tmp_path, jid = temp_project
+
+        modal_calls = []
+
+        def track_modal(jid, days_past, dry_run=False, stages="all"):
+            modal_calls.append(days_past)
+            return 0
+
+        with patch.object(onboard, "PROJECT_ROOT", tmp_path), \
+             patch.object(onboard, "_run_modal_ingestion", side_effect=track_modal), \
+             patch.object(onboard, "_get_data_counts", return_value={
+                 "meetings": 10, "chunks": 520, "agenda_items": 30,
+                 "decisions": 5, "municipal_code": 0,
+             }), \
+             patch.dict(os.environ, {"DATABASE_URL": "postgresql://fake"}), \
+             patch("dotenv.load_dotenv"), \
+             patch("builtins.input", return_value="n"):
+            code = self._run_main([
+                "--city", "Testville", "--state", "CA",
+            ])
+
+        assert code == 0
+        # Only sample ingestion ran (30 days), full was aborted
+        assert len(modal_calls) == 1
+        assert modal_calls[0] == 30
