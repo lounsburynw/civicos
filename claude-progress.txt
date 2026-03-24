@@ -23334,3 +23334,42 @@ Sacramento results:
 - All tests pass (82 refresh, 20 smoke)
 
 **Next P0:** legistar_client — wire Legistar meeting fetch into Modal pipeline for Sacramento (35 bodies discovered, extraction config exists).
+
+## Session — 2026-03-23: CivicClerk + eScribe Pipeline Wiring
+
+**Items:** civicclerk_pipeline_wiring (P0, done), escribe_pipeline_wiring (P1, done)
+**Area:** turnkey_onboarding
+
+### What Was Done
+
+1. **CivicClerk pipeline wiring** — Added `elif source_type == "civicclerk"` branch in
+   `fetch_meetings()` (modal_ingest.py). Added "civicclerk" to SUPPORTED_MEETING_SOURCES.
+   Created extraction config for El Cerrito (elcerritoca subdomain).
+
+2. **CivicClerk normalize_event fix** — The CivicClerk API enriched events use `eventName`
+   (not `name`) and `eventLocation` as a dict (not plain string). Fixed normalize_event()
+   to use correct field names. Also added `categoryName` fallback for meeting type inference.
+
+3. **El Cerrito end-to-end verified** — 15 meetings fetched and stored in Postgres with
+   correct titles, datetimes, meeting types, and locations. San Rafael data unaffected (96).
+
+4. **eScribe pipeline wiring** — Added `elif source_type == "escribe"` branch in
+   fetch_meetings(). Added "escribe" to SUPPORTED_MEETING_SOURCES and imported EScribeClient.
+   Created extraction config for National City. Note: eScribe sites have SSL cert chain
+   issue with Python certifi on macOS (curl works, requests fails). Pipeline code is correct;
+   needs system cert fix or Modal testing.
+
+5. **Other CivicClerk cities** — Probed Hayward, San Pablo, Daly City, Milpitas, Pinole,
+   Pittsburg, Pleasanton — all return HTTP 404. May have migrated platforms. Only El Cerrito
+   (elcerritoca) is currently active.
+
+### Files Changed
+- scripts/modal_ingest.py — CivicClerk + eScribe elif branches in fetch_meetings()
+- packages/civicos-extraction/src/civicos_extraction/clients/__init__.py — Added to SUPPORTED_MEETING_SOURCES, imported EScribeClient
+- packages/civicos-extraction/src/civicos_extraction/clients/civicclerk.py — Fixed normalize_event for eventName/eventLocation
+- data/extraction/city-el-cerrito.json — New extraction config
+- data/extraction/city-national-city.json — New extraction config
+- launch.json — Marked both items done, set html_agenda_extraction as next P0
+
+### Next P0
+html_agenda_extraction — Extract chunks from HTML agendas when PDF is unavailable.

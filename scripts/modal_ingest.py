@@ -2894,6 +2894,20 @@ def fetch_meetings(
                 jurisdiction_id=jurisdiction,
             )
             meetings = client.get_meetings(days_ahead=days_ahead, days_past=days_past)
+        elif source_type == "civicclerk":
+            from civicos_extraction.clients.civicclerk import CivicClerkClient
+            client = CivicClerkClient(
+                subdomain=config.metadata.get("subdomain", config.source_id.replace("civicclerk-", "")),
+                jurisdiction_id=jurisdiction,
+            )
+            meetings = client.get_meetings(days_ahead=days_ahead, days_past=days_past)
+        elif source_type == "escribe":
+            from civicos_extraction.clients.escribe import EScribeClient
+            client = EScribeClient(
+                instance_name=config.metadata.get("instance_name", config.source_id.replace("escribe-", "")),
+                jurisdiction_id=jurisdiction,
+            )
+            meetings = client.get_meetings(days_ahead=days_ahead, days_past=days_past)
         else:
             from civicos_extraction.clients import SUPPORTED_MEETING_SOURCES
             logger.warning(f"[MEETINGS] source_type '{source_type}' not yet supported "

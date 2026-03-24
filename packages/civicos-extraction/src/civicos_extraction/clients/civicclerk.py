@@ -293,18 +293,28 @@ class CivicClerkClient(BaseExtractor):
                 agenda_url = pf.get("url")
                 break
 
-        # Determine meeting type from name
-        name = event.get("name", "")
-        meeting_type = self._infer_meeting_type(name)
+        # Determine meeting type from name — enriched events use "eventName"
+        name = event.get("eventName") or event.get("name", "")
+        category = event.get("categoryName", "")
+        meeting_type = self._infer_meeting_type(name or category)
+
+        # Extract location from eventLocation dict or plain string
+        location = event.get("location")
+        event_location = event.get("eventLocation")
+        if event_location and isinstance(event_location, dict):
+            parts = [event_location.get("address1"), event_location.get("city"), event_location.get("state")]
+            loc_str = ", ".join(p for p in parts if p)
+            if loc_str:
+                location = loc_str
 
         return Meeting(
             id=f"civicclerk-{self.subdomain}-{event_id}",
-            title=name or "Meeting",
+            title=name or category or "Meeting",
             meeting_datetime=meeting_datetime or datetime.now(),
             jurisdiction_id=self.jurisdiction_id,
             meeting_type=meeting_type,
             status="scheduled",
-            location=event.get("location"),
+            location=location,
             virtual_url=event.get("virtualMeetingUrl"),
             agenda_url=agenda_url,
             video_url=event.get("videoUrl"),

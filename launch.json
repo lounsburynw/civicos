@@ -21,7 +21,7 @@
         "name": "civicclerk_pipeline_wiring",
         "description": "Wire CivicClerk client into fetch_meetings() in modal_ingest.py. Client exists (civicclerk.py), just needs elif branch + SUPPORTED_MEETING_SOURCES registration. Same pattern as legistar_client.",
         "priority": 0,
-        "status": "not_started",
+        "status": "done",
         "files": [
           "scripts/modal_ingest.py",
           "packages/civicos-extraction/src/civicos_extraction/clients/__init__.py",
@@ -34,19 +34,19 @@
         "name": "escribe_pipeline_wiring",
         "description": "Wire eScribe client into fetch_meetings() in modal_ingest.py. Client exists (escribe.py), needs elif branch + SUPPORTED_MEETING_SOURCES registration. Covers Canadian cities + National City CA.",
         "priority": 1,
-        "status": "not_started",
+        "status": "done",
         "files": [
           "scripts/modal_ingest.py",
           "packages/civicos-extraction/src/civicos_extraction/clients/__init__.py",
           "packages/civicos-extraction/src/civicos_extraction/clients/escribe.py"
         ],
         "test_file": null,
-        "notes": "eScribe uses calendar API. ~1 session. Same wiring pattern as legistar/civicclerk."
+        "notes": "Pipeline wiring done. eScribe sites have SSL cert chain issue with Python certifi on macOS (curl works, requests fails). Needs system cert fix or Modal testing."
       },
       {
         "name": "html_agenda_extraction",
         "description": "Extract chunks from HTML agendas when PDF is unavailable. Some Legistar/Granicus cities serve agendas as HTML only — chunks=0 for these cities, breaking chunk search. Detect format and route to HTML parser.",
-        "priority": 1,
+        "priority": 0,
         "status": "not_started",
         "files": [
           "scripts/modal_ingest.py",
