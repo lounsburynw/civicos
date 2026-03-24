@@ -94,7 +94,7 @@
       {
         "name": "onboard_transcript_auto",
         "description": "Auto-detect YouTube channels for meeting recordings during onboarding. Probe YouTube Data API for city council channels, add to jurisdiction YAML if found. Gated on AssemblyAI key availability.",
-        "priority": 3,
+        "priority": 1,
         "status": "not_started",
         "files": [
           "scripts/onboard.py"
@@ -129,7 +129,7 @@
       {
         "name": "onboard_batch_mode",
         "description": "Support onboarding multiple cities in a single command. Iterate over a list of jurisdiction IDs, run discovery + ingestion for each, produce aggregate quality report. Enables rapid expansion.",
-        "priority": 3,
+        "priority": 1,
         "status": "not_started",
         "files": [
           "scripts/onboard.py"
@@ -140,7 +140,7 @@
       {
         "name": "onboard_configurable_defaults",
         "description": "Read days_past and sample_days defaults from jurisdiction YAML (ingestion.days_past, ingestion.sample_days) so operators can tune per-city. CLI flags override YAML. Falls back to current hardcoded defaults (365/30).",
-        "priority": 3,
+        "priority": 1,
         "status": "not_started",
         "files": [
           "scripts/onboard.py",
@@ -152,7 +152,7 @@
       {
         "name": "onboard_cost_estimate",
         "description": "After the validation sample, extrapolate meeting counts to the full backfill window and estimate LLM cost (agenda + decision extraction) before proceeding. Print estimate and prompt for confirmation unless --yes flag is passed.",
-        "priority": 2,
+        "priority": 1,
         "status": "not_started",
         "files": [
           "scripts/onboard.py",
@@ -852,7 +852,7 @@
         "name": "query_monitoring_and_docs",
         "description": "Production polish: query latency logging, connection pool metrics, alert thresholds, and docs sweep to update stale decision ID format references across ~10 doc files.",
         "status": "not_started",
-        "priority": 0,
+        "priority": 2,
         "phase": "B",
         "source": "performance assessment 2026-03-17",
         "files": [
