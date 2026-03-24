@@ -470,6 +470,7 @@ def extract_chunks_from_html_agenda(
     agenda_url: str,
     meeting_id: str,
     max_chunk_chars: int = 1500,
+    html_content: Optional[str] = None,
 ) -> List[Dict[str, Any]]:
     """
     Extract text chunks from an HTML agenda page (e.g., Granicus AgendaViewer).
@@ -478,27 +479,37 @@ def extract_chunks_from_html_agenda(
     structured agenda content and splits into chunks compatible with the
     storage format.
 
+    Args:
+        agenda_url: URL of the agenda page (used for metadata and fallback download)
+        meeting_id: Meeting ID for chunk namespacing
+        max_chunk_chars: Maximum characters per chunk
+        html_content: Pre-fetched HTML text. If provided, skips download.
+
     Returns list of chunk dicts ready for storage, or empty list if extraction fails.
     """
     from bs4 import BeautifulSoup
 
-    session = requests.Session()
-    session.headers.update({
-        'User-Agent': (
-            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) '
-            'AppleWebKit/537.36 (KHTML, like Gecko) '
-            'Chrome/120.0.0.0 Safari/537.36'
-        ),
-    })
+    if html_content:
+        html_text = html_content
+    else:
+        session = requests.Session()
+        session.headers.update({
+            'User-Agent': (
+                'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) '
+                'AppleWebKit/537.36 (KHTML, like Gecko) '
+                'Chrome/120.0.0.0 Safari/537.36'
+            ),
+        })
 
-    try:
-        resp = session.get(agenda_url, timeout=30)
-        resp.raise_for_status()
-    except requests.exceptions.RequestException as e:
-        logger.warning(f"  Failed to fetch HTML agenda: {e}")
-        return []
+        try:
+            resp = session.get(agenda_url, timeout=30)
+            resp.raise_for_status()
+        except requests.exceptions.RequestException as e:
+            logger.warning(f"  Failed to fetch HTML agenda: {e}")
+            return []
+        html_text = resp.text
 
-    soup = BeautifulSoup(resp.text, "html.parser")
+    soup = BeautifulSoup(html_text, "html.parser")
 
     # Remove script/style tags
     for tag in soup.find_all(["script", "style"]):
@@ -1327,6 +1338,17 @@ def extract_chunks_from_meeting(
                     "Looking for actual PDF URL..."
                 )
 
+                # Pre-extract HTML chunks from already-downloaded content
+                # (avoids re-downloading at fallback points below)
+                html_text = download_result.content.decode('utf-8', errors='replace')
+                html_fallback_chunks = extract_chunks_from_html_agenda(
+                    agenda_url, meeting_id, html_content=html_text
+                )
+                if html_fallback_chunks:
+                    logger.info(
+                        f"  Pre-extracted {len(html_fallback_chunks)} HTML chunks as fallback"
+                    )
+
                 actual_pdf_url = None
 
                 # Strategy 1: Check raw_data/full_data for packet_url (Granicus stores this)
@@ -1383,33 +1405,26 @@ def extract_chunks_from_meeting(
                         return all_chunks
 
                 if not actual_pdf_url:
-                    # Strategy 3: Extract text chunks directly from HTML agenda
-                    logger.info(
-                        f"  No PDF links found. Trying HTML text extraction..."
-                    )
-                    html_chunks = extract_chunks_from_html_agenda(
-                        agenda_url, meeting_id
-                    )
-                    if html_chunks:
+                    # Strategy 3: Use pre-extracted HTML chunks
+                    if html_fallback_chunks:
                         logger.info(
-                            f"  Extracted {len(html_chunks)} chunks from HTML agenda"
+                            f"  No PDF links found. Using {len(html_fallback_chunks)} pre-extracted HTML chunks."
                         )
-                        # Store HTML chunks (same path as PDF chunks)
                         stored_to_cloud = False
                         if cloud_mode:
                             stored_to_cloud = store_chunks_to_cloud(
-                                jurisdiction_id, html_chunks, meeting_id=meeting_id
+                                jurisdiction_id, html_fallback_chunks, meeting_id=meeting_id
                             )
                         if not stored_to_cloud:
                             os.makedirs(output_dir, exist_ok=True)
                             with open(output_path, "w") as f:
-                                json.dump(html_chunks, f, indent=2)
+                                json.dump(html_fallback_chunks, f, indent=2)
 
                         return ChunksResult(
                             meeting_id=meeting_id,
                             meeting_date=meeting_date,
                             status="success",
-                            chunks_count=len(html_chunks),
+                            chunks_count=len(html_fallback_chunks),
                         )
 
                     logger.warning(
@@ -1439,6 +1454,26 @@ def extract_chunks_from_meeting(
                     logger.warning(
                         f"  Downloaded content still not a valid PDF"
                     )
+                    # Fall back to pre-extracted HTML chunks
+                    if html_fallback_chunks:
+                        logger.info(
+                            f"  Using {len(html_fallback_chunks)} HTML chunks as fallback"
+                        )
+                        stored_to_cloud = False
+                        if cloud_mode:
+                            stored_to_cloud = store_chunks_to_cloud(
+                                jurisdiction_id, html_fallback_chunks, meeting_id=meeting_id
+                            )
+                        if not stored_to_cloud:
+                            os.makedirs(output_dir, exist_ok=True)
+                            with open(output_path, "w") as f:
+                                json.dump(html_fallback_chunks, f, indent=2)
+                        return ChunksResult(
+                            meeting_id=meeting_id,
+                            meeting_date=meeting_date,
+                            status="success",
+                            chunks_count=len(html_fallback_chunks),
+                        )
                     return ChunksResult(
                         meeting_id=meeting_id,
                         meeting_date=meeting_date,

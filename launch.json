@@ -47,7 +47,8 @@
         "name": "html_agenda_extraction",
         "description": "Extract chunks from HTML agendas when PDF is unavailable. Some Legistar/Granicus cities serve agendas as HTML only — chunks=0 for these cities, breaking chunk search. Detect format and route to HTML parser.",
         "priority": 0,
-        "status": "not_started",
+        "status": "done",
+        "notes": "Added html_content param to extract_chunks_from_html_agenda() to accept pre-downloaded HTML. Restructured degenerate case in extract_chunks_from_meeting() to pre-extract HTML chunks upfront and use them as fallback. Fixed dead-end bug where found-but-invalid PDF URL returned error instead of falling back to HTML.",
         "files": [
           "scripts/modal_ingest.py",
           "packages/civicos-extraction/src/civicos_extraction/clients/base.py"
@@ -69,7 +70,7 @@
       {
         "name": "issue_provider_dispatch",
         "description": "Generalize fetch_issues() to support multiple 311 providers (SeeClickFix, FixItMarin, QAlert, etc.) via source-type dispatch — same pattern as fetch_meetings(). Add SUPPORTED_ISSUE_SOURCES registry. Currently hardcoded to SeeClickFix.",
-        "priority": 1,
+        "priority": 0,
         "status": "not_started",
         "files": [
           "scripts/modal_ingest.py",

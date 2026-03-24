@@ -23373,3 +23373,39 @@ Sacramento results:
 
 ### Next P0
 html_agenda_extraction — Extract chunks from HTML agendas when PDF is unavailable.
+
+## Session — 2026-03-23: html_agenda_extraction (P0)
+
+### What Was Done
+Fixed HTML agenda extraction to work as a first-class path instead of a fragile last-resort fallback.
+
+**3 changes to `packages/civicos-extraction/src/civicos_extraction/cli/chunks.py`:**
+
+1. **Added `html_content` parameter to `extract_chunks_from_html_agenda()`** — Accepts
+   pre-fetched HTML text, skipping redundant HTTP re-download. Backward-compatible (optional param).
+
+2. **Pre-extract HTML chunks in degenerate case block** — When `download_and_validate_pdf()`
+   detects HTML content (DEGENERATE CASE), immediately extract chunks from the already-downloaded
+   content. These are stored in `html_fallback_chunks` and used at two fallback points below,
+   eliminating 2 redundant HTTP requests per HTML-only meeting.
+
+3. **Fixed dead-end bug at second `is_valid_pdf` check** — When a found PDF URL also returned
+   non-PDF content, the code returned an error instead of falling back to HTML chunks. Now uses
+   `html_fallback_chunks`. This was the main bug causing chunks=0 for HTML-only cities.
+
+**Tests added to `packages/civicos-extraction/tests/test_html_chunks.py`:**
+- `test_html_content_skips_download` — html_content param extracts without HTTP
+- `test_html_content_heading_based` — html_content works with heading-based HTML
+- `test_html_content_minimal_returns_empty` — minimal HTML returns []
+- `test_degenerate_case_no_pdf_links_uses_html` — Strategy 3 uses pre-extracted chunks
+- `test_degenerate_case_pdf_link_also_invalid_falls_back_to_html` — Dead-end bug fix verified
+
+All 15 tests pass. 20 smoke tests pass.
+
+### Files Changed
+- packages/civicos-extraction/src/civicos_extraction/cli/chunks.py — Core extraction logic
+- packages/civicos-extraction/tests/test_html_chunks.py — New tests
+- launch.json — html_agenda_extraction marked done, issue_provider_dispatch set as next P0
+
+### Next P0
+issue_provider_dispatch — Generalize fetch_issues() to support multiple 311 providers.
