@@ -95,11 +95,13 @@
         "name": "onboard_transcript_auto",
         "description": "Auto-detect YouTube channels for meeting recordings during onboarding. Probe YouTube Data API for city council channels, add to jurisdiction YAML if found. Gated on AssemblyAI key availability.",
         "priority": 1,
-        "status": "not_started",
+        "status": "done",
         "files": [
-          "scripts/onboard.py"
+          "scripts/onboard.py",
+          "packages/civicos-extraction/src/civicos_extraction/onboard.py",
+          "packages/civicos/tests/test_integration_onboarding.py"
         ],
-        "test_file": null,
+        "test_file": "packages/civicos/tests/test_integration_onboarding.py",
         "notes": "Many cities post recordings to YouTube. Detection could use YouTube search API by city name + 'city council'. Only enable transcription if AssemblyAI key is configured. ~1 session."
       },
       {

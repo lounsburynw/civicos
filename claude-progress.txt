@@ -23553,3 +23553,30 @@ Added cost estimation before full backfill and configurable defaults from jurisd
 - scripts/onboard.py (~80 insertions)
 - packages/civicos/tests/test_integration_onboarding.py (~200 insertions)
 - launch.json (onboard_cost_estimate + onboard_configurable_defaults → done)
+
+## Session: 2026-03-24 — onboard_batch_mode + onboard_transcript_auto (P1)
+
+### Summary
+Completed the last two onboarding items. Turnkey onboarding is now 12/12.
+
+### Changes — Batch Mode
+1. **`_run_batch()`** (`scripts/onboard.py:399`) — Runs each city as an independent subprocess with its own quality gate and cost estimate. Prints aggregate summary.
+2. **`--cities` CLI flag** — Comma-separated batch mode: `--cities "Corte Madera,Larkspur,Fairfax"`. Shared flags forwarded to each city.
+3. **5 tests** — subprocess invocation, failure reporting, shared flags, CLI trigger.
+
+### Changes — Transcript Auto-Detection
+1. **`detect_youtube_channel()`** (`civicos_extraction/onboard.py:502`) — Uses YouTube Data API v3 search.list to find city council channels. Prefers channels whose title contains the city name. Gated on YOUTUBE_API_KEY.
+2. **Phase 1 YAML enrichment** (`scripts/onboard.py:649`) — After config generation, probes YouTube and adds channel_id to `data_sources.transcripts` in the jurisdiction YAML.
+3. **5 tests** — channel match, no API key, empty results, API error, city name preference.
+
+### Tests
+- 59/59 tests pass (10.08s)
+- No regressions
+
+### Files Changed
+- scripts/onboard.py (~100 insertions)
+- packages/civicos-extraction/src/civicos_extraction/onboard.py (~65 insertions)
+- packages/civicos/tests/test_integration_onboarding.py (~130 insertions)
+- launch.json (onboard_batch_mode + onboard_transcript_auto → done)
+
+### Turnkey Onboarding: 12/12 COMPLETE
