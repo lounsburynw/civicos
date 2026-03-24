@@ -874,6 +874,38 @@ class TestEstimateCost:
         assert long["projected_meetings"] > short["projected_meetings"]
         assert long["total"] > short["total"]
 
+    def test_transcription_adds_per_meeting_cost(self):
+        """has_transcription=True adds significant per-meeting cost."""
+        without = _estimate_cost(sample_meetings=10, sample_days=30, full_days=365)
+        with_t = _estimate_cost(sample_meetings=10, sample_days=30, full_days=365,
+                                has_transcription=True)
+        assert with_t["transcription_cost"] > 0
+        assert with_t["total"] > without["total"]
+        # Transcription should be the dominant cost
+        assert with_t["transcription_cost"] > with_t["meeting_cost"]
+
+    def test_diarization_adds_to_transcription(self):
+        """has_diarization=True increases transcription cost."""
+        t_only = _estimate_cost(sample_meetings=10, sample_days=30, full_days=365,
+                                has_transcription=True, has_diarization=False)
+        t_diar = _estimate_cost(sample_meetings=10, sample_days=30, full_days=365,
+                                has_transcription=True, has_diarization=True)
+        assert t_diar["transcription_cost"] > t_only["transcription_cost"]
+
+    def test_no_transcription_zero_audio_cost(self):
+        """Without transcription, transcription_cost is 0."""
+        est = _estimate_cost(sample_meetings=10, sample_days=30, full_days=365,
+                             has_transcription=False)
+        assert est["transcription_cost"] == 0.0
+
+    def test_legislation_adds_flat_cost(self):
+        """has_legislation=True adds legislation sync flat cost."""
+        with_leg = _estimate_cost(sample_meetings=10, sample_days=30, full_days=365,
+                                  has_legislation=True)
+        without_leg = _estimate_cost(sample_meetings=10, sample_days=30, full_days=365,
+                                     has_legislation=False)
+        assert with_leg["flat_cost"] > without_leg["flat_cost"]
+
 
 # ---------------------------------------------------------------------------
 # Configurable defaults — YAML overrides for days_past/sample_days
