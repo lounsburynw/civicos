@@ -191,6 +191,7 @@ class ExtractionConfig:
     archives: Dict[str, str] = field(default_factory=dict)  # meeting_type -> path
     metadata: Dict[str, Any] = field(default_factory=dict)  # Additional config
     financial: Optional[FinancialConfig] = None  # Financial data source config
+    issue_source: Optional[str] = None  # 311 issue provider: "seeclickfix", etc.
 
     @classmethod
     def from_file(cls, path: str) -> "ExtractionConfig":
@@ -213,6 +214,7 @@ class ExtractionConfig:
             archives=data.get("archives", {}),
             metadata=data.get("metadata", {}),
             financial=financial,
+            issue_source=data.get("issue_source"),
         )
 
     @classmethod

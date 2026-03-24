@@ -3209,7 +3209,10 @@ def fetch_issues(
     dry_run: bool = False,
     auto_index: bool = False,
 ) -> dict:
-    """Fetch 311 issues from SeeClickFix API with optional incremental mode.
+    """Fetch 311 issues from configured source (SeeClickFix, etc.).
+
+    Source type is read from the jurisdiction's ExtractionConfig
+    ``issue_source`` field (default: "seeclickfix").
 
     Args:
         jurisdiction: Target jurisdiction (e.g., "city-san-rafael")
@@ -3229,70 +3232,95 @@ def fetch_issues(
     start_time = time.time()
 
     from civicos.storage.postgres_backend import PostgresBackend
-    from civicos_services.clients.seeclickfix_client import SeeClickFixClient
+    from civicos_extraction.clients.base import ExtractionConfig
 
     database_url = os.environ.get("DATABASE_URL")
     if not database_url:
         raise ValueError("DATABASE_URL not set")
 
     backend = PostgresBackend(database_url)
-    logger.info(f"[ISSUES] Starting fetch: jurisdiction={jurisdiction}, incremental={incremental}")
 
-    # Derive place_url from jurisdiction
-    place_url = jurisdiction
-    for prefix in ["city-", "county-", "town-"]:
-        if place_url.startswith(prefix):
-            place_url = place_url[len(prefix):]
-            break
+    # Load extraction config to determine issue source
+    config = ExtractionConfig.from_jurisdiction(jurisdiction)
+    issue_source = config.issue_source or "seeclickfix"
+    logger.info(f"[ISSUES] Starting fetch: jurisdiction={jurisdiction}, source={issue_source}, incremental={incremental}")
 
-    # Initialize client
-    client = SeeClickFixClient()
+    # Instantiate source-specific client based on extraction config.
+    # When adding a new issue source here, also add it to
+    # SUPPORTED_ISSUE_SOURCES in civicos_extraction/clients/__init__.py.
+    if issue_source == "seeclickfix":
+        from civicos_services.clients.seeclickfix_client import SeeClickFixClient
 
-    # Fetch all issues (paginating through results)
-    all_issues = []
-    current_page = 1
+        # Derive place_url from jurisdiction
+        place_url = jurisdiction
+        for prefix in ["city-", "county-", "town-"]:
+            if place_url.startswith(prefix):
+                place_url = place_url[len(prefix):]
+                break
 
-    while current_page <= max_pages:
-        logger.info(f"Fetching page {current_page}/{max_pages}...")
+        client = SeeClickFixClient()
 
-        result = client.get_issues(
-            place_url=place_url,
-            per_page=per_page,
-            page=current_page,
-            status=None,  # Fetch all statuses
-        )
+        # Fetch all issues (paginating through results)
+        all_issues = []
+        current_page = 1
 
-        issues = result.get("issues", [])
-        metadata = result.get("metadata", {})
+        while current_page <= max_pages:
+            logger.info(f"Fetching page {current_page}/{max_pages}...")
 
-        if metadata.get("error"):
-            logger.error(f"API error: {metadata['error']}")
-            break
+            result = client.get_issues(
+                place_url=place_url,
+                per_page=per_page,
+                page=current_page,
+                status=None,  # Fetch all statuses
+            )
 
-        if not issues:
-            logger.info("No more issues to fetch")
-            break
+            issues = result.get("issues", [])
+            metadata = result.get("metadata", {})
 
-        # Normalize issues for storage (map source -> provider, ensure external_id is string)
-        for issue in issues:
-            issue["provider"] = issue.pop("source", "seeclickfix")
-            # Ensure external_id is a string (database column is TEXT)
-            if "external_id" in issue:
-                issue["external_id"] = str(issue["external_id"])
-            # Flatten location if nested
-            if "location" in issue and isinstance(issue["location"], dict):
-                loc = issue.pop("location")
-                issue["address"] = loc.get("address")
-                issue["latitude"] = loc.get("lat")
-                issue["longitude"] = loc.get("lng")
+            if metadata.get("error"):
+                logger.error(f"API error: {metadata['error']}")
+                break
 
-        all_issues.extend(issues)
-        logger.info(f"  Fetched {len(issues)} issues (total: {len(all_issues)})")
+            if not issues:
+                logger.info("No more issues to fetch")
+                break
 
-        if not metadata.get("has_more", False):
-            break
+            # Normalize issues for storage (map source -> provider, ensure external_id is string)
+            for issue in issues:
+                issue["provider"] = issue.pop("source", "seeclickfix")
+                # Ensure external_id is a string (database column is TEXT)
+                if "external_id" in issue:
+                    issue["external_id"] = str(issue["external_id"])
+                # Flatten location if nested
+                if "location" in issue and isinstance(issue["location"], dict):
+                    loc = issue.pop("location")
+                    issue["address"] = loc.get("address")
+                    issue["latitude"] = loc.get("lat")
+                    issue["longitude"] = loc.get("lng")
 
-        current_page += 1
+            all_issues.extend(issues)
+            logger.info(f"  Fetched {len(issues)} issues (total: {len(all_issues)})")
+
+            if not metadata.get("has_more", False):
+                break
+
+            current_page += 1
+    else:
+        from civicos_extraction.clients import SUPPORTED_ISSUE_SOURCES
+        logger.warning(f"[ISSUES] issue_source '{issue_source}' not yet supported "
+                       f"(supported: {', '.join(sorted(SUPPORTED_ISSUE_SOURCES))}) — skipping")
+        return {
+            "task": "issues",
+            "jurisdiction": jurisdiction,
+            "issues_fetched": 0,
+            "issues_stored": 0,
+            "pages_fetched": 0,
+            "incremental": incremental,
+            "skipped": True,
+            "skip_reason": f"issue_source '{issue_source}' not yet supported",
+            "elapsed_seconds": 0,
+            "cost_usd": 0,
+        }
 
     logger.info(f"Fetched {len(all_issues)} issues total")
 
@@ -3305,7 +3333,7 @@ def fetch_issues(
 
             # Update refresh metadata
             backend.update_refresh_metadata(
-                jurisdiction, "issues", "seeclickfix",
+                jurisdiction, "issues", issue_source,
                 items_fetched=len(all_issues),
                 items_stored=stored_count,
                 status="completed",
@@ -3313,7 +3341,7 @@ def fetch_issues(
         except Exception as e:
             logger.error(f"Error storing issues: {e}")
             backend.update_refresh_metadata(
-                jurisdiction, "issues", "seeclickfix",
+                jurisdiction, "issues", issue_source,
                 status="failed", error_message=str(e)
             )
             raise
@@ -3333,6 +3361,7 @@ def fetch_issues(
     result = {
         "task": "issues",
         "jurisdiction": jurisdiction,
+        "issue_source": issue_source,
         "issues_fetched": len(all_issues),
         "issues_stored": stored_count,
         "pages_fetched": current_page,

@@ -139,12 +139,20 @@ def _get_ingestion_stages(jid: str) -> list:
             source_type = ext_config["source_type"]
 
     # Meeting-dependent stages only if source_type is supported
-    from civicos_extraction.clients import SUPPORTED_MEETING_SOURCES
+    from civicos_extraction.clients import SUPPORTED_MEETING_SOURCES, SUPPORTED_ISSUE_SOURCES
     if source_type in SUPPORTED_MEETING_SOURCES:
         stages.extend(["meetings", "chunks", "agenda", "decisions"])
     elif source_type:
         print(f"  Note: source_type '{source_type}' not yet supported for meetings — "
               f"skipping meeting stages (supported: {', '.join(sorted(SUPPORTED_MEETING_SOURCES))})")
+
+    # Issue stages only if issue_source is supported
+    issue_source = ext_config.get("issue_source", "seeclickfix") if extraction_path.exists() else "seeclickfix"
+    if issue_source in SUPPORTED_ISSUE_SOURCES:
+        stages.append("issues")
+    else:
+        print(f"  Note: issue_source '{issue_source}' not yet supported — "
+              f"skipping issue stages (supported: {', '.join(sorted(SUPPORTED_ISSUE_SOURCES))})")
 
     # Check jurisdiction YAML for municipal code
     yaml_path = PROJECT_ROOT / "data" / "jurisdictions" / f"{jid}.yaml"

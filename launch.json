@@ -71,7 +71,7 @@
         "name": "issue_provider_dispatch",
         "description": "Generalize fetch_issues() to support multiple 311 providers (SeeClickFix, FixItMarin, QAlert, etc.) via source-type dispatch — same pattern as fetch_meetings(). Add SUPPORTED_ISSUE_SOURCES registry. Currently hardcoded to SeeClickFix.",
         "priority": 0,
-        "status": "not_started",
+        "status": "done",
         "files": [
           "scripts/modal_ingest.py",
           "packages/civicos-extraction/src/civicos_extraction/clients/__init__.py"

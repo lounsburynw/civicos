@@ -23409,3 +23409,31 @@ All 15 tests pass. 20 smoke tests pass.
 
 ### Next P0
 issue_provider_dispatch — Generalize fetch_issues() to support multiple 311 providers.
+
+## Session — 2026-03-23: issue_provider_dispatch (P0)
+
+**Item:** issue_provider_dispatch (turnkey_onboarding)
+**Status:** DONE
+
+### Summary
+Generalized `fetch_issues()` to support multiple 311 providers via config-driven dispatch,
+matching the `fetch_meetings()` pattern.
+
+### Changes
+1. **ExtractionConfig** (`base.py`) — Added `issue_source` optional field
+2. **SUPPORTED_ISSUE_SOURCES** registry (`clients/__init__.py`) — New frozenset with "seeclickfix"
+3. **fetch_issues()** (`modal_ingest.py`) — Loads ExtractionConfig, reads `issue_source` (default: "seeclickfix"), dispatches to correct client. Parameterized checkpoint keys. Unsupported sources log warning and skip gracefully.
+4. **onboard.py** — Issue stages now gated by `SUPPORTED_ISSUE_SOURCES` (matches meeting gate pattern)
+5. **san-rafael.json** — Added explicit `"issue_source": "seeclickfix"`
+
+### Tests
+- 20 smoke tests pass
+- Config loading verified for San Rafael (explicit) and Marin County (default fallback)
+
+### Files Changed
+- packages/civicos-extraction/src/civicos_extraction/clients/base.py
+- packages/civicos-extraction/src/civicos_extraction/clients/__init__.py
+- scripts/modal_ingest.py
+- scripts/onboard.py
+- data/extraction/san-rafael.json
+- launch.json
