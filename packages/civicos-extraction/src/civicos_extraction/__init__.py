@@ -88,6 +88,7 @@ from civicos_extraction.config import (
 )
 from civicos_extraction.onboard import (
     onboard_jurisdiction,
+    detect_issue_source,
     geocode_city,
     OnboardResult,
     CostEstimate,

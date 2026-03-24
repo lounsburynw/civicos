@@ -212,6 +212,8 @@ def main():
     parser.add_argument("--no-validate", action="store_true",
                         help="Skip validation gate, run full ingestion immediately")
     parser.add_argument("--force", action="store_true", help="Regenerate configs")
+    parser.add_argument("--detect-issues", action="store_true",
+                        help="Re-detect issue provider for existing config and exit")
     args = parser.parse_args()
 
     if not args.city and not args.url:
@@ -253,6 +255,47 @@ def main():
 
     extraction_path = PROJECT_ROOT / "data" / "extraction" / f"{jid}.json"
     yaml_path = PROJECT_ROOT / "data" / "jurisdictions" / f"{jid}.yaml"
+
+    # --detect-issues: re-run issue provider detection on existing config
+    if args.detect_issues:
+        from civicos_extraction.onboard import detect_issue_source
+
+        # Try with level prefix first, then without (legacy configs like san-rafael.json)
+        if not extraction_path.exists():
+            slug = re.sub(r"^(city|county|town|district|state|province|council)-", "", jid)
+            alt_path = PROJECT_ROOT / "data" / "extraction" / f"{slug}.json"
+            if alt_path.exists():
+                extraction_path = alt_path
+            else:
+                print(f"  ERROR: No extraction config at {extraction_path}")
+                sys.exit(1)
+        if not args.city:
+            parser.error("--detect-issues requires --city")
+
+        print(f"  Probing 311/issue providers for '{args.city}'...")
+        detected = detect_issue_source(args.city, jid)
+
+        with open(extraction_path) as f:
+            ext_config = json.load(f)
+
+        old_source = ext_config.get("issue_source")
+        if detected:
+            ext_config["issue_source"] = detected
+            with open(extraction_path, "w") as f:
+                json.dump(ext_config, f, indent=2)
+                f.write("\n")
+            if old_source and old_source != detected:
+                print(f"  Updated issue_source: {old_source} -> {detected}")
+            elif old_source == detected:
+                print(f"  Issue source unchanged: {detected}")
+            else:
+                print(f"  Set issue_source: {detected}")
+        else:
+            print(f"  No issue provider detected for '{args.city}'")
+            if old_source:
+                print(f"  Keeping existing issue_source: {old_source}")
+
+        return
 
     configs_exist = extraction_path.exists() and yaml_path.exists()
 

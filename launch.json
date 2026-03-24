@@ -59,7 +59,7 @@
       {
         "name": "onboard_quality_gates",
         "description": "Strengthen onboard.py quality validation: fail-fast on zero meetings, auto-retry on transient API errors, compare ratios against baseline, and generate actionable remediation steps instead of just warnings.",
-        "priority": 2,
+        "priority": 0,
         "status": "not_started",
         "files": [
           "scripts/onboard.py"
@@ -81,14 +81,16 @@
       },
       {
         "name": "issue_provider_detection",
-        "description": "Auto-detect 311/issue provider during onboarding discovery. Probe known APIs (SeeClickFix, FixItMarin, QAlert) by city/county name, write detected provider to jurisdiction YAML. Provider can change over time — detection should be re-runnable.",
+        "description": "Auto-detect 311/issue provider during onboarding discovery. Probe known APIs (SeeClickFix, FixItMarin, QAlert) by city/county name, write detected provider to extraction config JSON. Provider can change over time — detection is re-runnable via --detect-issues.",
         "priority": 0,
-        "status": "not_started",
+        "status": "done",
         "files": [
-          "scripts/onboard.py"
+          "packages/civicos-extraction/src/civicos_extraction/onboard.py",
+          "scripts/onboard.py",
+          "packages/civicos-extraction/src/civicos_extraction/__init__.py"
         ],
         "test_file": null,
-        "notes": "SeeClickFix covers ~400 US cities but isn't universal. Marin County moving to FixItMarin. Detection should probe multiple providers and pick the one with data. Store as issues.source_type in YAML (not hardcoded). ~1 session."
+        "notes": "detect_issue_source() probes SeeClickFix API by city name. Wired into onboard_jurisdiction() flow and --detect-issues CLI flag for re-running. Future providers (FixItMarin, QAlert) add probes after the SeeClickFix block."
       },
       {
         "name": "onboard_transcript_auto",

@@ -23437,3 +23437,28 @@ matching the `fetch_meetings()` pattern.
 - scripts/onboard.py
 - data/extraction/san-rafael.json
 - launch.json
+
+## Session — 2026-03-23: issue_provider_detection (P0)
+
+**Item:** issue_provider_detection (turnkey_onboarding)
+**Status:** DONE
+
+### Summary
+Added `detect_issue_source()` to auto-detect 311/issue providers during onboarding.
+
+### Changes
+1. **detect_issue_source()** (`onboard.py`) — Probes SeeClickFix API by city name. Returns "seeclickfix" if issues found, None otherwise. Extensible for future providers (FixItMarin, QAlert).
+2. **onboard_jurisdiction()** — Calls detect_issue_source() during discovery, writes `issue_source` to config before saving JSON.
+3. **scripts/onboard.py** — Added `--detect-issues` flag for re-running detection on existing configs (handles legacy config naming).
+4. **__init__.py** — Exported detect_issue_source.
+
+### Key Design Decisions
+- Detection checks for actual issues (entries > 0), not just API response — SeeClickFix returns empty 200 for unknown cities.
+- Writes to extraction config JSON (not jurisdiction YAML) — consistent with issue_provider_dispatch pattern.
+- Re-runnable: --detect-issues updates existing configs, preserves old value if no provider detected.
+- Future providers add probes after the SeeClickFix block in detect_issue_source().
+
+### Tests
+- 20 smoke tests pass
+- Verified: San Rafael → seeclickfix, New Haven → seeclickfix, fictional city → None
+- Verified: --detect-issues flag works on existing configs
