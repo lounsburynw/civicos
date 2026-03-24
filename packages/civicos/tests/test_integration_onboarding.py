@@ -874,28 +874,35 @@ class TestEstimateCost:
         assert long["projected_meetings"] > short["projected_meetings"]
         assert long["total"] > short["total"]
 
-    def test_transcription_adds_per_meeting_cost(self):
-        """has_transcription=True adds significant per-meeting cost."""
+    def test_assemblyai_adds_per_meeting_cost(self):
+        """transcript_mode=assemblyai adds significant per-meeting cost."""
         without = _estimate_cost(sample_meetings=10, sample_days=30, full_days=365)
         with_t = _estimate_cost(sample_meetings=10, sample_days=30, full_days=365,
-                                has_transcription=True)
+                                transcript_mode="assemblyai")
         assert with_t["transcription_cost"] > 0
         assert with_t["total"] > without["total"]
         # Transcription should be the dominant cost
         assert with_t["transcription_cost"] > with_t["meeting_cost"]
 
-    def test_diarization_adds_to_transcription(self):
-        """has_diarization=True increases transcription cost."""
+    def test_captions_mode_is_free(self):
+        """transcript_mode=captions has zero transcription cost."""
+        est = _estimate_cost(sample_meetings=10, sample_days=30, full_days=365,
+                             transcript_mode="captions")
+        assert est["transcription_cost"] == 0.0
+        assert est["transcript_mode"] == "captions"
+
+    def test_diarization_adds_to_assemblyai(self):
+        """has_diarization=True increases AssemblyAI cost."""
         t_only = _estimate_cost(sample_meetings=10, sample_days=30, full_days=365,
-                                has_transcription=True, has_diarization=False)
+                                transcript_mode="assemblyai", has_diarization=False)
         t_diar = _estimate_cost(sample_meetings=10, sample_days=30, full_days=365,
-                                has_transcription=True, has_diarization=True)
+                                transcript_mode="assemblyai", has_diarization=True)
         assert t_diar["transcription_cost"] > t_only["transcription_cost"]
 
     def test_no_transcription_zero_audio_cost(self):
-        """Without transcription, transcription_cost is 0."""
+        """transcript_mode=none has zero transcription cost."""
         est = _estimate_cost(sample_meetings=10, sample_days=30, full_days=365,
-                             has_transcription=False)
+                             transcript_mode="none")
         assert est["transcription_cost"] == 0.0
 
     def test_legislation_adds_flat_cost(self):

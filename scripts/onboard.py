@@ -39,7 +39,9 @@ COST_MEETING_CHUNKS_USD = 0.003       # PDF parsing per meeting
 # Tier 2: LLM extraction (OpenAI)
 COST_MEETING_AGENDA_USD = 0.005       # Agenda item extraction per meeting
 COST_MEETING_DECISIONS_USD = 0.005    # Decision extraction per meeting
-# Tier 3: Transcription (AssemblyAI)
+# Tier 3a: YouTube captions (free — auto-generated text, no speaker labels)
+COST_CAPTIONS_PER_MEETING = 0.0       # YouTube Data API, free tier
+# Tier 3b: AssemblyAI transcription (high-quality + speaker diarization)
 COST_TRANSCRIPTION_PER_HOUR = 0.21    # Universal v3 Pro
 COST_DIARIZATION_PER_HOUR = 0.02      # Speaker diarization add-on
 AVG_MEETING_HOURS = 1.5               # Default estimate for city council meetings
@@ -49,13 +51,24 @@ COST_ISSUES_FLAT_USD = 0.02           # SeeClickFix fetch
 COST_MUNICIPAL_FLAT_USD = 0.05        # Municipal code fetch
 COST_LEGISLATION_FLAT_USD = 0.20      # LegiScan sync
 
+# Transcript modes
+TRANSCRIPT_NONE = "none"              # No transcripts
+TRANSCRIPT_CAPTIONS = "captions"      # YouTube auto-captions (free, no speaker labels)
+TRANSCRIPT_ASSEMBLYAI = "assemblyai"  # AssemblyAI (paid, speaker diarization)
+
 
 def _estimate_cost(sample_meetings: int, sample_days: int, full_days: int,
                    has_meetings: bool = True, has_issues: bool = True,
-                   has_municipal: bool = False, has_transcription: bool = False,
-                   has_diarization: bool = False, has_legislation: bool = False,
+                   has_municipal: bool = False, has_legislation: bool = False,
+                   transcript_mode: str = TRANSCRIPT_NONE,
+                   has_diarization: bool = False,
                    avg_meeting_hours: float = AVG_MEETING_HOURS) -> dict:
     """Extrapolate cost from sample to full backfill.
+
+    transcript_mode controls audio cost:
+        "none"       — no transcription
+        "captions"   — YouTube auto-captions (free, searchable, no speakers)
+        "assemblyai" — AssemblyAI ($0.21/hr + optional $0.02/hr diarization)
 
     Returns dict with projected_meetings, line items by tier, and total.
     """
@@ -69,13 +82,14 @@ def _estimate_cost(sample_meetings: int, sample_days: int, full_days: int,
     per_meeting += COST_MEETING_AGENDA_USD + COST_MEETING_DECISIONS_USD
     meeting_cost = projected * per_meeting
 
-    # Tier 3: Transcription (per-meeting, scaled by avg duration)
+    # Tier 3: Transcription
     transcription_cost = 0.0
-    if has_transcription and projected > 0:
+    if transcript_mode == TRANSCRIPT_ASSEMBLYAI and projected > 0:
         hourly_rate = COST_TRANSCRIPTION_PER_HOUR
         if has_diarization:
             hourly_rate += COST_DIARIZATION_PER_HOUR
         transcription_cost = projected * avg_meeting_hours * hourly_rate
+    # captions mode: $0.00 (YouTube API free tier)
 
     # Flat costs
     flat_cost = COST_VECTOR_FLAT_USD
@@ -90,9 +104,9 @@ def _estimate_cost(sample_meetings: int, sample_days: int, full_days: int,
         "projected_meetings": projected,
         "meeting_cost": meeting_cost,
         "transcription_cost": transcription_cost,
+        "transcript_mode": transcript_mode,
         "flat_cost": flat_cost,
         "total": meeting_cost + transcription_cost + flat_cost,
-        "has_transcription": has_transcription,
         "has_diarization": has_diarization,
     }
 
@@ -492,6 +506,8 @@ def main():
                         help="Deploy API to Modal after ingestion (updates registry + redeploys)")
     parser.add_argument("--yes", "-y", action="store_true",
                         help="Auto-confirm cost estimate (skip prompt)")
+    parser.add_argument("--captions-only", action="store_true",
+                        help="Use free YouTube captions instead of AssemblyAI transcription")
     args = parser.parse_args()
 
     # Batch mode: --cities "Corte Madera,Larkspur,Fairfax"
@@ -526,6 +542,8 @@ def main():
             shared.append("--deploy")
         if args.yes:
             shared.append("--yes")
+        if args.captions_only:
+            shared.append("--captions-only")
 
         sys.exit(_run_batch(cities, shared))
 
@@ -790,10 +808,11 @@ def main():
                 else:
                     print(f"\n  Sample looks good.")
 
-                # Determine transcription availability from YAML + env
-                _has_transcription = False
+                # Determine transcript mode from YAML + env + flags
+                _transcript_mode = TRANSCRIPT_NONE
                 _has_diarization = False
                 _has_legislation = False
+                _has_youtube = False
                 _yaml_check = PROJECT_ROOT / "data" / "jurisdictions" / f"{jid}.yaml"
                 if _yaml_check.exists():
                     import yaml as _yaml_cost
@@ -801,11 +820,16 @@ def main():
                         _ycfg = _yaml_cost.safe_load(_yf) or {}
                     _ds = _ycfg.get("data_sources", {})
                     _ing_cfg = _ycfg.get("ingestion", {}) if isinstance(_ycfg.get("ingestion"), dict) else {}
-                    # Transcription: YouTube channel detected + AssemblyAI key available
-                    if _ds.get("transcripts", {}).get("channel_id"):
-                        _has_transcription = bool(os.environ.get("ASSEMBLYAI_API_KEY"))
-                        _has_diarization = _ing_cfg.get("diarization", True)
-                    # Legislation: state-level data
+                    _has_youtube = bool(_ds.get("transcripts", {}).get("channel_id"))
+                    if _has_youtube:
+                        if args.captions_only:
+                            _transcript_mode = TRANSCRIPT_CAPTIONS
+                        elif os.environ.get("ASSEMBLYAI_API_KEY"):
+                            _transcript_mode = TRANSCRIPT_ASSEMBLYAI
+                            _has_diarization = _ing_cfg.get("diarization", True)
+                        else:
+                            # YouTube channel found but no AssemblyAI key — default to captions
+                            _transcript_mode = TRANSCRIPT_CAPTIONS
                     _has_legislation = bool(_ds.get("legislation"))
 
                 # Cost estimate based on sample
@@ -816,23 +840,28 @@ def main():
                     has_meetings=has_meetings,
                     has_issues="issues" in ingestion_stages,
                     has_municipal="municipal" in ingestion_stages,
-                    has_transcription=_has_transcription,
-                    has_diarization=_has_diarization,
                     has_legislation=_has_legislation,
+                    transcript_mode=_transcript_mode,
+                    has_diarization=_has_diarization,
                 )
                 print(f"\n  Cost Estimate ({args.days_past}-day backfill):")
                 print(f"    Projected meetings: ~{est['projected_meetings']}")
                 print(f"    Meeting processing (fetch + LLM): ~${est['meeting_cost']:.2f}")
-                if est["has_transcription"]:
+                if est["transcript_mode"] == TRANSCRIPT_ASSEMBLYAI:
                     label = "transcription + diarization" if est["has_diarization"] else "transcription"
-                    print(f"    Audio {label}: ~${est['transcription_cost']:.2f}")
+                    print(f"    Audio {label} (AssemblyAI): ~${est['transcription_cost']:.2f}")
+                elif est["transcript_mode"] == TRANSCRIPT_CAPTIONS:
+                    print(f"    Audio captions (YouTube): FREE")
                 print(f"    Fixed costs (vectors, issues, etc.): ~${est['flat_cost']:.2f}")
-                print(f"    ─────────────────────────────────")
+                print(f"    {'─' * 37}")
                 print(f"    Total estimated: ~${est['total']:.2f}")
-                if not _has_transcription and _yaml_check.exists():
-                    _ds2 = _ycfg.get("data_sources", {})
-                    if _ds2.get("transcripts", {}).get("channel_id") and not os.environ.get("ASSEMBLYAI_API_KEY"):
-                        print(f"    (transcription available but ASSEMBLYAI_API_KEY not set)")
+                if _has_youtube and _transcript_mode == TRANSCRIPT_CAPTIONS:
+                    if not args.captions_only and not os.environ.get("ASSEMBLYAI_API_KEY"):
+                        print(f"    (using free captions — set ASSEMBLYAI_API_KEY for speaker diarization)")
+                    elif args.captions_only:
+                        print(f"    (--captions-only: using free YouTube captions)")
+                elif not _has_youtube and has_meetings:
+                    print(f"    (no YouTube channel detected — transcripts unavailable)")
 
                 if not args.yes and not args.force_continue:
                     try:
