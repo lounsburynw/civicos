@@ -1,0 +1,9 @@
+{
+  "source_id": "civicclerk-elcerritoca",
+  "source_type": "civicclerk",
+  "jurisdiction_id": "city-el-cerrito",
+  "base_url": "https://elcerritoca.portal.civicclerk.com",
+  "metadata": {
+    "subdomain": "elcerritoca"
+  }
+}
