@@ -67,16 +67,27 @@
         "notes": "Current quality report is advisory only. Should: (1) distinguish transient errors from platform limitations, (2) suggest specific fixes per failure mode, (3) gate progression to vector indexing on minimum data thresholds. ~1 session."
       },
       {
-        "name": "onboard_seeclickfix_auto",
-        "description": "Auto-detect and configure SeeClickFix issue tracking during onboarding. Currently requires manual jurisdiction YAML edit to enable issues. Should probe SeeClickFix API during discovery phase and auto-enable.",
+        "name": "issue_provider_dispatch",
+        "description": "Generalize fetch_issues() to support multiple 311 providers (SeeClickFix, FixItMarin, QAlert, etc.) via source-type dispatch — same pattern as fetch_meetings(). Add SUPPORTED_ISSUE_SOURCES registry. Currently hardcoded to SeeClickFix.",
+        "priority": 1,
+        "status": "not_started",
+        "files": [
+          "scripts/modal_ingest.py",
+          "packages/civicos-extraction/src/civicos_extraction/clients/__init__.py"
+        ],
+        "test_file": null,
+        "notes": "fetch_issues() is hardcoded to SeeClickFixClient. Needs the same config-driven dispatch pattern as meetings: load jurisdiction YAML → read issues source_type → route to correct client. Cities change 311 providers (e.g., Marin County switching to FixItMarin). YAML should specify provider, not assume SeeClickFix. ~1 session."
+      },
+      {
+        "name": "issue_provider_detection",
+        "description": "Auto-detect 311/issue provider during onboarding discovery. Probe known APIs (SeeClickFix, FixItMarin, QAlert) by city/county name, write detected provider to jurisdiction YAML. Provider can change over time — detection should be re-runnable.",
         "priority": 2,
         "status": "not_started",
         "files": [
-          "scripts/onboard.py",
-          "packages/civicos-extraction/src/civicos_extraction/clients/seeclickfix.py"
+          "scripts/onboard.py"
         ],
         "test_file": null,
-        "notes": "SeeClickFix covers ~400 US cities. API is public, no auth needed. Probe by city name during discovery, add to YAML if found. ~0.5 session."
+        "notes": "SeeClickFix covers ~400 US cities but isn't universal. Marin County moving to FixItMarin. Detection should probe multiple providers and pick the one with data. Store as issues.source_type in YAML (not hardcoded). ~1 session."
       },
       {
         "name": "onboard_transcript_auto",
