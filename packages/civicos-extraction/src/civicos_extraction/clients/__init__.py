@@ -112,7 +112,7 @@ from civicos_extraction.clients.sam_assistance import (
 # Registry of meeting source types with implemented fetch support in the
 # ingestion pipeline.  Used by onboard.py and modal_ingest.py to decide
 # which stages to run.  Add new source types here as clients are wired up.
-SUPPORTED_MEETING_SOURCES: frozenset[str] = frozenset({"proudcity", "granicus"})
+SUPPORTED_MEETING_SOURCES: frozenset[str] = frozenset({"proudcity", "granicus", "legistar"})
 
 from civicos_extraction.clients.federal_register import (
     FederalRegisterClient,

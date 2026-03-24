@@ -379,8 +379,16 @@ class LegistarClient(BaseExtractor):
             try:
                 date_str = event_date.split("T")[0]
                 if event_time:
-                    time_str = event_time.split("T")[1] if "T" in event_time else event_time
-                    meeting_datetime = datetime.fromisoformat(f"{date_str}T{time_str}")
+                    # Legistar returns time in various formats:
+                    # ISO: "2026-03-23T13:00:00"  or  12-hour: "1:00 PM"
+                    if "T" in event_time:
+                        time_str = event_time.split("T")[1]
+                        meeting_datetime = datetime.fromisoformat(f"{date_str}T{time_str}")
+                    else:
+                        parsed_time = datetime.strptime(event_time.strip(), "%I:%M %p").time()
+                        meeting_datetime = datetime.fromisoformat(date_str).replace(
+                            hour=parsed_time.hour, minute=parsed_time.minute
+                        )
                 else:
                     meeting_datetime = datetime.fromisoformat(date_str)
             except (ValueError, IndexError):
