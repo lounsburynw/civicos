@@ -500,6 +500,74 @@ def detect_issue_source(city_name: str, jurisdiction_id: str) -> Optional[str]:
     return None
 
 
+def detect_youtube_channel(city_name: str, state: str = "") -> Optional[dict]:
+    """Search YouTube for a city's official meeting channel.
+
+    Uses YouTube Data API v3 search.list (costs 100 quota units per call,
+    free tier is 10,000/day). Returns dict with channel_id and channel_title,
+    or None if no channel found.
+
+    Requires YOUTUBE_API_KEY or GOOGLE_API_KEY in environment.
+    Safe to call during onboarding — one API request, no storage.
+    """
+    api_key = os.environ.get("YOUTUBE_API_KEY") or os.environ.get("GOOGLE_API_KEY")
+    if not api_key:
+        logger.debug("No YouTube API key — skipping channel detection")
+        return None
+
+    # Build search query: "Mill Valley city council" or "Mill Valley CA city council"
+    query = f"{city_name} city council"
+    if state:
+        query = f"{city_name} {state} city council"
+
+    try:
+        resp = requests.get(
+            "https://www.googleapis.com/youtube/v3/search",
+            params={
+                "key": api_key,
+                "q": query,
+                "type": "channel",
+                "part": "snippet",
+                "maxResults": 5,
+            },
+            timeout=10,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+
+        items = data.get("items", [])
+        if not items:
+            logger.info(f"No YouTube channels found for '{query}'")
+            return None
+
+        # Heuristic: pick the first channel whose title contains the city name
+        city_lower = city_name.lower()
+        for item in items:
+            title = item["snippet"]["title"].lower()
+            if city_lower in title:
+                result = {
+                    "channel_id": item["snippet"]["channelId"],
+                    "channel_title": item["snippet"]["title"],
+                }
+                logger.info(f"YouTube channel detected: {result['channel_title']} "
+                            f"({result['channel_id']})")
+                return result
+
+        # Fallback: return first result even if title doesn't match
+        first = items[0]
+        result = {
+            "channel_id": first["snippet"]["channelId"],
+            "channel_title": first["snippet"]["title"],
+        }
+        logger.info(f"YouTube channel (best guess): {result['channel_title']} "
+                     f"({result['channel_id']})")
+        return result
+
+    except Exception as e:
+        logger.debug(f"YouTube channel detection failed for '{city_name}': {e}")
+        return None
+
+
 # US state abbreviation → full name mapping for parent_jurisdictions slugs
 _US_STATES = {
     "AL": "Alabama", "AK": "Alaska", "AZ": "Arizona", "AR": "Arkansas",

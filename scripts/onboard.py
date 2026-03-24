@@ -646,6 +646,34 @@ def main():
                 _yaml.dump(data, f, default_flow_style=False, sort_keys=False)
             print(f"  Enriched YAML with county: {args.county}")
 
+    # Auto-detect YouTube channel for meeting transcripts
+    yaml_path = PROJECT_ROOT / "data" / "jurisdictions" / f"{jid}.yaml"
+    if yaml_path.exists() and args.city:
+        import yaml as _yaml_yt
+        with open(yaml_path) as f:
+            yt_data = _yaml_yt.safe_load(f) or {}
+
+        # Only probe if transcripts section doesn't already have a channel_id
+        transcripts = yt_data.get("data_sources", {}).get("transcripts", {})
+        if not transcripts.get("channel_id"):
+            print(f"\n  Probing YouTube for '{args.city}' meeting channel...")
+            from civicos_extraction.onboard import detect_youtube_channel
+            yt_result = detect_youtube_channel(args.city, args.state or "")
+            if yt_result:
+                print(f"  Found: {yt_result['channel_title']} ({yt_result['channel_id']})")
+                yt_data.setdefault("data_sources", {})
+                yt_data["data_sources"].setdefault("transcripts", {})
+                yt_data["data_sources"]["transcripts"]["source"] = "youtube"
+                yt_data["data_sources"]["transcripts"]["channel_id"] = yt_result["channel_id"]
+                yt_data["data_sources"]["transcripts"]["channel_title"] = yt_result["channel_title"]
+                with open(yaml_path, "w") as f:
+                    _yaml_yt.dump(yt_data, f, default_flow_style=False, sort_keys=False)
+                print(f"  Updated YAML with YouTube channel.")
+            else:
+                print(f"  No YouTube channel found (will skip transcription).")
+        else:
+            print(f"\n  YouTube channel already configured: {transcripts.get('channel_id')}")
+
     # -------------------------------------------------------------------
     # Resolve defaults: CLI flags > YAML ingestion config > hardcoded
     # -------------------------------------------------------------------

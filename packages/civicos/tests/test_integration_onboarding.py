@@ -1178,3 +1178,90 @@ class TestBatchMode:
         mock_batch.assert_called_once()
         cities = mock_batch.call_args[0][0]
         assert cities == ["Alpha", "Beta"]
+
+
+# ---------------------------------------------------------------------------
+# detect_youtube_channel() — YouTube channel auto-detection
+# ---------------------------------------------------------------------------
+
+class TestDetectYoutubeChannel:
+    """Tests for detect_youtube_channel() from civicos_extraction.onboard."""
+
+    def _get_detect_fn(self):
+        from civicos_extraction.onboard import detect_youtube_channel
+        return detect_youtube_channel
+
+    def test_returns_channel_on_match(self):
+        """API returns channel matching city name -> returns channel info."""
+        detect = self._get_detect_fn()
+        mock_response = MagicMock()
+        mock_response.json.return_value = {
+            "items": [{
+                "snippet": {
+                    "channelId": "UC123abc",
+                    "title": "City of Testville",
+                },
+            }],
+        }
+        mock_response.raise_for_status = MagicMock()
+
+        with patch("requests.get", return_value=mock_response), \
+             patch.dict(os.environ, {"YOUTUBE_API_KEY": "fake-key"}):
+            result = detect("Testville", "CA")
+
+        assert result is not None
+        assert result["channel_id"] == "UC123abc"
+        assert result["channel_title"] == "City of Testville"
+
+    def test_returns_none_without_api_key(self):
+        """No API key -> returns None, no API call."""
+        detect = self._get_detect_fn()
+        with patch.dict(os.environ, {}, clear=True), \
+             patch("requests.get") as mock_get:
+            # Remove keys if they exist
+            os.environ.pop("YOUTUBE_API_KEY", None)
+            os.environ.pop("GOOGLE_API_KEY", None)
+            result = detect("Testville")
+
+        assert result is None
+        mock_get.assert_not_called()
+
+    def test_returns_none_on_empty_results(self):
+        """API returns 0 channels -> returns None."""
+        detect = self._get_detect_fn()
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"items": []}
+        mock_response.raise_for_status = MagicMock()
+
+        with patch("requests.get", return_value=mock_response), \
+             patch.dict(os.environ, {"YOUTUBE_API_KEY": "fake-key"}):
+            result = detect("Testville")
+
+        assert result is None
+
+    def test_returns_none_on_api_error(self):
+        """API error -> returns None (doesn't crash)."""
+        detect = self._get_detect_fn()
+        with patch("requests.get", side_effect=Exception("API error")), \
+             patch.dict(os.environ, {"YOUTUBE_API_KEY": "fake-key"}):
+            result = detect("Testville")
+
+        assert result is None
+
+    def test_prefers_channel_matching_city_name(self):
+        """When multiple channels returned, prefers one with city name in title."""
+        detect = self._get_detect_fn()
+        mock_response = MagicMock()
+        mock_response.json.return_value = {
+            "items": [
+                {"snippet": {"channelId": "UC_wrong", "title": "Random Government Channel"}},
+                {"snippet": {"channelId": "UC_right", "title": "Testville City Council"}},
+            ],
+        }
+        mock_response.raise_for_status = MagicMock()
+
+        with patch("requests.get", return_value=mock_response), \
+             patch.dict(os.environ, {"YOUTUBE_API_KEY": "fake-key"}):
+            result = detect("Testville")
+
+        assert result["channel_id"] == "UC_right"
