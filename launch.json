@@ -1167,7 +1167,7 @@
         "name": "downward_query_scaling",
         "description": "Cap or paginate downward resolution for state/county-level queries. Querying state-california with include_siblings (downward) would fan out to every CA city \u2014 works with 4, breaks with hundreds.",
         "status": "not_started",
-        "priority": 3,
+        "priority": 1,
         "phase": "2",
         "source": "multi-scale participation \u2014 query scaling",
         "files": [
@@ -1213,7 +1213,7 @@
         "name": "legislation_adapter_unification",
         "description": "Unify legislation data path: query stored state/federal legislation first, fall back to what_applies() API calls. Currently all legislation comes via on-demand API calls regardless of what's stored.",
         "status": "not_started",
-        "priority": 3,
+        "priority": 1,
         "phase": "2",
         "source": "multi-scale participation \u2014 data architecture",
         "files": [
@@ -1226,7 +1226,7 @@
         "name": "turnkey_state_onboarding",
         "description": "Generalize state-level onboarding beyond hardcoded CA. Framework for adding other states (legislation source detection, bulk download client generation, server deployment).",
         "status": "not_started",
-        "priority": 3,
+        "priority": 1,
         "phase": "3",
         "source": "scalability roadmap 2026-03-22",
         "files": [
