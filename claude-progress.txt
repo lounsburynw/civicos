@@ -23487,3 +23487,22 @@ Added severity-classified quality gates to the onboarding pipeline.
 ### Files Changed
 - scripts/onboard.py (112 insertions, 45 deletions)
 - launch.json (onboard_quality_gates → done)
+
+## Session: 2026-03-23 — onboard_end_to_end_test (P0)
+
+### Summary
+Added 26 integration tests for the turnkey onboarding pipeline (scripts/onboard.py).
+
+### Changes
+1. **TestQualityReport** (10 tests) — Unit tests for `_quality_report()` covering all severity classifications: clean data, zero meetings (CRITICAL vs OK depending on platform), zero agenda items (CRITICAL), zero chunks (WARNING), zero/low decisions (WARNING), remediation text, ratio output, and mixed severity scenarios.
+2. **TestIngestionStages** (7 tests) — Tests for `_get_ingestion_stages()`: Legistar/supported sources include meeting stages, unsupported sources skip them, seeclickfix issues included/excluded, municipal code conditional on YAML config, vectors always present.
+3. **TestCLIFlow** (9 tests) — CLI integration tests with mocked Modal/Postgres: `--skip-ingestion` never calls Modal, `--no-validate` skips sample, critical issues exit 2, `--force-continue` overrides gate, successful run exits 0, Modal failure propagates exit code, `--sample-days` controls window, config generation called when no configs exist, config generation failure exits 1.
+
+### Tests
+- 26/26 new tests pass (0.21s)
+- 20 smoke tests pass
+- No regressions
+
+### Files Changed
+- packages/civicos/tests/test_integration_onboarding.py (new, 551 lines)
+- launch.json (onboard_end_to_end_test → done, P0 → query_monitoring_and_docs)

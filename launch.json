@@ -105,8 +105,8 @@
       {
         "name": "onboard_end_to_end_test",
         "description": "Integration test for the full onboarding pipeline: mock city with Legistar source, run onboard.py, verify all stages complete (discovery \u2192 config \u2192 fetch \u2192 store \u2192 index \u2192 quality report). Catches regressions.",
-        "priority": 0,
-        "status": "not_started",
+        "priority": 1,
+        "status": "done",
         "files": [
           "scripts/onboard.py",
           "packages/civicos/tests/test_integration_onboarding.py"
@@ -828,7 +828,7 @@
         "name": "query_monitoring_and_docs",
         "description": "Production polish: query latency logging, connection pool metrics, alert thresholds, and docs sweep to update stale decision ID format references across ~10 doc files.",
         "status": "not_started",
-        "priority": 2,
+        "priority": 0,
         "phase": "B",
         "source": "performance assessment 2026-03-17",
         "files": [
