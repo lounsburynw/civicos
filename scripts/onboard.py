@@ -396,9 +396,53 @@ def _verify_jurisdiction(jid: str) -> bool:
         return False
 
 
+def _run_batch(cities: list, shared_args: list) -> int:
+    """Run onboarding for multiple cities sequentially.
+
+    Each city runs as a separate subprocess so quality gates and cost
+    estimates are independent. Returns 0 if all succeed, 1 otherwise.
+    """
+    results = {}
+    total = len(cities)
+
+    print("\n" + "=" * 60)
+    print(f"CivicOS Batch Onboard — {total} cities")
+    print("=" * 60)
+    for i, city in enumerate(cities, 1):
+        print(f"\n{'─' * 60}")
+        print(f"[{i}/{total}] {city}")
+        print(f"{'─' * 60}")
+
+        cmd = [sys.executable, str(PROJECT_ROOT / "scripts" / "onboard.py"),
+               "--city", city] + shared_args
+        rc = subprocess.run(cmd, cwd=str(PROJECT_ROOT)).returncode
+        results[city] = rc
+
+    # Aggregate report
+    print("\n" + "=" * 60)
+    print("Batch Summary")
+    print("=" * 60)
+    succeeded = [c for c, rc in results.items() if rc == 0]
+    failed = [(c, rc) for c, rc in results.items() if rc != 0]
+
+    for city in succeeded:
+        print(f"  OK  {city}")
+    for city, rc in failed:
+        label = "quality issues" if rc == 2 else f"error (exit {rc})"
+        print(f"  FAIL  {city} — {label}")
+
+    print(f"\n  {len(succeeded)}/{total} succeeded")
+    if failed:
+        print(f"  {len(failed)}/{total} failed")
+
+    return 0 if not failed else 1
+
+
 def main():
     parser = argparse.ArgumentParser(description="Turnkey jurisdiction onboarding")
     parser.add_argument("--city", default="", help="City name (e.g., 'Mill Valley')")
+    parser.add_argument("--cities", default="",
+                        help="Comma-separated city names for batch mode")
     parser.add_argument("--url", default="", help="Direct platform URL")
     parser.add_argument("--state", default="CA", help="Two-letter state code")
     parser.add_argument("--county", default="", help="County name (e.g., 'Marin')")
@@ -423,8 +467,43 @@ def main():
                         help="Auto-confirm cost estimate (skip prompt)")
     args = parser.parse_args()
 
+    # Batch mode: --cities "Corte Madera,Larkspur,Fairfax"
+    if args.cities:
+        cities = [c.strip() for c in args.cities.split(",") if c.strip()]
+        if not cities:
+            parser.error("--cities requires at least one city name")
+
+        # Build shared flags (everything except --city/--cities/--url/--jurisdiction)
+        shared = []
+        if args.state:
+            shared.extend(["--state", args.state])
+        if args.county:
+            shared.extend(["--county", args.county])
+        if args.level != "city":
+            shared.extend(["--level", args.level])
+        if args.days_past is not None:
+            shared.extend(["--days-past", str(args.days_past)])
+        if args.sample_days is not None:
+            shared.extend(["--sample-days", str(args.sample_days)])
+        if args.dry_run:
+            shared.append("--dry-run")
+        if args.skip_ingestion:
+            shared.append("--skip-ingestion")
+        if args.no_validate:
+            shared.append("--no-validate")
+        if args.force:
+            shared.append("--force")
+        if args.force_continue:
+            shared.append("--force-continue")
+        if args.deploy:
+            shared.append("--deploy")
+        if args.yes:
+            shared.append("--yes")
+
+        sys.exit(_run_batch(cities, shared))
+
     if not args.city and not args.url:
-        parser.error("Provide --city 'City Name' or --url 'https://...'")
+        parser.error("Provide --city 'City Name', --cities 'A,B,C', or --url 'https://...'")
 
     start_time = time.time()
 
