@@ -1,6 +1,6 @@
-# Recommended: CivicClerk Pipeline Wiring
+# Recommended: HTML Agenda Extraction
 
-**Priority:** P0 (civicclerk_pipeline_wiring)
+**Priority:** P0 (html_agenda_extraction)
 **Area:** turnkey_onboarding
 **Date:** 2026-03-23
 
@@ -8,70 +8,55 @@
 
 ## Context
 
-Turnkey onboarding is now the top priority — a new `turnkey_onboarding` category was added to launch.json with 10 items. We just completed `legistar_client` (wired Legistar into the pipeline, tested on Sacramento/Oakland/Denver). The pattern is proven and repeatable.
+We just completed CivicClerk + eScribe pipeline wiring (both done). The pipeline now supports 5 meeting sources: proudcity, granicus, legistar, civicclerk, escribe. El Cerrito has 15 meetings in Postgres.
 
-**CivicClerk is next because the client already exists** — it just needs the same elif branch + registry addition that took ~15 minutes for Legistar. Cities blocked: El Cerrito, Hayward, San Pablo.
+**HTML agenda extraction is next** because some cities (especially Legistar/CivicClerk cities) serve agendas as HTML pages, not PDFs. The chunk extraction pipeline currently detects this case (`validate_pdf_content` returns `is_valid_pdf=False` with "DEGENERATE CASE" warnings) but silently skips them — resulting in chunks=0, which breaks agenda search for those cities.
 
 ## What Was Done This Session
 
-1. Wired Legistar into `fetch_meetings()` — 76 Sacramento meetings stored in Postgres
-2. Fixed datetime parsing bug (Legistar returns "1:00 PM" not ISO)
-3. Verified on Oakland (17 meetings) and Denver (50 meetings)
-4. Created `turnkey_onboarding` category in launch.json (10 items)
-5. Split issue tracking into multi-provider dispatch (FixItMarin prompted this)
+1. Wired CivicClerk into `fetch_meetings()` — 15 El Cerrito meetings stored in Postgres
+2. Fixed `normalize_event()` to use correct API fields (`eventName`, `eventLocation` dict)
+3. Wired eScribe into `fetch_meetings()` — code correct but eScribe has SSL cert issue on macOS
+4. Probed Bay Area CivicClerk cities — only El Cerrito (`elcerritoca`) is active; others returned 404
 
 ## Key Files
 
 | File | Purpose |
 |------|---------|
-| `scripts/modal_ingest.py:2886` | `fetch_meetings()` source dispatch — add `elif source_type == "civicclerk":` after legistar branch |
-| `packages/civicos-extraction/src/civicos_extraction/clients/civicclerk.py` | Existing CivicClerk client — check constructor, `get_meetings()`, `normalize_event()` |
-| `packages/civicos-extraction/src/civicos_extraction/clients/__init__.py:115` | `SUPPORTED_MEETING_SOURCES` — add `"civicclerk"` |
-| `packages/civicos-extraction/src/civicos_extraction/clients/legistar.py:363` | Reference: the Legistar `normalize_event()` fix for datetime parsing — check if CivicClerk has the same issue |
+| `packages/civicos-extraction/src/civicos_extraction/cli/chunks.py:383` | `validate_pdf_content()` — detects HTML content with "DEGENERATE CASE" warnings |
+| `packages/civicos-extraction/src/civicos_extraction/cli/chunks.py:1134` | Skip logic: `if not dl.is_valid_pdf: continue` — this is where HTML agendas are dropped |
+| `packages/civicos-extraction/src/civicos_extraction/cli/chunks.py:1322` | Cloud mode skip: same pattern, `if not download_result.is_valid_pdf:` |
+| `scripts/modal_ingest.py:3625` | `extract_chunks()` — calls `run_chunk_extraction()` |
+| `packages/civicos-extraction/src/civicos_extraction/processing/agenda_integration.py` | May have HTML agenda handling logic already |
 
 ## Suggested Approach
 
-1. **Read CivicClerkClient** — check constructor params, `get_meetings()` return type, datetime handling
-2. **Add elif branch** in `fetch_meetings()` at `modal_ingest.py:2896` (after legistar branch)
-3. **Add "civicclerk" to SUPPORTED_MEETING_SOURCES** in `__init__.py:115`
-4. **Test against a real CivicClerk city** — try El Cerrito or Hayward. Verify meetings fetch with correct datetimes
-5. **Store in Postgres** — verify meetings stored, San Rafael unaffected
-6. **Add datetime parsing tests** if CivicClerk has format quirks (like Legistar's 12-hour format)
-7. **If time permits:** Start `escribe_pipeline_wiring` (P1) — same pattern, ~15 min
-
-## Pattern Reference (from Legistar wiring)
-
-```python
-# modal_ingest.py — add after the legistar elif
-elif source_type == "civicclerk":
-    from civicos_extraction.clients.civicclerk import CivicClerkClient
-    client = CivicClerkClient(
-        # check constructor for required params
-    )
-    meetings = client.get_meetings(days_ahead=days_ahead, days_past=days_past)
-```
+1. **Understand the current flow** — Read `run_chunk_extraction()` in `chunks.py` to see how PDFs are downloaded, validated, and parsed
+2. **Find the skip points** — Lines 1134 and 1322 are where `is_valid_pdf=False` causes skipping. These are the insertion points for HTML handling
+3. **Add HTML text extraction** — When content is HTML (detected by validate_pdf_content), extract text using BeautifulSoup or similar. Strip nav/header/footer, keep agenda item text
+4. **Chunk the HTML text** — Use the same chunking logic as PDFs (text → fixed-size chunks with overlap)
+5. **Store chunks** — Same `store_chunks()` call, just with `source_type="html_agenda"` in metadata
+6. **Test on a real city** — Find a city with HTML agendas (check CivicClerk agenda URLs — they may be HTML). Sacramento Legistar may also have HTML agendas
+7. **Verify chunks appear** — Run `/data-status` to confirm chunks > 0 for the test city
 
 ## Tests to Run
 
 ```bash
 pytest packages/civicos/tests/test_civicos.py -q --override-ini="addopts="
-pytest packages/civicos/tests/test_integration_extraction_failures.py -q --override-ini="addopts="
 ```
 
 ## Success Criteria
 
-- [ ] CivicClerk added to SUPPORTED_MEETING_SOURCES
-- [ ] fetch_meetings() handles source_type="civicclerk"
-- [ ] Meetings fetched from at least one CivicClerk city (El Cerrito, Hayward, or San Pablo)
-- [ ] Correct datetimes (no datetime.now() fallback)
-- [ ] San Rafael data unaffected
-- [ ] Unit tests for any datetime parsing fixes
+- [ ] HTML content detected (via existing validate_pdf_content)
+- [ ] HTML text extracted into chunks instead of silently skipping
+- [ ] Chunks stored in Postgres with correct meeting_id association
+- [ ] At least one city's HTML agendas produce chunks > 0
+- [ ] PDF agenda extraction still works (no regression)
+- [ ] San Rafael chunk count unaffected
 
-## Turnkey Onboarding Roadmap (for context)
+## Turnkey Onboarding Roadmap (remaining)
 
-After CivicClerk, the remaining items in priority order:
-- P1: `escribe_pipeline_wiring` — same wiring pattern, Canadian cities
-- P1: `html_agenda_extraction` — fix chunks=0 for HTML-only agendas
+After HTML agenda extraction:
 - P1: `issue_provider_dispatch` — generalize fetch_issues() like fetch_meetings()
 - P2: `onboard_quality_gates`, `issue_provider_detection`, `onboard_end_to_end_test`
 - P3: `onboard_transcript_auto`, `onboard_deploy_integration`, `onboard_batch_mode`
