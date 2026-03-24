@@ -463,6 +463,43 @@ def _discover_proudcity(url: str, jurisdiction_id: str) -> Dict[str, Any]:
     }
 
 
+def detect_issue_source(city_name: str, jurisdiction_id: str) -> Optional[str]:
+    """Probe known 311/issue APIs to detect which provider a city uses.
+
+    Tries each supported provider in order. Returns the provider key
+    (e.g. "seeclickfix") or None if no provider is detected.
+
+    This is safe to call during onboarding — it makes at most one lightweight
+    API request per provider and does not store anything.
+    """
+    # --- SeeClickFix probe ---
+    try:
+        from civicos_extraction.clients.seeclickfix import SeeClickFixClient
+
+        client = SeeClickFixClient()
+        place_url = client.get_place_url_for_city(city_name)
+
+        result = client.get_issues(place_url=place_url, per_page=1, status=None)
+        issues = result.get("issues", [])
+        metadata = result.get("metadata", {})
+
+        # The SeeClickFix API returns a valid empty response for unknown
+        # place_urls (entries=0, no error). We must check that there are
+        # actual issues to confirm the city is on SeeClickFix.
+        if issues:
+            logger.info(f"SeeClickFix detected for '{city_name}' (place_url={place_url})")
+            return "seeclickfix"
+        else:
+            logger.debug(f"SeeClickFix returned 0 issues for '{city_name}' (place_url={place_url})")
+    except Exception as e:
+        logger.debug(f"SeeClickFix probe failed for '{city_name}': {e}")
+
+    # --- Future providers (FixItMarin, QAlert, etc.) go here ---
+
+    logger.info(f"No issue provider detected for '{city_name}'")
+    return None
+
+
 # US state abbreviation → full name mapping for parent_jurisdictions slugs
 _US_STATES = {
     "AL": "Alabama", "AK": "Alaska", "AZ": "Arizona", "AR": "Arkansas",
@@ -1335,6 +1372,16 @@ def onboard_jurisdiction(
 
     config = discovery_result["config"]
     discovered_bodies = discovery_result.get("discovered_bodies", {})
+
+    # Step 2.5: Detect issue provider (if city_name available and not already set)
+    if city_name and not config.get("issue_source"):
+        _progress("issues", f"Probing 311/issue providers for '{city_name}'...")
+        detected_source = detect_issue_source(city_name, jurisdiction_id)
+        if detected_source:
+            config["issue_source"] = detected_source
+            _progress("issues", f"Detected issue provider: {detected_source}")
+        else:
+            _progress("issues", "No issue provider detected (will use default)")
 
     _progress("save", f"Saving config for {jurisdiction_id}...")
 
