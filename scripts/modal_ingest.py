@@ -4375,10 +4375,21 @@ def scheduled_low_velocity_refresh():
         from civicos_extraction.clients.legiscan import LegiScanClient
         legiscan_client = LegiScanClient()  # Uses LEGISCAN_API_KEY from env
 
-        for leg_jurisdiction, leg_label, state_code in [
-            ("state-CA", "CA", "CA"),
-            ("federal", "US Federal", "US"),
-        ]:
+        # Build state list: always include federal, add configured states
+        # Read state jurisdictions from registry or YAML configs
+        _leg_targets = [("federal", "US Federal", "US")]
+        import glob as _glob
+        for _yp in sorted(_glob.glob(str(Path(__file__).parent.parent / "data" / "jurisdictions" / "state-*.yaml"))):
+            import yaml as _lyaml
+            with open(_yp) as _yf:
+                _scfg = _lyaml.safe_load(_yf) or {}
+            _sjid = _scfg.get("jurisdiction_id", "")
+            _sinfo = _scfg.get("state_info", {})
+            _sabbr = _sinfo.get("abbreviation", "")
+            if _sjid and _sabbr:
+                _leg_targets.insert(0, (f"state-{_sabbr}", _sabbr, _sabbr))
+
+        for leg_jurisdiction, leg_label, state_code in _leg_targets:
             logger.info(f"Syncing {leg_label} legislation via RefreshRunner...")
             result_key = f"legislation_{leg_label.replace(' ', '_')}"
             try:
@@ -4447,16 +4458,19 @@ def scheduled_low_velocity_refresh():
             logger.info(f"  Federal Rules: {stored} new rules stored (of {result.get('rules_fetched', 0)} fetched), {indexed} vectors indexed")
 
         # Legislative Events (hearing dates parsed from existing legislation — no API calls)
-        logger.info("Extracting legislative events from CA legislation...")
-        result = run_with_retry(
-            extract_legislative_events,
-            "Legislative events extraction",
-            state="CA", dry_run=False,
-        )
-        results["legislative_events_CA"] = result
-        if result.get("status") != "failed":
-            stored = result.get('events_stored', 0)
-            logger.info(f"  Legislative Events CA: {stored} events stored (of {result.get('events_parsed', 0)} parsed from {result.get('bills_read', 0)} bills)")
+        for _le_jid, _le_abbr, _ in _leg_targets:
+            if _le_jid == "federal":
+                continue  # Federal events handled separately
+            logger.info(f"Extracting legislative events from {_le_abbr} legislation...")
+            result = run_with_retry(
+                extract_legislative_events,
+                f"Legislative events extraction ({_le_abbr})",
+                state=_le_abbr, dry_run=False,
+            )
+            results[f"legislative_events_{_le_abbr}"] = result
+            if result.get("status") != "failed":
+                stored = result.get('events_stored', 0)
+                logger.info(f"  Legislative Events {_le_abbr}: {stored} events stored (of {result.get('events_parsed', 0)} parsed from {result.get('bills_read', 0)} bills)")
 
         # Federal programs from SAM.gov (full catalog refresh)
         logger.info("Fetching federal programs from SAM.gov...")

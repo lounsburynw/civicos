@@ -126,13 +126,34 @@ STATUS_FILTER_PRESETS = {
 LegislationStatusFilter = Literal["active", "passed", "pending", "all"]
 
 
-# Map state names to database codes
+# Map state names/codes to two-letter database codes
 STATE_CODE_MAP = {
-    "california": "CA",
-    "ca": "CA",
+    "alabama": "AL", "alaska": "AK", "arizona": "AZ", "arkansas": "AR",
+    "california": "CA", "colorado": "CO", "connecticut": "CT", "delaware": "DE",
+    "florida": "FL", "georgia": "GA", "hawaii": "HI", "idaho": "ID",
+    "illinois": "IL", "indiana": "IN", "iowa": "IA", "kansas": "KS",
+    "kentucky": "KY", "louisiana": "LA", "maine": "ME", "maryland": "MD",
+    "massachusetts": "MA", "michigan": "MI", "minnesota": "MN", "mississippi": "MS",
+    "missouri": "MO", "montana": "MT", "nebraska": "NE", "nevada": "NV",
+    "new-hampshire": "NH", "new-jersey": "NJ", "new-mexico": "NM", "new-york": "NY",
+    "north-carolina": "NC", "north-dakota": "ND", "ohio": "OH", "oklahoma": "OK",
+    "oregon": "OR", "pennsylvania": "PA", "rhode-island": "RI", "south-carolina": "SC",
+    "south-dakota": "SD", "tennessee": "TN", "texas": "TX", "utah": "UT",
+    "vermont": "VT", "virginia": "VA", "washington": "WA", "west-virginia": "WV",
+    "wisconsin": "WI", "wyoming": "WY", "district-of-columbia": "DC",
+    # Two-letter code passthrough
+    "al": "AL", "ak": "AK", "az": "AZ", "ar": "AR", "ca": "CA", "co": "CO",
+    "ct": "CT", "de": "DE", "fl": "FL", "ga": "GA", "hi": "HI", "id": "ID",
+    "il": "IL", "in": "IN", "ia": "IA", "ks": "KS", "ky": "KY", "la": "LA",
+    "me": "ME", "md": "MD", "ma": "MA", "mi": "MI", "mn": "MN", "ms": "MS",
+    "mo": "MO", "mt": "MT", "ne": "NE", "nv": "NV", "nh": "NH", "nj": "NJ",
+    "nm": "NM", "ny": "NY", "nc": "NC", "nd": "ND", "oh": "OH", "ok": "OK",
+    "or": "OR", "pa": "PA", "ri": "RI", "sc": "SC", "sd": "SD", "tn": "TN",
+    "tx": "TX", "ut": "UT", "vt": "VT", "va": "VA", "wa": "WA", "wv": "WV",
+    "wi": "WI", "wy": "WY", "dc": "DC",
 }
 
-# Map city jurisdictions to their county
+# Map city jurisdictions to their county (for county code search)
 CITY_TO_COUNTY = {
     "city-san-rafael": "county-marin",
     "city-berkeley": "county-alameda",
@@ -141,27 +162,38 @@ CITY_TO_COUNTY = {
 
 
 def _extract_state_from_jurisdiction(jurisdiction_id: str) -> Optional[str]:
-    """Extract state from jurisdiction_id (e.g., 'city-san-rafael' -> 'california')."""
+    """Extract state from jurisdiction_id.
+
+    Uses registry parent_jurisdictions to resolve city/county → state.
+    Falls back to state-* prefix parsing for state-level jurisdictions.
+    """
     if not jurisdiction_id:
         return None
 
-    # All current jurisdictions are in California
-    # Handle multiple naming conventions:
-    # - city-san-rafael (canonical)
-    # - san-rafael-ca (alternative)
-    # - county-marin
+    # state-* jurisdictions: extract directly
+    # e.g., "state-california" -> "california", "state-new-york" -> "new-york"
+    if jurisdiction_id.startswith("state-"):
+        return jurisdiction_id[6:]  # everything after "state-"
+
+    # city-*/county-*: look up parent state from registry
+    try:
+        import json
+        import os
+        here = os.path.dirname(os.path.abspath(__file__))
+        root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(here))))
+        registry_path = os.path.join(root, "config", "registry.json")
+        with open(registry_path) as f:
+            registry = json.load(f)
+        entry = registry.get("jurisdictions", {}).get(jurisdiction_id, {})
+        for parent in entry.get("parent_jurisdictions", []):
+            if parent.startswith("state-"):
+                return parent[6:]
+    except Exception:
+        pass
+
+    # Fallback: assume California for known prefixes (backwards compat)
     if jurisdiction_id.startswith(("city-", "county-")):
         return "california"
-
-    # Handle state suffix patterns (e.g., san-rafael-ca)
-    if jurisdiction_id.endswith("-ca"):
-        return "california"
-
-    # Handle common California city names
-    ca_cities = ["san-rafael", "berkeley", "oakland", "hayward", "santa-rosa"]
-    for city in ca_cities:
-        if city in jurisdiction_id.lower():
-            return "california"
 
     return None
 

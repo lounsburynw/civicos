@@ -1225,7 +1225,7 @@
       {
         "name": "turnkey_state_onboarding",
         "description": "Generalize state-level onboarding beyond hardcoded CA. Framework for adding other states (legislation source detection, bulk download client generation, server deployment).",
-        "status": "not_started",
+        "status": "done",
         "priority": 1,
         "phase": "3",
         "source": "scalability roadmap 2026-03-22",

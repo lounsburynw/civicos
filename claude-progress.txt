@@ -23607,3 +23607,46 @@ Rewrote LegislationAdapter to query storage+vectors directly instead of delegati
 - packages/civicos-services/src/civicos_services/query/adapters.py (~120 insertions, ~30 deletions)
 - packages/civicos-services/tests/test_query_v2.py (~30 insertions, ~10 deletions)
 - launch.json (legislation_adapter_unification → done)
+
+## Session: 2026-03-24 — downward_query_scaling + turnkey_state_onboarding (P1)
+
+### Summary
+Completed the last two multi_scale_participation items. Multi-scale participation is now 18/18.
+
+### Changes — Downward Query Scaling
+1. **`resolve_jurisdictions()` max_children parameter** — Caps downward/sibling fan-out at 20 (configurable). Logs warning when cap is hit.
+2. **3 new tests** — downward cap, default allows small registries, sibling cap.
+
+### Changes — Turnkey State Onboarding
+1. **`STATE_CODE_MAP`** — Expanded from CA-only to all 50 US states + DC. Two-letter code passthrough included.
+2. **`_extract_state_from_jurisdiction()`** — Now reads registry parent_jurisdictions to resolve city/county → state instead of hardcoding CA. Falls back to CA for backwards compat.
+3. **`modal_ingest.py` legislation loop** — No longer hardcoded to CA. Reads state-*.yaml files from data/jurisdictions/ to build the sync target list dynamically.
+4. **Legislative events extraction** — Generalized from hardcoded `state="CA"` to loop over all configured states.
+
+### How to add a new state
+```bash
+# 1. Create state YAML
+cat > data/jurisdictions/state-new-york.yaml << EOF
+jurisdiction_id: state-new-york
+level: state
+display_name: New York
+state_info:
+  abbreviation: NY
+  timezone: America/New_York
+  legislature: New York State Legislature
+data_sources:
+  legislation: legiscan_api
+EOF
+
+# 2. Sync legislation
+modal run scripts/modal_ingest.py --legislation --legislation-jurisdiction state-NY
+
+# 3. That's it — LegiScan, storage, vectors all handle arbitrary states
+```
+
+### Tests
+- 20 smoke tests pass
+- 148 v2 query tests pass (3 new jurisdiction cap tests)
+- No regressions
+
+### Multi-Scale Participation: 18/18 COMPLETE
