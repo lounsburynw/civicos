@@ -702,7 +702,7 @@
         "name": "query_monitoring_and_docs",
         "description": "Production polish: query latency logging, connection pool metrics, alert thresholds, and docs sweep to update stale decision ID format references across ~10 doc files.",
         "status": "not_started",
-        "priority": 2,
+        "priority": 0,
         "phase": "B",
         "source": "performance assessment 2026-03-17",
         "files": [
@@ -802,9 +802,9 @@
         "name": "legistar_client",
         "description": "Wire Legistar meeting fetch into Modal ingestion pipeline. Sacramento has 35 discovered bodies (extraction config exists). Enables turnkey onboard for Legistar cities (Sacramento, Oakland, SF, etc.).",
         "priority": 0,
-        "status": "not_started",
-        "test_file": "",
-        "notes": "Extraction config at data/extraction/city-sacramento.json. Platform detection and discovery already work. Need fetch_meetings support for source_type=legistar in modal_ingest.py. Legistar API: https://webapi.legistar.com/v1/{client}."
+        "status": "done",
+        "test_file": "packages/civicos/tests/test_integration_extraction_failures.py::TestLegistarDatetimeParsing",
+        "notes": "Wired legistar source_type into fetch_meetings() (modal_ingest.py), added to SUPPORTED_MEETING_SOURCES registry. Fixed datetime parsing for 12-hour time format. 42 Sacramento meetings verified via live API. 6 unit tests."
       }
     ]
   },

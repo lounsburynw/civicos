@@ -2887,6 +2887,13 @@ def fetch_meetings(
             from civicos_extraction.clients.granicus import GranicusSource
             source = GranicusSource(config)
             meetings = source.get_meetings(days_ahead=days_ahead, days_past=days_past)
+        elif source_type == "legistar":
+            from civicos_extraction.clients.legistar import LegistarClient
+            client = LegistarClient(
+                client_name=config.metadata.get("client_name", config.source_id.replace("legistar-", "")),
+                jurisdiction_id=jurisdiction,
+            )
+            meetings = client.get_meetings(days_ahead=days_ahead, days_past=days_past)
         else:
             from civicos_extraction.clients import SUPPORTED_MEETING_SOURCES
             logger.warning(f"[MEETINGS] source_type '{source_type}' not yet supported "

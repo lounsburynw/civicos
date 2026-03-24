@@ -1790,5 +1790,93 @@ class TestErrorLogging:
         assert len(warning_records) >= 1
 
 
+class TestLegistarDatetimeParsing:
+    """Tests for Legistar normalize_event datetime parsing."""
+
+    @pytest.fixture
+    def client(self):
+        from civicos_extraction.clients.legistar import LegistarClient
+        return LegistarClient("sacramento", jurisdiction_id="city-sacramento")
+
+    def test_12_hour_time_format(self, client):
+        """Legistar commonly returns EventTime as '1:00 PM'."""
+        event = {
+            "EventId": 100,
+            "EventDate": "2026-03-16T00:00:00",
+            "EventTime": "1:00 PM",
+            "EventBodyName": "City Council",
+        }
+        meeting = client.normalize_event(event)
+        assert meeting.meeting_datetime.hour == 13
+        assert meeting.meeting_datetime.minute == 0
+        assert meeting.meeting_datetime.day == 16
+
+    def test_12_hour_am_format(self, client):
+        """Morning meetings use AM."""
+        event = {
+            "EventId": 101,
+            "EventDate": "2026-04-01T00:00:00",
+            "EventTime": "9:30 AM",
+            "EventBodyName": "Planning Commission",
+        }
+        meeting = client.normalize_event(event)
+        assert meeting.meeting_datetime.hour == 9
+        assert meeting.meeting_datetime.minute == 30
+
+    def test_iso_time_format(self, client):
+        """Some Legistar instances return ISO datetime for EventTime."""
+        event = {
+            "EventId": 102,
+            "EventDate": "2026-05-10T00:00:00",
+            "EventTime": "2026-05-10T14:30:00",
+            "EventBodyName": "Budget Committee",
+        }
+        meeting = client.normalize_event(event)
+        assert meeting.meeting_datetime.hour == 14
+        assert meeting.meeting_datetime.minute == 30
+
+    def test_no_time(self, client):
+        """Events without a time get date-only parsing."""
+        event = {
+            "EventId": 103,
+            "EventDate": "2026-06-15T00:00:00",
+            "EventTime": "",
+            "EventBodyName": "Ethics Commission",
+        }
+        meeting = client.normalize_event(event)
+        assert meeting.meeting_datetime.year == 2026
+        assert meeting.meeting_datetime.month == 6
+        assert meeting.meeting_datetime.day == 15
+
+    def test_meeting_id_format(self, client):
+        """Verify meeting ID follows entity ID convention."""
+        event = {
+            "EventId": 3610,
+            "EventDate": "2026-03-16T00:00:00",
+            "EventTime": "1:00 PM",
+            "EventBodyName": "Civil Service Board",
+        }
+        meeting = client.normalize_event(event)
+        assert meeting.id == "meeting:city-sacramento:legistar:3610"
+
+    def test_meeting_type_inference(self, client):
+        """Verify body name to meeting type mapping."""
+        cases = {
+            "City Council - 5PM": "city_council",
+            "Planning and Design Commission": "planning_commission",
+            "Budget and Audit Committee": "committee",
+            "Ethics Commission": "commission",
+        }
+        for body_name, expected_type in cases.items():
+            event = {
+                "EventId": 999,
+                "EventDate": "2026-01-01T00:00:00",
+                "EventTime": "10:00 AM",
+                "EventBodyName": body_name,
+            }
+            meeting = client.normalize_event(event)
+            assert meeting.meeting_type == expected_type, f"{body_name} -> {meeting.meeting_type}, expected {expected_type}"
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
