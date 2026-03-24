@@ -34,6 +34,8 @@ QualityIssue = onboard.QualityIssue
 _quality_report = onboard._quality_report
 _get_ingestion_stages = onboard._get_ingestion_stages
 _get_data_counts = onboard._get_data_counts
+_update_registry = onboard._update_registry
+_verify_jurisdiction = onboard._verify_jurisdiction
 
 
 # ---------------------------------------------------------------------------
@@ -549,3 +551,273 @@ class TestCLIFlow:
             ])
 
         assert code == 1
+
+
+# ---------------------------------------------------------------------------
+# _update_registry() — registry.json management
+# ---------------------------------------------------------------------------
+
+class TestUpdateRegistry:
+    """Tests for _update_registry(): adds jurisdictions to config/registry.json."""
+
+    @pytest.fixture
+    def temp_project(self, tmp_path):
+        """Temp project with registry and jurisdiction YAML."""
+        config_dir = tmp_path / "config"
+        config_dir.mkdir()
+        jurisdiction_dir = tmp_path / "data" / "jurisdictions"
+        jurisdiction_dir.mkdir(parents=True)
+
+        # Minimal registry
+        registry = {
+            "version": "1.0",
+            "jurisdictions": {
+                "state-california": {
+                    "domain": "california.civicosproject.org",
+                    "display_name": "California",
+                    "parent_jurisdictions": ["country-united-states"],
+                },
+            },
+        }
+        (config_dir / "registry.json").write_text(json.dumps(registry, indent=2))
+
+        return tmp_path
+
+    def test_adds_new_jurisdiction_from_yaml(self, temp_project):
+        """New jurisdiction with YAML parent info gets added to registry."""
+        jid = "city-testville"
+        yaml_config = {
+            "jurisdiction_id": jid,
+            "display_name": "Testville",
+            "parent_jurisdictions": ["county-marin", "state-california"],
+        }
+        (temp_project / "data" / "jurisdictions" / f"{jid}.yaml").write_text(
+            yaml.dump(yaml_config)
+        )
+
+        with patch.object(onboard, "PROJECT_ROOT", temp_project):
+            updated = _update_registry(jid)
+
+        assert updated is True
+
+        with open(temp_project / "config" / "registry.json") as f:
+            registry = json.load(f)
+
+        entry = registry["jurisdictions"][jid]
+        assert entry["display_name"] == "Testville"
+        assert entry["domain"] == "testville.civicosproject.org"
+        assert "county-marin" in entry["parent_jurisdictions"]
+        assert "state-california" in entry["parent_jurisdictions"]
+
+    def test_skips_existing_jurisdiction(self, temp_project):
+        """Already-registered jurisdiction returns False, no duplicate."""
+        jid = "state-california"
+        (temp_project / "data" / "jurisdictions" / f"{jid}.yaml").write_text(
+            yaml.dump({"jurisdiction_id": jid, "display_name": "California"})
+        )
+
+        with patch.object(onboard, "PROJECT_ROOT", temp_project):
+            updated = _update_registry(jid)
+
+        assert updated is False
+
+    def test_derives_display_name_from_jid(self, temp_project):
+        """When YAML has no display_name, derives from jurisdiction ID."""
+        jid = "city-mill-valley"
+        (temp_project / "data" / "jurisdictions" / f"{jid}.yaml").write_text(
+            yaml.dump({"jurisdiction_id": jid})
+        )
+
+        with patch.object(onboard, "PROJECT_ROOT", temp_project):
+            _update_registry(jid)
+
+        with open(temp_project / "config" / "registry.json") as f:
+            registry = json.load(f)
+
+        assert registry["jurisdictions"][jid]["display_name"] == "Mill Valley"
+
+    def test_derives_parents_from_state(self, temp_project):
+        """When YAML has financial.state but no parents, derives from state."""
+        jid = "city-somewhere"
+        (temp_project / "data" / "jurisdictions" / f"{jid}.yaml").write_text(
+            yaml.dump({
+                "jurisdiction_id": jid,
+                "financial": {"state": "CA"},
+            })
+        )
+
+        with patch.object(onboard, "PROJECT_ROOT", temp_project):
+            _update_registry(jid)
+
+        with open(temp_project / "config" / "registry.json") as f:
+            registry = json.load(f)
+
+        parents = registry["jurisdictions"][jid]["parent_jurisdictions"]
+        assert "state-ca" in parents
+        assert "country-united-states" in parents
+
+    def test_no_yaml_returns_false(self, temp_project):
+        """No jurisdiction YAML -> returns False, registry unchanged."""
+        with patch.object(onboard, "PROJECT_ROOT", temp_project):
+            updated = _update_registry("city-nonexistent")
+
+        assert updated is False
+
+
+# ---------------------------------------------------------------------------
+# _verify_jurisdiction() — live API verification
+# ---------------------------------------------------------------------------
+
+class TestVerifyJurisdiction:
+    """Tests for _verify_jurisdiction(): hits live API (mocked here)."""
+
+    def test_returns_true_on_results(self):
+        """API returns results -> True."""
+        response_data = json.dumps({"total": 5, "results": []}).encode()
+        mock_resp = MagicMock()
+        mock_resp.read.return_value = response_data
+        mock_resp.__enter__ = lambda s: s
+        mock_resp.__exit__ = MagicMock(return_value=False)
+
+        with patch("urllib.request.urlopen", return_value=mock_resp):
+            assert _verify_jurisdiction("city-test") is True
+
+    def test_returns_false_on_zero_results(self):
+        """API returns 0 results -> False."""
+        response_data = json.dumps({"total": 0, "results": []}).encode()
+        mock_resp = MagicMock()
+        mock_resp.read.return_value = response_data
+        mock_resp.__enter__ = lambda s: s
+        mock_resp.__exit__ = MagicMock(return_value=False)
+
+        with patch("urllib.request.urlopen", return_value=mock_resp):
+            assert _verify_jurisdiction("city-test") is False
+
+    def test_returns_false_on_http_error(self):
+        """API HTTP error -> False (doesn't crash)."""
+        import urllib.error
+        with patch("urllib.request.urlopen",
+                   side_effect=urllib.error.HTTPError(None, 500, "Error", {}, None)):
+            assert _verify_jurisdiction("city-test") is False
+
+    def test_returns_false_on_timeout(self):
+        """Network timeout -> False (doesn't crash)."""
+        with patch("urllib.request.urlopen", side_effect=TimeoutError("timeout")):
+            assert _verify_jurisdiction("city-test") is False
+
+
+# ---------------------------------------------------------------------------
+# CLI flow — --deploy flag
+# ---------------------------------------------------------------------------
+
+class TestCLIDeployFlag:
+    """Tests for --deploy flag integration in CLI flow."""
+
+    @pytest.fixture
+    def temp_project(self, tmp_path):
+        """Temp project with configs, YAML, and registry."""
+        extraction_dir = tmp_path / "data" / "extraction"
+        extraction_dir.mkdir(parents=True)
+        jurisdiction_dir = tmp_path / "data" / "jurisdictions"
+        jurisdiction_dir.mkdir(parents=True)
+        config_dir = tmp_path / "config"
+        config_dir.mkdir()
+
+        jid = "city-testville"
+
+        # Extraction config
+        (extraction_dir / f"{jid}.json").write_text(json.dumps({
+            "source_type": "legistar",
+            "issue_source": "seeclickfix",
+        }))
+
+        # Jurisdiction YAML
+        (jurisdiction_dir / f"{jid}.yaml").write_text(yaml.dump({
+            "jurisdiction_id": jid,
+            "display_name": "Testville",
+            "parent_jurisdictions": ["county-test", "state-california"],
+        }))
+
+        # Registry
+        (config_dir / "registry.json").write_text(json.dumps({
+            "version": "1.0",
+            "jurisdictions": {},
+        }))
+
+        return tmp_path, jid
+
+    def _run_main(self, argv):
+        with patch.object(sys, "argv", ["onboard.py"] + argv):
+            try:
+                onboard.main()
+                return 0
+            except SystemExit as e:
+                return e.code if e.code is not None else 0
+
+    def test_deploy_flag_triggers_modal_deploy(self, temp_project):
+        """--deploy triggers _deploy_modal_api() after ingestion."""
+        tmp_path, jid = temp_project
+
+        with patch.object(onboard, "PROJECT_ROOT", tmp_path), \
+             patch.object(onboard, "_run_modal_ingestion", return_value=0), \
+             patch.object(onboard, "_deploy_modal_api", return_value=0) as mock_deploy, \
+             patch.object(onboard, "_verify_jurisdiction", return_value=True), \
+             patch.object(onboard, "_get_data_counts", return_value={
+                 "meetings": 10, "chunks": 520, "agenda_items": 30,
+                 "decisions": 5, "municipal_code": 0,
+             }), \
+             patch.dict(os.environ, {"DATABASE_URL": "postgresql://fake"}), \
+             patch("dotenv.load_dotenv"):
+            code = self._run_main([
+                "--city", "Testville", "--state", "CA",
+                "--no-validate", "--deploy",
+            ])
+
+        assert code == 0
+        mock_deploy.assert_called_once()
+
+    def test_no_deploy_flag_skips_modal_deploy(self, temp_project):
+        """Without --deploy, _deploy_modal_api() is never called."""
+        tmp_path, jid = temp_project
+
+        with patch.object(onboard, "PROJECT_ROOT", tmp_path), \
+             patch.object(onboard, "_run_modal_ingestion", return_value=0), \
+             patch.object(onboard, "_deploy_modal_api") as mock_deploy, \
+             patch.object(onboard, "_get_data_counts", return_value={
+                 "meetings": 10, "chunks": 520, "agenda_items": 30,
+                 "decisions": 5, "municipal_code": 0,
+             }), \
+             patch.dict(os.environ, {"DATABASE_URL": "postgresql://fake"}), \
+             patch("dotenv.load_dotenv"):
+            code = self._run_main([
+                "--city", "Testville", "--state", "CA",
+                "--no-validate",
+            ])
+
+        assert code == 0
+        mock_deploy.assert_not_called()
+
+    def test_registry_updated_during_deploy(self, temp_project):
+        """--deploy adds jurisdiction to registry.json."""
+        tmp_path, jid = temp_project
+
+        with patch.object(onboard, "PROJECT_ROOT", tmp_path), \
+             patch.object(onboard, "_run_modal_ingestion", return_value=0), \
+             patch.object(onboard, "_deploy_modal_api", return_value=0), \
+             patch.object(onboard, "_verify_jurisdiction", return_value=True), \
+             patch.object(onboard, "_get_data_counts", return_value={
+                 "meetings": 10, "chunks": 520, "agenda_items": 30,
+                 "decisions": 5, "municipal_code": 0,
+             }), \
+             patch.dict(os.environ, {"DATABASE_URL": "postgresql://fake"}), \
+             patch("dotenv.load_dotenv"):
+            self._run_main([
+                "--city", "Testville", "--state", "CA",
+                "--no-validate", "--deploy",
+            ])
+
+        with open(tmp_path / "config" / "registry.json") as f:
+            registry = json.load(f)
+
+        assert jid in registry["jurisdictions"]
+        assert registry["jurisdictions"][jid]["display_name"] == "Testville"

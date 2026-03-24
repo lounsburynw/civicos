@@ -118,13 +118,13 @@
         "name": "onboard_deploy_integration",
         "description": "Wire onboard.py to trigger Modal deployment after successful ingestion. Currently onboarding populates Postgres but doesn't deploy or update the live API. Should optionally deploy and verify the city is queryable.",
         "priority": 3,
-        "status": "not_started",
+        "status": "done",
         "files": [
           "scripts/onboard.py",
-          "scripts/modal_ingest.py"
+          "packages/civicos/tests/test_integration_onboarding.py"
         ],
-        "test_file": null,
-        "notes": "After onboarding, cities should be immediately queryable on the live API. Currently requires manual modal deploy. Add --deploy flag to onboard.py. ~1 session."
+        "test_file": "packages/civicos/tests/test_integration_onboarding.py",
+        "notes": "Phase 3.5 added: registry update (always) + Modal deploy + API verification (with --deploy flag). 12 new tests."
       },
       {
         "name": "onboard_batch_mode",

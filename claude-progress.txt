@@ -23506,3 +23506,29 @@ Added 26 integration tests for the turnkey onboarding pipeline (scripts/onboard.
 ### Files Changed
 - packages/civicos/tests/test_integration_onboarding.py (new, 551 lines)
 - launch.json (onboard_end_to_end_test → done, P0 → query_monitoring_and_docs)
+
+## Session: 2026-03-24 — onboard_deploy_integration (P3)
+
+### Summary
+Wired deploy integration into the onboarding pipeline. After ingestion, onboard.py now automatically updates `config/registry.json` with the new jurisdiction, and optionally deploys the API to Modal + verifies the city is queryable.
+
+### Changes
+1. **`_update_registry()`** (`scripts/onboard.py:247`) — Reads jurisdiction YAML for display_name and parent_jurisdictions, adds entry to `config/registry.json`. Derives display name from jid if YAML doesn't have it. Derives parents from financial.state if no explicit parents. Idempotent (skips if already registered).
+2. **`_deploy_modal_api()`** (`scripts/onboard.py:311`) — Runs `modal deploy` for the API server.
+3. **`_verify_jurisdiction()`** (`scripts/onboard.py:320`) — Hits the live v2 search API to confirm the jurisdiction returns results.
+4. **`--deploy` CLI flag** — Triggers Modal deploy + verification after ingestion.
+5. **Phase 3.5** in main() — Always updates registry; deploys only with `--deploy`.
+6. **12 new tests** — TestUpdateRegistry (6), TestVerifyJurisdiction (4), TestCLIDeployFlag (3). Total now 38.
+
+### Key insight
+The API already supports per-request jurisdiction via `jid = request.jurisdiction or jurisdiction` (verbs.py:78). New data in Postgres is immediately queryable. Deploy is only needed to update the bundled registry.json for cross-jurisdiction (parent/sibling) queries.
+
+### Tests
+- 38/38 tests pass (0.37s)
+- 20 smoke tests pass
+- No regressions
+
+### Files Changed
+- scripts/onboard.py (~100 insertions)
+- packages/civicos/tests/test_integration_onboarding.py (~200 insertions)
+- launch.json (onboard_deploy_integration → done)

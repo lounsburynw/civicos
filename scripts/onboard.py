@@ -244,6 +244,120 @@ def _run_modal_ingestion(jid: str, days_past: int, dry_run: bool = False,
     return result.returncode
 
 
+def _update_registry(jid: str) -> bool:
+    """Add jurisdiction to config/registry.json using YAML parent info.
+
+    Reads parent_jurisdictions and display_name from the jurisdiction YAML,
+    then adds/updates the entry in the registry. Returns True if updated.
+    """
+    import yaml as _yaml
+
+    yaml_path = PROJECT_ROOT / "data" / "jurisdictions" / f"{jid}.yaml"
+    registry_path = PROJECT_ROOT / "config" / "registry.json"
+
+    if not yaml_path.exists():
+        print(f"  Warning: No YAML at {yaml_path}, skipping registry update")
+        return False
+
+    if not registry_path.exists():
+        print(f"  Warning: No registry at {registry_path}, skipping registry update")
+        return False
+
+    with open(yaml_path) as f:
+        jur = _yaml.safe_load(f) or {}
+
+    with open(registry_path) as f:
+        registry = json.load(f)
+
+    jurisdictions = registry.setdefault("jurisdictions", {})
+
+    if jid in jurisdictions:
+        print(f"  Registry already has {jid}")
+        return False
+
+    # Derive display_name from YAML or jurisdiction ID
+    display_name = jur.get("display_name", "")
+    if not display_name:
+        # "city-mill-valley" -> "Mill Valley"
+        slug = re.sub(r"^(city|county|town|district|state|province|council)-", "", jid)
+        display_name = slug.replace("-", " ").title()
+
+    # Derive parent_jurisdictions from YAML
+    parents = jur.get("parent_jurisdictions", [])
+    state = jur.get("financial", {}).get("state", "")
+    if not parents and state:
+        state_jid = f"state-{state.lower()}"
+        parents = [state_jid, "country-united-states"]
+
+    # Build domain slug: "city-mill-valley" -> "mill-valley"
+    domain_slug = re.sub(r"^(city|county|town|district|state|province|council)-", "", jid)
+
+    entry = {
+        "domain": f"{domain_slug}.civicosproject.org",
+        "display_name": display_name,
+        "modal_app_name": f"civicos-{domain_slug}",
+        "parent_jurisdictions": parents,
+    }
+
+    jurisdictions[jid] = entry
+
+    with open(registry_path, "w") as f:
+        json.dump(registry, f, indent=2)
+        f.write("\n")
+
+    print(f"  Added {jid} to registry:")
+    print(f"    display_name: {display_name}")
+    print(f"    parents: {parents}")
+    return True
+
+
+def _deploy_modal_api() -> int:
+    """Deploy the API to Modal. Returns exit code."""
+    deploy_cmd = [
+        "modal", "deploy",
+        "packages/civicos-services/src/civicos_services/servers/modal_api.py",
+    ]
+    print(f"  Command: {' '.join(deploy_cmd)}")
+    result = subprocess.run(deploy_cmd, cwd=str(PROJECT_ROOT))
+    return result.returncode
+
+
+def _verify_jurisdiction(jid: str) -> bool:
+    """Verify a jurisdiction is queryable on the live API. Returns True if ok."""
+    import urllib.request
+    import urllib.error
+
+    api_key = os.environ.get("CIVICOS_WEB_KEY", "")
+    api_url = "https://civicos--civicos-api-fastapi-app.modal.run/api/v2/civic/search"
+
+    payload = json.dumps({
+        "query": "meeting",
+        "jurisdiction": jid,
+        "corpus": ["meetings"],
+        "limit": 1,
+    }).encode()
+
+    headers = {
+        "Content-Type": "application/json",
+    }
+    if api_key:
+        headers["Authorization"] = f"Bearer {api_key}"
+
+    try:
+        req = urllib.request.Request(api_url, data=payload, headers=headers, method="POST")
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            data = json.loads(resp.read())
+            total = data.get("total", 0)
+            print(f"  API returned {total} result(s) for '{jid}'")
+            return total > 0
+    except urllib.error.HTTPError as e:
+        print(f"  API error: {e.code} {e.reason}")
+        return False
+    except Exception as e:
+        print(f"  Could not reach API: {e}")
+        return False
+
+
 def main():
     parser = argparse.ArgumentParser(description="Turnkey jurisdiction onboarding")
     parser.add_argument("--city", default="", help="City name (e.g., 'Mill Valley')")
@@ -264,6 +378,8 @@ def main():
                         help="Continue past critical quality issues (for debugging)")
     parser.add_argument("--detect-issues", action="store_true",
                         help="Re-detect issue provider for existing config and exit")
+    parser.add_argument("--deploy", action="store_true",
+                        help="Deploy API to Modal after ingestion (updates registry + redeploys)")
     args = parser.parse_args()
 
     if not args.city and not args.url:
@@ -497,6 +613,29 @@ def main():
     if rc != 0:
         print(f"\nERROR: Modal ingestion failed (exit code {rc})")
         sys.exit(rc)
+
+    # -------------------------------------------------------------------
+    # Phase 3.5: Registry + Deploy (optional)
+    # -------------------------------------------------------------------
+    registry_updated = _update_registry(jid)
+
+    if args.deploy:
+        print(f"\n[Phase 3.5] Deploying API to Modal...")
+        if registry_updated:
+            print(f"  Registry updated — redeploy will pick up new jurisdiction.")
+        rc = _deploy_modal_api()
+        if rc != 0:
+            print(f"  WARNING: Modal deploy failed (exit code {rc})")
+            print(f"  Data is ingested but API may not reflect registry changes until redeploy.")
+        else:
+            print(f"\n  Verifying {jid} is queryable...")
+            if _verify_jurisdiction(jid):
+                print(f"  {jid} is live!")
+            else:
+                print(f"  Verification returned 0 results (data may still be indexing).")
+    elif registry_updated:
+        print(f"\n  Registry updated. Run with --deploy to redeploy API, or:")
+        print(f"    modal deploy packages/civicos-services/src/civicos_services/servers/modal_api.py")
 
     # -------------------------------------------------------------------
     # Phase 4: Quality report
