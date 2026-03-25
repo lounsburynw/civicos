@@ -623,6 +623,41 @@ class SQLiteBackend:
             "ON elected_officials(jurisdiction_id, valid_from, valid_to)"
         )
 
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS issues (
+                id TEXT NOT NULL,
+                jurisdiction_id TEXT NOT NULL,
+                provider TEXT NOT NULL,
+                external_id TEXT NOT NULL,
+                title TEXT NOT NULL,
+                description TEXT,
+                issue_type TEXT,
+                status TEXT,
+                address TEXT,
+                latitude REAL,
+                longitude REAL,
+                created_at TIMESTAMP,
+                updated_at TIMESTAMP,
+                closed_at TIMESTAMP,
+                reporter_name TEXT,
+                images TEXT,
+                stored_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                valid_from TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                valid_to TIMESTAMP,
+                PRIMARY KEY (id, valid_from),
+                FOREIGN KEY (jurisdiction_id) REFERENCES city_states(jurisdiction_id)
+            )
+        """)
+
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS idx_issues_jurisdiction "
+            "ON issues(jurisdiction_id)"
+        )
+        cursor.execute(
+            "CREATE UNIQUE INDEX IF NOT EXISTS idx_issues_provider_external "
+            "ON issues(jurisdiction_id, provider, external_id) WHERE valid_to IS NULL"
+        )
+
         conn.commit()
         if should_close:
             conn.close()
@@ -1930,19 +1965,57 @@ class SQLiteBackend:
         issues: List[Dict[str, Any]],
         as_of: Optional[datetime] = None,
     ) -> int:
-        """
-        Store 311 issues (stub for SQLite - issues use Postgres in production).
+        """Store 311 issues with upsert semantics."""
+        as_of = as_of or datetime.now()
+        conn = self._get_connection()
+        self._ensure_schema(conn)
+        cursor = conn.cursor()
 
-        Args:
-            jurisdiction_id: Target jurisdiction
-            issues: List of issue dictionaries
-            as_of: Timestamp for versioning
+        count = 0
+        for issue in issues:
+            provider = issue.get('provider')
+            external_id = issue.get('external_id')
+            title = issue.get('title', '').strip()
+            if not provider or not external_id or not title:
+                continue
 
-        Returns:
-            Number of issues stored (0 for SQLite stub)
-        """
-        # SQLite implementation is a stub - issues are stored in Postgres
-        return 0
+            issue_id = f"issue:{jurisdiction_id}:{provider}:{external_id}"
+
+            # Close previous version
+            cursor.execute(
+                "UPDATE issues SET valid_to = ? "
+                "WHERE jurisdiction_id = ? AND provider = ? AND external_id = ? AND valid_to IS NULL",
+                (as_of.isoformat(), jurisdiction_id, provider, external_id)
+            )
+
+            images = issue.get('images')
+            if isinstance(images, list):
+                import json
+                images = json.dumps(images)
+
+            cursor.execute("""
+                INSERT INTO issues (
+                    id, jurisdiction_id, provider, external_id,
+                    title, description, issue_type, status,
+                    address, latitude, longitude,
+                    created_at, updated_at, closed_at,
+                    reporter_name, images, stored_at, valid_from
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                issue_id, jurisdiction_id, provider, str(external_id),
+                title, issue.get('description'), issue.get('issue_type'),
+                issue.get('status'), issue.get('address'),
+                issue.get('latitude'), issue.get('longitude'),
+                str(issue['created_at']) if issue.get('created_at') else None,
+                str(issue['updated_at']) if issue.get('updated_at') else None,
+                str(issue['closed_at']) if issue.get('closed_at') else None,
+                issue.get('reporter_name'), images,
+                as_of.isoformat(), as_of.isoformat(),
+            ))
+            count += 1
+
+        conn.commit()
+        return count
 
     def get_issues(
         self,
@@ -1955,22 +2028,47 @@ class SQLiteBackend:
         created_after: Optional[datetime] = None,
         offset: int = 0,
     ) -> List[Dict[str, Any]]:
-        """
-        Retrieve 311 issues (stub for SQLite - issues use Postgres in production).
+        """Retrieve 311 issues."""
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        query = "SELECT * FROM issues WHERE jurisdiction_id = ? AND valid_to IS NULL"
+        params: list = [jurisdiction_id]
 
-        Returns:
-            Empty list (SQLite stub)
-        """
-        return []
+        if provider:
+            query += " AND provider = ?"
+            params.append(provider)
+        if status:
+            query += " AND status = ?"
+            params.append(status)
+        if limit:
+            query += " LIMIT ?"
+            params.append(limit)
+
+        try:
+            cursor.execute(query, params)
+            columns = [desc[0] for desc in cursor.description]
+            return [dict(zip(columns, row)) for row in cursor.fetchall()]
+        except Exception:
+            return []
 
     def get_issue_count(self, jurisdiction_id: str, provider: Optional[str] = None) -> int:
-        """
-        Get issue count (stub for SQLite - issues use Postgres in production).
-
-        Returns:
-            0 (SQLite stub)
-        """
-        return 0
+        """Get issue count."""
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        try:
+            if provider:
+                cursor.execute(
+                    "SELECT COUNT(*) FROM issues WHERE jurisdiction_id = ? AND provider = ? AND valid_to IS NULL",
+                    (jurisdiction_id, provider)
+                )
+            else:
+                cursor.execute(
+                    "SELECT COUNT(*) FROM issues WHERE jurisdiction_id = ? AND valid_to IS NULL",
+                    (jurisdiction_id,)
+                )
+            return cursor.fetchone()[0]
+        except Exception:
+            return 0
 
     # ========== Municipal Code Methods (Stubs) ==========
 
