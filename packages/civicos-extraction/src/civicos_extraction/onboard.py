@@ -540,20 +540,38 @@ def detect_youtube_channel(city_name: str, state: str = "") -> Optional[dict]:
             logger.info(f"No YouTube channels found for '{query}'")
             return None
 
-        # Heuristic: pick the first channel whose title contains the city name
+        # Heuristic: pick the best channel matching city + state
         city_lower = city_name.lower()
+        state_upper = state.upper().strip() if state else ""
+        state_full = _US_STATES.get(state_upper, "").lower()
+
+        # Score each candidate: prefer title containing both city and state
+        candidates = []
         for item in items:
             title = item["snippet"]["title"].lower()
-            if city_lower in title:
-                result = {
-                    "channel_id": item["snippet"]["channelId"],
-                    "channel_title": item["snippet"]["title"],
-                }
-                logger.info(f"YouTube channel detected: {result['channel_title']} "
-                            f"({result['channel_id']})")
-                return result
+            desc = item["snippet"].get("description", "").lower()
+            text = f"{title} {desc}"
+            if city_lower not in title:
+                continue
+            score = 1  # city name match
+            if state_full and state_full in text:
+                score += 10  # full state name match (e.g., "Texas")
+            if state_upper.lower() in text.split():
+                score += 5  # state abbreviation match (e.g., "TX")
+            candidates.append((score, item))
 
-        # Fallback: return first result even if title doesn't match
+        if candidates:
+            candidates.sort(key=lambda x: x[0], reverse=True)
+            best = candidates[0][1]
+            result = {
+                "channel_id": best["snippet"]["channelId"],
+                "channel_title": best["snippet"]["title"],
+            }
+            logger.info(f"YouTube channel detected: {result['channel_title']} "
+                        f"({result['channel_id']})")
+            return result
+
+        # Fallback: return first result (no city match found)
         first = items[0]
         result = {
             "channel_id": first["snippet"]["channelId"],

@@ -762,9 +762,9 @@ def main():
         print("  WARNING: No DATABASE_URL set")
         counts_before = None
 
-    if args.skip_ingestion:
+    if args.skip_ingestion or args.dry_run:
         stage_flags = " ".join(f"--{s}" for s in ingestion_stages)
-        print(f"\n[DONE] Configs generated. To ingest:")
+        print(f"\n[DONE] Configs generated{' (dry run)' if args.dry_run else ''}. To ingest:")
         print(f"  modal run scripts/modal_ingest.py {stage_flags} "
               f"--jurisdiction {jid} --meetings-days-past {args.days_past}")
         return

@@ -201,6 +201,7 @@ class MunicipalCodeCorpus:
         client_id: Optional[int] = None,
         product_id: Optional[int] = None,
         rate_limit: float = 2.0,
+        **kwargs,
     ):
         if not HTTPX_AVAILABLE:
             raise ImportError(
