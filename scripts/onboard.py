@@ -561,6 +561,8 @@ def main():
                         help="Use free YouTube captions instead of AssemblyAI transcription")
     parser.add_argument("--cleanup", metavar="JURISDICTION_ID",
                         help="Remove all data + configs for a jurisdiction (e.g., --cleanup city-austin)")
+    parser.add_argument("--sandbox", action="store_true",
+                        help="Ingest to local SQLite instead of production Postgres (no Modal required)")
     args = parser.parse_args()
 
     # Cleanup mode: --cleanup city-austin
@@ -936,15 +938,29 @@ def main():
                 print(f"  Proceeding with full backfill anyway...")
 
     # -------------------------------------------------------------------
-    # Phase 3: Run full ingestion via Modal
+    # Phase 3: Run ingestion (Modal or local sandbox)
     # -------------------------------------------------------------------
-    print(f"\n[Phase 3] Running Modal ingestion pipeline...")
-    print(f"  Stages: meetings → chunks → agenda → decisions → vectors")
-    print(f"  Days: {args.days_past}")
+    if args.sandbox:
+        print(f"\n[Phase 3] Running LOCAL ingestion (SQLite sandbox)...")
+        print(f"  Stages: meetings → issues → vectors")
+        print(f"  Days: {args.days_past}")
+        local_script = PROJECT_ROOT / "scripts" / "ingest_local.py"
+        local_cmd = [
+            sys.executable, str(local_script),
+            "--jurisdiction", jid,
+            "--all",
+            "--days-past", str(args.days_past),
+        ]
+        print(f"  Command: {' '.join(local_cmd)}")
+        rc = subprocess.run(local_cmd).returncode
+    else:
+        print(f"\n[Phase 3] Running Modal ingestion pipeline...")
+        print(f"  Stages: meetings → chunks → agenda → decisions → vectors")
+        print(f"  Days: {args.days_past}")
+        rc = _run_modal_ingestion(jid, args.days_past, args.dry_run)
 
-    rc = _run_modal_ingestion(jid, args.days_past, args.dry_run)
     if rc != 0:
-        print(f"\nERROR: Modal ingestion failed (exit code {rc})")
+        print(f"\nERROR: Ingestion failed (exit code {rc})")
         sys.exit(rc)
 
     # -------------------------------------------------------------------
@@ -980,6 +996,30 @@ def main():
     print("=" * 60)
 
     exit_code = 0
+
+    if args.sandbox:
+        db_path = PROJECT_ROOT / "data" / f"sandbox_{jid}.sqlite"
+        print(f"\n  [SANDBOX] Data stored in local SQLite: {db_path}")
+        print(f"  [SANDBOX] Production Postgres was NOT modified.")
+        try:
+            import sqlite3
+            conn = sqlite3.connect(str(db_path))
+            cur = conn.cursor()
+            for table in ["meetings", "chunks", "issues", "agenda_items", "decisions"]:
+                try:
+                    cur.execute(f"SELECT COUNT(*) FROM {table}")
+                    count = cur.fetchone()[0]
+                    if count > 0:
+                        print(f"    {table}: {count}")
+                except Exception:
+                    pass
+            conn.close()
+        except Exception as e:
+            print(f"  Could not read sandbox: {e}")
+        print(f"\n  To clean up: python scripts/ingest_local.py --cleanup {jid}")
+        # Also clean up generated configs since this was a test
+        print(f"  To also remove configs: python scripts/onboard.py --cleanup {jid}")
+        sys.exit(0)
 
     if database_url:
         try:
