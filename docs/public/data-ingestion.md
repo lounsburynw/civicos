@@ -46,7 +46,9 @@ FETCH → NORMALIZE → VALIDATE → STORE → INDEX
 
 Before onboarding a city, you need infrastructure and API keys. Not everything is required — it depends on which ingestion tiers you want to run.
 
-### Infrastructure (required)
+> **Want to try it first?** Use `--sandbox` mode — it runs entirely on your machine with SQLite, no cloud accounts needed. Just install the Python environment below, then jump to [Adding a New City](#adding-a-new-city).
+
+### Infrastructure (required for production)
 
 | Service | What to do | Cost | Notes |
 |---------|-----------|------|-------|
@@ -171,6 +173,9 @@ python scripts/onboard.py --city "Mill Valley" --state CA --county Marin
 # Force regenerate configs
 python scripts/onboard.py --city "Mill Valley" --state CA --county Marin --force
 
+# Local sandbox — ingest to SQLite, no Modal or Postgres needed
+python scripts/onboard.py --city "Mill Valley" --state CA --county Marin --sandbox
+
 # Direct URL instead of auto-discovery
 python scripts/onboard.py --url "https://cityofmillvalley.granicus.com" --jurisdiction city-mill-valley --state CA --county Marin
 ```
@@ -178,6 +183,15 @@ python scripts/onboard.py --url "https://cityofmillvalley.granicus.com" --jurisd
 **Testing a city without committing:**
 
 ```bash
+# Option A: Local sandbox (no Modal, no Postgres, no cost)
+python scripts/onboard.py --city "Portland" --state OR --sandbox
+
+# Data goes to data/sandbox_city-portland.sqlite — production untouched.
+# Clean up when done:
+python scripts/ingest_local.py --cleanup city-portland
+python scripts/onboard.py --cleanup city-portland
+
+# Option B: Production pipeline with cleanup (requires Modal + Postgres)
 # 1. Dry run — generate configs, check platform detection (free, no Modal)
 python scripts/onboard.py --city "Portland" --state OR --dry-run
 

@@ -347,3 +347,36 @@ Austin is the first non-California jurisdiction tested. Different platform clien
 | New friction points | 7 | 0 | 5 |
 | Dry-run to config | ~30s | ~20s | ~15s (after fix) |
 | Manual time | ~10m | ~5m | ~2m (config gen only) |
+
+---
+
+## Sandbox Mode & Operator Guide (2026-03-24)
+
+### New Capabilities Added
+
+**`--sandbox` mode:** Full onboarding pipeline runs entirely locally using SQLite. No Modal, no Supabase, no cloud accounts. Tested with Austin TX — 156 meetings ingested in 5.5 seconds, $0 cost.
+
+```bash
+python scripts/onboard.py --city "Austin" --state TX --sandbox
+python scripts/ingest_local.py --cleanup city-austin
+```
+
+**`--cleanup` command:** Removes all Postgres data + config files for a jurisdiction. Safe reversal after production test ingestion.
+
+```bash
+python scripts/onboard.py --cleanup city-austin
+```
+
+**`scripts/ingest_local.py`:** Standalone local ingestion runner. Supports `--meetings`, `--issues`, `--vectors`, `--list`, `--cleanup`.
+
+**Operator prerequisites guide:** Added to `docs/public/data-ingestion.md` — infrastructure setup, database config, API keys by tier, verification steps. First time this has been documented.
+
+### Updated Newcomer Journey
+
+| Step | Before | After |
+|------|--------|-------|
+| 1. Find how to onboard | Scattered docs, no clear entry | Prerequisites section in data-ingestion.md |
+| 2. Setup infrastructure | Undocumented (Supabase, Modal, API keys) | Step-by-step guide with verification |
+| 3. Test a city | `--dry-run` spawned Modal containers | `--sandbox` runs locally, or `--dry-run` is truly dry |
+| 4. Clean up test data | Manual SQL deletes | `--cleanup` and `ingest_local.py --cleanup` |
+| 5. Commit to production | No clear path from test → prod | Sandbox → verify → remove `--sandbox` flag |
