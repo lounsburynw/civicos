@@ -14,6 +14,7 @@ Open civic infrastructure for AI agents. Query meetings, decisions, budgets, and
 - [How It Works](#how-it-works)
 - [Design Principles](#design-principles)
 - [For Developers](#for-developers)
+- [Add Your City](#add-your-city)
 - [For Cities](#for-cities)
 - [Contributing](#contributing)
 
@@ -181,18 +182,64 @@ This project uses **Claude Code** for AI-assisted development. See `CLAUDE.md` f
 
 ---
 
+## Add Your City
+
+Adding a new city is configuration, not code. If your city uses a supported platform, one command gets you from zero to searchable data.
+
+### Supported platforms
+
+| Platform | Type | Coverage |
+|----------|------|----------|
+| **Legistar** | Meetings | Oakland, Berkeley, Austin, Sacramento, 1000+ cities |
+| **Granicus** | Meetings | Marin County, San Anselmo, Mill Valley, many more |
+| **CivicClerk** | Meetings | El Cerrito, Hayward, San Pablo |
+| **ProudCity** | Meetings | San Rafael |
+| **eScribe** | Meetings | National City, Canadian cities |
+| **SeeClickFix** | 311 Issues | Nationwide |
+| **Municode** | Legal Code | Most US cities |
+| **LegiScan** | Legislation | All 50 states + federal |
+
+### Try it (no cloud accounts needed)
+
+```bash
+# 1. Clone and install
+git clone https://github.com/civicos-project/civicos.git
+cd civicos
+python3 -m venv civicos-env && source civicos-env/bin/activate
+pip install -r requirements.txt
+
+# 2. Test your city with a local sandbox (SQLite, no cloud)
+python scripts/onboard.py --city "Your City" --state XX --sandbox
+
+# 3. See what you got
+python3 -c "
+import sqlite3
+conn = sqlite3.connect('data/sandbox_city-your-city.sqlite')
+cur = conn.cursor()
+cur.execute('SELECT COUNT(*) FROM meetings')
+print(f'Meetings: {cur.fetchone()[0]}')
+"
+
+# 4. Clean up
+python scripts/ingest_local.py --cleanup city-your-city
+python scripts/onboard.py --cleanup city-your-city
+```
+
+### Deploy to production
+
+When you're ready to go live, set up Supabase (Postgres) and Modal (serverless compute), then run the same command without `--sandbox`:
+
+```bash
+python scripts/onboard.py --city "Your City" --state XX --county "Your County"
+```
+
+See the full [Data Ingestion Guide](docs/public/data-ingestion.md) for prerequisites, API keys, tier-by-tier costs, and the manual setup path.
+
+---
+
 ## For Cities
 
-Interested in deploying CivicOS for your jurisdiction?
-
-The extraction layer supports common civic platforms:
-- **Legistar** (Oakland, Berkeley, SF, many more)
-- **CivicClerk**, **Granicus** (various)
-- **ProudCity** (San Rafael, others)
-- **SeeClickFix** (any city on platform)
-- **Municode** (most CA cities)
-
-**Questions?** Open an issue on GitHub.
+Interested in deploying CivicOS for your jurisdiction? The onboarding pipeline auto-detects your city's meeting platform, generates configuration, and ingests historical data. Start with the [sandbox test](#try-it-no-cloud-accounts-needed) above, or open an issue on GitHub.
 
 ---
 
