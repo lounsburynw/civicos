@@ -12,6 +12,7 @@ Usage:
     python scripts/onboard.py --city "Mill Valley" --state CA --county Marin --skip-ingestion
     python scripts/onboard.py --city "Mill Valley" --state CA --county Marin --force
     python scripts/onboard.py --city "Mill Valley" --state CA --county Marin --no-validate
+    python scripts/onboard.py --cleanup city-austin          # Remove test data + configs
 """
 
 import argparse
@@ -299,6 +300,56 @@ def _get_ingestion_stages(jid: str) -> list:
     return stages
 
 
+def _run_cleanup(jid: str) -> None:
+    """Remove all data and configs for a jurisdiction. Used after test onboarding."""
+    from dotenv import load_dotenv
+    load_dotenv()
+
+    print(f"Cleaning up {jid}...")
+
+    # 1. Remove from Postgres
+    database_url = os.environ.get("DATABASE_URL")
+    if database_url:
+        try:
+            import psycopg2
+            conn = psycopg2.connect(database_url)
+            cur = conn.cursor()
+            tables = [
+                "vector_embeddings", "chunks", "agenda_items", "decisions",
+                "transcripts", "issues", "municipal_code", "meetings",
+            ]
+            total = 0
+            for table in tables:
+                try:
+                    cur.execute(f"DELETE FROM {table} WHERE jurisdiction_id = %s", (jid,))
+                    count = cur.rowcount
+                    if count > 0:
+                        print(f"  {table}: deleted {count} rows")
+                        total += count
+                except Exception:
+                    conn.rollback()
+            conn.commit()
+            conn.close()
+            if total == 0:
+                print(f"  No data found in Postgres for {jid}")
+            else:
+                print(f"  Total: {total} rows deleted from Postgres")
+        except Exception as e:
+            print(f"  Could not clean Postgres: {e}")
+    else:
+        print(f"  No DATABASE_URL — skipping Postgres cleanup")
+
+    # 2. Remove config files
+    extraction_path = PROJECT_ROOT / "data" / "extraction" / f"{jid}.json"
+    yaml_path = PROJECT_ROOT / "data" / "jurisdictions" / f"{jid}.yaml"
+    for path in [extraction_path, yaml_path]:
+        if path.exists():
+            path.unlink()
+            print(f"  Removed {path.relative_to(PROJECT_ROOT)}")
+
+    print(f"Done. {jid} cleaned up.")
+
+
 def _run_modal_ingestion(jid: str, days_past: int, dry_run: bool = False,
                          stages: str = "all") -> int:
     """Run Modal ingestion and return exit code."""
@@ -508,7 +559,14 @@ def main():
                         help="Auto-confirm cost estimate (skip prompt)")
     parser.add_argument("--captions-only", action="store_true",
                         help="Use free YouTube captions instead of AssemblyAI transcription")
+    parser.add_argument("--cleanup", metavar="JURISDICTION_ID",
+                        help="Remove all data + configs for a jurisdiction (e.g., --cleanup city-austin)")
     args = parser.parse_args()
+
+    # Cleanup mode: --cleanup city-austin
+    if args.cleanup:
+        _run_cleanup(args.cleanup)
+        return
 
     # Batch mode: --cities "Corte Madera,Larkspur,Fairfax"
     if args.cities:

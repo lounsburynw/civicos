@@ -42,6 +42,67 @@ FETCH → NORMALIZE → VALIDATE → STORE → INDEX
      └────────────┘ └──────────┘ └───────────┘
 ```
 
+## Prerequisites
+
+Before onboarding a city, you need infrastructure and API keys. Not everything is required — it depends on which ingestion tiers you want to run.
+
+### Infrastructure (required)
+
+| Service | What to do | Cost | Notes |
+|---------|-----------|------|-------|
+| **Python environment** | `python3 -m venv civicos-env && source civicos-env/bin/activate && pip install -r requirements.txt` | Free | Python 3.10+ |
+| **Modal** | `pip install modal && modal setup` | Free ($30/mo credits) | Runs the ingestion pipeline serverless |
+| **Supabase PostgreSQL** | Create project at [supabase.com](https://supabase.com), copy the connection string | $25/mo (Pro) | pgvector enabled by default |
+
+### Database setup
+
+After creating your Supabase project:
+
+1. Copy the connection string from Supabase → Settings → Database → Connection string (URI)
+2. Add to `.env`:
+   ```
+   DATABASE_URL=postgresql://postgres.[project-ref]:[password]@aws-0-[region].pooler.supabase.com:6543/postgres
+   ```
+3. Run the schema migrations:
+   ```bash
+   psql "$DATABASE_URL" -f scripts/sql/create_tables.sql
+   psql "$DATABASE_URL" -f scripts/sql/enable_rls.sql
+   ```
+4. Add the same `DATABASE_URL` to Modal secrets:
+   ```bash
+   modal secret create civicos-env DATABASE_URL="postgresql://..."
+   ```
+
+### API keys (by tier)
+
+Add these to both `.env` (local) and Modal secrets (`modal secret create civicos-env KEY=value`).
+
+| Key | Env var | Tier | Cost | What it enables |
+|-----|---------|------|------|-----------------|
+| **Google Maps** | `GOOGLE_MAPS_API_KEY` | Config gen | Free tier | Geocoding during YAML generation (city → county → state hierarchy) |
+| **OpenAI** | `OPENAI_API_KEY` | Tier 2 | ~$0.01-0.10/meeting | Agenda item + decision extraction, body naming |
+| **YouTube Data** | `YOUTUBE_API_KEY` | Config gen | Free tier | Auto-detect city's YouTube meeting channel |
+| **LegiScan** | `LEGISCAN_API_KEY` | Tier 2 | Free (30K queries/mo) | State + federal legislation sync |
+| **AssemblyAI** | `ASSEMBLYAI_API_KEY` | Tier 3 | $0.21/hr audio | Transcription with speaker diarization |
+
+**Minimum for testing:** No API keys needed. Platform detection and Tier 1 ingestion (meetings, PDFs, issues) work without any keys. You'll get warnings about missing keys but the pipeline continues.
+
+### Verify your setup
+
+```bash
+source civicos-env/bin/activate
+python3 -c "
+from dotenv import load_dotenv; load_dotenv()
+import os
+db = os.environ.get('DATABASE_URL', '')
+print(f'DATABASE_URL: {\"set\" if db else \"NOT SET\"} ({db[:30]}...)')
+print(f'GOOGLE_MAPS_API_KEY: {\"set\" if os.environ.get(\"GOOGLE_MAPS_API_KEY\") else \"not set (optional)\"}')
+print(f'OPENAI_API_KEY: {\"set\" if os.environ.get(\"OPENAI_API_KEY\") else \"not set (Tier 2 disabled)\"}')
+print(f'YOUTUBE_API_KEY: {\"set\" if os.environ.get(\"YOUTUBE_API_KEY\") or os.environ.get(\"GOOGLE_API_KEY\") else \"not set (optional)\"}')
+"
+modal secret list  # Should show civicos-env
+```
+
 ## Supported Platforms
 
 ### Municipal Meeting Platforms
@@ -98,11 +159,11 @@ This auto-detects the civic platform (Granicus, Legistar, etc.), generates both 
 **Options:**
 
 ```bash
-# Preview what would happen (generate configs only, no ingestion)
-python scripts/onboard.py --city "Mill Valley" --state CA --county Marin --skip-ingestion
-
-# Dry run (fetch data but don't store)
+# Dry run — generate configs only, no Modal, no API calls, no cost
 python scripts/onboard.py --city "Mill Valley" --state CA --county Marin --dry-run
+
+# Generate configs but skip ingestion (same as dry-run but also saves YAML)
+python scripts/onboard.py --city "Mill Valley" --state CA --county Marin --skip-ingestion
 
 # Re-run on existing city (skips config generation, runs ingestion)
 python scripts/onboard.py --city "Mill Valley" --state CA --county Marin
@@ -114,7 +175,28 @@ python scripts/onboard.py --city "Mill Valley" --state CA --county Marin --force
 python scripts/onboard.py --url "https://cityofmillvalley.granicus.com" --jurisdiction city-mill-valley --state CA --county Marin
 ```
 
-**Verify:**
+**Testing a city without committing:**
+
+```bash
+# 1. Dry run — generate configs, check platform detection (free, no Modal)
+python scripts/onboard.py --city "Portland" --state OR --dry-run
+
+# 2. Meetings only — validate data pipeline with minimal cost (~$0.05-0.10)
+modal run scripts/modal_ingest.py --meetings --jurisdiction city-portland --meetings-days-past 365
+
+# 3. Verify it worked
+python3 -c "
+from dotenv import load_dotenv; load_dotenv()
+from civicos import CivicOS
+c = CivicOS('city-portland')
+print(f'Upcoming: {len(c.whats_next())} meetings')
+"
+
+# 4. Clean up when done testing — removes all data + config files
+python scripts/onboard.py --cleanup city-portland
+```
+
+**Verify a full onboarding:**
 
 ```bash
 modal run scripts/modal_ingest.py --stats-only --jurisdiction city-mill-valley
