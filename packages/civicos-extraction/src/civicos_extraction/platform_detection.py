@@ -793,6 +793,25 @@ def discover_legistar_client(
         state = state.lower().strip()
         candidates.insert(1, f"{slug}-{state}")   # e.g., berkeley-ca
         candidates.append(f"{slug}{state}")        # e.g., berkeleyca (no hyphen)
+        # Full state name variant (e.g., "austintexas") — common for TX cities
+        state_names = {
+            "al": "alabama", "ak": "alaska", "az": "arizona", "ar": "arkansas",
+            "ca": "california", "co": "colorado", "ct": "connecticut", "de": "delaware",
+            "fl": "florida", "ga": "georgia", "hi": "hawaii", "id": "idaho",
+            "il": "illinois", "in": "indiana", "ia": "iowa", "ks": "kansas",
+            "ky": "kentucky", "la": "louisiana", "me": "maine", "md": "maryland",
+            "ma": "massachusetts", "mi": "michigan", "mn": "minnesota", "ms": "mississippi",
+            "mo": "missouri", "mt": "montana", "ne": "nebraska", "nv": "nevada",
+            "nh": "newhampshire", "nj": "newjersey", "nm": "newmexico", "ny": "newyork",
+            "nc": "northcarolina", "nd": "northdakota", "oh": "ohio", "ok": "oklahoma",
+            "or": "oregon", "pa": "pennsylvania", "ri": "rhodeisland", "sc": "southcarolina",
+            "sd": "southdakota", "tn": "tennessee", "tx": "texas", "ut": "utah",
+            "vt": "vermont", "va": "virginia", "wa": "washington", "wv": "westvirginia",
+            "wi": "wisconsin", "wy": "wyoming", "dc": "dc",
+        }
+        full_state = state_names.get(state)
+        if full_state and full_state != state:
+            candidates.append(f"{slug}{full_state}")  # e.g., austintexas
 
     for client_name in candidates:
         api_url = f"https://webapi.legistar.com/v1/{client_name}/bodies"

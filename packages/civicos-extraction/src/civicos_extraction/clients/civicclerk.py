@@ -343,7 +343,30 @@ class CivicClerkClient(BaseExtractor):
             return "other"
 
     def get_boards(self) -> List[Dict[str, Any]]:
-        """Get list of meeting boards."""
+        """Get list of meeting boards/categories.
+
+        Tries EventCategories first (current API), falls back to Boards
+        (deprecated). Normalizes both formats to {BoardId, BoardName}.
+        """
+        # EventCategories is the current endpoint (Boards was removed)
+        try:
+            response = self.session.get(
+                f"{self.api_base}/EventCategories",
+                timeout=10
+            )
+            response.raise_for_status()
+            data = response.json()
+            items = data.get('value', data) if isinstance(data, dict) else data
+            if items:
+                return [
+                    {"BoardId": item.get("id", ""), "BoardName": item.get("categoryDesc", "")}
+                    for item in items
+                    if item.get("isPublic", 1) == 1
+                ]
+        except Exception:
+            pass
+
+        # Legacy fallback: Boards endpoint
         try:
             response = self.session.get(
                 f"{self.api_base}/Boards",

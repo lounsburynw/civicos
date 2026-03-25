@@ -221,3 +221,129 @@ python scripts/generate_registries.py --yaml city-foo  # Specific YAML only
 | **F4: Body names** | Manual rename needed | Still manual (low priority) |
 | **F5: Registry files** | 3 manual edits | Auto-generated from YAML |
 | **Estimated manual time** | ~5-10m | ~2m (review YAML + verify) |
+
+---
+
+## El Cerrito, CA (CivicClerk Stress Test)
+
+**Date:** 2026-03-24
+**Jurisdiction:** city-el-cerrito (CivicClerk, Contra Costa County, California)
+**Purpose:** Test weakest platform integration — 15 meetings in Postgres, zero vectors.
+
+### Summary
+
+CivicClerk's public API (`*.api.civicclerk.com`) returns 404 for all endpoints, including known-working instances like Hayward. The API appears to have been deprecated or moved behind authentication since our initial integration. The web frontend (`*.civicclerk.com/web/home.aspx`) still serves content.
+
+**Result:** Complete failure. Zero bodies discovered, onboard exits at quality gate.
+
+### Friction Points
+
+#### F13: CivicClerk API deprecated/unreachable (HIGH)
+
+**Problem:** All CivicClerk API endpoints return 404. Tested across El Cerrito, Hayward, and other subdomains. The `v1/Boards` endpoint that our `CivicClerkClient` depends on is gone.
+
+**Impact:** CivicClerk is listed as a supported platform, but onboarding any CivicClerk city fails silently (returns empty boards list) and then hits the quality gate ("No meeting bodies discovered"). Our existing 15 El Cerrito meetings in Postgres were likely ingested when the API was still live.
+
+**Root cause:** CivicClerk removed the `Boards` endpoint from their API. The `EventCategories` endpoint returns the same data (board/committee names with IDs). The `Events` endpoint still works but OData `$top` query params cause 500s.
+
+**Fix applied:** Updated `CivicClerkClient.get_boards()` to try `EventCategories` first (normalizing `{id, categoryDesc}` → `{BoardId, BoardName}`), falling back to legacy `Boards` endpoint. Re-test confirmed 16 boards discovered for El Cerrito.
+
+**File:** `packages/civicos-extraction/src/civicos_extraction/clients/civicclerk.py:345-380`
+
+#### F14: SeeClickFix timeout during issue detection (LOW)
+
+**Problem:** SeeClickFix timed out 3 times during issue provider detection for El Cerrito. The 10-second timeout may be too short, or SeeClickFix was temporarily down.
+
+**Impact:** Issue source not detected, falls back to null. Non-blocking but means the YAML won't list issue support.
+
+**Status:** Transient — SeeClickFix was working fine for Austin earlier in the same session.
+
+---
+
+## Austin, TX (Out-of-State Stress Test)
+
+**Date:** 2026-03-24
+**Jurisdiction:** city-austin (Legistar, Travis County, Texas)
+**Operator:** Claude Code session (automated)
+**Purpose:** First out-of-state onboarding — tests whether "turnkey" generalizes beyond California.
+
+### Summary
+
+Austin is the first non-California jurisdiction tested. Different platform client naming convention, different state, no pre-existing state YAML. This exposed 5 friction points, 3 of which were bugs.
+
+**Result:** Config generation succeeds after 1 code fix. Two additional bugs found and fixed.
+
+### Friction Points
+
+#### F8: Legistar discovery misses `{city}{full_state_name}` pattern (HIGH)
+
+**Problem:** `discover_legistar_client()` tries slug variants like `austin`, `austin-tx`, `cityofaustin`, `austintx` — but Austin's actual Legistar client name is `austintexas`. The discovery function only appends the 2-letter state code, never the full state name.
+
+**Impact:** Auto-discovery fails entirely. A newcomer gets "Could not auto-discover platform" with no guidance on how to find the correct URL.
+
+**Fix applied:** Added `{slug}{full_state_name}` candidate to `discover_legistar_client()` using an inline state code → name mapping. Now tries `austintexas` as a candidate.
+
+**File:** `packages/civicos-extraction/src/civicos_extraction/platform_detection.py:792-808`
+
+#### F9: `--dry-run` spawns real Modal containers (HIGH)
+
+**Problem:** `scripts/onboard.py --dry-run` passes `--dry-run` through to `modal run scripts/modal_ingest.py`, which spawns real containers on Modal. These containers make real HTTP requests to Legistar, SeeClickFix, and Municode APIs. The "dry run" fetches data but doesn't store it — still incurring compute costs and API calls.
+
+**Impact:** A newcomer expecting zero side effects from `--dry-run` gets billed for Modal container time and makes real API calls. Violates principle of least surprise.
+
+**Fix applied:** `--dry-run` now stops after Phase 2 (config generation + data check), same as `--skip-ingestion`, and prints the exact Modal command to run when ready.
+
+**File:** `scripts/onboard.py:765`
+
+#### F10: `MunicipalCodeCorpus.__init__()` rejects `cache_dir` kwarg (MEDIUM)
+
+**Problem:** `modal_ingest.py:206` passes `cache_dir` to `MunicipalCodeCorpus.for_jurisdiction()`, which forwards `**kwargs` to `__init__()`. But `MunicipalCodeCorpus.__init__()` doesn't accept `cache_dir` — only `AmericanLegalCorpus` does. Causes `TypeError` and blocks municipal code ingestion.
+
+**Fix applied:** Added `**kwargs` to `MunicipalCodeCorpus.__init__()` signature to accept and ignore unknown kwargs.
+
+**File:** `packages/civicos/src/civicos/_internal/legal/corpus/municipal.py:198`
+
+#### F11: YouTube channel discovery picks wrong city (MEDIUM)
+
+**Problem:** YouTube auto-discovery found channel `UCz8RVD73YkHomdRrT_5LBwQ` with title "City of Austin, Minnesota" — not Austin, Texas. The discovery function doesn't use the state parameter to disambiguate cities with the same name in different states.
+
+**Impact:** Would silently ingest transcripts from the wrong city's council meetings. Data corruption that's hard to detect.
+
+**Fix applied:** Added state-aware scoring to `detect_youtube_channel()`. Candidates matching the full state name (e.g., "Texas") score +10, abbreviation (e.g., "TX") scores +5. Both title and description are checked. Re-test confirmed Austin now picks a Texas result over Minnesota.
+
+**File:** `packages/civicos-extraction/src/civicos_extraction/onboard.py:543-577`
+
+#### F12: Issue source not populated in YAML (LOW)
+
+**Problem:** The YAML generator set `issues: null` even though SeeClickFix has data for Austin (100 issues fetched during the first failed dry-run). Issue detection runs in the ingestion pipeline but doesn't feed back into the YAML config.
+
+**Impact:** YAML config doesn't reflect available data sources. Misleading for operators reviewing the config.
+
+**Status:** Open — issue detection should run during YAML generation and populate the field.
+
+### Generated Configs
+
+| Artifact | Quality | Notes |
+|----------|---------|-------|
+| Extraction JSON | Good | 23 Legistar bodies correctly discovered and named |
+| Jurisdiction YAML | Fair | Correct hierarchy (Travis → Texas → US), but wrong YouTube channel and missing issue source |
+| Ingestion stages | Good | Correctly lists: meetings, chunks, agenda, decisions, issues, municipal, vectors |
+
+### Key Observations
+
+1. **Legistar naming is inconsistent across states** — California cities tend to use simple slugs (`sacramento`, `berkeley`), but Texas cities use `{city}{state_name}` patterns. The discovery function needs broader candidate coverage.
+2. **"Dry run" semantics matter** — For a turnkey tool, `--dry-run` must mean zero side effects. The original behavior (fetch but don't store) is useful for testing data quality, but should be a separate flag (e.g., `--validate`).
+3. **YouTube disambiguation is critical** — Any city name that exists in multiple states will hit this. "Austin" is extreme (Minnesota, Texas, Indiana), but "Portland" (Oregon, Maine), "Springfield" (25+ states), etc. will all have this problem.
+4. **State YAML auto-created** — The onboard correctly generated `state-texas` in the parent hierarchy without requiring a pre-existing `state-texas.yaml`. Good generalization.
+
+### Comparison with Previous Onboarding
+
+| Metric | Mill Valley (Granicus) | San Anselmo (Granicus) | Austin (Legistar) |
+|--------|----------------------|----------------------|-------------------|
+| Code fixes needed | 2 | 0 | 3 |
+| Platform | Granicus | Granicus | Legistar |
+| State | CA | CA | TX (first out-of-state) |
+| Bodies discovered | 3 | 28 | 23 |
+| New friction points | 7 | 0 | 5 |
+| Dry-run to config | ~30s | ~20s | ~15s (after fix) |
+| Manual time | ~10m | ~5m | ~2m (config gen only) |
