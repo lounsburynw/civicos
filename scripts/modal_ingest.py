@@ -3506,6 +3506,136 @@ def fetch_elections(
     return result
 
 
+# =============================================================================
+# Marin Election Results Fetch (GraphQL — ElectionStats / Civera)
+# =============================================================================
+
+@app.function(
+    image=civic_image,
+    secrets=[
+        modal.Secret.from_name("civic-db"),
+    ],
+    memory=4096,
+    timeout=900,  # 15 minutes (fetches 46 elections with contests)
+    retries=modal.Retries(max_retries=2, backoff_coefficient=2.0, initial_delay=10.0),
+)
+def fetch_marin_election_results(
+    jurisdiction: str = "city-san-rafael",
+    from_year: int = 2010,
+    to_year: int = 2026,
+    division_filter: str = "",
+    dry_run: bool = False,
+    auto_index: bool = False,
+) -> dict:
+    """Fetch historical election results from Marin County GraphQL API.
+
+    Queries pastelections.marincounty.gov (ElectionStats by Civera) for
+    election results including contests, candidates, vote counts, and winners.
+    No API key required.
+
+    Args:
+        jurisdiction: Target jurisdiction (e.g., "city-san-rafael")
+        from_year: Start year for election range (default 2010)
+        to_year: End year for election range (default 2026)
+        division_filter: Filter contests to this division (e.g., "City of San Rafael")
+        dry_run: If True, fetch but don't store
+        auto_index: If True, trigger vector indexing after successful storage
+    """
+    import logging
+    import os
+    import time
+
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+    logger = logging.getLogger(__name__)
+    start_time = time.time()
+
+    from civicos.storage.postgres_backend import PostgresBackend
+    from civicos_extraction.clients.marin_registrar import (
+        MarinRegistrarResultsClient,
+        extract_marin_results_to_storage,
+    )
+
+    database_url = os.environ.get("DATABASE_URL")
+    if not database_url:
+        raise ValueError("DATABASE_URL not set")
+
+    logger.info(
+        f"[MARIN RESULTS] Starting fetch: jurisdiction={jurisdiction}, "
+        f"years={from_year}-{to_year}, division={division_filter or 'all'}"
+    )
+
+    # Create client and validate
+    client = MarinRegistrarResultsClient(jurisdiction_id=jurisdiction)
+    validation = client.validate()
+    if not validation.is_valid:
+        raise RuntimeError(f"Marin Registrar GraphQL validation failed: {validation.errors}")
+
+    if dry_run:
+        # Dry run: just list elections
+        events = client.list_elections(from_year=from_year, to_year=to_year)
+        elapsed = time.time() - start_time
+        return {
+            "task": "marin_election_results",
+            "jurisdiction": jurisdiction,
+            "elections_found": len(events),
+            "elections_stored": 0,
+            "contests_stored": 0,
+            "candidates_stored": 0,
+            "dry_run": True,
+            "elapsed_seconds": elapsed,
+            "cost_usd": 4 * elapsed * 0.000463,
+        }
+
+    # Extract and store
+    backend = PostgresBackend(database_url)
+    counts = extract_marin_results_to_storage(
+        client=client,
+        storage=backend,
+        jurisdiction_id=jurisdiction,
+        from_year=from_year,
+        to_year=to_year,
+        division_filter=division_filter or None,
+    )
+
+    # Update refresh metadata
+    backend.update_refresh_metadata(
+        jurisdiction, "elections", "marin_registrar_results",
+        items_fetched=counts["elections"] + counts["contests"],
+        items_stored=counts["elections"] + counts["contests"],
+        status="completed",
+    )
+
+    # Auto-index vectors if requested and data was stored
+    vector_result = None
+    if auto_index and counts["elections"] > 0:
+        logger.info(f"[MARIN RESULTS] Auto-indexing vectors for {jurisdiction}...")
+        vector_result = index_vectors.remote(
+            jurisdiction=jurisdiction,
+            corpus="elections",
+            reindex=False,
+        )
+        logger.info(f"  Vectors indexed: {vector_result.get('total_indexed', 0)}")
+
+    elapsed = time.time() - start_time
+    result = {
+        "task": "marin_election_results",
+        "jurisdiction": jurisdiction,
+        "elections_stored": counts["elections"],
+        "contests_stored": counts["contests"],
+        "candidates_stored": counts["candidates"],
+        "from_year": from_year,
+        "to_year": to_year,
+        "division_filter": division_filter or None,
+        "dry_run": False,
+        "auto_index": auto_index,
+        "elapsed_seconds": elapsed,
+        "cost_usd": 4 * elapsed * 0.000463,
+    }
+    if vector_result:
+        result["vector_result"] = vector_result
+    return result
+
+
 @app.function(
     image=civic_image,
     secrets=[

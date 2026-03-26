@@ -495,6 +495,335 @@ def create_san_rafael_registrar_client() -> MarinRegistrarClient:
     )
 
 
+# =============================================================================
+# Marin Registrar Election Results Client (GraphQL / ElectionStats by Civera)
+# =============================================================================
+
+# Pseudocandidate values returned by the API for summary/metadata rows
+_PSEUDO_CANDIDATES = {"TOTAL_VOTES", "TOTAL_BALLOTS", "PSEUDOCANDIDATE", "VOTER_STAT"}
+
+
+class MarinRegistrarResultsClient:
+    """
+    GraphQL client for Marin County historical election results.
+
+    Queries the ElectionStats platform (by Civera) at pastelections.marincounty.gov.
+    No authentication required. Covers 46 elections from June 2010 to present.
+
+    Three-query pattern:
+        1. list_elections()     — all elections in a year range
+        2. list_contests()      — contests + candidates for one election
+        3. get_precinct_data()  — precinct-level vote breakdowns for one contest
+    """
+
+    GRAPHQL_URL = "https://pastelections.marincounty.gov/api/graphql_pr"
+
+    def __init__(
+        self,
+        jurisdiction_id: str = "city-san-rafael",
+        request_delay: float = 0.5,
+        timeout: int = 30,
+    ):
+        self.jurisdiction_id = jurisdiction_id
+        self.request_delay = request_delay
+        self.timeout = timeout
+        self._session: Optional[Any] = None
+        self._last_request_time = 0.0
+
+    @property
+    def platform_name(self) -> str:
+        return "marin_registrar_results"
+
+    @property
+    def source_id(self) -> str:
+        return f"marin_registrar_results-{self.jurisdiction_id}"
+
+    @property
+    def source_type(self) -> str:
+        return "marin_registrar_results"
+
+    def _get_session(self):
+        import requests as req
+        if self._session is None:
+            self._session = req.Session()
+            self._session.headers.update({
+                "Content-Type": "application/json",
+                "Accept": "application/json",
+            })
+        return self._session
+
+    def _throttle(self):
+        now = time.time()
+        elapsed = now - self._last_request_time
+        if elapsed < self.request_delay:
+            time.sleep(self.request_delay - elapsed)
+        self._last_request_time = time.time()
+
+    def _graphql(self, query: str, variables: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """Execute a GraphQL query and return the data payload."""
+        self._throttle()
+        session = self._get_session()
+
+        payload: Dict[str, Any] = {"query": query}
+        if variables:
+            payload["variables"] = variables
+
+        response = session.post(
+            self.GRAPHQL_URL,
+            json=payload,
+            timeout=self.timeout,
+        )
+        response.raise_for_status()
+        result = response.json()
+
+        if "errors" in result:
+            raise RuntimeError(f"GraphQL errors: {result['errors']}")
+
+        return result.get("data", {})
+
+    # ---- Query 1: List Elections ----
+
+    def list_elections(
+        self,
+        from_year: int = 2010,
+        to_year: int = 2026,
+    ) -> List[Dict[str, Any]]:
+        """
+        List all elections in a year range.
+
+        Returns list of dicts with keys: id, name, group, count.
+        """
+        query = """
+        query ListElections($from: Int!, $to: Int!) {
+          searchSuggestions(filters: {
+            global: { years: { from: $from, to: $to } }
+            voterStats: false
+            specialElectionsOnly: false
+            stages: []
+          }) {
+            events { id name group count }
+          }
+        }
+        """
+        data = self._graphql(query, {"from": from_year, "to": to_year})
+        events = data.get("searchSuggestions", {}).get("events", [])
+        logger.info(f"Listed {len(events)} elections ({from_year}-{to_year})")
+        return events
+
+    # ---- Query 2: List Contests for an Election ----
+
+    def list_contests(
+        self,
+        event_id: int,
+        page: int = 1,
+        page_size: int = 100,
+    ) -> List[Dict[str, Any]]:
+        """
+        List contests and candidates for a single election.
+
+        Paginates automatically. Returns all contests across all pages.
+        """
+        query = """
+        query ListContests($eventId: Int!, $page: Int!, $size: Int!) {
+          search(filters: {
+            global: { events: [$eventId] }
+            contests: { candidates: [], divisions: [], offices: [] }
+            ballotQuestions: { text: "", types: [], number: "", divisions: [] }
+            voterStats: false
+            specialElectionsOnly: false
+            stages: []
+          }, pagination: { page: $page, size: $size }) {
+            results {
+              id name
+              office { id name }
+              division { id displayName divisionType { name } }
+              event { id startDate type { name } }
+              candidates {
+                displayName nVotes pctCandidateVotes
+                candidate { pseudocandidate }
+                isWinner
+                party { name }
+              }
+              ballotQuestionId
+              ballotQuestion { questionText type { name } questionNumber }
+              nSeats hasWinners
+            }
+          }
+        }
+        """
+        all_results: List[Dict[str, Any]] = []
+        current_page = page
+
+        while True:
+            data = self._graphql(query, {
+                "eventId": event_id,
+                "page": current_page,
+                "size": page_size,
+            })
+            results = data.get("search", {}).get("results", [])
+            if not results:
+                break
+            all_results.extend(results)
+            if len(results) < page_size:
+                break
+            current_page += 1
+
+        logger.info(f"Listed {len(all_results)} contests for event {event_id}")
+        return all_results
+
+    # ---- Query 3: Precinct-Level Data ----
+
+    def get_precinct_data(self, contest_id: int) -> Dict[str, Any]:
+        """
+        Get precinct-level vote breakdowns for a contest.
+
+        Returns dict with candidates, voteChannels, and divisions (precincts).
+        """
+        query = """
+        query PrecinctData($contestId: Int!) {
+          contestGranularData(
+            contestId: $contestId
+            voteChannels: true
+            splitParty: false
+          ) {
+            candidates {
+              candidateId
+              candidate { id displayName pseudocandidate }
+              nVotes pctCandidateVotes isWinner
+              voteChannelId
+            }
+            voteChannels { id name }
+            divisions {
+              division { id name displayName divisionTypeName }
+              granularRow { candidateId voteChannelId votes pct winner }
+              children {
+                division { id name displayName divisionTypeName }
+                granularRow { candidateId voteChannelId votes pct winner }
+              }
+            }
+          }
+        }
+        """
+        data = self._graphql(query, {"contestId": contest_id})
+        return data.get("contestGranularData", {})
+
+    # ---- Health / Validate ----
+
+    def health(self) -> HealthStatus:
+        """Check API availability by listing elections."""
+        start_time = time.time()
+        errors: List[str] = []
+        is_available = False
+        available_count = 0
+
+        try:
+            events = self.list_elections(from_year=2024, to_year=2026)
+            is_available = True
+            available_count = len(events)
+        except Exception as e:
+            errors.append(f"GraphQL health check failed: {e}")
+
+        check_duration_ms = (time.time() - start_time) * 1000
+        now = datetime.now()
+
+        return HealthStatus(
+            source_id=self.source_id,
+            source_type=self.source_type,
+            jurisdiction_id=self.jurisdiction_id,
+            is_available=is_available,
+            available_count=available_count,
+            last_checked=now,
+            check_duration_ms=round(check_duration_ms, 2),
+            errors=errors,
+            last_successful=now if is_available else None,
+        )
+
+    def validate(self) -> ValidationResult:
+        """Validate GraphQL endpoint is reachable and returns data."""
+        start_time = time.time()
+        errors: List[str] = []
+        api_reachable = False
+
+        try:
+            events = self.list_elections(from_year=2024, to_year=2025)
+            if events:
+                api_reachable = True
+            else:
+                errors.append("API returned no elections for 2024-2025 range")
+        except Exception as e:
+            errors.append(f"GraphQL validation failed: {e}")
+
+        check_duration_ms = (time.time() - start_time) * 1000
+
+        return ValidationResult(
+            is_valid=len(errors) == 0,
+            config_valid=True,  # No config needed (no auth)
+            api_reachable=api_reachable,
+            errors=errors,
+            warnings=[],
+            check_duration_ms=round(check_duration_ms, 2),
+            metadata={"graphql_url": self.GRAPHQL_URL},
+        )
+
+    # ---- Convenience: Fetch all results for an election ----
+
+    def get_election_results(
+        self,
+        event_id: int,
+        division_filter: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """
+        Fetch complete election results: contests + candidates, optionally
+        filtered to a specific division (e.g., 'City of San Rafael').
+
+        Args:
+            event_id: Election event ID from list_elections()
+            division_filter: If set, only return contests in this division
+
+        Returns:
+            Dict with 'contests' list and 'election_info' dict
+        """
+        contests_raw = self.list_contests(event_id)
+
+        contests = []
+        for c in contests_raw:
+            # Apply division filter if requested
+            division = c.get("division", {})
+            if division_filter:
+                div_name = division.get("displayName", "")
+                if division_filter.lower() not in div_name.lower():
+                    continue
+
+            # Filter out pseudo-candidates
+            real_candidates = []
+            for cand in c.get("candidates", []):
+                pseudo = (cand.get("candidate") or {}).get("pseudocandidate")
+                if pseudo in _PSEUDO_CANDIDATES:
+                    continue
+                real_candidates.append(cand)
+
+            contests.append({
+                **c,
+                "candidates": real_candidates,
+            })
+
+        # Extract election info from first contest
+        election_info = {}
+        if contests:
+            event = contests[0].get("event", {})
+            election_info = {
+                "id": event.get("id"),
+                "start_date": event.get("startDate"),
+                "type": (event.get("type") or {}).get("name"),
+            }
+
+        return {
+            "election_info": election_info,
+            "contests": contests,
+            "total_contests": len(contests),
+        }
+
+
 # ==================== Storage Mappers ====================
 
 
@@ -508,6 +837,14 @@ class ElectionStorageProtocol(Protocol):
         elections: List[Dict[str, Any]],
     ) -> int:
         """Store elections with temporal versioning."""
+        ...
+
+    def store_election_contests(
+        self,
+        election_id: str,
+        contests: List[Dict[str, Any]],
+    ) -> int:
+        """Store election contests with temporal versioning."""
         ...
 
 
@@ -535,6 +872,246 @@ def marin_election_to_storage(
         "source_url": election.get("source_url"),
         "status": election.get("status", "scheduled"),
         "raw_data": election,
+    }
+
+
+def _infer_election_type_from_name(name: str) -> str:
+    """Infer election type from Marin election event name."""
+    name_lower = name.lower()
+    if "primary" in name_lower:
+        return "primary"
+    if "special" in name_lower or "parcel tax" in name_lower:
+        return "special"
+    if "recall" in name_lower:
+        return "recall"
+    if "runoff" in name_lower:
+        return "runoff"
+    return "general"
+
+
+def _parse_election_date(start_date: Optional[str]) -> Optional[str]:
+    """Parse ISO date string from GraphQL startDate field."""
+    if not start_date:
+        return None
+    try:
+        # GraphQL returns ISO format like "2024-11-05T00:00:00"
+        dt = datetime.fromisoformat(start_date.replace("Z", "+00:00"))
+        return dt.date().isoformat()
+    except (ValueError, AttributeError):
+        return start_date[:10] if start_date and len(start_date) >= 10 else None
+
+
+def _map_contest_type(contest: Dict[str, Any]) -> str:
+    """Map GraphQL contest to ContestType value."""
+    office_name = (contest.get("office") or {}).get("name", "").lower()
+    division_type = ((contest.get("division") or {}).get("divisionType") or {}).get("name", "").lower()
+
+    # Ballot measure
+    if contest.get("ballotQuestionId"):
+        if "school" in division_type or "school" in office_name:
+            return "local_measure"
+        if "state" in division_type:
+            return "state_proposition"
+        return "local_measure"
+
+    # Federal
+    if "president" in office_name:
+        return "federal_president"
+    if "senator" in office_name and "state" not in office_name:
+        return "federal_senate"
+    if "representative" in office_name or "congress" in office_name:
+        return "federal_house"
+
+    # State
+    if "governor" in office_name:
+        return "state_governor"
+    if "assembly" in office_name or "state senator" in office_name:
+        return "state_legislature"
+
+    # Local
+    if "mayor" in office_name:
+        return "local_mayor"
+    if "council" in office_name or "supervisor" in office_name:
+        return "local_council"
+    if "school" in office_name or "school" in division_type:
+        return "local_school_board"
+    if "judge" in office_name or "justice" in office_name:
+        return "judicial"
+
+    return "other"
+
+
+def marin_results_to_election(
+    event: Dict[str, Any],
+    election_date: Optional[str] = None,
+    election_type_name: Optional[str] = None,
+) -> Dict[str, Any]:
+    """
+    Map a Marin GraphQL election event to storage format.
+
+    Args:
+        event: Event dict from list_elections() (keys: id, name, group, count)
+        election_date: ISO date if known (from contest data)
+        election_type_name: Type name from contest event data
+
+    Returns:
+        Election dict ready for StorageBackend.store_elections()
+    """
+    name = event.get("name", "Unknown Election")
+    event_id = event.get("id")
+
+    e_type = "general"
+    if election_type_name:
+        e_type = _infer_election_type_from_name(election_type_name)
+    else:
+        e_type = _infer_election_type_from_name(name)
+
+    return {
+        "id": f"marin-results-{event_id}",
+        "name": name,
+        "election_date": election_date,
+        "election_type": e_type,
+        "source": "marin_registrar_results",
+        "source_url": f"https://pastelections.marincounty.gov/?e={event_id}",
+        "raw_data": event,
+    }
+
+
+def marin_results_to_contest(contest: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Map a Marin GraphQL contest result to storage format.
+
+    Args:
+        contest: Contest dict from list_contests() (already pseudo-filtered)
+
+    Returns:
+        Contest dict ready for StorageBackend.store_election_contests()
+    """
+    contest_id = contest.get("id")
+    office = contest.get("office") or {}
+    division = contest.get("division") or {}
+    ballot_q = contest.get("ballotQuestion")
+
+    title = office.get("name") or contest.get("name", "Unknown Contest")
+    if ballot_q:
+        q_num = ballot_q.get("questionNumber", "")
+        q_text = ballot_q.get("questionText", "")
+        title = f"Measure {q_num}: {q_text}" if q_num else q_text
+
+    # Build candidate list
+    candidates = []
+    for cand in contest.get("candidates", []):
+        candidates.append({
+            "id": f"marin-cand-{contest_id}-{cand.get('displayName', '').replace(' ', '-').lower()[:40]}",
+            "name": cand.get("displayName", "Unknown"),
+            "party": (cand.get("party") or {}).get("name"),
+            "votes_received": cand.get("nVotes"),
+            "vote_percentage": cand.get("pctCandidateVotes"),
+            "is_winner": bool(cand.get("isWinner")),
+            "source": "marin_registrar_results",
+        })
+
+    # Ballot measure data
+    ballot_measure = None
+    if ballot_q:
+        yes_cand = next((c for c in candidates if c["name"].lower() == "yes"), None)
+        no_cand = next((c for c in candidates if c["name"].lower() == "no"), None)
+        ballot_measure = {
+            "id": f"marin-measure-{contest_id}",
+            "title": title,
+            "description": ballot_q.get("questionText", ""),
+            "measure_type": (ballot_q.get("type") or {}).get("name", "measure"),
+            "passed": bool(yes_cand and yes_cand.get("is_winner")),
+            "yes_votes": yes_cand["votes_received"] if yes_cand else None,
+            "no_votes": no_cand["votes_received"] if no_cand else None,
+            "yes_percentage": yes_cand["vote_percentage"] if yes_cand else None,
+            "no_percentage": no_cand["vote_percentage"] if no_cand else None,
+            "source": "marin_registrar_results",
+        }
+
+    return {
+        "id": f"marin-contest-{contest_id}",
+        "title": title,
+        "contest_type": _map_contest_type(contest),
+        "district_name": division.get("displayName"),
+        "number_elected": contest.get("nSeats", 1),
+        "candidates": candidates,
+        "ballot_measure": ballot_measure,
+        "raw_data": contest,
+    }
+
+
+def extract_marin_results_to_storage(
+    client: "MarinRegistrarResultsClient",
+    storage: ElectionStorageProtocol,
+    jurisdiction_id: str,
+    from_year: int = 2010,
+    to_year: int = 2026,
+    division_filter: Optional[str] = None,
+) -> Dict[str, int]:
+    """
+    Extract historical election results from Marin GraphQL API and store them.
+
+    Args:
+        client: MarinRegistrarResultsClient instance
+        storage: StorageBackend with store_elections + store_election_contests
+        jurisdiction_id: Target jurisdiction (e.g., "city-san-rafael")
+        from_year: Start year for election range
+        to_year: End year for election range
+        division_filter: If set, only store contests in this division
+                         (e.g., "City of San Rafael")
+
+    Returns:
+        Dict with counts: {"elections": N, "contests": M, "candidates": C}
+    """
+    events = client.list_elections(from_year=from_year, to_year=to_year)
+    if not events:
+        logger.info("No elections returned from Marin Registrar GraphQL API")
+        return {"elections": 0, "contests": 0, "candidates": 0}
+
+    total_elections = 0
+    total_contests = 0
+    total_candidates = 0
+
+    for event in events:
+        event_id = event.get("id")
+        if not event_id:
+            continue
+
+        # Fetch contests for this election
+        results = client.get_election_results(event_id, division_filter=division_filter)
+        contests_data = results.get("contests", [])
+        election_info = results.get("election_info", {})
+
+        # Determine election date from contest data
+        election_date = _parse_election_date(election_info.get("start_date"))
+        election_type_name = election_info.get("type")
+
+        # Store election
+        election = marin_results_to_election(event, election_date, election_type_name)
+        stored = storage.store_elections(jurisdiction_id, [election])
+        total_elections += stored
+
+        # Map and store contests
+        if contests_data:
+            mapped_contests = [marin_results_to_contest(c) for c in contests_data]
+            contest_count = storage.store_election_contests(election["id"], mapped_contests)
+            total_contests += contest_count
+            total_candidates += sum(len(c.get("candidates", [])) for c in mapped_contests)
+
+        logger.info(
+            f"  Election '{event.get('name')}': {len(contests_data)} contests stored"
+        )
+
+    logger.info(
+        f"Marin results: {total_elections} elections, {total_contests} contests, "
+        f"{total_candidates} candidates for {jurisdiction_id}"
+    )
+
+    return {
+        "elections": total_elections,
+        "contests": total_contests,
+        "candidates": total_candidates,
     }
 
 
