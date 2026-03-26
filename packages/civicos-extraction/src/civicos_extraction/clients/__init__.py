@@ -15,6 +15,7 @@ Each client wraps a specific municipal platform API:
 - representatives: Unified representative lookup (Congress.gov, Open States, local)
 - hud_exchange: HUD Exchange / HUD CPD allocation data (CDBG, HOME, ESG, etc.)
 - sam_assistance: SAM.gov Assistance Listings (federal program definitions, formerly CFDA)
+- ca_sos_results: CA Secretary of State election results (api.sos.ca.gov)
 """
 
 from civicos_extraction.clients.legistar import LegistarClient
@@ -128,6 +129,14 @@ from civicos_extraction.clients.boarddocs import (
     extract_boarddocs_meetings_to_storage,
 )
 from civicos_extraction.clients.escribe import EScribeClient
+from civicos_extraction.clients.ca_sos_results import (
+    CASOSResultsClient,
+    ca_sos_results_to_election,
+    ca_sos_race_to_contest,
+    ca_sos_measure_to_contest,
+    extract_ca_sos_results_to_storage,
+    STATEWIDE_RACES,
+)
 from civicos_extraction.clients.federal_register import (
     FederalRegisterClient,
     get_recent_executive_orders,
@@ -210,6 +219,12 @@ __all__ = [
     "AgendaItem",
     "boarddocs_meeting_to_storage",
     "extract_boarddocs_meetings_to_storage",
+    "CASOSResultsClient",
+    "ca_sos_results_to_election",
+    "ca_sos_race_to_contest",
+    "ca_sos_measure_to_contest",
+    "extract_ca_sos_results_to_storage",
+    "STATEWIDE_RACES",
     "FederalRegisterClient",
     "get_recent_executive_orders",
 ]
