@@ -1296,7 +1296,7 @@
       {
         "name": "simbli_district_expansion",
         "description": "Onboard 6 additional Marin school districts via existing Simbli client: Novato USD (S=36030351), Tamalpais Union HSD (S=36030468), Miller Creek SD, Mill Valley SD, Reed Union SD, Kentfield SD. Config-only \u2014 client already works.",
-        "priority": 2,
+        "priority": 0,
         "status": "not_started",
         "files": [
           "config/registry.json"

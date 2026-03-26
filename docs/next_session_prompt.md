@@ -1,6 +1,6 @@
-# Recommended: CA Secretary of State Results API Client
+# Recommended: Simbli District Expansion — Onboard 6 Marin School Districts
 
-**Priority:** P0 (ca_sos_results_client)
+**Priority:** P0 (simbli_district_expansion)
 **Area:** election_integration
 **Date:** 2026-03-26
 
@@ -8,83 +8,63 @@
 
 ## Context
 
-This session completed BoardDocsClient — a locale-agnostic school board meeting extraction client with full onboarding integration (platform detection, committee auto-discovery, standard pipeline dispatch). 43 tests passing, 5 Marin district extraction configs created (1,162 meetings ready to ingest).
+Recent sessions completed the election/school-board extraction pipeline: Marin Registrar GraphQL (county results), BoardDocs (5 districts), and CA SOS Results (statewide). Six Marin school districts remain unboarded — they all use Simbli/eBoard (CSBA merged AgendaOnline into GAMUT/Simbli).
 
-The election integration category now has: Marin Registrar GraphQL (county-level results, complete but not yet ingested) and BoardDocs (school board meetings, complete). The remaining gap is **state-level election results** — CA SOS covers governor, legislature, US Congress, and ballot propositions with county-level breakdowns.
+The SimbliClient exists and works (Playwright-based, Incapsula WAF). Factory dispatch and onboard discovery are wired. What's missing: extraction config JSONs, Modal ingestion function, and `simbli` added to `SUPPORTED_MEETING_SOURCES`.
 
-## Pre-P0: Still-pending Marin Election Ingestion
+## Target Districts
 
-The Marin Registrar results client was built 2 sessions ago but never run against Postgres. Consider running before or after CA SOS work:
+| District | Simbli Code | URL Pattern |
+|----------|-------------|-------------|
+| Novato USD | S=36030351 | `simbli.eboardsolutions.com/...?S=36030351` |
+| Tamalpais Union HSD | S=36030468 | `simbli.eboardsolutions.com/...?S=36030468` |
+| Miller Creek SD | TBD | Need to discover via WebSearch |
+| Mill Valley SD | TBD | Need to discover via WebSearch |
+| Reed Union SD | TBD | Need to discover via WebSearch |
+| Kentfield SD | TBD | Need to discover via WebSearch |
 
-```bash
-# Dry run
-modal run scripts/modal_ingest.py::fetch_marin_election_results --dry-run
-# San Rafael only
-modal run scripts/modal_ingest.py::fetch_marin_election_results --division-filter "City of San Rafael"
-```
+## Key Files
 
-Schema decision still open: `election_candidates` table vs JSONB-only. See `claude-progress.txt` for details.
+- `packages/civicos-extraction/src/civicos_extraction/clients/simbli.py` — SimbliClient (Playwright-based)
+- `packages/civicos-extraction/src/civicos_extraction/clients/factory.py:40` — Simbli dispatch exists
+- `packages/civicos-extraction/src/civicos_extraction/onboard.py:419` — `_discover_simbli()` discovery
+- `packages/civicos-extraction/src/civicos_extraction/clients/__init__.py:117` — `SUPPORTED_MEETING_SOURCES` (simbli NOT listed)
+- `data/extraction/san-rafael-schools.json` — SRCS uses YouTube, not Simbli config
+- `data/extraction/school-ross-valley.json` — Example BoardDocs config for reference
+- `scripts/modal_ingest.py` — No `fetch_simbli_meetings` function yet
 
-## P0: CA SOS Results Client
+## Important Considerations
 
-Build `CASOSResultsClient` for the CA Secretary of State election results API. Free, no auth, JSON responses.
+1. **Playwright requirement:** SimbliClient uses Playwright (Incapsula WAF blocks requests). Modal image needs `playwright install chromium`. Check if `eboardsolutions.com` subdomains also need Playwright or if they're accessible via plain HTTP.
 
-### API Reference
+2. **SUPPORTED_MEETING_SOURCES:** `simbli` is not in the frozenset, so the standard `fetch_meetings()` dispatcher won't handle it. Either add it (if the fetch pattern fits) or create a separate `fetch_simbli_meetings()` Modal function.
 
-Full reference in `docs/internal/election-data-research.md` (line ~473). Key points:
+3. **Onboarding path:** Use `/onboard` with each district's Simbli URL, or manually create configs. The `_discover_simbli()` function exists but is lightweight (just builds config from URL).
 
-- **Base URL:** `https://api.sos.ca.gov`
-- **Auth:** None required
-- **Key limitation:** Only serves current/most-recent election. No historical access.
-- **Endpoints:**
-  - `GET /returns/president` — statewide results
-  - `GET /returns/us-rep/district/{N}` — US House (Marin = district 2)
-  - `GET /returns/state-assembly/district/{N}` — state assembly (Marin = district 12)
-  - `GET /returns/ballot-measures` — all ballot measures
-  - County breakdowns: append `/county/{slug}` (e.g., `/county/marin`)
-  - `GET /returns/status` — county reporting status
-- **Data gotcha:** All values are strings. Candidate votes are comma-formatted (`"2,909,979"`), ballot measure votes are not (`"7453339"`).
-- **Marin specifics:** county code 21, slug `marin`, US House district 2, Assembly district 12, Senate district 2
+4. **Config format:** Simbli configs need `source_type: "simbli"` and `board_url` in metadata. See `factory.py:42` — it reads `metadata.board_url` or falls back to `base_url`.
 
-### Key Files
-- `packages/civicos-extraction/src/civicos_extraction/clients/ca_sos.py` — create new
-- `packages/civicos-extraction/tests/test_ca_sos.py` — create new
-- `scripts/modal_ingest.py` — add `fetch_ca_sos_results()` function
-- `packages/civicos/src/civicos/_internal/elections/__init__.py` — existing election data models
-- `packages/civicos-extraction/src/civicos_extraction/clients/marin_registrar.py` — reference client pattern
+## Suggested Approach
 
-### Suggested Approach
-1. Read CA SOS API Reference in `docs/internal/election-data-research.md:473`
-2. Build `CASOSResultsClient` with methods for statewide races, district races, ballot measures, and county breakdowns
-3. Map to existing election storage models (Election, ElectionContest, Candidate, BallotMeasure)
-4. Handle string-to-number parsing (comma-formatted vote counts)
-5. Wire Modal ingestion function
-6. Test against live endpoints (free, no auth)
-
-### Storage Consideration
-CA SOS only has the current election — no history. This means:
-- Refreshing overwrites previous data (unlike Marin Registrar with 46 elections)
-- Store `reportType` (`"R"` = preliminary, `"U"` = certified) to track result finality
-- Results map to `state-california` jurisdiction with county breakdowns in `raw_data`
+1. Discover Simbli URLs for the 4 TBD districts (WebSearch `site:simbli.eboardsolutions.com "{district name}"`)
+2. Test if `eboardsolutions.com` URLs are accessible via plain HTTP (if so, can skip Playwright)
+3. Create extraction config JSONs for all 6 districts in `data/extraction/`
+4. Add `simbli` to `SUPPORTED_MEETING_SOURCES` if compatible with standard pipeline, OR write `fetch_simbli_meetings()` Modal function with Playwright image
+5. Test extraction against at least 1 district
+6. Register jurisdictions in `config/registry.json`
 
 ## Tests to Run
 
 ```bash
-# BoardDocs tests (verify still passing)
-pytest packages/civicos-extraction/tests/test_boarddocs.py -v --override-ini="addopts="
-# Marin Registrar tests
-pytest packages/civicos-extraction/tests/test_marin_registrar.py -v --override-ini="addopts="
+# Existing Simbli tests
+pytest packages/civicos-extraction/tests/test_simbli.py -v --override-ini="addopts="
 # Smoke tests
 pytest packages/civicos/tests/test_civicos.py -q --override-ini="addopts="
 ```
 
 ## Success Criteria
 
-- [ ] CASOSResultsClient fetches statewide race results
-- [ ] County breakdown queries work (Marin results for US House district 2)
-- [ ] Ballot measure results with yes/no vote parsing
-- [ ] String vote counts correctly parsed to integers
-- [ ] Results map to existing election storage models
-- [ ] Modal ingestion function wired
-- [ ] Unit + integration tests passing
+- [ ] 6 Simbli extraction configs created in `data/extraction/`
+- [ ] Simbli either added to SUPPORTED_MEETING_SOURCES or has dedicated Modal function
+- [ ] At least 1 district successfully fetches meetings
+- [ ] Jurisdictions registered in `config/registry.json`
 - [ ] No regressions in smoke tests
