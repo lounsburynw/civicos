@@ -607,6 +607,80 @@ def main():
 
         sys.exit(_run_batch(cities, shared))
 
+    # --level school: use school district lookup table
+    if args.level == "school" and not args.url:
+        from civicos_extraction.onboard import (
+            load_school_districts,
+            lookup_school_district,
+            lookup_school_districts_by_county,
+        )
+
+        districts_table = load_school_districts()
+        if not districts_table:
+            print("WARNING: data/school_districts.json not found, falling back to standard onboarding")
+        else:
+            # Batch mode: --county "Marin" --level school
+            if args.county and not args.city:
+                matches = lookup_school_districts_by_county(args.state, args.county, districts_table)
+                if matches:
+                    print(f"\nFound {len(matches)} school district(s) in {args.county} County, {args.state}:\n")
+                    for i, d in enumerate(matches, 1):
+                        existing = (PROJECT_ROOT / "data" / "extraction" / f"{d['jurisdiction_id']}.json").exists()
+                        status = " (config exists)" if existing else ""
+                        print(f"  {i}. {d['name']} [{d['platform']}]{status}")
+                    print()
+                    # Run each district through onboarding via --url
+                    shared = ["--state", args.state, "--level", "school", "--skip-ingestion"]
+                    if args.force:
+                        shared.append("--force")
+                    if args.dry_run:
+                        shared.append("--dry-run")
+                    if args.yes:
+                        shared.append("--yes")
+
+                    failed = 0
+                    for d in matches:
+                        jid = d["jurisdiction_id"]
+                        extraction_path = PROJECT_ROOT / "data" / "extraction" / f"{jid}.json"
+                        if extraction_path.exists() and not args.force:
+                            print(f"  [{jid}] Config exists, skipping (use --force to regenerate)")
+                            continue
+                        cmd = [
+                            sys.executable, __file__,
+                            "--url", d["board_url"],
+                            "--jurisdiction", jid,
+                            *shared,
+                        ]
+                        print(f"  Onboarding {d['name']}...")
+                        result = subprocess.run(cmd, capture_output=True, text=True)
+                        if result.returncode != 0:
+                            print(f"    FAILED: {result.stderr.strip()[:200]}")
+                            failed += 1
+                        else:
+                            print(f"    OK")
+
+                    print(f"\nBatch complete: {len(matches) - failed}/{len(matches)} succeeded")
+                    sys.exit(0 if not failed else 1)
+                else:
+                    print(f"No school districts found for {args.county} County, {args.state}")
+                    sys.exit(1)
+
+            # Single lookup: --city "Novato" --level school
+            if args.city:
+                match = lookup_school_district(args.city, args.state, args.county or None, districts_table)
+                if match:
+                    print(f"\nFound: {match['name']} [{match['platform']}]")
+                    print(f"  URL: {match['board_url']}")
+                    print(f"  ID:  {match['jurisdiction_id']}")
+                    print()
+                    # Set url and jurisdiction from lookup, continue to standard flow
+                    args.url = match["board_url"]
+                    if not args.jurisdiction:
+                        args.jurisdiction = match["jurisdiction_id"]
+                else:
+                    print(f"No school district matching '{args.city}' in lookup table.")
+                    print("Falling back to platform auto-discovery...")
+
     if not args.city and not args.url:
         parser.error("Provide --city 'City Name', --cities 'A,B,C', or --url 'https://...'")
 
