@@ -1307,7 +1307,7 @@
       {
         "name": "ca_sos_results_client",
         "description": "Wire CA Secretary of State Results API (api.sos.ca.gov) for state-level race results with Marin County breakdowns. No auth required, JSON responses. Covers governor, legislature, US Congress, state propositions.",
-        "priority": 1,
+        "priority": 0,
         "status": "not_started",
         "files": [
           "packages/civicos-extraction/src/civicos_extraction/clients/ca_sos.py",
