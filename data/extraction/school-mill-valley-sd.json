@@ -1,0 +1,14 @@
+{
+  "source_id": "simbli-school-mill-valley-sd",
+  "source_type": "simbli",
+  "jurisdiction_id": "school-mill-valley-sd",
+  "base_url": "https://agendaonline.net/public/millvalley",
+  "auto_discover": false,
+  "archives": {},
+  "metadata": {
+    "board_url": "https://agendaonline.net/public/millvalley",
+    "district_name": "Mill Valley School District",
+    "district_website": "https://www.mvschools.org",
+    "created": "2026-03-26"
+  }
+}

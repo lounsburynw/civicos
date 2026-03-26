@@ -1,0 +1,14 @@
+{
+  "source_id": "simbli-school-reed-union",
+  "source_type": "simbli",
+  "jurisdiction_id": "school-reed-union",
+  "base_url": "https://agendaonline.net/public/Agency.aspx?AgencyTypeID=1&PublicAgencyID=111",
+  "auto_discover": false,
+  "archives": {},
+  "metadata": {
+    "board_url": "https://agendaonline.net/public/Agency.aspx?AgencyTypeID=1&PublicAgencyID=111",
+    "district_name": "Reed Union School District",
+    "district_website": "https://www.reedschools.org",
+    "created": "2026-03-26"
+  }
+}

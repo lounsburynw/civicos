@@ -1,23 +1,27 @@
 {
   "version": "1.0",
   "description": "Single source of truth for CivicOS service URLs and deployment config. All apps read from here instead of hardcoding URLs.",
-
   "modal_workspace": "civicos",
   "default_jurisdiction": "city-san-rafael",
-
   "jurisdictions": {
     "city-san-rafael": {
       "domain": "san-rafael.civicosproject.org",
       "display_name": "San Rafael",
       "modal_app_name": "civicos-san-rafael",
-      "parent_jurisdictions": ["county-marin", "state-california", "country-united-states"],
+      "parent_jurisdictions": [
+        "county-marin",
+        "state-california",
+        "country-united-states"
+      ],
       "attestation_issuer_pubkey": "a8a87b73897489b99954ad97ac6a32b16cbc3c9969f97c9821ea812463fb0848"
     },
     "state-california": {
       "domain": "california.civicosproject.org",
       "display_name": "California",
       "modal_app_name": "civicos-california",
-      "parent_jurisdictions": ["country-united-states"]
+      "parent_jurisdictions": [
+        "country-united-states"
+      ]
     },
     "country-united-states": {
       "domain": "federal.civicosproject.org",
@@ -29,40 +33,126 @@
       "domain": "marin-county.civicosproject.org",
       "display_name": "Marin County",
       "modal_app_name": "civicos-marin-county",
-      "parent_jurisdictions": ["state-california", "country-united-states"]
+      "parent_jurisdictions": [
+        "state-california",
+        "country-united-states"
+      ]
     },
     "city-berkeley": {
       "domain": "berkeley.civicosproject.org",
       "display_name": "Berkeley",
       "modal_app_name": "civicos-berkeley",
-      "parent_jurisdictions": ["county-alameda", "state-california", "country-united-states"]
+      "parent_jurisdictions": [
+        "county-alameda",
+        "state-california",
+        "country-united-states"
+      ]
     },
     "county-alameda": {
       "domain": "alameda-county.civicosproject.org",
       "display_name": "Alameda County",
       "modal_app_name": "civicos-alameda-county",
-      "parent_jurisdictions": ["state-california", "country-united-states"]
+      "parent_jurisdictions": [
+        "state-california",
+        "country-united-states"
+      ]
     },
     "city-mill-valley": {
       "domain": "mill-valley.civicosproject.org",
       "display_name": "Mill Valley",
       "modal_app_name": "civicos-mill-valley",
-      "parent_jurisdictions": ["county-marin", "state-california", "country-united-states"]
+      "parent_jurisdictions": [
+        "county-marin",
+        "state-california",
+        "country-united-states"
+      ]
     },
     "city-san-anselmo": {
       "domain": "san-anselmo.civicosproject.org",
       "display_name": "San Anselmo",
       "modal_app_name": "civicos-san-anselmo",
-      "parent_jurisdictions": ["county-marin", "state-california", "country-united-states"]
+      "parent_jurisdictions": [
+        "county-marin",
+        "state-california",
+        "country-united-states"
+      ]
+    },
+    "city-austin": {
+      "domain": "austin.civicosproject.org",
+      "display_name": "Austin",
+      "modal_app_name": "civicos-austin",
+      "parent_jurisdictions": [
+        "county-travis",
+        "state-texas",
+        "country-united-states"
+      ]
+    },
+    "school-novato": {
+      "domain": "novato-schools.civicosproject.org",
+      "display_name": "Novato Unified School District",
+      "modal_app_name": "civicos-school-novato",
+      "parent_jurisdictions": [
+        "county-marin",
+        "state-california",
+        "country-united-states"
+      ]
+    },
+    "school-tamalpais": {
+      "domain": "tamalpais-schools.civicosproject.org",
+      "display_name": "Tamalpais Union High School District",
+      "modal_app_name": "civicos-school-tamalpais",
+      "parent_jurisdictions": [
+        "county-marin",
+        "state-california",
+        "country-united-states"
+      ]
+    },
+    "school-miller-creek": {
+      "domain": "miller-creek-schools.civicosproject.org",
+      "display_name": "Miller Creek School District",
+      "modal_app_name": "civicos-school-miller-creek",
+      "parent_jurisdictions": [
+        "county-marin",
+        "state-california",
+        "country-united-states"
+      ]
+    },
+    "school-mill-valley-sd": {
+      "domain": "mill-valley-schools.civicosproject.org",
+      "display_name": "Mill Valley School District",
+      "modal_app_name": "civicos-school-mill-valley-sd",
+      "parent_jurisdictions": [
+        "county-marin",
+        "state-california",
+        "country-united-states"
+      ]
+    },
+    "school-reed-union": {
+      "domain": "reed-union-schools.civicosproject.org",
+      "display_name": "Reed Union School District",
+      "modal_app_name": "civicos-school-reed-union",
+      "parent_jurisdictions": [
+        "county-marin",
+        "state-california",
+        "country-united-states"
+      ]
+    },
+    "school-kentfield": {
+      "domain": "kentfield-schools.civicosproject.org",
+      "display_name": "Kentfield School District",
+      "modal_app_name": "civicos-school-kentfield",
+      "parent_jurisdictions": [
+        "county-marin",
+        "state-california",
+        "country-united-states"
+      ]
     }
   },
-
   "relay": {
     "modal_app_name": "civicos-relay",
     "modal_origin": "https://civicos--civicos-relay-relayserver-relay-endpoint.modal.run",
     "description": "Default relay for all jurisdictions. Relay endpoint is derived from jurisdiction domain: https://{domain}/relay. Cloudflare routes /relay to the Modal origin."
   },
-
   "local_dev": {
     "relay_url": "http://localhost:8003",
     "mcp_url": "http://localhost:8001",

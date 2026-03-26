@@ -2919,6 +2919,14 @@ def fetch_meetings(
             since_date = date.today() - timedelta(days=days_past) if days_past > 0 else None
             bd_meetings = client.get_meetings(since=since_date)
             meetings = [m.to_meeting(jurisdiction, config.metadata.get("app_path", "")) for m in bd_meetings]
+        elif source_type == "simbli":
+            # Simbli requires Playwright (separate image), delegate to standalone function
+            result = fetch_simbli_meetings.remote(
+                jurisdiction=jurisdiction,
+                days_past=days_past,
+                dry_run=dry_run,
+            )
+            return result
         else:
             from civicos_extraction.clients import SUPPORTED_MEETING_SOURCES
             logger.warning(f"[MEETINGS] source_type '{source_type}' not yet supported "
@@ -3928,6 +3936,143 @@ def fetch_boarddocs_meetings(
         "meetings_found": len(meetings),
         "meetings_stored": count,
         "agendas_fetched": agendas_fetched,
+        "dry_run": False,
+        "elapsed_seconds": elapsed,
+        "cost_usd": 2 * elapsed * 0.000463,
+    }
+
+
+# =============================================================================
+# Simbli School Board Meetings (Playwright-based)
+# =============================================================================
+
+# Simbli uses Incapsula WAF — requires Playwright + Chromium (separate image)
+simbli_image = (
+    modal.Image.debian_slim(python_version="3.11")
+    .apt_install("libpq-dev", "gcc")
+    .pip_install(
+        "psycopg2-binary>=2.9.0",
+        "playwright>=1.40.0",
+        "python-dotenv>=1.0.0",
+    )
+    .run_commands("playwright install --with-deps chromium")
+    .env({
+        "CIVICOS_CONFIG_DIR": "/config/extraction",
+        "CIVICOS_JURISDICTIONS_DIR": "/config/jurisdictions",
+    })
+    .add_local_python_source("civicos", "civicos_config", "civicos_extraction")
+    .add_local_dir("data/extraction", remote_path="/config/extraction")
+    .add_local_dir("data/jurisdictions", remote_path="/config/jurisdictions")
+)
+
+
+@app.function(
+    image=simbli_image,
+    secrets=[modal.Secret.from_name("civic-db")],
+    memory=4096,
+    timeout=600,
+    retries=modal.Retries(max_retries=1, backoff_coefficient=2.0, initial_delay=10.0),
+)
+def fetch_simbli_meetings(
+    jurisdiction: str = "",
+    board_url: str = "",
+    days_past: int = 365,
+    dry_run: bool = False,
+) -> dict:
+    """Fetch school board meetings from a Simbli/AgendaOnline portal.
+
+    Uses Playwright browser automation to scrape meeting data from Simbli-hosted
+    portals (simbli.eboardsolutions.com) and AgendaOnline portals (agendaonline.net).
+
+    Args:
+        jurisdiction: Target jurisdiction ID (e.g., "school-novato"). If provided,
+            loads board_url from extraction config.
+        board_url: Direct Simbli/AgendaOnline URL. Overrides config if provided.
+        days_past: How many days back to fetch (default: 365)
+        dry_run: If True, fetch but don't store
+    """
+    import logging
+    import os
+    import time
+    from datetime import date
+
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+    logger = logging.getLogger(__name__)
+    start_time = time.time()
+
+    from civicos.storage.postgres_backend import PostgresBackend
+    from civicos_extraction.clients.simbli import SimbliClient, extract_simbli_meetings_to_storage
+
+    database_url = os.environ.get("DATABASE_URL")
+    if not database_url:
+        raise ValueError("DATABASE_URL not set")
+
+    # Resolve board_url from extraction config if not provided directly
+    if not board_url and jurisdiction:
+        from civicos_extraction.config import ExtractionConfig
+        config = ExtractionConfig.from_jurisdiction(jurisdiction)
+        board_url = config.metadata.get("board_url", config.base_url)
+
+    if not board_url:
+        raise ValueError("Either jurisdiction or board_url must be provided")
+
+    if not jurisdiction:
+        jurisdiction = "school-unknown"
+
+    logger.info(f"[SIMBLI] Starting fetch: jurisdiction={jurisdiction}, board_url={board_url}")
+
+    # Create client
+    client = SimbliClient(
+        board_url=board_url,
+        jurisdiction_id=jurisdiction,
+        headless=True,
+    )
+
+    from datetime import timedelta
+    since_date = date.today().replace(year=date.today().year - 1) if days_past >= 365 else (
+        date.today() - timedelta(days=days_past)
+    )
+
+    meetings = client.get_meetings(since=since_date)
+    logger.info(f"[SIMBLI] Fetched {len(meetings)} meetings")
+
+    if dry_run:
+        elapsed = time.time() - start_time
+        return {
+            "task": "simbli_meetings",
+            "jurisdiction": jurisdiction,
+            "board_url": board_url,
+            "meetings_found": len(meetings),
+            "meetings_stored": 0,
+            "dry_run": True,
+            "elapsed_seconds": elapsed,
+            "cost_usd": 2 * elapsed * 0.000463,
+        }
+
+    # Store
+    backend = PostgresBackend(database_url)
+    count = extract_simbli_meetings_to_storage(
+        client=client,
+        storage=backend,
+        jurisdiction_id=jurisdiction,
+    )
+
+    # Update refresh metadata
+    backend.update_refresh_metadata(
+        jurisdiction, "meetings", "simbli",
+        items_fetched=len(meetings),
+        items_stored=count,
+        status="completed",
+        fetch_window_days=days_past,
+    )
+
+    elapsed = time.time() - start_time
+    return {
+        "task": "simbli_meetings",
+        "jurisdiction": jurisdiction,
+        "board_url": board_url,
+        "meetings_found": len(meetings),
+        "meetings_stored": count,
         "dry_run": False,
         "elapsed_seconds": elapsed,
         "cost_usd": 2 * elapsed * 0.000463,
