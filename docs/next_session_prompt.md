@@ -1,57 +1,78 @@
-# Recommended: Query Monitoring and Docs
+# Recommended: Build Marin Registrar Election Results Client
 
-**Priority:** P0 (query_monitoring_and_docs)
-**Area:** federation_testbed
-**Date:** 2026-03-24
+**Priority:** P0
+**Area:** election_integration
+**Date:** 2026-03-25
 
 > This is recommended context from the previous session. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
 
 ## Context
 
-This session completed two major tracks: turnkey onboarding (12/12) and multi-scale participation (18/18). The platform now supports onboarding any US city with a supported meeting platform in one command, batch onboarding multiple cities, cost estimation before ingestion, and generalized state-level legislation syncing for all 50 states.
+This session completed a deep research pass on election data sources and school board platforms for Bay Area / Marin County. Key findings: Google Civic Representatives API is dead (April 2025), civic data aggregator APIs (Democracy Works, Ballotpedia, BallotReady) all have opaque sales-gated pricing. The best path is building against primary government sources.
 
-The remaining launch work is mostly polish and operator readiness. `query_monitoring_and_docs` is the highest-priority remaining item — it adds production observability (query latency logging, connection pool metrics) and sweeps ~10 doc files to update stale decision ID format references.
+The Marin County past elections database (`pastelections.marincounty.gov`) turned out to be powered by a **GraphQL API** (ElectionStats by Civera) — not CSV downloads as initially assumed. It's unauthenticated, structured, and has 15+ years of data. A new `election_integration` category was added to `launch.json` with 6 implementation items.
 
-## What Was Done This Session
+## Recommended Task
 
-10 commits covering:
-- `onboard_deploy_integration` — Registry update + Modal deploy + API verification (`--deploy` flag)
-- `onboard_cost_estimate` — Extrapolates LLM cost from sample, prompts before full backfill (`--yes` flag)
-- `onboard_configurable_defaults` — YAML `ingestion.days_past` / `sample_days` overrides
-- `onboard_batch_mode` — `--cities "A,B,C"` with aggregate report
-- `onboard_transcript_auto` — YouTube channel auto-detection via Data API
-- `legislation_adapter_unification` — LegislationAdapter queries storage+vectors directly (no API calls on query path)
-- `downward_query_scaling` — Fan-out capped at 20 jurisdictions
-- `turnkey_state_onboarding` — STATE_CODE_MAP for all 50 states, dynamic legislation loop, registry-based state resolution
-- Critic fixes: removed silent CA fallback, added lru_cache for registry loading, consolidated registry loading via `civicos.registry`
+Build a GraphQL client for the Marin County Registrar's ElectionStats platform. Three-query pattern:
+1. List elections (46 elections, June 2010 – May 2025)
+2. List contests per election (521 candidate contests, 380 ballot questions)
+3. Get precinct-level data per contest (146 precincts, vote channel breakdowns)
+
+Map results to existing election data models (Election, Contest, Candidate, BallotMeasure). The storage protocol and Postgres schema are already complete.
 
 ## Key Files
 
-| File | Purpose |
-|------|---------|
-| `packages/civicos-services/src/civicos_services/query/verbs.py` | v2 query execution — add latency logging here |
-| `packages/civicos-services/src/civicos_services/servers/api.py` | API server — middleware for request metrics |
-| `packages/civicos/src/civicos/storage/postgres_backend.py` | Connection pool — add pool metrics here |
-| `docs/public/data-dictionary.md` | Primary doc to check for stale decision ID formats |
-| `docs/public/api.md` | API doc — check for stale references |
+- `docs/internal/election-data-research.md` — **Full technical reference** including GraphQL queries, field schemas, response formats. Read the "Marin Registrar GraphQL Reference" section.
+- `packages/civicos-extraction/src/civicos_extraction/clients/marin_registrar.py` — Existing Playwright-based election schedule scraper. Extend or companion with GraphQL client.
+- `packages/civicos/src/civicos/_internal/elections/__init__.py` — Election, Contest, Candidate, BallotMeasure data models
+- `packages/civicos/src/civicos/storage/protocols/elections.py` — ElectionStorage protocol (store_elections, store_election_contests, etc.)
+- `packages/civicos/src/civicos/storage/postgres_backend.py:8663` — Postgres implementation of election storage
+- `scripts/modal_ingest.py:3393` — `fetch_elections()` Modal function
+- `packages/civicos-extraction/src/civicos_extraction/clients/google_civic.py` — Reference for how election data maps to storage models
 
 ## Suggested Approach
 
-1. **Query latency logging** — Add timing to `execute_search()` and `_execute_cross_jurisdiction_search()` in `verbs.py`. Log query time, corpus breakdown, and jurisdiction count at INFO level.
-2. **Connection pool metrics** — Add pool size/available/waiters to the `/health` endpoint response in `api.py`.
-3. **Alert thresholds** — Define thresholds (e.g., >5s query time) and log at WARNING level.
-4. **Docs sweep** — Search for stale `decision:` ref format patterns across docs/. The old format was `decision:{jurisdiction}:{id}`, verify all examples match current `{type}:{jurisdiction}:{id}` pattern.
+1. Read `docs/internal/election-data-research.md` (Marin Registrar GraphQL Reference section) for the full API spec
+2. Build `MarinRegistrarElectionStatsClient` (or extend existing `marin_registrar.py`) with three methods:
+   - `list_elections(from_year, to_year)` — GraphQL `searchSuggestions` query
+   - `list_contests(event_id)` — GraphQL `search` query with pagination
+   - `get_precinct_data(contest_id)` — GraphQL `contestGranularData` query
+3. Map to existing data models. May need to add `votes_received: Optional[int]` to the `Candidate` dataclass.
+4. Write storage mapping functions (similar to `google_civic_to_election()` pattern)
+5. Wire into `fetch_elections()` in `modal_ingest.py` as a source alongside Google Civic
+6. Test against live API (no auth needed)
+
+## GraphQL Endpoint
+
+```
+POST https://pastelections.marincounty.gov/api/graphql_pr
+Content-Type: application/json
+# No auth required
+```
+
+The ElectionStats platform (by Civera) is also used by Sonoma County and Yolo County in CA — same API patterns with different tenant URLs. Building this client generalizes to those counties too.
 
 ## Tests to Run
+
 ```bash
-pytest packages/civicos-services/tests/test_query_v2.py -v --override-ini="addopts="
+# Existing election tests
+pytest packages/civicos-extraction/tests/test_marin_registrar.py -v
+# Smoke tests (verify no regressions)
 pytest packages/civicos/tests/test_civicos.py -q --override-ini="addopts="
 ```
 
 ## Success Criteria
 
-- [ ] Query latency logged at INFO level for all v2 verbs
-- [ ] Connection pool metrics available via `/health` endpoint
-- [ ] Warning logs for queries exceeding threshold
-- [ ] No stale decision ID format references in docs/
-- [ ] All existing tests pass
+- [ ] GraphQL client fetches elections, contests, and candidates from live API
+- [ ] Data maps to existing Election/Contest/Candidate models
+- [ ] Results stored to Postgres via existing ElectionStorage protocol
+- [ ] Precinct-level data available for San Rafael contests
+- [ ] No regressions in smoke tests
+
+## Important Notes
+
+- The existing `marin_registrar.py` is a Playwright scraper for election *schedules* (upcoming dates). The new client is for election *results* (historical). These are complementary, not overlapping.
+- The `Candidate` dataclass may need `votes_received: Optional[int]` and `vote_percentage: Optional[float]` fields added.
+- Ballot measures appear as contests with candidates named "Yes"/"No" — the `pseudocandidate` field distinguishes real candidates from summary rows (TOTAL_VOTES, TOTAL_BALLOTS, etc.).
+- Pagination on the `search` query is 1-indexed.

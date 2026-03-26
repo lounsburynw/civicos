@@ -23650,3 +23650,66 @@ modal run scripts/modal_ingest.py --legislation --legislation-jurisdiction state
 - No regressions
 
 ### Multi-Scale Participation: 18/18 COMPLETE
+
+## Session: Election Data Source Research (2026-03-25)
+
+### Research completed — no code changes
+
+**Google Civic API audit:**
+- Elections endpoint: works but returns only 3 results nationwide (no Bay Area local)
+- Representatives endpoint: DEAD (turned down April 2025, returns 0 results)
+- Verdict: Keep for polling locations during elections, not primary source
+
+**Best sources identified:**
+1. Democracy Works Elections API — FREE, REST, covers local elections (school board, city council) for pops >5K. Need API key.
+2. Marin County Registrar — pastelections.marincounty.gov has CSV downloads 2010-2025. Authoritative for all local races.
+3. CA Secretary of State Results API — Free, no auth, JSON. State-level races with county breakdowns.
+
+**School board platforms in Marin:**
+- Simbli: SRCS (ingested, 45 mtgs), Novato, Tam High + 4 AgendaOnline→Simbli districts. Client exists.
+- BoardDocs: MCOE, Ross Valley, Larkspur-CM, Sausalito-MC. Need new client. LlamaIndex reader is reference impl.
+- Two scrapers cover ~80% of Marin school districts.
+
+**Existing infra assessment:** More complete than expected. Storage protocol, Postgres schema, data models, Modal ingestion, GH Actions cron — all implemented. 6 elections in Postgres already.
+
+**Implementation roadmap:** Democracy Works client → Marin registrar scraper → BoardDocs client → expand Simbli coverage → CA SOS API
+
+**Output:** docs/internal/election-data-research.md
+
+### Continued research (same session)
+
+**Democracy Works pricing verification:**
+- Confirmed NOT free — sales-gated pricing, no public free tier
+- "$0" in schema.org markup is misleading SEO; 990 shows ~$3M/year program revenue
+- Demoted from P0 to P1 (blocked on pricing confirmation)
+
+**Promoted Marin Registrar to P0** — free, unblocked, authoritative for all local races
+
+**Technical deep-dives completed on all three unblocked sources:**
+
+1. **Marin Registrar** — NOT CSV downloads. It's a GraphQL API (ElectionStats by Civera platform):
+   - POST /api/graphql_pr, no auth
+   - 46 elections, 521 contests, 1,404 candidates, 146 precincts
+   - Three-query pattern: searchSuggestions → search → contestGranularData
+   - Same platform used by Sonoma County and Yolo County (client generalizes)
+
+2. **BoardDocs** — IBM Lotus Domino backend, undocumented POST endpoints:
+   - BD-GetMeetingsList returns JSON (no pagination, all meetings at once)
+   - PRINT-AgendaDetailed returns full HTML agenda with file links
+   - LT and Pro editions use identical API endpoints
+   - Known committee IDs for 4 Marin districts
+
+3. **CA SOS API** — REST at api.sos.ca.gov:
+   - No auth, JSON or CSV output
+   - Only serves current election cycle (no historical access)
+   - /returns/{race}/county/marin for county breakdowns
+   - All values are strings, inconsistent formatting
+
+**New launch.json category: election_integration** (7 items, 1 done):
+- P0: marin_registrar_results_client (was "scraper", renamed after GraphQL discovery)
+- P1: democracy_works_client (blocked on pricing), boarddocs_client, ca_sos_results_client
+- P2: simbli_district_expansion, P3: google_civic_deprecation
+
+**Research doc updated:** docs/internal/election-data-research.md now has full technical references for all three APIs
+
+**Memory updated:** Added feedback on civic data aggregator pricing pattern

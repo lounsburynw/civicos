@@ -1,10 +1,11 @@
 {
   "version": "1.0",
   "phase": "launch",
-  "last_updated": "2026-03-23",
-  "summary": "Launch readiness: turnkey onboarding (top priority), federation queries, billing, operator tooling, multi-scale participation",
+  "last_updated": "2026-03-25",
+  "summary": "Launch readiness: election integration (new), turnkey onboarding (done), federation queries, billing, operator tooling, multi-scale participation (done)",
   "category_order": [
     "turnkey_onboarding",
+    "election_integration",
     "security_fixes",
     "observability",
     "billing_payments",
@@ -854,7 +855,7 @@
         "name": "query_monitoring_and_docs",
         "description": "Production polish: query latency logging, connection pool metrics, alert thresholds, and docs sweep to update stale decision ID format references across ~10 doc files.",
         "status": "not_started",
-        "priority": 0,
+        "priority": 1,
         "phase": "B",
         "source": "performance assessment 2026-03-17",
         "files": [
@@ -1236,6 +1237,95 @@
         ],
         "test_file": null,
         "notes": "CA is hardcoded to leginfo.legislature.ca.gov. Other states have different legislation platforms. Deprioritized per roadmap \u2014 CA is the only state needed pre-launch. Post-launch work."
+      }
+    ]
+  },
+  "election_integration": {
+    "description": "Election data and school board platform integration \u2014 surface candidates, ballot measures, deadlines, results, and school board agendas for Bay Area residents. Built on research from docs/internal/election-data-research.md.",
+    "items": [
+      {
+        "name": "election_data_source_research",
+        "description": "Research session: audit election data sources (Google Civic API, BallotReady, Ballotpedia, county registrars) and school board platforms (Simbli, BoardDocs) for Bay Area. Determine which sources to wire into turnkey onboarding.",
+        "priority": 0,
+        "status": "done",
+        "files": [
+          "packages/civicos-extraction/src/civicos_extraction/clients/google_civic.py",
+          "packages/civicos-extraction/src/civicos_extraction/clients/marin_registrar.py",
+          "packages/civicos-extraction/src/civicos_extraction/clients/simbli.py",
+          "packages/civicos-extraction/src/civicos_extraction/clients/representatives.py"
+        ],
+        "test_file": null,
+        "notes": "Research only \u2014 no code changes. Focus on Bay Area first. Verify existing clients, survey alternatives, define integration model for elections and school boards."
+      },
+      {
+        "name": "democracy_works_client",
+        "description": "Build DemocracyWorksClient in extraction clients. REST v2 API \u2014 elections, candidates, ballot measures, deadlines, polling locations. BLOCKED: pricing unknown (sales-gated, no free tier). Must confirm nonprofit access before building.",
+        "priority": 1,
+        "status": "not_started",
+        "files": [
+          "packages/civicos-extraction/src/civicos_extraction/clients/democracy_works.py",
+          "scripts/modal_ingest.py"
+        ],
+        "test_file": "packages/civicos-extraction/tests/test_democracy_works.py",
+        "notes": "BLOCKED on pricing \u2014 sales-gated, no public free tier. Email partnerships@democracy.works to ask about nonprofit access. Do not build until pricing confirmed. If too expensive, skip and rely on Marin Registrar + CA SOS + existing Google Civic for election data."
+      },
+      {
+        "name": "marin_registrar_results_client",
+        "description": "Build GraphQL client for pastelections.marincounty.gov (ElectionStats/Civera platform). Historical local election results 2010-2025: 46 elections, 521 contests, 1,404 candidates with vote counts, precinct breakdowns, ballot measures. Three-query pattern: list elections, list contests, get precinct data.",
+        "priority": 0,
+        "status": "not_started",
+        "files": [
+          "packages/civicos-extraction/src/civicos_extraction/clients/marin_registrar.py",
+          "packages/civicos/src/civicos/_internal/elections/__init__.py"
+        ],
+        "test_file": "packages/civicos-extraction/tests/test_marin_registrar.py",
+        "notes": "NOT a CSV scraper \u2014 the site has a public GraphQL API at POST /api/graphql_pr. No auth needed. Extend existing marin_registrar.py. May need to add votes_received to Candidate model. See docs/internal/election-data-research.md for full GraphQL reference. ~1 session."
+      },
+      {
+        "name": "boarddocs_client",
+        "description": "Build BoardDocsClient for school board meeting ingestion. Covers MCOE, Ross Valley SD, Larkspur-Corte Madera SD, Sausalito-Marin City SD, Marin Community College. Uses undocumented POST endpoints (BD-GetMeetingsList, PRINT-AgendaDetailed). Reference impl: llama-index-readers-boarddocs.",
+        "priority": 1,
+        "status": "not_started",
+        "files": [
+          "packages/civicos-extraction/src/civicos_extraction/clients/boarddocs.py",
+          "packages/civicos-extraction/src/civicos_extraction/clients/factory.py"
+        ],
+        "test_file": "packages/civicos-extraction/tests/test_boarddocs.py",
+        "notes": "No auth needed. POST to /BD-GetMeetingsList?open returns JSON meeting list. POST to /PRINT-AgendaDetailed returns HTML agenda. Register as source_type boarddocs in factory. Config: app_path (e.g. ca/rova) + committee_id. ~1-2 sessions."
+      },
+      {
+        "name": "simbli_district_expansion",
+        "description": "Onboard 6 additional Marin school districts via existing Simbli client: Novato USD (S=36030351), Tamalpais Union HSD (S=36030468), Miller Creek SD, Mill Valley SD, Reed Union SD, Kentfield SD. Config-only \u2014 client already works.",
+        "priority": 2,
+        "status": "not_started",
+        "files": [
+          "config/registry.json"
+        ],
+        "test_file": null,
+        "notes": "CSBA merged AgendaOnline into GAMUT/Simbli \u2014 these districts are all accessible via simbli.eboardsolutions.com. Add jurisdiction YAML + registry entries. Run ingest for each. ~0.5 session."
+      },
+      {
+        "name": "ca_sos_results_client",
+        "description": "Wire CA Secretary of State Results API (api.sos.ca.gov) for state-level race results with Marin County breakdowns. No auth required, JSON responses. Covers governor, legislature, US Congress, state propositions.",
+        "priority": 1,
+        "status": "not_started",
+        "files": [
+          "packages/civicos-extraction/src/civicos_extraction/clients/ca_sos.py",
+          "scripts/modal_ingest.py"
+        ],
+        "test_file": "packages/civicos-extraction/tests/test_ca_sos.py",
+        "notes": "Unblocked, free, no auth required. State-level race results with county breakdowns. Useful for 'How did Marin vote on Prop X?' queries. ~0.5 session."
+      },
+      {
+        "name": "google_civic_deprecation",
+        "description": "Update Google Civic client to mark Representatives endpoint as deprecated (returns 0 results since April 2025). Add fallback to Congress.gov + LegiScan for representative lookups. Keep elections endpoint for polling location queries during major elections.",
+        "priority": 3,
+        "status": "not_started",
+        "files": [
+          "packages/civicos-extraction/src/civicos_extraction/clients/google_civic.py"
+        ],
+        "test_file": null,
+        "notes": "Low priority \u2014 the client does not crash, it just returns empty. Add deprecation warning in get_representatives(). Update get_election_details() to not call representatives. ~0.25 session."
       }
     ]
   }
