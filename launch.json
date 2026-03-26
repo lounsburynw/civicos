@@ -1,8 +1,8 @@
 {
   "version": "1.0",
   "phase": "launch",
-  "last_updated": "2026-03-25",
-  "summary": "Launch readiness: election integration (new), turnkey onboarding (done), federation queries, billing, operator tooling, multi-scale participation (done)",
+  "last_updated": "2026-03-26",
+  "summary": "Launch readiness: election+school onboarding integration (active), turnkey onboarding (done), federation queries, billing, operator tooling, multi-scale participation (done)",
   "category_order": [
     "turnkey_onboarding",
     "election_integration",
@@ -926,7 +926,7 @@
         "name": "direct_city_submission",
         "description": "Authenticated endpoint for city clerks to submit meeting data directly (PDF upload + metadata). Bypasses scraping entirely. Extension UI for drag-and-drop upload.",
         "status": "not_started",
-        "priority": 0,
+        "priority": 3,
         "phase": "B",
         "source": "onboarding friction \u2014 scraping is fragile, cities already have the data",
         "files": [
@@ -1260,7 +1260,7 @@
       {
         "name": "democracy_works_client",
         "description": "Build DemocracyWorksClient in extraction clients. REST v2 API \u2014 elections, candidates, ballot measures, deadlines, polling locations. BLOCKED: pricing unknown (sales-gated, no free tier). Must confirm nonprofit access before building.",
-        "priority": 1,
+        "priority": 3,
         "status": "not_started",
         "files": [
           "packages/civicos-extraction/src/civicos_extraction/clients/democracy_works.py",
@@ -1324,6 +1324,63 @@
         ],
         "test_file": "packages/civicos-extraction/tests/test_ca_sos_results.py",
         "notes": "Complete. 53 unit + 5 integration tests passing. Client covers statewide races, district races, ballot measures, county breakdowns, and reporting status. Storage mappers + Modal ingestion wired. Live API confirmed working."
+      },
+      {
+        "name": "election_source_config",
+        "description": "Add election_sources field to extraction configs. Update scheduled_election_refresh() to read per-jurisdiction election provider config and dispatch to Google Civic, Marin Registrar, and CA SOS as configured.",
+        "priority": 0,
+        "status": "not_started",
+        "phase": "B",
+        "source": "election-onboarding-spec.md",
+        "files": [
+          "scripts/modal_ingest.py",
+          "data/extraction/city-san-rafael.json",
+          "docs/public/data-dictionary.md"
+        ],
+        "test_file": null,
+        "notes": "Schema-first: define election_sources field, update scheduled_election_refresh() to read it, populate for existing jurisdictions. Must land before ca_sos_pipeline_wiring. ~1 session."
+      },
+      {
+        "name": "ca_sos_pipeline_wiring",
+        "description": "Wire CA SOS results into monthly election cron. fetch_ca_sos_election_results() Modal function exists but is not called by scheduled_election_refresh(). Add dispatch for jurisdictions with ca_sos_results in election_sources.",
+        "priority": 1,
+        "status": "not_started",
+        "phase": "B",
+        "source": "election-onboarding-spec.md",
+        "files": [
+          "scripts/modal_ingest.py",
+          "data/extraction/state-california.json"
+        ],
+        "test_file": "packages/civicos-extraction/tests/test_ca_sos_results.py",
+        "notes": "Depends on election_source_config. The Modal function and storage mappers already exist — this is wiring, not client work. Default: run for state-california with county breakdowns for Marin. ~0.5 session."
+      },
+      {
+        "name": "school_district_lookup",
+        "description": "Static lookup table (data/school_districts.json) mapping county -> school districts with platform URLs. Enable onboard.py --level school --city 'Novato' and --county 'Marin' --level school for batch onboarding.",
+        "priority": 1,
+        "status": "not_started",
+        "phase": "B",
+        "source": "election-onboarding-spec.md",
+        "files": [
+          "data/school_districts.json",
+          "packages/civicos-extraction/src/civicos_extraction/onboard.py",
+          "scripts/onboard.py"
+        ],
+        "test_file": null,
+        "notes": "Seed from existing data/extraction/school-*.json configs (8 Marin districts). Future: scrape CDE CALPADS API to auto-populate other counties. ~1 session."
+      },
+      {
+        "name": "onboard_election_detection",
+        "description": "Auto-detect election data sources during city/county onboarding. After geocoding, probe Google Civic, CA SOS, and county registrar availability. Populate election_sources in extraction config automatically.",
+        "priority": 2,
+        "status": "not_started",
+        "phase": "B",
+        "source": "election-onboarding-spec.md",
+        "files": [
+          "packages/civicos-extraction/src/civicos_extraction/onboard.py"
+        ],
+        "test_file": null,
+        "notes": "Depends on election_source_config (must know the schema). Detection logic: Google Civic always available, CA SOS for CA jurisdictions, Marin Registrar for Marin County. Division filter inferred from jurisdiction_id. ~0.5 session."
       },
       {
         "name": "google_civic_deprecation",
