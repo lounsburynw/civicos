@@ -691,11 +691,10 @@ def discover_granicus_subdomain(
     - townofsananselmo.granicus.com
     - sananselmo-ca.granicus.com
 
-    For each pattern, probes ViewPublisher.php with view_id 1 through max_view_id.
-    Returns on first successful hit (200 with HTML tables).
+    Also handles county names: "Marin County" tries marin, marincounty, countyofmarin.
 
     Args:
-        city_name: City name (e.g., "San Anselmo", "Mill Valley")
+        city_name: City or county name (e.g., "San Anselmo", "Marin County")
         state: Two-letter state code (default: "ca")
         timeout: HTTP request timeout in seconds
         max_view_id: Maximum view_id to probe (default: 8)
@@ -704,19 +703,32 @@ def discover_granicus_subdomain(
         Dict with keys: subdomain, view_id, url, table_count
         None if no Granicus instance found
     """
-    # Normalize city name: lowercase, remove spaces/hyphens
+    # Normalize: lowercase, remove spaces/hyphens
     slug = re.sub(r"[\s\-]+", "", city_name.lower().strip())
+    # Also create a version with level suffixes stripped: "Marin County" → "marin"
+    stripped = re.sub(r"(city|county|town|district|parish)\s*$", "",
+                      city_name.lower().strip(), flags=re.IGNORECASE).strip()
+    stripped_slug = re.sub(r"[\s\-]+", "", stripped)
 
     # Common Granicus subdomain patterns (ordered by frequency)
     candidates = [
-        slug,                         # e.g., dublin, millvalley
-        f"cityof{slug}",              # e.g., cityofmillvalley, cityofcampbell
+        slug,                         # e.g., dublin, marincounty
+        f"cityof{slug}",              # e.g., cityofmillvalley
         f"townof{slug}",              # e.g., townofsananselmo
+        f"countyof{slug}",            # e.g., countyofmarin
     ]
+    # If stripping the suffix produced a different slug, try it and its prefixed variants
+    if stripped_slug != slug:
+        candidates.insert(1, stripped_slug)           # e.g., marin
+        candidates.append(f"countyof{stripped_slug}") # e.g., countyofmarin
+        candidates.append(f"cityof{stripped_slug}")   # e.g., cityofmarin
     if state:
         state = state.lower().strip()
         candidates.insert(2, f"{slug}-{state}")   # e.g., sananselmo-ca
         candidates.append(f"{slug}{state}")        # e.g., sananselmoca
+        if stripped_slug != slug:
+            candidates.append(f"{stripped_slug}-{state}")  # e.g., marin-ca
+            candidates.append(f"{stripped_slug}{state}")    # e.g., marinca
 
     headers = {"User-Agent": "Civic-Platform-Detection/1.0"}
 
@@ -781,14 +793,23 @@ def discover_legistar_client(
         None if no Legistar instance found
     """
     slug = re.sub(r"[\s\-]+", "", city_name.lower().strip())
+    # Strip level suffixes: "Marin County" → "marin"
+    stripped = re.sub(r"(city|county|town|district|parish)\s*$", "",
+                      city_name.lower().strip(), flags=re.IGNORECASE).strip()
+    stripped_slug = re.sub(r"[\s\-]+", "", stripped)
 
     candidates = [
-        slug,                    # e.g., berkeley
+        slug,                    # e.g., berkeley, marincounty
         f"cityof{slug}",        # e.g., cityofberkeley
-        f"countyof{slug}",      # e.g., countyofmarin
+        f"countyof{slug}",      # e.g., countyofmarincounty
         f"townof{slug}",        # e.g., townofsananselmo
         f"{slug}city",          # e.g., berkeleycity
     ]
+    # If stripping produced a different slug, add those variants
+    if stripped_slug != slug:
+        candidates.insert(1, stripped_slug)              # e.g., marin
+        candidates.append(f"countyof{stripped_slug}")    # e.g., countyofmarin
+        candidates.append(f"{stripped_slug}county")      # e.g., marincounty (already there but explicit)
     if state:
         state = state.lower().strip()
         candidates.insert(1, f"{slug}-{state}")   # e.g., berkeley-ca
@@ -864,12 +885,19 @@ def discover_civicclerk_subdomain(
         None if no CivicClerk instance found
     """
     slug = re.sub(r"[\s\-]+", "", city_name.lower().strip())
+    stripped = re.sub(r"(city|county|town|district|parish)\s*$", "",
+                      city_name.lower().strip(), flags=re.IGNORECASE).strip()
+    stripped_slug = re.sub(r"[\s\-]+", "", stripped)
 
     candidates = [
         slug,                    # e.g., elcerrito
         f"cityof{slug}",        # e.g., cityofelcerrito
         f"townof{slug}",        # e.g., townofelcerrito
+        f"countyof{slug}",      # e.g., countyofmarincounty
     ]
+    if stripped_slug != slug:
+        candidates.insert(1, stripped_slug)              # e.g., marin
+        candidates.append(f"countyof{stripped_slug}")    # e.g., countyofmarin
     if state:
         state = state.lower().strip()
         candidates.insert(0, f"{slug}{state}")         # e.g., elcerritoca, austintx
