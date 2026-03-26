@@ -1,6 +1,6 @@
-# Recommended: Build Marin Registrar Election Results Client
+# Recommended: Run Marin Election Ingestion + Build BoardDocs Client
 
-**Priority:** P0
+**Priority:** P0 (boarddocs_client)
 **Area:** election_integration
 **Date:** 2026-03-25
 
@@ -8,71 +8,94 @@
 
 ## Context
 
-This session completed a deep research pass on election data sources and school board platforms for Bay Area / Marin County. Key findings: Google Civic Representatives API is dead (April 2025), civic data aggregator APIs (Democracy Works, Ballotpedia, BallotReady) all have opaque sales-gated pricing. The best path is building against primary government sources.
+This session built the `MarinRegistrarResultsClient` — a GraphQL client for historical Marin County election results (46 elections, 521 contests, 1,404 candidates, 2010-2025). Client is complete with 34 unit + 5 integration tests, storage mappers, and a Modal ingestion function. The client URL is configurable for multi-county support (Sonoma, Yolo use the same Civera/ElectionStats platform).
 
-The Marin County past elections database (`pastelections.marincounty.gov`) turned out to be powered by a **GraphQL API** (ElectionStats by Civera) — not CSV downloads as initially assumed. It's unauthenticated, structured, and has 15+ years of data. A new `election_integration` category was added to `launch.json` with 6 implementation items.
+**Not yet done:** (1) actual ingestion into Postgres, (2) schema decision on `election_candidates` table.
 
-## Recommended Task
+## Pre-P0: Run Marin Election Ingestion + Schema Decision
 
-Build a GraphQL client for the Marin County Registrar's ElectionStats platform. Three-query pattern:
-1. List elections (46 elections, June 2010 – May 2025)
-2. List contests per election (521 candidate contests, 380 ballot questions)
-3. Get precinct-level data per contest (146 precincts, vote channel breakdowns)
+Before starting BoardDocs, run the election results ingestion that was built but never executed.
 
-Map results to existing election data models (Election, Contest, Candidate, BallotMeasure). The storage protocol and Postgres schema are already complete.
+### Schema Decision: election_candidates table
 
-## Key Files
+Currently candidate vote data (votes_received, is_winner, vote_percentage) lives only in `raw_data` JSONB on `election_contests`. This works for display but prevents direct SQL queries on vote data.
 
-- `docs/internal/election-data-research.md` — **Full technical reference** including GraphQL queries, field schemas, response formats. Read the "Marin Registrar GraphQL Reference" section.
-- `packages/civicos-extraction/src/civicos_extraction/clients/marin_registrar.py` — Existing Playwright-based election schedule scraper. Extend or companion with GraphQL client.
-- `packages/civicos/src/civicos/_internal/elections/__init__.py` — Election, Contest, Candidate, BallotMeasure data models
-- `packages/civicos/src/civicos/storage/protocols/elections.py` — ElectionStorage protocol (store_elections, store_election_contests, etc.)
-- `packages/civicos/src/civicos/storage/postgres_backend.py:8663` — Postgres implementation of election storage
-- `scripts/modal_ingest.py:3393` — `fetch_elections()` Modal function
-- `packages/civicos-extraction/src/civicos_extraction/clients/google_civic.py` — Reference for how election data maps to storage models
-
-## Suggested Approach
-
-1. Read `docs/internal/election-data-research.md` (Marin Registrar GraphQL Reference section) for the full API spec
-2. Build `MarinRegistrarElectionStatsClient` (or extend existing `marin_registrar.py`) with three methods:
-   - `list_elections(from_year, to_year)` — GraphQL `searchSuggestions` query
-   - `list_contests(event_id)` — GraphQL `search` query with pagination
-   - `get_precinct_data(contest_id)` — GraphQL `contestGranularData` query
-3. Map to existing data models. May need to add `votes_received: Optional[int]` to the `Candidate` dataclass.
-4. Write storage mapping functions (similar to `google_civic_to_election()` pattern)
-5. Wire into `fetch_elections()` in `modal_ingest.py` as a source alongside Google Civic
-6. Test against live API (no auth needed)
-
-## GraphQL Endpoint
-
-```
-POST https://pastelections.marincounty.gov/api/graphql_pr
-Content-Type: application/json
-# No auth required
+**Consider** adding a dedicated table before ingestion:
+```sql
+CREATE TABLE election_candidates (
+    id TEXT NOT NULL,
+    contest_id TEXT NOT NULL,
+    name TEXT NOT NULL,
+    party TEXT,
+    votes_received INTEGER,
+    vote_percentage FLOAT,
+    is_winner BOOLEAN DEFAULT FALSE,
+    source TEXT,
+    valid_from TIMESTAMP, valid_to TIMESTAMP, deleted_at TIMESTAMP,
+    PRIMARY KEY (id, contest_id, valid_from)
+);
 ```
 
-The ElectionStats platform (by Civera) is also used by Sonoma County and Yolo County in CA — same API patterns with different tenant URLs. Building this client generalizes to those counties too.
+Enables: "races with <5% margin", "link council voting records to election results." If only the API displays contest details, JSONB is fine — skip the table.
+
+### Run Ingestion
+
+```bash
+# Dry run first
+modal run scripts/modal_ingest.py::fetch_marin_election_results --dry-run
+
+# San Rafael
+modal run scripts/modal_ingest.py::fetch_marin_election_results --division-filter "City of San Rafael"
+
+# All Marin (no filter) — covers Mill Valley, San Anselmo, etc.
+modal run scripts/modal_ingest.py::fetch_marin_election_results
+```
+
+## P0: BoardDocs Client
+
+Build `BoardDocsClient` for school board meeting ingestion. Covers 5 Marin districts: MCOE, Ross Valley SD, Larkspur-Corte Madera SD, Sausalito-Marin City SD, Marin Community College.
+
+**API details** (undocumented POST endpoints, no auth):
+- `POST /BD-GetMeetingsList?open` — returns JSON meeting list
+- `POST /PRINT-AgendaDetailed` — returns HTML agenda with file links
+- Config per district: `app_path` (e.g. `ca/rova`) + `committee_id`
+- Reference impl: `llama-index-readers-boarddocs` (pip package)
+- `docs/internal/election-data-research.md` has known committee IDs for 4 Marin districts
+
+### Key Files
+- `packages/civicos-extraction/src/civicos_extraction/clients/boarddocs.py` — create new
+- `packages/civicos-extraction/src/civicos_extraction/clients/factory.py` — register source_type
+- `packages/civicos-extraction/tests/test_boarddocs.py` — create new
+- `docs/internal/election-data-research.md` — BoardDocs section has endpoint details + committee IDs
+
+### Suggested Approach
+1. Read `docs/internal/election-data-research.md` BoardDocs section for full API details
+2. Build `BoardDocsClient` with `get_meetings()` and `get_agenda(meeting_id)`
+3. Register as `boarddocs` source type in factory
+4. Map meetings to existing Meeting dataclass
+5. Test against live endpoints (no auth needed)
+
+### Election Results Context (already complete)
+- `packages/civicos-extraction/src/civicos_extraction/clients/marin_registrar.py:506` — `MarinRegistrarResultsClient`
+- `packages/civicos-extraction/tests/test_marin_registrar.py` — 39 tests
+- `scripts/modal_ingest.py:3509` — `fetch_marin_election_results()` Modal function
+- `packages/civicos/src/civicos/_internal/elections/__init__.py` — Candidate has votes_received, vote_percentage, is_winner; BallotMeasure has yes/no vote tallies
+- `packages/civicos/src/civicos/storage/postgres_backend.py:8913` — `store_election_contests()` stores to `raw_data` JSONB
 
 ## Tests to Run
 
 ```bash
-# Existing election tests
-pytest packages/civicos-extraction/tests/test_marin_registrar.py -v
-# Smoke tests (verify no regressions)
+# Election results tests (verify still passing)
+pytest packages/civicos-extraction/tests/test_marin_registrar.py -v --override-ini="addopts="
+# Smoke tests
 pytest packages/civicos/tests/test_civicos.py -q --override-ini="addopts="
 ```
 
 ## Success Criteria
 
-- [ ] GraphQL client fetches elections, contests, and candidates from live API
-- [ ] Data maps to existing Election/Contest/Candidate models
-- [ ] Results stored to Postgres via existing ElectionStorage protocol
-- [ ] Precinct-level data available for San Rafael contests
+- [ ] Schema decision made on election_candidates table (add or skip)
+- [ ] Marin election results ingested to Postgres
+- [ ] BoardDocsClient fetches meetings from at least one Marin school district
+- [ ] BoardDocs meetings map to Meeting dataclass
+- [ ] Registered as source_type in factory
 - [ ] No regressions in smoke tests
-
-## Important Notes
-
-- The existing `marin_registrar.py` is a Playwright scraper for election *schedules* (upcoming dates). The new client is for election *results* (historical). These are complementary, not overlapping.
-- The `Candidate` dataclass may need `votes_received: Optional[int]` and `vote_percentage: Optional[float]` fields added.
-- Ballot measures appear as contests with candidates named "Yes"/"No" — the `pseudocandidate` field distinguishes real candidates from summary rows (TOTAL_VOTES, TOTAL_BALLOTS, etc.).
-- Pagination on the `search` query is 1-indexed.
