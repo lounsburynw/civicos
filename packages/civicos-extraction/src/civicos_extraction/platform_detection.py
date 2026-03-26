@@ -427,6 +427,76 @@ def _detect_simbli(board_url: str, timeout: int) -> tuple[float, Dict[str, Any]]
         return 0.0, metadata
 
 
+def _detect_boarddocs(url: str, timeout: int) -> tuple[float, Dict[str, Any]]:
+    """
+    Attempt BoardDocs detection by probing go.boarddocs.com endpoints.
+
+    BoardDocs URLs follow the pattern:
+        https://go.boarddocs.com/{state}/{site_code}/Board.nsf/...
+
+    Detection extracts app_path from the URL and probes the meetings list
+    endpoint to confirm it's a valid BoardDocs instance.
+
+    Returns:
+        Tuple of (confidence, metadata)
+    """
+    metadata: Dict[str, Any] = {"url": url}
+
+    # Extract app_path from URL
+    match = re.match(r"https?://go\.boarddocs\.com/([^/]+/[^/]+)", url)
+    if not match:
+        return 0.0, metadata
+
+    app_path = match.group(1)
+    metadata["app_path"] = app_path
+
+    # Probe the public page to confirm it exists and discover committees
+    probe_url = f"https://go.boarddocs.com/{app_path}/Board.nsf/vpublic?open"
+    try:
+        response = requests.get(
+            probe_url,
+            headers={
+                "User-Agent": (
+                    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+                    "AppleWebKit/537.36 (KHTML, like Gecko) "
+                    "Chrome/120.0.0.0 Safari/537.36"
+                ),
+            },
+            timeout=timeout,
+            allow_redirects=True,
+        )
+        metadata["status_code"] = response.status_code
+
+        if response.status_code == 200:
+            content = response.text
+            # Look for BoardDocs markers
+            if "boarddocs" in content.lower() or "Board.nsf" in content:
+                metadata["confirmed"] = True
+                # Try to extract committee IDs
+                from bs4 import BeautifulSoup
+                soup = BeautifulSoup(content, "html.parser")
+                committees = {}
+                for link in soup.find_all("a", class_="committee-trigger"):
+                    cid = link.get("committeeid", "")
+                    name = link.get_text(strip=True)
+                    if cid and name:
+                        committees[name] = cid
+                if committees:
+                    metadata["committees"] = committees
+                    metadata["committee_count"] = len(committees)
+                return 0.95, metadata
+            return 0.3, metadata  # URL matched but content didn't confirm
+        else:
+            return 0.0, metadata
+
+    except requests.exceptions.Timeout:
+        metadata["error"] = "Timeout"
+        return 0.0, metadata
+    except requests.exceptions.RequestException as e:
+        metadata["error"] = str(e)
+        return 0.0, metadata
+
+
 def _detect_universal(base_url: str, timeout: int) -> tuple[float, Dict[str, Any]]:
     """
     Last-resort detection: check if page has meeting-like content.
@@ -628,7 +698,22 @@ def detect_platform(
                 metadata=simbli_meta,
             )
 
-    # 6. Try ProudCity (scraping-based, slowest)
+    # 6. Try BoardDocs (go.boarddocs.com — school boards)
+    boarddocs_match = re.match(r"https?://go\.boarddocs\.com/", base_url)
+    if boarddocs_match:
+        bd_confidence, bd_meta = _detect_boarddocs(base_url, timeout)
+        all_metadata["boarddocs"] = bd_meta
+        if bd_confidence > best_confidence:
+            best_confidence = bd_confidence
+            best_result = DetectionResult(
+                source_type="boarddocs",
+                source_id=f"boarddocs-{jurisdiction_id}",
+                platform_name="BoardDocs",
+                confidence=bd_confidence,
+                metadata=bd_meta,
+            )
+
+    # 7. Try ProudCity (scraping-based, slowest)
     pc_confidence, pc_meta = _detect_proudcity(base_url, timeout)
     all_metadata["proudcity"] = pc_meta
     if pc_confidence > best_confidence:

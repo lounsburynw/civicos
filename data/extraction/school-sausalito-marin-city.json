@@ -1,0 +1,15 @@
+{
+  "source_id": "boarddocs-ca-smcsd",
+  "source_type": "boarddocs",
+  "jurisdiction_id": "school-sausalito-marin-city",
+  "base_url": "https://go.boarddocs.com/ca/smcsd/Board.nsf",
+  "auto_discover": false,
+  "archives": {},
+  "metadata": {
+    "app_path": "ca/smcsd",
+    "committee_id": "A4EP6J588C05",
+    "committee_name": "Board of Trustees",
+    "district_name": "Sausalito Marin City School District",
+    "created": "2026-03-26"
+  }
+}

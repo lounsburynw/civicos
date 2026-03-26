@@ -251,9 +251,66 @@ Use San Rafael as the baseline for what good ingestion looks like. After onboard
 | Legistar | 20-50 | 0.3-0.5 | API-accessible attachments |
 | CivicClerk | 10-40 | 0.2-0.4 | OData API |
 
+## School District Onboarding
+
+School districts use different platforms than cities (BoardDocs, Simbli) and require a slightly different flow.
+
+### BoardDocs Discovery (Agentic)
+
+BoardDocs site codes (e.g., `ca/rova`) can't be guessed from district names. Use **WebSearch** to find them:
+
+```
+WebSearch: site:go.boarddocs.com "Ross Valley"
+→ Results contain go.boarddocs.com/ca/rova/ → app_path = "ca/rova"
+```
+
+Once you have the URL, onboarding is fully automated:
+
+```python
+from civicos_extraction.onboard import onboard_jurisdiction
+result = onboard_jurisdiction(
+    "https://go.boarddocs.com/ca/rova/Board.nsf/Public",
+    "school-ross-valley",
+    level="school",
+)
+# Auto-discovers committees, generates config, wires into pipeline
+```
+
+**What's automated:**
+- Platform detection (95% confidence from URL pattern)
+- Committee ID discovery (parses main page HTML)
+- Extraction config generation (with `app_path` and `committee_id` in metadata)
+- Integration with `SUPPORTED_MEETING_SOURCES` → standard `fetch_meetings()` pipeline
+
+**What requires the agent:**
+- Finding the BoardDocs URL via WebSearch (site codes aren't predictable)
+- Knowing which school districts serve an area (geographic/policy knowledge)
+
+### Simbli Discovery
+
+Simbli instances use predictable subdomains (`{slug}.simbli.com`) and are auto-discovered by `discover_platform()`. No WebSearch needed — just pass the district name:
+
+```bash
+python scripts/onboard.py --city "San Rafael City Schools" --state CA --level school
+```
+
+### Multi-District Onboarding
+
+When onboarding a city, consider also onboarding its school districts. For Marin County, known BoardDocs districts:
+
+| District | BoardDocs Path | Jurisdiction ID |
+|----------|---------------|-----------------|
+| Ross Valley SD | `ca/rova` | `school-ross-valley` |
+| Marin County OE | `ca/marinschools` | `school-marin-county-oe` |
+| Larkspur-Corte Madera SD | `ca/lcmsd` | `school-larkspur-corte-madera` |
+| Sausalito Marin City SD | `ca/smcsd` | `school-sausalito-marin-city` |
+| College of Marin | `ca/marin` | `college-marin` |
+
+For new areas, use WebSearch: `site:go.boarddocs.com "{county name}" OR "{city name}" school`
+
 ## Notes
 
-- Platform detection works for **Granicus** (direct *.granicus.com URLs, 95% confidence; indirect via city site links, 85%), **Legistar** (API probe), **CivicClerk** (OData probe), and **ProudCity** (HTML scrape).
+- Platform detection works for **Granicus** (direct *.granicus.com URLs, 95% confidence; indirect via city site links, 85%), **Legistar** (API probe), **CivicClerk** (OData probe), **BoardDocs** (URL pattern + page probe, 95%), **Simbli** (subdomain probe, 70-95%), and **ProudCity** (HTML scrape).
 - For Granicus, `discover_view_ids()` probes view_ids 1-50 automatically. Review discovered bodies — some may be historical or redundant.
 - Ingestion tiers are stored in `data/jurisdictions/{id}.yaml` under `ingestion:`. The pipeline reads these to decide what to run.
 - Reference configs: `city-san-rafael.yaml` (all tiers enabled), `county-marin.yaml` (conservative defaults).

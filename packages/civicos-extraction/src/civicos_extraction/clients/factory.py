@@ -41,6 +41,11 @@ def create_source(config):
         from civicos_extraction.clients.simbli import SimbliClient
         board_url = config.metadata.get("board_url", config.base_url)
         return SimbliClient(board_url, config.jurisdiction_id)
+    elif source_type == "boarddocs":
+        from civicos_extraction.clients.boarddocs import BoardDocsClient
+        app_path = config.metadata.get("app_path", "")
+        committee_id = config.metadata.get("committee_id")
+        return BoardDocsClient(app_path, config.jurisdiction_id, committee_id=committee_id)
     elif source_type == "universal":
         from civicos_extraction.clients.universal import UniversalSource
         return UniversalSource(config)

@@ -108,7 +108,7 @@ This same principle likely applies beyond elections — permits, zoning, budget 
 
 **Key discovery**: CSBA (California School Boards Association) merged AgendaOnline into GAMUT, which runs on Simbli. Many districts that used AgendaOnline are now on Simbli infrastructure.
 
-#### BoardDocs (needs new client)
+#### BoardDocs (client complete, extraction configs ready)
 
 | District | Edition | App Path |
 |----------|---------|----------|

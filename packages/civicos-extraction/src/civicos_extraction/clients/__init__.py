@@ -10,6 +10,7 @@ Each client wraps a specific municipal platform API:
 - fac: Federal Audit Clearinghouse (Single Audit / SEFA data)
 - google_civic: Google Civic Information API (elections, voter info)
 - marin_registrar: Marin County Registrar of Voters (local elections)
+- boarddocs: BoardDocs school board portals (meetings, agendas, attachments)
 - san_rafael_clerk: San Rafael City Clerk (city candidates, local measures)
 - representatives: Unified representative lookup (Congress.gov, Open States, local)
 - hud_exchange: HUD Exchange / HUD CPD allocation data (CDBG, HOME, ESG, etc.)
@@ -112,13 +113,20 @@ from civicos_extraction.clients.sam_assistance import (
 # Registry of meeting source types with implemented fetch support in the
 # ingestion pipeline.  Used by onboard.py and modal_ingest.py to decide
 # which stages to run.  Add new source types here as clients are wired up.
-SUPPORTED_MEETING_SOURCES: frozenset[str] = frozenset({"proudcity", "granicus", "legistar", "civicclerk", "escribe"})
+SUPPORTED_MEETING_SOURCES: frozenset[str] = frozenset({"proudcity", "granicus", "legistar", "civicclerk", "escribe", "boarddocs"})
 
 # Registry of 311 issue source types with implemented fetch support.
 # Used by modal_ingest.py fetch_issues() to dispatch to the correct client.
 # Add new issue providers here as clients are wired up.
 SUPPORTED_ISSUE_SOURCES: frozenset[str] = frozenset({"seeclickfix"})
 
+from civicos_extraction.clients.boarddocs import (
+    BoardDocsClient,
+    BoardDocsMeeting,
+    AgendaItem,
+    boarddocs_meeting_to_storage,
+    extract_boarddocs_meetings_to_storage,
+)
 from civicos_extraction.clients.escribe import EScribeClient
 from civicos_extraction.clients.federal_register import (
     FederalRegisterClient,
@@ -197,6 +205,11 @@ __all__ = [
     "sam_program_to_storage",
     "extract_programs_for_topics",
     "extract_programs_by_aln",
+    "BoardDocsClient",
+    "BoardDocsMeeting",
+    "AgendaItem",
+    "boarddocs_meeting_to_storage",
+    "extract_boarddocs_meetings_to_storage",
     "FederalRegisterClient",
     "get_recent_executive_orders",
 ]

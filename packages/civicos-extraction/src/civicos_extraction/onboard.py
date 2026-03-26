@@ -437,6 +437,63 @@ def _discover_simbli(url: str, jurisdiction_id: str) -> Dict[str, Any]:
     }
 
 
+def _discover_boarddocs(url: str, jurisdiction_id: str) -> Dict[str, Any]:
+    """Run BoardDocs-specific discovery.
+
+    Extracts app_path from the URL and auto-discovers committee IDs
+    from the BoardDocs main page. Works for any BoardDocs instance
+    regardless of state or district.
+
+    Args:
+        url: BoardDocs URL (e.g., "https://go.boarddocs.com/ca/rova/Board.nsf/Public")
+        jurisdiction_id: Target jurisdiction ID
+
+    Returns:
+        Dict with 'config' and 'discovered_bodies' keys.
+    """
+    # Extract app_path from URL
+    match = re.match(r"https?://go\.boarddocs\.com/([^/]+/[^/]+)", url)
+    if not match:
+        raise ValueError(f"Could not extract app_path from BoardDocs URL: {url}")
+
+    app_path = match.group(1)
+
+    # Auto-discover committee IDs from the main page
+    from civicos_extraction.clients.boarddocs import BoardDocsClient
+
+    client = BoardDocsClient(
+        app_path=app_path,
+        jurisdiction_id=jurisdiction_id,
+        request_delay=0.5,
+    )
+    committees = client.discover_committee_ids()
+
+    # Use first committee as default (usually the main governing board)
+    committee_id = ""
+    if committees:
+        first_name = next(iter(committees))
+        committee_id = committees[first_name]
+        logger.info(f"BoardDocs: auto-selected committee '{first_name}' ({committee_id})")
+
+    config = {
+        "source_id": f"boarddocs-{app_path.replace('/', '-')}",
+        "source_type": "boarddocs",
+        "jurisdiction_id": jurisdiction_id,
+        "base_url": f"https://go.boarddocs.com/{app_path}/Board.nsf",
+        "archives": {},
+        "metadata": {
+            "app_path": app_path,
+            "committee_id": committee_id,
+            "committees": committees,
+        },
+    }
+
+    return {
+        "config": config,
+        "discovered_bodies": committees,
+    }
+
+
 def _discover_proudcity(url: str, jurisdiction_id: str) -> Dict[str, Any]:
     """Run ProudCity-specific discovery."""
     from civicos_extraction.clients.proudcity import ProudCityClient
@@ -1393,6 +1450,11 @@ def onboard_jurisdiction(
                 discovery_result = _discover_simbli(url, jurisdiction_id)
             except Exception as e:
                 errors.append(f"Simbli discovery failed: {e}")
+        elif platform == "boarddocs":
+            try:
+                discovery_result = _discover_boarddocs(url, jurisdiction_id)
+            except Exception as e:
+                errors.append(f"BoardDocs discovery failed: {e}")
         elif platform == "proudcity":
             try:
                 discovery_result = _discover_proudcity(url, jurisdiction_id)
@@ -1418,7 +1480,7 @@ def onboard_jurisdiction(
                 detection=detection_dict,
                 errors=[
                     f"No platform detected (confidence: {detection.confidence:.0%}). "
-                    "Supported platforms: granicus, legistar, civicclerk, escribe, simbli, proudcity."
+                    "Supported platforms: granicus, legistar, civicclerk, escribe, simbli, boarddocs, proudcity."
                 ],
                 next_steps=[
                     "Check that the URL is correct",
@@ -1433,6 +1495,8 @@ def onboard_jurisdiction(
                 discovery_result = _discover_escribe(url, jurisdiction_id)
             elif detection.source_type == "simbli":
                 discovery_result = _discover_simbli(url, jurisdiction_id)
+            elif detection.source_type == "boarddocs":
+                discovery_result = _discover_boarddocs(url, jurisdiction_id)
             elif detection.source_type == "proudcity":
                 discovery_result = _discover_proudcity(url, jurisdiction_id)
             else:

@@ -1,0 +1,15 @@
+{
+  "source_id": "boarddocs-ca-marinschools",
+  "source_type": "boarddocs",
+  "jurisdiction_id": "school-marin-county-oe",
+  "base_url": "https://go.boarddocs.com/ca/marinschools/Board.nsf",
+  "auto_discover": false,
+  "archives": {},
+  "metadata": {
+    "app_path": "ca/marinschools",
+    "committee_id": "A4EP6J588C05",
+    "committee_name": "Board of Education",
+    "district_name": "Marin County Office of Education",
+    "created": "2026-03-26"
+  }
+}
