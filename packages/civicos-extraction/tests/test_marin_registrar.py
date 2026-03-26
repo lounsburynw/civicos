@@ -333,6 +333,26 @@ class TestMarinResultsToContest:
         ids = [c["id"] for c in result["candidates"]]
         assert len(ids) == len(set(ids))
 
+    def test_raw_data_contains_mapped_candidates(self):
+        """raw_data must contain mapped_candidates for JSONB persistence."""
+        contest = {**SAMPLE_CONTEST_CANDIDATE}
+        contest["candidates"] = [c for c in contest["candidates"] if not (c["candidate"] or {}).get("pseudocandidate")]
+        result = marin_results_to_contest(contest)
+        raw = result["raw_data"]
+        assert "mapped_candidates" in raw
+        assert len(raw["mapped_candidates"]) == 2
+        assert raw["mapped_candidates"][0]["votes_received"] == 15234
+
+    def test_raw_data_contains_mapped_ballot_measure(self):
+        """raw_data must contain mapped_ballot_measure for JSONB persistence."""
+        contest = {**SAMPLE_CONTEST_BALLOT_MEASURE}
+        contest["candidates"] = [c for c in contest["candidates"] if not (c["candidate"] or {}).get("pseudocandidate")]
+        result = marin_results_to_contest(contest)
+        raw = result["raw_data"]
+        assert "mapped_ballot_measure" in raw
+        assert raw["mapped_ballot_measure"]["yes_votes"] == 18000
+        assert raw["mapped_ballot_measure"]["passed"] is True
+
 
 # ==================== Pseudo-Candidate Filtering ====================
 

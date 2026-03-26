@@ -835,6 +835,7 @@ class ElectionStorageProtocol(Protocol):
         self,
         jurisdiction_id: str,
         elections: List[Dict[str, Any]],
+        as_of: Optional[datetime] = None,
     ) -> int:
         """Store elections with temporal versioning."""
         ...
@@ -843,6 +844,7 @@ class ElectionStorageProtocol(Protocol):
         self,
         election_id: str,
         contests: List[Dict[str, Any]],
+        as_of: Optional[datetime] = None,
     ) -> int:
         """Store election contests with temporal versioning."""
         ...
@@ -1029,6 +1031,15 @@ def marin_results_to_contest(contest: Dict[str, Any]) -> Dict[str, Any]:
             "source": "marin_registrar_results",
         }
 
+    # Embed mapped candidates and ballot_measure into raw_data so they persist
+    # in the JSONB column (store_election_contests only stores raw_data, not
+    # top-level candidates/ballot_measure keys)
+    enriched_raw = {
+        **contest,
+        "mapped_candidates": candidates,
+        "mapped_ballot_measure": ballot_measure,
+    }
+
     return {
         "id": f"marin-contest-{contest_id}",
         "title": title,
@@ -1037,7 +1048,7 @@ def marin_results_to_contest(contest: Dict[str, Any]) -> Dict[str, Any]:
         "number_elected": contest.get("nSeats", 1),
         "candidates": candidates,
         "ballot_measure": ballot_measure,
-        "raw_data": contest,
+        "raw_data": enriched_raw,
     }
 
 

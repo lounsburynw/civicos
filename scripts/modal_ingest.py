@@ -3597,12 +3597,19 @@ def fetch_marin_election_results(
         division_filter=division_filter or None,
     )
 
+    # Compute fingerprint for skip-check on next refresh
+    import hashlib
+    fingerprint = hashlib.sha256(
+        f"{counts['elections']}:{counts['contests']}:{counts['candidates']}:{from_year}-{to_year}".encode()
+    ).hexdigest()[:16]
+
     # Update refresh metadata
     backend.update_refresh_metadata(
         jurisdiction, "elections", "marin_registrar_results",
         items_fetched=counts["elections"] + counts["contests"],
         items_stored=counts["elections"] + counts["contests"],
         status="completed",
+        last_fetch_hash=fingerprint,
     )
 
     # Auto-index vectors if requested and data was stored
