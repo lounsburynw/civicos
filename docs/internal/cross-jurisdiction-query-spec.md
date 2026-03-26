@@ -160,7 +160,7 @@ Tested cross-jurisdiction queries against PostgreSQL with real Marin data (SR 83
 
 **Issue: Ref Format Inconsistency (P2 — PARTIALLY FIXED 2026-03-17)**
 - FIXED: `_make_ref()` now detects when `item_id` already has the ref prefix and avoids doubling
-- SR refs are now correct: `decision:city-san-rafael:2026-02-17:5-c` (no more doubled prefix)
+- SR refs are now correct: `decision:city-san-rafael:proudcity-city-san-rafael-city-council-february-17-2026-tuesday:05` (no more doubled prefix)
 - REMAINING: MV has description text leaked into decision IDs from extraction (`1- bayfront terrace/1 hamilton drive...`). This is a data quality issue that needs re-extraction to fix properly.
 
 **Issue: Intermittent DNS Failure (P2 — FIXED 2026-03-17)**

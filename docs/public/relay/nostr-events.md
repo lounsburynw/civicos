@@ -23,7 +23,7 @@ A citizen's stance on a civic entity. One voice per key per entity (new stance r
 **Tags:**
 ```json
 [
-  ["d", "decision:city-san-rafael:2026-02-03:item-6a"],
+  ["d", "decision:city-san-rafael:proudcity-city-san-rafael-city-council-february-3-2026-tuesday:06"],
   ["j", "city-san-rafael"],
   ["stance", "support"]
 ]
@@ -45,7 +45,7 @@ A public comment on a civic entity. One comment per key per entity.
 **Tags:**
 ```json
 [
-  ["d", "decision:city-san-rafael:2026-02-03:item-6a"],
+  ["d", "decision:city-san-rafael:proudcity-city-san-rafael-city-council-february-3-2026-tuesday:06"],
   ["j", "city-san-rafael"],
   ["stance", "support"]
 ]
@@ -171,7 +171,7 @@ A civic entity record (decision, meeting, agenda item, initiative).
 **Tags:**
 ```json
 [
-  ["d", "decision:city-san-rafael:2026-02-03:item-6a"],
+  ["d", "decision:city-san-rafael:proudcity-city-san-rafael-city-council-february-3-2026-tuesday:06"],
   ["j", "city-san-rafael"],
   ["type", "decision"],
   ["title", "Housing Accountability Act Amendment"],

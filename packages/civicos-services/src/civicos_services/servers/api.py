@@ -411,11 +411,22 @@ async def health_check(request: Request):
 
     Returns basic health status for load balancers and monitoring.
     """
-    return {
+    health = {
         "status": "healthy",
         "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
-        "version": "0.4.0"
+        "version": "0.4.0",
     }
+
+    # Include connection pool stats when available
+    try:
+        from ..core.api_keys import get_api_key_store
+        store = get_api_key_store()
+        if store.available:
+            health["platform_db_pool"] = store.pool_stats()
+    except Exception:
+        pass
+
+    return health
 
 
 # === Main ===

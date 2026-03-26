@@ -197,6 +197,34 @@ class ApiKeyStore:
         """Check if the Platform DB is configured and reachable."""
         return self._get_pool() is not None
 
+    def pool_stats(self) -> dict:
+        """Return connection pool statistics for monitoring."""
+        pool = self._get_pool()
+        if pool is None:
+            return {"available": False}
+        # SimpleConnectionPool tracks connections in _used and _pool dicts
+        used = len(getattr(pool, '_used', {}))
+        free = len(getattr(pool, '_pool', {}))
+        minconn = getattr(pool, 'minconn', 0)
+        maxconn = getattr(pool, 'maxconn', 0)
+        stats = {
+            "available": True,
+            "min_connections": minconn,
+            "max_connections": maxconn,
+            "used": used,
+            "free": free,
+            "utilization_pct": round(used / maxconn * 100, 1) if maxconn else 0,
+        }
+        if maxconn and used >= maxconn:
+            logger.warning("Connection pool exhausted", extra={
+                "used": used, "max": maxconn,
+            })
+        elif maxconn and used >= maxconn * 0.8:
+            logger.warning("Connection pool near capacity", extra={
+                "used": used, "max": maxconn, "utilization_pct": stats["utilization_pct"],
+            })
+        return stats
+
     def validate_key(self, raw_key: str) -> Optional[ApiKeyInfo]:
         """Look up a key by its raw value, checking status and expiration.
 

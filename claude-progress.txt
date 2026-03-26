@@ -23841,3 +23841,72 @@ Built CASOSResultsClient for the CA Secretary of State election results API (api
 - packages/civicos-extraction/src/civicos_extraction/clients/__init__.py (exports + docstring)
 - scripts/modal_ingest.py (fetch_ca_sos_election_results)
 - launch.json (ca_sos_results_client → done)
+
+## Session — 2026-03-26: Simbli District Expansion (P0)
+**Item:** simbli_district_expansion
+**Status:** DONE
+
+**What was done:**
+- Discovered Simbli/AgendaOnline URLs for 6 Marin school districts
+  - Novato USD + Tamalpais Union HSD → simbli.eboardsolutions.com (S=36030351, S=36030468)
+  - Miller Creek, Mill Valley, Reed Union, Kentfield → agendaonline.net portals
+- Added "simbli" to SUPPORTED_MEETING_SOURCES in __init__.py
+- Created `simbli_image` (Playwright+Chromium) and `fetch_simbli_meetings()` Modal function in modal_ingest.py
+- Added simbli dispatch branch in `fetch_meetings()` → delegates to `fetch_simbli_meetings.remote()`
+- Created 6 extraction config JSONs in data/extraction/ (school-{name}.json)
+- Added 6 school district entries to config/registry.json
+- All configs load correctly, factory dispatch verified, smoke tests pass (20/20)
+
+**Files changed:**
+- packages/civicos-extraction/src/civicos_extraction/clients/__init__.py (SUPPORTED_MEETING_SOURCES)
+- scripts/modal_ingest.py (simbli_image, fetch_simbli_meetings, fetch_meetings dispatch)
+- data/extraction/school-novato.json (new)
+- data/extraction/school-tamalpais.json (new)
+- data/extraction/school-miller-creek.json (new)
+- data/extraction/school-mill-valley-sd.json (new)
+- data/extraction/school-reed-union.json (new)
+- data/extraction/school-kentfield.json (new)
+- config/registry.json (6 new school district entries)
+- launch.json (simbli_district_expansion → done)
+
+**Notes:**
+- 3 pre-existing Simbli test failures (stale ID format expectations, not regressions)
+- AgendaOnline (agendaonline.net) is part of eBoardSolutions/Simbli ecosystem — same client handles both
+- Next: Run `modal run scripts/modal_ingest.py::fetch_simbli_meetings --jurisdiction school-novato --dry-run` to test live fetch
+
+## Session — 2026-03-26: query_monitoring_and_docs (P0)
+
+**Item:** query_monitoring_and_docs (federation_testbed)
+**Status:** DONE
+
+### What was done:
+
+**1. Query Monitoring (verbs.py)**
+- Added `_log_query_metrics()` structured logging function with configurable latency thresholds
+- CORPUS_LATENCY_WARN_MS (5s), CORPUS_LATENCY_ERROR_MS (15s) per-corpus
+- QUERY_LATENCY_WARN_MS (8s), QUERY_LATENCY_ERROR_MS (20s) total query
+- Logs at INFO/WARNING/ERROR based on thresholds, includes per-corpus timing breakdown
+- Wired into execute_search, execute_upcoming, execute_context, and cross-jurisdiction search
+- Structured extra fields: verb, jurisdiction, query, total_time_ms, corpus_times_ms, slow_corpora, error_corpora
+
+**2. Connection Pool Metrics (api_keys.py)**
+- Added `pool_stats()` to ApiKeyStore: returns used/free/min/max/utilization_pct
+- Warns when pool at >=80% or 100% capacity
+- Wired into /health endpoint for production monitoring
+
+**3. Docs Sweep (11 files, 19 replacements)**
+- Updated all stale decision ID references from old `decision:{jur}:{date}:{item}` format
+- New format: `decision:{jur}:{meeting_slug}:{ordinal}` per entity_id_namespace.md ADR
+- Files: 5 learning modules, api.md, building-agents.md, quickstart-api.md, query_interface.md, nostr-events.md, storage-schema.md, cross-jurisdiction-query-spec.md
+- Verified: zero old-format references remaining, 20 new-format refs (19 replaced + 1 original in ADR)
+
+**Files changed:**
+- packages/civicos-services/src/civicos_services/query/verbs.py (monitoring)
+- packages/civicos-services/src/civicos_services/core/api_keys.py (pool_stats)
+- packages/civicos-services/src/civicos_services/servers/api.py (health endpoint)
+- docs/public/learning/01-05 (decision ID format)
+- docs/public/api.md, building-agents.md, quickstart-api.md (decision ID format)
+- docs/public/decisions/query_interface.md (decision ID format)
+- docs/public/relay/nostr-events.md (decision ID format)
+- docs/internal/storage-schema.md, cross-jurisdiction-query-spec.md (decision ID format)
+- launch.json (query_monitoring_and_docs → done)

@@ -36,6 +36,59 @@ logger = logging.getLogger(__name__)
 
 CORPUS_TIMEOUT_S = 20
 
+# Latency alert thresholds (ms) — per-corpus
+CORPUS_LATENCY_WARN_MS = 5_000   # Warn if a single corpus exceeds this
+CORPUS_LATENCY_ERROR_MS = 15_000  # Error if a single corpus exceeds this
+
+# Total query latency thresholds (ms)
+QUERY_LATENCY_WARN_MS = 8_000
+QUERY_LATENCY_ERROR_MS = 20_000
+
+
+def _log_query_metrics(
+    verb: str,
+    jurisdiction: str,
+    query: str,
+    total_time_ms: int,
+    corpus_times: dict[str, int],
+    corpus_status: dict[str, str],
+    corpus_counts: dict[str, int],
+    total_results: int,
+) -> None:
+    """Emit structured log event for query performance tracking.
+
+    Logs at INFO for normal queries, WARNING for slow queries, ERROR for
+    very slow queries or those with corpus errors/timeouts.
+    """
+    slow_corpora = {
+        c: t for c, t in corpus_times.items() if t >= CORPUS_LATENCY_WARN_MS
+    }
+    error_corpora = {
+        c: s for c, s in corpus_status.items() if s in ("timeout", "error")
+    }
+
+    # Determine log level
+    level = logging.INFO
+    if slow_corpora or total_time_ms >= QUERY_LATENCY_WARN_MS:
+        level = logging.WARNING
+    if error_corpora or total_time_ms >= QUERY_LATENCY_ERROR_MS or any(
+        t >= CORPUS_LATENCY_ERROR_MS for t in corpus_times.values()
+    ):
+        level = logging.ERROR
+
+    logger.log(level, "query_complete", extra={
+        "verb": verb,
+        "jurisdiction": jurisdiction,
+        "query": query[:100],
+        "total_time_ms": total_time_ms,
+        "total_results": total_results,
+        "corpus_times_ms": corpus_times,
+        "corpus_status": corpus_status,
+        "corpus_counts": corpus_counts,
+        "slow_corpora": slow_corpora if slow_corpora else None,
+        "error_corpora": list(error_corpora.keys()) if error_corpora else None,
+    })
+
 
 # === civic.search ===
 
@@ -137,6 +190,17 @@ async def execute_search(
         corpus_times_ms=corpus_times,
         corpus_status=corpus_status,
         total_results=sum(corpus_counts.values()),
+    )
+
+    _log_query_metrics(
+        verb="search",
+        jurisdiction=jid,
+        query=request.query,
+        total_time_ms=total_time,
+        corpus_times=corpus_times,
+        corpus_status=corpus_status,
+        corpus_counts=corpus_counts,
+        total_results=meta.total_results,
     )
 
     # === Mode: diff (EXCEPT — what's new since snapshot) ===
@@ -417,6 +481,17 @@ async def _execute_cross_jurisdiction_search(
         corpus_counts=all_corpus_counts,
         corpus_times_ms=all_corpus_times,
         corpus_status=all_corpus_status,
+        total_results=len(all_results),
+    )
+
+    _log_query_metrics(
+        verb="search:cross_jurisdiction",
+        jurisdiction=base_jid,
+        query=request.query,
+        total_time_ms=total_time,
+        corpus_times=all_corpus_times,
+        corpus_status=all_corpus_status,
+        corpus_counts=all_corpus_counts,
         total_results=len(all_results),
     )
 
@@ -734,13 +809,26 @@ async def execute_upcoming(
 
     total_time = int((time.monotonic() - start) * 1000)
 
+    corpus_counts = {t: sum(1 for r in results if r.type == t or t in (r.type + "s")) for t in request.types}
+
+    _log_query_metrics(
+        verb="upcoming",
+        jurisdiction=jid,
+        query=f"upcoming:{','.join(request.types)}",
+        total_time_ms=total_time,
+        corpus_times=corpus_times,
+        corpus_status=corpus_status,
+        corpus_counts=corpus_counts,
+        total_results=len(results),
+    )
+
     return UpcomingResponse(
         results=results,
         meta=ResponseMeta(
             schema_version=SCHEMA_VERSION,
             query_time_ms=total_time,
             corpora_searched=request.types,
-            corpus_counts={t: sum(1 for r in results if r.type == t or t in (r.type + "s")) for t in request.types},
+            corpus_counts=corpus_counts,
             corpus_times_ms=corpus_times,
             corpus_status=corpus_status,
             total_results=len(results),
@@ -844,6 +932,19 @@ async def execute_context(
         context_data = {"error": str(e)}
 
     total_time = int((time.monotonic() - start) * 1000)
+
+    log_level = logging.INFO
+    if total_time >= QUERY_LATENCY_WARN_MS:
+        log_level = logging.WARNING
+    if total_time >= QUERY_LATENCY_ERROR_MS:
+        log_level = logging.ERROR
+    logger.log(log_level, "query_complete", extra={
+        "verb": "context",
+        "jurisdiction": parsed.get("jurisdiction", jurisdiction),
+        "query": f"context:{request.ref}",
+        "total_time_ms": total_time,
+        "ref_type": parsed.get("type"),
+    })
 
     return ContextResponse(
         context=context_data,

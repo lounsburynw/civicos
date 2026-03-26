@@ -25,7 +25,7 @@ Each has different constraints and different answers.
 A relay is a store for signed events. The events themselves carry jurisdiction tags (`["j", "city-san-rafael"]`). A single relay *can* host entities from any number of jurisdictions — there's no technical constraint. The entity namespaces already handle disambiguation:
 
 ```
-decision:city-san-rafael:2026-02-03:item-6a     ← city entity
+decision:city-san-rafael:proudcity-city-san-rafael-city-council-february-3-2026-tuesday:06     ← city entity
 initiative:marin-county:transit-expansion        ← county entity
 legislation:california:sb-1234                   ← state entity
 program:us-federal:cdbg-2026                     ← federal entity

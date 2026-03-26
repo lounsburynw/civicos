@@ -36,7 +36,7 @@ Source: LLM-assisted minutes extraction
 
 | Column | Type | Notes |
 |--------|------|-------|
-| `id` | str | Primary key (e.g., `decision:city-san-rafael:2026-02-17:5-b`) |
+| `id` | str | Primary key (e.g., `decision:city-san-rafael:proudcity-city-san-rafael-city-council-february-17-2026-tuesday:05`) |
 | `jurisdiction_id` | str | |
 | `meeting_date` | str | Date string |
 | `meeting_id` | str | FK to meetings |

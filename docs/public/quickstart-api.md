@@ -103,7 +103,7 @@ curl -X POST "$BASE/api/v2/civic/upcoming" \
 # Deep context for a specific item (using ref from search results)
 curl -X POST "$BASE/api/v2/civic/context" \
   -H "Content-Type: application/json" \
-  -d '{"ref": "decision:city-san-rafael:dec-123"}'
+  -d '{"ref": "decision:city-san-rafael:proudcity-city-san-rafael-city-council-january-20-2026-tuesday:03"}'
 
 # Discover available corpora and capabilities
 curl -X POST "$BASE/api/v2/civic/explore" \

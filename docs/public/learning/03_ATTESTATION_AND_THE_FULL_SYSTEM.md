@@ -781,7 +781,7 @@ Here's everything in one view:
 
 4. RELAY RECEIVES ENTITY
    Entity event (kind 30801) published to relay
-   "decision:city-san-rafael:2026-02-03:item-6a"
+   "decision:city-san-rafael:proudcity-city-san-rafael-city-council-february-3-2026-tuesday:06"
 
 5. RESIDENTS VOICE
    23 attested residents voice on the entity
