@@ -1273,7 +1273,7 @@
         "name": "marin_registrar_results_client",
         "description": "Build GraphQL client for pastelections.marincounty.gov (ElectionStats/Civera platform). Historical local election results 2010-2025: 46 elections, 521 contests, 1,404 candidates with vote counts, precinct breakdowns, ballot measures. Three-query pattern: list elections, list contests, get precinct data.",
         "priority": 0,
-        "status": "not_started",
+        "status": "done",
         "files": [
           "packages/civicos-extraction/src/civicos_extraction/clients/marin_registrar.py",
           "packages/civicos/src/civicos/_internal/elections/__init__.py"
@@ -1284,7 +1284,7 @@
       {
         "name": "boarddocs_client",
         "description": "Build BoardDocsClient for school board meeting ingestion. Covers MCOE, Ross Valley SD, Larkspur-Corte Madera SD, Sausalito-Marin City SD, Marin Community College. Uses undocumented POST endpoints (BD-GetMeetingsList, PRINT-AgendaDetailed). Reference impl: llama-index-readers-boarddocs.",
-        "priority": 1,
+        "priority": 0,
         "status": "not_started",
         "files": [
           "packages/civicos-extraction/src/civicos_extraction/clients/boarddocs.py",

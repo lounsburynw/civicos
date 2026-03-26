@@ -75,6 +75,10 @@ class Candidate:
     source: str = "unknown"
     # Link to elected official record (if incumbent)
     official_id: Optional[str] = None
+    # Election results
+    votes_received: Optional[int] = None
+    vote_percentage: Optional[float] = None
+    is_winner: bool = False
 
 
 @dataclass
@@ -90,6 +94,11 @@ class BallotMeasure:
     arguments_against: List[str] = field(default_factory=list)
     passed: Optional[bool] = None
     source: str = "unknown"
+    # Vote tallies
+    yes_votes: Optional[int] = None
+    no_votes: Optional[int] = None
+    yes_percentage: Optional[float] = None
+    no_percentage: Optional[float] = None
 
 
 @dataclass
@@ -153,7 +162,12 @@ class Election:
                     "title": c.title,
                     "contest_type": c.contest_type.value,
                     "candidates": [
-                        {"id": x.id, "name": x.name, "party": x.party}
+                        {
+                            "id": x.id, "name": x.name, "party": x.party,
+                            "votes_received": x.votes_received,
+                            "vote_percentage": x.vote_percentage,
+                            "is_winner": x.is_winner,
+                        }
                         for x in c.candidates
                     ],
                     "ballot_measure": (
@@ -161,6 +175,11 @@ class Election:
                             "id": c.ballot_measure.id,
                             "title": c.ballot_measure.title,
                             "description": c.ballot_measure.description,
+                            "passed": c.ballot_measure.passed,
+                            "yes_votes": c.ballot_measure.yes_votes,
+                            "no_votes": c.ballot_measure.no_votes,
+                            "yes_percentage": c.ballot_measure.yes_percentage,
+                            "no_percentage": c.ballot_measure.no_percentage,
                         }
                         if c.ballot_measure
                         else None

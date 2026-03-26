@@ -23713,3 +23713,44 @@ modal run scripts/modal_ingest.py --legislation --legislation-jurisdiction state
 **Research doc updated:** docs/internal/election-data-research.md now has full technical references for all three APIs
 
 **Memory updated:** Added feedback on civic data aggregator pricing pattern
+
+## Session — 2026-03-25: marin_registrar_results_client (P0)
+
+**Item:** marin_registrar_results_client (election_integration)
+**Status:** DONE
+
+**Changes:**
+1. Added result fields to election data models:
+   - `Candidate`: votes_received, vote_percentage, is_winner
+   - `BallotMeasure`: yes_votes, no_votes, yes_percentage, no_percentage
+   - Updated `Election.to_dict()` to serialize new fields
+
+2. Built `MarinRegistrarResultsClient` GraphQL client in marin_registrar.py:
+   - list_elections() — searchSuggestions query (46 elections, 2010-2025)
+   - list_contests() — search query with auto-pagination
+   - get_precinct_data() — contestGranularData for precinct breakdowns
+   - get_election_results() — convenience method with division filter + pseudo-candidate filtering
+   - health()/validate() methods
+   - No auth required (unauthenticated GraphQL at pastelections.marincounty.gov)
+
+3. Added storage mappers:
+   - marin_results_to_election() — maps events to storage format
+   - marin_results_to_contest() — maps contests with candidates and ballot measures
+   - extract_marin_results_to_storage() — full pipeline: fetch all elections, contests, store
+   - _map_contest_type() — infers ContestType from office/division names
+   - Pseudo-candidate filtering (TOTAL_VOTES, TOTAL_BALLOTS, etc.)
+
+4. Wired into modal_ingest.py:
+   - fetch_marin_election_results() Modal function
+   - Supports year range, division filter, dry_run, auto_index
+
+5. Tests: 37 total (32 unit + 5 integration), all passing
+   - Unit: client methods, pagination, pseudo-filtering, division filter, type inference, mappers
+   - Integration: live API tests for elections, contests, health, validate
+
+**Files changed:**
+- packages/civicos/src/civicos/_internal/elections/__init__.py (data model additions)
+- packages/civicos-extraction/src/civicos_extraction/clients/marin_registrar.py (GraphQL client + mappers)
+- packages/civicos-extraction/tests/test_marin_registrar.py (new test file)
+- scripts/modal_ingest.py (fetch_marin_election_results function)
+- launch.json (status: done)
