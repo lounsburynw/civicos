@@ -21,5 +21,12 @@
     "voter_approved_tax_oversight_committee": "/voter-approved-tax-oversight-committee-meetings/",
     "zoning_administrator": "/zoning-administrator-hearings/"
   },
-  "issue_source": "seeclickfix"
+  "issue_source": "seeclickfix",
+  "election_sources": {
+    "google_civic": true,
+    "marin_registrar_results": {
+      "from_year": 2010,
+      "division_filter": "City of San Rafael"
+    }
+  }
 }

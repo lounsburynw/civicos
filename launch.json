@@ -1,7 +1,7 @@
 {
   "version": "1.0",
   "phase": "launch",
-  "last_updated": "2026-03-26",
+  "last_updated": "2026-03-27",
   "summary": "Launch readiness: election+school onboarding integration (active), turnkey onboarding (done), federation queries, billing, operator tooling, multi-scale participation (done)",
   "category_order": [
     "turnkey_onboarding",
@@ -1329,7 +1329,7 @@
         "name": "election_source_config",
         "description": "Add election_sources field to extraction configs. Update scheduled_election_refresh() to read per-jurisdiction election provider config and dispatch to Google Civic, Marin Registrar, and CA SOS as configured.",
         "priority": 0,
-        "status": "not_started",
+        "status": "done",
         "phase": "B",
         "source": "election-onboarding-spec.md",
         "files": [
@@ -1343,7 +1343,7 @@
       {
         "name": "ca_sos_pipeline_wiring",
         "description": "Wire CA SOS results into monthly election cron. fetch_ca_sos_election_results() Modal function exists but is not called by scheduled_election_refresh(). Add dispatch for jurisdictions with ca_sos_results in election_sources.",
-        "priority": 1,
+        "priority": 0,
         "status": "not_started",
         "phase": "B",
         "source": "election-onboarding-spec.md",

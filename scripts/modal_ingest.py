@@ -5771,12 +5771,16 @@ def scheduled_election_refresh():
     - VIP (Voter Information Project) publishes election data 2-3 weeks before elections
     - Elected officials change infrequently (after elections or special circumstances)
 
-    Data sources:
-    - Elections: Google Civic Information API
-    - Elected officials: Congress.gov (federal), LegiScan (state), curated (local)
+    Data sources (dispatched per-jurisdiction via election_sources config):
+    - google_civic: Google Civic Information API (default if no election_sources configured)
+    - marin_registrar_results: Marin County GraphQL election results
+    - ca_sos_results: CA Secretary of State election results
+
+    Elected officials: Congress.gov (federal), LegiScan (state), curated (local)
 
     Iterates all configured jurisdictions from data/extraction/*.json.
     """
+    import json as json_mod
     import logging
     import time
 
@@ -5796,19 +5800,73 @@ def scheduled_election_refresh():
     for jid, config in jurisdictions.items():
         results[jid] = {}
 
-        # Fetch elections
-        try:
-            logger.info(f"  [{jid}] Fetching elections...")
-            result = fetch_elections.local(jurisdiction=jid, dry_run=False, auto_index=True)
-            results[jid]["elections"] = result
-            stored = result.get('elections_stored', 0)
-            indexed = result.get('vector_result', {}).get('total_indexed', 0) if result.get('auto_index') else 0
-            logger.info(f"    Elections: {result.get('elections_fetched', 0)} fetched, {stored} stored, {indexed} vectors indexed")
-        except Exception as e:
-            logger.exception(f"  [{jid}] Election fetch failed")
-            results[jid]["elections"] = {"status": "failed", "error": str(e)}
+        # Read election_sources from config; default to Google Civic only
+        election_sources = config.get("election_sources", {"google_civic": True})
 
-        # Fetch elected officials
+        known_providers = {"google_civic", "marin_registrar_results", "ca_sos_results"}
+        unknown = set(election_sources.keys()) - known_providers
+        if unknown:
+            logger.warning(f"  [{jid}] Unknown election source(s): {unknown} — skipped. Known: {known_providers}")
+
+        # --- Google Civic ---
+        if "google_civic" in election_sources:
+            try:
+                logger.info(f"  [{jid}] Fetching elections (Google Civic)...")
+                result = fetch_elections.local(jurisdiction=jid, dry_run=False, auto_index=True)
+                results[jid]["google_civic"] = result
+                stored = result.get('elections_stored', 0)
+                indexed = result.get('vector_result', {}).get('total_indexed', 0) if result.get('auto_index') else 0
+                logger.info(f"    Google Civic: {result.get('elections_fetched', 0)} fetched, {stored} stored, {indexed} indexed")
+            except Exception as e:
+                logger.exception(f"  [{jid}] Google Civic election fetch failed")
+                results[jid]["google_civic"] = {"status": "failed", "error": str(e)}
+
+        # --- Marin Registrar ---
+        if "marin_registrar_results" in election_sources:
+            provider_config = election_sources["marin_registrar_results"]
+            if provider_config is True:
+                provider_config = {}
+            try:
+                from_year = provider_config.get("from_year", 2010)
+                division_filter = provider_config.get("division_filter", "")
+                logger.info(f"  [{jid}] Fetching elections (Marin Registrar, from_year={from_year}, division={division_filter or 'all'})...")
+                result = fetch_marin_election_results.local(
+                    jurisdiction=jid,
+                    from_year=from_year,
+                    division_filter=division_filter,
+                    dry_run=False,
+                    auto_index=True,
+                )
+                results[jid]["marin_registrar_results"] = result
+                logger.info(f"    Marin Registrar: {result.get('elections_stored', 0)} elections stored")
+            except Exception as e:
+                logger.exception(f"  [{jid}] Marin Registrar fetch failed")
+                results[jid]["marin_registrar_results"] = {"status": "failed", "error": str(e)}
+
+        # --- CA Secretary of State ---
+        if "ca_sos_results" in election_sources:
+            provider_config = election_sources["ca_sos_results"]
+            if provider_config is True:
+                provider_config = {}
+            try:
+                county = provider_config.get("county", "")
+                districts = provider_config.get("districts", {})
+                districts_json = json_mod.dumps(districts) if districts else ""
+                logger.info(f"  [{jid}] Fetching elections (CA SOS, county={county or 'statewide'})...")
+                result = fetch_ca_sos_election_results.local(
+                    jurisdiction=jid,
+                    county=county,
+                    districts_json=districts_json,
+                    dry_run=False,
+                    auto_index=True,
+                )
+                results[jid]["ca_sos_results"] = result
+                logger.info(f"    CA SOS: {result.get('contests_stored', 0)} contests stored")
+            except Exception as e:
+                logger.exception(f"  [{jid}] CA SOS fetch failed")
+                results[jid]["ca_sos_results"] = {"status": "failed", "error": str(e)}
+
+        # --- Elected Officials (always runs) ---
         try:
             logger.info(f"  [{jid}] Fetching elected officials...")
             result = fetch_elected_officials.local(jurisdiction=jid, dry_run=False)

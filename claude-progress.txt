@@ -1,3 +1,36 @@
+## Session — 2026-03-26: election_source_config (P0)
+
+**Item:** election_source_config (election_integration)
+**Status:** DONE
+
+**What was done:**
+1. Updated `scheduled_election_refresh()` in `scripts/modal_ingest.py` to read `election_sources` from each jurisdiction's extraction config and dispatch to 3 providers:
+   - `google_civic` → `fetch_elections.local()` (existing behavior, now explicit)
+   - `marin_registrar_results` → `fetch_marin_election_results.local()` with from_year, division_filter
+   - `ca_sos_results` → `fetch_ca_sos_election_results.local()` with county, districts_json
+   - Backward compatible: configs without `election_sources` default to `{"google_civic": true}`
+
+2. Added `election_sources` to 4 extraction configs:
+   - `city-san-rafael.json` — Google Civic + Marin Registrar (division: "City of San Rafael")
+   - `county-marin.json` — Google Civic + Marin Registrar + CA SOS (county: "marin")
+   - `city-san-anselmo.json` — Google Civic + Marin Registrar (division: "Town of San Anselmo")
+   - `city-mill-valley.json` — Google Civic + Marin Registrar (division: "City of Mill Valley")
+
+3. Documented `election_sources` schema in `docs/public/data-dictionary.md` — provider keys, config shapes, example
+
+**Next P0:** `ca_sos_pipeline_wiring` — dispatch is already wired, remaining work is creating `state-california` config, adding `ca_sos_results` with districts to city-san-rafael, and integration tests.
+
+**Files changed:**
+- scripts/modal_ingest.py (scheduled_election_refresh dispatch)
+- data/extraction/city-san-rafael.json (election_sources)
+- data/extraction/county-marin.json (election_sources)
+- data/extraction/city-san-anselmo.json (election_sources)
+- data/extraction/city-mill-valley.json (election_sources)
+- docs/public/data-dictionary.md (election_sources docs)
+- launch.json (election_source_config → done, ca_sos_pipeline_wiring → P0)
+
+---
+
 ## Session — 2026-03-23: legistar_client (P0) + turnkey onboarding roadmap
 
 **Item:** legistar_client (federation_testbed)

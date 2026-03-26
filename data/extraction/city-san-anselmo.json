@@ -14,5 +14,12 @@
   "financial": {
     "state": "CA",
     "county": "Marin"
+  },
+  "election_sources": {
+    "google_civic": true,
+    "marin_registrar_results": {
+      "from_year": 2010,
+      "division_filter": "Town of San Anselmo"
+    }
   }
 }

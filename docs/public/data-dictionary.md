@@ -277,6 +277,38 @@ Returned by `draft_action()`.
 | `description` | str | Action description |
 | `citations` | list | Source citations |
 
+## Extraction Config: `election_sources`
+
+Optional field in `data/extraction/*.json` configs that controls which election data providers are queried for each jurisdiction during the monthly `scheduled_election_refresh()` cron.
+
+If absent, defaults to `{"google_civic": true}`.
+
+### Provider Keys
+
+| Key | API | Config | Notes |
+|-----|-----|--------|-------|
+| `google_civic` | Google Civic Information API | `true` | Polling locations, upcoming elections |
+| `marin_registrar_results` | Marin County GraphQL (pastelections.marincounty.gov) | `{"from_year": int, "division_filter": str}` | Historical contest results. `division_filter` scopes to a city/district |
+| `ca_sos_results` | CA Secretary of State (api.sos.ca.gov) | `{"county": str, "districts": {race_type: [int]}}` | Current/most-recent statewide + district races, ballot measures |
+
+### Example
+
+```json
+{
+  "election_sources": {
+    "google_civic": true,
+    "marin_registrar_results": {
+      "from_year": 2010,
+      "division_filter": "City of San Rafael"
+    },
+    "ca_sos_results": {
+      "county": "marin",
+      "districts": {"us-rep": [2], "state-assembly": [12], "state-senate": [2]}
+    }
+  }
+}
+```
+
 ## Data Coverage (San Rafael Pilot)
 
 | Corpus | Records | Source |
