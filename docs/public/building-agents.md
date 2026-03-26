@@ -67,7 +67,7 @@ resp = httpx.post(f"{BASE}/api/v2/civic/upcoming",
 
 # Deep context for a specific item
 resp = httpx.post(f"{BASE}/api/v2/civic/context",
-    json={"ref": "decision:city-san-rafael:dec-123"},
+    json={"ref": "decision:city-san-rafael:proudcity-city-san-rafael-city-council-january-20-2026-tuesday:03"},
     headers=headers)
 
 # City pulse (open tier — no auth required)
@@ -159,7 +159,7 @@ public_key = private_key.public_key_xonly.hex()
 # Construct the voice event (kind 30800)
 created_at = int(time.time())
 tags = [
-    ["d", "decision:city-san-rafael:2026-03-10:item-5"],
+    ["d", "decision:city-san-rafael:proudcity-city-san-rafael-city-council-march-10-2026-tuesday:05"],
     ["j", "city-san-rafael"],
     ["stance", "support"]
 ]

@@ -354,7 +354,7 @@ curl -X POST "$BASE/api/v2/civic/search" \
   "results": [
     {
       "type": "decision",
-      "ref": "decision:city-san-rafael:dec-123",
+      "ref": "decision:city-san-rafael:proudcity-city-san-rafael-city-council-january-20-2026-tuesday:03",
       "title": "Approve Housing Element Update",
       "date": "2026-02-15",
       "summary": "Approved 4-1 — City Council",

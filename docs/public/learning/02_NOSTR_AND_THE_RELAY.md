@@ -152,7 +152,7 @@ Addressable events (kinds 30000-39999):
   Like a wiki page: identified by a name, editable.
 
   Example: Kind 30800 (Civic Voice) — your stance on entity X.
-  d-tag = "decision:city-san-rafael:2026-02-03:item-6a"
+  d-tag = "decision:city-san-rafael:proudcity-city-san-rafael-city-council-february-3-2026-tuesday:06"
   If you change your stance, the old voice is replaced.
 ```
 
@@ -168,7 +168,7 @@ Tags are how events reference other events, topics, and metadata. They're arrays
 
 ```json
 "tags": [
-  ["d", "decision:city-san-rafael:2026-02-03:item-6a"],
+  ["d", "decision:city-san-rafael:proudcity-city-san-rafael-city-council-february-3-2026-tuesday:06"],
   ["j", "city-san-rafael"],
   ["stance", "support"],
   ["t", "housing"],
@@ -310,7 +310,7 @@ When you voice "support" on an agenda item, the browser extension creates this N
   "pubkey": "your_public_key",
   "created_at": 1738464000,
   "tags": [
-    ["d", "decision:city-san-rafael:2026-02-03:item-6a"],
+    ["d", "decision:city-san-rafael:proudcity-city-san-rafael-city-council-february-3-2026-tuesday:06"],
     ["j", "city-san-rafael"],
     ["stance", "support"],
     ["t", "housing"]
@@ -330,7 +330,7 @@ CivicOS entities have structured identifiers:
 
 ```
 Government-originated (signed by jurisdiction key):
-  decision:city-san-rafael:2026-02-03:item-6a
+  decision:city-san-rafael:proudcity-city-san-rafael-city-council-february-3-2026-tuesday:06
   agenda:2026-02-03:city-council
   meeting:city-san-rafael:2026-02-03
 

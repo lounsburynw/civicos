@@ -87,7 +87,7 @@ Sub-corpus qualifiers (e.g., `testimony:public`) allow filtering without the age
   "results": [
     {
       "type": "decision",
-      "ref": "decision:city-san-rafael:2025-11-15:item-5a",
+      "ref": "decision:city-san-rafael:proudcity-city-san-rafael-city-council-november-17-2025-monday:05",
       "title": "Approve ADU ordinance update",
       "date": "2025-11-15",
       "summary": "Council approved updates to ADU regulations allowing...",
@@ -163,7 +163,7 @@ Deep context for a specific item. Wraps the existing `assemble_context` engine. 
 
 ```json
 {
-  "ref": "decision:city-san-rafael:2025-11-15:item-5a",
+  "ref": "decision:city-san-rafael:proudcity-city-san-rafael-city-council-november-17-2025-monday:05",
   "depth": "deep",
   "sections": ["history", "testimony", "regulatory", "financial", "participation"]
 }

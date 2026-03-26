@@ -221,7 +221,7 @@ Let's trace what happens when you tap "Support" on a civic item:
 1. YOUR DEVICE (browser extension)
 
    Message to sign:
-     entity: "decision:city-san-rafael:2026-02-03:item-6a"
+     entity: "decision:city-san-rafael:proudcity-city-san-rafael-city-council-february-3-2026-tuesday:06"
      stance: "support"
      kind: 30800 (civic voice)
      jurisdiction: "city-san-rafael"

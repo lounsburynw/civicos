@@ -153,7 +153,7 @@ Every hour (or every N events), the relay publishes a signed
 commitment to its complete voice set for each entity:
 
 {
-  "entity": "decision:city-san-rafael:2026-02-03:item-6a",
+  "entity": "decision:city-san-rafael:proudcity-city-san-rafael-city-council-february-3-2026-tuesday:06",
   "timestamp": "2026-02-03T14:00:00Z",
   "voice_count": 23,
   "merkle_root": "a1b2c3d4...",
