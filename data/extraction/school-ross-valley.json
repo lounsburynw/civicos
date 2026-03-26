@@ -1,0 +1,15 @@
+{
+  "source_id": "boarddocs-ca-rova",
+  "source_type": "boarddocs",
+  "jurisdiction_id": "school-ross-valley",
+  "base_url": "https://go.boarddocs.com/ca/rova/Board.nsf",
+  "auto_discover": false,
+  "archives": {},
+  "metadata": {
+    "app_path": "ca/rova",
+    "committee_id": "AB9A2R259AF0",
+    "committee_name": "Main Governing Board",
+    "district_name": "Ross Valley School District",
+    "created": "2026-03-26"
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "source_id": "boarddocs-ca-lcmsd",
+  "source_type": "boarddocs",
+  "jurisdiction_id": "school-larkspur-corte-madera",
+  "base_url": "https://go.boarddocs.com/ca/lcmsd/Board.nsf",
+  "auto_discover": false,
+  "archives": {},
+  "metadata": {
+    "app_path": "ca/lcmsd",
+    "committee_id": "A4EP6J588C05",
+    "committee_name": "Board of Trustees",
+    "district_name": "Larkspur-Corte Madera School District",
+    "created": "2026-03-26"
+  }
+}

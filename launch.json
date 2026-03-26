@@ -1285,7 +1285,7 @@
         "name": "boarddocs_client",
         "description": "Build BoardDocsClient for school board meeting ingestion. Covers MCOE, Ross Valley SD, Larkspur-Corte Madera SD, Sausalito-Marin City SD, Marin Community College. Uses undocumented POST endpoints (BD-GetMeetingsList, PRINT-AgendaDetailed). Reference impl: llama-index-readers-boarddocs.",
         "priority": 0,
-        "status": "not_started",
+        "status": "done",
         "files": [
           "packages/civicos-extraction/src/civicos_extraction/clients/boarddocs.py",
           "packages/civicos-extraction/src/civicos_extraction/clients/factory.py"

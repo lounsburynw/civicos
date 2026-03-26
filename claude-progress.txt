@@ -23754,3 +23754,48 @@ modal run scripts/modal_ingest.py --legislation --legislation-jurisdiction state
 - packages/civicos-extraction/tests/test_marin_registrar.py (new test file)
 - scripts/modal_ingest.py (fetch_marin_election_results function)
 - launch.json (status: done)
+
+## Session — 2026-03-26: boarddocs_client (P0)
+
+**Item:** boarddocs_client (election_integration)
+**Status:** DONE
+
+**What was built:**
+1. BoardDocsClient — locale-agnostic extraction client for BoardDocs school board portals
+   - POST-based API (BD-GetMeetingsList → JSON, PRINT-AgendaDetailed → HTML)
+   - Committee ID auto-discovery from main page
+   - Agenda parsing with category/item/attachment extraction
+   - No auth, no Playwright — simple HTTP requests
+   - File: packages/civicos-extraction/src/civicos_extraction/clients/boarddocs.py
+
+2. Full pipeline integration:
+   - Registered in factory.py (source_type "boarddocs")
+   - Added to SUPPORTED_MEETING_SOURCES → standard fetch_meetings() dispatcher works
+   - fetch_boarddocs_meetings() Modal function for dedicated ingestion
+   - Extraction configs for 5 Marin districts (1,162 total meetings)
+
+3. Platform detection + onboarding:
+   - _detect_boarddocs() in platform_detection.py — URL pattern matching + page probe
+   - _discover_boarddocs() in onboard.py — auto-discovers committees, generates config
+   - Fully wired into onboard_jurisdiction() for both URL-based and pre-discovered flows
+   - Documented agentic discovery pattern: WebSearch for BoardDocs URLs by district name
+
+4. Tests: 43 total (38 unit + 5 integration), all passing
+
+**Key design decision:** BoardDocs site codes (e.g., ca/rova) aren't derivable from district names.
+Rather than adding web search to the Python library, the /onboard agent uses WebSearch to find
+the URL, then passes it to deterministic Python code. Agent = search layer, Python = execution layer.
+
+**Files changed:**
+- packages/civicos-extraction/src/civicos_extraction/clients/boarddocs.py (new)
+- packages/civicos-extraction/tests/test_boarddocs.py (new)
+- packages/civicos-extraction/src/civicos_extraction/clients/__init__.py (exports + SUPPORTED_MEETING_SOURCES)
+- packages/civicos-extraction/src/civicos_extraction/clients/factory.py (boarddocs dispatch)
+- packages/civicos-extraction/src/civicos_extraction/platform_detection.py (_detect_boarddocs)
+- packages/civicos-extraction/src/civicos_extraction/onboard.py (_discover_boarddocs)
+- scripts/modal_ingest.py (fetch_boarddocs_meetings + fetch_meetings dispatcher)
+- data/extraction/school-*.json, college-marin.json (5 new extraction configs)
+- .claude/commands/onboard.md (school district onboarding docs)
+- docs/public/packages/civicos-extraction.md (updated platform table + discovery docs)
+- docs/internal/election-data-research.md (marked BoardDocs as complete)
+- launch.json (boarddocs_client → done)

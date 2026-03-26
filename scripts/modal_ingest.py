@@ -2908,6 +2908,17 @@ def fetch_meetings(
                 jurisdiction_id=jurisdiction,
             )
             meetings = client.get_meetings(days_ahead=days_ahead, days_past=days_past)
+        elif source_type == "boarddocs":
+            from civicos_extraction.clients.boarddocs import BoardDocsClient
+            from datetime import date
+            client = BoardDocsClient(
+                app_path=config.metadata.get("app_path", ""),
+                jurisdiction_id=jurisdiction,
+                committee_id=config.metadata.get("committee_id"),
+            )
+            since_date = date.today() - timedelta(days=days_past) if days_past > 0 else None
+            bd_meetings = client.get_meetings(since=since_date)
+            meetings = [m.to_meeting(jurisdiction, config.metadata.get("app_path", "")) for m in bd_meetings]
         else:
             from civicos_extraction.clients import SUPPORTED_MEETING_SOURCES
             logger.warning(f"[MEETINGS] source_type '{source_type}' not yet supported "
@@ -3641,6 +3652,142 @@ def fetch_marin_election_results(
     if vector_result:
         result["vector_result"] = vector_result
     return result
+
+
+# =============================================================================
+# BoardDocs School Board Meeting Fetch
+# =============================================================================
+
+@app.function(
+    image=civic_image,
+    secrets=[
+        modal.Secret.from_name("civic-db"),
+    ],
+    memory=2048,
+    timeout=600,  # 10 minutes (fetches all meetings + optionally agendas)
+    retries=modal.Retries(max_retries=2, backoff_coefficient=2.0, initial_delay=10.0),
+)
+def fetch_boarddocs_meetings(
+    app_path: str = "ca/rova",
+    jurisdiction: str = "",
+    committee_id: str = "",
+    fetch_agendas: bool = False,
+    dry_run: bool = False,
+) -> dict:
+    """Fetch school board meetings from a BoardDocs portal.
+
+    Queries BoardDocs undocumented POST endpoints for meeting lists and
+    optionally full agendas. No API key required.
+
+    Args:
+        app_path: BoardDocs site path (e.g., "ca/rova" for Ross Valley SD)
+        jurisdiction: Target jurisdiction ID. If empty, inferred from app_path.
+        committee_id: BoardDocs committee ID. If empty, auto-discovered from main page.
+        fetch_agendas: If True, also fetch full agenda HTML for each meeting (slower)
+        dry_run: If True, fetch but don't store
+    """
+    import logging
+    import os
+    import time
+
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+    logger = logging.getLogger(__name__)
+    start_time = time.time()
+
+    from civicos.storage.postgres_backend import PostgresBackend
+    from civicos_extraction.clients.boarddocs import (
+        BoardDocsClient,
+        extract_boarddocs_meetings_to_storage,
+    )
+
+    database_url = os.environ.get("DATABASE_URL")
+    if not database_url:
+        raise ValueError("DATABASE_URL not set")
+
+    # Resolve jurisdiction from app_path if not provided
+    if not jurisdiction:
+        jurisdiction = f"school-{app_path.replace('/', '-')}"
+
+    logger.info(
+        f"[BOARDDOCS] Starting fetch: app_path={app_path}, "
+        f"jurisdiction={jurisdiction}, committee_id={committee_id or 'auto-discover'}"
+    )
+
+    # Create client
+    client = BoardDocsClient(
+        app_path=app_path,
+        jurisdiction_id=jurisdiction,
+        committee_id=committee_id or None,
+    )
+
+    # Validate
+    validation = client.validate()
+    if not validation.is_valid:
+        raise RuntimeError(f"BoardDocs validation failed: {validation.errors}")
+
+    meetings = client.get_meetings()
+    logger.info(f"[BOARDDOCS] Fetched {len(meetings)} meetings")
+
+    if dry_run:
+        elapsed = time.time() - start_time
+        return {
+            "task": "boarddocs_meetings",
+            "app_path": app_path,
+            "jurisdiction": jurisdiction,
+            "meetings_found": len(meetings),
+            "meetings_stored": 0,
+            "dry_run": True,
+            "elapsed_seconds": elapsed,
+            "cost_usd": 2 * elapsed * 0.000463,
+        }
+
+    # Optionally fetch agendas for each meeting
+    agendas_fetched = 0
+    if fetch_agendas:
+        for m in meetings:
+            items = client.get_agenda(m.unique)
+            if items:
+                m.agenda_items = [
+                    {"category": i.category, "subject": i.subject, "type": i.item_type}
+                    for i in items
+                ]
+                agendas_fetched += 1
+
+    # Store
+    backend = PostgresBackend(database_url)
+    count = extract_boarddocs_meetings_to_storage(
+        client=client,
+        storage=backend,
+        jurisdiction_id=jurisdiction,
+    )
+
+    # Update refresh metadata
+    import hashlib
+    fingerprint = hashlib.sha256(
+        f"{count}:{app_path}:{client.committee_id}".encode()
+    ).hexdigest()[:16]
+
+    backend.update_refresh_metadata(
+        jurisdiction, "meetings", "boarddocs",
+        items_fetched=len(meetings),
+        items_stored=count,
+        status="completed",
+        last_fetch_hash=fingerprint,
+    )
+
+    elapsed = time.time() - start_time
+    return {
+        "task": "boarddocs_meetings",
+        "app_path": app_path,
+        "jurisdiction": jurisdiction,
+        "committee_id": client.committee_id,
+        "meetings_found": len(meetings),
+        "meetings_stored": count,
+        "agendas_fetched": agendas_fetched,
+        "dry_run": False,
+        "elapsed_seconds": elapsed,
+        "cost_usd": 2 * elapsed * 0.000463,
+    }
 
 
 @app.function(
