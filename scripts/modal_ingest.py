@@ -3655,6 +3655,150 @@ def fetch_marin_election_results(
 
 
 # =============================================================================
+# CA Secretary of State Election Results Fetch (REST — api.sos.ca.gov)
+# =============================================================================
+
+@app.function(
+    image=civic_image,
+    secrets=[
+        modal.Secret.from_name("civic-db"),
+    ],
+    memory=4096,
+    timeout=600,  # 10 minutes (single election, statewide + district + measures)
+    retries=modal.Retries(max_retries=2, backoff_coefficient=2.0, initial_delay=10.0),
+)
+def fetch_ca_sos_election_results(
+    jurisdiction: str = "state-california",
+    county: str = "",
+    districts_json: str = "",
+    election_type: str = "general",
+    dry_run: bool = False,
+    auto_index: bool = False,
+) -> dict:
+    """Fetch election results from CA Secretary of State API.
+
+    Queries api.sos.ca.gov for statewide races, district races, ballot measures,
+    and county-level breakdowns.  No API key required.
+
+    Note: the API only serves the current/most-recent election — no historical data.
+
+    Args:
+        jurisdiction: Target jurisdiction (default "state-california")
+        county: County slug for breakdowns (e.g., "marin")
+        districts_json: JSON dict mapping race_type to district numbers,
+                        e.g., '{"us-rep": [2], "state-assembly": [12], "state-senate": [2]}'
+        election_type: "general", "primary", or "special"
+        dry_run: If True, fetch but don't store
+        auto_index: If True, trigger vector indexing after successful storage
+    """
+    import hashlib
+    import json
+    import logging
+    import os
+    import time
+
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+    logger = logging.getLogger(__name__)
+    start_time = time.time()
+
+    from civicos.storage.postgres_backend import PostgresBackend
+    from civicos_extraction.clients.ca_sos_results import (
+        CASOSResultsClient,
+        extract_ca_sos_results_to_storage,
+    )
+
+    database_url = os.environ.get("DATABASE_URL")
+    if not database_url:
+        raise ValueError("DATABASE_URL not set")
+
+    # Parse districts
+    districts = None
+    if districts_json:
+        districts = json.loads(districts_json)
+
+    logger.info(
+        f"[CA SOS] Starting fetch: jurisdiction={jurisdiction}, "
+        f"county={county or 'none'}, election_type={election_type}"
+    )
+
+    # Create client and validate
+    client = CASOSResultsClient(jurisdiction_id=jurisdiction)
+    validation = client.validate()
+    if not validation.is_valid:
+        raise RuntimeError(f"CA SOS API validation failed: {validation.errors}")
+
+    if dry_run:
+        # Dry run: fetch status only
+        status = client.get_reporting_status()
+        elapsed = time.time() - start_time
+        return {
+            "task": "ca_sos_election_results",
+            "jurisdiction": jurisdiction,
+            "counties_reporting": len(status),
+            "elections_stored": 0,
+            "contests_stored": 0,
+            "dry_run": True,
+            "elapsed_seconds": elapsed,
+            "cost_usd": 4 * elapsed * 0.000463,
+        }
+
+    # Extract and store
+    backend = PostgresBackend(database_url)
+    counts = extract_ca_sos_results_to_storage(
+        client=client,
+        storage=backend,
+        jurisdiction_id=jurisdiction,
+        county=county or None,
+        districts=districts,
+        election_type=election_type,
+    )
+
+    # Compute fingerprint for skip-check on next refresh
+    fingerprint = hashlib.sha256(
+        f"{counts['elections']}:{counts['contests']}:{counts['candidates']}:{counts['ballot_measures']}".encode()
+    ).hexdigest()[:16]
+
+    # Update refresh metadata
+    backend.update_refresh_metadata(
+        jurisdiction, "elections", "ca_sos_results",
+        items_fetched=counts["contests"],
+        items_stored=counts["contests"],
+        status="completed",
+        last_fetch_hash=fingerprint,
+    )
+
+    # Auto-index vectors if requested and data was stored
+    vector_result = None
+    if auto_index and counts["elections"] > 0:
+        logger.info(f"[CA SOS] Auto-indexing vectors for {jurisdiction}...")
+        vector_result = index_vectors.remote(
+            jurisdiction=jurisdiction,
+            corpus="elections",
+            reindex=False,
+        )
+        logger.info(f"  Vectors indexed: {vector_result.get('total_indexed', 0)}")
+
+    elapsed = time.time() - start_time
+    result = {
+        "task": "ca_sos_election_results",
+        "jurisdiction": jurisdiction,
+        "elections_stored": counts["elections"],
+        "contests_stored": counts["contests"],
+        "candidates_stored": counts["candidates"],
+        "ballot_measures_stored": counts["ballot_measures"],
+        "county": county or None,
+        "election_type": election_type,
+        "dry_run": False,
+        "auto_index": auto_index,
+        "elapsed_seconds": elapsed,
+        "cost_usd": 4 * elapsed * 0.000463,
+    }
+    if vector_result:
+        result["vector_result"] = vector_result
+    return result
+
+
+# =============================================================================
 # BoardDocs School Board Meeting Fetch
 # =============================================================================
 

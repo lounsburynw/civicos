@@ -1308,13 +1308,14 @@
         "name": "ca_sos_results_client",
         "description": "Wire CA Secretary of State Results API (api.sos.ca.gov) for state-level race results with Marin County breakdowns. No auth required, JSON responses. Covers governor, legislature, US Congress, state propositions.",
         "priority": 0,
-        "status": "not_started",
+        "status": "done",
         "files": [
-          "packages/civicos-extraction/src/civicos_extraction/clients/ca_sos.py",
+          "packages/civicos-extraction/src/civicos_extraction/clients/ca_sos_results.py",
+          "packages/civicos-extraction/tests/test_ca_sos_results.py",
           "scripts/modal_ingest.py"
         ],
-        "test_file": "packages/civicos-extraction/tests/test_ca_sos.py",
-        "notes": "Unblocked, free, no auth required. State-level race results with county breakdowns. Useful for 'How did Marin vote on Prop X?' queries. ~0.5 session."
+        "test_file": "packages/civicos-extraction/tests/test_ca_sos_results.py",
+        "notes": "Complete. 53 unit + 5 integration tests passing. Client covers statewide races, district races, ballot measures, county breakdowns, and reporting status. Storage mappers + Modal ingestion wired. Live API confirmed working."
       },
       {
         "name": "google_civic_deprecation",

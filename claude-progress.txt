@@ -23799,3 +23799,45 @@ the URL, then passes it to deterministic Python code. Agent = search layer, Pyth
 - docs/public/packages/civicos-extraction.md (updated platform table + discovery docs)
 - docs/internal/election-data-research.md (marked BoardDocs as complete)
 - launch.json (boarddocs_client → done)
+
+## Session — 2026-03-26: CA SOS Results Client (P0)
+
+**Item:** ca_sos_results_client
+**Status:** DONE
+
+Built CASOSResultsClient for the CA Secretary of State election results API (api.sos.ca.gov).
+
+**What was built:**
+- `packages/civicos-extraction/src/civicos_extraction/clients/ca_sos_results.py` — Full REST client with:
+  - Statewide race queries (president, governor, etc.)
+  - District race queries (US House, State Senate/Assembly, Board of Equalization)
+  - Ballot measure results (all measures + single proposition)
+  - County-level breakdowns (append /county/{slug} to any race)
+  - Reporting status (county-level precinct reporting)
+  - Convenience method `get_all_results()` for bulk fetching
+  - Storage mappers: `ca_sos_results_to_election()`, `ca_sos_race_to_contest()`, `ca_sos_measure_to_contest()`
+  - `extract_ca_sos_results_to_storage()` — full extraction pipeline
+  - Vote parsing (comma-formatted strings → int), percent parsing
+  - Contest type mapping from endpoint paths
+  - Health check and validation
+- `packages/civicos-extraction/tests/test_ca_sos_results.py` — 58 tests (53 unit + 5 integration)
+- `scripts/modal_ingest.py` — `fetch_ca_sos_election_results()` Modal function
+- `packages/civicos-extraction/src/civicos_extraction/clients/__init__.py` — registered exports
+
+**Key design decisions:**
+- API only serves current/most-recent election (no history). Election ID derived from reporting year.
+- reportType tracked: "R" = preliminary, "U" = certified
+- Candidate votes are comma-formatted strings ("23,772"), ballot measure votes are not ("7453339") — both handled
+- Winner inferred from highest vote count (API doesn't indicate directly)
+- mapped_candidates/mapped_ballot_measure embedded in raw_data for JSONB persistence
+- jurisdiction defaults to "state-california" (state-level data, not city-level)
+
+**Tests:** 58 total (53 unit + 5 integration against live API), all passing
+**Smoke tests:** 20 passed, no regressions
+
+**Files changed:**
+- packages/civicos-extraction/src/civicos_extraction/clients/ca_sos_results.py (new)
+- packages/civicos-extraction/tests/test_ca_sos_results.py (new)
+- packages/civicos-extraction/src/civicos_extraction/clients/__init__.py (exports + docstring)
+- scripts/modal_ingest.py (fetch_ca_sos_election_results)
+- launch.json (ca_sos_results_client → done)
