@@ -503,7 +503,8 @@ class TestExtractCASOSResultsToStorage:
         assert mock_storage.store_election_contests.call_count == 3
 
     @patch.object(CASOSResultsClient, "get_all_results")
-    def test_extraction_empty(self, mock_get_all):
+    def test_extraction_empty_aborts(self, mock_get_all):
+        """Partial-fetch guard: no data → no storage."""
         mock_get_all.return_value = {
             "statewide_races": [],
             "district_races": [],
@@ -515,16 +516,16 @@ class TestExtractCASOSResultsToStorage:
         }
 
         mock_storage = MagicMock()
-        mock_storage.store_elections.return_value = 1
-        # No contest storage calls
-
         client = CASOSResultsClient()
         counts = extract_ca_sos_results_to_storage(client=client, storage=mock_storage)
 
-        assert counts["elections"] == 1
+        assert counts["elections"] == 0
         assert counts["contests"] == 0
         assert counts["candidates"] == 0
         assert counts["ballot_measures"] == 0
+        # Storage should NOT have been called
+        mock_storage.store_elections.assert_not_called()
+        mock_storage.store_election_contests.assert_not_called()
 
 
 # ==================== Integration Tests ====================

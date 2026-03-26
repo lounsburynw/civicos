@@ -751,6 +751,28 @@ def extract_ca_sos_results_to_storage(
     # Fetch all results
     all_data = client.get_all_results(county=county, districts=districts)
 
+    # --- Partial-fetch guard ---
+    # Abort if the API returned no race data at all.  This prevents storing
+    # an empty election record when the fetch was truncated by a timeout or
+    # rate limit.  An empty statewide_races list with no ballot measures
+    # means the API is either between elections or something went wrong.
+    statewide_count = len(all_data.get("statewide_races", []))
+    district_count = len(all_data.get("district_races", []))
+    measure_data = all_data.get("ballot_measures") or {}
+    measure_count = len(measure_data.get("ballot-measures", []))
+
+    if statewide_count == 0 and district_count == 0 and measure_count == 0:
+        logger.warning(
+            "CA SOS API returned no race or ballot measure data — "
+            "skipping storage to avoid empty election record"
+        )
+        return {
+            "elections": 0,
+            "contests": 0,
+            "candidates": 0,
+            "ballot_measures": 0,
+        }
+
     # Determine election metadata from first available race
     reporting_time = None
     report_type = None

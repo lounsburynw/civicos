@@ -39,6 +39,14 @@ Platform parsers for extracting civic data from municipal websites and governmen
 | **CA State Controller** | Web | ACFR financial data |
 | **CA Grants** | API | State grant programs |
 
+### Elections & Results
+| Platform | Type | Coverage |
+|----------|------|----------|
+| **Marin Registrar** | GraphQL | County election results (46 elections, 2010–present) |
+| **CA Secretary of State** | REST | Statewide races, ballot measures, county breakdowns |
+| **Google Civic** | API | Voter info, polling locations (reps endpoint deprecated) |
+| **San Rafael Clerk** | Web | City candidates, local measures |
+
 ### Media
 | Platform | Type | Coverage |
 |----------|------|----------|
