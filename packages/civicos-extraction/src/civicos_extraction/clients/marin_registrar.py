@@ -516,15 +516,17 @@ class MarinRegistrarResultsClient:
         3. get_precinct_data()  — precinct-level vote breakdowns for one contest
     """
 
-    GRAPHQL_URL = "https://pastelections.marincounty.gov/api/graphql_pr"
+    DEFAULT_GRAPHQL_URL = "https://pastelections.marincounty.gov/api/graphql_pr"
 
     def __init__(
         self,
         jurisdiction_id: str = "city-san-rafael",
+        graphql_url: Optional[str] = None,
         request_delay: float = 0.5,
         timeout: int = 30,
     ):
         self.jurisdiction_id = jurisdiction_id
+        self.graphql_url = graphql_url or self.DEFAULT_GRAPHQL_URL
         self.request_delay = request_delay
         self.timeout = timeout
         self._session: Optional[Any] = None
@@ -569,7 +571,7 @@ class MarinRegistrarResultsClient:
             payload["variables"] = variables
 
         response = session.post(
-            self.GRAPHQL_URL,
+            self.graphql_url,
             json=payload,
             timeout=self.timeout,
         )
@@ -762,7 +764,7 @@ class MarinRegistrarResultsClient:
             errors=errors,
             warnings=[],
             check_duration_ms=round(check_duration_ms, 2),
-            metadata={"graphql_url": self.GRAPHQL_URL},
+            metadata={"graphql_url": self.graphql_url},
         )
 
     # ---- Convenience: Fetch all results for an election ----
