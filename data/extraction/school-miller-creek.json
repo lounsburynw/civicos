@@ -1,0 +1,14 @@
+{
+  "source_id": "simbli-school-miller-creek",
+  "source_type": "simbli",
+  "jurisdiction_id": "school-miller-creek",
+  "base_url": "https://agendaonline.net/public/millercreek",
+  "auto_discover": false,
+  "archives": {},
+  "metadata": {
+    "board_url": "https://agendaonline.net/public/millercreek",
+    "district_name": "Miller Creek School District",
+    "district_website": "https://www.millercreeksd.org",
+    "created": "2026-03-26"
+  }
+}

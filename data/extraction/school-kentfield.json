@@ -1,0 +1,14 @@
+{
+  "source_id": "simbli-school-kentfield",
+  "source_type": "simbli",
+  "jurisdiction_id": "school-kentfield",
+  "base_url": "https://kentfield.agendaonline.net/public/",
+  "auto_discover": false,
+  "archives": {},
+  "metadata": {
+    "board_url": "https://kentfield.agendaonline.net/public/",
+    "district_name": "Kentfield School District",
+    "district_website": "https://www.kentfieldschools.org",
+    "created": "2026-03-26"
+  }
+}

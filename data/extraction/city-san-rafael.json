@@ -1,0 +1,25 @@
+{
+  "source_id": "proudcity-city-san-rafael",
+  "source_type": "proudcity",
+  "jurisdiction_id": "city-san-rafael",
+  "base_url": "https://www.cityofsanrafael.org",
+  "auto_discover": true,
+  "archives": {
+    "city_council": "/city-council-meetings/",
+    "board_and_commission": "/board-and-commission-meetings/",
+    "guide_public": "/guide-public-meetings/",
+    "ada_access_advisory_committee": "/ada-access-advisory-committee-meetings/",
+    "bicycle_pedestrian_advisory_committee": "/bicycle-pedestrian-advisory-committee-meetings/",
+    "board_of_library_trustees": "/board-of-library-trustees-meetings/",
+    "council_subcommittee": "/council-subcommittee-meetings/",
+    "fire_commission": "/fire-commission-meetings/",
+    "park_and_recreation_commission": "/park-and-recreation-commission-meetings/",
+    "pickleweed_advisory_committee": "/pickleweed-advisory-committee-meetings/",
+    "planning_commission": "/planning-commission-meetings/",
+    "paac": "/paac-meetings/",
+    "public_art_review_board": "/public-art-review-board-meetings/",
+    "voter_approved_tax_oversight_committee": "/voter-approved-tax-oversight-committee-meetings/",
+    "zoning_administrator": "/zoning-administrator-hearings/"
+  },
+  "issue_source": "seeclickfix"
+}
