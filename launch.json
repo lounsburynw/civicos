@@ -1358,7 +1358,7 @@
         "name": "school_district_lookup",
         "description": "Static lookup table (data/school_districts.json) mapping county -> school districts with platform URLs. Enable onboard.py --level school --city 'Novato' and --county 'Marin' --level school for batch onboarding.",
         "priority": 0,
-        "status": "not_started",
+        "status": "done",
         "phase": "B",
         "source": "election-onboarding-spec.md",
         "files": [
@@ -1366,13 +1366,13 @@
           "packages/civicos-extraction/src/civicos_extraction/onboard.py",
           "scripts/onboard.py"
         ],
-        "test_file": null,
-        "notes": "Seed from existing data/extraction/school-*.json configs (8 Marin districts). Future: scrape CDE CALPADS API to auto-populate other counties. ~1 session."
+        "test_file": "packages/civicos-extraction/tests/test_school_district_lookup.py",
+        "notes": "Seed from existing data/extraction/school-*.json configs (10 Marin districts). Future: scrape CDE CALPADS API to auto-populate other counties."
       },
       {
         "name": "onboard_election_detection",
         "description": "Auto-detect election data sources during city/county onboarding. After geocoding, probe Google Civic, CA SOS, and county registrar availability. Populate election_sources in extraction config automatically.",
-        "priority": 2,
+        "priority": 0,
         "status": "not_started",
         "phase": "B",
         "source": "election-onboarding-spec.md",

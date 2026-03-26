@@ -23966,3 +23966,35 @@ Built CASOSResultsClient for the CA Secretary of State election results API (api
 - launch.json (ca_sos_pipeline_wiring → done, school_district_lookup → P0)
 
 **Next P0:** school_district_lookup
+
+---
+
+## Session: 2026-03-26 — school_district_lookup
+
+**Item:** school_district_lookup (election_integration)
+**Status:** DONE
+
+**What was done:**
+
+1. **Created `data/school_districts.json`** — static lookup table with all 10 Marin County school districts (6 Simbli, 4 BoardDocs), including board URLs, platform-specific IDs, and district websites
+2. **Added lookup functions to `onboard.py`** (core extraction package):
+   - `load_school_districts()` — loads JSON lookup table
+   - `lookup_school_district(name, state, county)` — fuzzy substring match by district name or jurisdiction ID slug
+   - `lookup_school_districts_by_county(state, county)` — returns all districts in a county
+3. **Wired CLI** in `scripts/onboard.py`:
+   - `--level school --city "Novato" --state CA` → looks up district, sets URL + jurisdiction ID automatically
+   - `--level school --county "Marin" --state CA` → batch mode, onboards all 10 districts
+   - Falls back to platform auto-discovery if not found in lookup table
+4. **23 tests** in `test_school_district_lookup.py`:
+   - Load/schema validation, exact/partial/case-insensitive name matching
+   - County filtering, slug matching, cross-county search
+   - Real data validation (10 districts, config file consistency, no duplicates)
+
+**Files changed:**
+- data/school_districts.json (NEW)
+- packages/civicos-extraction/src/civicos_extraction/onboard.py (added 3 lookup functions)
+- scripts/onboard.py (added --level school dispatch with single + batch modes)
+- packages/civicos-extraction/tests/test_school_district_lookup.py (NEW, 23 tests)
+- launch.json (school_district_lookup → done, onboard_election_detection → P0)
+
+**Next P0:** onboard_election_detection

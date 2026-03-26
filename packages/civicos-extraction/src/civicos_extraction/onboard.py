@@ -1248,6 +1248,98 @@ def _generate_jurisdiction_yaml(
     return header + yaml.dump(doc, default_flow_style=False, sort_keys=False, allow_unicode=True)
 
 
+# ---------------------------------------------------------------------------
+# School district lookup
+# ---------------------------------------------------------------------------
+
+def _get_school_districts_path() -> Path:
+    try:
+        return Path(__file__).parents[4] / "data" / "school_districts.json"
+    except IndexError:
+        return Path("/dev/null")
+
+
+def load_school_districts(path: Optional[Path] = None) -> Dict[str, Dict[str, list]]:
+    """Load the school district lookup table.
+
+    Returns dict keyed by state (lowercase), then county (lowercase),
+    each containing a list of district entries.
+    """
+    p = path or _get_school_districts_path()
+    if not p.exists():
+        return {}
+    with open(p) as f:
+        return json.load(f)
+
+
+def lookup_school_district(
+    name: str,
+    state: str,
+    county: Optional[str] = None,
+    districts: Optional[Dict] = None,
+) -> Optional[Dict[str, Any]]:
+    """Find a school district by name (fuzzy substring match).
+
+    Args:
+        name: District name or partial name (e.g. "Novato", "Ross Valley")
+        state: State abbreviation or full lowercase name
+        county: Optional county to narrow search
+        districts: Pre-loaded lookup table (loads from disk if None)
+
+    Returns:
+        Matching district entry dict, or None
+    """
+    if districts is None:
+        districts = load_school_districts()
+
+    state_key = _state_abbrev_to_slug(state) if len(state) <= 3 else state.lower()
+    state_data = districts.get(state_key, {})
+    if not state_data:
+        return None
+
+    name_lower = name.lower()
+
+    # Search specific county or all counties in the state
+    counties_to_search = (
+        [county.lower()] if county else list(state_data.keys())
+    )
+
+    for county_key in counties_to_search:
+        for entry in state_data.get(county_key, []):
+            entry_name = entry.get("name", "").lower()
+            # Match on: exact name, jurisdiction_id slug, or substring of name
+            if (
+                name_lower == entry_name
+                or name_lower in entry_name
+                or name_lower == entry.get("jurisdiction_id", "").replace("school-", "")
+            ):
+                return entry
+
+    return None
+
+
+def lookup_school_districts_by_county(
+    state: str,
+    county: str,
+    districts: Optional[Dict] = None,
+) -> List[Dict[str, Any]]:
+    """Return all school districts in a given county.
+
+    Args:
+        state: State abbreviation or full lowercase name
+        county: County name (e.g. "Marin")
+        districts: Pre-loaded lookup table (loads from disk if None)
+
+    Returns:
+        List of district entry dicts (empty if none found)
+    """
+    if districts is None:
+        districts = load_school_districts()
+
+    state_key = _state_abbrev_to_slug(state) if len(state) <= 3 else state.lower()
+    return districts.get(state_key, {}).get(county.lower(), [])
+
+
 def onboard_jurisdiction(
     url: str,
     jurisdiction_id: Optional[str] = None,

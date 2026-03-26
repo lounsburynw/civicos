@@ -1,0 +1,82 @@
+{
+  "california": {
+    "marin": [
+      {
+        "name": "Novato Unified School District",
+        "jurisdiction_id": "school-novato",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030351",
+        "simbli_district_id": "36030351",
+        "district_website": "https://www.nusd.org"
+      },
+      {
+        "name": "Tamalpais Union High School District",
+        "jurisdiction_id": "school-tamalpais",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030468",
+        "simbli_district_id": "36030468",
+        "district_website": "https://www.tamdistrict.org"
+      },
+      {
+        "name": "Miller Creek School District",
+        "jurisdiction_id": "school-miller-creek",
+        "platform": "simbli",
+        "board_url": "https://agendaonline.net/public/millercreek",
+        "district_website": "https://www.millercreeksd.org"
+      },
+      {
+        "name": "Mill Valley School District",
+        "jurisdiction_id": "school-mill-valley-sd",
+        "platform": "simbli",
+        "board_url": "https://agendaonline.net/public/millvalley",
+        "district_website": "https://www.mvschools.org"
+      },
+      {
+        "name": "Reed Union School District",
+        "jurisdiction_id": "school-reed-union",
+        "platform": "simbli",
+        "board_url": "https://agendaonline.net/public/Agency.aspx?AgencyTypeID=1&PublicAgencyID=111",
+        "district_website": "https://www.reedschools.org"
+      },
+      {
+        "name": "Kentfield School District",
+        "jurisdiction_id": "school-kentfield",
+        "platform": "simbli",
+        "board_url": "https://kentfield.agendaonline.net/public/",
+        "district_website": "https://www.kentfieldschools.org"
+      },
+      {
+        "name": "Ross Valley School District",
+        "jurisdiction_id": "school-ross-valley",
+        "platform": "boarddocs",
+        "board_url": "https://go.boarddocs.com/ca/rova/Board.nsf",
+        "boarddocs_app_path": "ca/rova",
+        "boarddocs_committee_id": "AB9A2R259AF0"
+      },
+      {
+        "name": "Larkspur-Corte Madera School District",
+        "jurisdiction_id": "school-larkspur-corte-madera",
+        "platform": "boarddocs",
+        "board_url": "https://go.boarddocs.com/ca/lcmsd/Board.nsf",
+        "boarddocs_app_path": "ca/lcmsd",
+        "boarddocs_committee_id": "A4EP6J588C05"
+      },
+      {
+        "name": "Sausalito Marin City School District",
+        "jurisdiction_id": "school-sausalito-marin-city",
+        "platform": "boarddocs",
+        "board_url": "https://go.boarddocs.com/ca/smcsd/Board.nsf",
+        "boarddocs_app_path": "ca/smcsd",
+        "boarddocs_committee_id": "A4EP6J588C05"
+      },
+      {
+        "name": "Marin County Office of Education",
+        "jurisdiction_id": "school-marin-county-oe",
+        "platform": "boarddocs",
+        "board_url": "https://go.boarddocs.com/ca/marinschools/Board.nsf",
+        "boarddocs_app_path": "ca/marinschools",
+        "boarddocs_committee_id": "A4EP6J588C05"
+      }
+    ]
+  }
+}
