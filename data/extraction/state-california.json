@@ -1,0 +1,9 @@
+{
+  "source_id": "ca-sos-state-california",
+  "source_type": "ca_sos",
+  "jurisdiction_id": "state-california",
+  "base_url": "https://api.sos.ca.gov",
+  "election_sources": {
+    "ca_sos_results": true
+  }
+}

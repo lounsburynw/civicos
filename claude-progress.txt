@@ -23943,3 +23943,26 @@ Built CASOSResultsClient for the CA Secretary of State election results API (api
 - docs/public/relay/nostr-events.md (decision ID format)
 - docs/internal/storage-schema.md, cross-jurisdiction-query-spec.md (decision ID format)
 - launch.json (query_monitoring_and_docs → done)
+
+## Session — 2026-03-26: ca_sos_pipeline_wiring (P0)
+
+**Item:** ca_sos_pipeline_wiring (election_integration)
+**Status:** DONE
+
+**What was done:**
+
+1. **Created `data/extraction/state-california.json`** — new extraction config for statewide CA SOS election results (no county filter, statewide races + ballot measures)
+2. **Updated `data/extraction/city-san-rafael.json`** — added `ca_sos_results` to election_sources with county="marin" and district filtering (US Rep 2, Assembly 12, Senate 2)
+3. **Integration test** — `test_integration_election_dispatch.py` with 11 tests:
+   - Config loading: state-california loaded, city-san-rafael has ca_sos_results with districts, county-marin retains ca_sos_results
+   - Dispatch logic: state-california dispatches CA SOS only (no Google Civic), san-rafael dispatches all 3, county-marin dispatches all 3
+   - Edge cases: default to Google Civic when no election_sources, unknown providers detected, bare `true` uses defaults
+4. **All tests pass:** 11 dispatch tests, 58 CA SOS client tests, 20 smoke tests
+
+**Files changed:**
+- data/extraction/state-california.json (NEW)
+- data/extraction/city-san-rafael.json (added ca_sos_results)
+- packages/civicos/tests/test_integration_election_dispatch.py (NEW, 11 tests)
+- launch.json (ca_sos_pipeline_wiring → done, school_district_lookup → P0)
+
+**Next P0:** school_district_lookup

@@ -1344,7 +1344,7 @@
         "name": "ca_sos_pipeline_wiring",
         "description": "Wire CA SOS results into monthly election cron. fetch_ca_sos_election_results() Modal function exists but is not called by scheduled_election_refresh(). Add dispatch for jurisdictions with ca_sos_results in election_sources.",
         "priority": 0,
-        "status": "not_started",
+        "status": "done",
         "phase": "B",
         "source": "election-onboarding-spec.md",
         "files": [
@@ -1357,7 +1357,7 @@
       {
         "name": "school_district_lookup",
         "description": "Static lookup table (data/school_districts.json) mapping county -> school districts with platform URLs. Enable onboard.py --level school --city 'Novato' and --county 'Marin' --level school for batch onboarding.",
-        "priority": 1,
+        "priority": 0,
         "status": "not_started",
         "phase": "B",
         "source": "election-onboarding-spec.md",
