@@ -1,3 +1,24 @@
+## Session — 2026-03-27: upcoming_ballot_preview (P0)
+
+**Item:** upcoming_ballot_preview (election_integration)
+**Status:** DONE
+
+Built CA SOS ballot preview client — downloads certified candidate PDFs from SOS CDN,
+parses candidate name/party/ballot-designation/contact info using pymupdf. Supports all
+8 race types (congress, state-senate, assembly, governor, lt-governor, controller,
+treasurer, attorney-general). 107 candidates across 8 contests stored for San Rafael
+June 2026 primary. Wired into Modal ingest (--ballot-preview flag) and extraction config.
+
+**Files created/modified:**
+- packages/civicos-extraction/src/civicos_extraction/clients/ca_sos_ballot_preview.py (new)
+- packages/civicos-extraction/tests/test_ca_sos_ballot_preview.py (new, 30 tests)
+- packages/civicos-extraction/src/civicos_extraction/clients/__init__.py (exports)
+- scripts/modal_ingest.py (fetch_ballot_preview function, --ballot-preview flag)
+- data/extraction/city-san-rafael.json (ca_sos_ballot_preview source config)
+- launch.json (status=done, P0 set to cross_marin_query_prototype)
+
+**Next P0:** cross_marin_query_prototype
+
 ## Session — 2026-03-26: cde_school_directory (P0)
 
 **Item:** cde_school_directory (election_integration)

@@ -134,6 +134,14 @@ from civicos_extraction.clients.ca_sos_results import (
     extract_ca_sos_results_to_storage,
     STATEWIDE_RACES,
 )
+from civicos_extraction.clients.ca_sos_ballot_preview import (
+    CASOSBallotPreviewClient,
+    parse_candidate_pdf,
+    ca_sos_preview_to_election,
+    ca_sos_preview_to_contest,
+    extract_ca_sos_preview_to_storage,
+    RACE_CONFIGS as BALLOT_PREVIEW_RACES,
+)
 from civicos_extraction.clients.federal_register import (
     FederalRegisterClient,
     get_recent_executive_orders,
@@ -217,6 +225,12 @@ __all__ = [
     "STATEWIDE_RACES",
     "FederalRegisterClient",
     "get_recent_executive_orders",
+    "CASOSBallotPreviewClient",
+    "parse_candidate_pdf",
+    "ca_sos_preview_to_election",
+    "ca_sos_preview_to_contest",
+    "extract_ca_sos_preview_to_storage",
+    "BALLOT_PREVIEW_RACES",
     "CiveraElectionStatsClient",
     "CIVERA_INSTANCES",
     "civera_results_to_election",

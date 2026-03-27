@@ -3834,6 +3834,130 @@ def fetch_ca_sos_election_results(
 
 
 # =============================================================================
+# CA SOS Ballot Preview (Pre-Election Candidate PDFs)
+# =============================================================================
+
+@app.function(
+    image=civic_image,
+    secrets=[
+        modal.Secret.from_name("civic-db"),
+    ],
+    memory=4096,
+    timeout=600,  # 10 minutes (downloads + parses multiple PDFs)
+    retries=modal.Retries(max_retries=2, backoff_coefficient=2.0, initial_delay=10.0),
+)
+def fetch_ballot_preview(
+    jurisdiction: str = "city-san-rafael",
+    election_slug: str = "2026-primary",
+    election_date: str = "2026-06-02",
+    election_type: str = "primary",
+    races_json: str = "",
+    dry_run: bool = False,
+) -> dict:
+    """Fetch pre-election candidate data from CA SOS certified candidate PDFs.
+
+    Downloads certified candidate list PDFs from the SOS CDN and extracts
+    candidate name, party, ballot designation, contact info for each district.
+
+    Args:
+        jurisdiction: Target jurisdiction (e.g., "city-san-rafael")
+        election_slug: CDN path segment (e.g., "2026-primary")
+        election_date: Election date ISO string (e.g., "2026-06-02")
+        election_type: "primary", "general", or "special"
+        races_json: JSON dict mapping race slug to district list,
+                    e.g., '{"congress": [2], "governor": null}'
+        dry_run: If True, parse but don't store
+    """
+    import hashlib
+    import json
+    import logging
+    import os
+    import time
+
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+    logger = logging.getLogger(__name__)
+    start_time = time.time()
+
+    from civicos.storage.postgres_backend import PostgresBackend
+    from civicos_extraction.clients.ca_sos_ballot_preview import (
+        CASOSBallotPreviewClient,
+        extract_ca_sos_preview_to_storage,
+    )
+
+    database_url = os.environ.get("DATABASE_URL")
+    if not database_url:
+        raise ValueError("DATABASE_URL not set")
+
+    # Parse race/district config (required — comes from extraction config)
+    if not races_json:
+        raise ValueError(
+            f"races_json is required for {jurisdiction} — "
+            f"configure ca_sos_ballot_preview.races in data/extraction/{jurisdiction}.json"
+        )
+    race_districts = json.loads(races_json)
+
+    logger.info(
+        f"[Ballot Preview] Starting: jurisdiction={jurisdiction}, "
+        f"election={election_slug}, races={list(race_districts.keys())}"
+    )
+
+    client = CASOSBallotPreviewClient(
+        election_slug=election_slug,
+        election_date=election_date,
+        election_type=election_type,
+    )
+
+    if dry_run:
+        all_cands = client.get_all_candidates(race_districts)
+        total = sum(
+            len(cands) for dmap in all_cands.values() for cands in dmap.values()
+        )
+        elapsed = time.time() - start_time
+        return {
+            "task": "ballot_preview",
+            "jurisdiction": jurisdiction,
+            "races_checked": len(all_cands),
+            "candidates_found": total,
+            "dry_run": True,
+            "elapsed_seconds": elapsed,
+            "cost_usd": 4 * elapsed * 0.000463,
+        }
+
+    backend = PostgresBackend(database_url)
+    counts = extract_ca_sos_preview_to_storage(
+        client=client,
+        storage=backend,
+        jurisdiction_id=jurisdiction,
+        race_districts=race_districts,
+    )
+
+    fingerprint = hashlib.sha256(
+        f"{counts['elections']}:{counts['contests']}:{counts['candidates']}".encode()
+    ).hexdigest()[:16]
+
+    backend.update_refresh_metadata(
+        jurisdiction, "elections", "ca_sos_ballot_preview",
+        items_fetched=counts["candidates"],
+        items_stored=counts["candidates"],
+        status="completed",
+        last_fetch_hash=fingerprint,
+    )
+
+    elapsed = time.time() - start_time
+    return {
+        "task": "ballot_preview",
+        "jurisdiction": jurisdiction,
+        "election_slug": election_slug,
+        "elections_stored": counts["elections"],
+        "contests_stored": counts["contests"],
+        "candidates_stored": counts["candidates"],
+        "dry_run": False,
+        "elapsed_seconds": elapsed,
+        "cost_usd": 4 * elapsed * 0.000463,
+    }
+
+
+# =============================================================================
 # BoardDocs School Board Meeting Fetch
 # =============================================================================
 
@@ -5802,6 +5926,7 @@ def scheduled_election_refresh():
     - civera_election_stats: Civera ElectionStats GraphQL (Marin, Sonoma, Yolo)
     - marin_registrar_results: Marin County GraphQL (legacy alias for civera)
     - ca_sos_results: CA Secretary of State election results
+    - ca_sos_ballot_preview: CA SOS certified candidate PDFs (pre-election)
 
     Elected officials: Congress.gov (federal), LegiScan (state), curated (local)
 
@@ -5830,7 +5955,7 @@ def scheduled_election_refresh():
         # Read election_sources from config
         election_sources = config.get("election_sources", {})
 
-        known_providers = {"civera_election_stats", "marin_registrar_results", "ca_sos_results"}
+        known_providers = {"civera_election_stats", "marin_registrar_results", "ca_sos_results", "ca_sos_ballot_preview"}
         unknown = set(election_sources.keys()) - known_providers
         if unknown:
             logger.warning(f"  [{jid}] Unknown election source(s): {unknown} — skipped. Known: {known_providers}")
@@ -5905,6 +6030,33 @@ def scheduled_election_refresh():
             except Exception as e:
                 logger.exception(f"  [{jid}] CA SOS fetch failed")
                 results[jid]["ca_sos_results"] = {"status": "failed", "error": str(e)}
+
+        # --- CA SOS Ballot Preview (pre-election candidate PDFs) ---
+        if "ca_sos_ballot_preview" in election_sources:
+            provider_config = election_sources["ca_sos_ballot_preview"]
+            if provider_config is True:
+                provider_config = {}
+            try:
+                election_slug = provider_config.get("election_slug", "")
+                election_date = provider_config.get("election_date", "")
+                election_type = provider_config.get("election_type", "primary")
+                races = provider_config.get("races", {})
+                races_json = json_mod.dumps(races) if races else ""
+                logger.info(f"  [{jid}] Fetching ballot preview (CA SOS, election={election_slug})...")
+                result = fetch_ballot_preview.local(
+                    jurisdiction=jid,
+                    election_slug=election_slug,
+                    election_date=election_date,
+                    election_type=election_type,
+                    races_json=races_json,
+                    dry_run=False,
+                    auto_index=True,
+                )
+                results[jid]["ca_sos_ballot_preview"] = result
+                logger.info(f"    Ballot preview: {result.get('candidates_stored', 0)} candidates stored")
+            except Exception as e:
+                logger.exception(f"  [{jid}] Ballot preview fetch failed")
+                results[jid]["ca_sos_ballot_preview"] = {"status": "failed", "error": str(e)}
 
         # --- Elected Officials (always runs) ---
         try:
@@ -6149,6 +6301,7 @@ def main(
     meetings: bool = False,
     issues: bool = False,
     elections: bool = False,
+    ballot_preview: bool = False,
     elected_officials: bool = False,
     videos: bool = False,
     transcripts: bool = False,
@@ -6278,6 +6431,7 @@ def main(
     run_meetings = all or meetings
     run_issues = all or issues
     run_elections = elections  # Not in --all (use scheduled_election_refresh)
+    run_ballot_preview = ballot_preview  # Not in --all (pre-election only)
     run_elected_officials = elected_officials  # Not in --all (monthly refresh)
     run_transcripts = all or transcripts
     run_chunks = all or chunks
@@ -6288,8 +6442,8 @@ def main(
     run_score_rules = score_rules  # Not in --all (explicit or auto after fetch)
     run_refresh = refresh  # Not in --all (explicit only)
 
-    if not (run_municipal or run_legislation or run_executive_orders or run_federal_programs or run_federal_rules or run_federal_awards or run_legislative_events or run_meetings or run_issues or run_elections or run_elected_officials or run_videos or run_transcripts or run_chunks or run_agenda or run_decisions or run_vectors or run_score_rules or run_refresh):
-        print("No tasks specified. Use --all, --municipal, --legislation, --executive-orders, --federal-programs, --federal-rules, --federal-awards, --legislative-events, --meetings, --issues, --elections, --elected-officials, --videos, --transcripts, --chunks, --agenda, --decisions, --vectors, or --refresh")
+    if not (run_municipal or run_legislation or run_executive_orders or run_federal_programs or run_federal_rules or run_federal_awards or run_legislative_events or run_meetings or run_issues or run_elections or run_ballot_preview or run_elected_officials or run_videos or run_transcripts or run_chunks or run_agenda or run_decisions or run_vectors or run_score_rules or run_refresh):
+        print("No tasks specified. Use --all, --municipal, --legislation, --executive-orders, --federal-programs, --federal-rules, --federal-awards, --legislative-events, --meetings, --issues, --elections, --ballot-preview, --elected-officials, --videos, --transcripts, --chunks, --agenda, --decisions, --vectors, or --refresh")
         print("Use --stats-only to check current state")
         return
 
@@ -6317,6 +6471,8 @@ def main(
         task_list.append("issues")
     if run_elections:
         task_list.append("elections")
+    if run_ballot_preview:
+        task_list.append("ballot_preview")
     if run_elected_officials:
         task_list.append("elected_officials")
     if run_videos:
@@ -6354,6 +6510,8 @@ def main(
         print(f"  Issues: {jurisdiction}" + (" (incremental)" if incremental else ""))
     if run_elections:
         print(f"  Elections: {jurisdiction}")
+    if run_ballot_preview:
+        print(f"  Ballot Preview: {jurisdiction} (CA SOS candidate PDFs)")
     if run_elected_officials:
         print(f"  Elected Officials: {jurisdiction} (federal, state, local)")
     if run_videos:
@@ -6482,6 +6640,34 @@ def main(
         print("Spawning elections refresh (state-specific sources)...")
         handle = scheduled_election_refresh.spawn()
         handles.append(("elections", handle))
+
+    if run_ballot_preview:
+        import json as json_mod
+        config_path = f"data/extraction/{jurisdiction}.json"
+        races_json = ""
+        try:
+            with open(config_path) as f:
+                config = json_mod.load(f)
+            bp_config = config.get("election_sources", {}).get("ca_sos_ballot_preview", {})
+            if bp_config.get("races"):
+                races_json = json_mod.dumps(bp_config["races"])
+            election_slug = bp_config.get("election_slug", "2026-primary")
+            election_date = bp_config.get("election_date", "2026-06-02")
+            election_type = bp_config.get("election_type", "primary")
+        except FileNotFoundError:
+            election_slug = "2026-primary"
+            election_date = "2026-06-02"
+            election_type = "primary"
+        print(f"Spawning ballot preview ({election_slug})...")
+        handle = fetch_ballot_preview.spawn(
+            jurisdiction=jurisdiction,
+            election_slug=election_slug,
+            election_date=election_date,
+            election_type=election_type,
+            races_json=races_json,
+            dry_run=dry_run,
+        )
+        handles.append(("ballot_preview", handle))
 
     if run_elected_officials:
         print("Spawning elected officials fetch...")

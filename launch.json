@@ -728,7 +728,7 @@
         "name": "cross_marin_query_prototype",
         "description": "Cross-jurisdiction queries within Marin County via v2 query layer. SearchRequest.include_parents/include_siblings with tier-based relevance boosting.",
         "status": "in_progress",
-        "priority": 1,
+        "priority": 0,
         "phase": "A",
         "source": "federation testbed \u2014 query federation",
         "spec": "docs/internal/cross-jurisdiction-query-spec.md",
@@ -1416,16 +1416,17 @@
       },
       {
         "name": "upcoming_ballot_preview",
-        "status": "not_started",
-        "priority": 0,
-        "description": "Build pre-election ballot preview: parse CA SOS certified candidate PDFs (predictable CDN URLs, well-structured layout) for state/federal races, extend MarinRegistrarClient (Playwright) for county/local candidates and ballot measures, and store as upcoming election data. Answers 'what's on my ballot?' for the June 2026 primary.",
+        "status": "done",
+        "priority": 2,
+        "description": "Built CA SOS ballot preview client: downloads certified candidate PDFs from SOS CDN, parses candidate name/party/ballot-designation/contact using pymupdf, maps to storage format. Supports all 8 race types (congress, state-senate, assembly, governor, lt-governor, controller, treasurer, attorney-general). 107 candidates across 8 contests stored for San Rafael. Wired into Modal ingest (--ballot-preview flag) and extraction config.",
         "files": [
-          "packages/civicos-extraction/src/civicos_extraction/clients/ca_sos_results.py",
-          "packages/civicos-extraction/src/civicos_extraction/clients/marin_registrar.py",
-          "scripts/modal_ingest.py"
+          "packages/civicos-extraction/src/civicos_extraction/clients/ca_sos_ballot_preview.py",
+          "packages/civicos-extraction/tests/test_ca_sos_ballot_preview.py",
+          "scripts/modal_ingest.py",
+          "data/extraction/city-san-rafael.json"
         ],
-        "test_file": null,
-        "notes": "Phase 1: CA SOS PDF parser (elections.cdn.sos.ca.gov — congress.pdf, state-senate.pdf, assembly.pdf). Phase 2: Marin Registrar scraper extension (candidate filings, ballot measures). Phase 3: Google Civic API polling. See docs/internal/election-data-research.md for full research."
+        "test_file": "packages/civicos-extraction/tests/test_ca_sos_ballot_preview.py",
+        "notes": "Phase 1 complete: CA SOS PDF parser. Phase 2 (future): Marin Registrar candidate filings + local ballot measures. Phase 3 (future): deadline scraping from registrar. See docs/internal/election-data-research.md."
       }
     ]
   }
