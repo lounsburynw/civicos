@@ -1372,20 +1372,20 @@
       {
         "name": "onboard_election_detection",
         "description": "Auto-detect election data sources during city/county onboarding. After geocoding, probe Google Civic, CA SOS, and county registrar availability. Populate election_sources in extraction config automatically.",
-        "priority": 0,
-        "status": "not_started",
+        "priority": 2,
+        "status": "done",
         "phase": "B",
         "source": "election-onboarding-spec.md",
         "files": [
           "packages/civicos-extraction/src/civicos_extraction/onboard.py"
         ],
-        "test_file": null,
-        "notes": "Depends on election_source_config (must know the schema). Detection logic: Google Civic always available, CA SOS for CA jurisdictions, Marin Registrar for Marin County. Division filter inferred from jurisdiction_id. ~0.5 session."
+        "test_file": "packages/civicos-extraction/tests/test_election_detection.py",
+        "notes": "detect_election_sources() + _infer_division_name() wired into onboard flow after geocoding (Step 3.6). 23 unit tests. School district names resolved via school_districts.json lookup."
       },
       {
         "name": "google_civic_deprecation",
         "description": "Update Google Civic client to mark Representatives endpoint as deprecated (returns 0 results since April 2025). Add fallback to Congress.gov + LegiScan for representative lookups. Keep elections endpoint for polling location queries during major elections.",
-        "priority": 3,
+        "priority": 0,
         "status": "not_started",
         "files": [
           "packages/civicos-extraction/src/civicos_extraction/clients/google_civic.py"
