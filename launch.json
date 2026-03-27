@@ -504,7 +504,7 @@
         "name": "token_purchase_ui",
         "description": "Token purchase flow in extension: Stripe checkout -> blinded tokens, and (future) Lightning -> blinded tokens.",
         "status": "not_started",
-        "priority": 0,
+        "priority": 3,
         "source": "docs/internal/relay-acceptance-policy-spec.md (Phase 4)",
         "files": [
           "apps/civicos-extension/src/"
@@ -1406,6 +1406,13 @@
         ],
         "test_file": null,
         "notes": "CDE publishes district directory (name, county, website). Probe each website against _detect_simbli() and _detect_boarddocs() in platform_detection.py. Parallelizable \u2014 ~2 requests per district. One-time build script, output extends existing school_districts.json structure. ~1 session."
+      },
+      {
+        "name": "multi_county_registrar_research",
+        "status": "not_started",
+        "priority": 0,
+        "description": "Research CA county registrar systems beyond Marin. Identify common platforms (HART, Dominion, ES&S reporting portals), build a reusable client pattern, and pilot with one additional county (e.g. Alameda or Sonoma).",
+        "test_file": ""
       }
     ]
   }
