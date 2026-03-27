@@ -885,7 +885,7 @@
         "name": "federation_adr",
         "description": "Write Architecture Decision Record documenting federation boundaries: which protocols change, which stay, execution model for cross-jurisdiction queries, and trust chain design.",
         "status": "not_started",
-        "priority": 0,
+        "priority": 3,
         "phase": "B",
         "source": "architectural review \u2014 documentation",
         "files": [
@@ -1413,6 +1413,19 @@
         "priority": 2,
         "description": "Research CA county registrar systems beyond Marin. Identified 3 counties using Civera ElectionStats (Marin, Sonoma, Yolo). Built generalized CiveraElectionStatsClient, extraction configs, and Modal fetch function. 141 elections across 3 counties.",
         "test_file": "packages/civicos-extraction/tests/test_election_detection.py"
+      },
+      {
+        "name": "upcoming_ballot_preview",
+        "status": "not_started",
+        "priority": 0,
+        "description": "Build pre-election ballot preview: parse CA SOS certified candidate PDFs (predictable CDN URLs, well-structured layout) for state/federal races, extend MarinRegistrarClient (Playwright) for county/local candidates and ballot measures, and store as upcoming election data. Answers 'what's on my ballot?' for the June 2026 primary.",
+        "files": [
+          "packages/civicos-extraction/src/civicos_extraction/clients/ca_sos_results.py",
+          "packages/civicos-extraction/src/civicos_extraction/clients/marin_registrar.py",
+          "scripts/modal_ingest.py"
+        ],
+        "test_file": null,
+        "notes": "Phase 1: CA SOS PDF parser (elections.cdn.sos.ca.gov — congress.pdf, state-senate.pdf, assembly.pdf). Phase 2: Marin Registrar scraper extension (candidate filings, ballot measures). Phase 3: Google Civic API polling. See docs/internal/election-data-research.md for full research."
       }
     ]
   }
