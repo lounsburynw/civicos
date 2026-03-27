@@ -67,7 +67,7 @@ class TestLoadSchoolDistricts:
         data = load_school_districts()
         assert "california" in data
         assert "marin" in data["california"]
-        assert len(data["california"]["marin"]) == 10
+        assert len(data["california"]["marin"]) >= 10  # 10 curated + auto-detected
 
     def test_returns_empty_for_missing_file(self, tmp_path):
         """Returns empty dict when file doesn't exist."""
@@ -161,9 +161,9 @@ class TestLookupSchoolDistrictsByCounty:
         assert len(results) == 3
 
     def test_real_marin_county(self):
-        """Real lookup table should have all 10 Marin districts."""
+        """Real lookup table should have at least the 10 curated Marin districts."""
         results = lookup_school_districts_by_county("CA", "Marin")
-        assert len(results) == 10
+        assert len(results) >= 10  # 10 curated + auto-detected
         platforms = {d["platform"] for d in results}
         assert platforms == {"simbli", "boarddocs"}
 
@@ -190,15 +190,24 @@ class TestRealSchoolDistrictsJson:
             if d["platform"] == "boarddocs":
                 assert "boarddocs_app_path" in d, f"{d['name']} missing boarddocs_app_path"
 
-    def test_jurisdiction_ids_match_config_files(self):
-        """Jurisdiction IDs in lookup table should match existing extraction configs."""
+    def test_onboarded_districts_in_lookup_table(self):
+        """School districts with extraction configs should appear in lookup table."""
         data = load_school_districts()
         extraction_dir = Path(__file__).parents[3] / "data" / "extraction"
-        for d in data["california"]["marin"]:
-            config_path = extraction_dir / f"{d['jurisdiction_id']}.json"
-            assert config_path.exists(), f"No config for {d['jurisdiction_id']}"
+        marin_ids = {d["jurisdiction_id"] for d in data["california"]["marin"]}
+        # Find school-* extraction configs that exist
+        school_configs = list(extraction_dir.glob("school-*.json"))
+        assert len(school_configs) >= 5, "Expected at least 5 school extraction configs"
+        for config_path in school_configs:
+            jid = config_path.stem
+            assert jid in marin_ids, f"Config {jid} not in lookup table"
 
     def test_no_duplicate_jurisdiction_ids(self):
         data = load_school_districts()
-        ids = [d["jurisdiction_id"] for d in data["california"]["marin"]]
-        assert len(ids) == len(set(ids)), f"Duplicate IDs: {ids}"
+        all_ids = []
+        for state_data in data.values():
+            for entries in state_data.values():
+                for entry in entries:
+                    all_ids.append(entry["jurisdiction_id"])
+        dupes = [jid for jid in all_ids if all_ids.count(jid) > 1]
+        assert len(all_ids) == len(set(all_ids)), f"Duplicate IDs: {set(dupes)}"

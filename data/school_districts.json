@@ -1,42 +1,1278 @@
 {
   "california": {
+    "alameda": [
+      {
+        "name": "Albany City Unified School District",
+        "jurisdiction_id": "school-albany-city",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/index.aspx?S=36030672",
+        "district_website": "https://www.ausdk12.org",
+        "simbli_district_id": "36030672"
+      },
+      {
+        "name": "Fremont Unified School District",
+        "jurisdiction_id": "school-fremont",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/index.aspx?S=36031613",
+        "district_website": "https://fremontunified.org/",
+        "simbli_district_id": "36031613"
+      },
+      {
+        "name": "Livermore Valley Joint Unified School District",
+        "jurisdiction_id": "school-livermore-valley",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030508",
+        "district_website": "https://www.livermoreschools.org",
+        "simbli_district_id": "36030508"
+      },
+      {
+        "name": "Mission Valley ROC/P School District",
+        "jurisdiction_id": "school-mission-valley-rocp",
+        "platform": "boarddocs",
+        "board_url": "https://go.boarddocs.com/ca/mvrop/Board.nsf",
+        "boarddocs_app_path": "ca/mvrop",
+        "boarddocs_committee_id": "A4EP6J588C05"
+      },
+      {
+        "name": "New Haven Unified School District",
+        "jurisdiction_id": "school-new-haven",
+        "platform": "boarddocs",
+        "board_url": "https://go.boarddocs.com/ca/nhusd/Board.nsf",
+        "boarddocs_app_path": "ca/nhusd",
+        "boarddocs_committee_id": "A4EP6J588C05"
+      },
+      {
+        "name": "Newark Unified School District",
+        "jurisdiction_id": "school-newark",
+        "platform": "boarddocs",
+        "board_url": "https://go.boarddocs.com/ca/nusd/Board.nsf",
+        "boarddocs_app_path": "ca/nusd",
+        "boarddocs_committee_id": "A4EP6J588C05"
+      },
+      {
+        "name": "Piedmont City Unified School District",
+        "jurisdiction_id": "school-piedmont-city",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030373",
+        "district_website": "https://www.piedmont.k12.ca.us",
+        "simbli_district_id": "36030373"
+      }
+    ],
+    "alpine": [
+      {
+        "name": "Alpine County Office of Education",
+        "jurisdiction_id": "school-alpine",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030509",
+        "district_website": "https://www.alpinestudents.org",
+        "simbli_district_id": "36030509"
+      },
+      {
+        "name": "Alpine County Unified School District",
+        "jurisdiction_id": "school-alpine-county",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030509",
+        "district_website": "https://www.alpinestudents.org",
+        "simbli_district_id": "36030509"
+      }
+    ],
+    "butte": [
+      {
+        "name": "Bangor Union Elementary School District",
+        "jurisdiction_id": "school-bangor-union",
+        "platform": "simbli",
+        "board_url": "https://www.bangorunion.org",
+        "district_website": "https://www.bangorunion.org"
+      },
+      {
+        "name": "Butte County Office of Education",
+        "jurisdiction_id": "school-butte",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/ViewMeeting.aspx?S=36030950&MID=55207",
+        "district_website": "https://www.bcoe.org",
+        "simbli_district_id": "36030950"
+      },
+      {
+        "name": "Chico Unified School District",
+        "jurisdiction_id": "school-chico",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030732",
+        "district_website": "https://www.chicousd.org",
+        "simbli_district_id": "36030732"
+      },
+      {
+        "name": "Durham Unified School District",
+        "jurisdiction_id": "school-durham",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Policy/PolicyListing.aspx?S=36030825",
+        "district_website": "https://www.durhamunified.org",
+        "simbli_district_id": "36030825"
+      },
+      {
+        "name": "Gridley Unified School District",
+        "jurisdiction_id": "school-gridley",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Index.aspx?S=36030973",
+        "district_website": "https://www.gusd.org",
+        "simbli_district_id": "36030973"
+      },
+      {
+        "name": "Manzanita Elementary School District",
+        "jurisdiction_id": "school-manzanita",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Policy/ViewPolicy.aspx?S=36031397&revid=FpslshwFvbwMN51urYdii2m4Q==&ptid=amIgTZiB9plushNjl6WXhfiOQ==&secid=9slshUHzTHxaaYMVf6zKpJz3Q==&PG=6&IRP=0&isPndg=false",
+        "district_website": "https://www.manzanitaelementaryschool.com",
+        "simbli_district_id": "36031397"
+      },
+      {
+        "name": "Oroville City Elementary School District",
+        "jurisdiction_id": "school-oroville-city",
+        "platform": "boarddocs",
+        "board_url": "https://go.boarddocs.com/ca/ocesd/Board.nsf",
+        "boarddocs_app_path": "ca/ocesd",
+        "boarddocs_committee_id": "A4EP6J588C05"
+      },
+      {
+        "name": "Paradise Unified School District",
+        "jurisdiction_id": "school-paradise",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Policy/ViewPolicy.aspx?S=36030364&revid=ZunkH8pP5slshr6kCAyUPNgQQ==&st=suicide&mt=Exact",
+        "district_website": "https://www.pusdk12.org",
+        "simbli_district_id": "36030364"
+      },
+      {
+        "name": "Thermalito Union Elementary School District",
+        "jurisdiction_id": "school-thermalito-union",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36031141",
+        "district_website": "https://www.thermalito.org",
+        "simbli_district_id": "36031141"
+      }
+    ],
+    "calaveras": [
+      {
+        "name": "Bret Harte Union High School District",
+        "jurisdiction_id": "school-bret-harte",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030549",
+        "district_website": "https://www.brethartebullfrogs.org/",
+        "simbli_district_id": "36030549"
+      },
+      {
+        "name": "Mark Twain Union Elementary School District",
+        "jurisdiction_id": "school-mark-twain-union",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030544",
+        "district_website": "https://www.mtwain.k12.ca.us",
+        "simbli_district_id": "36030544"
+      }
+    ],
+    "colusa": [
+      {
+        "name": "Colusa Unified School District",
+        "jurisdiction_id": "school-colusa",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030601",
+        "district_website": "https://www.colusa.k12.ca.us",
+        "simbli_district_id": "36030601"
+      },
+      {
+        "name": "Maxwell Unified School District",
+        "jurisdiction_id": "school-maxwell",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/index.aspx?S=36030548",
+        "district_website": "https://www.maxwell.k12.ca.us",
+        "simbli_district_id": "36030548"
+      },
+      {
+        "name": "Pierce Joint Unified School District",
+        "jurisdiction_id": "school-pierce",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030634",
+        "district_website": "https://www.pierce.k12.ca.us",
+        "simbli_district_id": "36030634"
+      },
+      {
+        "name": "Williams Unified School District",
+        "jurisdiction_id": "school-williams",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Index.aspx?S=36030294",
+        "district_website": "https://www.williamsusd.net",
+        "simbli_district_id": "36030294"
+      }
+    ],
+    "contra costa": [
+      {
+        "name": "Acalanes Union High School District",
+        "jurisdiction_id": "school-acalanes",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Index.aspx?S=36030662",
+        "district_website": "https://www.acalanes.k12.ca.us",
+        "simbli_district_id": "36030662"
+      },
+      {
+        "name": "Antioch Unified School District",
+        "jurisdiction_id": "school-antioch",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36031897",
+        "district_website": "https://www.antiochschools.net",
+        "simbli_district_id": "36031897"
+      },
+      {
+        "name": "Byron Union Elementary School District",
+        "jurisdiction_id": "school-byron-union",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Index.aspx?S=36030564",
+        "district_website": "https://www.byronunionschooldistrict.us",
+        "simbli_district_id": "36030564"
+      },
+      {
+        "name": "Knightsen Elementary School District",
+        "jurisdiction_id": "school-knightsen",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030280",
+        "district_website": "https://www.knightsen.k12.ca.us/",
+        "simbli_district_id": "36030280"
+      },
+      {
+        "name": "Lafayette Elementary School District",
+        "jurisdiction_id": "school-lafayette",
+        "platform": "boarddocs",
+        "board_url": "https://go.boarddocs.com/ca/lafsd/Board.nsf",
+        "boarddocs_app_path": "ca/lafsd",
+        "boarddocs_committee_id": "A4EP6J588C05"
+      },
+      {
+        "name": "Martinez Unified School District",
+        "jurisdiction_id": "school-martinez",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030321",
+        "district_website": "http://martinezusd.net",
+        "simbli_district_id": "36030321"
+      },
+      {
+        "name": "Oakley Union Elementary School District",
+        "jurisdiction_id": "school-oakley-union",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/ViewMeeting.aspx?S=36030613&MID=44405",
+        "district_website": "https://www.ouesd.k12.ca.us",
+        "simbli_district_id": "36030613"
+      },
+      {
+        "name": "Orinda Union School District",
+        "jurisdiction_id": "school-orinda-union",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Index.aspx?S=36030624",
+        "district_website": "https://www.orindaschools.org",
+        "simbli_district_id": "36030624"
+      },
+      {
+        "name": "Pittsburg Unified School District",
+        "jurisdiction_id": "school-pittsburg",
+        "platform": "boarddocs",
+        "board_url": "https://go.boarddocs.com/ca/pittsburg/Board.nsf",
+        "boarddocs_app_path": "ca/pittsburg",
+        "boarddocs_committee_id": "AB99Z925632A"
+      },
+      {
+        "name": "San Ramon Valley Unified School District",
+        "jurisdiction_id": "school-san-ramon-valley",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Policy/PolicyListing.aspx?S=36030429",
+        "district_website": "https://www.srvusd.net",
+        "simbli_district_id": "36030429"
+      },
+      {
+        "name": "West Contra Costa Unified School District",
+        "jurisdiction_id": "school-west-contra-costa",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030499",
+        "district_website": "https://www.wccusd.net",
+        "simbli_district_id": "36030499"
+      }
+    ],
+    "del norte": [
+      {
+        "name": "Del Norte County Office of Education",
+        "jurisdiction_id": "school-del-norte",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030752",
+        "district_website": "https://www.dncoe.org",
+        "simbli_district_id": "36030752"
+      },
+      {
+        "name": "Del Norte County Unified School District",
+        "jurisdiction_id": "school-del-norte-county",
+        "platform": "simbli",
+        "board_url": "https://delnorte.agendaonline.net/public/",
+        "district_website": "https://www.dnusd.org"
+      }
+    ],
+    "el dorado": [
+      {
+        "name": "Black Oak Mine Unified School District",
+        "jurisdiction_id": "school-black-oak-mine",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Policy/PolicyListing.aspx?S=36031428",
+        "district_website": "https://www.bomusd.org",
+        "simbli_district_id": "36031428"
+      },
+      {
+        "name": "El Dorado County Office of Education",
+        "jurisdiction_id": "school-el-dorado",
+        "platform": "boarddocs",
+        "board_url": "https://go.boarddocs.com/ca/edcoe/Board.nsf",
+        "boarddocs_app_path": "ca/edcoe",
+        "boarddocs_committee_id": "A4EP6J588C05"
+      },
+      {
+        "name": "El Dorado Union High School District",
+        "jurisdiction_id": "school-el-dorado-high",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Policy/PolicyListing.aspx?S=36030797",
+        "district_website": "https://www.eduhsd.k12.ca.us",
+        "simbli_district_id": "36030797"
+      },
+      {
+        "name": "Lake Tahoe Unified School District",
+        "jurisdiction_id": "school-lake-tahoe",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030287",
+        "district_website": "https://www.ltusd.org",
+        "simbli_district_id": "36030287"
+      },
+      {
+        "name": "Latrobe School District",
+        "jurisdiction_id": "school-latrobe",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Policy/PolicyListing.aspx?S=36030721",
+        "district_website": "https://www.latrobesd.org",
+        "simbli_district_id": "36030721"
+      },
+      {
+        "name": "Mother Lode Union Elementary School District",
+        "jurisdiction_id": "school-mother-lode-union",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Policy/PolicyListing.aspx?S=36031930",
+        "district_website": "https://www.mlusd.net",
+        "simbli_district_id": "36031930"
+      },
+      {
+        "name": "Placerville Union Elementary School District",
+        "jurisdiction_id": "school-placerville-union",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030378",
+        "district_website": "https://www.pusdk8.us",
+        "simbli_district_id": "36030378"
+      },
+      {
+        "name": "Rescue Union Elementary School District",
+        "jurisdiction_id": "school-rescue-union",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Policy/PolicyListing.aspx?S=36030370/",
+        "district_website": "https://www.rescueusd.org",
+        "simbli_district_id": "36030370"
+      }
+    ],
+    "fresno": [
+      {
+        "name": "Central Unified School District",
+        "jurisdiction_id": "school-central",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030730",
+        "district_website": "https://www.centralunified.org",
+        "simbli_district_id": "36030730"
+      },
+      {
+        "name": "Coalinga-Huron Unified School District",
+        "jurisdiction_id": "school-coalinga-huron",
+        "platform": "simbli",
+        "board_url": "https://agendaonline.net/public/coalinga-huron",
+        "district_website": "https://www.chusd.org"
+      },
+      {
+        "name": "Firebaugh-Las Deltas Unified School District",
+        "jurisdiction_id": "school-firebaugh-las-deltas",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030239",
+        "district_website": "https://www.fldusd.org",
+        "simbli_district_id": "36030239"
+      },
+      {
+        "name": "Golden Plains Unified School District",
+        "jurisdiction_id": "school-golden-plains",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Index.aspx?S=36030763",
+        "district_website": "https://www.gpusd.org",
+        "simbli_district_id": "36030763"
+      },
+      {
+        "name": "Kings Canyon Joint Unified School District",
+        "jurisdiction_id": "school-kings-canyon",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Policy/PolicyListing.aspx?S=36030278",
+        "district_website": "https://www.kcusd.com",
+        "simbli_district_id": "36030278"
+      },
+      {
+        "name": "Mendota Unified School District",
+        "jurisdiction_id": "school-mendota",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Index.aspx?S=36030558",
+        "district_website": "https://www.musdaztecs.com",
+        "simbli_district_id": "36030558"
+      },
+      {
+        "name": "Parlier Unified School District",
+        "jurisdiction_id": "school-parlier",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030365",
+        "district_website": "https://www.parlierunified.org",
+        "simbli_district_id": "36030365"
+      },
+      {
+        "name": "Riverdale Joint Unified School District",
+        "jurisdiction_id": "school-riverdale",
+        "platform": "simbli",
+        "board_url": "https://www.google.com/url?q=https%3A%2F%2Fsimbli.eboardsolutions.com%2FPolicy%2FViewPolicy.aspx%3FS%3D36030386%26revid%3DYXvSZQpCJNAHyU9T66pW3A%3D%3D%26ptid%3DamIgTZiB9plushNjl6WXhfiOQ%3D%3D%26secid%3D9slshUHzTHxaaYMVf6zKpJz3Q%3D%3D%26PG%3D6%26IRP%3D0&sa=D&sntz=1&usg=AOvVaw35mjqpUYv3sZJcwZ07nbmW",
+        "district_website": "https://www.rjusd.org"
+      },
+      {
+        "name": "Sanger Unified School District",
+        "jurisdiction_id": "school-sanger",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030431",
+        "district_website": "https://www.sanger.k12.ca.us",
+        "simbli_district_id": "36030431"
+      },
+      {
+        "name": "Selma Unified School District",
+        "jurisdiction_id": "school-selma",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030442",
+        "district_website": "https://www.selmausd.org",
+        "simbli_district_id": "36030442"
+      }
+    ],
+    "glenn": [
+      {
+        "name": "Hamilton Unified School District",
+        "jurisdiction_id": "school-hamilton",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/index.aspx?s=36030778",
+        "district_website": "https://www.husdschools.org"
+      },
+      {
+        "name": "Lake Elementary School District",
+        "jurisdiction_id": "school-lake",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/index.aspx?S=36030283",
+        "district_website": "https://www.lakeschool.org",
+        "simbli_district_id": "36030283"
+      },
+      {
+        "name": "Orland Joint Unified School District",
+        "jurisdiction_id": "school-orland",
+        "platform": "boarddocs",
+        "board_url": "https://go.boarddocs.com/ca/ousd/Board.nsf",
+        "boarddocs_app_path": "ca/ousd",
+        "boarddocs_committee_id": "AB99YP254E1E"
+      },
+      {
+        "name": "Princeton Joint Unified School District",
+        "jurisdiction_id": "school-princeton",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/index.aspx?S=36030357",
+        "district_website": "https://www.pjusd.org",
+        "simbli_district_id": "36030357"
+      }
+    ],
+    "humboldt": [
+      {
+        "name": "Arcata Elementary School District",
+        "jurisdiction_id": "school-arcata",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_ePolicy/SB_PolicyOverview.aspx?S=36030695",
+        "district_website": "https://www.arcataschooldistrict.org",
+        "simbli_district_id": "36030695"
+      },
+      {
+        "name": "Blue Lake Union Elementary School District",
+        "jurisdiction_id": "school-blue-lake-union",
+        "platform": "simbli",
+        "board_url": "http://bluelakeschool.org",
+        "district_website": "http://bluelakeschool.org"
+      },
+      {
+        "name": "Ferndale Unified School District",
+        "jurisdiction_id": "school-ferndale",
+        "platform": "simbli",
+        "board_url": "https://www.ferndalek12.org",
+        "district_website": "https://www.ferndalek12.org"
+      },
+      {
+        "name": "Fieldbrook Elementary School District",
+        "jurisdiction_id": "school-fieldbrook",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Policy/ViewPolicy.aspx?S=36030908&revid=1cslshHmp0osxUuslshMFZJgS55Q==&ptid=amIgTZiB9plushNjl6WXhfiOQ==&secid=zxfvZYmcKkpluslhKHzD4ftFA==&PG=6&IRP=0&isPndg=false",
+        "district_website": "https://www.fbk8.org",
+        "simbli_district_id": "36030908"
+      },
+      {
+        "name": "Klamath-Trinity Joint Unified School District",
+        "jurisdiction_id": "school-klamath-trinity",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030219",
+        "district_website": "https://www.ktjusd.k12.ca.us",
+        "simbli_district_id": "36030219"
+      },
+      {
+        "name": "McKinleyville Union Elementary School District",
+        "jurisdiction_id": "school-mckinleyville-union",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36031405",
+        "district_website": "https://www.mckusd.org/",
+        "simbli_district_id": "36031405"
+      },
+      {
+        "name": "Orick Elementary School District",
+        "jurisdiction_id": "school-orick",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Index.aspx?S=36031436",
+        "district_website": "http://orickschool.org",
+        "simbli_district_id": "36031436"
+      },
+      {
+        "name": "Pacific Union Elementary School District",
+        "jurisdiction_id": "school-pacific-union",
+        "platform": "simbli",
+        "board_url": "https://www.pacificunionschool.org",
+        "district_website": "https://www.pacificunionschool.org"
+      },
+      {
+        "name": "Southern Humboldt Joint Unified School District",
+        "jurisdiction_id": "school-southern-humboldt",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Policy/ViewPolicy.aspx?S=36030455&revid=LFq0TRVgXZCZS8plusVmdEEUw==&ptid=amIgTZiB9plushNjl6WXhfiOQ==&secid=y1ZW0qRGjEafuplusqEjNeK2Q==&PG=6&IRP=0",
+        "district_website": "https://sohumusd.com/",
+        "simbli_district_id": "36030455"
+      }
+    ],
+    "imperial": [
+      {
+        "name": "Brawley Elementary School District",
+        "jurisdiction_id": "school-brawley-elem",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030712",
+        "district_website": "https://www.besd.org",
+        "simbli_district_id": "36030712"
+      },
+      {
+        "name": "Brawley Union High School District",
+        "jurisdiction_id": "school-brawley-high",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030546",
+        "district_website": "https://www.brawleyhigh.org",
+        "simbli_district_id": "36030546"
+      },
+      {
+        "name": "Calexico Unified School District",
+        "jurisdiction_id": "school-calexico",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Policy/PolicyListing.aspx?S=36030714",
+        "district_website": "http://www2.cusdk12.org",
+        "simbli_district_id": "36030714"
+      },
+      {
+        "name": "Central Union High School District",
+        "jurisdiction_id": "school-central-high",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030729",
+        "district_website": "https://www.cuhsd.net",
+        "simbli_district_id": "36030729"
+      },
+      {
+        "name": "El Centro Elementary School District",
+        "jurisdiction_id": "school-el-centro",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Index.aspx?S=36030770",
+        "district_website": "https://www.ecesd.org",
+        "simbli_district_id": "36030770"
+      },
+      {
+        "name": "Imperial Unified School District",
+        "jurisdiction_id": "school-imperial",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/ViewMeeting.aspx?S=36030264&MID=54136",
+        "district_website": "http://do.imperialusd.org/index.html",
+        "simbli_district_id": "36030264"
+      },
+      {
+        "name": "McCabe Union Elementary School District",
+        "jurisdiction_id": "school-mccabe-union",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030325",
+        "district_website": "https://www.muesd.net",
+        "simbli_district_id": "36030325"
+      },
+      {
+        "name": "Westmorland Union Elementary School District",
+        "jurisdiction_id": "school-westmorland-union",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/ViewMeeting.aspx?S=36031142&MID=54721",
+        "district_website": "https://www.wued.org",
+        "simbli_district_id": "36031142"
+      }
+    ],
+    "inyo": [
+      {
+        "name": "Bishop Unified School District",
+        "jurisdiction_id": "school-bishop",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Policy/PolicyListing.aspx?S=36030543&ptid=amIgTZiB9plushNjl6WXhfiOQ==",
+        "district_website": "https://www.bishopschools.org",
+        "simbli_district_id": "36030543"
+      },
+      {
+        "name": "Round Valley Joint Elementary School District",
+        "jurisdiction_id": "school-round-valley",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Index.aspx?S=36030398",
+        "district_website": "http://roundvalleyelementary.com",
+        "simbli_district_id": "36030398"
+      }
+    ],
+    "kern": [
+      {
+        "name": "Arvin Union School District",
+        "jurisdiction_id": "school-arvin-union",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Policy/PolicyListing.aspx?S=36030807",
+        "district_website": "https://www.arvinschools.com",
+        "simbli_district_id": "36030807"
+      },
+      {
+        "name": "Bakersfield City School District",
+        "jurisdiction_id": "school-bakersfield-city",
+        "platform": "boarddocs",
+        "board_url": "https://go.boarddocs.com/ca/bcsdca/Board.nsf",
+        "boarddocs_app_path": "ca/bcsdca",
+        "boarddocs_committee_id": "AB99AL22114A"
+      },
+      {
+        "name": "Beardsley Elementary School District",
+        "jurisdiction_id": "school-beardsley",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Index.aspx?S=36030534",
+        "district_website": "https://www.beardsleyschool.org",
+        "simbli_district_id": "36030534"
+      },
+      {
+        "name": "Delano Joint Union High School District",
+        "jurisdiction_id": "school-delano",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Index.aspx?S=36030753",
+        "district_website": "https://www.djuhsd.org",
+        "simbli_district_id": "36030753"
+      },
+      {
+        "name": "Delano Union Elementary School District",
+        "jurisdiction_id": "school-delano-union",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030755",
+        "district_website": "https://www.duesd.org",
+        "simbli_district_id": "36030755"
+      },
+      {
+        "name": "Edison Elementary School District",
+        "jurisdiction_id": "school-edison",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030647",
+        "district_website": "https://www.edison.k12.ca.us",
+        "simbli_district_id": "36030647"
+      },
+      {
+        "name": "Fairfax Elementary School District",
+        "jurisdiction_id": "school-fairfax",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030657",
+        "district_website": "https://www.fairfax.k12.ca.us",
+        "simbli_district_id": "36030657"
+      },
+      {
+        "name": "Greenfield Union School District",
+        "jurisdiction_id": "school-greenfield-union",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Policy/PolicyListing.aspx?S=36030910",
+        "district_website": "https://www.gfusd.net",
+        "simbli_district_id": "36030910"
+      },
+      {
+        "name": "Kern High School District",
+        "jurisdiction_id": "school-kern",
+        "platform": "boarddocs",
+        "board_url": "https://go.boarddocs.com/ca/khsd/Board.nsf",
+        "boarddocs_app_path": "ca/khsd",
+        "boarddocs_committee_id": "AB99S3245593"
+      },
+      {
+        "name": "Panama-Buena Vista Union School District",
+        "jurisdiction_id": "school-panama-buena-vista-union",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Policy/PolicyListing.aspx?S=36030362",
+        "district_website": "https://www.pbvusd.k12.ca.us",
+        "simbli_district_id": "36030362"
+      },
+      {
+        "name": "Richland Union Elementary School District",
+        "jurisdiction_id": "school-richland-union",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030401",
+        "district_website": "https://www.rsdshafter.org",
+        "simbli_district_id": "36030401"
+      },
+      {
+        "name": "Sierra Sands Unified School District",
+        "jurisdiction_id": "school-sierra-sands",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Index.aspx?S=36030200",
+        "district_website": "https://www.ssusd.org",
+        "simbli_district_id": "36030200"
+      },
+      {
+        "name": "Southern Kern Unified School District",
+        "jurisdiction_id": "school-southern-kern",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Policy/PolicyListing.aspx?S=36030190",
+        "district_website": "https://www.skusd.k12.ca.us",
+        "simbli_district_id": "36030190"
+      },
+      {
+        "name": "Standard Elementary School District",
+        "jurisdiction_id": "school-standard",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030456",
+        "district_website": "https://www.standardschools.net",
+        "simbli_district_id": "36030456"
+      },
+      {
+        "name": "Taft Union High School District",
+        "jurisdiction_id": "school-taft",
+        "platform": "boarddocs",
+        "board_url": "https://go.boarddocs.com/ca/taft/Board.nsf",
+        "boarddocs_app_path": "ca/taft",
+        "boarddocs_committee_id": "AB9AC726FD71"
+      },
+      {
+        "name": "Tehachapi Unified School District",
+        "jurisdiction_id": "school-tehachapi",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030470",
+        "district_website": "https://www.tehachapiusd.com",
+        "simbli_district_id": "36030470"
+      },
+      {
+        "name": "Wasco Union Elementary School District",
+        "jurisdiction_id": "school-wasco-union",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/index.aspx?S=36030234",
+        "district_website": "https://www.wuesd.org",
+        "simbli_district_id": "36030234"
+      }
+    ],
+    "kings": [
+      {
+        "name": "Corcoran Joint Unified School District",
+        "jurisdiction_id": "school-corcoran",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Policy/PolicyListing.aspx?S=36031096",
+        "district_website": "https://www.corcoranunified.com",
+        "simbli_district_id": "36031096"
+      },
+      {
+        "name": "Kit Carson Union Elementary School District",
+        "jurisdiction_id": "school-kit-carson-union",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030215",
+        "district_website": "https://www.kitcarsonschool.com",
+        "simbli_district_id": "36030215"
+      },
+      {
+        "name": "Lemoore Union Elementary School District",
+        "jurisdiction_id": "school-lemoore-union",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/index.aspx?S=36030297",
+        "district_website": "https://www.luesd.k12.ca.us",
+        "simbli_district_id": "36030297"
+      },
+      {
+        "name": "Pioneer Union Elementary School District",
+        "jurisdiction_id": "school-pioneer-union",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Index.aspx?S=36030782",
+        "district_website": "https://www.pioneerunion.org",
+        "simbli_district_id": "36030782"
+      },
+      {
+        "name": "Reef-Sunset Unified School District",
+        "jurisdiction_id": "school-reef-sunset",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030367",
+        "district_website": "https://www.rsusd.org",
+        "simbli_district_id": "36030367"
+      }
+    ],
+    "lake": [
+      {
+        "name": "Konocti Unified School District",
+        "jurisdiction_id": "school-konocti",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030185",
+        "district_website": "https://www.konoctiusd.org",
+        "simbli_district_id": "36030185"
+      },
+      {
+        "name": "Upper Lake Unified School District",
+        "jurisdiction_id": "school-upper-lake",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/index.aspx?s=36030257",
+        "district_website": "https://www.ulusd.org"
+      }
+    ],
+    "lassen": [
+      {
+        "name": "Richmond Elementary School District",
+        "jurisdiction_id": "school-richmond",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Policy/PolicyListing.aspx?S=36031138",
+        "district_website": "https://www.richmondelementary.com",
+        "simbli_district_id": "36031138"
+      },
+      {
+        "name": "Shaffer Union Elementary School District",
+        "jurisdiction_id": "school-shaffer-union",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/csba/shafferunion",
+        "district_website": "https://www.shafferschool.com"
+      },
+      {
+        "name": "Susanville Elementary School District",
+        "jurisdiction_id": "school-susanville",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Index.aspx?S=36030835",
+        "district_website": "https://www.susanvillesd.org",
+        "simbli_district_id": "36030835"
+      }
+    ],
+    "los angeles": [
+      {
+        "name": "Acton-Agua Dulce Unified School District",
+        "jurisdiction_id": "school-acton-agua-dulce",
+        "platform": "boarddocs",
+        "board_url": "https://go.boarddocs.com/ca/aadusd/Board.nsf",
+        "boarddocs_app_path": "ca/aadusd",
+        "boarddocs_committee_id": "A4EP6J588C05"
+      },
+      {
+        "name": "Alhambra Unified School District",
+        "jurisdiction_id": "school-alhambra",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Index.aspx?S=36030507",
+        "district_website": "https://www.ausd.us",
+        "simbli_district_id": "36030507"
+      },
+      {
+        "name": "Azusa Unified School District",
+        "jurisdiction_id": "school-azusa",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Policy/ViewPolicy.aspx?S=36030702&revid=zVD3tr4FupzGJJX3RuplusO3Q==&ptid=amIgTZiB9plushNjl6WXhfiOQ==&secid=muNUlKiR2jsXcslsh28JpBkiw==&PG=6&IRP=0",
+        "district_website": "https://www.azusa.org",
+        "simbli_district_id": "36030702"
+      },
+      {
+        "name": "Bassett Unified School District",
+        "jurisdiction_id": "school-bassett",
+        "platform": "simbli",
+        "board_url": "https://Simbli.eboardsolutions.com/csba/bassettusd",
+        "district_website": "https://www.bassettusd.org"
+      },
+      {
+        "name": "Beverly Hills Unified School District",
+        "jurisdiction_id": "school-beverly-hills",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030529",
+        "district_website": "https://www.bhusd.org",
+        "simbli_district_id": "36030529"
+      },
+      {
+        "name": "Burbank Unified School District",
+        "jurisdiction_id": "school-burbank",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Policy/PolicyListing.aspx?S=36030557",
+        "district_website": "https://www.burbankusd.org",
+        "simbli_district_id": "36030557"
+      },
+      {
+        "name": "Claremont Unified School District",
+        "jurisdiction_id": "school-claremont",
+        "platform": "boarddocs",
+        "board_url": "https://go.boarddocs.com/ca/claremont/Board.nsf",
+        "boarddocs_app_path": "ca/claremont",
+        "boarddocs_committee_id": "A4EP6J588C05"
+      },
+      {
+        "name": "Compton Unified School District",
+        "jurisdiction_id": "school-compton",
+        "platform": "boarddocs",
+        "board_url": "https://go.boarddocs.com/ca/cusdca/Board.nsf",
+        "boarddocs_app_path": "ca/cusdca",
+        "boarddocs_committee_id": "AB99FX22D964"
+      },
+      {
+        "name": "Covina-Valley Unified School District",
+        "jurisdiction_id": "school-covina-valley",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030744",
+        "district_website": "https://www.c-vusd.org",
+        "simbli_district_id": "36030744"
+      },
+      {
+        "name": "Downey Unified School District",
+        "jurisdiction_id": "school-downey",
+        "platform": "boarddocs",
+        "board_url": "https://go.boarddocs.com/ca/downey/Board.nsf",
+        "boarddocs_app_path": "ca/downey",
+        "boarddocs_committee_id": "A4EM59598984"
+      },
+      {
+        "name": "Duarte Unified School District",
+        "jurisdiction_id": "school-duarte",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030764",
+        "district_website": "https://www.duarteusd.org",
+        "simbli_district_id": "36030764"
+      },
+      {
+        "name": "East Whittier City Elementary School District",
+        "jurisdiction_id": "school-east-whittier-city",
+        "platform": "boarddocs",
+        "board_url": "https://go.boarddocs.com/ca/ewcsd/Board.nsf",
+        "boarddocs_app_path": "ca/ewcsd",
+        "boarddocs_committee_id": "A4EP6J588C05"
+      },
+      {
+        "name": "Eastside Union Elementary School District",
+        "jurisdiction_id": "school-eastside-union",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Policy/PolicyListing.aspx?S=36030646",
+        "district_website": "https://www.eastsideusd.org",
+        "simbli_district_id": "36030646"
+      },
+      {
+        "name": "El Monte City School District",
+        "jurisdiction_id": "school-el-monte-city",
+        "platform": "boarddocs",
+        "board_url": "https://go.boarddocs.com/ca/emcsd/Board.nsf",
+        "boarddocs_app_path": "ca/emcsd",
+        "boarddocs_committee_id": "A4EP6J588C05"
+      },
+      {
+        "name": "El Rancho Unified School District",
+        "jurisdiction_id": "school-el-rancho",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Policy/PolicyListing.aspx?S=36030771",
+        "district_website": "http://erusd.org",
+        "simbli_district_id": "36030771"
+      },
+      {
+        "name": "Glendora Unified School District",
+        "jurisdiction_id": "school-glendora",
+        "platform": "boarddocs",
+        "board_url": "https://go.boarddocs.com/ca/glendora/Board.nsf",
+        "boarddocs_app_path": "ca/glendora",
+        "boarddocs_committee_id": "A4EP6J588C05"
+      },
+      {
+        "name": "Hughes-Elizabeth Lakes Union Elementary School District",
+        "jurisdiction_id": "school-hughes-elizabeth-lakes-union",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36031067",
+        "district_website": "http://helus.org",
+        "simbli_district_id": "36031067"
+      },
+      {
+        "name": "Inglewood Unified School District",
+        "jurisdiction_id": "school-inglewood",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Policy/PolicyListing.aspx?S=36030265",
+        "district_website": "http://inglewoodusd.com",
+        "simbli_district_id": "36030265"
+      },
+      {
+        "name": "Keppel Union Elementary School District",
+        "jurisdiction_id": "school-keppel-union",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030275",
+        "district_website": "https://www.keppelunion.org",
+        "simbli_district_id": "36030275"
+      },
+      {
+        "name": "La Canada Unified School District",
+        "jurisdiction_id": "school-la-canada",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030282",
+        "district_website": "https://www.lcusd.net",
+        "simbli_district_id": "36030282"
+      },
+      {
+        "name": "Lancaster Elementary School District",
+        "jurisdiction_id": "school-lancaster",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030290",
+        "district_website": "https://www.lancsd.org",
+        "simbli_district_id": "36030290"
+      },
+      {
+        "name": "Lawndale Elementary School District",
+        "jurisdiction_id": "school-lawndale",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Policy/PolicyListing.aspx?S=36030490",
+        "district_website": "https://www.lawndalesd.net",
+        "simbli_district_id": "36030490"
+      },
+      {
+        "name": "Lennox School District",
+        "jurisdiction_id": "school-lennox",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030299",
+        "district_website": "https://www.lennox.k12.ca.us",
+        "simbli_district_id": "36030299"
+      },
+      {
+        "name": "Long Beach Unified School District",
+        "jurisdiction_id": "school-long-beach",
+        "platform": "boarddocs",
+        "board_url": "https://go.boarddocs.com/ca/lbusd/Board.nsf",
+        "boarddocs_app_path": "ca/lbusd",
+        "boarddocs_committee_id": "A4EP6J588C05"
+      },
+      {
+        "name": "Los Nietos School District",
+        "jurisdiction_id": "school-los-nietos",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Policy/PolicyListing.aspx?S=36030313",
+        "district_website": "http://lnsd.net",
+        "simbli_district_id": "36030313"
+      },
+      {
+        "name": "Lynwood Unified School District",
+        "jurisdiction_id": "school-lynwood",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Policy/PolicyListing.aspx?S=36030526",
+        "district_website": "http://mylusd.org",
+        "simbli_district_id": "36030526"
+      },
+      {
+        "name": "Manhattan Beach Unified School District",
+        "jurisdiction_id": "school-manhattan-beach",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/index.aspx?S=36030533",
+        "district_website": "https://www.mbusd.org",
+        "simbli_district_id": "36030533"
+      },
+      {
+        "name": "Newhall School District",
+        "jurisdiction_id": "school-newhall",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Policy/ViewPolicy.aspx?S=36030346&revid=CcwUmB0S81DRQPcHZh5XYA==&ptid=amIgTZiB9plushNjl6WXhfiOQ==&secid=muNUlKiR2jsXcslsh28JpBkiw==&PG=6&IRP=0&isPndg=false",
+        "district_website": "https://www.newhallschooldistrict.com",
+        "simbli_district_id": "36030346"
+      },
+      {
+        "name": "Palmdale Elementary School District",
+        "jurisdiction_id": "school-palmdale",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030356",
+        "district_website": "https://www.palmdalesd.org",
+        "simbli_district_id": "36030356"
+      },
+      {
+        "name": "Palos Verdes Peninsula Unified School District",
+        "jurisdiction_id": "school-palos-verdes-peninsula",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030360",
+        "district_website": "https://www.pvpusd.net",
+        "simbli_district_id": "36030360"
+      },
+      {
+        "name": "Paramount Unified School District",
+        "jurisdiction_id": "school-paramount",
+        "platform": "boarddocs",
+        "board_url": "https://go.boarddocs.com/ca/paramount/Board.nsf",
+        "boarddocs_app_path": "ca/paramount",
+        "boarddocs_committee_id": "A4EP6J588C05"
+      },
+      {
+        "name": "Rosemead Elementary School District",
+        "jurisdiction_id": "school-rosemead",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/index.aspx?s=36030408",
+        "district_website": "https://www.rosemead.k12.ca.us"
+      },
+      {
+        "name": "Rowland Unified School District",
+        "jurisdiction_id": "school-rowland",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/csba/rowlandusd",
+        "district_website": "https://www.rowlandschools.org"
+      },
+      {
+        "name": "San Gabriel Unified School District",
+        "jurisdiction_id": "school-san-gabriel",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Policy/PolicyListing.aspx?S=36030417",
+        "district_website": "https://www.sgusd.k12.ca.us",
+        "simbli_district_id": "36030417"
+      },
+      {
+        "name": "San Marino Unified School District",
+        "jurisdiction_id": "school-san-marino",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030424",
+        "district_website": "https://www.smusd.us",
+        "simbli_district_id": "36030424"
+      },
+      {
+        "name": "Santa Monica-Malibu Unified School District",
+        "jurisdiction_id": "school-santa-monica-malibu",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/ViewMeeting.aspx?S=36030435&MID=57578",
+        "district_website": "https://www.smmusd.org",
+        "simbli_district_id": "36030435"
+      },
+      {
+        "name": "Saugus Union School District",
+        "jurisdiction_id": "school-saugus-union",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030440",
+        "district_website": "https://www.saugususd.org",
+        "simbli_district_id": "36030440"
+      },
+      {
+        "name": "South Whittier Elementary School District",
+        "jurisdiction_id": "school-south-whittier",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030453",
+        "district_website": "https://www.swhittier.k12.ca.us/",
+        "simbli_district_id": "36030453"
+      },
+      {
+        "name": "Sulphur Springs Union School District",
+        "jurisdiction_id": "school-sulphur-springs-union",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Policy/ViewPolicy.aspx?S=36030462&revid=qcEaTijplusUkG6fm09BUixyw==&ptid=amIgTZiB9plushNjl6WXhfiOQ==&secid=9slshUHzTHxaaYMVf6zKpJz3Q==&PG=6&IRP=0",
+        "district_website": "https://www.sssd.k12.ca.us",
+        "simbli_district_id": "36030462"
+      },
+      {
+        "name": "Temple City Unified School District",
+        "jurisdiction_id": "school-temple-city",
+        "platform": "simbli",
+        "board_url": "https:// https://simbli.eboardsolutions.com/Policy/ViewPolicy.aspx?S=36030228&revid=vMan8HgdP1jdhlxtwWA8yQ==&ptid=amIgTZiB9plushNjl6WXhfiOQ==&secid=&PG=6&IRP=0&isPndg=false",
+        "district_website": "https://www.tcusd.net",
+        "simbli_district_id": "36030228"
+      },
+      {
+        "name": "Valle Lindo Elementary School District",
+        "jurisdiction_id": "school-valle-lindo",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_ePolicy/SB_PolicyOverview.aspx?S=36030900",
+        "district_website": "https://www.vallelindo.k12.ca.us",
+        "simbli_district_id": "36030900"
+      },
+      {
+        "name": "West Covina Unified School District",
+        "jurisdiction_id": "school-west-covina",
+        "platform": "boarddocs",
+        "board_url": "https://go.boarddocs.com/ca/wcusd/Board.nsf",
+        "boarddocs_app_path": "ca/wcusd",
+        "boarddocs_committee_id": "A4EM59598984"
+      },
+      {
+        "name": "Westside Union Elementary School District",
+        "jurisdiction_id": "school-westside-union",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030846",
+        "district_website": "https://www.westside.k12.ca.us",
+        "simbli_district_id": "36030846"
+      },
+      {
+        "name": "William S. Hart Union High School District",
+        "jurisdiction_id": "school-william-s-hart",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030502",
+        "district_website": "https://www.hartdistrict.org",
+        "simbli_district_id": "36030502"
+      },
+      {
+        "name": "Wilsona Elementary School District",
+        "jurisdiction_id": "school-wilsona",
+        "platform": "boarddocs",
+        "board_url": "https://go.boarddocs.com/ca/wilsona/Board.nsf",
+        "boarddocs_app_path": "ca/wilsona",
+        "boarddocs_committee_id": "A4EP6J588C05"
+      },
+      {
+        "name": "Wiseburn Unified School District",
+        "jurisdiction_id": "school-wiseburn",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Policy/PolicyListing.aspx?S=36030921",
+        "district_website": "https://www.wiseburn.org",
+        "simbli_district_id": "36030921"
+      }
+    ],
+    "madera": [
+      {
+        "name": "Bass Lake Joint Union Elementary School District",
+        "jurisdiction_id": "school-bass-lake-joint-union",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030707",
+        "district_website": "https://www.basslakeschooldistrict.com",
+        "simbli_district_id": "36030707"
+      },
+      {
+        "name": "Chawanakee Unified School District",
+        "jurisdiction_id": "school-chawanakee",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030585",
+        "district_website": "https://www.chawanakee.k12.ca.us",
+        "simbli_district_id": "36030585"
+      },
+      {
+        "name": "Golden Valley Unified School District",
+        "jurisdiction_id": "school-golden-valley",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36031857",
+        "district_website": "https://www.gvusd.org",
+        "simbli_district_id": "36031857"
+      },
+      {
+        "name": "Yosemite Unified School District",
+        "jurisdiction_id": "school-yosemite",
+        "platform": "boarddocs",
+        "board_url": "https://go.boarddocs.com/ca/yosemiteusd/Board.nsf",
+        "boarddocs_app_path": "ca/yosemiteusd",
+        "boarddocs_committee_id": "A4EP6J588C05"
+      }
+    ],
     "marin": [
       {
-        "name": "Novato Unified School District",
-        "jurisdiction_id": "school-novato",
+        "name": "Bolinas-Stinson Union School District",
+        "jurisdiction_id": "school-bolinas-stinson-union",
         "platform": "simbli",
-        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030351",
-        "simbli_district_id": "36030351",
-        "district_website": "https://www.nusd.org"
-      },
-      {
-        "name": "Tamalpais Union High School District",
-        "jurisdiction_id": "school-tamalpais",
-        "platform": "simbli",
-        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030468",
-        "simbli_district_id": "36030468",
-        "district_website": "https://www.tamdistrict.org"
-      },
-      {
-        "name": "Miller Creek School District",
-        "jurisdiction_id": "school-miller-creek",
-        "platform": "simbli",
-        "board_url": "https://agendaonline.net/public/millercreek",
-        "district_website": "https://www.millercreeksd.org"
-      },
-      {
-        "name": "Mill Valley School District",
-        "jurisdiction_id": "school-mill-valley-sd",
-        "platform": "simbli",
-        "board_url": "https://agendaonline.net/public/millvalley",
-        "district_website": "https://www.mvschools.org"
-      },
-      {
-        "name": "Reed Union School District",
-        "jurisdiction_id": "school-reed-union",
-        "platform": "simbli",
-        "board_url": "https://agendaonline.net/public/Agency.aspx?AgencyTypeID=1&PublicAgencyID=111",
-        "district_website": "https://www.reedschools.org"
+        "board_url": "https://simbli.eboardsolutions.com/Index.aspx?S=36031408",
+        "district_website": "https://www.bolinas-stinson.org",
+        "simbli_district_id": "36031408"
       },
       {
         "name": "Kentfield School District",
@@ -46,12 +1282,12 @@
         "district_website": "https://www.kentfieldschools.org"
       },
       {
-        "name": "Ross Valley School District",
-        "jurisdiction_id": "school-ross-valley",
-        "platform": "boarddocs",
-        "board_url": "https://go.boarddocs.com/ca/rova/Board.nsf",
-        "boarddocs_app_path": "ca/rova",
-        "boarddocs_committee_id": "AB9A2R259AF0"
+        "name": "Lagunitas Elementary School District",
+        "jurisdiction_id": "school-lagunitas",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Policy/PolicyListing.aspx?S=36031004",
+        "district_website": "https://www.lagunitas.org",
+        "simbli_district_id": "36031004"
       },
       {
         "name": "Larkspur-Corte Madera School District",
@@ -62,6 +1298,75 @@
         "boarddocs_committee_id": "A4EP6J588C05"
       },
       {
+        "name": "Marin County Office of Education",
+        "jurisdiction_id": "school-marin-county-oe",
+        "platform": "boarddocs",
+        "board_url": "https://go.boarddocs.com/ca/marinschools/Board.nsf",
+        "boarddocs_app_path": "ca/marinschools",
+        "boarddocs_committee_id": "A4EP6J588C05"
+      },
+      {
+        "name": "Mill Valley School District",
+        "jurisdiction_id": "school-mill-valley-sd",
+        "platform": "simbli",
+        "board_url": "https://agendaonline.net/public/millvalley",
+        "district_website": "https://www.mvschools.org"
+      },
+      {
+        "name": "Miller Creek School District",
+        "jurisdiction_id": "school-miller-creek",
+        "platform": "simbli",
+        "board_url": "https://agendaonline.net/public/millercreek",
+        "district_website": "https://www.millercreeksd.org"
+      },
+      {
+        "name": "Novato Unified School District",
+        "jurisdiction_id": "school-novato",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030351",
+        "simbli_district_id": "36030351",
+        "district_website": "https://www.nusd.org"
+      },
+      {
+        "name": "Reed Union School District",
+        "jurisdiction_id": "school-reed-union",
+        "platform": "simbli",
+        "board_url": "https://agendaonline.net/public/Agency.aspx?AgencyTypeID=1&PublicAgencyID=111",
+        "district_website": "https://www.reedschools.org"
+      },
+      {
+        "name": "Ross Elementary School District",
+        "jurisdiction_id": "school-ross",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030410",
+        "district_website": "https://www.rossbears.org",
+        "simbli_district_id": "36030410"
+      },
+      {
+        "name": "Ross Valley School District",
+        "jurisdiction_id": "school-ross-valley",
+        "platform": "boarddocs",
+        "board_url": "https://go.boarddocs.com/ca/rova/Board.nsf",
+        "boarddocs_app_path": "ca/rova",
+        "boarddocs_committee_id": "AB9A2R259AF0"
+      },
+      {
+        "name": "San Rafael City Elementary School District",
+        "jurisdiction_id": "school-san-rafael-city-elem",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030430",
+        "district_website": "https://www.srcs.org",
+        "simbli_district_id": "36030430"
+      },
+      {
+        "name": "San Rafael City High School District",
+        "jurisdiction_id": "school-san-rafael-city-high",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030430",
+        "district_website": "https://www.srcs.org",
+        "simbli_district_id": "36030430"
+      },
+      {
         "name": "Sausalito Marin City School District",
         "jurisdiction_id": "school-sausalito-marin-city",
         "platform": "boarddocs",
@@ -70,12 +1375,2304 @@
         "boarddocs_committee_id": "A4EP6J588C05"
       },
       {
-        "name": "Marin County Office of Education",
-        "jurisdiction_id": "school-marin-county-oe",
+        "name": "Shoreline Unified School District",
+        "jurisdiction_id": "school-shoreline",
+        "platform": "simbli",
+        "board_url": "http://shorelineunified.org",
+        "district_website": "http://shorelineunified.org"
+      },
+      {
+        "name": "Tamalpais Union High School District",
+        "jurisdiction_id": "school-tamalpais",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030468",
+        "simbli_district_id": "36030468",
+        "district_website": "https://www.tamdistrict.org"
+      }
+    ],
+    "mendocino": [
+      {
+        "name": "Anderson Valley Unified School District",
+        "jurisdiction_id": "school-anderson-valley",
         "platform": "boarddocs",
-        "board_url": "https://go.boarddocs.com/ca/marinschools/Board.nsf",
-        "boarddocs_app_path": "ca/marinschools",
+        "board_url": "https://go.boarddocs.com/ca/avusd/Board.nsf",
+        "boarddocs_app_path": "ca/avusd",
         "boarddocs_committee_id": "A4EP6J588C05"
+      },
+      {
+        "name": "Fort Bragg Unified School District",
+        "jurisdiction_id": "school-fort-bragg",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/index.aspx?S=36030740",
+        "district_website": "https://www.fbusd.us",
+        "simbli_district_id": "36030740"
+      },
+      {
+        "name": "Mendocino County Office of Education",
+        "jurisdiction_id": "school-mendocino",
+        "platform": "boarddocs",
+        "board_url": "https://go.boarddocs.com/ca/mcoe/Board.nsf",
+        "boarddocs_app_path": "ca/mcoe",
+        "boarddocs_committee_id": "A4EP6J588C05"
+      },
+      {
+        "name": "Ukiah Unified School District",
+        "jurisdiction_id": "school-ukiah",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030479",
+        "district_website": "https://www.uusd.net",
+        "simbli_district_id": "36030479"
+      },
+      {
+        "name": "Willits Unified School District",
+        "jurisdiction_id": "school-willits",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030296",
+        "district_website": "https://www.willitsunified.com/",
+        "simbli_district_id": "36030296"
+      }
+    ],
+    "merced": [
+      {
+        "name": "Atwater Elementary School District",
+        "jurisdiction_id": "school-atwater",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/index.aspx?S=36030823",
+        "district_website": "https://www.aesd.edu",
+        "simbli_district_id": "36030823"
+      },
+      {
+        "name": "Delhi Unified School District",
+        "jurisdiction_id": "school-delhi",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Policy/PolicyListing.aspx?S=36030616",
+        "district_website": "https://www.delhi.k12.ca.us",
+        "simbli_district_id": "36030616"
+      },
+      {
+        "name": "Gustine Unified School District",
+        "jurisdiction_id": "school-gustine",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Policy/ViewPolicy.aspx?S=36030829&revid=ZhzriviSplusplusbiplustu2UarrKQ==&ptid=amIgTZiB9plushNjl6WXhfiOQ==&secid=9slshUHzTHxaaYMVf6zKpJz3Q==&PG=6&IRP=0",
+        "district_website": "https://www.gustineusd.org",
+        "simbli_district_id": "36030829"
+      },
+      {
+        "name": "Merced City Elementary School District",
+        "jurisdiction_id": "school-merced-city",
+        "platform": "boarddocs",
+        "board_url": "https://go.boarddocs.com/ca/merced/Board.nsf",
+        "boarddocs_app_path": "ca/merced",
+        "boarddocs_committee_id": "A4EP6J588C05"
+      },
+      {
+        "name": "Weaver Union School District",
+        "jurisdiction_id": "school-weaver-union",
+        "platform": "simbli",
+        "board_url": "https://www.weaverusd.org",
+        "district_website": "https://www.weaverusd.org"
+      }
+    ],
+    "modoc": [
+      {
+        "name": "Modoc County Office of Education",
+        "jurisdiction_id": "school-modoc",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Policy/ViewPolicy.aspx?S=36030565&revid=uNirwIzkryGKas5w8LyJkA==&ptid=amIgTZiB9plushNjl6WXhfiOQ==&secid=9slshUHzTHxaaYMVf6zKpJz3Q==&PG=6&IRP=0",
+        "district_website": "https://www.modoccoe.k12.ca.us",
+        "simbli_district_id": "36030565"
+      }
+    ],
+    "mono": [
+      {
+        "name": "Eastern Sierra Unified School District",
+        "jurisdiction_id": "school-eastern-sierra",
+        "platform": "simbli",
+        "board_url": "https://www.esusd.org",
+        "district_website": "https://www.esusd.org"
+      },
+      {
+        "name": "Mono County Office of Education",
+        "jurisdiction_id": "school-mono",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/csba/monocoe",
+        "district_website": "https://www.monocoe.org"
+      }
+    ],
+    "monterey": [
+      {
+        "name": "Carmel Unified School District",
+        "jurisdiction_id": "school-carmel",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Index.aspx?S=36030810",
+        "district_website": "https://www.carmelunified.org",
+        "simbli_district_id": "36030810"
+      },
+      {
+        "name": "Greenfield Union Elementary School District",
+        "jurisdiction_id": "school-greenfield-union-elem",
+        "platform": "boarddocs",
+        "board_url": "https://go.boarddocs.com/ca/gusd/Board.nsf",
+        "boarddocs_app_path": "ca/gusd",
+        "boarddocs_committee_id": "AB99P423E652"
+      },
+      {
+        "name": "Lagunita Elementary School District",
+        "jurisdiction_id": "school-lagunita",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Policy/PolicyListing.aspx?S=36030706&ptid=amIgTZiB9plushNjl6WXhfiOQ==",
+        "district_website": "http://sites.google.com/site/lagunitaschooldistrict/",
+        "simbli_district_id": "36030706"
+      },
+      {
+        "name": "Monterey Peninsula Unified School District",
+        "jurisdiction_id": "school-monterey-peninsula",
+        "platform": "boarddocs",
+        "board_url": "https://go.boarddocs.com/ca/mpusd/Board.nsf",
+        "boarddocs_app_path": "ca/mpusd",
+        "boarddocs_committee_id": "A4EP6J588C05"
+      },
+      {
+        "name": "North Monterey County Unified School District",
+        "jurisdiction_id": "school-north-monterey-county",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Index.aspx?S=36030348",
+        "district_website": "https://www.nmcusd.org",
+        "simbli_district_id": "36030348"
+      },
+      {
+        "name": "Salinas Union High School District",
+        "jurisdiction_id": "school-salinas",
+        "platform": "boarddocs",
+        "board_url": "https://go.boarddocs.com/ca/salinas/Board.nsf",
+        "boarddocs_app_path": "ca/salinas",
+        "boarddocs_committee_id": "A4EP6J588C05"
+      },
+      {
+        "name": "Santa Rita Union Elementary School District",
+        "jurisdiction_id": "school-santa-rita-union",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Policy/ViewPolicy.aspx?S=36030445&revid=9UxT1fERFInKnhmAiyGKng==&ptid=amIgTZiB9plushNjl6WXhfiOQ==&secid=&PG=6&IRP=0&isPndg=false",
+        "district_website": "https://www.santaritaschools.org",
+        "simbli_district_id": "36030445"
+      },
+      {
+        "name": "South Monterey County Joint Union High School District",
+        "jurisdiction_id": "school-south-monterey-county",
+        "platform": "boarddocs",
+        "board_url": "https://go.boarddocs.com/ca/smc/Board.nsf",
+        "boarddocs_app_path": "ca/smc",
+        "boarddocs_committee_id": "A4EP6J588C05"
+      },
+      {
+        "name": "Washington Union Elementary School District",
+        "jurisdiction_id": "school-washington-union",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/ViewMeeting.aspx?S=36030491&MID=13654",
+        "district_website": "https://www.washingtonusd.org",
+        "simbli_district_id": "36030491"
+      }
+    ],
+    "napa": [
+      {
+        "name": "Calistoga Joint Unified School District",
+        "jurisdiction_id": "school-calistoga",
+        "platform": "boarddocs",
+        "board_url": "https://go.boarddocs.com/ca/cjusd/Board.nsf",
+        "boarddocs_app_path": "ca/cjusd",
+        "boarddocs_committee_id": "A4EP6J588C05"
+      },
+      {
+        "name": "Napa County Office of Education",
+        "jurisdiction_id": "school-napa",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030593",
+        "district_website": "https://www.napacoe.org",
+        "simbli_district_id": "36030593"
+      },
+      {
+        "name": "Saint Helena Unified School District",
+        "jurisdiction_id": "school-saint-helena",
+        "platform": "boarddocs",
+        "board_url": "https://go.boarddocs.com/ca/sthelena/Board.nsf",
+        "boarddocs_app_path": "ca/sthelena",
+        "boarddocs_committee_id": "AB9AAP26C49E"
+      }
+    ],
+    "nevada": [
+      {
+        "name": "Grass Valley Elementary School District",
+        "jurisdiction_id": "school-grass-valley",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030254",
+        "district_website": "https://www.gvsd.us",
+        "simbli_district_id": "36030254"
+      },
+      {
+        "name": "Nevada City Elementary School District",
+        "jurisdiction_id": "school-nevada-city",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_ePolicy/SB_PolicyOverview.aspx?S=36030344",
+        "district_website": "https://www.ncsd.school",
+        "simbli_district_id": "36030344"
+      },
+      {
+        "name": "Nevada Joint Union High School District",
+        "jurisdiction_id": "school-nevada",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030345",
+        "district_website": "https://www.njuhsd.com",
+        "simbli_district_id": "36030345"
+      },
+      {
+        "name": "Penn Valley Union Elementary School District",
+        "jurisdiction_id": "school-penn-valley-union",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030988",
+        "district_website": "https://www.pvuesd.org",
+        "simbli_district_id": "36030988"
+      },
+      {
+        "name": "Pleasant Ridge Union Elementary School District",
+        "jurisdiction_id": "school-pleasant-ridge-union",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030915",
+        "district_website": "https://www.prsd.us",
+        "simbli_district_id": "36030915"
+      },
+      {
+        "name": "Union Hill Elementary School District",
+        "jurisdiction_id": "school-union-hill",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/ViewMeeting.aspx?S=36030482&MID=11850",
+        "district_website": "https://www.unionhillschooldistrict.org/",
+        "simbli_district_id": "36030482"
+      }
+    ],
+    "orange": [
+      {
+        "name": "Anaheim Elementary School District",
+        "jurisdiction_id": "school-anaheim",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Policy/PolicyListing.aspx?S=36030689",
+        "district_website": "https://www.aesd.org",
+        "simbli_district_id": "36030689"
+      },
+      {
+        "name": "Brea-Olinda Unified School District",
+        "jurisdiction_id": "school-brea-olinda",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Policy/PolicyListing.aspx?S=36030881&ptid=amIgTZiB9plushNjl6WXhfiOQ==",
+        "district_website": "https://www.bousd.k12.ca.us",
+        "simbli_district_id": "36030881"
+      },
+      {
+        "name": "Buena Park Elementary School District",
+        "jurisdiction_id": "school-buena-park",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Policy/PolicyListing.aspx?S=36030553",
+        "district_website": "https://www.bpsd.us",
+        "simbli_district_id": "36030553"
+      },
+      {
+        "name": "College and Career Advantage School District",
+        "jurisdiction_id": "school-college-and-career-advantage",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030799",
+        "district_website": "https://www.ccadvantage.org/",
+        "simbli_district_id": "36030799"
+      },
+      {
+        "name": "Cypress Elementary School District",
+        "jurisdiction_id": "school-cypress",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030748",
+        "district_website": "https://www.cypsd.org",
+        "simbli_district_id": "36030748"
+      },
+      {
+        "name": "Fullerton Elementary School District",
+        "jurisdiction_id": "school-fullerton-elem",
+        "platform": "boarddocs",
+        "board_url": "https://go.boarddocs.com/ca/fullertonsd/Board.nsf",
+        "boarddocs_app_path": "ca/fullertonsd",
+        "boarddocs_committee_id": "A4EP6J588C05"
+      },
+      {
+        "name": "Fullerton Joint Union High School District",
+        "jurisdiction_id": "school-fullerton-high",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Policy/PolicyListing.aspx?S=36030243",
+        "district_website": "https://www.fjuhsd.org",
+        "simbli_district_id": "36030243"
+      },
+      {
+        "name": "Huntington Beach Union High School District",
+        "jurisdiction_id": "school-huntington-beach",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Policy/PolicyListing.aspx?S=36030800",
+        "district_website": "https://www.hbuhsd.edu",
+        "simbli_district_id": "36030800"
+      },
+      {
+        "name": "Laguna Beach Unified School District",
+        "jurisdiction_id": "school-laguna-beach",
+        "platform": "boarddocs",
+        "board_url": "https://go.boarddocs.com/ca/laguna/Board.nsf",
+        "boarddocs_app_path": "ca/laguna",
+        "boarddocs_committee_id": "A4EP6J588C05"
+      },
+      {
+        "name": "Los Alamitos Unified School District",
+        "jurisdiction_id": "school-los-alamitos",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/csba/losalamitosusd",
+        "district_website": "https://www.losal.org"
+      },
+      {
+        "name": "Magnolia Elementary School District",
+        "jurisdiction_id": "school-magnolia",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030317",
+        "district_website": "https://www.magnoliasd.org",
+        "simbli_district_id": "36030317"
+      },
+      {
+        "name": "North Orange County ROP-Adult",
+        "jurisdiction_id": "school-north-orange-county-rop-adult",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/index.aspx?S=36030349",
+        "district_website": "https://www.nocrop.org",
+        "simbli_district_id": "36030349"
+      },
+      {
+        "name": "Orange Unified School District",
+        "jurisdiction_id": "school-orange",
+        "platform": "boarddocs",
+        "board_url": "https://go.boarddocs.com/ca/orangeusd/Board.nsf",
+        "boarddocs_app_path": "ca/orangeusd",
+        "boarddocs_committee_id": "A4EP6J588C05"
+      },
+      {
+        "name": "Saddleback Valley Unified School District",
+        "jurisdiction_id": "school-saddleback-valley",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030413",
+        "district_website": "https://www.svusd.org",
+        "simbli_district_id": "36030413"
+      },
+      {
+        "name": "Tustin Unified School District",
+        "jurisdiction_id": "school-tustin",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030472",
+        "district_website": "https://www.tustin.k12.ca.us",
+        "simbli_district_id": "36030472"
+      }
+    ],
+    "placer": [
+      {
+        "name": "Auburn Union Elementary School District",
+        "jurisdiction_id": "school-auburn-union",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030515",
+        "district_website": "https://www.auburn.k12.ca.us",
+        "simbli_district_id": "36030515"
+      },
+      {
+        "name": "Colfax Elementary School District",
+        "jurisdiction_id": "school-colfax",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030811",
+        "district_website": "https://www.colfax.k12.ca.us",
+        "simbli_district_id": "36030811"
+      },
+      {
+        "name": "Foresthill Union Elementary School District",
+        "jurisdiction_id": "school-foresthill-union",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Index.aspx?S=36030241",
+        "district_website": "https://www.fusd.org",
+        "simbli_district_id": "36030241"
+      },
+      {
+        "name": "Loomis Union Elementary School District",
+        "jurisdiction_id": "school-loomis-union",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030303",
+        "district_website": "https://www.loomis-usd.k12.ca.us",
+        "simbli_district_id": "36030303"
+      },
+      {
+        "name": "Placer Hills Union Elementary School District",
+        "jurisdiction_id": "school-placer-hills-union",
+        "platform": "simbli",
+        "board_url": "https://www.google.com/url?q=https%3A%2F%2Fsimbli.eboardsolutions.com%2FSB_Meetings%2FSB_MeetingListing.aspx%3FS%3D36030374&sa=D&sntz=1&usg=AOvVaw3RLQQ-IERYqRhgfni26Tdl",
+        "district_website": "https://www.phusd.k12.ca.us"
+      },
+      {
+        "name": "Placer Union High School District",
+        "jurisdiction_id": "school-placer",
+        "platform": "simbli",
+        "board_url": "https://www.google.com/url?q=https%3A%2F%2Fsimbli.eboardsolutions.com%2FIndex.aspx%3FS%3D36030376&sa=D&sntz=1&usg=AOvVaw08mQb3nd0X-5dEEq7pjWVw",
+        "district_website": "https://www.puhsd.k12.ca.us"
+      },
+      {
+        "name": "Roseville Joint Union High School District",
+        "jurisdiction_id": "school-roseville",
+        "platform": "boarddocs",
+        "board_url": "https://go.boarddocs.com/ca/rjuhsd/Board.nsf",
+        "boarddocs_app_path": "ca/rjuhsd",
+        "boarddocs_committee_id": "A4EP6J588C05"
+      },
+      {
+        "name": "Tahoe-Truckee Unified School District",
+        "jurisdiction_id": "school-tahoe-truckee",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Policy/PolicyListing.aspx?S=36030225",
+        "district_website": "https://www.ttusd.org",
+        "simbli_district_id": "36030225"
+      }
+    ],
+    "plumas": [
+      {
+        "name": "Plumas Unified School District",
+        "jurisdiction_id": "school-plumas",
+        "platform": "simbli",
+        "board_url": "https://pcoe.agendaonline.net/public/",
+        "district_website": "https://www.pcoe.k12.ca.us"
+      }
+    ],
+    "riverside": [
+      {
+        "name": "Banning Unified School District",
+        "jurisdiction_id": "school-banning",
+        "platform": "boarddocs",
+        "board_url": "https://go.boarddocs.com/ca/banning/Board.nsf",
+        "boarddocs_app_path": "ca/banning",
+        "boarddocs_committee_id": "A4EP6J588C05"
+      },
+      {
+        "name": "Corona-Norco Unified School District",
+        "jurisdiction_id": "school-corona-norco",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030741",
+        "district_website": "https://www.cnusd.k12.ca.us",
+        "simbli_district_id": "36030741"
+      },
+      {
+        "name": "Desert Center Unified School District",
+        "jurisdiction_id": "school-desert-center",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030757",
+        "district_website": "https://dcusd.schoolblocks.com/",
+        "simbli_district_id": "36030757"
+      },
+      {
+        "name": "Desert Sands Unified School District",
+        "jurisdiction_id": "school-desert-sands",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Index.aspx?S=36030759",
+        "district_website": "https://www.dsusd.us",
+        "simbli_district_id": "36030759"
+      },
+      {
+        "name": "Hemet Unified School District",
+        "jurisdiction_id": "school-hemet",
+        "platform": "boarddocs",
+        "board_url": "https://go.boarddocs.com/ca/hemetusd/Board.nsf",
+        "boarddocs_app_path": "ca/hemetusd",
+        "boarddocs_committee_id": "A4EM59598984"
+      },
+      {
+        "name": "Lake Elsinore Unified School District",
+        "jurisdiction_id": "school-lake-elsinore",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030285",
+        "district_website": "https://www.leusd.k12.ca.us",
+        "simbli_district_id": "36030285"
+      },
+      {
+        "name": "Moreno Valley Unified School District",
+        "jurisdiction_id": "school-moreno-valley",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030335",
+        "district_website": "https://www.mvusd.net",
+        "simbli_district_id": "36030335"
+      },
+      {
+        "name": "Murrieta Valley Unified School District",
+        "jurisdiction_id": "school-murrieta-valley",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030338",
+        "district_website": "https://www.murrieta.k12.ca.us",
+        "simbli_district_id": "36030338"
+      },
+      {
+        "name": "Nuview Union School District",
+        "jurisdiction_id": "school-nuview-union",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030352",
+        "district_website": "https://www.nuview.k12.ca.us",
+        "simbli_district_id": "36030352"
+      },
+      {
+        "name": "Palm Springs Unified School District",
+        "jurisdiction_id": "school-palm-springs",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Policy/PolicyListing.aspx?S=36030355",
+        "district_website": "https://www.psusd.us",
+        "simbli_district_id": "36030355"
+      },
+      {
+        "name": "Palo Verde Unified School District",
+        "jurisdiction_id": "school-palo-verde",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/index.aspx?S=36030358",
+        "district_website": "https://www.pvusd.us",
+        "simbli_district_id": "36030358"
+      },
+      {
+        "name": "Perris Elementary School District",
+        "jurisdiction_id": "school-perris",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Index.aspx?S=36030631",
+        "district_website": "https://www.perrisesd.org",
+        "simbli_district_id": "36030631"
+      },
+      {
+        "name": "Riverside County Office of Education",
+        "jurisdiction_id": "school-riverside",
+        "platform": "boarddocs",
+        "board_url": "https://go.boarddocs.com/ca/rcoe/Board.nsf",
+        "boarddocs_app_path": "ca/rcoe",
+        "boarddocs_committee_id": "AB9A2B258A93"
+      },
+      {
+        "name": "Romoland Elementary School District",
+        "jurisdiction_id": "school-romoland",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/index.aspx?s=36030407",
+        "district_website": "https://www.romoland.net"
+      },
+      {
+        "name": "San Jacinto Unified School District",
+        "jurisdiction_id": "school-san-jacinto",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Policy/PolicyListing.aspx?S=36030419",
+        "district_website": "https://www.sanjacinto.k12.ca.us",
+        "simbli_district_id": "36030419"
+      },
+      {
+        "name": "Temecula Valley Unified School District",
+        "jurisdiction_id": "school-temecula-valley",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030186",
+        "district_website": "https://www.tvusd.k12.ca.us",
+        "simbli_district_id": "36030186"
+      },
+      {
+        "name": "Val Verde Unified School District",
+        "jurisdiction_id": "school-val-verde",
+        "platform": "simbli",
+        "board_url": "https://www.valverde.edu",
+        "district_website": "https://www.valverde.edu"
+      }
+    ],
+    "sacramento": [
+      {
+        "name": "Arcohe Union Elementary School District",
+        "jurisdiction_id": "school-arcohe-union",
+        "platform": "boarddocs",
+        "board_url": "https://go.boarddocs.com/ca/arcohe/Board.nsf",
+        "boarddocs_app_path": "ca/arcohe",
+        "boarddocs_committee_id": "AB998K21C5DB"
+      },
+      {
+        "name": "Center Joint Unified School District",
+        "jurisdiction_id": "school-center",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Policy/PolicyListing.aspx?S=36030578&ptid=amIgTZiB9plushNjl6WXhfiOQ==",
+        "district_website": "https://www.centerusd.org",
+        "simbli_district_id": "36030578"
+      },
+      {
+        "name": "Folsom-Cordova Unified School District",
+        "jurisdiction_id": "school-folsom-cordova",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Policy/PolicyListing.aspx?S=36030240",
+        "district_website": "https://www.fcusd.org",
+        "simbli_district_id": "36030240"
+      },
+      {
+        "name": "Galt Joint Union High School District",
+        "jurisdiction_id": "school-galt",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030244",
+        "district_website": "https://www.ghsd.k12.ca.us/district",
+        "simbli_district_id": "36030244"
+      },
+      {
+        "name": "Natomas Unified School District",
+        "jurisdiction_id": "school-natomas",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/index.aspx?S=36030341",
+        "district_website": "http://natomasunified.org",
+        "simbli_district_id": "36030341"
+      },
+      {
+        "name": "Robla Elementary School District",
+        "jurisdiction_id": "school-robla",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/index.aspx?S=36030208",
+        "district_website": "https://www.robla.k12.ca.us",
+        "simbli_district_id": "36030208"
+      },
+      {
+        "name": "San Juan Unified School District",
+        "jurisdiction_id": "school-san-juan",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Policy/ViewPolicy.aspx?S=36030833&revid=c16gRQf5xPXEIH1aKyzi1A==&PG=6&st=professional%20standards&mt=Exact",
+        "district_website": "https://www.sanjuan.edu",
+        "simbli_district_id": "36030833"
+      },
+      {
+        "name": "Twin Rivers Unified School District",
+        "jurisdiction_id": "school-twin-rivers",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030476",
+        "district_website": "https://www.trusd.net",
+        "simbli_district_id": "36030476"
+      }
+    ],
+    "san benito": [
+      {
+        "name": "Aromas - San Juan Unified School District",
+        "jurisdiction_id": "school-aromas-san-juan",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030513",
+        "district_website": "https://www.asjusd.org",
+        "simbli_district_id": "36030513"
+      },
+      {
+        "name": "Hollister School District",
+        "jurisdiction_id": "school-hollister",
+        "platform": "simbli",
+        "board_url": "https://www.hesd.org",
+        "district_website": "https://www.hesd.org"
+      }
+    ],
+    "san bernardino": [
+      {
+        "name": "Adelanto Elementary School District",
+        "jurisdiction_id": "school-adelanto",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Policy/ViewPolicy.aspx?S=36030667&revid=wY6GfJplusRB3auto0FkYY5VA==&st=absences&mt=Exact",
+        "district_website": "https://www.aesd.net",
+        "simbli_district_id": "36030667"
+      },
+      {
+        "name": "Alta Loma Elementary School District",
+        "jurisdiction_id": "school-alta-loma",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Index.aspx?S=36030679",
+        "district_website": "https://www.alsd.k12.ca.us",
+        "simbli_district_id": "36030679"
+      },
+      {
+        "name": "Apple Valley Unified School District",
+        "jurisdiction_id": "school-apple-valley",
+        "platform": "simbli",
+        "board_url": "https://www.google.com/url?q=https%3A%2F%2Fsimbli.eboardsolutions.com%2FSB_Meetings%2FSB_MeetingListing.aspx%3FS%3D36031890&sa=D&sntz=1&usg=AOvVaw2bFjTCmo2QlLMsWXpGsHPf",
+        "district_website": "https://www.avusd.org"
+      },
+      {
+        "name": "Baker Valley Unified School District",
+        "jurisdiction_id": "school-baker-valley",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030703",
+        "district_website": "https://www.baker.k12.ca.us",
+        "simbli_district_id": "36030703"
+      },
+      {
+        "name": "Baldy View ROP School District",
+        "jurisdiction_id": "school-baldy-view-rop",
+        "platform": "boarddocs",
+        "board_url": "https://go.boarddocs.com/ca/bvrop/Board.nsf",
+        "boarddocs_app_path": "ca/bvrop",
+        "boarddocs_committee_id": "A4EM59598984"
+      },
+      {
+        "name": "Barstow Unified School District",
+        "jurisdiction_id": "school-barstow",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Policy/PolicyListing.aspx?S=36030903",
+        "district_website": "https://www.busdk12.com",
+        "simbli_district_id": "36030903"
+      },
+      {
+        "name": "Bear Valley Unified School District",
+        "jurisdiction_id": "school-bear-valley",
+        "platform": "simbli",
+        "board_url": "https://www.bearvalleyusd.org",
+        "district_website": "https://www.bearvalleyusd.org"
+      },
+      {
+        "name": "Central Elementary School District",
+        "jurisdiction_id": "school-central-elem",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Policy/PolicyListing.aspx?S=36030580",
+        "district_website": "https://www.centralsd.net",
+        "simbli_district_id": "36030580"
+      },
+      {
+        "name": "Colton Joint Unified School District",
+        "jurisdiction_id": "school-colton",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Policy/PolicyListing.aspx?S=36030600",
+        "district_website": "https://www.cjusd.net",
+        "simbli_district_id": "36030600"
+      },
+      {
+        "name": "Fontana Unified School District",
+        "jurisdiction_id": "school-fontana",
+        "platform": "boarddocs",
+        "board_url": "https://go.boarddocs.com/ca/fusd/Board.nsf",
+        "boarddocs_app_path": "ca/fusd",
+        "boarddocs_committee_id": "AB99NH23CF9D"
+      },
+      {
+        "name": "Helendale Elementary School District",
+        "jurisdiction_id": "school-helendale",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030222",
+        "district_website": "https://www.helendalesd.org",
+        "simbli_district_id": "36030222"
+      },
+      {
+        "name": "Hesperia Unified School District",
+        "jurisdiction_id": "school-hesperia",
+        "platform": "simbli",
+        "board_url": "https://www.hesperiausd.org",
+        "district_website": "https://www.hesperiausd.org"
+      },
+      {
+        "name": "Lucerne Valley Unified School District",
+        "jurisdiction_id": "school-lucerne-valley",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Policy/PolicyListing.aspx?S=36030315",
+        "district_website": "https://www.lucernevalleyusd.org",
+        "simbli_district_id": "36030315"
+      },
+      {
+        "name": "Morongo Unified School District",
+        "jurisdiction_id": "school-morongo",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Policy/PolicyListing.aspx?S=36030337",
+        "district_website": "https://www.morongo.k12.ca.us",
+        "simbli_district_id": "36030337"
+      },
+      {
+        "name": "Needles Unified School District",
+        "jurisdiction_id": "school-needles",
+        "platform": "simbli",
+        "board_url": "https://www.needlesusd.org",
+        "district_website": "https://www.needlesusd.org"
+      },
+      {
+        "name": "Ontario-Montclair School District",
+        "jurisdiction_id": "school-ontario-montclair",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Index.aspx?S=36030621",
+        "district_website": "https://www.omsd.net",
+        "simbli_district_id": "36030621"
+      },
+      {
+        "name": "San Bernardino City Unified School District",
+        "jurisdiction_id": "school-san-bernardino-city",
+        "platform": "boarddocs",
+        "board_url": "https://go.boarddocs.com/ca/sbcusd/Board.nsf",
+        "boarddocs_app_path": "ca/sbcusd",
+        "boarddocs_committee_id": "A4EP6J588C05"
+      },
+      {
+        "name": "Snowline Joint Unified School District",
+        "jurisdiction_id": "school-snowline",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/ViewMeeting.aspx?S=36030444&MID=56778",
+        "district_website": "https://www.snowlineschools.com",
+        "simbli_district_id": "36030444"
+      },
+      {
+        "name": "Upland Unified School District",
+        "jurisdiction_id": "school-upland",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/ViewMeeting.aspx?S=36030255&MID=51009",
+        "district_website": "https://www.upland.k12.ca.us",
+        "simbli_district_id": "36030255"
+      },
+      {
+        "name": "Victor Elementary School District",
+        "jurisdiction_id": "school-victor",
+        "platform": "boarddocs",
+        "board_url": "https://go.boarddocs.com/ca/vesd/Board.nsf",
+        "boarddocs_app_path": "ca/vesd",
+        "boarddocs_committee_id": "A4EP6J588C05"
+      },
+      {
+        "name": "Victor Valley Union High School District",
+        "jurisdiction_id": "school-victor-valley",
+        "platform": "boarddocs",
+        "board_url": "https://go.boarddocs.com/ca/vvuhsd/Board.nsf",
+        "boarddocs_app_path": "ca/vvuhsd",
+        "boarddocs_committee_id": "A4EP6J588C05"
+      }
+    ],
+    "san diego": [
+      {
+        "name": "Bonsall Unified School District",
+        "jurisdiction_id": "school-bonsall",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Index.aspx?S=36030532",
+        "district_website": "https://www.bonsallusd.com",
+        "simbli_district_id": "36030532"
+      },
+      {
+        "name": "Cajon Valley Union School District",
+        "jurisdiction_id": "school-cajon-valley-union",
+        "platform": "boarddocs",
+        "board_url": "https://go.boarddocs.com/ca/cvusd/Board.nsf",
+        "boarddocs_app_path": "ca/cvusd",
+        "boarddocs_committee_id": "AB99H22302FF"
+      },
+      {
+        "name": "Cardiff Elementary School District",
+        "jurisdiction_id": "school-cardiff",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/index.aspx?s=36030570",
+        "district_website": "https://www.cardiffschools.com"
+      },
+      {
+        "name": "Coronado Unified School District",
+        "jurisdiction_id": "school-coronado",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Index.aspx?S=36030606",
+        "district_website": "https://www.coronadousd.net",
+        "simbli_district_id": "36030606"
+      },
+      {
+        "name": "Del Mar Union Elementary School District",
+        "jurisdiction_id": "school-del-mar-union",
+        "platform": "boarddocs",
+        "board_url": "https://go.boarddocs.com/ca/dmusd/Board.nsf",
+        "boarddocs_app_path": "ca/dmusd",
+        "boarddocs_committee_id": "AB99HD230F6E"
+      },
+      {
+        "name": "Encinitas Union Elementary School District",
+        "jurisdiction_id": "school-encinitas-union",
+        "platform": "boarddocs",
+        "board_url": "https://go.boarddocs.com/ca/eusd/Board.nsf",
+        "boarddocs_app_path": "ca/eusd",
+        "boarddocs_committee_id": "A4EP6J588C05"
+      },
+      {
+        "name": "Escondido Union School District",
+        "jurisdiction_id": "school-escondido-union",
+        "platform": "boarddocs",
+        "board_url": "https://go.boarddocs.com/ca/escondido/Board.nsf",
+        "boarddocs_app_path": "ca/escondido",
+        "boarddocs_committee_id": "A4EP6J588C05"
+      },
+      {
+        "name": "Fallbrook Union Elementary School District",
+        "jurisdiction_id": "school-fallbrook-union",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030658",
+        "district_website": "https://www.fuesd.org",
+        "simbli_district_id": "36030658"
+      },
+      {
+        "name": "Grossmont Union High School District",
+        "jurisdiction_id": "school-grossmont",
+        "platform": "boarddocs",
+        "board_url": "https://go.boarddocs.com/ca/guhsd/Board.nsf",
+        "boarddocs_app_path": "ca/guhsd",
+        "boarddocs_committee_id": "AB99NU23DD6A"
+      },
+      {
+        "name": "Jamul-Dulzura Union Elementary School District",
+        "jurisdiction_id": "school-jamul-dulzura-union",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Policy/PolicyListing.aspx?S=36030669",
+        "district_website": "https://www.jdusd.net",
+        "simbli_district_id": "36030669"
+      },
+      {
+        "name": "Julian Union High School District",
+        "jurisdiction_id": "school-julian",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Policy/ViewPolicy.aspx?S=36030963&revid=FIsXKaFfGLsW1xgGpBDg4A==&ptid=amIgTZiB9plushNjl6WXhfiOQ==&secid=&PG=6&IRP=0&isPndg=false",
+        "district_website": "https://www.juhsd.org",
+        "simbli_district_id": "36030963"
+      },
+      {
+        "name": "La Mesa-Spring Valley School District",
+        "jurisdiction_id": "school-la-mesa-spring-valley",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/index.aspx?S=36030701",
+        "district_website": "https://www.lmsvschools.org",
+        "simbli_district_id": "36030701"
+      },
+      {
+        "name": "Lemon Grove School District",
+        "jurisdiction_id": "school-lemon-grove",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Policy/PolicyListing.aspx?S=36030295",
+        "district_website": "https://www.lemongrovesd.net",
+        "simbli_district_id": "36030295"
+      },
+      {
+        "name": "Mountain Empire Unified School District",
+        "jurisdiction_id": "school-mountain-empire",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Policy/PolicyListing.aspx?S=36030832",
+        "district_website": "http://meusd.org",
+        "simbli_district_id": "36030832"
+      },
+      {
+        "name": "National Elementary School District",
+        "jurisdiction_id": "school-national",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Policy/PolicyListing.aspx?S=36030339",
+        "district_website": "https://www.nsd.us",
+        "simbli_district_id": "36030339"
+      },
+      {
+        "name": "Oceanside Unified School District",
+        "jurisdiction_id": "school-oceanside",
+        "platform": "boarddocs",
+        "board_url": "https://go.boarddocs.com/ca/oside/Board.nsf",
+        "boarddocs_app_path": "ca/oside",
+        "boarddocs_committee_id": "A4EP6J588C05"
+      },
+      {
+        "name": "Ramona City Unified School District",
+        "jurisdiction_id": "school-ramona-city",
+        "platform": "simbli",
+        "board_url": "https://www.ramonausd.net",
+        "district_website": "https://www.ramonausd.net"
+      },
+      {
+        "name": "San Dieguito Union High School District",
+        "jurisdiction_id": "school-san-dieguito",
+        "platform": "boarddocs",
+        "board_url": "https://go.boarddocs.com/ca/sduhsd/Board.nsf",
+        "boarddocs_app_path": "ca/sduhsd",
+        "boarddocs_committee_id": "A4EM59598984"
+      },
+      {
+        "name": "San Marcos Unified School District",
+        "jurisdiction_id": "school-san-marcos",
+        "platform": "boarddocs",
+        "board_url": "https://go.boarddocs.com/ca/smusd/Board.nsf",
+        "boarddocs_app_path": "ca/smusd",
+        "boarddocs_committee_id": "AB9AA426AF71"
+      },
+      {
+        "name": "San Ysidro Elementary School District",
+        "jurisdiction_id": "school-san-ysidro",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Index.aspx?S=36030895",
+        "district_website": "https://www.sysdschools.org",
+        "simbli_district_id": "36030895"
+      },
+      {
+        "name": "Solana Beach Elementary School District",
+        "jurisdiction_id": "school-solana-beach",
+        "platform": "boarddocs",
+        "board_url": "https://go.boarddocs.com/ca/solana/Board.nsf",
+        "boarddocs_app_path": "ca/solana",
+        "boarddocs_committee_id": "A4EP6J588C05"
+      },
+      {
+        "name": "Sweetwater Union High School District",
+        "jurisdiction_id": "school-sweetwater",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Policy/ViewPolicy.aspx?S=36030221&revid=PDHCW7WEYCf1D7Z74OhCEQ==&ptid=amIgTZiB9plushNjl6WXhfiOQ==&secid=9slshUHzTHxaaYMVf6zKpJz3Q==&PG=6&IRP=0",
+        "district_website": "https://www.sweetwaterschools.org/",
+        "simbli_district_id": "36030221"
+      },
+      {
+        "name": "Vallecitos Elementary School District",
+        "jurisdiction_id": "school-vallecitos",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Policy/PolicyListing.aspx?S=36030268",
+        "district_website": "https://www.vallecitossd.net",
+        "simbli_district_id": "36030268"
+      },
+      {
+        "name": "Valley Center-Pauma Unified School District",
+        "jurisdiction_id": "school-valley-center-pauma",
+        "platform": "simbli",
+        "board_url": "https://www.vcpusd.org",
+        "district_website": "https://www.vcpusd.org"
+      },
+      {
+        "name": "Vista Unified School District",
+        "jurisdiction_id": "school-vista",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Policy/PolicyListing.aspx?S=36030277",
+        "district_website": "https://www.vistausd.org",
+        "simbli_district_id": "36030277"
+      },
+      {
+        "name": "Warner Unified School District",
+        "jurisdiction_id": "school-warner",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/csba/warnerusd",
+        "district_website": "https://www.warnerusd.net"
+      }
+    ],
+    "san francisco": [
+      {
+        "name": "San Francisco Unified School District",
+        "jurisdiction_id": "school-san-francisco",
+        "platform": "boarddocs",
+        "board_url": "https://go.boarddocs.com/ca/sfusd/Board.nsf",
+        "boarddocs_app_path": "ca/sfusd",
+        "boarddocs_committee_id": "A4EP6J588C05"
+      }
+    ],
+    "san joaquin": [
+      {
+        "name": "Banta Unified School District",
+        "jurisdiction_id": "school-banta",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030870",
+        "district_website": "https://www.bantasd.org",
+        "simbli_district_id": "36030870"
+      },
+      {
+        "name": "Escalon Unified School District",
+        "jurisdiction_id": "school-escalon",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030821",
+        "district_website": "https://www.escalonusd.org",
+        "simbli_district_id": "36030821"
+      },
+      {
+        "name": "Lammersville Joint Unified School District",
+        "jurisdiction_id": "school-lammersville",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030157",
+        "district_website": "https://www.lammersvilleschooldistrict.net",
+        "simbli_district_id": "36030157"
+      },
+      {
+        "name": "Lincoln Unified School District",
+        "jurisdiction_id": "school-lincoln",
+        "platform": "boarddocs",
+        "board_url": "https://go.boarddocs.com/ca/lusdca/Board.nsf",
+        "boarddocs_app_path": "ca/lusdca",
+        "boarddocs_committee_id": "AB99VW24E5B5"
+      },
+      {
+        "name": "Linden Unified School District",
+        "jurisdiction_id": "school-linden",
+        "platform": "simbli",
+        "board_url": "/httpssimblieboardsolutionscomsbmeet",
+        "district_website": "https://www.lindenusd.com"
+      },
+      {
+        "name": "Oak View Union Elementary School District",
+        "jurisdiction_id": "school-oak-view-union",
+        "platform": "simbli",
+        "board_url": "https://www.myoakview.com",
+        "district_website": "https://www.myoakview.com"
+      },
+      {
+        "name": "Ripon Unified School District",
+        "jurisdiction_id": "school-ripon",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030402",
+        "district_website": "https://www.riponusd.net",
+        "simbli_district_id": "36030402"
+      },
+      {
+        "name": "Stockton Unified School District",
+        "jurisdiction_id": "school-stockton",
+        "platform": "boarddocs",
+        "board_url": "https://go.boarddocs.com/ca/susd/Board.nsf",
+        "boarddocs_app_path": "ca/susd",
+        "boarddocs_committee_id": "A4EP6J588C05"
+      }
+    ],
+    "san luis obispo": [
+      {
+        "name": "Paso Robles Joint Unified School District",
+        "jurisdiction_id": "school-paso-robles",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030368",
+        "district_website": "https://www.pasoschools.org",
+        "simbli_district_id": "36030368"
+      },
+      {
+        "name": "San Luis Obispo County Office of Education",
+        "jurisdiction_id": "school-san-luis-obispo",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030209",
+        "district_website": "https://www.slocoe.org",
+        "simbli_district_id": "36030209"
+      },
+      {
+        "name": "San Miguel Joint Union School District",
+        "jurisdiction_id": "school-san-miguel-joint-union",
+        "platform": "simbli",
+        "board_url": "https://www.google.com/url?q=https%3A%2F%2Fsimbli.eboardsolutions.com%2FSB_Meetings%2FSB_MeetingListing.aspx%3FS%3D36030231&sa=D&sntz=1&usg=AOvVaw1f8yrj8gUFn4fDyczgSlSc",
+        "district_website": "https://www.sanmiguelschools.org"
+      },
+      {
+        "name": "Templeton Unified School District",
+        "jurisdiction_id": "school-templeton",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36031066",
+        "district_website": "https://www.templetonusd.org",
+        "simbli_district_id": "36031066"
+      }
+    ],
+    "san mateo": [
+      {
+        "name": "Bayshore Elementary School District",
+        "jurisdiction_id": "school-bayshore",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Policy/ViewPolicy.aspx?S=36030709&revid=6Ke2jCw2ompItDoc8Igbdw==&st=wellness&mt=Exact",
+        "district_website": "https://www.thebayshoreschool.org",
+        "simbli_district_id": "36030709"
+      },
+      {
+        "name": "Belmont-Redwood Shores Elementary School District",
+        "jurisdiction_id": "school-belmont-redwood-shores",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/ViewMeeting.aspx?S=36030523&MID=58876",
+        "district_website": "https://www.brssd.org",
+        "simbli_district_id": "36030523"
+      },
+      {
+        "name": "Burlingame Elementary School District",
+        "jurisdiction_id": "school-burlingame",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Policy/PolicyListing.aspx?S=36030713",
+        "district_website": "https://www.burlingameschools.org",
+        "simbli_district_id": "36030713"
+      },
+      {
+        "name": "Hillsborough City Elementary School District",
+        "jurisdiction_id": "school-hillsborough-city",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Policy/PolicyListing.aspx?S=36030262",
+        "district_website": "https://www.hcsdk8.org",
+        "simbli_district_id": "36030262"
+      },
+      {
+        "name": "Las Lomitas Elementary School District",
+        "jurisdiction_id": "school-las-lomitas",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030292",
+        "district_website": "https://www.llesd.org",
+        "simbli_district_id": "36030292"
+      },
+      {
+        "name": "Millbrae Elementary School District",
+        "jurisdiction_id": "school-millbrae",
+        "platform": "simbli",
+        "board_url": "https://agendaonline.net/public/Agency.aspx?PublicAgencyID=89&AgencyTypeID=1",
+        "district_website": "https://www.millbraeschooldistrict.org"
+      },
+      {
+        "name": "Pacifica School District",
+        "jurisdiction_id": "school-pacifica",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Policy/PolicyListing.aspx?S=36030354",
+        "district_website": "https://www.pacificasd.org",
+        "simbli_district_id": "36030354"
+      },
+      {
+        "name": "Ravenswood City Elementary School District",
+        "jurisdiction_id": "school-ravenswood-city",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Policy/PolicyListing.aspx?S=36030390",
+        "district_website": "https://www.ravenswoodschools.org",
+        "simbli_district_id": "36030390"
+      },
+      {
+        "name": "San Bruno Park Elementary School District",
+        "jurisdiction_id": "school-san-bruno-park",
+        "platform": "boarddocs",
+        "board_url": "https://go.boarddocs.com/ca/sbpsd/Board.nsf",
+        "boarddocs_app_path": "ca/sbpsd",
+        "boarddocs_committee_id": "A4EP6J588C05"
+      },
+      {
+        "name": "San Carlos Elementary School District",
+        "jurisdiction_id": "school-san-carlos",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/index.aspx?S=36030415",
+        "district_website": "https://www.scsdk8.org/",
+        "simbli_district_id": "36030415"
+      },
+      {
+        "name": "San Mateo County Office of Education",
+        "jurisdiction_id": "school-san-mateo",
+        "platform": "boarddocs",
+        "board_url": "https://go.boarddocs.com/ca/smcoe/Board.nsf",
+        "boarddocs_app_path": "ca/smcoe",
+        "boarddocs_committee_id": "A4EP6J588C05"
+      },
+      {
+        "name": "San Mateo Union High School District",
+        "jurisdiction_id": "school-san-mateo-high",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/index.aspx?s=36030427",
+        "district_website": "https://www.smuhsd.org"
+      },
+      {
+        "name": "San Mateo-Foster City School District",
+        "jurisdiction_id": "school-san-mateo-foster-city",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Policy/PolicyListing.aspx?S=36030428",
+        "district_website": "https://www.smfcsd.net",
+        "simbli_district_id": "36030428"
+      },
+      {
+        "name": "Sequoia Union High School District",
+        "jurisdiction_id": "school-sequoia",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Policy/PolicyListing.aspx?S=36030459",
+        "district_website": "https://www.seq.org",
+        "simbli_district_id": "36030459"
+      },
+      {
+        "name": "South San Francisco Unified School District",
+        "jurisdiction_id": "school-south-san-francisco",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Policy/PolicyListing.aspx?S=36030487",
+        "district_website": "https://www.ssfusd.org",
+        "simbli_district_id": "36030487"
+      },
+      {
+        "name": "Woodside Elementary School District",
+        "jurisdiction_id": "school-woodside",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030504",
+        "district_website": "https://www.woodsideschool.us",
+        "simbli_district_id": "36030504"
+      }
+    ],
+    "santa barbara": [
+      {
+        "name": "Blochman Union Elementary School District",
+        "jurisdiction_id": "school-blochman-union",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Index.aspx?S=36030545",
+        "district_website": "http://blochmanusd.org",
+        "simbli_district_id": "36030545"
+      },
+      {
+        "name": "Buellton Union Elementary School District",
+        "jurisdiction_id": "school-buellton-union",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/ViewMeeting.aspx?S=36030551&MID=50780",
+        "district_website": "https://www.buelltonusd.org",
+        "simbli_district_id": "36030551"
+      },
+      {
+        "name": "Carpinteria Unified School District",
+        "jurisdiction_id": "school-carpinteria",
+        "platform": "simbli",
+        "board_url": "http://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030718",
+        "district_website": "https://www.cusd.net",
+        "simbli_district_id": "36030718"
+      },
+      {
+        "name": "Hope Elementary School District",
+        "jurisdiction_id": "school-hope",
+        "platform": "simbli",
+        "board_url": "https://www.hopesdk6.org",
+        "district_website": "https://www.hopesdk6.org"
+      },
+      {
+        "name": "Santa Barbara Unified School District",
+        "jurisdiction_id": "school-santa-barbara",
+        "platform": "boarddocs",
+        "board_url": "https://go.boarddocs.com/ca/sbunified/Board.nsf",
+        "boarddocs_app_path": "ca/sbunified",
+        "boarddocs_committee_id": "A4EP6J588C05"
+      },
+      {
+        "name": "Santa Maria Joint Union High School District",
+        "jurisdiction_id": "school-santa-maria",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Policy/PolicyListing.aspx?S=36030437",
+        "district_website": "http://smjuhsd.org",
+        "simbli_district_id": "36030437"
+      },
+      {
+        "name": "Santa Ynez Valley Union High School District",
+        "jurisdiction_id": "school-santa-ynez-valley",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Index.aspx?S=36030447",
+        "district_website": "https://www.syvuhsd.org",
+        "simbli_district_id": "36030447"
+      },
+      {
+        "name": "Solvang Elementary School District",
+        "jurisdiction_id": "school-solvang",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030480",
+        "district_website": "https://www.solvangschool.org",
+        "simbli_district_id": "36030480"
+      },
+      {
+        "name": "Vista del Mar Union School District",
+        "jurisdiction_id": "school-vista-del-mar-union",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/ViewMeeting.aspx?S=36030817&MID=55539",
+        "district_website": "https://www.vdmusd.org/",
+        "simbli_district_id": "36030817"
+      }
+    ],
+    "santa clara": [
+      {
+        "name": "Berryessa Union Elementary School District",
+        "jurisdiction_id": "school-berryessa-union",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Policy/PolicyListing.aspx?S=36030528",
+        "district_website": "https://www.berryessa.k12.ca.us",
+        "simbli_district_id": "36030528"
+      },
+      {
+        "name": "Cambrian School District",
+        "jurisdiction_id": "school-cambrian",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Policy/PolicyListing.aspx?S=36031579",
+        "district_website": "https://www.cambriansd.org",
+        "simbli_district_id": "36031579"
+      },
+      {
+        "name": "Campbell Union School District",
+        "jurisdiction_id": "school-campbell-union",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Policy/ViewPolicy.aspx?S=36030716&revid=vdN8fslshhAjqX0IgHHvLCZng==",
+        "district_website": "https://www.campbellusd.org",
+        "simbli_district_id": "36030716"
+      },
+      {
+        "name": "Cupertino Union School District",
+        "jurisdiction_id": "school-cupertino-union",
+        "platform": "boarddocs",
+        "board_url": "https://go.boarddocs.com/ca/cusdk8/Board.nsf",
+        "boarddocs_app_path": "ca/cusdk8",
+        "boarddocs_committee_id": "A4EP6J588C05"
+      },
+      {
+        "name": "East Side Union High School District",
+        "jurisdiction_id": "school-east-side",
+        "platform": "boarddocs",
+        "board_url": "https://go.boarddocs.com/ca/esuhsd/Board.nsf",
+        "boarddocs_app_path": "ca/esuhsd",
+        "boarddocs_committee_id": "AB99J22327EC"
+      },
+      {
+        "name": "Evergreen Elementary School District",
+        "jurisdiction_id": "school-evergreen",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Policy/PolicyListing.aspx?S=36031535",
+        "district_website": "https://www.eesd.org",
+        "simbli_district_id": "36031535"
+      },
+      {
+        "name": "Franklin-McKinley Elementary School District",
+        "jurisdiction_id": "school-franklin-mckinley",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Policy/ViewPolicy.aspx?S=36030745&revid=IffK9maqOb73hS71OHOaoQ==&ptid=amIgTZiB9plushNjl6WXhfiOQ==&secid=9slshUHzTHxaaYMVf6zKpJz3Q==&PG=6&IRP=0&isPndg=false",
+        "district_website": "https://www.fmsd.org",
+        "simbli_district_id": "36030745"
+      },
+      {
+        "name": "Gilroy Unified School District",
+        "jurisdiction_id": "school-gilroy",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/ViewMeeting.aspx?S=36030249&MID=51377",
+        "district_website": "https://www.gilroyunified.org",
+        "simbli_district_id": "36030249"
+      },
+      {
+        "name": "Loma Prieta Joint Union Elementary School District",
+        "jurisdiction_id": "school-loma-prieta-joint-union",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Index.aspx?S=36030511",
+        "district_website": "https://www.loma.k12.ca.us",
+        "simbli_district_id": "36030511"
+      },
+      {
+        "name": "Los Altos Elementary School District",
+        "jurisdiction_id": "school-los-altos",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030305",
+        "district_website": "https://www.lasdschools.org",
+        "simbli_district_id": "36030305"
+      },
+      {
+        "name": "Los Gatos Union Elementary School District",
+        "jurisdiction_id": "school-los-gatos-union",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/ViewMeeting.aspx?S=36030309&MID=57275",
+        "district_website": "https://www.lgusd.org",
+        "simbli_district_id": "36030309"
+      },
+      {
+        "name": "Los Gatos-Saratoga Union High School District",
+        "jurisdiction_id": "school-los-gatos-saratoga",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Policy/PolicyListing.aspx?S=36030307",
+        "district_website": "https://www.lgsuhsd.org",
+        "simbli_district_id": "36030307"
+      },
+      {
+        "name": "Luther Burbank School District",
+        "jurisdiction_id": "school-luther-burbank",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030816",
+        "district_website": "https://www.lbsdk8.org/",
+        "simbli_district_id": "36030816"
+      },
+      {
+        "name": "Morgan Hill Unified School District",
+        "jurisdiction_id": "school-morgan-hill",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/ViewMeeting.aspx?S=36030336&MID=42747",
+        "district_website": "https://www.mhusd.org",
+        "simbli_district_id": "36030336"
+      },
+      {
+        "name": "Mount Pleasant Elementary School District",
+        "jurisdiction_id": "school-mount-pleasant",
+        "platform": "boarddocs",
+        "board_url": "https://go.boarddocs.com/ca/mpesd/Board.nsf",
+        "boarddocs_app_path": "ca/mpesd",
+        "boarddocs_committee_id": "A4EP6J588C05"
+      },
+      {
+        "name": "Oak Grove Elementary School District",
+        "jurisdiction_id": "school-oak-grove",
+        "platform": "boarddocs",
+        "board_url": "https://go.boarddocs.com/ca/ogsd/Board.nsf",
+        "boarddocs_app_path": "ca/ogsd",
+        "boarddocs_committee_id": "A4EP6J588C05"
+      },
+      {
+        "name": "Orchard Elementary School District",
+        "jurisdiction_id": "school-orchard",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_ePolicy/SB_PolicyOverview.aspx?S=36030181",
+        "district_website": "https://www.orchardsd.org",
+        "simbli_district_id": "36030181"
+      },
+      {
+        "name": "Palo Alto Unified School District",
+        "jurisdiction_id": "school-palo-alto",
+        "platform": "boarddocs",
+        "board_url": "https://go.boarddocs.com/ca/pausd/Board.nsf",
+        "boarddocs_app_path": "ca/pausd",
+        "boarddocs_committee_id": "A4EP6J588C05"
+      },
+      {
+        "name": "San Jose Unified School District",
+        "jurisdiction_id": "school-san-jose",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Policy/PolicyListing.aspx?S=36030421",
+        "district_website": "https://www.sjusd.org",
+        "simbli_district_id": "36030421"
+      },
+      {
+        "name": "Santa Clara County Office of Education",
+        "jurisdiction_id": "school-santa-clara",
+        "platform": "boarddocs",
+        "board_url": "https://go.boarddocs.com/ca/sccoe/Board.nsf",
+        "boarddocs_app_path": "ca/sccoe",
+        "boarddocs_committee_id": "A4EP6J588C05"
+      },
+      {
+        "name": "Saratoga Union Elementary School District",
+        "jurisdiction_id": "school-saratoga-union",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Index.aspx?S=36030439",
+        "district_website": "https://www.saratogausd.org",
+        "simbli_district_id": "36030439"
+      },
+      {
+        "name": "Sunnyvale School District",
+        "jurisdiction_id": "school-sunnyvale",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030203",
+        "district_website": "https://www.sesd.org",
+        "simbli_district_id": "36030203"
+      },
+      {
+        "name": "Union Elementary School District",
+        "jurisdiction_id": "school-union",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030252",
+        "district_website": "https://www.unionsd.org",
+        "simbli_district_id": "36030252"
+      }
+    ],
+    "santa cruz": [
+      {
+        "name": "Live Oak Elementary School District",
+        "jurisdiction_id": "school-live-oak-elem",
+        "platform": "simbli",
+        "board_url": "https://www.google.com/url?q=https%3A%2F%2Fsimbli.eboardsolutions.com%2FPolicy%2FPolicyListing.aspx%3FS%3D36030506&sa=D&sntz=1&usg=AOvVaw0Iy5stwwbsS3f2qIPPfSwm",
+        "district_website": "https://www.losd.ca"
+      },
+      {
+        "name": "Pajaro Valley Unified School District",
+        "jurisdiction_id": "school-pajaro-valley",
+        "platform": "boarddocs",
+        "board_url": "https://go.boarddocs.com/ca/pvusd/Board.nsf",
+        "boarddocs_app_path": "ca/pvusd",
+        "boarddocs_committee_id": "A4EP6J588C05"
+      },
+      {
+        "name": "San Lorenzo Valley Unified School District",
+        "jurisdiction_id": "school-san-lorenzo-valley",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Index.aspx?S=36030422",
+        "district_website": "https://www.slvusd.org",
+        "simbli_district_id": "36030422"
+      },
+      {
+        "name": "Scotts Valley Unified School District",
+        "jurisdiction_id": "school-scotts-valley",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/ViewMeeting.aspx?S=36030843&MID=60192",
+        "district_website": "https://www.scottsvalleyusd.org",
+        "simbli_district_id": "36030843"
+      }
+    ],
+    "shasta": [
+      {
+        "name": "Cottonwood Union Elementary School District",
+        "jurisdiction_id": "school-cottonwood-union",
+        "platform": "simbli",
+        "board_url": "https://www.cwusd.com",
+        "district_website": "https://www.cwusd.com"
+      },
+      {
+        "name": "Grant Elementary School District",
+        "jurisdiction_id": "school-grant",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Index.aspx?S=36030768",
+        "district_website": "https://www.grantschoolcougars.com",
+        "simbli_district_id": "36030768"
+      },
+      {
+        "name": "Millville Elementary School District",
+        "jurisdiction_id": "school-millville",
+        "platform": "simbli",
+        "board_url": "https://www.google.com/url?q=https%3A%2F%2Fsimbli.eboardsolutions.com%2Fcsba%2Fmillvillesd&sa=D&sntz=1&usg=AOvVaw3so1Njl0w6uzYzhxc4Y_2q",
+        "district_website": "https://www.millvilleschool.net"
+      },
+      {
+        "name": "North Cow Creek Elementary School District",
+        "jurisdiction_id": "school-north-cow-creek",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Index.aspx?S=36030605",
+        "district_website": "https://www.northcowcreek.org",
+        "simbli_district_id": "36030605"
+      },
+      {
+        "name": "Shasta County Office of Education",
+        "jurisdiction_id": "school-shasta",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030461",
+        "district_website": "https://www.shastacoe.org",
+        "simbli_district_id": "36030461"
+      }
+    ],
+    "sierra": [
+      {
+        "name": "Sierra County Office of Education",
+        "jurisdiction_id": "school-sierra",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Index.aspx?S=36030473",
+        "district_website": "https://www.sierracountyschools.org",
+        "simbli_district_id": "36030473"
+      },
+      {
+        "name": "Sierra-Plumas Joint Unified School District",
+        "jurisdiction_id": "school-sierra-plumas",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Index.aspx?S=36030473",
+        "district_website": "https://www.sierracountyschools.org",
+        "simbli_district_id": "36030473"
+      }
+    ],
+    "siskiyou": [
+      {
+        "name": "Butte Valley Unified School District",
+        "jurisdiction_id": "school-butte-valley",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Policy/PolicyListing.aspx?S=36031539",
+        "district_website": "https://www.bvalusd.org",
+        "simbli_district_id": "36031539"
+      },
+      {
+        "name": "Butteville Union Elementary School District",
+        "jurisdiction_id": "school-butteville-union",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Policy/PolicyListing.aspx?S=36030561",
+        "district_website": "https://www.butteville.k12.ca.us/",
+        "simbli_district_id": "36030561"
+      },
+      {
+        "name": "Happy Camp Union Elementary School District",
+        "jurisdiction_id": "school-happy-camp-union",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Policy/PolicyListing.aspx?S=36031101&ptid=amIgTZiB9plushNjl6WXhfiOQ==",
+        "district_website": "https://www.happycamp.k12.ca.us",
+        "simbli_district_id": "36031101"
+      },
+      {
+        "name": "Mt. Shasta Union Elementary School District",
+        "jurisdiction_id": "school-mt-shasta-union",
+        "platform": "simbli",
+        "board_url": "https://www.mountshastausd.com",
+        "district_website": "https://www.mountshastausd.com"
+      },
+      {
+        "name": "Scott Valley Unified School District",
+        "jurisdiction_id": "school-scott-valley",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Policy/PolicyListing.aspx?S=36030845",
+        "district_website": "https://www.svusd.us",
+        "simbli_district_id": "36030845"
+      },
+      {
+        "name": "Siskiyou Union High School District",
+        "jurisdiction_id": "school-siskiyou",
+        "platform": "simbli",
+        "board_url": "https://www.sisuhsd.net",
+        "district_website": "https://www.sisuhsd.net"
+      },
+      {
+        "name": "Yreka Union Elementary School District",
+        "jurisdiction_id": "school-yreka-union",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030505",
+        "district_website": "https://www.yrekausd.net",
+        "simbli_district_id": "36030505"
+      }
+    ],
+    "solano": [
+      {
+        "name": "Benicia Unified School District",
+        "jurisdiction_id": "school-benicia",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030525",
+        "district_website": "https://www.beniciaunified.org",
+        "simbli_district_id": "36030525"
+      },
+      {
+        "name": "Dixon Unified School District",
+        "jurisdiction_id": "school-dixon",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Policy/ViewPolicy.aspx?S=36030623&revid=H8YupplusapTwaTHslshzx9397KQ==&ptid=amIgTZiB9plushNjl6WXhfiOQ==&secid=9slshUHzTHxaaYMVf6zKpJz3Q==&PG=6&IRP=0",
+        "district_website": "https://www.dixonusd.org",
+        "simbli_district_id": "36030623"
+      },
+      {
+        "name": "Travis Unified School District",
+        "jurisdiction_id": "school-travis",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030187",
+        "district_website": "https://www.travisusd.org",
+        "simbli_district_id": "36030187"
+      },
+      {
+        "name": "Vacaville Unified School District",
+        "jurisdiction_id": "school-vacaville",
+        "platform": "boarddocs",
+        "board_url": "https://go.boarddocs.com/ca/vusdca/Board.nsf",
+        "boarddocs_app_path": "ca/vusdca",
+        "boarddocs_committee_id": "A4EP6J588C05"
+      },
+      {
+        "name": "Vallejo City Unified School District",
+        "jurisdiction_id": "school-vallejo-city",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Policy/ViewPolicy.aspx?S=36030838&revid=MlMmplusSxsuE2ps7m7tzFMCw==&st=1312.3&mt=Exact",
+        "district_website": "https://www.vcusd.org",
+        "simbli_district_id": "36030838"
+      }
+    ],
+    "sonoma": [
+      {
+        "name": "Alexander Valley Union Elementary School District",
+        "jurisdiction_id": "school-alexander-valley-union",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Policy/ViewPolicy.aspx?S=36030674&revid=PJ2PeIO8CplusnLzs6utmL3qA==&ptid=amIgTZiB9plushNjl6WXhfiOQ==&secid=9slshUHzTHxaaYMVf6zKpJz3Q==&PG=6&IRP=0&isPndg=false",
+        "district_website": "https://www.alexandervalleyusd.org",
+        "simbli_district_id": "36030674"
+      },
+      {
+        "name": "Bellevue Union School District",
+        "jurisdiction_id": "school-bellevue-union",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Index.aspx?S=36030538",
+        "district_website": "https://www.busd.org/",
+        "simbli_district_id": "36030538"
+      },
+      {
+        "name": "Cotati-Rohnert Park Unified School District",
+        "jurisdiction_id": "school-cotati-rohnert-park",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030608",
+        "district_website": "https://www.crpusd.org",
+        "simbli_district_id": "36030608"
+      },
+      {
+        "name": "Forestville Union Elementary School District",
+        "jurisdiction_id": "school-forestville-union",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/index.aspx?S=36030738",
+        "district_website": "https://www.forestvilleusd.org",
+        "simbli_district_id": "36030738"
+      },
+      {
+        "name": "Harmony Union Elementary School District",
+        "jurisdiction_id": "school-harmony-union",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030644",
+        "district_website": "https://www.harmonyusd.org",
+        "simbli_district_id": "36030644"
+      },
+      {
+        "name": "Horicon Elementary School District",
+        "jurisdiction_id": "school-horicon",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Policy/PolicyListing.aspx?S=36030656",
+        "district_website": "http://horiconsd.org/",
+        "simbli_district_id": "36030656"
+      },
+      {
+        "name": "Oak Grove Union Elementary School District",
+        "jurisdiction_id": "school-oak-grove-union",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Policy/PolicyListing.aspx?S=36030607",
+        "district_website": "https://www.ogusd.org",
+        "simbli_district_id": "36030607"
+      },
+      {
+        "name": "Old Adobe Union School District",
+        "jurisdiction_id": "school-old-adobe-union",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Policy/PolicyListing.aspx?S=36030619",
+        "district_website": "https://www.oldadobe.org",
+        "simbli_district_id": "36030619"
+      },
+      {
+        "name": "Petaluma City Elementary School District",
+        "jurisdiction_id": "school-petaluma-city",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030371",
+        "district_website": "https://www.petalumacityschools.org",
+        "simbli_district_id": "36030371"
+      },
+      {
+        "name": "Petaluma Joint Union High School District",
+        "jurisdiction_id": "school-petaluma",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030371",
+        "district_website": "https://www.petalumacityschools.org",
+        "simbli_district_id": "36030371"
+      },
+      {
+        "name": "Rincon Valley Union Elementary School District",
+        "jurisdiction_id": "school-rincon-valley-union",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030379",
+        "district_website": "https://www.rvusd.org",
+        "simbli_district_id": "36030379"
+      },
+      {
+        "name": "Roseland School District",
+        "jurisdiction_id": "school-roseland",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Policy/PolicyListing.aspx?S=36030391",
+        "district_website": "https://www.roselandsd.org",
+        "simbli_district_id": "36030391"
+      },
+      {
+        "name": "Santa Rosa Elementary School District",
+        "jurisdiction_id": "school-santa-rosa-elem",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030438",
+        "district_website": "https://www.srcschools.org",
+        "simbli_district_id": "36030438"
+      },
+      {
+        "name": "Santa Rosa High School District",
+        "jurisdiction_id": "school-santa-rosa-high",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030438",
+        "district_website": "https://www.srcschools.org",
+        "simbli_district_id": "36030438"
+      },
+      {
+        "name": "Sonoma County Office of Education",
+        "jurisdiction_id": "school-sonoma",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030446",
+        "district_website": "https://www.scoe.org",
+        "simbli_district_id": "36030446"
+      },
+      {
+        "name": "Waugh Elementary School District",
+        "jurisdiction_id": "school-waugh",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Policy/PolicyListing.aspx?S=36030496",
+        "district_website": "https://www.waughsd.org",
+        "simbli_district_id": "36030496"
+      },
+      {
+        "name": "West Side Union Elementary School District",
+        "jurisdiction_id": "school-west-side-union",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Policy/PolicyListing.aspx?S=36031007",
+        "district_website": "https://www.westsideusd.org",
+        "simbli_district_id": "36031007"
+      },
+      {
+        "name": "West Sonoma County Union High School District",
+        "jurisdiction_id": "school-west-sonoma-county",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030891",
+        "district_website": "https://www.wscuhsd.org",
+        "simbli_district_id": "36030891"
+      },
+      {
+        "name": "Wright Elementary School District",
+        "jurisdiction_id": "school-wright",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36031057",
+        "district_website": "https://www.wrightesd.org",
+        "simbli_district_id": "36031057"
+      }
+    ],
+    "stanislaus": [
+      {
+        "name": "Ceres Unified School District",
+        "jurisdiction_id": "school-ceres",
+        "platform": "boarddocs",
+        "board_url": "https://go.boarddocs.com/ca/ceres/Board.nsf",
+        "boarddocs_app_path": "ca/ceres",
+        "boarddocs_committee_id": "A4EP6J588C05"
+      },
+      {
+        "name": "Hart-Ransom Union Elementary School District",
+        "jurisdiction_id": "school-hart-ransom-union",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030256",
+        "district_website": "https://www.hartransom.org",
+        "simbli_district_id": "36030256"
+      },
+      {
+        "name": "Hughson Unified School District",
+        "jurisdiction_id": "school-hughson",
+        "platform": "simbli",
+        "board_url": "https://www.hughsonschools.org",
+        "district_website": "https://www.hughsonschools.org"
+      },
+      {
+        "name": "Keyes Union School District",
+        "jurisdiction_id": "school-keyes-union",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Index.aspx?S=36030682",
+        "district_website": "https://www.keyes.k12.ca.us",
+        "simbli_district_id": "36030682"
+      },
+      {
+        "name": "Modesto City Elementary School District",
+        "jurisdiction_id": "school-modesto-city-elem",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/index.aspx?S=36030932",
+        "district_website": "https://www.mcs4kids.com/",
+        "simbli_district_id": "36030932"
+      },
+      {
+        "name": "Modesto City High School District",
+        "jurisdiction_id": "school-modesto-city-high",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/index.aspx?S=36030932",
+        "district_website": "https://www.mcs4kids.com/",
+        "simbli_district_id": "36030932"
+      },
+      {
+        "name": "Newman-Crows Landing Unified School District",
+        "jurisdiction_id": "school-newman-crows-landing",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36031380",
+        "district_website": "https://www.nclusd.k12.ca.us",
+        "simbli_district_id": "36031380"
+      },
+      {
+        "name": "Patterson Joint Unified School District",
+        "jurisdiction_id": "school-patterson",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030369",
+        "district_website": "https://www.patterson.k12.ca.us",
+        "simbli_district_id": "36030369"
+      },
+      {
+        "name": "Salida Union Elementary School District",
+        "jurisdiction_id": "school-salida-union",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030414",
+        "district_website": "https://www.salida.k12.ca.us",
+        "simbli_district_id": "36030414"
+      },
+      {
+        "name": "Sylvan Union Elementary School District",
+        "jurisdiction_id": "school-sylvan-union",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030467",
+        "district_website": "https://www.sylvan.k12.ca.us",
+        "simbli_district_id": "36030467"
+      },
+      {
+        "name": "Turlock Unified School District",
+        "jurisdiction_id": "school-turlock",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030471",
+        "district_website": "https://www.turlock.k12.ca.us",
+        "simbli_district_id": "36030471"
+      },
+      {
+        "name": "Waterford Unified School District",
+        "jurisdiction_id": "school-waterford",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Policy/PolicyListing.aspx?S=36030818",
+        "district_website": "https://www.waterford.k12.ca.us",
+        "simbli_district_id": "36030818"
+      }
+    ],
+    "sutter": [
+      {
+        "name": "Live Oak Unified School District",
+        "jurisdiction_id": "school-live-oak",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Policy/PolicyListing.aspx?S=36030189",
+        "district_website": "https://www.lousd.k12.ca.us",
+        "simbli_district_id": "36030189"
+      }
+    ],
+    "tehama": [
+      {
+        "name": "Corning Union Elementary School District",
+        "jurisdiction_id": "school-corning-union",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030739",
+        "district_website": "https://www.corningelementary.org",
+        "simbli_district_id": "36030739"
+      },
+      {
+        "name": "Kirkwood Elementary School District",
+        "jurisdiction_id": "school-kirkwood",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Index.aspx?S=36031540",
+        "district_website": "https://www.kirkwoodschoolca.org",
+        "simbli_district_id": "36031540"
+      },
+      {
+        "name": "Red Bluff Union Elementary School District",
+        "jurisdiction_id": "school-red-bluff-union",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Policy/PolicyListing.aspx?S=36030394",
+        "district_website": "https://www.rbuesd.org",
+        "simbli_district_id": "36030394"
+      },
+      {
+        "name": "Richfield Elementary School District",
+        "jurisdiction_id": "school-richfield",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Index.aspx?S=36030375",
+        "district_website": "https://www.richfieldschool.org",
+        "simbli_district_id": "36030375"
+      },
+      {
+        "name": "Tehama County Department of Education School District",
+        "jurisdiction_id": "school-tehama-county-department-of-education",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Index.aspx?S=36031451",
+        "district_website": "https://www.tehamaschools.org",
+        "simbli_district_id": "36031451"
+      }
+    ],
+    "trinity": [
+      {
+        "name": "Burnt Ranch Elementary School District",
+        "jurisdiction_id": "school-burnt-ranch",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Policy/PolicyListing.aspx?S=36031646",
+        "district_website": "https://www.bresd.org",
+        "simbli_district_id": "36031646"
+      },
+      {
+        "name": "Junction City Elementary School District",
+        "jurisdiction_id": "school-junction-city",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Policy/PolicyListing.aspx?S=36030880",
+        "district_website": "https://www.jcesd.org",
+        "simbli_district_id": "36030880"
+      },
+      {
+        "name": "Mountain Valley Unified School District",
+        "jurisdiction_id": "school-mountain-valley",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Policy/ViewPolicy.aspx?S=36030584&revid=1M7DoOtshAY23ezU1XNAHQ==&st=&mt=Exact",
+        "district_website": "https://www.mvusd.us",
+        "simbli_district_id": "36030584"
+      },
+      {
+        "name": "Trinity Alps Unified School District",
+        "jurisdiction_id": "school-trinity-alps",
+        "platform": "simbli",
+        "board_url": "https://www.tausd.org",
+        "district_website": "https://www.tausd.org"
+      }
+    ],
+    "tulare": [
+      {
+        "name": "Alpaugh Unified School District",
+        "jurisdiction_id": "school-alpaugh",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Policy/PolicyListing.aspx?S=36030677",
+        "district_website": "https://www.alpaughusd.org",
+        "simbli_district_id": "36030677"
+      },
+      {
+        "name": "Cutler-Orosi Joint Unified School District",
+        "jurisdiction_id": "school-cutler-orosi",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Index.aspx?S=36030614",
+        "district_website": "https://www.cojusd.org",
+        "simbli_district_id": "36030614"
+      },
+      {
+        "name": "Earlimart Elementary School District",
+        "jurisdiction_id": "school-earlimart",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Index.aspx?S=36030766",
+        "district_website": "https://www.earlimart.k12.ca.us",
+        "simbli_district_id": "36030766"
+      },
+      {
+        "name": "Farmersville Unified School District",
+        "jurisdiction_id": "school-farmersville",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/index.aspx?S=36030217",
+        "district_website": "https://www.farmersville.k12.ca.us",
+        "simbli_district_id": "36030217"
+      },
+      {
+        "name": "Lindsay Unified School District",
+        "jurisdiction_id": "school-lindsay",
+        "platform": "boarddocs",
+        "board_url": "https://go.boarddocs.com/ca/lindsay/Board.nsf",
+        "boarddocs_app_path": "ca/lindsay",
+        "boarddocs_committee_id": "AB99UG24AFE0"
+      },
+      {
+        "name": "Monson-Sultana Joint Union Elementary School District",
+        "jurisdiction_id": "school-monson-sultana-joint-union",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/csba/monson-sultanajtesd",
+        "district_website": "https://www.msschool.org"
+      },
+      {
+        "name": "Oak Valley Union Elementary School District",
+        "jurisdiction_id": "school-oak-valley-union",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Index.aspx?S=36031463",
+        "district_website": "https://www.oakvalleyschool.org",
+        "simbli_district_id": "36031463"
+      },
+      {
+        "name": "Pixley Union Elementary School District",
+        "jurisdiction_id": "school-pixley-union",
+        "platform": "boarddocs",
+        "board_url": "https://go.boarddocs.com/ca/pixley/Board.nsf",
+        "boarddocs_app_path": "ca/pixley",
+        "boarddocs_committee_id": "A4EP6J588C05"
+      },
+      {
+        "name": "Porterville Unified School District",
+        "jurisdiction_id": "school-porterville",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_ePolicy/SB_PolicyOverview.aspx?S=36030789",
+        "district_website": "https://www.portervilleschools.org",
+        "simbli_district_id": "36030789"
+      },
+      {
+        "name": "Strathmore Union Elementary School District",
+        "jurisdiction_id": "school-strathmore-union",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Index.aspx?S=36030210",
+        "district_website": "https://www.strathmoreschools.org",
+        "simbli_district_id": "36030210"
+      },
+      {
+        "name": "Woodlake Unified School District",
+        "jurisdiction_id": "school-woodlake",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/csba/woodlakeusd",
+        "district_website": "https://www.w-usd.org"
+      }
+    ],
+    "tuolumne": [
+      {
+        "name": "Curtis Creek Elementary School District",
+        "jurisdiction_id": "school-curtis-creek",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030612",
+        "district_website": "https://www.curtiscreekschool.com",
+        "simbli_district_id": "36030612"
+      },
+      {
+        "name": "Jamestown Elementary School District",
+        "jurisdiction_id": "school-jamestown",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36031098",
+        "district_website": "https://www.jespanthers.org",
+        "simbli_district_id": "36031098"
+      },
+      {
+        "name": "Soulsbyville Elementary School District",
+        "jurisdiction_id": "school-soulsbyville",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Policy/PolicyListing.aspx?S=36031939",
+        "district_website": "https://www.soulsbyvilleschool.com",
+        "simbli_district_id": "36031939"
+      },
+      {
+        "name": "Summerville Elementary School District",
+        "jurisdiction_id": "school-summerville-elem",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/csba/summervilleesd",
+        "district_website": "https://www.sumel.k12.ca.us"
+      },
+      {
+        "name": "Summerville Union High School District",
+        "jurisdiction_id": "school-summerville-high",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030463",
+        "district_website": "https://www.summbears.net",
+        "simbli_district_id": "36030463"
+      }
+    ],
+    "ventura": [
+      {
+        "name": "Conejo Valley Unified School District",
+        "jurisdiction_id": "school-conejo-valley",
+        "platform": "boarddocs",
+        "board_url": "https://go.boarddocs.com/ca/conejo/Board.nsf",
+        "boarddocs_app_path": "ca/conejo",
+        "boarddocs_committee_id": "A4EP6J588C05"
+      },
+      {
+        "name": "Fillmore Unified School District",
+        "jurisdiction_id": "school-fillmore",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030238",
+        "district_website": "https://www.fillmoreusd.org",
+        "simbli_district_id": "36030238"
+      },
+      {
+        "name": "Pleasant Valley School District",
+        "jurisdiction_id": "school-pleasant-valley",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/index.aspx?S=36030380",
+        "district_website": "https://www.pleasantvalleysd.org/",
+        "simbli_district_id": "36030380"
+      },
+      {
+        "name": "Rio Elementary School District",
+        "jurisdiction_id": "school-rio",
+        "platform": "boarddocs",
+        "board_url": "https://go.boarddocs.com/ca/rio/Board.nsf",
+        "boarddocs_app_path": "ca/rio",
+        "boarddocs_committee_id": "AB9A2L25954D"
+      },
+      {
+        "name": "Santa Paula Unified School District",
+        "jurisdiction_id": "school-santa-paula",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030436",
+        "district_website": "https://www.santapaulausd.org",
+        "simbli_district_id": "36030436"
+      }
+    ],
+    "yolo": [
+      {
+        "name": "Davis Joint Unified School District",
+        "jurisdiction_id": "school-davis",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030750",
+        "district_website": "https://www.djusd.net",
+        "simbli_district_id": "36030750"
+      },
+      {
+        "name": "Esparto Unified School District",
+        "jurisdiction_id": "school-esparto",
+        "platform": "simbli",
+        "board_url": "https://www.google.com/url?q=https%3A%2F%2Fsimbli.eboardsolutions.com%2FSB_Meetings%2FSB_MeetingListing.aspx%3FS%3D36030893&sa=D&sntz=1&usg=AOvVaw1XQIZTi2ZLpcRSqi9pFOQi",
+        "district_website": "https://www.eusdk12.org"
+      },
+      {
+        "name": "Washington Unified School District",
+        "jurisdiction_id": "school-washington",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/index.aspx?S=36030796",
+        "district_website": "https://www.wusd.k12.ca.us",
+        "simbli_district_id": "36030796"
+      },
+      {
+        "name": "Woodland Joint Unified School District",
+        "jurisdiction_id": "school-woodland",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Policy/PolicyListing.aspx?S=36030798",
+        "district_website": "https://www.wjusd.org",
+        "simbli_district_id": "36030798"
+      }
+    ],
+    "yuba": [
+      {
+        "name": "Marysville Joint Unified School District",
+        "jurisdiction_id": "school-marysville",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/Policy/ViewPolicy.aspx?S=36030547&revid=IVHRydBNplusMr4gTcBTjIE7Q==&ptid=amIgTZiB9plushNjl6WXhfiOQ==&secid=&PG=6&IRP=0&isPndg=false",
+        "district_website": "https://www.mjusd.com",
+        "simbli_district_id": "36030547"
+      },
+      {
+        "name": "Plumas Lake Elementary School District",
+        "jurisdiction_id": "school-plumas-lake",
+        "platform": "simbli",
+        "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030384",
+        "district_website": "https://www.plusd.org",
+        "simbli_district_id": "36030384"
       }
     ]
   }
