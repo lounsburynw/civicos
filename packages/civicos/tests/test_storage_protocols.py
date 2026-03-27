@@ -3088,43 +3088,6 @@ class TestStatePassthroughMethods:
 
 
 
-class TestElectionStorageIntegration:
-    """Integration tests for Google Civic API to StorageBackend flow."""
-
-    @pytest.mark.integration
-    def test_extract_elections_to_storage(self):
-        """Test extracting elections from API and storing to database."""
-        import os
-        from civicos_extraction.clients.google_civic import (
-            GoogleCivicClient,
-            extract_elections_to_storage,
-        )
-        from civicos.storage import get_storage_backend
-
-        api_key = os.environ.get("GOOGLE_CIVICOS_API_KEY") or os.environ.get("GOOGLE_API_KEY")
-        if not api_key:
-            pytest.skip("No Google Civic API key configured")
-
-        # Use factory to get storage backend (respects DATABASE_URL)
-        # In CI with Postgres, this tests the real production path
-        # Locally without DATABASE_URL, this uses SQLite
-        storage = get_storage_backend()
-
-        # Create client and extract
-        client = GoogleCivicClient("san-rafael", api_key=api_key)
-        count = extract_elections_to_storage(client, storage, "san-rafael")
-
-        # Verify elections were stored
-        assert count >= 1
-
-        # Query back from storage
-        elections = storage.get_elections("san-rafael", include_past=True)
-        assert len(elections) >= 1
-        assert all("id" in e for e in elections)
-        assert all("name" in e for e in elections)
-        assert all("election_type" in e for e in elections)
-
-
 # ==============================================================================
 # SOFT DELETE TESTS (SESSION 480)
 # ==============================================================================

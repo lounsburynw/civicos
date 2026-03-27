@@ -55,11 +55,10 @@ class TestElectionConfigLoading:
         assert ca_sos["districts"]["state-senate"] == [2]
 
     def test_san_rafael_retains_existing_sources(self):
-        """Adding ca_sos_results didn't break existing election sources."""
+        """Existing election sources are preserved."""
         jurisdictions = _load_active_jurisdictions()
         config = jurisdictions["city-san-rafael"]
         election_sources = config.get("election_sources", {})
-        assert "google_civic" in election_sources
         assert "marin_registrar_results" in election_sources
         marin = election_sources["marin_registrar_results"]
         assert marin["division_filter"] == "City of San Rafael"
@@ -80,7 +79,7 @@ class TestElectionDispatchLogic:
     correct provider selection and parameter passing for each jurisdiction.
     """
 
-    KNOWN_PROVIDERS = {"google_civic", "marin_registrar_results", "ca_sos_results"}
+    KNOWN_PROVIDERS = {"marin_registrar_results", "ca_sos_results"}
 
     def _dispatch_providers(self, config):
         """Simulate the dispatch logic from scheduled_election_refresh().
@@ -88,11 +87,8 @@ class TestElectionDispatchLogic:
         Returns dict of {provider_name: params_dict} for providers that
         would be called.
         """
-        election_sources = config.get("election_sources", {"google_civic": True})
+        election_sources = config.get("election_sources", {})
         dispatched = {}
-
-        if "google_civic" in election_sources:
-            dispatched["google_civic"] = {}
 
         if "marin_registrar_results" in election_sources:
             provider_config = election_sources["marin_registrar_results"]
@@ -126,12 +122,12 @@ class TestElectionDispatchLogic:
         assert dispatched["ca_sos_results"]["county"] == ""
         assert dispatched["ca_sos_results"]["districts_json"] == ""
 
-    def test_san_rafael_dispatches_all_three(self):
-        """city-san-rafael should dispatch all 3 providers."""
+    def test_san_rafael_dispatches_both_providers(self):
+        """city-san-rafael should dispatch Marin Registrar + CA SOS."""
         jurisdictions = _load_active_jurisdictions()
         config = jurisdictions["city-san-rafael"]
         dispatched = self._dispatch_providers(config)
-        assert set(dispatched.keys()) == {"google_civic", "marin_registrar_results", "ca_sos_results"}
+        assert set(dispatched.keys()) == {"marin_registrar_results", "ca_sos_results"}
 
         # Verify CA SOS params
         ca_sos = dispatched["ca_sos_results"]
@@ -144,27 +140,25 @@ class TestElectionDispatchLogic:
         assert marin["from_year"] == 2010
         assert marin["division_filter"] == "City of San Rafael"
 
-    def test_county_marin_dispatches_all_three(self):
-        """county-marin should dispatch all 3 providers."""
+    def test_county_marin_dispatches_both_providers(self):
+        """county-marin should dispatch Marin Registrar + CA SOS."""
         jurisdictions = _load_active_jurisdictions()
         config = jurisdictions["county-marin"]
         dispatched = self._dispatch_providers(config)
-        assert "google_civic" in dispatched
         assert "marin_registrar_results" in dispatched
         assert "ca_sos_results" in dispatched
         assert dispatched["ca_sos_results"]["county"] == "marin"
 
-    def test_no_election_sources_defaults_to_google_civic(self):
-        """Jurisdictions without election_sources should default to Google Civic only."""
+    def test_no_election_sources_dispatches_nothing(self):
+        """Jurisdictions without election_sources should dispatch nothing."""
         config = {"source_type": "proudcity", "jurisdiction_id": "city-test"}
         dispatched = self._dispatch_providers(config)
-        assert dispatched == {"google_civic": {}}
+        assert dispatched == {}
 
     def test_unknown_providers_detected(self):
         """Unknown provider keys are detectable (scheduled_election_refresh logs a warning)."""
         config = {
             "election_sources": {
-                "google_civic": True,
                 "fake_provider": {"key": "value"},
             }
         }

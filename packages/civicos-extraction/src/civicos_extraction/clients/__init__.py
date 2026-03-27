@@ -8,7 +8,6 @@ Each client wraps a specific municipal platform API:
 - usaspending: USAspending.gov federal awards API
 - cagrants: California Grants Portal (grants.ca.gov via data.ca.gov)
 - fac: Federal Audit Clearinghouse (Single Audit / SEFA data)
-- google_civic: Google Civic Information API (elections, voter info)
 - marin_registrar: Marin County Registrar of Voters (local elections)
 - boarddocs: BoardDocs school board portals (meetings, agendas, attachments)
 - san_rafael_clerk: San Rafael City Clerk (city candidates, local measures)
@@ -35,15 +34,6 @@ from civicos_extraction.clients.fac import (
 from civicos_extraction.clients.ca_state_controller import (
     CAStateControllerClient,
     create_san_rafael_sco_client,
-)
-from civicos_extraction.clients.google_civic import (
-    GoogleCivicClient,
-    create_san_rafael_civic_client,
-    google_civic_to_election,
-    google_civic_to_voter_info,
-    extract_elections_to_storage,
-    extract_voter_info_to_storage,
-    ElectionStorageProtocol,
 )
 from civicos_extraction.clients.representatives import (
     RepresentativesClient,
@@ -158,13 +148,6 @@ __all__ = [
     "create_san_rafael_fac_client",
     "CAStateControllerClient",
     "create_san_rafael_sco_client",
-    "GoogleCivicClient",
-    "create_san_rafael_civic_client",
-    "google_civic_to_election",
-    "google_civic_to_voter_info",
-    "extract_elections_to_storage",
-    "extract_voter_info_to_storage",
-    "ElectionStorageProtocol",
     "RepresentativesClient",
     "Representative",
     "CongressGovClient",

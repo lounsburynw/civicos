@@ -614,12 +614,9 @@ def detect_election_sources(
 
     Returns:
         Dict of election source configs. Example:
-        {"google_civic": True, "ca_sos_results": {"county": "marin"}}
+        {"ca_sos_results": {"county": "marin"}}
     """
     sources: dict = {}
-
-    # Google Civic — always available for US jurisdictions
-    sources["google_civic"] = True
 
     # CA SOS — available for all California jurisdictions
     if state and state.upper() == "CA":

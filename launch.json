@@ -1384,14 +1384,28 @@
       },
       {
         "name": "google_civic_deprecation",
-        "description": "Update Google Civic client to mark Representatives endpoint as deprecated (returns 0 results since April 2025). Add fallback to Congress.gov + LegiScan for representative lookups. Keep elections endpoint for polling location queries during major elections.",
+        "description": "Removed Google Civic client entirely. Representatives endpoint dead since April 2025, Elections endpoint returns minimal data. State-specific sources (CA SOS, Marin Registrar) provide better coverage.",
         "priority": 0,
-        "status": "not_started",
+        "status": "done",
         "files": [
           "packages/civicos-extraction/src/civicos_extraction/clients/google_civic.py"
         ],
         "test_file": null,
-        "notes": "Low priority \u2014 the client does not crash, it just returns empty. Add deprecation warning in get_representatives(). Update get_election_details() to not call representatives. ~0.25 session."
+        "notes": "Full removal instead of deprecation. Representatives already handled by RepresentativesClient (Congress.gov + LegiScan). Elections handled by state-specific sources. detect_election_sources() no longer includes google_civic. Extraction configs updated."
+      },
+      {
+        "name": "cde_school_directory",
+        "description": "Build statewide school district lookup from CA Dept of Education directory. Fetch CDE district list, probe each district website for Simbli/BoardDocs platforms, and generate school_districts.json entries. Enables turnkey --level school onboarding for any CA county, not just Marin.",
+        "priority": 0,
+        "status": "not_started",
+        "phase": "B",
+        "files": [
+          "scripts/build_school_directory.py",
+          "data/school_districts.json",
+          "packages/civicos-extraction/src/civicos_extraction/platform_detection.py"
+        ],
+        "test_file": null,
+        "notes": "CDE publishes district directory (name, county, website). Probe each website against _detect_simbli() and _detect_boarddocs() in platform_detection.py. Parallelizable — ~2 requests per district. One-time build script, output extends existing school_districts.json structure. ~1 session."
       }
     ]
   }

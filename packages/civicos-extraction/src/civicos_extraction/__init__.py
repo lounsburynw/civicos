@@ -35,10 +35,6 @@ from civicos_extraction.clients.proudcity import (
     create_san_rafael_client,
     create_san_rafael_source,
 )
-from civicos_extraction.clients.google_civic import (
-    GoogleCivicClient,
-    create_san_rafael_civic_client,
-)
 from civicos_extraction.clients.base import (
     BaseExtractor,
     Meeting,
@@ -103,8 +99,6 @@ __all__ = [
     "ProudCitySource",
     "create_san_rafael_client",
     "create_san_rafael_source",
-    "GoogleCivicClient",
-    "create_san_rafael_civic_client",
     "BaseExtractor",
     "Meeting",
     "DataSource",
