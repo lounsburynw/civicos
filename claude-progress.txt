@@ -1,3 +1,68 @@
+## Session — 2026-03-26: cde_school_directory (P0)
+
+**Item:** cde_school_directory (election_integration)
+**Status:** DONE
+
+**What was built:**
+1. `scripts/build_school_directory.py` — one-time build script that:
+   - Downloads CA Dept of Education public schools/districts tab-delimited file
+   - Extracts 1,070 active district-level entries (1,022 with websites)
+   - Probes each website for Simbli/BoardDocs platform indicators (15 parallel workers)
+   - Handles jurisdiction_id collisions (same-city elem/high → -elem/-high suffix)
+   - Merges with existing curated entries (name-overlap dedup, preserves curated data)
+2. Extended `data/school_districts.json`: 10 curated Marin entries → 452 districts across 56 CA counties
+   - 366 Simbli, 76 BoardDocs
+   - All 10 original Marin entries preserved unchanged
+3. Updated `test_school_district_lookup.py` for statewide data (>= checks, statewide dedup, config-side validation)
+
+**Key technical decisions:**
+- CDE uses "WebSite" column (capital S), not "Website"
+- CDE district names are short forms (e.g. "Miller Creek Elementary"); script strips DOC suffixes for jurisdiction_id generation
+- Name-overlap dedup uses exact core-word equality (not subset) to avoid false positives
+- Curated-only dedup: merge checks against pre-existing entries, not entries added in current run
+
+**Tests:** 66/66 pass (23 election detection + 23 school lookup + 20 smoke)
+**Next P0:** token_purchase_ui
+
+## Session — 2026-03-26: google_civic_deprecation (P0)
+
+**Item:** google_civic_deprecation (election_integration)
+**Status:** DONE
+
+**What was done:**
+
+Removed the Google Civic client entirely (-1,567 lines) instead of just deprecating.
+Research confirmed: Representatives endpoint dead since April 2025, Elections endpoint
+returns only 3-4 nationwide results with no local data. State-specific sources (CA SOS,
+Marin Registrar) already provide better election coverage.
+
+**Changes:**
+- Deleted `google_civic.py` (885 lines — client, mappers, storage helpers)
+- Removed all imports/exports from `clients/__init__.py` and `__init__.py`
+- Removed `fetch_elections()` function from `modal_ingest.py`
+- Removed google_civic dispatch from `scheduled_election_refresh()`
+- Updated `detect_election_sources()` to not include google_civic
+- Removed `"google_civic": true` from 4 extraction configs
+- Updated 34 tests across 4 test files (all passing)
+- Non-CA cities now get empty election_sources until state-specific sources are built
+
+**Files changed:**
+- packages/civicos-extraction/src/civicos_extraction/clients/google_civic.py (DELETED)
+- packages/civicos-extraction/src/civicos_extraction/clients/__init__.py
+- packages/civicos-extraction/src/civicos_extraction/__init__.py
+- packages/civicos-extraction/src/civicos_extraction/onboard.py
+- scripts/modal_ingest.py
+- data/extraction/{city-san-rafael,city-mill-valley,city-san-anselmo,county-marin}.json
+- packages/civicos-extraction/tests/test_clients.py
+- packages/civicos-extraction/tests/test_election_detection.py
+- packages/civicos/tests/test_integration_election_dispatch.py
+- packages/civicos/tests/test_storage_protocols.py
+- launch.json
+
+**Next P0:** cde_school_directory
+
+---
+
 ## Session — 2026-03-26: election_source_config (P0)
 
 **Item:** election_source_config (election_integration)
@@ -23998,3 +24063,38 @@ Built CASOSResultsClient for the CA Secretary of State election results API (api
 - launch.json (school_district_lookup → done, onboard_election_detection → P0)
 
 **Next P0:** onboard_election_detection
+**Next P0:** onboard_election_detection
+
+---
+
+## Session: 2026-03-26 — onboard_election_detection
+
+**Item:** onboard_election_detection (election_integration)
+**Status:** DONE
+
+**What was done:**
+
+1. **Added `detect_election_sources()`** in `onboard.py`:
+   - Takes jurisdiction_id, state, county → returns election source config dict
+   - Google Civic: always included for US jurisdictions
+   - CA SOS: included for CA jurisdictions with county field
+   - Marin Registrar: included for Marin County with from_year and division_filter
+2. **Added `_infer_division_name()`** helper:
+   - Maps jurisdiction_id prefixes to Marin Registrar division naming conventions
+   - city-san-rafael → "City of San Rafael", county-marin → "Marin County"
+   - school- prefix looks up full district name from school_districts.json
+3. **Wired into onboard flow** (Step 3.6):
+   - Moved geocoding (Step 3.5) before config save so election_sources is included
+   - After geocoding provides county, detect_election_sources() populates config
+   - Config is saved once with election_sources included
+4. **23 tests** in `test_election_detection.py`:
+   - Division name inference for city/town/county/school/unknown prefixes
+   - Election source detection for CA/Marin, CA/non-Marin, non-CA jurisdictions
+   - Case insensitivity, empty values, compatibility with existing configs
+
+**Files changed:**
+- packages/civicos-extraction/src/civicos_extraction/onboard.py (2 new functions + flow wiring)
+- packages/civicos-extraction/tests/test_election_detection.py (NEW, 23 tests)
+- launch.json (onboard_election_detection → done, google_civic_deprecation → P0)
+
+**Next P0:** google_civic_deprecation
