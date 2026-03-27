@@ -3533,6 +3533,163 @@ def fetch_marin_election_results(
 
 
 # =============================================================================
+# Civera ElectionStats Fetch (GraphQL — generalized for any Civera county)
+# =============================================================================
+
+@app.function(
+    image=civic_image,
+    secrets=[
+        modal.Secret.from_name("civic-db"),
+    ],
+    memory=4096,
+    timeout=900,  # 15 minutes (may fetch 50+ elections with contests)
+    retries=modal.Retries(max_retries=2, backoff_coefficient=2.0, initial_delay=10.0),
+)
+def fetch_civera_election_results(
+    jurisdiction: str = "county-sonoma",
+    county_slug: str = "",
+    graphql_url: str = "",
+    from_year: int = 2010,
+    to_year: int = 2026,
+    division_filter: str = "",
+    dry_run: bool = False,
+    auto_index: bool = False,
+) -> dict:
+    """Fetch historical election results from a Civera ElectionStats GraphQL API.
+
+    Generalized version of fetch_marin_election_results that works with any
+    county running the Civera ElectionStats platform (Marin, Sonoma, Yolo, etc.).
+
+    Args:
+        jurisdiction: Target jurisdiction (e.g., "county-sonoma")
+        county_slug: County identifier for ID namespacing (e.g., "sonoma")
+                     If empty, looked up from CIVERA_INSTANCES registry.
+        graphql_url: GraphQL endpoint URL. If empty, looked up from CIVERA_INSTANCES.
+        from_year: Start year for election range (default 2010)
+        to_year: End year for election range (default 2026)
+        division_filter: Filter contests to this division (e.g., "City of Petaluma")
+        dry_run: If True, fetch but don't store
+        auto_index: If True, trigger vector indexing after successful storage
+    """
+    import logging
+    import os
+    import time
+
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+    logger = logging.getLogger(__name__)
+    start_time = time.time()
+
+    from civicos.storage.postgres_backend import PostgresBackend
+    from civicos_extraction.clients.civera_election_stats import (
+        CiveraElectionStatsClient,
+        CIVERA_INSTANCES,
+        extract_civera_results_to_storage,
+    )
+
+    database_url = os.environ.get("DATABASE_URL")
+    if not database_url:
+        raise ValueError("DATABASE_URL not set")
+
+    # Resolve county_slug and graphql_url from registry if not provided
+    if not county_slug:
+        # Try to infer from jurisdiction_id (e.g., "county-sonoma" → "sonoma")
+        county_slug = jurisdiction.replace("county-", "").replace("city-", "")
+    if not graphql_url:
+        instance = CIVERA_INSTANCES.get(county_slug)
+        if instance:
+            graphql_url = instance["graphql_url"]
+        else:
+            raise ValueError(
+                f"No graphql_url provided and county_slug={county_slug!r} not in CIVERA_INSTANCES. "
+                f"Known: {list(CIVERA_INSTANCES.keys())}"
+            )
+
+    logger.info(
+        f"[CIVERA] Starting fetch: jurisdiction={jurisdiction}, county={county_slug}, "
+        f"years={from_year}-{to_year}, division={division_filter or 'all'}"
+    )
+
+    client = CiveraElectionStatsClient(
+        jurisdiction_id=jurisdiction,
+        graphql_url=graphql_url,
+        county_slug=county_slug,
+    )
+    validation = client.validate()
+    if not validation.is_valid:
+        raise RuntimeError(f"Civera GraphQL validation failed ({county_slug}): {validation.errors}")
+
+    if dry_run:
+        events = client.list_elections(from_year=from_year, to_year=to_year)
+        elapsed = time.time() - start_time
+        return {
+            "task": "civera_election_results",
+            "jurisdiction": jurisdiction,
+            "county_slug": county_slug,
+            "elections_found": len(events),
+            "elections_stored": 0,
+            "contests_stored": 0,
+            "candidates_stored": 0,
+            "dry_run": True,
+            "elapsed_seconds": elapsed,
+            "cost_usd": 4 * elapsed * 0.000463,
+        }
+
+    backend = PostgresBackend(database_url)
+    counts = extract_civera_results_to_storage(
+        client=client,
+        storage=backend,
+        jurisdiction_id=jurisdiction,
+        county_slug=county_slug,
+        from_year=from_year,
+        to_year=to_year,
+        division_filter=division_filter or None,
+    )
+
+    import hashlib
+    fingerprint = hashlib.sha256(
+        f"{counts['elections']}:{counts['contests']}:{counts['candidates']}:{from_year}-{to_year}".encode()
+    ).hexdigest()[:16]
+
+    backend.update_refresh_metadata(
+        jurisdiction, "elections", "civera_election_stats",
+        items_fetched=counts["elections"] + counts["contests"],
+        items_stored=counts["elections"] + counts["contests"],
+        status="completed",
+        last_fetch_hash=fingerprint,
+    )
+
+    vector_result = None
+    if auto_index and counts["elections"] > 0:
+        logger.info(f"[CIVERA] Auto-indexing vectors for {jurisdiction}...")
+        vector_result = index_vectors.remote(
+            jurisdiction=jurisdiction,
+            corpus="elections",
+            reindex=False,
+        )
+        logger.info(f"  Vectors indexed: {vector_result.get('total_indexed', 0)}")
+
+    elapsed = time.time() - start_time
+    result = {
+        "task": "civera_election_results",
+        "jurisdiction": jurisdiction,
+        "county_slug": county_slug,
+        "elections_stored": counts["elections"],
+        "contests_stored": counts["contests"],
+        "candidates_stored": counts["candidates"],
+        "from_year": from_year,
+        "to_year": to_year,
+        "division_filter": division_filter or None,
+        "dry_run": False,
+        "auto_index": auto_index,
+        "elapsed_seconds": elapsed,
+        "cost_usd": 4 * elapsed * 0.000463,
+    }
+    if vector_result:
+        result["vector_result"] = vector_result
+    return result
+
+
+# =============================================================================
 # CA Secretary of State Election Results Fetch (REST — api.sos.ca.gov)
 # =============================================================================
 
@@ -5642,7 +5799,8 @@ def scheduled_election_refresh():
     - Elected officials change infrequently (after elections or special circumstances)
 
     Data sources (dispatched per-jurisdiction via election_sources config):
-    - marin_registrar_results: Marin County GraphQL election results
+    - civera_election_stats: Civera ElectionStats GraphQL (Marin, Sonoma, Yolo)
+    - marin_registrar_results: Marin County GraphQL (legacy alias for civera)
     - ca_sos_results: CA Secretary of State election results
 
     Elected officials: Congress.gov (federal), LegiScan (state), curated (local)
@@ -5672,12 +5830,38 @@ def scheduled_election_refresh():
         # Read election_sources from config
         election_sources = config.get("election_sources", {})
 
-        known_providers = {"marin_registrar_results", "ca_sos_results"}
+        known_providers = {"civera_election_stats", "marin_registrar_results", "ca_sos_results"}
         unknown = set(election_sources.keys()) - known_providers
         if unknown:
             logger.warning(f"  [{jid}] Unknown election source(s): {unknown} — skipped. Known: {known_providers}")
 
-        # --- Marin Registrar ---
+        # --- Civera ElectionStats (generalized: Marin, Sonoma, Yolo, etc.) ---
+        if "civera_election_stats" in election_sources:
+            provider_config = election_sources["civera_election_stats"]
+            if provider_config is True:
+                provider_config = {}
+            try:
+                county_slug = provider_config.get("county_slug", "")
+                graphql_url = provider_config.get("graphql_url", "")
+                from_year = provider_config.get("from_year", 2010)
+                division_filter = provider_config.get("division_filter", "")
+                logger.info(f"  [{jid}] Fetching elections (Civera, county={county_slug}, from_year={from_year}, division={division_filter or 'all'})...")
+                result = fetch_civera_election_results.local(
+                    jurisdiction=jid,
+                    county_slug=county_slug,
+                    graphql_url=graphql_url,
+                    from_year=from_year,
+                    division_filter=division_filter,
+                    dry_run=False,
+                    auto_index=True,
+                )
+                results[jid]["civera_election_stats"] = result
+                logger.info(f"    Civera ({county_slug}): {result.get('elections_stored', 0)} elections stored")
+            except Exception as e:
+                logger.exception(f"  [{jid}] Civera fetch failed")
+                results[jid]["civera_election_stats"] = {"status": "failed", "error": str(e)}
+
+        # --- Marin Registrar (legacy — still supported for existing configs) ---
         if "marin_registrar_results" in election_sources:
             provider_config = election_sources["marin_registrar_results"]
             if provider_config is True:

@@ -617,3 +617,144 @@ County requests return an array of two objects: `[county_results, districtwide_r
 #### County Slug Format
 
 Lowercase, hyphens for multi-word: `marin`, `contra-costa`, `san-francisco`, `los-angeles`, `el-dorado`, `san-luis-obispo`
+
+---
+
+## Multi-County Election Reporting Platform Research
+
+**Date:** 2026-03-26
+**Scope:** Identify which CA counties use similar election reporting platforms to Marin's Civera ElectionStats
+
+### Executive Summary
+
+Three California counties use Civera's ElectionStats platform with identical GraphQL APIs: **Marin**, **Sonoma**, and **Yolo**. A single GraphQL client built for Marin will work for all three with only a URL/tenant change. Beyond those three, most CA counties use either **Clarity Elections** (by Scytl/SOE Software) for election night reporting, **custom/proprietary** platforms, or **HART InterCivic's LiveVoterTurnout** system.
+
+### Confirmed Civera ElectionStats Instances in California
+
+All three use identical Next.js + Apollo + GraphQL architecture. Same queries, same schema, same response format.
+
+| County | URL | Tenant ID | GraphQL Endpoint | Elections | Data Range |
+|--------|-----|-----------|------------------|-----------|------------|
+| **Marin** | `pastelections.marincounty.gov` | `marinca` | `POST /api/graphql_pr` | 46 | 2010-2025 |
+| **Sonoma** | `electionstats.sonomacounty.ca.gov` | `sonomaca` | `POST /api/graphql_pr` | 43 | 2009-2024 (expanding to 1980) |
+| **Yolo** | `electionstats.elections.yolocounty.gov` | `yoloca` | `POST /api/graphql_pr` | 52 | 1997-2025 |
+
+**Verified by live API calls (2026-03-26):** All three endpoints return 200 with identical response schemas. The Marin GraphQL client (`marin_registrar.py`) can be parameterized to work with all three by changing only the base URL and tenant ID.
+
+**URL Pattern:** The subdomain varies by county -- there is no universal `pastelections.{county}.gov` pattern. Each county chooses its own subdomain.
+
+### Civera ElectionStats -- National Client List
+
+From the ElectionStats website and press releases, known clients beyond the three CA counties:
+
+**10 U.S. States:** Colorado, Virginia, Idaho, New York, South Carolina, New Mexico, Massachusetts, Vermont, Connecticut, New Hampshire
+
+**Other Counties/Municipalities:** Peoria County (IL), Kent County (MI), La Plata County (CO), Larimer County (CO), Ada County (ID), U.S. Virgin Islands
+
+**No other California counties** currently appear to use ElectionStats based on available public information. The platform is marketed to "a growing number of counties and municipalities" so more CA counties may adopt it.
+
+### County-by-County Election Reporting Platforms
+
+| County | Voting System | ENR Platform | Historical Results | API? | Similar to Marin? |
+|--------|--------------|--------------|-------------------|------|-------------------|
+| **Marin** | Dominion Democracy Suite | N/A (uses ElectionStats) | `pastelections.marincounty.gov` | **GraphQL** -- no auth, full API | **YES** (this is Marin) |
+| **Sonoma** | Dominion | Clarity Elections (`results.enr.clarityelections.com/CA/Sonoma/`) | `electionstats.sonomacounty.ca.gov` | **GraphQL** -- identical to Marin | **YES** -- same platform |
+| **Yolo** | HART InterCivic Verity | N/A | `electionstats.elections.yolocounty.gov` | **GraphQL** -- identical to Marin | **YES** -- same platform |
+| **Alameda** | Dominion | Custom (`alamedacountyca.gov/rovresults/`) | Custom county website | No public API. PDF/web only | No |
+| **Contra Costa** | Dominion Democracy Suite 5.10a | Clarity Elections (`results.enr.clarityelections.com/CA/Contra_Costa/`) | PDF/web on `contracostavote.gov` | Clarity XML (via `clarify` library) | No |
+| **San Mateo** | Dominion Democracy Suite | Custom on `smcacre.gov` | Drupal CMS, PDF archives | CSV/PDF download on results page | No |
+| **Santa Clara** | HART InterCivic | Clarity Elections (`results.enr.clarityelections.com/CA/Santa_Clara/`) | Web results on `vote.santaclaracounty.gov` | Clarity XML (via `clarify` library) | No |
+| **San Francisco** | Dominion Democracy Suite | Custom (`sfelections.org/results/`) | Custom site with Excel/PDF/JSON downloads | Statement of Vote (PDF/Excel), Cast Vote Record (JSON) | No |
+| **Sacramento** | Dominion | Custom SSRS (`eresults.saccounty.net`) | Microsoft SSRS-based reporting | No public API | No |
+| **Los Angeles** | VSAP (custom, county-built) | Custom (`results.lavote.gov`) | County-built open-source platform | No public API | No |
+| **Orange** | HART InterCivic Verity | Custom (`ocvote.gov`) | `ocvote.gov/datacentral` with Statement of Votes | CSV/PDF download | No |
+| **San Diego** | HART InterCivic | LiveVoterTurnout.com (HART's ENR platform) | `livevoterturnout.com/ENR/sandiegocaenr/` | No public API (custom JS/JSON) | No |
+
+### Platform Categories
+
+**1. Civera ElectionStats (GraphQL API -- best for CivicOS)**
+- Counties: Marin, Sonoma, Yolo
+- API: Public GraphQL, no auth, structured data, precinct-level breakdowns
+- Effort to integrate: Near-zero (parameterize existing Marin client)
+- Data quality: Excellent -- candidate names, vote counts, percentages, winners, ballot measures, precinct-level
+
+**2. Clarity Elections / Scytl / SOE Software (XML data available)**
+- Counties: Sonoma (ENR only), Contra Costa, Santa Clara, Ventura, Butte, Shasta, Merced, and likely dozens more
+- API: No formal API, but structured XML/CSV downloadable via the `clarify` Python library (`pip install clarify`)
+- Data: Election night results (may not include historical). XML contains contests, candidates, vote counts, sub-jurisdictions
+- Effort to integrate: Moderate -- need `clarify` library, parse XML, handle per-election URL discovery
+- Note: Sonoma uses Clarity for election *night* but ElectionStats for *historical* results
+
+**3. HART InterCivic LiveVoterTurnout**
+- Counties: San Diego (confirmed), possibly other HART counties
+- Platform: `livevoterturnout.com` -- HART's proprietary ENR system
+- API: No public API. Uses custom JS with Mapbox for visualization
+- Effort to integrate: High -- would need scraping
+
+**4. Custom/Proprietary County Systems**
+- Counties: Alameda, San Mateo, San Francisco, Sacramento, Los Angeles, Orange
+- Each county built their own results reporting
+- Some offer CSV/PDF/Excel downloads, but no standardized API
+- SF is the most data-friendly (offers JSON Cast Vote Records)
+
+### Voting System Vendor Distribution (Researched Counties)
+
+| Vendor | Counties |
+|--------|----------|
+| **Dominion** | Marin, Sonoma, Alameda, Contra Costa, San Mateo, San Francisco, Sacramento |
+| **HART InterCivic** | Yolo, Santa Clara, Orange, San Diego |
+| **Custom (VSAP)** | Los Angeles |
+
+Note: The voting system vendor (who counts ballots) is separate from the reporting platform (who displays results). Dominion counties don't all use the same reporting platform. HART counties sometimes use LiveVoterTurnout.com but not always. There is no consistent correlation between voting system vendor and results reporting platform.
+
+### Key Insight: ElectionStats vs. Clarity Elections
+
+| Feature | ElectionStats (Civera) | Clarity Elections (Scytl) |
+|---------|----------------------|--------------------------|
+| **Purpose** | Historical results archive | Election night real-time reporting |
+| **Data range** | Multi-decade (1997-present for Yolo) | Current/recent election only |
+| **API** | GraphQL, public, structured | XML/CSV download (via `clarify` library) |
+| **Precinct data** | Yes, via `contestGranularData` query | Yes, in detail XML |
+| **Auth required** | No | No |
+| **Data persistence** | Permanent archive | May be overwritten each election |
+| **Client library** | Our `marin_registrar.py` | `pip install clarify` (OpenElections) |
+
+ElectionStats is strictly better for CivicOS because it provides permanent, searchable, API-accessible historical data. Clarity Elections data is ephemeral and harder to access programmatically.
+
+### Recommendation: Expand ElectionStats Integration
+
+**Immediate (0 effort):** Parameterize the Marin GraphQL client to support Sonoma and Yolo. This gives us election results for 3 CA counties (141 elections total) with zero new code.
+
+**Implementation:**
+```python
+ELECTIONSTATS_INSTANCES = {
+    "county-marin": {
+        "url": "https://pastelections.marincounty.gov/api/graphql_pr",
+        "tenant": "marinca",
+    },
+    "county-sonoma": {
+        "url": "https://electionstats.sonomacounty.ca.gov/api/graphql_pr",
+        "tenant": "sonomaca",
+    },
+    "county-yolo": {
+        "url": "https://electionstats.elections.yolocounty.gov/api/graphql_pr",
+        "tenant": "yoloca",
+    },
+}
+```
+
+**Future:** Monitor Civera's expansion. If more CA counties adopt ElectionStats, adding them is a one-line config change. The `clarify` library could be a secondary data source for Clarity Elections counties, but the data is less structured and less persistent.
+
+### Implementation Status (2026-03-26)
+
+**Completed:**
+- `CiveraElectionStatsClient` in `civera_election_stats.py` — generalized client with `CIVERA_INSTANCES` registry
+- `MarinRegistrarResultsClient` refactored as backward-compatible subclass
+- Storage mappers generalized: `civera_results_to_election()`, `civera_results_to_contest()`, `extract_civera_results_to_storage()`
+- Extraction configs: `county-sonoma.json`, `county-yolo.json`
+- `fetch_civera_election_results` Modal function in `modal_ingest.py`
+- `scheduled_election_refresh` recognizes `civera_election_stats` provider
+- Onboarding auto-detection for Sonoma/Yolo in `detect_election_sources()`
+- All 3 APIs tested live: Marin (46), Sonoma (43), Yolo (52) = **141 elections total**
+
+**To add a new Civera county**, add one entry to `CIVERA_INSTANCES` in `civera_election_stats.py` and create an extraction config.
