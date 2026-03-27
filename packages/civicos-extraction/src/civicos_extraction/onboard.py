@@ -557,6 +557,84 @@ def detect_issue_source(city_name: str, jurisdiction_id: str) -> Optional[str]:
     return None
 
 
+def _infer_division_name(jurisdiction_id: str) -> str:
+    """Infer Marin Registrar division name from a jurisdiction ID.
+
+    Maps jurisdiction ID prefixes to the division naming convention used
+    by the Marin County Registrar of Voters:
+    - city-san-rafael → "City of San Rafael"
+    - county-marin → "Marin County"
+    - school-novato → looks up full district name from school_districts.json
+
+    Falls back to title-cased slug for unknown prefixes.
+    """
+    parts = jurisdiction_id.split("-", 1)
+    if len(parts) < 2:
+        return jurisdiction_id.replace("-", " ").title()
+
+    level, slug = parts[0], parts[1]
+    name = slug.replace("-", " ").title()
+
+    if level == "city":
+        return f"City of {name}"
+    elif level == "town":
+        return f"Town of {name}"
+    elif level == "county":
+        return f"{name} County"
+    elif level == "school":
+        # Try to find the full district name from the lookup table
+        try:
+            districts = load_school_districts()
+            for state_data in districts.values():
+                for county_entries in state_data.values():
+                    for entry in county_entries:
+                        if entry.get("jurisdiction_id") == jurisdiction_id:
+                            return entry["name"]
+        except Exception:
+            pass
+        # Fallback: use slug as-is with "School District" suffix
+        return f"{name} School District"
+    else:
+        return name
+
+
+def detect_election_sources(
+    jurisdiction_id: str, state: str, county: str
+) -> dict:
+    """Detect available election data sources for a jurisdiction.
+
+    Called during onboarding after geocoding provides the county name.
+    Returns a dict keyed by provider name, matching the election_sources
+    schema used in extraction configs (e.g., city-san-rafael.json).
+
+    Args:
+        jurisdiction_id: e.g. "city-san-rafael", "county-marin"
+        state: Two-letter state abbreviation (e.g. "CA")
+        county: County name from geocoding (e.g. "Marin")
+
+    Returns:
+        Dict of election source configs. Example:
+        {"google_civic": True, "ca_sos_results": {"county": "marin"}}
+    """
+    sources: dict = {}
+
+    # Google Civic — always available for US jurisdictions
+    sources["google_civic"] = True
+
+    # CA SOS — available for all California jurisdictions
+    if state and state.upper() == "CA":
+        sources["ca_sos_results"] = {"county": county.lower()}
+
+    # Marin Registrar — available for Marin County jurisdictions
+    if county and county.lower() == "marin":
+        sources["marin_registrar_results"] = {
+            "from_year": 2010,
+            "division_filter": _infer_division_name(jurisdiction_id),
+        }
+
+    return sources
+
+
 def detect_youtube_channel(city_name: str, state: str = "") -> Optional[dict]:
     """Search YouTube for a city's official meeting channel.
 
@@ -1625,6 +1703,26 @@ def onboard_jurisdiction(
         else:
             _progress("issues", "No issue provider detected (will use default)")
 
+    # Step 3.5: Geocoding enrichment (if city_name available)
+    geo_data: Optional[Dict[str, Any]] = None
+    if city_name:
+        _progress("geocode", f"Geocoding {city_name}...")
+        geo_data = geocode_city(city_name, state=state)
+        if geo_data:
+            logger.info(
+                f"Geocoded: {geo_data.get('city')} → "
+                f"{geo_data.get('county', 'unknown county')}, "
+                f"zip {geo_data.get('zip_code', '?')}"
+            )
+
+    # Step 3.6: Detect election sources (requires geocoding for county)
+    if geo_data and geo_data.get("county"):
+        election_sources = detect_election_sources(
+            jurisdiction_id, state or geo_data.get("state_abbrev", ""), geo_data["county"]
+        )
+        config["election_sources"] = election_sources
+        _progress("election", f"Detected election sources: {list(election_sources.keys())}")
+
     _progress("save", f"Saving config for {jurisdiction_id}...")
 
     # Step 3: Save config
@@ -1647,18 +1745,6 @@ def onboard_jurisdiction(
             config=config,
             errors=errors,
         )
-
-    # Step 3.5: Geocoding enrichment (if city_name available)
-    geo_data: Optional[Dict[str, Any]] = None
-    if city_name:
-        _progress("geocode", f"Geocoding {city_name}...")
-        geo_data = geocode_city(city_name, state=state)
-        if geo_data:
-            logger.info(
-                f"Geocoded: {geo_data.get('city')} → "
-                f"{geo_data.get('county', 'unknown county')}, "
-                f"zip {geo_data.get('zip_code', '?')}"
-            )
 
     # Step 3.7: Discover USAspending candidates (free API, no key needed)
     usaspending_candidates: List[Dict[str, Any]] = []
