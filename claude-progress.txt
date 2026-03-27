@@ -24098,3 +24098,45 @@ Built CASOSResultsClient for the CA Secretary of State election results API (api
 - launch.json (onboard_election_detection → done, google_civic_deprecation → P0)
 
 **Next P0:** google_civic_deprecation
+
+## Session — 2026-03-26: Multi-County Registrar Research (P0)
+
+**Item:** multi_county_registrar_research
+**Status:** DONE
+
+### Research Findings
+- Surveyed 10 CA county election result portals
+- Found 3 counties using identical Civera ElectionStats platform (Marin, Sonoma, Yolo)
+- All 3 share same GraphQL API schema at `/api/graphql_pr`, no auth required
+- Other counties use Clarity Elections (ENR only), HART LiveVoterTurnout, or custom systems
+- Voting system vendor (Dominion, HART, etc.) does NOT correlate with reporting platform
+
+### Implementation
+1. **New `CiveraElectionStatsClient`** (`civera_election_stats.py`) — generalized client with `CIVERA_INSTANCES` registry
+2. **Backward compat:** `MarinRegistrarResultsClient` now subclasses `CiveraElectionStatsClient` (no external API changes)
+3. **Storage mappers generalized:** `civera_results_to_election()`, `civera_results_to_contest()`, `extract_civera_results_to_storage()`
+4. **Extraction configs:** `county-sonoma.json`, `county-yolo.json`
+5. **Modal function:** `fetch_civera_election_results` in `modal_ingest.py`
+6. **Scheduler:** `scheduled_election_refresh` recognizes `civera_election_stats` provider
+7. **Onboarding:** `detect_election_sources()` auto-detects Sonoma/Yolo
+8. **Tests:** 28 pass (23 existing + 5 new Civera detection tests)
+
+### Data Volume
+- Marin: 46 elections (2010-2025)
+- Sonoma: 43 elections (2009-2024)
+- Yolo: 52 elections (1997-2025)
+- **Total: 141 elections across 3 counties**
+
+**Files changed:**
+- packages/civicos-extraction/src/civicos_extraction/clients/civera_election_stats.py (NEW)
+- packages/civicos-extraction/src/civicos_extraction/clients/marin_registrar.py (refactored)
+- packages/civicos-extraction/src/civicos_extraction/clients/__init__.py (exports)
+- packages/civicos-extraction/src/civicos_extraction/onboard.py (Civera detection)
+- packages/civicos-extraction/tests/test_election_detection.py (5 new tests)
+- scripts/modal_ingest.py (new fetch function + scheduler wiring)
+- data/extraction/county-sonoma.json (NEW)
+- data/extraction/county-yolo.json (NEW)
+- docs/internal/election-data-research.md (updated)
+- launch.json (multi_county_registrar_research → done, federation_adr → P0)
+
+**Next P0:** federation_adr

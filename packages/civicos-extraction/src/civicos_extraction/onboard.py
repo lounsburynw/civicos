@@ -622,11 +622,23 @@ def detect_election_sources(
     if state and state.upper() == "CA":
         sources["ca_sos_results"] = {"county": county.lower()}
 
-    # Marin Registrar — available for Marin County jurisdictions
+    # Marin Registrar — available for Marin County jurisdictions (legacy config key)
     if county and county.lower() == "marin":
         sources["marin_registrar_results"] = {
             "from_year": 2010,
             "division_filter": _infer_division_name(jurisdiction_id),
+        }
+
+    # Civera ElectionStats — available for counties with known Civera instances
+    # (excluding Marin, which uses the legacy marin_registrar_results key above)
+    from civicos_extraction.clients.civera_election_stats import CIVERA_INSTANCES
+    county_lower = county.lower() if county else ""
+    if county_lower in CIVERA_INSTANCES and county_lower != "marin":
+        instance = CIVERA_INSTANCES[county_lower]
+        sources["civera_election_stats"] = {
+            "county_slug": county_lower,
+            "graphql_url": instance["graphql_url"],
+            "from_year": 2010,
         }
 
     return sources

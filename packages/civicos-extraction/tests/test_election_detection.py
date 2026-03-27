@@ -141,3 +141,39 @@ class TestDetectElectionSources:
         result = detect_election_sources("county-marin", "CA", "Marin")
         assert result["marin_registrar_results"]["division_filter"] == "Marin County"
         assert result["marin_registrar_results"]["from_year"] == 2010
+
+    # --- Civera ElectionStats detection (Sonoma, Yolo) ---
+
+    def test_sonoma_gets_civera_source(self):
+        """Sonoma County → CA SOS + Civera ElectionStats."""
+        result = detect_election_sources("county-sonoma", "CA", "Sonoma")
+        assert "ca_sos_results" in result
+        assert "civera_election_stats" in result
+        assert result["civera_election_stats"]["county_slug"] == "sonoma"
+        assert "graphql_url" in result["civera_election_stats"]
+        assert "marin_registrar_results" not in result
+
+    def test_yolo_gets_civera_source(self):
+        """Yolo County → CA SOS + Civera ElectionStats."""
+        result = detect_election_sources("county-yolo", "CA", "Yolo")
+        assert "ca_sos_results" in result
+        assert "civera_election_stats" in result
+        assert result["civera_election_stats"]["county_slug"] == "yolo"
+
+    def test_marin_does_not_get_civera_source(self):
+        """Marin uses legacy marin_registrar_results, not civera_election_stats."""
+        result = detect_election_sources("county-marin", "CA", "Marin")
+        assert "marin_registrar_results" in result
+        assert "civera_election_stats" not in result
+
+    def test_civera_detection_case_insensitive(self):
+        """County name matching for Civera is case-insensitive."""
+        result = detect_election_sources("city-petaluma", "CA", "SONOMA")
+        assert "civera_election_stats" in result
+        assert result["civera_election_stats"]["county_slug"] == "sonoma"
+
+    def test_non_civera_county_no_civera_source(self):
+        """Counties without Civera don't get civera_election_stats."""
+        result = detect_election_sources("city-oakland", "CA", "Alameda")
+        assert "ca_sos_results" in result
+        assert "civera_election_stats" not in result

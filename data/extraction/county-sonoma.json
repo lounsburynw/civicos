@@ -1,0 +1,21 @@
+{
+  "source_id": "civera-county-sonoma",
+  "source_type": "civera_election_stats",
+  "jurisdiction_id": "county-sonoma",
+  "base_url": "https://electionstats.sonomacounty.ca.gov",
+  "metadata": {
+    "state": "CA",
+    "county": "Sonoma",
+    "civera_tenant": "sonomaca"
+  },
+  "election_sources": {
+    "civera_election_stats": {
+      "county_slug": "sonoma",
+      "graphql_url": "https://electionstats.sonomacounty.ca.gov/api/graphql_pr",
+      "from_year": 2009
+    },
+    "ca_sos_results": {
+      "county": "sonoma"
+    }
+  }
+}

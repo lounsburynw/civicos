@@ -66,6 +66,13 @@ from civicos_extraction.clients.marin_registrar import (
     marin_election_to_storage,
     extract_marin_elections_to_storage,
 )
+from civicos_extraction.clients.civera_election_stats import (
+    CiveraElectionStatsClient,
+    CIVERA_INSTANCES,
+    civera_results_to_election,
+    civera_results_to_contest,
+    extract_civera_results_to_storage,
+)
 from civicos_extraction.clients.san_rafael_clerk import (
     SanRafaelClerkClient,
     create_san_rafael_clerk_client,
@@ -210,4 +217,9 @@ __all__ = [
     "STATEWIDE_RACES",
     "FederalRegisterClient",
     "get_recent_executive_orders",
+    "CiveraElectionStatsClient",
+    "CIVERA_INSTANCES",
+    "civera_results_to_election",
+    "civera_results_to_contest",
+    "extract_civera_results_to_storage",
 ]
