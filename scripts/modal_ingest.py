@@ -3396,136 +3396,6 @@ def fetch_issues(
 
 
 # =============================================================================
-# Election Fetch (Google Civic API)
-# =============================================================================
-
-@app.function(
-    image=civic_image,
-    secrets=[
-        modal.Secret.from_name("civic-db"),
-        modal.Secret.from_name("civic-google"),  # Contains GOOGLE_API_KEY
-    ],
-    memory=4096,
-    timeout=600,  # 10 minutes
-    retries=modal.Retries(max_retries=2, backoff_coefficient=2.0, initial_delay=10.0),
-)
-def fetch_elections(
-    jurisdiction: str = "city-san-rafael",
-    dry_run: bool = False,
-    auto_index: bool = False,
-) -> dict:
-    """Fetch elections from Google Civic API and store to Postgres.
-
-    This fetches all available elections from Google's Civic Information API
-    and stores them for the specified jurisdiction. Elections include
-    national, state, and local races.
-
-    Args:
-        jurisdiction: Target jurisdiction (e.g., "city-san-rafael")
-        dry_run: If True, fetch but don't store
-        auto_index: If True, trigger vector indexing after successful storage
-
-    Setup:
-        1. Create Modal secret with Google API key:
-           modal secret create civic-google GOOGLE_API_KEY="your_key_here"
-        2. Ensure Google Civic Information API is enabled in Google Cloud Console
-    """
-    import logging
-    import os
-    import time
-
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
-    logger = logging.getLogger(__name__)
-    start_time = time.time()
-
-    from civicos.storage.postgres_backend import PostgresBackend
-    from civicos_extraction.clients.google_civic import (
-        GoogleCivicClient,
-        google_civic_to_election,
-    )
-
-    database_url = os.environ.get("DATABASE_URL")
-    google_api_key = os.environ.get("GOOGLE_API_KEY") or os.environ.get("GOOGLE_CIVICOS_API_KEY")
-
-    if not database_url:
-        raise ValueError("DATABASE_URL not set")
-    if not google_api_key:
-        raise ValueError("GOOGLE_API_KEY not set. Create Modal secret: modal secret create civic-google GOOGLE_API_KEY='...'")
-
-    logger.info(f"[ELECTIONS] Starting fetch: jurisdiction={jurisdiction}")
-
-    # Create client and validate
-    client = GoogleCivicClient(jurisdiction_id=jurisdiction, api_key=google_api_key)
-    validation = client.validate()
-    if not validation.is_valid:
-        raise RuntimeError(f"Google Civic API validation failed: {validation.errors}")
-
-    # Fetch elections
-    elections_raw = client.get_elections()
-    logger.info(f"Fetched {len(elections_raw)} elections from Google Civic API")
-
-    if not elections_raw:
-        elapsed = time.time() - start_time
-        return {
-            "task": "elections",
-            "jurisdiction": jurisdiction,
-            "elections_fetched": 0,
-            "elections_stored": 0,
-            "dry_run": dry_run,
-            "elapsed_seconds": elapsed,
-            "cost_usd": 4 * elapsed * 0.000463,
-        }
-
-    # Map to storage format
-    elections = [google_civic_to_election(e, jurisdiction) for e in elections_raw]
-
-    # Log elections found
-    for e in elections:
-        logger.info(f"  - {e.get('name')} ({e.get('election_date')}) [{e.get('election_type')}]")
-
-    # Store to database
-    stored_count = 0
-    if not dry_run:
-        backend = PostgresBackend(database_url)
-        stored_count = backend.store_elections(jurisdiction, elections)
-        logger.info(f"Stored {stored_count} elections")
-
-        # Update refresh metadata
-        backend.update_refresh_metadata(
-            jurisdiction, "elections", "google_civic",
-            items_fetched=len(elections),
-            items_stored=stored_count,
-            status="completed",
-        )
-
-    # Auto-index vectors if requested and data was stored
-    vector_result = None
-    if auto_index and stored_count > 0 and not dry_run:
-        logger.info(f"[ELECTIONS] Auto-indexing vectors for {jurisdiction}...")
-        vector_result = index_vectors.remote(
-            jurisdiction=jurisdiction,
-            corpus="elections",
-            reindex=False,
-        )
-        logger.info(f"  Vectors indexed: {vector_result.get('total_indexed', 0)}")
-
-    elapsed = time.time() - start_time
-    result = {
-        "task": "elections",
-        "jurisdiction": jurisdiction,
-        "elections_fetched": len(elections),
-        "elections_stored": stored_count,
-        "dry_run": dry_run,
-        "auto_index": auto_index,
-        "elapsed_seconds": elapsed,
-        "cost_usd": 4 * elapsed * 0.000463,
-    }
-    if vector_result:
-        result["vector_result"] = vector_result
-    return result
-
-
-# =============================================================================
 # Marin Election Results Fetch (GraphQL — ElectionStats / Civera)
 # =============================================================================
 
@@ -5772,7 +5642,6 @@ def scheduled_election_refresh():
     - Elected officials change infrequently (after elections or special circumstances)
 
     Data sources (dispatched per-jurisdiction via election_sources config):
-    - google_civic: Google Civic Information API (default if no election_sources configured)
     - marin_registrar_results: Marin County GraphQL election results
     - ca_sos_results: CA Secretary of State election results
 
@@ -5800,26 +5669,13 @@ def scheduled_election_refresh():
     for jid, config in jurisdictions.items():
         results[jid] = {}
 
-        # Read election_sources from config; default to Google Civic only
-        election_sources = config.get("election_sources", {"google_civic": True})
+        # Read election_sources from config
+        election_sources = config.get("election_sources", {})
 
-        known_providers = {"google_civic", "marin_registrar_results", "ca_sos_results"}
+        known_providers = {"marin_registrar_results", "ca_sos_results"}
         unknown = set(election_sources.keys()) - known_providers
         if unknown:
             logger.warning(f"  [{jid}] Unknown election source(s): {unknown} — skipped. Known: {known_providers}")
-
-        # --- Google Civic ---
-        if "google_civic" in election_sources:
-            try:
-                logger.info(f"  [{jid}] Fetching elections (Google Civic)...")
-                result = fetch_elections.local(jurisdiction=jid, dry_run=False, auto_index=True)
-                results[jid]["google_civic"] = result
-                stored = result.get('elections_stored', 0)
-                indexed = result.get('vector_result', {}).get('total_indexed', 0) if result.get('auto_index') else 0
-                logger.info(f"    Google Civic: {result.get('elections_fetched', 0)} fetched, {stored} stored, {indexed} indexed")
-            except Exception as e:
-                logger.exception(f"  [{jid}] Google Civic election fetch failed")
-                results[jid]["google_civic"] = {"status": "failed", "error": str(e)}
 
         # --- Marin Registrar ---
         if "marin_registrar_results" in election_sources:
@@ -6225,7 +6081,7 @@ def main(
 
     # Determine what to run
     # Note: decisions is NOT included in --all because it should run weekly, not with daily refresh
-    # Note: elections is included in --all as it's a lightweight API call
+    # Note: elections is NOT in --all (use scheduled_election_refresh for state-specific sources)
     # Note: transcripts is included in --all as part of daily pipeline
     # Note: elected_officials is NOT in --all (monthly refresh via scheduled_election_refresh)
     run_municipal = all or municipal
@@ -6237,7 +6093,7 @@ def main(
     run_legislative_events = legislative_events  # Not in --all (weekly refresh)
     run_meetings = all or meetings
     run_issues = all or issues
-    run_elections = all or elections
+    run_elections = elections  # Not in --all (use scheduled_election_refresh)
     run_elected_officials = elected_officials  # Not in --all (monthly refresh)
     run_transcripts = all or transcripts
     run_chunks = all or chunks
@@ -6439,12 +6295,8 @@ def main(
         handles.append(("issues", handle))
 
     if run_elections:
-        print("Spawning elections fetch...")
-        handle = fetch_elections.spawn(
-            jurisdiction=jurisdiction,
-            dry_run=dry_run,
-            auto_index=auto_index,
-        )
+        print("Spawning elections refresh (state-specific sources)...")
+        handle = scheduled_election_refresh.spawn()
         handles.append(("elections", handle))
 
     if run_elected_officials:
