@@ -30,6 +30,21 @@
     "ca_sos_results": {
       "county": "marin",
       "districts": {"us-rep": [2], "state-assembly": [12], "state-senate": [2]}
+    },
+    "ca_sos_ballot_preview": {
+      "election_slug": "2026-primary",
+      "election_date": "2026-06-02",
+      "election_type": "primary",
+      "races": {
+        "congress": [2],
+        "state-senate": [2],
+        "assembly": [12],
+        "governor": null,
+        "lt-governor": null,
+        "controller": null,
+        "treasurer": null,
+        "attorney-general": null
+      }
     }
   }
 }
