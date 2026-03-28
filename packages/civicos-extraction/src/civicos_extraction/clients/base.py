@@ -417,6 +417,242 @@ class BudgetExtractor(Protocol):
         ...
 
 
+# ========== Election Extractor Protocol ==========
+
+
+class ContestCandidate(Dict[str, Any]):
+    """
+    Type documentation for the candidate dict within a contest.
+
+    All election mapper functions (civera_results_to_contest, ca_sos_race_to_contest)
+    must produce candidates matching this shape. Consumers like
+    derive_officials_from_contests() depend on these fields.
+
+    Required fields:
+        id: str             — Unique candidate ID (e.g., "marin-cand-123-jane-doe")
+        name: str           — Display name (e.g., "Jane Doe")
+        is_winner: bool     — Whether this candidate won the contest
+
+    Optional fields:
+        party: str | None   — Party affiliation (e.g., "Dem", "Rep")
+        incumbent: bool     — Whether the candidate is an incumbent
+        votes_received: int | None — Total votes received
+        vote_percentage: float | None — Percentage of votes
+        source: str         — Data source (e.g., "civera_election_stats", "ca_sos_results")
+    """
+    pass
+
+
+class ContestDict(Dict[str, Any]):
+    """
+    Type documentation for the normalized contest dict.
+
+    This is the output contract for all election mapper functions.
+    Any new election data source must produce dicts matching this shape
+    from its mapper function, then pass them to store_election_contests().
+
+    Required fields:
+        id: str             — Unique contest ID (e.g., "marin-contest-123")
+        title: str          — Contest title (e.g., "U.S. House of Representatives District 2")
+        contest_type: str   — One of the ContestType enum values:
+                              federal_president, federal_senate, federal_house,
+                              state_governor, state_legislature, state_proposition,
+                              local_mayor, local_council, local_school_board,
+                              local_measure, judicial, other
+
+    Optional fields:
+        district_name: str | None — Geographic scope (e.g., "City of San Rafael")
+        number_elected: int       — Seats available (default 1; 0 for measures)
+        candidates: list          — List of ContestCandidate dicts (for races)
+        ballot_measure: dict | None — Ballot measure info (for propositions/measures)
+        raw_data: dict            — Full enriched raw response, must include:
+                                    "mapped_candidates": list — same as candidates,
+                                    persisted in JSONB for downstream consumers
+    """
+    pass
+
+
+@runtime_checkable
+class ElectionExtractor(Protocol):
+    """
+    Protocol for election data source clients.
+
+    Election clients fetch election results (contests, candidates, measures)
+    from government APIs or websites and normalize them to ContestDict format.
+
+    Unlike meeting extractors, election clients vary widely in their internal
+    APIs (GraphQL, REST, web scraping), so this protocol defines the common
+    surface: identity, health, and validation. The output contract is the
+    ContestDict shape produced by each client's mapper function.
+
+    Adding a new election source:
+        1. Create a client class implementing this protocol
+        2. Write a mapper function that produces ContestDict dicts
+        3. Write an extract_*_to_storage() function that calls the mapper
+           and stores via storage.store_election_contests()
+        4. Register the source type in clients/factory.py
+        5. Add source config to data/extraction/{jurisdiction}.json
+
+    Existing implementations:
+        - CiveraElectionStatsClient (GraphQL — county registrar results)
+        - CASOSResultsClient (REST — CA Secretary of State)
+        - MarinRegistrarResultsClient (extends Civera for Marin County)
+    """
+
+    @property
+    def platform_name(self) -> str:
+        """Platform identifier (e.g., 'civera_election_stats', 'ca_sos_results')."""
+        ...
+
+    @property
+    def source_id(self) -> str:
+        """Unique source identifier (e.g., 'civera-marin', 'ca-sos-general')."""
+        ...
+
+    @property
+    def source_type(self) -> str:
+        """Source type for factory dispatch (e.g., 'civera_election_stats')."""
+        ...
+
+    def health(self) -> HealthStatus:
+        """Check API availability."""
+        ...
+
+    def validate(self) -> ValidationResult:
+        """Validate configuration and API access."""
+        ...
+
+
+# ========== Shared Contest Type Classification ==========
+
+VALID_CONTEST_TYPES = frozenset({
+    "federal_president", "federal_senate", "federal_house",
+    "state_governor", "state_legislature", "state_proposition",
+    "local_mayor", "local_council", "local_school_board",
+    "local_measure", "judicial", "other",
+})
+
+# In-memory cache: title → contest_type. Persists for the process lifetime,
+# which covers a single Modal function invocation or local ingestion run.
+_classification_cache: Dict[str, str] = {}
+
+
+def classify_contest_type(title: str, is_ballot_measure: bool = False) -> str:
+    """
+    Classify a contest type from its title.
+
+    Uses LLM (gpt-4o-mini) for robust classification at ingestion time,
+    with an in-memory cache so each unique title is only classified once.
+    Falls back to keyword matching if OPENAI_API_KEY is not set or the
+    API call fails.
+
+    Args:
+        title: Contest title (e.g., "U.S. House of Representatives District 2")
+        is_ballot_measure: If True, classify as proposition/measure
+
+    Returns:
+        Contest type string (e.g., "federal_house", "state_legislature")
+    """
+    cache_key = f"{title}|{is_ballot_measure}"
+    if cache_key in _classification_cache:
+        return _classification_cache[cache_key]
+
+    # Try LLM classification first
+    result = _classify_contest_type_llm(title, is_ballot_measure)
+    if result is None:
+        result = _classify_contest_type_keywords(title, is_ballot_measure)
+
+    _classification_cache[cache_key] = result
+    return result
+
+
+def _classify_contest_type_llm(title: str, is_ballot_measure: bool) -> Optional[str]:
+    """Classify using LLM structured output. Returns None if unavailable."""
+    import os
+
+    if not os.environ.get("OPENAI_API_KEY"):
+        return None
+
+    try:
+        from openai import OpenAI
+
+        client = OpenAI()
+        types_list = ", ".join(sorted(VALID_CONTEST_TYPES))
+
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "You classify US election contest titles into exactly one category. "
+                        f"Valid categories: {types_list}. "
+                        "Respond with ONLY the category name, nothing else."
+                    ),
+                },
+                {
+                    "role": "user",
+                    "content": (
+                        f"Contest title: {title}\n"
+                        f"Is ballot measure: {is_ballot_measure}\n"
+                        "Category:"
+                    ),
+                },
+            ],
+            temperature=0,
+            max_tokens=30,
+        )
+
+        result = response.choices[0].message.content.strip().lower()
+        if result in VALID_CONTEST_TYPES:
+            return result
+
+        # LLM returned something unexpected — fall through to keywords
+        return None
+
+    except Exception:
+        return None
+
+
+def _classify_contest_type_keywords(title: str, is_ballot_measure: bool) -> str:
+    """Keyword-based fallback when LLM is unavailable."""
+    if is_ballot_measure:
+        title_lower = title.lower()
+        if "state" in title_lower or "proposition" in title_lower:
+            return "state_proposition"
+        return "local_measure"
+
+    title_lower = title.lower()
+
+    # Federal — check "united states" prefix before state-level keywords
+    if "president" in title_lower:
+        return "federal_president"
+    if "united states senator" in title_lower or "u.s. senator" in title_lower:
+        return "federal_senate"
+    if "representative" in title_lower or "congress" in title_lower or "u.s. house" in title_lower:
+        return "federal_house"
+    if ("senator" in title_lower or "senate" in title_lower) and "state" not in title_lower:
+        return "federal_senate"
+
+    # State
+    if "governor" in title_lower:
+        return "state_governor"
+    if "assembly" in title_lower or "state senator" in title_lower or "state senate" in title_lower:
+        return "state_legislature"
+
+    # Local
+    if "mayor" in title_lower:
+        return "local_mayor"
+    if "council" in title_lower or "supervisor" in title_lower:
+        return "local_council"
+    if "school" in title_lower:
+        return "local_school_board"
+    if "judge" in title_lower or "justice" in title_lower:
+        return "judicial"
+
+    return "other"
+
+
 class BaseExtractor(ABC):
     """
     Abstract base class for platform extractors.
