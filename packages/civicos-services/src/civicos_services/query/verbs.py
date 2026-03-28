@@ -1254,15 +1254,49 @@ async def execute_explore(
             "jurisdiction": jid,
             "description": (
                 "CivicOS provides civic data (meetings, decisions, legislation, testimony, "
-                "311 issues, budgets) for AI agents and developers. Use civic.explore to "
-                "discover available data, civic.search for queries, civic.upcoming for "
-                "temporal events, civic.context for deep item context, and civic.act for "
-                "participation actions."
+                "311 issues, budgets, elected officials) for AI agents and developers. "
+                "Use civic.explore to discover available data (including representatives), "
+                "civic.search for queries, civic.upcoming for temporal events, "
+                "civic.context for deep item context, and civic.act for participation actions."
             ),
         }
 
+    elif what == "representatives":
+        from civicos_services.query.jurisdictions import resolve_jurisdictions
+        try:
+            hierarchy = resolve_jurisdictions(jid, include_parents=True)
+            levels = []
+            for level_jid in hierarchy:
+                officials = civic._storage.get_elected_officials(
+                    jurisdiction_id=level_jid,
+                    current_only=True,
+                )
+                if officials:
+                    levels.append({
+                        "jurisdiction": level_jid,
+                        "officials": [
+                            {
+                                "id": o.get("id"),
+                                "name": o.get("name"),
+                                "seat": o.get("seat"),
+                                "term_start": o.get("term_start"),
+                                "term_end": o.get("term_end"),
+                                "candidate_id": o.get("candidate_id"),
+                            }
+                            for o in officials
+                        ],
+                    })
+            data = {
+                "jurisdiction": jid,
+                "levels": levels,
+                "total_officials": sum(len(lv["officials"]) for lv in levels),
+            }
+        except Exception as e:
+            logger.error(f"explore/representatives error: {e}")
+            data = {"jurisdiction": jid, "levels": [], "error": str(e)}
+
     else:
-        data = {"error": f"Unknown explore target: {what}. Available: jurisdictions, corpora, corpus_schema:{{name}}, actions, capabilities, schema_version"}
+        data = {"error": f"Unknown explore target: {what}. Available: jurisdictions, corpora, corpus_schema:{{name}}, actions, capabilities, representatives, schema_version"}
 
     total_time = int((time.monotonic() - start) * 1000)
 
