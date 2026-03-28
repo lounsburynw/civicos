@@ -2,6 +2,7 @@
   "source_id": "proudcity-city-san-rafael",
   "source_type": "proudcity",
   "jurisdiction_id": "city-san-rafael",
+  "state": "CA",
   "base_url": "https://www.cityofsanrafael.org",
   "auto_discover": true,
   "archives": {

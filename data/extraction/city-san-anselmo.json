@@ -2,6 +2,7 @@
   "source_id": "legistar-sananselmo-ca",
   "source_type": "legistar",
   "jurisdiction_id": "city-san-anselmo",
+  "state": "CA",
   "base_url": "https://webapi.legistar.com/v1/sananselmo-ca",
   "archives": {
     "town_council": "138",
