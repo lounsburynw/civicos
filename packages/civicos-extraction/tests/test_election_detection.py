@@ -1,14 +1,17 @@
 """
 Tests for election source detection during onboarding.
 
-Validates detect_election_sources() and _infer_division_name() produce
-correct election source configs for various jurisdiction types.
+Validates detect_election_sources(), _infer_division_name(), and
+detect_districts() produce correct election source configs for
+various jurisdiction types.
 """
 
 import pytest
+from unittest.mock import patch, MagicMock
 
 from civicos_extraction.onboard import (
     detect_election_sources,
+    detect_districts,
     _infer_division_name,
 )
 
@@ -177,3 +180,212 @@ class TestDetectElectionSources:
         result = detect_election_sources("city-oakland", "CA", "Alameda")
         assert "ca_sos_results" in result
         assert "civera_election_stats" not in result
+
+    # --- District detection via lat/lng ---
+
+    def test_california_with_lat_lng_adds_districts(self):
+        """CA + lat/lng → districts populated in ca_sos_results."""
+        mock_districts = {"us-rep": [2], "state-senate": [2], "state-assembly": [12]}
+        with patch("civicos_extraction.onboard.detect_districts", return_value=mock_districts):
+            result = detect_election_sources(
+                "city-san-rafael", "CA", "Marin", lat=37.9735, lng=-122.5311,
+            )
+        assert result["ca_sos_results"]["county"] == "marin"
+        assert result["ca_sos_results"]["districts"] == mock_districts
+
+    def test_california_without_lat_lng_no_districts(self):
+        """CA without lat/lng → no districts field."""
+        result = detect_election_sources("city-san-rafael", "CA", "Marin")
+        assert result["ca_sos_results"] == {"county": "marin"}
+
+    def test_non_california_with_lat_lng_no_districts(self):
+        """Non-CA with lat/lng → no ca_sos_results at all."""
+        result = detect_election_sources(
+            "city-portland", "OR", "Multnomah", lat=45.5, lng=-122.6,
+        )
+        assert "ca_sos_results" not in result
+
+    def test_district_detection_failure_still_returns_county(self):
+        """If Census API fails, ca_sos_results still has county without districts."""
+        with patch("civicos_extraction.onboard.detect_districts", return_value=None):
+            result = detect_election_sources(
+                "city-san-rafael", "CA", "Marin", lat=37.9735, lng=-122.5311,
+            )
+        assert result["ca_sos_results"] == {"county": "marin"}
+
+    def test_county_suffix_stripped(self):
+        """Google Maps returns 'Marin County' — 'County' suffix must be stripped."""
+        result = detect_election_sources("city-mill-valley", "CA", "Marin County")
+        assert result["ca_sos_results"]["county"] == "marin"
+        assert "marin_registrar_results" in result  # Marin check should still match
+
+    def test_county_suffix_stripped_case_insensitive(self):
+        """'MARIN COUNTY' should also work."""
+        result = detect_election_sources("city-novato", "CA", "MARIN COUNTY")
+        assert result["ca_sos_results"]["county"] == "marin"
+        assert "marin_registrar_results" in result
+
+
+# --- detect_districts tests ---
+
+
+# Mock Census API response matching San Rafael (37.9735, -122.5311)
+CENSUS_RESPONSE_SAN_RAFAEL = {
+    "result": {
+        "geographies": {
+            "119th Congressional Districts": [
+                {"GEOID": "0602", "NAME": "Congressional District 2", "CDSESSN": "119", "CD119": "02"}
+            ],
+            "2024 State Legislative Districts - Upper": [
+                {"GEOID": "06002", "NAME": "State Senate District 2", "SLDU": "002"}
+            ],
+            "2024 State Legislative Districts - Lower": [
+                {"GEOID": "06012", "NAME": "Assembly District 12", "SLDL": "012"}
+            ],
+            "States": [
+                {"GEOID": "06", "NAME": "California"}
+            ],
+        }
+    }
+}
+
+# Mock response with no district data (e.g. ocean coordinates)
+CENSUS_RESPONSE_NO_DISTRICTS = {
+    "result": {
+        "geographies": {
+            "States": [],
+        }
+    }
+}
+
+# Mock response with partial data (only congressional)
+CENSUS_RESPONSE_PARTIAL = {
+    "result": {
+        "geographies": {
+            "119th Congressional Districts": [
+                {"GEOID": "0614", "NAME": "Congressional District 14"}
+            ],
+        }
+    }
+}
+
+
+class TestDetectDistricts:
+    """District detection using Census Bureau Geocoding API."""
+
+    def _mock_response(self, json_data, status_code=200):
+        mock = MagicMock()
+        mock.status_code = status_code
+        mock.json.return_value = json_data
+        mock.raise_for_status.return_value = None
+        return mock
+
+    def test_san_rafael_districts(self):
+        """San Rafael coordinates → CD-2, Senate-2, Assembly-12."""
+        with patch("civicos_extraction.onboard.requests.get") as mock_get:
+            mock_get.return_value = self._mock_response(CENSUS_RESPONSE_SAN_RAFAEL)
+            result = detect_districts(37.9735, -122.5311, "CA")
+
+        assert result == {
+            "us-rep": [2],
+            "state-senate": [2],
+            "state-assembly": [12],
+        }
+        # Verify correct API call
+        mock_get.assert_called_once()
+        call_kwargs = mock_get.call_args
+        assert call_kwargs[1]["params"]["x"] == -122.5311
+        assert call_kwargs[1]["params"]["y"] == 37.9735
+
+    def test_no_districts_returns_none(self):
+        """Coordinates with no district data → None."""
+        with patch("civicos_extraction.onboard.requests.get") as mock_get:
+            mock_get.return_value = self._mock_response(CENSUS_RESPONSE_NO_DISTRICTS)
+            result = detect_districts(0.0, 0.0)
+
+        assert result is None
+
+    def test_partial_districts(self):
+        """Response with only congressional district → partial result."""
+        with patch("civicos_extraction.onboard.requests.get") as mock_get:
+            mock_get.return_value = self._mock_response(CENSUS_RESPONSE_PARTIAL)
+            result = detect_districts(37.5, -122.2)
+
+        assert result == {"us-rep": [14]}
+        assert "state-senate" not in result
+        assert "state-assembly" not in result
+
+    def test_api_failure_returns_none(self):
+        """Network failure → None (graceful degradation)."""
+        import requests as req
+        with patch("civicos_extraction.onboard.requests.get", side_effect=req.ConnectionError("timeout")):
+            result = detect_districts(37.9735, -122.5311)
+
+        assert result is None
+
+    def test_api_http_error_returns_none(self):
+        """HTTP 500 → None."""
+        import requests as req
+        with patch("civicos_extraction.onboard.requests.get") as mock_get:
+            mock_resp = self._mock_response({}, status_code=500)
+            mock_resp.raise_for_status.side_effect = req.HTTPError("500 Server Error")
+            mock_get.return_value = mock_resp
+            result = detect_districts(37.9735, -122.5311)
+
+        assert result is None
+
+    def test_malformed_geoid_skipped(self):
+        """GEOID too short → that district type skipped."""
+        bad_response = {
+            "result": {
+                "geographies": {
+                    "119th Congressional Districts": [
+                        {"GEOID": "06", "NAME": "Bad"}  # too short
+                    ],
+                    "2024 State Legislative Districts - Upper": [
+                        {"GEOID": "06002", "NAME": "Senate 2", "SLDU": "002"}
+                    ],
+                }
+            }
+        }
+        with patch("civicos_extraction.onboard.requests.get") as mock_get:
+            mock_get.return_value = self._mock_response(bad_response)
+            result = detect_districts(37.9735, -122.5311)
+
+        assert "us-rep" not in result
+        assert result["state-senate"] == [2]
+
+    def test_district_zero_skipped(self):
+        """At-large districts (district 0) are skipped."""
+        at_large_response = {
+            "result": {
+                "geographies": {
+                    "119th Congressional Districts": [
+                        {"GEOID": "5000", "NAME": "At Large", "CD119": "00"}
+                    ],
+                    "2024 State Legislative Districts - Lower": [
+                        {"GEOID": "50001", "NAME": "District 1", "SLDL": "001"}
+                    ],
+                }
+            }
+        }
+        with patch("civicos_extraction.onboard.requests.get") as mock_get:
+            mock_get.return_value = self._mock_response(at_large_response)
+            result = detect_districts(44.0, -72.7)
+
+        # At-large CD skipped, but state lower chamber included
+        assert "us-rep" not in result
+        assert result["state-assembly"] == [1]
+
+
+class TestDetectDistrictsLive:
+    """Live integration test against Census Bureau API (requires network)."""
+
+    @pytest.mark.integration
+    def test_san_rafael_live(self):
+        """Hit real Census API for San Rafael — validates API format hasn't changed."""
+        result = detect_districts(37.9735, -122.5311, "CA")
+        assert result is not None
+        assert result["us-rep"] == [2]
+        assert result["state-senate"] == [2]
+        assert result["state-assembly"] == [12]

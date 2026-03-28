@@ -598,8 +598,88 @@ def _infer_division_name(jurisdiction_id: str) -> str:
         return name
 
 
+def detect_districts(
+    lat: float, lng: float, state: str = ""
+) -> Optional[Dict[str, List[int]]]:
+    """Detect legislative districts for a location using the Census Bureau Geocoding API.
+
+    Uses the free, no-auth Census geocoder to resolve coordinates into
+    congressional district, state senate district, and state assembly district.
+
+    Args:
+        lat: Latitude
+        lng: Longitude
+        state: Two-letter state abbreviation (used for validation, not required)
+
+    Returns:
+        Dict matching the ca_sos_results districts format:
+        {"us-rep": [2], "state-senate": [2], "state-assembly": [12]}
+        None if the API call fails or no districts found.
+    """
+    try:
+        response = requests.get(
+            "https://geocoding.geo.census.gov/geocoder/geographies/coordinates",
+            params={
+                "x": lng,
+                "y": lat,
+                "benchmark": "Public_AR_Current",
+                "vintage": "Current_Current",
+                "format": "json",
+            },
+            timeout=10,
+        )
+        response.raise_for_status()
+        data = response.json()
+    except (requests.RequestException, ValueError) as e:
+        logger.warning(f"Census geocoder failed for ({lat}, {lng}): {e}")
+        return None
+
+    geographies = data.get("result", {}).get("geographies", {})
+
+    districts: Dict[str, List[int]] = {}
+
+    # Congressional district (e.g. "119th Congressional Districts")
+    for key, items in geographies.items():
+        if "congressional" in key.lower() and items:
+            # GEOID format: state_fips + district_num (e.g. "0602" = CA district 2)
+            geoid = items[0].get("GEOID", "")
+            if len(geoid) >= 4:
+                district_num = int(geoid[2:])
+                if district_num > 0:
+                    districts["us-rep"] = [district_num]
+            break
+
+    # State senate (upper chamber)
+    for key, items in geographies.items():
+        if "upper" in key.lower() and items:
+            sldu = items[0].get("SLDU", "")
+            if sldu:
+                district_num = int(sldu)
+                if district_num > 0:
+                    districts["state-senate"] = [district_num]
+            break
+
+    # State assembly (lower chamber)
+    for key, items in geographies.items():
+        if "lower" in key.lower() and items:
+            sldl = items[0].get("SLDL", "")
+            if sldl:
+                district_num = int(sldl)
+                if district_num > 0:
+                    districts["state-assembly"] = [district_num]
+            break
+
+    if not districts:
+        logger.info(f"No legislative districts found for ({lat}, {lng})")
+        return None
+
+    logger.info(f"Detected districts for ({lat}, {lng}): {districts}")
+    return districts
+
+
 def detect_election_sources(
-    jurisdiction_id: str, state: str, county: str
+    jurisdiction_id: str, state: str, county: str,
+    lat: Optional[float] = None, lng: Optional[float] = None,
 ) -> dict:
     """Detect available election data sources for a jurisdiction.
 
@@ -611,19 +691,30 @@ def detect_election_sources(
         jurisdiction_id: e.g. "city-san-rafael", "county-marin"
         state: Two-letter state abbreviation (e.g. "CA")
         county: County name from geocoding (e.g. "Marin")
+        lat: Latitude from geocoding (enables district detection)
+        lng: Longitude from geocoding (enables district detection)
 
     Returns:
         Dict of election source configs. Example:
-        {"ca_sos_results": {"county": "marin"}}
+        {"ca_sos_results": {"county": "marin", "districts": {"us-rep": [2]}}}
     """
     sources: dict = {}
 
+    # Normalize county name: Google Maps returns "Marin County", we need "marin"
+    county_bare = re.sub(r"\s*County$", "", county, flags=re.IGNORECASE).strip() if county else ""
+
     # CA SOS — available for all California jurisdictions
     if state and state.upper() == "CA":
-        sources["ca_sos_results"] = {"county": county.lower()}
+        ca_sos: Dict[str, Any] = {"county": county_bare.lower()}
+        # Detect legislative districts via Census geocoder
+        if lat is not None and lng is not None:
+            districts = detect_districts(lat, lng, state)
+            if districts:
+                ca_sos["districts"] = districts
+        sources["ca_sos_results"] = ca_sos
 
     # Marin Registrar — available for Marin County jurisdictions (legacy config key)
-    if county and county.lower() == "marin":
+    if county_bare and county_bare.lower() == "marin":
         sources["marin_registrar_results"] = {
             "from_year": 2010,
             "division_filter": _infer_division_name(jurisdiction_id),
@@ -632,7 +723,7 @@ def detect_election_sources(
     # Civera ElectionStats — available for counties with known Civera instances
     # (excluding Marin, which uses the legacy marin_registrar_results key above)
     from civicos_extraction.clients.civera_election_stats import CIVERA_INSTANCES
-    county_lower = county.lower() if county else ""
+    county_lower = county_bare.lower()
     if county_lower in CIVERA_INSTANCES and county_lower != "marin":
         instance = CIVERA_INSTANCES[county_lower]
         sources["civera_election_stats"] = {
@@ -873,6 +964,10 @@ def geocode_city(
             # Other countries: just country
             parent_jurisdictions.append(f"country-{country_slug}")
 
+        # Extract lat/lng for downstream use (district detection, etc.)
+        geometry = result.get("geometry", {})
+        location = geometry.get("location", {})
+
         return {
             "city": parsed.get("city", city_name),
             "county": county_name,
@@ -881,6 +976,8 @@ def geocode_city(
             "zip_code": parsed.get("zip_code", ""),
             "country": country,
             "parent_jurisdictions": parent_jurisdictions,
+            "lat": location.get("lat"),
+            "lng": location.get("lng"),
         }
 
     except requests.RequestException as e:
@@ -1724,13 +1821,19 @@ def onboard_jurisdiction(
                 f"zip {geo_data.get('zip_code', '?')}"
             )
 
-    # Step 3.6: Detect election sources (requires geocoding for county)
+    # Step 3.6: Detect election sources + districts (requires geocoding)
     if geo_data and geo_data.get("county"):
         election_sources = detect_election_sources(
-            jurisdiction_id, state or geo_data.get("state_abbrev", ""), geo_data["county"]
+            jurisdiction_id, state or geo_data.get("state_abbrev", ""), geo_data["county"],
+            lat=geo_data.get("lat"), lng=geo_data.get("lng"),
         )
         config["election_sources"] = election_sources
-        _progress("election", f"Detected election sources: {list(election_sources.keys())}")
+        source_names = list(election_sources.keys())
+        districts = election_sources.get("ca_sos_results", {}).get("districts")
+        if districts:
+            _progress("election", f"Detected election sources: {source_names}, districts: {districts}")
+        else:
+            _progress("election", f"Detected election sources: {source_names}")
 
     _progress("save", f"Saving config for {jurisdiction_id}...")
 

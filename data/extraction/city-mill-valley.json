@@ -4,7 +4,7 @@
   "jurisdiction_id": "city-mill-valley",
   "base_url": "https://cityofmillvalley.granicus.com",
   "archives": {
-    "multiple_bodies": "3"
+    "multiple": "3"
   },
   "metadata": {
     "granicus_domain": "cityofmillvalley",
@@ -36,42 +36,57 @@
           "page_title": "New View",
           "h1": "",
           "sample_titles": [
-            "Regular City Council Meeting",
-            "Planning Commission Meeting",
             "Parks and Recreation Commission Meeting - Adjusted for Passover",
+            "Regular City Council Meeting (Spring Break Recess) - Cancelled",
+            "Planning Commission Meeting",
             "Planning Commission Meeting",
             "City Council",
             "City Council",
             "City Council",
             "City Council"
           ],
-          "event_count": 954
+          "event_count": 956
         },
         "3": {
           "page_title": "Tabbed View",
           "h1": "",
           "sample_titles": [
-            "Regular City Council Meeting",
-            "Planning Commission Meeting",
             "Parks and Recreation Commission Meeting - Adjusted for Passover",
+            "Regular City Council Meeting (Spring Break Recess) - Cancelled",
+            "Planning Commission Meeting",
             "Planning Commission Meeting",
             "City Council",
             "City Council",
             "City Council",
             "City Council"
           ],
-          "event_count": 954
+          "event_count": 956
         }
       },
       "prompt_template": "generate_body_names/v1",
-      "raw_response": "```json\n{\n  \"2\": \"Multiple Bodies\",\n  \"3\": \"Multiple Bodies\"\n}\n```",
+      "raw_response": "```json\n{\n  \"2\": \"Multiple\",\n  \"3\": \"Multiple\"\n}\n```",
       "parsed_map": {
-        "2": "Multiple Bodies",
-        "3": "Multiple Bodies"
+        "2": "Multiple",
+        "3": "Multiple"
       }
     }
   },
+  "issue_source": "seeclickfix",
   "election_sources": {
+    "ca_sos_results": {
+      "county": "marin",
+      "districts": {
+        "us-rep": [
+          2
+        ],
+        "state-senate": [
+          2
+        ],
+        "state-assembly": [
+          12
+        ]
+      }
+    },
     "marin_registrar_results": {
       "from_year": 2010,
       "division_filter": "City of Mill Valley"
