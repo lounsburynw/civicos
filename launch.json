@@ -1465,7 +1465,7 @@
       {
         "name": "congress_gov_federal_officials",
         "description": "Wire CongressGovClient (already in representatives.py) to populate elected_officials table for federal legislators. Given a jurisdiction's districts config (us-rep, state-senate), fetch current members from Congress.gov API and store. Provides authoritative federal rep data independent of election results.",
-        "priority": 0,
+        "priority": 1,
         "status": "not_started",
         "files": [
           "packages/civicos-extraction/src/civicos_extraction/clients/representatives.py",
@@ -1489,7 +1489,7 @@
       {
         "name": "explore_representatives_endpoint",
         "description": "Add 'representatives' target to civic.explore verb. Query get_elected_officials() for the requested jurisdiction, walk the jurisdiction hierarchy (city → county → state → federal), and return a combined roster grouped by level. Accepts optional address parameter for geocode-based lookup.",
-        "priority": 1,
+        "priority": 0,
         "status": "not_started",
         "files": [
           "packages/civicos-services/src/civicos_services/query/verbs.py",
@@ -1543,6 +1543,7 @@
         "name": "election_calendar",
         "description": "Build election cycle awareness: which seats are up when. CA has staggered terms (state senate even/odd districts alternate, assembly every 2 years, county supervisors staggered 4-year, city council staggered 4-year). Need a data model that maps office_type + district → next_election_date + term_length. Seed from CA SOS election schedule and county registrar.",
         "priority": 1,
+        "time_sensitive": "2026-06-02 CA primary — calendar must exist to power 'what's on my ballot'",
         "status": "not_started",
         "files": [
           "packages/civicos/src/civicos/storage/protocols/elections.py",
@@ -1566,6 +1567,7 @@
         "name": "ballot_measure_content",
         "description": "Ingest ballot measure text, fiscal impact summaries, and pro/con arguments. State measures come from the CA voter guide (voterguide.sos.ca.gov). Local measures come from county sample ballots. Currently we only store pass/fail results, not the measure content itself.",
         "priority": 1,
+        "time_sensitive": "2026-06-02 CA primary — measures on the ballot need explanatory content",
         "status": "not_started",
         "files": [
           "packages/civicos-extraction/src/civicos_extraction/clients/ca_sos_results.py"
@@ -1577,6 +1579,7 @@
         "name": "election_deadlines_scraping",
         "description": "Scrape key election deadlines from CA SOS: voter registration deadline (15 days before), same-day registration availability, mail ballot send date, early voting start, ballot drop-off locations. Currently election_deadlines table exists but is unpopulated.",
         "priority": 1,
+        "time_sensitive": "2026-06-02 CA primary — registration deadline ~2026-05-18, deadlines must be surfaceable before then",
         "status": "not_started",
         "files": [
           "packages/civicos/src/civicos/storage/protocols/elections.py",
