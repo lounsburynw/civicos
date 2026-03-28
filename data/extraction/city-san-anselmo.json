@@ -1,21 +1,50 @@
 {
-  "source_id": "granicus-city-san-anselmo",
-  "source_type": "granicus",
+  "source_id": "legistar-sananselmo-ca",
+  "source_type": "legistar",
   "jurisdiction_id": "city-san-anselmo",
-  "base_url": "https://sananselmo-ca.granicus.com",
+  "base_url": "https://webapi.legistar.com/v1/sananselmo-ca",
   "archives": {
-    "all_bodies": "8"
+    "town_council": "138",
+    "planning_commission": "139",
+    "test": "184",
+    "economic_development_committee": "185",
+    "parks_and_recreation_commission": "187",
+    "open_space_committee": "188",
+    "financial_advisory_committee": "189",
+    "capital_programs_monitoring_committee": "190",
+    "tax_equity_board": "191",
+    "arts_commission": "192",
+    "flood_committee": "193",
+    "climate_action_committee": "194",
+    "library_parcel_tax_oversight_committee": "195",
+    "library_advisory_board": "196",
+    "historical_commission": "197",
+    "racial_equity_committee": "198",
+    "bicycle_and_pedestrian_advisory_committee": "199",
+    "housing_element_advisory_committee": "200",
+    "reimagine_creek_park_community_advisory_committee": "201",
+    "robson_harrington_community_steering_committee": "205",
+    "infrastructure_and_fiscal_monitoring_committee": "207"
   },
   "metadata": {
-    "granicus_domain": "sananselmo-ca",
-    "default_view_id": "8",
-    "notes": "View 8 is the main publisher ('USE FOR ALL PUBLIC MEETINGS'). View 4 is training/test. View 1 returns 404. Also has Legistar API with 21 bodies. All bodies combined in single Granicus view."
-  },
-  "financial": {
-    "state": "CA",
-    "county": "Marin"
+    "client_name": "sananselmo-ca",
+    "body_count": 21
   },
   "election_sources": {
+    "ca_sos_results": {
+      "county": "marin",
+      "districts": {
+        "us-rep": [
+          2
+        ],
+        "state-senate": [
+          2
+        ],
+        "state-assembly": [
+          12
+        ]
+      }
+    },
     "marin_registrar_results": {
       "from_year": 2010,
       "division_filter": "Town of San Anselmo"

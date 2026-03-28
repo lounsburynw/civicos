@@ -2,10 +2,11 @@
   "version": "1.0",
   "phase": "launch",
   "last_updated": "2026-03-27",
-  "summary": "Launch readiness: election+school onboarding integration (active), turnkey onboarding (done), federation queries, billing, operator tooling, multi-scale participation (done)",
+  "summary": "Launch readiness: election+school onboarding (done), representative lookup (new), turnkey onboarding (done), federation queries, billing, operator tooling, multi-scale participation (done)",
   "category_order": [
     "turnkey_onboarding",
     "election_integration",
+    "representative_lookup",
     "security_fixes",
     "observability",
     "billing_payments",
@@ -728,7 +729,7 @@
         "name": "cross_marin_query_prototype",
         "description": "Cross-jurisdiction queries within Marin County via v2 query layer. SearchRequest.include_parents/include_siblings with tier-based relevance boosting.",
         "status": "in_progress",
-        "priority": 0,
+        "priority": 1,
         "phase": "A",
         "source": "federation testbed \u2014 query federation",
         "spec": "docs/internal/cross-jurisdiction-query-spec.md",
@@ -1427,6 +1428,96 @@
         ],
         "test_file": "packages/civicos-extraction/tests/test_ca_sos_ballot_preview.py",
         "notes": "Phase 1 complete: CA SOS PDF parser. Phase 2 (future): Marin Registrar candidate filings + local ballot measures. Phase 3 (future): deadline scraping from registrar. See docs/internal/election-data-research.md."
+      }
+    ]
+  },
+  "representative_lookup": {
+    "description": "Enable 'who represents me?' — the most common citizen query. Derive current officeholders from election winners already in storage, expose via v2 explore endpoint and MCP tool, fill local data gaps. Depends on election_integration (done).",
+    "items": [
+      {
+        "name": "district_detection_onboarding",
+        "description": "Add district detection to onboard.py (new Step 3.6.1). Use Census Bureau Geocoding API (free, no auth) to resolve lat/lng → congressional district, state senate district, state assembly district. Populate 'districts' field in extraction config automatically. Also fixed county name normalization (Google Maps returns 'Marin County', now stripped to 'marin'). Backfilled Mill Valley and San Anselmo via re-onboard.",
+        "priority": 2,
+        "status": "done",
+        "files": [
+          "packages/civicos-extraction/src/civicos_extraction/onboard.py",
+          "data/extraction/city-san-rafael.json",
+          "data/extraction/city-mill-valley.json"
+        ],
+        "test_file": "packages/civicos-extraction/tests/test_election_detection.py",
+        "notes": "Census Bureau geocoder (geocoding.geo.census.gov) returns GEOID for congressional, state upper/lower districts. Free, no API key. Parse GEOID to district number. Wire into detect_election_sources() or as a new detect_districts() called right after. Backfill existing configs missing districts. ~1 session."
+      },
+      {
+        "name": "derive_officials_from_winners",
+        "description": "Build function to derive current elected officials from election_contests data. For each jurisdiction, find the most recent election per seat type, extract candidates with is_winner=true, and store via store_elected_officials(). Covers federal (congress), state (assembly/senate), county (supervisors) from data we already have.",
+        "priority": 0,
+        "status": "not_started",
+        "files": [
+          "packages/civicos/src/civicos/_internal/elections/__init__.py",
+          "packages/civicos/src/civicos/storage/protocols/elections.py"
+        ],
+        "test_file": "packages/civicos/tests/test_elected_officials.py",
+        "notes": "Storage protocol already defines store_elected_officials() and get_elected_officials(). The election_contests raw_data already has is_winner flag. This is a derivation step, not new data fetching. Run after election ingestion, idempotent via temporal versioning. Link candidate_id to contest for voting record joins. ~1 session."
+      },
+      {
+        "name": "congress_gov_federal_officials",
+        "description": "Wire CongressGovClient (already in representatives.py) to populate elected_officials table for federal legislators. Given a jurisdiction's districts config (us-rep, state-senate), fetch current members from Congress.gov API and store. Provides authoritative federal rep data independent of election results.",
+        "priority": 2,
+        "status": "not_started",
+        "files": [
+          "packages/civicos-extraction/src/civicos_extraction/clients/representatives.py",
+          "scripts/modal_ingest.py"
+        ],
+        "test_file": "packages/civicos-extraction/tests/test_representatives.py",
+        "notes": "CongressGovClient already exists with get_current_members(). Needs a storage mapper (representative_to_elected_official) and Modal ingestion function. DATA_GOV_API_KEY required (already in Modal secrets as FAC_API_KEY). Complements derive_officials_from_winners with contact info, photo URLs. ~1 session."
+      },
+      {
+        "name": "local_officials_curation",
+        "description": "Manual curation of local officials (city council, mayor) for pilot jurisdictions. San Rafael city council has 5 members + mayor — curate into a static file (data/officials/) or directly into elected_officials storage. For scale: detect from Granicus/Legistar meeting body pages or BoardDocs roster HTML.",
+        "priority": 2,
+        "status": "not_started",
+        "files": [
+          "data/officials/city-san-rafael.json",
+          "packages/civicos/src/civicos/storage/protocols/elections.py"
+        ],
+        "test_file": null,
+        "notes": "Start with manual curation for San Rafael (5 council + 1 mayor). Future: parse council member names from Granicus meeting pages (body members list), BoardDocs board member HTML, or Legistar People API. School board members available from BoardDocs/Simbli or Civera election winners. ~0.5 session for manual, ~2 sessions for automated extraction."
+      },
+      {
+        "name": "explore_representatives_endpoint",
+        "description": "Add 'representatives' target to civic.explore verb. Query get_elected_officials() for the requested jurisdiction, walk the jurisdiction hierarchy (city → county → state → federal), and return a combined roster grouped by level. Accepts optional address parameter for geocode-based lookup.",
+        "priority": 2,
+        "status": "not_started",
+        "files": [
+          "packages/civicos-services/src/civicos_services/query/verbs.py",
+          "packages/civicos-services/src/civicos_services/query/models.py"
+        ],
+        "test_file": "packages/civicos-services/tests/test_query_explore.py",
+        "notes": "Add 'elif what == \"representatives\"' branch to execute_explore(). Walk hierarchy: jid → parent county → parent state → federal. For each level, call storage.get_elected_officials(jid, current_only=True). If address provided, geocode first to resolve jurisdiction. Update capabilities response to advertise representatives. ~1 session."
+      },
+      {
+        "name": "mcp_who_represents_me",
+        "description": "Add who_represents_me(address) tool to MCP server. Geocodes address → resolves jurisdictions → queries elected_officials for each level → returns combined roster with name, office, party, contact info, level. The flagship citizen query.",
+        "priority": 2,
+        "status": "not_started",
+        "files": [
+          "apps/civicos-mcp/tools/handlers.py",
+          "apps/civicos-mcp/tools/definitions.py"
+        ],
+        "test_file": "apps/civicos-mcp/tests/test_mcp_tools.py",
+        "notes": "Chains existing geocoding_service.geocode() → jurisdiction resolution → storage.get_elected_officials(). City-level MCP servers only (needs GOOGLE_MAPS_API_KEY). Fallback: if no address, return officials for the server's default jurisdiction. Include links to voting records where available (via candidate_id → election_contests). ~1 session."
+      },
+      {
+        "name": "officials_refresh_cron",
+        "description": "Add elected officials refresh to GitHub Actions cron. After election results are ingested, re-derive current officials from winners. Also refresh Congress.gov data monthly. Ensures officials roster stays current after elections.",
+        "priority": 3,
+        "status": "not_started",
+        "files": [
+          ".github/workflows/cron-election-refresh.yml",
+          "scripts/modal_ingest.py"
+        ],
+        "test_file": null,
+        "notes": "Extend existing cron-election-refresh.yml to call a new derive_officials Modal function after election ingestion completes. Monthly cadence sufficient — officials don't change often. ~0.5 session."
       }
     ]
   }
