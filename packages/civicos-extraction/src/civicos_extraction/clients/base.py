@@ -585,8 +585,17 @@ def _classify_contest_type_llm(title: str, is_ballot_measure: bool) -> Optional[
                 {
                     "role": "system",
                     "content": (
-                        "You classify US election contest titles into exactly one category. "
-                        f"Valid categories: {types_list}. "
+                        "You classify US election contest titles into exactly one category.\n"
+                        f"Valid categories: {types_list}\n\n"
+                        "Key distinctions:\n"
+                        "- federal_senate = US Senate only (\"United States Senator\")\n"
+                        "- state_legislature = state-level legislators (\"State Senator\", \"State Senate\", "
+                        "\"State Assembly\", \"State Representative\", \"State House\")\n"
+                        "- state_governor = governor race (including governor/lieutenant governor tickets), "
+                        "not standalone lieutenant governor or other state executives\n"
+                        "- other = state executive offices (lieutenant governor, secretary of state, "
+                        "attorney general, controller, treasurer, insurance commissioner, "
+                        "board of equalization) and anything else that doesn't fit\n\n"
                         "Respond with ONLY the category name, nothing else."
                     ),
                 },
