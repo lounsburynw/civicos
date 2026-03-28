@@ -566,6 +566,41 @@ class TestExploreIntegration:
         assert "prepare_comment" in action_names
         assert "subscribe" in action_names
 
+    def test_explore_representatives(self):
+        civic = make_mock_civic()
+        civic._storage.get_elected_officials.return_value = [
+            {
+                "id": "official-city-san-rafael-mayor",
+                "name": "Kate Colin",
+                "seat": "Mayor",
+                "jurisdiction_id": "city-san-rafael",
+                "term_start": "2024-11-05",
+                "term_end": None,
+                "candidate_id": "marin-cand-585-kate-colin",
+            },
+        ]
+        req = ExploreRequest(what="representatives")
+        resp = asyncio.get_event_loop().run_until_complete(
+            _run_explore(req, civic)
+        )
+        assert resp.data["jurisdiction"] == "city-san-rafael"
+        assert len(resp.data["levels"]) >= 1
+        assert resp.data["total_officials"] >= 1
+        officials = resp.data["levels"][0]["officials"]
+        assert officials[0]["name"] == "Kate Colin"
+        assert officials[0]["seat"] == "Mayor"
+
+    def test_explore_representatives_empty(self):
+        civic = make_mock_civic()
+        civic._storage.get_elected_officials.return_value = []
+        req = ExploreRequest(what="representatives")
+        resp = asyncio.get_event_loop().run_until_complete(
+            _run_explore(req, civic)
+        )
+        assert resp.data["jurisdiction"] == "city-san-rafael"
+        assert resp.data["levels"] == []
+        assert resp.data["total_officials"] == 0
+
     def test_explore_unknown(self):
         civic = make_mock_civic()
         req = ExploreRequest(what="nonexistent")

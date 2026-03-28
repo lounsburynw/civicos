@@ -1465,7 +1465,7 @@
       {
         "name": "congress_gov_federal_officials",
         "description": "Wire CongressGovClient (already in representatives.py) to populate elected_officials table for federal legislators. Given a jurisdiction's districts config (us-rep, state-senate), fetch current members from Congress.gov API and store. Provides authoritative federal rep data independent of election results.",
-        "priority": 1,
+        "priority": 0,
         "status": "not_started",
         "files": [
           "packages/civicos-extraction/src/civicos_extraction/clients/representatives.py",
@@ -1490,7 +1490,7 @@
         "name": "explore_representatives_endpoint",
         "description": "Add 'representatives' target to civic.explore verb. Query get_elected_officials() for the requested jurisdiction, walk the jurisdiction hierarchy (city → county → state → federal), and return a combined roster grouped by level. Accepts optional address parameter for geocode-based lookup.",
         "priority": 0,
-        "status": "not_started",
+        "status": "done",
         "files": [
           "packages/civicos-services/src/civicos_services/query/verbs.py",
           "packages/civicos-services/src/civicos_services/query/models.py"
