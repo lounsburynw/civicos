@@ -12,6 +12,10 @@ from typing import List, Optional, Dict, Any
 from civicos._internal.elections.derive import derive_officials_from_contests
 from enum import Enum
 
+# Lazy imports to avoid circular dependencies — access via:
+#   from civicos._internal.elections.cycles import get_next_election_date, ...
+#   from civicos._internal.elections.deadlines import generate_ca_deadlines
+
 
 class ElectionType(str, Enum):
     """Type of election."""
@@ -30,6 +34,7 @@ class ContestType(str, Enum):
     FEDERAL_SENATE = "federal_senate"
     FEDERAL_HOUSE = "federal_house"
     STATE_GOVERNOR = "state_governor"
+    STATE_EXECUTIVE = "state_executive"
     STATE_LEGISLATURE = "state_legislature"
     STATE_PROPOSITION = "state_proposition"
     LOCAL_MAYOR = "local_mayor"

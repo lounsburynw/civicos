@@ -24253,3 +24253,47 @@ Tests: 55 passing (35 elected officials + 20 smoke), 13 explore tests passing.
 - launch.json
 
 **Next P0:** election_calendar (time-sensitive: June 2 CA primary, 66 days away)
+
+## Session — 2026-03-28: election_calendar (P0)
+
+**Item:** election_calendar (ballot_awareness)
+**Status:** DONE
+
+Built deterministic election cycle resolver and CA deadline generator. Pure functions
+that compute next election date for any federal/state office from office type + district
+number — no scraping needed. Covers US House (2yr), US Senate (6yr staggered classes),
+CA Governor (4yr), CA Assembly (2yr), CA State Senate (4yr, even/odd district groups
+per 2020 redistricting random draw).
+
+Key finding: CA State Senate even-numbered districts are in the 2022/2026/2030 cohort
+(not odd as initially assumed). Confirmed against CA SOS candidate data showing SD-2
+on the 2026 ballot.
+
+CA deadline generator computes standard deadlines from Elections Code rules:
+- VBM ballots mailed (29 days before)
+- Voter registration (15 days before)
+- Early in-person voting (10 days before)
+- Conditional registration (election day)
+- Election day
+
+Seeded data:
+- Added 5 deadlines to all 7 existing San Rafael elections (including June 2 primary)
+- Created June 2 primary + Nov 3 general for Mill Valley (8 contests, 5 deadlines each)
+- Created June 2 primary + Nov 3 general for San Anselmo (8 contests, 5 deadlines each)
+- whats_next(include_elections=True) now returns elections with deadlines for all 3 jurisdictions
+
+Also marked election_deadlines_scraping as done (deadline generator supersedes scraping).
+
+**Files created:**
+- packages/civicos/src/civicos/_internal/elections/cycles.py
+- packages/civicos/src/civicos/_internal/elections/deadlines.py
+- packages/civicos/tests/test_election_calendar.py
+- scripts/seed_election_calendar.py
+
+**Files modified:**
+- packages/civicos/src/civicos/_internal/elections/__init__.py (added STATE_EXECUTIVE to ContestType)
+- launch.json
+
+Tests: 41 election calendar tests passing, 55 smoke+officials tests passing.
+
+**Next P0:** whats_on_my_ballot (capstone citizen query: address → ballot contests + candidates + deadlines)

@@ -1,7 +1,7 @@
 {
   "version": "1.0",
   "phase": "launch",
-  "last_updated": "2026-03-27",
+  "last_updated": "2026-03-28",
   "summary": "Launch readiness: election+school onboarding (done), representative lookup (new), turnkey onboarding (done), federation queries, billing, operator tooling, multi-scale participation (done)",
   "category_order": [
     "turnkey_onboarding",
@@ -1525,7 +1525,7 @@
       {
         "name": "whats_on_my_ballot",
         "description": "The capstone citizen query: address → districts → which offices are up this cycle → candidates for each → measures for each jurisdiction → key dates. Combines representative_lookup (officials), ballot_awareness (calendar, measures), and district detection into one answer. Exposed as civic.explore what='my_ballot' and MCP tool whats_on_my_ballot(address).",
-        "priority": 1,
+        "priority": 0,
         "status": "not_started",
         "files": [
           "packages/civicos-services/src/civicos_services/query/verbs.py",
@@ -1542,15 +1542,16 @@
       {
         "name": "election_calendar",
         "description": "Build election cycle awareness: which seats are up when. CA has staggered terms (state senate even/odd districts alternate, assembly every 2 years, county supervisors staggered 4-year, city council staggered 4-year). Need a data model that maps office_type + district → next_election_date + term_length. Seed from CA SOS election schedule and county registrar.",
-        "priority": 0,
+        "priority": 2,
         "time_sensitive": "2026-06-02 CA primary — calendar must exist to power 'what's on my ballot'",
-        "status": "not_started",
+        "status": "done",
         "files": [
-          "packages/civicos/src/civicos/storage/protocols/elections.py",
-          "packages/civicos-extraction/src/civicos_extraction/clients/ca_sos_ballot_preview.py"
+          "packages/civicos/src/civicos/_internal/elections/cycles.py",
+          "packages/civicos/src/civicos/_internal/elections/deadlines.py",
+          "scripts/seed_election_calendar.py"
         ],
-        "test_file": null,
-        "notes": "Key insight: federal and state cycles are deterministic (can be computed from office type + district number + year). County/city/school cycles require registrar data or manual curation. Start with deterministic cycles (federal midterms every 2 years, CA governor every 4, etc.), then layer in local data. The Marin Registrar scraper already gets upcoming election dates. ~1-2 sessions."
+        "test_file": "packages/civicos/tests/test_election_calendar.py",
+        "notes": "Deterministic cycle resolver computes next election date for US House (2yr), US Senate (6yr staggered), CA Governor (4yr), Assembly (2yr), State Senate (4yr even/odd). CA deadline generator computes registration, VBM, early voting dates. Seeded June 2 primary and Nov 3 general for all 3 pilot jurisdictions with 8 contests + 5 deadlines each. 41 tests passing."
       },
       {
         "name": "local_candidate_data",
@@ -1578,15 +1579,15 @@
       {
         "name": "election_deadlines_scraping",
         "description": "Scrape key election deadlines from CA SOS: voter registration deadline (15 days before), same-day registration availability, mail ballot send date, early voting start, ballot drop-off locations. Currently election_deadlines table exists but is unpopulated.",
-        "priority": 1,
+        "priority": 2,
         "time_sensitive": "2026-06-02 CA primary — registration deadline ~2026-05-18, deadlines must be surfaceable before then",
-        "status": "not_started",
+        "status": "done",
         "files": [
-          "packages/civicos/src/civicos/storage/protocols/elections.py",
-          "packages/civicos-extraction/src/civicos_extraction/clients/marin_registrar.py"
+          "packages/civicos/src/civicos/_internal/elections/deadlines.py",
+          "scripts/seed_election_calendar.py"
         ],
-        "test_file": null,
-        "notes": "The election_deadlines table schema already exists (id, election_id, deadline_type, deadline_date, description). CA SOS publishes a standard election calendar. County registrar adds local details (drop-off locations, early vote centers). For 2026: registration deadline ~Oct 19, mail ballots sent ~Oct 5, election Nov 3. ~1 session."
+        "test_file": "packages/civicos/tests/test_election_calendar.py",
+        "notes": "Implemented via generate_ca_deadlines() — computes standard CA deadlines (VBM mailing, registration, early voting, conditional registration, election day) from Elections Code rules. Seeded for all pilot jurisdictions. Deadlines now appear in whats_next() responses. Completed as part of election_calendar session."
       }
     ]
   }
