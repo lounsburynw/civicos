@@ -1,6 +1,6 @@
-# Recommended: Derive Elected Officials from Election Winners
+# Recommended: Congress.gov Federal Officials
 
-**Priority:** P0 (derive_officials_from_winners)
+**Priority:** P0 (congress_gov_federal_officials)
 **Area:** representative_lookup
 **Date:** 2026-03-28
 
@@ -8,108 +8,73 @@
 
 ## Context
 
-Previous session built the foundation for "who represents me?" — the most common citizen query. District detection now works automatically during onboarding (Census Bureau API → congressional/state districts). The `representative_lookup` category in launch.json has 7 items; this is the critical data step that turns election results we already have into a usable officials roster.
+Previous session built the full "who represents me?" pipeline: `derive_officials_from_contests()` turns election winners into officials, and `civic.explore what=representatives` surfaces them via API with jurisdiction hierarchy walk. Real data ingested for San Rafael, Mill Valley, San Anselmo — local officials (mayor, council, school board, county supervisor) all working.
 
-The election_contests table already stores `is_winner` flags in raw_data for candidates from both Civera ElectionStats (Marin County 2010-2025, 521 contests) and CA SOS results. The `elected_officials` storage protocol is already defined with `store_elected_officials()` / `get_elected_officials()` / `get_official_by_name()`. This item connects those two pieces.
+The gap: the representatives response shows no federal or state legislators because they aren't stored at the county/state jurisdiction level yet. The `CongressGovClient` already exists with `get_members_by_state()` and `get_members_by_district()`. A storage mapper `representative_to_elected_official()` also exists. This item wires them together with a Modal function.
 
 ## What Needs to Be Done
 
-Build a function that:
-1. For a given jurisdiction, queries election_contests (most recent election per seat type)
-2. Extracts candidates with `is_winner=true` from raw_data
-3. Maps them to the elected_officials storage format (id, name, seat, jurisdiction_id, term_start, term_end, candidate_id)
-4. Stores via `store_elected_officials()` with temporal versioning
-
-This covers: federal congress, state legislature, county supervisors — all from data we already have.
+Build a Modal function that:
+1. Reads a jurisdiction's `election_sources.ca_sos_results.districts` config (e.g., `{"us-rep": [2], "state-senate": [2], "state-assembly": [12]}`)
+2. Calls `CongressGovClient.get_members_by_district()` for each district
+3. Maps via `representative_to_elected_official()` to storage format
+4. Stores via `storage.store_elected_officials()` under the jurisdiction
 
 ## Key Files
 
-- `packages/civicos/src/civicos/storage/protocols/elections.py` — Storage protocol with `store_elected_officials()`, `get_elected_officials()`, `get_official_by_name()`
-- `packages/civicos/src/civicos/storage/sqlite_backend.py:507-624` — SQLite implementation (elected_officials table schema)
-- `packages/civicos/src/civicos/_internal/elections/__init__.py` — Elections module (derivation logic goes here)
-- `packages/civicos-extraction/src/civicos_extraction/clients/ca_sos_results.py:615-624` — Winner detection in CA SOS mapper
-- `packages/civicos-extraction/src/civicos_extraction/clients/civera_election_stats.py` — Civera contest mapper with is_winner
-- `packages/civicos-extraction/src/civicos_extraction/clients/representatives.py` — Representative dataclass (reference for official fields)
-- `scripts/modal_ingest.py` — Where the Modal function to run derivation would go
+- `packages/civicos-extraction/src/civicos_extraction/clients/representatives.py:80` — `CongressGovClient` with `get_members_by_state()`, `get_members_by_district()`
+- `packages/civicos-extraction/src/civicos_extraction/clients/representatives.py:1468` — `representative_to_elected_official()` mapper (already exists)
+- `packages/civicos-extraction/src/civicos_extraction/clients/representatives.py:1525` — `extract_elected_officials_to_storage()` (already exists, may just need wiring)
+- `data/extraction/city-san-rafael.json` — Districts config: `{"us-rep": [2], "state-assembly": [12], "state-senate": [2]}`
+- `scripts/modal_ingest.py:1916` — Congressional votes section (nearby, pattern reference)
+- `packages/civicos/src/civicos/_internal/elections/derive.py` — The derive function from this session (reference)
 
-## Elected Officials Table Schema
+## Data Already Available
 
-```sql
-CREATE TABLE elected_officials (
-  id TEXT NOT NULL,
-  name TEXT NOT NULL,
-  seat TEXT NOT NULL,           -- e.g. "US House District 2", "State Assembly 12"
-  jurisdiction_id TEXT NOT NULL,
-  term_start TEXT NOT NULL,
-  term_end TEXT,                -- NULL = currently serving
-  name_variations TEXT,
-  candidate_id TEXT,            -- Links to election_contests for voting record
-  valid_from TIMESTAMP,
-  valid_to TIMESTAMP,
-  PRIMARY KEY (id, jurisdiction_id, valid_from)
-)
-```
+The extraction config for each jurisdiction already has district numbers (auto-detected during onboarding via Census Bureau API):
+- San Rafael: US House District 2, State Assembly 12, State Senate 2
+- Mill Valley: Same districts
+- San Anselmo: Same districts
 
-## Contest raw_data Structure (what you're parsing)
+The API key is `CONGRESS_GOV_API_KEY` / `FAC_API_KEY` / `DATA_GOV_API_KEY` (all data.gov keys, already in Modal secrets).
 
-```json
-{
-  "candidates": [
-    {
-      "id": "ca-sos-cand-...",
-      "name": "Jared Huffman",
-      "party": "Dem",
-      "votes_received": 23772,
-      "vote_percentage": 52.5,
-      "is_winner": true,
-      "source": "ca_sos_results"
-    }
-  ]
-}
-```
+## Data Quality Issue to Note
+
+The `city-san-rafael` jurisdiction has 161 officials from a previous LegiScan ingestion that incorrectly stored ALL CA legislators under the city. The new derivation stores under the correct jurisdiction with `candidate_id` links. The old data should be cleaned up (or the explore endpoint should filter to only officials relevant to the jurisdiction's districts). Consider this when testing.
 
 ## Suggested Approach
 
-1. Read the elections storage protocol to understand the exact method signatures
-2. Read the election_contests data (via `storage.get_election_contests()`) to understand what's stored
-3. Build `derive_officials_from_contests(storage, jurisdiction_id)` in `_internal/elections/`
-4. For each contest type, find the most recent election, extract winners
-5. Map winner → elected_official dict with proper seat naming
-6. Call `storage.store_elected_officials()` with temporal versioning
-7. Add a Modal function in `modal_ingest.py` (`derive_elected_officials`) for remote execution
-8. Write tests validating the derivation against known San Rafael data
+1. Check if `extract_elected_officials_to_storage()` already does what we need (it might — it's already wired)
+2. If yes: just add a Modal function that calls it with the right config
+3. If no: build a simpler function that reads districts from extraction config and calls `get_members_by_district()` → `representative_to_elected_official()` → `store_elected_officials()`
+4. Store federal officials under the city jurisdiction (so they appear in `explore/representatives`)
+5. Test the explore endpoint shows federal + local officials together
 
-## Broader Context: 2026 Election Sprint
+## Election Sprint Context
 
-All election-related items were elevated to P1 this session. The CA primary is June 2 (66 days), general November 3. Two new launch.json categories track the work:
+The June 2 CA primary is 66 days away. After this item, the time-sensitive items are:
+- `election_deadlines_scraping` (registration deadline ~May 18)
+- `election_calendar` (powers "what's on my ballot")
+- `ballot_measure_content` (measure explanations for voters)
 
-- **representative_lookup** (8 items) — "who represents me?" chain. This P0 is the critical data step.
-- **ballot_awareness** (4 items) — election calendar, local candidates, ballot measures, deadlines. Feeds "what's on my ballot?"
-
-See `memory/project_election_cycle_gaps.md` for the full gap analysis.
-
-## Relevant Memories
-
-- `memory/project_representative_lookup.md` — Full design for "who represents me?" feature chain
-- `memory/project_election_cycle_gaps.md` — What citizens need vs what we have for Nov 2026
-- `memory/feedback_no_openstates.md` — Open States unreliable; use our own election data for state legislators
+All are P1 with `time_sensitive` flags in launch.json.
 
 ## Tests to Run
 
 ```bash
-# Election detection tests (should still pass)
-pytest packages/civicos-extraction/tests/test_election_detection.py -v --override-ini="addopts="
-# New tests for this item
+# Existing representative tests
+pytest packages/civicos-extraction/tests/test_representatives.py -v --override-ini="addopts="
+# Elected officials derivation tests (should still pass)
 pytest packages/civicos/tests/test_elected_officials.py -v --override-ini="addopts="
-# Smoke tests
-pytest packages/civicos/tests/test_civicos.py -q --override-ini="addopts="
+# Explore endpoint tests
+pytest packages/civicos-services/tests/test_query_v2.py::TestExploreIntegration -v --override-ini="addopts="
 ```
 
 ## Success Criteria
 
-- [ ] Function derives current officials from election_contests for San Rafael
-- [ ] Officials stored via store_elected_officials() with temporal versioning
-- [ ] Covers federal (congress), state (assembly/senate), county (supervisors)
-- [ ] candidate_id links officials to their contest data for voting record joins
+- [ ] Federal officials (US House, US Senate) stored for pilot jurisdictions
+- [ ] State officials (Assembly, Senate) stored for pilot jurisdictions
+- [ ] `civic.explore what=representatives` shows federal + state + local officials
+- [ ] Officials have proper seat names (e.g., "US House District 2", "State Senate District 2")
 - [ ] Modal function wired for remote execution
-- [ ] Tests validate derivation against known Marin County election data
+- [ ] Idempotent via temporal versioning (safe to re-run)
