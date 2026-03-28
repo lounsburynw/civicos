@@ -56,7 +56,11 @@ from civicos_extraction.clients.base import (
     Meeting,
     ExtractionConfig,
     DataSource,
+    ElectionExtractor,
+    ContestDict,
+    ContestCandidate,
     HealthStatus,
+    classify_contest_type,
 )
 from civicos_extraction.clients.legiscan import LegiScanClient, TOPIC_KEYWORDS
 from civicos_extraction.clients.seeclickfix import SeeClickFixClient
@@ -118,6 +122,16 @@ SUPPORTED_MEETING_SOURCES: frozenset[str] = frozenset({"proudcity", "granicus", 
 # Add new issue providers here as clients are wired up.
 SUPPORTED_ISSUE_SOURCES: frozenset[str] = frozenset({"seeclickfix"})
 
+# Registry of election source types with implemented fetch support.
+# Used by modal_ingest.py and scheduled_election_refresh() for dispatch.
+# Add new election providers here as clients are wired up.
+SUPPORTED_ELECTION_SOURCES: frozenset[str] = frozenset({
+    "civera_election_stats",
+    "marin_registrar_results",
+    "ca_sos_results",
+    "ca_sos_ballot_preview",
+})
+
 from civicos_extraction.clients.boarddocs import (
     BoardDocsClient,
     BoardDocsMeeting,
@@ -150,6 +164,10 @@ from civicos_extraction.clients.federal_register import (
 __all__ = [
     "SUPPORTED_MEETING_SOURCES",
     "SUPPORTED_ISSUE_SOURCES",
+    "SUPPORTED_ELECTION_SOURCES",
+    "ElectionExtractor",
+    "ContestDict",
+    "ContestCandidate",
     "LegistarClient",
     "CivicClerkClient",
     "EScribeClient",
@@ -180,6 +198,7 @@ __all__ = [
     "ExtractionConfig",
     "DataSource",
     "HealthStatus",
+    "classify_contest_type",
     "LegiScanClient",
     "TOPIC_KEYWORDS",
     "SeeClickFixClient",

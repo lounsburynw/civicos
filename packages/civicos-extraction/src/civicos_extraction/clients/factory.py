@@ -49,5 +49,32 @@ def create_source(config):
     elif source_type == "universal":
         from civicos_extraction.clients.universal import UniversalSource
         return UniversalSource(config)
+    # Election source types
+    elif source_type == "civera_election_stats":
+        from civicos_extraction.clients.civera_election_stats import CiveraElectionStatsClient
+        county_slug = config.metadata.get("county_slug", "")
+        graphql_url = config.metadata.get("graphql_url", "")
+        if county_slug and not graphql_url:
+            return CiveraElectionStatsClient.from_county(county_slug, jurisdiction_id=config.jurisdiction_id)
+        return CiveraElectionStatsClient(
+            jurisdiction_id=config.jurisdiction_id,
+            graphql_url=graphql_url,
+            county_slug=county_slug,
+        )
+    elif source_type == "marin_registrar_results":
+        from civicos_extraction.clients.marin_registrar import MarinRegistrarResultsClient
+        return MarinRegistrarResultsClient(jurisdiction_id=config.jurisdiction_id)
+    elif source_type == "ca_sos_results":
+        from civicos_extraction.clients.ca_sos_results import CASOSResultsClient
+        return CASOSResultsClient(
+            jurisdiction_id=config.jurisdiction_id,
+        )
+    elif source_type == "ca_sos_ballot_preview":
+        from civicos_extraction.clients.ca_sos_ballot_preview import CASOSBallotPreviewClient
+        return CASOSBallotPreviewClient(
+            election_slug=config.metadata.get("election_slug", ""),
+            election_date=config.metadata.get("election_date", ""),
+            election_type=config.metadata.get("election_type", "primary"),
+        )
     else:
         raise ValueError(f"Unsupported source_type: {source_type}")

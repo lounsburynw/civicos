@@ -321,6 +321,50 @@ The `districts` field maps race types to district numbers: `{"us-rep": [2], "sta
 }
 ```
 
+## Election Contest Output Format
+
+All election extraction clients (Civera, CA SOS, etc.) normalize their data into this contest dict format via mapper functions (`civera_results_to_contest`, `ca_sos_race_to_contest`, etc.). This is the contract between extraction clients and storage — any new election source must produce this shape.
+
+Defined in `packages/civicos-extraction/src/civicos_extraction/clients/base.py` as `ContestDict`.
+
+### Contest Dict
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `id` | str | Yes | Unique contest ID (e.g., `"marin-contest-123"`, `"ca-sos-us-house-district-2"`) |
+| `title` | str | Yes | Contest title (e.g., `"U.S. House of Representatives District 2"`) |
+| `contest_type` | str | Yes | One of: `federal_president`, `federal_senate`, `federal_house`, `state_governor`, `state_legislature`, `state_proposition`, `local_mayor`, `local_council`, `local_school_board`, `local_measure`, `judicial`, `other` |
+| `district_name` | str \| null | No | Geographic scope (e.g., `"City of San Rafael"`, `"Marin County"`) |
+| `number_elected` | int | No | Seats available (default 1; 0 for measures) |
+| `candidates` | list | No | List of candidate dicts (for races — see below) |
+| `ballot_measure` | dict \| null | No | Ballot measure info (for propositions/measures) |
+| `raw_data` | dict | Yes | Full enriched raw response. **Must include `mapped_candidates`** — the same candidate list persisted as JSONB for downstream consumers (e.g., `derive_officials_from_contests`) |
+
+### Candidate Dict (within `candidates` and `raw_data.mapped_candidates`)
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `id` | str | Yes | Unique candidate ID (e.g., `"marin-cand-123-jane-doe"`) |
+| `name` | str | Yes | Display name (e.g., `"Jane Doe"`) |
+| `is_winner` | bool | Yes | Whether the candidate won. Civera: from API `isWinner` field. CA SOS: inferred from highest vote count |
+| `party` | str \| null | No | Party affiliation (e.g., `"Dem"`, `"Rep"`) |
+| `incumbent` | bool | No | Whether the candidate is an incumbent |
+| `votes_received` | int \| null | No | Total votes received |
+| `vote_percentage` | float \| null | No | Percentage of votes |
+| `source` | str | No | Data source (e.g., `"civera_election_stats"`, `"ca_sos_results"`) |
+
+### Storage Persistence
+
+Only these fields are stored in the `election_contests` table: `id`, `election_id`, `title`, `contest_type`, `district_name`, `raw_data`. The `candidates` and `ballot_measure` fields at the top level are **not persisted** — they exist only in `raw_data.mapped_candidates` and `raw_data.mapped_ballot_measure` respectively.
+
+### Adding a New Election Source
+
+1. Create a client class implementing `ElectionExtractor` protocol (see `base.py`)
+2. Write a mapper function that produces `ContestDict` dicts from raw API data
+3. Write an `extract_*_to_storage()` function that calls the mapper and stores via `storage.store_election_contests()`
+4. Register the source type in `clients/factory.py`
+5. Add source config to `data/extraction/{jurisdiction}.json` under `election_sources`
+
 ## Data Coverage (San Rafael Pilot)
 
 | Corpus | Records | Source |

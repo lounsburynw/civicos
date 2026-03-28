@@ -414,39 +414,30 @@ def _parse_election_date(start_date: Optional[str]) -> Optional[str]:
 
 
 def _map_contest_type(contest: Dict[str, Any]) -> str:
-    """Map GraphQL contest to ContestType value."""
-    office_name = (contest.get("office") or {}).get("name", "").lower()
+    """Map GraphQL contest to ContestType value.
+
+    Delegates to the shared classify_contest_type() for keyword matching,
+    with Civera-specific handling for ballot questions and division types.
+    """
+    from civicos_extraction.clients.base import classify_contest_type
+
+    office_name = (contest.get("office") or {}).get("name", "")
     division_type = ((contest.get("division") or {}).get("divisionType") or {}).get("name", "").lower()
 
+    # Civera-specific: ballot questions have a dedicated field
     if contest.get("ballotQuestionId"):
-        if "school" in division_type or "school" in office_name:
+        if "school" in division_type or "school" in office_name.lower():
             return "local_measure"
         if "state" in division_type:
             return "state_proposition"
         return "local_measure"
 
-    if "president" in office_name:
-        return "federal_president"
-    if "senator" in office_name and "state" not in office_name:
-        return "federal_senate"
-    if "representative" in office_name or "congress" in office_name:
-        return "federal_house"
-
-    if "governor" in office_name:
-        return "state_governor"
-    if "assembly" in office_name or "state senator" in office_name:
-        return "state_legislature"
-
-    if "mayor" in office_name:
-        return "local_mayor"
-    if "council" in office_name or "supervisor" in office_name:
-        return "local_council"
-    if "school" in office_name or "school" in division_type:
+    # Civera-specific: school board detection via division type
+    if "school" in division_type and "school" not in office_name.lower():
         return "local_school_board"
-    if "judge" in office_name or "justice" in office_name:
-        return "judicial"
 
-    return "other"
+    # Delegate to shared keyword matcher
+    return classify_contest_type(office_name)
 
 
 def civera_results_to_election(
