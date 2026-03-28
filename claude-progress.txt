@@ -24161,3 +24161,27 @@ Built CASOSResultsClient for the CA Secretary of State election results API (api
 - launch.json (multi_county_registrar_research → done, federation_adr → P0)
 
 **Next P0:** federation_adr
+
+## Session — 2026-03-28: district_detection_onboarding (representative_lookup)
+
+**Item:** district_detection_onboarding (representative_lookup)
+**Status:** DONE
+
+Auto-detect legislative districts during onboarding via Census Bureau Geocoding API.
+Built detect_districts() that resolves lat/lng → congressional, state senate, and
+state assembly district numbers. Wired into onboarding Step 3.6 via detect_election_sources().
+Also fixed county name normalization bug ("Marin County" → "marin").
+
+Also this session: designed the full "who represents me?" feature (7 launch.json items
+in new representative_lookup category), strategized API surface (civic.explore + MCP tool),
+and identified the data chain: address → geocode → districts → jurisdiction hierarchy →
+elected officials per level.
+
+**Files created/modified:**
+- packages/civicos-extraction/src/civicos_extraction/onboard.py (detect_districts, geocode_city lat/lng, county normalization)
+- packages/civicos-extraction/tests/test_election_detection.py (19 new tests, 42 total)
+- data/extraction/city-mill-valley.json (backfilled districts + ca_sos_results via re-onboard)
+- data/extraction/city-san-anselmo.json (backfilled districts + ca_sos_results via re-onboard)
+- launch.json (new representative_lookup category, 7 items, district_detection_onboarding → done)
+
+**Next P0:** derive_officials_from_winners

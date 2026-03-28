@@ -9,16 +9,22 @@
 
 | Component | Status | Notes |
 |-----------|--------|-------|
-| Google Civic client | **Working** (elections), **Broken** (representatives) | Representatives API turned down April 2025. Elections returns only 3 nationwide — no Bay Area local races. |
-| Marin Registrar scraper | **Working** | Playwright-based, Cloudflare-aware. Scrapes election schedules. |
-| Representatives client | **Working** | Congress.gov (federal) + LegiScan (state). Local officials manual. |
-| Simbli client | **Working** | San Rafael City Schools ingested. 45 meetings in Postgres. |
+| Google Civic client | **REMOVED** | Representatives API dead since April 2025, elections useless. Fully removed 2026-03-26 (-1,567 lines). |
+| Marin Registrar scraper | **Working** | Playwright-based, Cloudflare-aware. Scrapes election schedules. GraphQL wrapper for Civera results. |
+| Civera ElectionStats client | **Working** | Generalized GraphQL client for county election results. 3 counties: Marin (46 elections), Sonoma (39), Yolo (24). |
+| CA SOS Results client | **Working** | REST API for current election results — statewide + district races + ballot measures + county breakdowns. |
+| CA SOS Ballot Preview | **Working** | PDF parser for certified candidate data — 8 race types, 107 candidates for 2026 primary. |
+| District detection | **Working** | Census Bureau Geocoding API auto-detects congressional, state senate, state assembly districts from lat/lng during onboarding. |
+| Representatives client | **Working** | Congress.gov (federal). Open States unreliable (acquired by VC). Local officials manual. |
+| Simbli client | **Working** | San Rafael City Schools + 6 additional Marin districts. |
+| BoardDocs client | **Working** | MCOE, Ross Valley SD, Larkspur-Corte Madera, Sausalito-Marin City, Marin Community College. |
+| School district lookup | **Working** | 452 CA districts across 56 counties (CDE data). |
 | Election storage protocol | **Complete** | Temporal versioning. Elections, deadlines, contests, officials. |
 | Postgres schema | **Complete** | All 4 tables with indexes. |
 | Election data models | **Complete** | ElectionType, ContestType (includes LOCAL_SCHOOL_BOARD), Candidate, BallotMeasure |
-| Modal ingestion | **Complete** | `fetch_elections()`, `fetch_elected_officials()`, `scheduled_election_refresh()` |
-| GitHub Actions cron | **Deployed** | Monthly 1st at 3 AM UTC |
-| Existing data | **6 elections, 45 school meetings** | In Postgres for san-rafael |
+| Modal ingestion | **Complete** | Marin results, Civera results, CA SOS results, ballot preview — all with dry-run + auto-index. |
+| GitHub Actions cron | **Deployed** | Monthly election refresh dispatches to all configured providers. |
+| Existing data | **109 elections, 107 preview candidates, 45+ school meetings** | Across 3 counties in Postgres |
 
 ### Google Civic API — Confirmed Issues
 

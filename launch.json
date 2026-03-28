@@ -7,6 +7,7 @@
     "turnkey_onboarding",
     "election_integration",
     "representative_lookup",
+    "ballot_awareness",
     "security_fixes",
     "observability",
     "billing_payments",
@@ -1462,7 +1463,7 @@
       {
         "name": "congress_gov_federal_officials",
         "description": "Wire CongressGovClient (already in representatives.py) to populate elected_officials table for federal legislators. Given a jurisdiction's districts config (us-rep, state-senate), fetch current members from Congress.gov API and store. Provides authoritative federal rep data independent of election results.",
-        "priority": 2,
+        "priority": 1,
         "status": "not_started",
         "files": [
           "packages/civicos-extraction/src/civicos_extraction/clients/representatives.py",
@@ -1474,7 +1475,7 @@
       {
         "name": "local_officials_curation",
         "description": "Manual curation of local officials (city council, mayor) for pilot jurisdictions. San Rafael city council has 5 members + mayor — curate into a static file (data/officials/) or directly into elected_officials storage. For scale: detect from Granicus/Legistar meeting body pages or BoardDocs roster HTML.",
-        "priority": 2,
+        "priority": 1,
         "status": "not_started",
         "files": [
           "data/officials/city-san-rafael.json",
@@ -1486,7 +1487,7 @@
       {
         "name": "explore_representatives_endpoint",
         "description": "Add 'representatives' target to civic.explore verb. Query get_elected_officials() for the requested jurisdiction, walk the jurisdiction hierarchy (city → county → state → federal), and return a combined roster grouped by level. Accepts optional address parameter for geocode-based lookup.",
-        "priority": 2,
+        "priority": 1,
         "status": "not_started",
         "files": [
           "packages/civicos-services/src/civicos_services/query/verbs.py",
@@ -1498,7 +1499,7 @@
       {
         "name": "mcp_who_represents_me",
         "description": "Add who_represents_me(address) tool to MCP server. Geocodes address → resolves jurisdictions → queries elected_officials for each level → returns combined roster with name, office, party, contact info, level. The flagship citizen query.",
-        "priority": 2,
+        "priority": 1,
         "status": "not_started",
         "files": [
           "apps/civicos-mcp/tools/handlers.py",
@@ -1518,6 +1519,69 @@
         ],
         "test_file": null,
         "notes": "Extend existing cron-election-refresh.yml to call a new derive_officials Modal function after election ingestion completes. Monthly cadence sufficient — officials don't change often. ~0.5 session."
+      },
+      {
+        "name": "whats_on_my_ballot",
+        "description": "The capstone citizen query: address → districts → which offices are up this cycle → candidates for each → measures for each jurisdiction → key dates. Combines representative_lookup (officials), ballot_awareness (calendar, measures), and district detection into one answer. Exposed as civic.explore what='my_ballot' and MCP tool whats_on_my_ballot(address).",
+        "priority": 1,
+        "status": "not_started",
+        "files": [
+          "packages/civicos-services/src/civicos_services/query/verbs.py",
+          "apps/civicos-mcp/tools/handlers.py"
+        ],
+        "test_file": null,
+        "notes": "Depends on: derive_officials_from_winners, election_calendar, explore_representatives_endpoint. This is the culmination of representative_lookup + ballot_awareness. Should return: upcoming election date, every contest on the user's ballot (federal → state → county → city → school → special district), candidates per contest, ballot measures, and key deadlines. ~2 sessions."
+      }
+    ]
+  },
+  "ballot_awareness": {
+    "description": "Election cycle intelligence — know what's on the ballot, when elections happen, and what measures mean. The data layer that feeds 'what's on my ballot?' Separate from representative_lookup (who holds office now) and election_integration (data source clients).",
+    "items": [
+      {
+        "name": "election_calendar",
+        "description": "Build election cycle awareness: which seats are up when. CA has staggered terms (state senate even/odd districts alternate, assembly every 2 years, county supervisors staggered 4-year, city council staggered 4-year). Need a data model that maps office_type + district → next_election_date + term_length. Seed from CA SOS election schedule and county registrar.",
+        "priority": 1,
+        "status": "not_started",
+        "files": [
+          "packages/civicos/src/civicos/storage/protocols/elections.py",
+          "packages/civicos-extraction/src/civicos_extraction/clients/ca_sos_ballot_preview.py"
+        ],
+        "test_file": null,
+        "notes": "Key insight: federal and state cycles are deterministic (can be computed from office type + district number + year). County/city/school cycles require registrar data or manual curation. Start with deterministic cycles (federal midterms every 2 years, CA governor every 4, etc.), then layer in local data. The Marin Registrar scraper already gets upcoming election dates. ~1-2 sessions."
+      },
+      {
+        "name": "local_candidate_data",
+        "description": "Ingest candidate data for local races (city council, county supervisor, school board). The county registrar is the authoritative source — they publish candidate filings for all local offices. Marin registrar (marincounty.gov/depts/rv) has candidate filing pages. BoardDocs/Simbli could provide school board member names.",
+        "priority": 1,
+        "status": "not_started",
+        "files": [
+          "packages/civicos-extraction/src/civicos_extraction/clients/marin_registrar.py"
+        ],
+        "test_file": null,
+        "notes": "This is the biggest gap. CA SOS only covers state/federal candidates. For city council, county supervisor, school board, and special district races, the county registrar is the only source. Marin Registrar scraper exists (Playwright-based) but only fetches election schedule, not candidate filings. Phase 1: scrape Marin candidate filing page. Phase 2: generalize for other counties. ~2-3 sessions."
+      },
+      {
+        "name": "ballot_measure_content",
+        "description": "Ingest ballot measure text, fiscal impact summaries, and pro/con arguments. State measures come from the CA voter guide (voterguide.sos.ca.gov). Local measures come from county sample ballots. Currently we only store pass/fail results, not the measure content itself.",
+        "priority": 1,
+        "status": "not_started",
+        "files": [
+          "packages/civicos-extraction/src/civicos_extraction/clients/ca_sos_results.py"
+        ],
+        "test_file": null,
+        "notes": "CA voter guide is published as HTML + PDF. State measures have: title, summary, fiscal impact, arguments for/against, rebuttals. Local measures from county sample ballot PDF. Would need new storage fields on election_contests or a dedicated ballot_measures table. Valuable for the 'what's on my ballot' query. ~2 sessions."
+      },
+      {
+        "name": "election_deadlines_scraping",
+        "description": "Scrape key election deadlines from CA SOS: voter registration deadline (15 days before), same-day registration availability, mail ballot send date, early voting start, ballot drop-off locations. Currently election_deadlines table exists but is unpopulated.",
+        "priority": 1,
+        "status": "not_started",
+        "files": [
+          "packages/civicos/src/civicos/storage/protocols/elections.py",
+          "packages/civicos-extraction/src/civicos_extraction/clients/marin_registrar.py"
+        ],
+        "test_file": null,
+        "notes": "The election_deadlines table schema already exists (id, election_id, deadline_type, deadline_date, description). CA SOS publishes a standard election calendar. County registrar adds local details (drop-off locations, early vote centers). For 2026: registration deadline ~Oct 19, mail ballots sent ~Oct 5, election Nov 3. ~1 session."
       }
     ]
   }
