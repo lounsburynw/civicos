@@ -281,29 +281,41 @@ Returned by `draft_action()`.
 
 Optional field in `data/extraction/*.json` configs that controls which election data providers are queried for each jurisdiction during the monthly `scheduled_election_refresh()` cron.
 
-If absent, defaults to `{"google_civic": true}`.
+Auto-detected during onboarding via `detect_election_sources()`. Districts auto-detected via Census Bureau Geocoding API (`detect_districts()`).
 
 ### Provider Keys
 
 | Key | API | Config | Notes |
 |-----|-----|--------|-------|
-| `google_civic` | Google Civic Information API | `true` | Polling locations, upcoming elections |
 | `marin_registrar_results` | Marin County GraphQL (pastelections.marincounty.gov) | `{"from_year": int, "division_filter": str}` | Historical contest results. `division_filter` scopes to a city/district |
+| `civera_election_stats` | Civera ElectionStats GraphQL (county-specific URLs) | `{"county_slug": str, "graphql_url": str, "from_year": int}` | Historical results for counties running Civera platform (Sonoma, Yolo, etc.) |
 | `ca_sos_results` | CA Secretary of State (api.sos.ca.gov) | `{"county": str, "districts": {race_type: [int]}}` | Current/most-recent statewide + district races, ballot measures |
+| `ca_sos_ballot_preview` | CA SOS CDN (elections.cdn.sos.ca.gov) | `{"election_slug": str, "election_date": str, "election_type": str, "races": {...}}` | Pre-election certified candidate PDFs with name, party, designation, contact |
+
+The `districts` field maps race types to district numbers: `{"us-rep": [2], "state-senate": [2], "state-assembly": [12]}`. Auto-detected from lat/lng during onboarding via Census Bureau Geocoding API.
 
 ### Example
 
 ```json
 {
   "election_sources": {
-    "google_civic": true,
+    "ca_sos_results": {
+      "county": "marin",
+      "districts": {"us-rep": [2], "state-assembly": [12], "state-senate": [2]}
+    },
     "marin_registrar_results": {
       "from_year": 2010,
       "division_filter": "City of San Rafael"
     },
-    "ca_sos_results": {
-      "county": "marin",
-      "districts": {"us-rep": [2], "state-assembly": [12], "state-senate": [2]}
+    "ca_sos_ballot_preview": {
+      "election_slug": "2026-primary",
+      "election_date": "2026-06-02",
+      "election_type": "primary",
+      "races": {
+        "congress": [2], "state-senate": [2], "assembly": [12],
+        "governor": null, "lt-governor": null, "controller": null,
+        "treasurer": null, "attorney-general": null
+      }
     }
   }
 }
