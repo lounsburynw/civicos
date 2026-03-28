@@ -1,7 +1,9 @@
-## Session — 2026-03-28: derive_officials_from_winners (P0)
+## Session — 2026-03-28: derive_officials_from_winners (P0) + election abstraction
 
 **Item:** derive_officials_from_winners (representative_lookup)
 **Status:** DONE
+
+**Bonus:** Election extraction abstraction (protocol, docs, factory, LLM classification)
 
 Built derive_officials_from_contests() function that scans election_contests
 for winners and creates elected_officials records with temporal versioning.
@@ -21,6 +23,17 @@ for winners and creates elected_officials records with temporal versioning.
 to Postgres yet — only election metadata exists. The derivation function is ready and tested
 but needs `modal run scripts/modal_ingest.py::fetch_marin_election_results` run first
 to populate election_contests before derive_elected_officials produces results.
+
+**Election extraction abstraction (bonus work):**
+- `ElectionExtractor` protocol in base.py — formalizes the election client contract
+- `ContestDict`/`ContestCandidate` type docs — documents the output format
+- `classify_contest_type()` — LLM-based (gpt-4o-mini) contest classification at ingestion
+  time with in-memory cache and keyword fallback when no API key. Fixes "United States
+  Senator" misclassification bug in the old keyword-only approach.
+- Factory registration — all 4 election source types in factory.py
+- `SUPPORTED_ELECTION_SOURCES` registry in __init__.py
+- Contest output schema documented in data-dictionary.md
+- Civera _map_contest_type refactored to delegate to shared classifier
 
 **Next P0:** congress_gov_federal_officials
 
