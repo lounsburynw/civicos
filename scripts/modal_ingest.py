@@ -3958,6 +3958,90 @@ def fetch_ballot_preview(
 
 
 # =============================================================================
+# Derive Elected Officials from Contest Winners
+# =============================================================================
+
+@app.function(
+    image=civic_image,
+    secrets=[
+        modal.Secret.from_name("civic-db"),
+    ],
+    memory=2048,
+    timeout=300,
+    retries=modal.Retries(max_retries=1, backoff_coefficient=2.0, initial_delay=5.0),
+)
+def derive_elected_officials(
+    jurisdiction: str = "city-san-rafael",
+    dry_run: bool = False,
+) -> dict:
+    """Derive elected officials from election contest winners.
+
+    Scans election_contests for candidates with is_winner=True and creates
+    elected_officials records, keeping only the most recent winner per seat.
+
+    Args:
+        jurisdiction: Target jurisdiction (e.g., "city-san-rafael")
+        dry_run: If True, log what would be derived but don't store
+    """
+    import logging
+    import os
+    import time
+
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+    logger = logging.getLogger(__name__)
+    start_time = time.time()
+
+    from civicos.storage.postgres_backend import PostgresBackend
+    from civicos._internal.elections.derive import derive_officials_from_contests
+
+    database_url = os.environ.get("DATABASE_URL")
+    if not database_url:
+        raise ValueError("DATABASE_URL not set")
+
+    backend = PostgresBackend(database_url)
+
+    if dry_run:
+        elections = backend.get_elections(jurisdiction, include_past=True)
+        total_contests = 0
+        total_winners = 0
+        for e in elections:
+            contests = backend.get_election_contests(e["id"])
+            total_contests += len(contests)
+            for c in contests:
+                raw = c.get("raw_data") or {}
+                cands = raw.get("mapped_candidates", raw.get("candidates", []))
+                total_winners += sum(1 for cd in cands if cd.get("is_winner"))
+
+        elapsed = time.time() - start_time
+        return {
+            "task": "derive_elected_officials",
+            "jurisdiction": jurisdiction,
+            "elections_scanned": len(elections),
+            "contests_scanned": total_contests,
+            "winners_found": total_winners,
+            "officials_stored": 0,
+            "dry_run": True,
+            "elapsed_seconds": elapsed,
+        }
+
+    officials_stored = derive_officials_from_contests(backend, jurisdiction)
+
+    elapsed = time.time() - start_time
+    logger.info(
+        f"[DERIVE OFFICIALS] {jurisdiction}: {officials_stored} officials derived "
+        f"in {elapsed:.1f}s"
+    )
+
+    return {
+        "task": "derive_elected_officials",
+        "jurisdiction": jurisdiction,
+        "officials_stored": officials_stored,
+        "dry_run": False,
+        "elapsed_seconds": elapsed,
+    }
+
+
+# =============================================================================
 # BoardDocs School Board Meeting Fetch
 # =============================================================================
 

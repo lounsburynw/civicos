@@ -1452,18 +1452,20 @@
         "name": "derive_officials_from_winners",
         "description": "Build function to derive current elected officials from election_contests data. For each jurisdiction, find the most recent election per seat type, extract candidates with is_winner=true, and store via store_elected_officials(). Covers federal (congress), state (assembly/senate), county (supervisors) from data we already have.",
         "priority": 0,
-        "status": "not_started",
+        "status": "done",
         "files": [
+          "packages/civicos/src/civicos/_internal/elections/derive.py",
           "packages/civicos/src/civicos/_internal/elections/__init__.py",
-          "packages/civicos/src/civicos/storage/protocols/elections.py"
+          "packages/civicos/src/civicos/storage/protocols/elections.py",
+          "scripts/modal_ingest.py"
         ],
         "test_file": "packages/civicos/tests/test_elected_officials.py",
-        "notes": "Storage protocol already defines store_elected_officials() and get_elected_officials(). The election_contests raw_data already has is_winner flag. This is a derivation step, not new data fetching. Run after election ingestion, idempotent via temporal versioning. Link candidate_id to contest for voting record joins. ~1 session."
+        "notes": "derive_officials_from_contests() in _internal/elections/derive.py. Scans elections → contests → raw_data.mapped_candidates for is_winner=True, keeps most recent per seat, maps contest_type to seat name (US House District N, State Senate District N, etc.), stores with temporal versioning. Modal function derive_elected_officials() wired. 35 tests passing. NOTE: Civera contest data not yet ingested to Postgres — run fetch_marin_election_results first to populate."
       },
       {
         "name": "congress_gov_federal_officials",
         "description": "Wire CongressGovClient (already in representatives.py) to populate elected_officials table for federal legislators. Given a jurisdiction's districts config (us-rep, state-senate), fetch current members from Congress.gov API and store. Provides authoritative federal rep data independent of election results.",
-        "priority": 1,
+        "priority": 0,
         "status": "not_started",
         "files": [
           "packages/civicos-extraction/src/civicos_extraction/clients/representatives.py",

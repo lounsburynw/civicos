@@ -1,5 +1,5 @@
 """
-Election data models.
+Election data models and derivation logic.
 
 Supports multi-level elections (federal, state, county, city) and links
 to elected officials for voting record queries.
@@ -8,6 +8,8 @@ to elected officials for voting record queries.
 from dataclasses import dataclass, field
 from datetime import datetime, date
 from typing import List, Optional, Dict, Any
+
+from civicos._internal.elections.derive import derive_officials_from_contests
 from enum import Enum
 
 

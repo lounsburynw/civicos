@@ -1,3 +1,29 @@
+## Session — 2026-03-28: derive_officials_from_winners (P0)
+
+**Item:** derive_officials_from_winners (representative_lookup)
+**Status:** DONE
+
+Built derive_officials_from_contests() function that scans election_contests
+for winners and creates elected_officials records with temporal versioning.
+
+**What was built:**
+- `_internal/elections/derive.py`: Core derivation function
+  - Iterates elections (most recent first), extracts winners from raw_data.mapped_candidates
+  - Maps contest_type + title to normalized seat names (US House District N, State Senate District N, etc.)
+  - Keeps only the most recent winner per seat (deduplication across elections)
+  - Generates name variations for fuzzy matching
+  - Links candidate_id for voting record joins
+- `_internal/elections/__init__.py`: Re-exports derive_officials_from_contests
+- `scripts/modal_ingest.py`: derive_elected_officials() Modal function with dry_run support
+- `tests/test_elected_officials.py`: 35 tests (all passing) covering unit + integration
+
+**Data gap found:** Civera contest data (521 contests with winners) was NOT ingested
+to Postgres yet — only election metadata exists. The derivation function is ready and tested
+but needs `modal run scripts/modal_ingest.py::fetch_marin_election_results` run first
+to populate election_contests before derive_elected_officials produces results.
+
+**Next P0:** congress_gov_federal_officials
+
 ## Session — 2026-03-27: upcoming_ballot_preview (P0)
 
 **Item:** upcoming_ballot_preview (election_integration)
