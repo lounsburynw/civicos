@@ -2,6 +2,7 @@
   "source_id": "granicus-city-mill-valley",
   "source_type": "granicus",
   "jurisdiction_id": "city-mill-valley",
+  "state": "CA",
   "base_url": "https://cityofmillvalley.granicus.com",
   "archives": {
     "multiple": "3"

@@ -1074,10 +1074,6 @@ class RepresentativesClient:
         reps = client.get_representatives()
     """
 
-    # Fallback geographic info (used when config not available)
-    DEFAULT_LAT = 37.9735
-    DEFAULT_LNG = -122.5311
-
     def __init__(
         self,
         jurisdiction_id: str,
@@ -1111,40 +1107,29 @@ class RepresentativesClient:
             self._load_from_config()
 
     def _load_from_config(self):
-        """Load state code and districts from jurisdiction config files."""
+        """Load state code and districts from extraction config (data/extraction/*.json)."""
         try:
             from civicos_extraction.config import load_jurisdiction_config
             config = load_jurisdiction_config(self.jurisdiction_id)
-            election_sources = config.get("election_sources", {})
 
-            # Load districts from extraction config
+            # State code from explicit "state" field in extraction config
+            if not self.state_code:
+                self.state_code = config.get("state")
+
+            # Districts from election_sources
             if not self.districts:
-                # Try ca_sos_results (California jurisdictions)
+                election_sources = config.get("election_sources", {})
                 ca_sos = election_sources.get("ca_sos_results", {})
                 self.districts = ca_sos.get("districts", {})
-
-            # Derive state code from config
-            if not self.state_code:
-                if "ca_sos_results" in election_sources:
-                    self.state_code = "CA"
 
         except Exception as e:
             logger.debug(f"Could not load extraction config for {self.jurisdiction_id}: {e}")
 
-        # Try jurisdiction YAML for state code if still missing
         if not self.state_code:
-            try:
-                from civicos.jurisdiction_config import load_jurisdiction_config as load_yaml
-                jconfig = load_yaml(self.jurisdiction_id)
-                if jconfig and jconfig.financial.state:
-                    self.state_code = jconfig.financial.state
-            except Exception:
-                pass
-
-        # Final fallback
-        if not self.state_code:
-            self.state_code = "CA"
-            logger.debug(f"No state code found for {self.jurisdiction_id}, defaulting to CA")
+            logger.warning(
+                f"No 'state' field in extraction config for {self.jurisdiction_id}. "
+                f"Add '\"state\": \"XX\"' to data/extraction/{self.jurisdiction_id}.json"
+            )
 
     @property
     def platform_name(self) -> str:
@@ -1202,18 +1187,9 @@ class RepresentativesClient:
             metadata["legiscan"] = "no_api_key"
             errors.append("No LegiScan API key configured (LEGISCAN_API_KEY)")
 
-        # Check Open States (deprecated fallback)
+        # Open States is deprecated — skip geo health check (requires lat/lng)
         if self.open_states_client.api_key:
-            try:
-                legislators = self.open_states_client.get_legislators_by_geo(
-                    self.DEFAULT_LAT, self.DEFAULT_LNG
-                )
-                if legislators:
-                    metadata["open_states"] = "available (deprecated)"
-                else:
-                    metadata["open_states"] = "no_data"
-            except Exception as e:
-                metadata["open_states"] = f"error: {e}"
+            metadata["open_states"] = "available (deprecated, not used)"
         else:
             metadata["open_states"] = "no_api_key (OK - deprecated)"
 
@@ -1309,9 +1285,6 @@ class RepresentativesClient:
             - State: LegiScan (primary), Open States (deprecated fallback)
             - Local: Curated data
         """
-        lat = lat or self.DEFAULT_LAT
-        lng = lng or self.DEFAULT_LNG
-
         representatives: List[Representative] = []
 
         # Federal representatives from Congress.gov (stable government API)
@@ -1368,7 +1341,7 @@ class RepresentativesClient:
                     logger.debug(f"Got {len(state_legislators)} state legislators from LegiScan")
 
             # Fallback to Open States if LegiScan failed (deprecated - PE risk)
-            if not state_legislators and self.open_states_client.api_key:
+            if not state_legislators and self.open_states_client.api_key and lat and lng:
                 logger.warning(
                     "LegiScan unavailable, falling back to Open States (deprecated)"
                 )
