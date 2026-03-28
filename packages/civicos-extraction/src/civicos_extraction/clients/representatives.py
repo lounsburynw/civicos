@@ -1070,15 +1070,13 @@ class RepresentativesClient:
     - Local data (manual curation)
 
     Usage:
-        client = RepresentativesClient("san-rafael")
-        reps = client.get_representatives(lat=37.9735, lng=-122.5311)
+        client = RepresentativesClient("city-san-rafael")
+        reps = client.get_representatives()
     """
 
-    # San Rafael geographic info
-    SAN_RAFAEL_LAT = 37.9735
-    SAN_RAFAEL_LNG = -122.5311
-    SAN_RAFAEL_STATE = "CA"
-    SAN_RAFAEL_CONGRESSIONAL_DISTRICT = 2  # CA-02 (Jared Huffman)
+    # Fallback geographic info (used when config not available)
+    DEFAULT_LAT = 37.9735
+    DEFAULT_LNG = -122.5311
 
     def __init__(
         self,
@@ -1086,20 +1084,67 @@ class RepresentativesClient:
         congress_api_key: Optional[str] = None,
         legiscan_api_key: Optional[str] = None,
         open_states_api_key: Optional[str] = None,
+        state_code: Optional[str] = None,
+        districts: Optional[Dict[str, List[int]]] = None,
     ):
         """
         Initialize unified representatives client.
 
         Args:
-            jurisdiction_id: Civic jurisdiction ID (e.g., "san-rafael")
+            jurisdiction_id: Civic jurisdiction ID (e.g., "city-san-rafael")
             congress_api_key: Congress.gov API key (optional, uses env var)
             legiscan_api_key: LegiScan API key (optional, uses env var) - PRIMARY for state
             open_states_api_key: Open States API key (optional, uses env var) - DEPRECATED fallback
+            state_code: Two-letter state code (e.g., "CA"). Auto-loaded from config if omitted.
+            districts: District map (e.g., {"us-rep": [2], "state-senate": [2]}).
+                       Auto-loaded from extraction config if omitted.
         """
         self.jurisdiction_id = jurisdiction_id
         self.congress_client = CongressGovClient(api_key=congress_api_key)
         self.legiscan_client = LegiScanLegislatorsClient(api_key=legiscan_api_key)
         self.open_states_client = OpenStatesClient(api_key=open_states_api_key)
+
+        # Load state and districts from config if not explicitly provided
+        self.state_code = state_code
+        self.districts = districts if districts is not None else {}
+        if not self.state_code or not self.districts:
+            self._load_from_config()
+
+    def _load_from_config(self):
+        """Load state code and districts from jurisdiction config files."""
+        try:
+            from civicos_extraction.config import load_jurisdiction_config
+            config = load_jurisdiction_config(self.jurisdiction_id)
+            election_sources = config.get("election_sources", {})
+
+            # Load districts from extraction config
+            if not self.districts:
+                # Try ca_sos_results (California jurisdictions)
+                ca_sos = election_sources.get("ca_sos_results", {})
+                self.districts = ca_sos.get("districts", {})
+
+            # Derive state code from config
+            if not self.state_code:
+                if "ca_sos_results" in election_sources:
+                    self.state_code = "CA"
+
+        except Exception as e:
+            logger.debug(f"Could not load extraction config for {self.jurisdiction_id}: {e}")
+
+        # Try jurisdiction YAML for state code if still missing
+        if not self.state_code:
+            try:
+                from civicos.jurisdiction_config import load_jurisdiction_config as load_yaml
+                jconfig = load_yaml(self.jurisdiction_id)
+                if jconfig and jconfig.financial.state:
+                    self.state_code = jconfig.financial.state
+            except Exception:
+                pass
+
+        # Final fallback
+        if not self.state_code:
+            self.state_code = "CA"
+            logger.debug(f"No state code found for {self.jurisdiction_id}, defaulting to CA")
 
     @property
     def platform_name(self) -> str:
@@ -1124,7 +1169,7 @@ class RepresentativesClient:
         # Check Congress.gov (federal)
         if self.congress_client.api_key:
             try:
-                members = self.congress_client.get_members_by_state("CA", current_only=True)
+                members = self.congress_client.get_members_by_state(self.state_code, current_only=True)
                 if members:
                     metadata["congress_gov"] = "available"
                     metadata["federal_count"] = len(members)
@@ -1142,7 +1187,7 @@ class RepresentativesClient:
         # Check LegiScan (primary for state)
         if self.legiscan_client.api_key:
             try:
-                legislators = self.legiscan_client.get_legislators_by_state("CA")
+                legislators = self.legiscan_client.get_legislators_by_state(self.state_code)
                 if legislators:
                     metadata["legiscan"] = "available"
                     metadata["state_count"] = len(legislators)
@@ -1161,7 +1206,7 @@ class RepresentativesClient:
         if self.open_states_client.api_key:
             try:
                 legislators = self.open_states_client.get_legislators_by_geo(
-                    self.SAN_RAFAEL_LAT, self.SAN_RAFAEL_LNG
+                    self.DEFAULT_LAT, self.DEFAULT_LNG
                 )
                 if legislators:
                     metadata["open_states"] = "available (deprecated)"
@@ -1245,11 +1290,13 @@ class RepresentativesClient:
         include_local: bool = True,
     ) -> List[Representative]:
         """
-        Get all representatives for a location.
+        Get all representatives for a jurisdiction.
+
+        Uses districts from jurisdiction config (auto-loaded or passed to __init__).
 
         Args:
-            lat: Latitude (defaults to San Rafael)
-            lng: Longitude (defaults to San Rafael)
+            lat: Latitude (for geo-based state lookups)
+            lng: Longitude (for geo-based state lookups)
             include_federal: Include US Congress members
             include_state: Include state legislators
             include_local: Include local officials
@@ -1262,8 +1309,8 @@ class RepresentativesClient:
             - State: LegiScan (primary), Open States (deprecated fallback)
             - Local: Curated data
         """
-        lat = lat or self.SAN_RAFAEL_LAT
-        lng = lng or self.SAN_RAFAEL_LNG
+        lat = lat or self.DEFAULT_LAT
+        lng = lng or self.DEFAULT_LNG
 
         representatives: List[Representative] = []
 
@@ -1271,19 +1318,27 @@ class RepresentativesClient:
         if include_federal:
             # Get senators for the state
             senators = self.congress_client.get_members_by_state(
-                self.SAN_RAFAEL_STATE, current_only=True
+                self.state_code, current_only=True
             )
             # Filter to just senators (not all members)
             senators = [s for s in senators if "Senator" in s.office]
             representatives.extend(senators)
 
-            # Get House rep for the district
-            house_reps = self.congress_client.get_members_by_district(
-                self.SAN_RAFAEL_STATE,
-                self.SAN_RAFAEL_CONGRESSIONAL_DISTRICT,
-                current_only=True,
-            )
-            representatives.extend(house_reps)
+            # Get House reps for each congressional district
+            us_rep_districts = self.districts.get("us-rep", [])
+            for district_num in us_rep_districts:
+                house_reps = self.congress_client.get_members_by_district(
+                    self.state_code,
+                    district_num,
+                    current_only=True,
+                )
+                representatives.extend(house_reps)
+
+            if not us_rep_districts:
+                logger.warning(
+                    f"No us-rep districts configured for {self.jurisdiction_id}. "
+                    f"Federal House reps will be missing."
+                )
 
         # State legislators - LegiScan primary, Open States fallback
         if include_state:
@@ -1292,12 +1347,23 @@ class RepresentativesClient:
             # Try LegiScan first (primary source)
             if self.legiscan_client.api_key:
                 state_legislators = self.legiscan_client.get_legislators_by_state(
-                    self.SAN_RAFAEL_STATE
+                    self.state_code
                 )
-                # Filter to just the legislators for San Rafael's districts
-                # CA Assembly District 12, CA Senate District 2
-                # For now, return all CA legislators (152) - filtering by geo would need
-                # district boundary data which LegiScan doesn't provide
+                # Filter to jurisdiction's specific districts if configured
+                assembly_districts = self.districts.get("state-assembly", [])
+                senate_districts = self.districts.get("state-senate", [])
+                if assembly_districts or senate_districts:
+                    filtered = []
+                    for leg in state_legislators:
+                        if leg.district and leg.district.isdigit():
+                            d = int(leg.district)
+                            if "Assembly" in leg.office and d in assembly_districts:
+                                filtered.append(leg)
+                            elif "Senate" in leg.office and d in senate_districts:
+                                filtered.append(leg)
+                        else:
+                            filtered.append(leg)
+                    state_legislators = filtered
                 if state_legislators:
                     logger.debug(f"Got {len(state_legislators)} state legislators from LegiScan")
 
@@ -1391,7 +1457,7 @@ def create_san_rafael_representatives_client(
         Configured RepresentativesClient
     """
     return RepresentativesClient(
-        jurisdiction_id="san-rafael",
+        jurisdiction_id="city-san-rafael",
         congress_api_key=congress_api_key,
         legiscan_api_key=legiscan_api_key,
         open_states_api_key=open_states_api_key,
@@ -1479,25 +1545,26 @@ def representative_to_elected_official(
     Returns:
         Dict ready for StorageBackend.store_elected_officials()
     """
-    # Parse term dates if available
+    # Parse term dates if available (Congress.gov returns int years, others may return strings)
     term_start = None
     if representative.term_start:
         try:
-            # Handle both ISO format and year-only
-            if len(representative.term_start) == 4:
-                term_start = f"{representative.term_start}-01-01"
+            ts = str(representative.term_start)
+            if len(ts) == 4:
+                term_start = f"{ts}-01-01"
             else:
-                term_start = representative.term_start
+                term_start = ts
         except (ValueError, TypeError):
             pass
 
     term_end = None
     if representative.term_end:
         try:
-            if len(representative.term_end) == 4:
-                term_end = f"{representative.term_end}-12-31"
+            te = str(representative.term_end)
+            if len(te) == 4:
+                term_end = f"{te}-12-31"
             else:
-                term_end = representative.term_end
+                term_end = te
         except (ValueError, TypeError):
             pass
 

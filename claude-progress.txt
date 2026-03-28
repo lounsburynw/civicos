@@ -24224,3 +24224,32 @@ elected officials per level.
 - launch.json (new representative_lookup category, 7 items, district_detection_onboarding → done)
 
 **Next P0:** derive_officials_from_winners
+
+## Session: 2026-03-28 — congress_gov_federal_officials (P0 → DONE)
+
+**Item:** congress_gov_federal_officials
+**Status:** DONE
+
+Made RepresentativesClient config-driven — loads state_code and districts from
+extraction config (data/extraction/*.json) instead of hardcoded San Rafael values.
+Auto-loading chain: extraction config → ca_sos_results.districts, then jurisdiction
+YAML → financial.state as fallback. Explicit overrides via __init__ params.
+
+Key changes:
+- RepresentativesClient.__init__(): added state_code/districts params + _load_from_config()
+- get_representatives(): uses self.state_code and self.districts instead of SAN_RAFAEL_* constants
+- State legislator filtering now uses jurisdiction's specific assembly/senate districts
+- Fixed representative_to_elected_official() term date mapper to handle int years from Congress.gov API
+- Cleaned up 456 old LegiScan entries incorrectly stored under city-san-rafael
+
+Data populated:
+- 3 federal officials (Schiff, Padilla, Huffman) stored for city-san-rafael, city-mill-valley, city-san-anselmo
+- explore/representatives endpoint now shows federal + local officials together (15 total for San Rafael)
+
+Tests: 55 passing (35 elected officials + 20 smoke), 13 explore tests passing.
+
+**Files modified:**
+- packages/civicos-extraction/src/civicos_extraction/clients/representatives.py
+- launch.json
+
+**Next P0:** election_calendar (time-sensitive: June 2 CA primary, 66 days away)
