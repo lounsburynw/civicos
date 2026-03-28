@@ -101,6 +101,18 @@ npm install && npm run dev
 # Load unpacked from dist/ in chrome://extensions (developer mode)
 ```
 
+## Sustainability
+
+CivicOS is currently a solo after-hours project, foundation-funded. The goal is self-sustainability without VC or acquisition pressure.
+
+**Civic information access is free.** Search, meetings, decisions, legislation, representation — these are public records, not products. This is non-negotiable.
+
+**Revenue comes from professional users** who derive commercial value from civic data: journalists, advocacy organizations, law firms, and developers via paid API tiers. Per-city infrastructure costs ~$1,000/year, so the revenue threshold for sustainability is low.
+
+**Privacy is a billing constraint, not an afterthought.** Resident AI features use a [privacy-preserving architecture](relay/ai-proxy.md) where the system that knows "who paid" never sees "what they asked."
+
+For the full economic model — cost structures, revenue tiers, why previous civic tech failed, and what must never be monetized — see [Module 5: Economic Model and Sustainability](learning/06_ECONOMIC_MODEL_AND_SUSTAINABILITY.md).
+
 ## Links
 
 - [Architecture overview](architecture.md) — the three-layer system at a glance
