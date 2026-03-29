@@ -149,6 +149,45 @@ class TestCandidateExtraction:
                         assert len(cand["name"]) > 0
 
 
+class TestBallotMeasureContent:
+    """Ballot measure content extraction for local_measure/state_proposition contests."""
+
+    def _find_measure_race(self, ballot_response):
+        """Find a race with contest_type local_measure or state_proposition."""
+        for e in ballot_response.data["elections"]:
+            for group in e.get("contests", []):
+                for race in group["races"]:
+                    if race["contest_type"] in ("local_measure", "state_proposition"):
+                        return race
+        return None
+
+    def test_measure_race_has_ballot_measure(self, ballot_response):
+        """Measure-type contests should include ballot_measure data."""
+        race = self._find_measure_race(ballot_response)
+        if race is None:
+            pytest.skip("No ballot measure contest found in data")
+        assert "ballot_measure" in race
+        bm = race["ballot_measure"]
+        assert "title" in bm
+        assert "passed" in bm
+        assert "yes_votes" in bm
+        assert "no_votes" in bm
+
+    def test_measure_has_content_fields(self, ballot_response):
+        """Ballot measure should have content fields (even if empty)."""
+        race = self._find_measure_race(ballot_response)
+        if race is None:
+            pytest.skip("No ballot measure contest found in data")
+        bm = race["ballot_measure"]
+        # These fields exist in the schema, may be None/empty for unenriched data
+        assert "description" in bm
+        assert "measure_type" in bm
+        assert "arguments_for" in bm
+        assert isinstance(bm["arguments_for"], list)
+        assert "arguments_against" in bm
+        assert isinstance(bm["arguments_against"], list)
+
+
 class TestDeadlines:
     """Deadline computation and next_deadline."""
 

@@ -97,6 +97,8 @@ class BallotMeasure:
     description: str
     measure_type: str  # bond, tax, ordinance, initiative
     full_text_url: Optional[str] = None
+    full_text: Optional[str] = None
+    fiscal_impact: Optional[str] = None
     arguments_for: List[str] = field(default_factory=list)
     arguments_against: List[str] = field(default_factory=list)
     passed: Optional[bool] = None
@@ -182,6 +184,12 @@ class Election:
                             "id": c.ballot_measure.id,
                             "title": c.ballot_measure.title,
                             "description": c.ballot_measure.description,
+                            "measure_type": c.ballot_measure.measure_type,
+                            "full_text_url": c.ballot_measure.full_text_url,
+                            "full_text": c.ballot_measure.full_text,
+                            "fiscal_impact": c.ballot_measure.fiscal_impact,
+                            "arguments_for": c.ballot_measure.arguments_for,
+                            "arguments_against": c.ballot_measure.arguments_against,
                             "passed": c.ballot_measure.passed,
                             "yes_votes": c.ballot_measure.yes_votes,
                             "no_votes": c.ballot_measure.no_votes,
