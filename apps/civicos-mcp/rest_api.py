@@ -337,7 +337,7 @@ def create_rest_router(registry, civic, jurisdiction, validate_input, logger):
                 description="Get 311 issues with latitude/longitude for geographic visualization.")
     async def issue_geography(limit: int = 2000):
         try:
-            issues = civic._storage.get_issues(
+            issues = civic.storage.get_issues(
                 jurisdiction_id=jurisdiction, limit=limit
             )
             points = []
@@ -368,11 +368,11 @@ def create_rest_router(registry, civic, jurisdiction, validate_input, logger):
         try:
             # Auto-detect latest fiscal year if not specified
             if not fiscal_year:
-                items = civic._storage.get_budget_items(jurisdiction)
+                items = civic.storage.get_budget_items(jurisdiction)
                 years = sorted(set(i.get("fiscal_year") for i in items if i.get("fiscal_year")), reverse=True)
                 fiscal_year = years[0] if years else "2025-2026"
 
-            rows = civic._storage.get_budget_summary(
+            rows = civic.storage.get_budget_summary(
                 jurisdiction_id=jurisdiction,
                 fiscal_year=fiscal_year,
                 group_by=group_by,
@@ -405,7 +405,7 @@ def create_rest_router(registry, civic, jurisdiction, validate_input, logger):
             from civicos.diagnostics import DataStatus
             from civicos.registry import get_relay_url, get_jurisdiction_url
 
-            status = DataStatus(civic._storage, civic._vectors, jurisdiction)
+            status = DataStatus(civic.storage, civic.vectors, jurisdiction)
             report = status.summary()
 
             # Build corpus summary
@@ -434,7 +434,7 @@ def create_rest_router(registry, civic, jurisdiction, validate_input, logger):
                 "jurisdiction": jurisdiction,
                 "mcp_endpoint": get_jurisdiction_url(jurisdiction),
                 "relay_url": get_relay_url(),
-                "storage_backend": type(civic._storage).__name__,
+                "storage_backend": type(civic.storage).__name__,
                 "total_storage_docs": report.total_storage_docs,
                 "total_vector_docs": report.total_vector_docs,
                 "overall_coverage_percent": round(report.overall_coverage_percent, 1) if report.overall_coverage_percent is not None else None,

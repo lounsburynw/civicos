@@ -244,7 +244,7 @@ class TestFundingFlowWithMockedData:
     def test_funding_flow_builds_from_links(self, mock_civic):
         """funding_flow() properly builds flows from storage data."""
         # Mock storage responses
-        mock_civic._storage.get_budget_items.return_value = [
+        mock_civic.storage.get_budget_items.return_value = [
             {
                 "item_id": "budget-001",
                 "line_item": "CDBG Housing Rehab",
@@ -255,7 +255,7 @@ class TestFundingFlowWithMockedData:
                 "budgeted_cents": 100_000_00,
             }
         ]
-        mock_civic._storage.get_budget_funding_links.return_value = [
+        mock_civic.storage.get_budget_funding_links.return_value = [
             {
                 "link_id": "link-001",
                 "budget_item_id": "budget-001",
@@ -269,7 +269,7 @@ class TestFundingFlowWithMockedData:
                 "variance_cents": 0,
             }
         ]
-        mock_civic._storage.get_federal_awards.return_value = [
+        mock_civic.storage.get_federal_awards.return_value = [
             {
                 "award_id": "award-001",
                 "cfda_number": "14.218",
@@ -280,7 +280,7 @@ class TestFundingFlowWithMockedData:
                 "period_end": "2026-06-30",
             }
         ]
-        mock_civic._storage.get_state_passthrough_funds.return_value = []
+        mock_civic.storage.get_state_passthrough_funds.return_value = []
 
         result = mock_civic.funding_flow()
 
@@ -296,7 +296,7 @@ class TestFundingFlowWithMockedData:
 
     def test_funding_flow_filters_by_program(self, mock_civic):
         """funding_flow() filters by program name in item text."""
-        mock_civic._storage.get_budget_items.return_value = [
+        mock_civic.storage.get_budget_items.return_value = [
             {
                 "item_id": "budget-001",
                 "line_item": "CDBG Housing",
@@ -310,7 +310,7 @@ class TestFundingFlowWithMockedData:
                 "budgeted_cents": 50_000_00,
             },
         ]
-        mock_civic._storage.get_budget_funding_links.return_value = [
+        mock_civic.storage.get_budget_funding_links.return_value = [
             {
                 "link_id": "link-001",
                 "budget_item_id": "budget-001",
@@ -326,8 +326,8 @@ class TestFundingFlowWithMockedData:
                 "budget_cents": 50_000_00,
             },
         ]
-        mock_civic._storage.get_federal_awards.return_value = []
-        mock_civic._storage.get_state_passthrough_funds.return_value = []
+        mock_civic.storage.get_federal_awards.return_value = []
+        mock_civic.storage.get_state_passthrough_funds.return_value = []
 
         # Filter for CDBG only
         result = mock_civic.funding_flow(program="CDBG")
@@ -337,7 +337,7 @@ class TestFundingFlowWithMockedData:
 
     def test_funding_flow_filters_by_confidence(self, mock_civic):
         """funding_flow() filters out low-confidence matches."""
-        mock_civic._storage.get_budget_items.return_value = [
+        mock_civic.storage.get_budget_items.return_value = [
             {
                 "item_id": "budget-001",
                 "line_item": "High Confidence Match",
@@ -349,7 +349,7 @@ class TestFundingFlowWithMockedData:
                 "budgeted_cents": 50_000_00,
             },
         ]
-        mock_civic._storage.get_budget_funding_links.return_value = [
+        mock_civic.storage.get_budget_funding_links.return_value = [
             {
                 "link_id": "link-001",
                 "budget_item_id": "budget-001",
@@ -363,8 +363,8 @@ class TestFundingFlowWithMockedData:
                 "budget_cents": 50_000_00,
             },
         ]
-        mock_civic._storage.get_federal_awards.return_value = []
-        mock_civic._storage.get_state_passthrough_funds.return_value = []
+        mock_civic.storage.get_federal_awards.return_value = []
+        mock_civic.storage.get_state_passthrough_funds.return_value = []
 
         # Default threshold is 0.5
         result = mock_civic.funding_flow()
@@ -374,14 +374,14 @@ class TestFundingFlowWithMockedData:
 
     def test_funding_flow_includes_state_passthrough(self, mock_civic):
         """funding_flow() includes state pass-through info."""
-        mock_civic._storage.get_budget_items.return_value = [
+        mock_civic.storage.get_budget_items.return_value = [
             {
                 "item_id": "budget-001",
                 "line_item": "CDBG via HCD",
                 "budgeted_cents": 100_000_00,
             }
         ]
-        mock_civic._storage.get_budget_funding_links.return_value = [
+        mock_civic.storage.get_budget_funding_links.return_value = [
             {
                 "link_id": "link-001",
                 "budget_item_id": "budget-001",
@@ -392,7 +392,7 @@ class TestFundingFlowWithMockedData:
                 "budget_cents": 100_000_00,
             }
         ]
-        mock_civic._storage.get_federal_awards.return_value = [
+        mock_civic.storage.get_federal_awards.return_value = [
             {
                 "award_id": "award-001",
                 "cfda_number": "14.218",
@@ -401,7 +401,7 @@ class TestFundingFlowWithMockedData:
                 "amount_cents": 2_000_000_00,
             }
         ]
-        mock_civic._storage.get_state_passthrough_funds.return_value = [
+        mock_civic.storage.get_state_passthrough_funds.return_value = [
             {
                 "passthrough_id": "pass-001",
                 "federal_award_id": "award-001",
@@ -422,11 +422,11 @@ class TestFundingFlowWithMockedData:
 
     def test_funding_flow_impact_calculation(self, mock_civic):
         """funding_flow_impact() calculates cut impact correctly."""
-        mock_civic._storage.get_budget_items.return_value = [
+        mock_civic.storage.get_budget_items.return_value = [
             {"item_id": "budget-001", "line_item": "CDBG", "budgeted_cents": 100_000_00},
             {"item_id": "budget-002", "line_item": "CDBG", "budgeted_cents": 50_000_00},
         ]
-        mock_civic._storage.get_budget_funding_links.return_value = [
+        mock_civic.storage.get_budget_funding_links.return_value = [
             {
                 "link_id": "link-001",
                 "budget_item_id": "budget-001",
@@ -440,8 +440,8 @@ class TestFundingFlowWithMockedData:
                 "budget_cents": 50_000_00,
             },
         ]
-        mock_civic._storage.get_federal_awards.return_value = []
-        mock_civic._storage.get_state_passthrough_funds.return_value = []
+        mock_civic.storage.get_federal_awards.return_value = []
+        mock_civic.storage.get_state_passthrough_funds.return_value = []
 
         result = mock_civic.funding_flow_impact(cut_percentage=0.20)
 

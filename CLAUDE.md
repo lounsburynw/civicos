@@ -119,11 +119,13 @@ c.get_public_testimony("housing")  # Public testimony excerpts
 
 ### Data Access Patterns
 
-**IMPORTANT:** Use the right abstraction layer. Never write raw SQL.
+**IMPORTANT:** Use the right abstraction layer. Never write raw SQL. Never access private attributes on CivicOS.
 
 | Need | Use This | NOT This |
 |------|----------|----------|
 | User-facing queries | v2 verbs (`/api/v2/civic/search`, etc.) | Raw SQL or CivicOS methods directly |
+| Storage backend access | `civic.storage` (public property) | `civic._storage` (private) |
+| Vector backend access | `civic.vectors` (public property) | `civic.vectors` (private) |
 | Data counts/diagnostics | `DataStatus` or `StorageBackend.get_*_count()` | Raw SQL |
 | Bulk data access | `StorageBackend.get_*()` methods | Raw SQL |
 | Schema information | `CORPUS_REGISTRY` | Hardcoded column names |
@@ -145,7 +147,7 @@ decisions = c.what_happened("housing")
 
 # RIGHT: Use DataStatus for diagnostics
 from civicos import DataStatus
-status = DataStatus(c.storage, c._vectors, 'city-san-rafael')
+status = DataStatus(c.storage, c.vectors, 'city-san-rafael')
 print(status.gaps())
 
 # RIGHT: Use StorageBackend for bulk access
@@ -501,7 +503,7 @@ Use the `civic.diagnostics` module for schema-aware data queries. This prevents 
 from civicos import CivicOS, DataStatus, VectorCoverage, format_data_status
 
 c = CivicOS('city-san-rafael')
-status = DataStatus(c.storage, c._vectors, 'city-san-rafael')
+status = DataStatus(c.storage, c.vectors, 'city-san-rafael')
 print(format_data_status(status.summary()))  # Corpus counts, gaps, coverage
 print(status.gaps())  # Only corpora with indexing gaps
 ```

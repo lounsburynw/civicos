@@ -93,7 +93,7 @@ class TestWhoRepresentsMeHandler:
         """Address is geocoded and officials returned per level."""
         from server import _handle_who_represents_me
 
-        mock_civic._storage.get_elected_officials = MagicMock(side_effect=self._mock_get_officials)
+        mock_civic.storage.get_elected_officials = MagicMock(side_effect=self._mock_get_officials)
 
         with patch(
             "civicos_services.clients.geocoding_service.GeocodingService"
@@ -124,7 +124,7 @@ class TestWhoRepresentsMeHandler:
         """When no address provided, uses jurisdiction parameter."""
         from server import _handle_who_represents_me
 
-        mock_civic._storage.get_elected_officials = MagicMock(side_effect=self._mock_get_officials)
+        mock_civic.storage.get_elected_officials = MagicMock(side_effect=self._mock_get_officials)
 
         with patch(
             "civicos_services.query.jurisdictions.resolve_jurisdictions",
@@ -142,7 +142,7 @@ class TestWhoRepresentsMeHandler:
         """When no address and no jurisdiction, uses server default."""
         from server import _handle_who_represents_me
 
-        mock_civic._storage.get_elected_officials = MagicMock(side_effect=self._mock_get_officials)
+        mock_civic.storage.get_elected_officials = MagicMock(side_effect=self._mock_get_officials)
 
         with patch(
             "civicos_services.query.jurisdictions.resolve_jurisdictions",
@@ -158,7 +158,7 @@ class TestWhoRepresentsMeHandler:
         """When geocoding fails but jurisdiction provided, uses fallback."""
         from server import _handle_who_represents_me
 
-        mock_civic._storage.get_elected_officials = MagicMock(side_effect=self._mock_get_officials)
+        mock_civic.storage.get_elected_officials = MagicMock(side_effect=self._mock_get_officials)
 
         with patch(
             "civicos_services.clients.geocoding_service.GeocodingService"
@@ -201,7 +201,7 @@ class TestWhoRepresentsMeHandler:
         """When no API key but jurisdiction provided, still works."""
         from server import _handle_who_represents_me
 
-        mock_civic._storage.get_elected_officials = MagicMock(return_value=[])
+        mock_civic.storage.get_elected_officials = MagicMock(return_value=[])
 
         with patch(
             "civicos_services.clients.geocoding_service.GeocodingService",
@@ -238,7 +238,7 @@ class TestWhoRepresentsMeHandler:
         """Works for Mill Valley pilot jurisdiction."""
         from server import _handle_who_represents_me
 
-        mock_civic._storage.get_elected_officials = MagicMock(return_value=[
+        mock_civic.storage.get_elected_officials = MagicMock(return_value=[
             {"name": "Test Official", "seat": "Mayor", "term_start": "2024-01-01", "term_end": None, "candidate_id": None},
         ])
 
@@ -257,7 +257,7 @@ class TestWhoRepresentsMeHandler:
         """Works for San Anselmo pilot jurisdiction."""
         from server import _handle_who_represents_me
 
-        mock_civic._storage.get_elected_officials = MagicMock(return_value=[])
+        mock_civic.storage.get_elected_officials = MagicMock(return_value=[])
 
         with patch(
             "civicos_services.query.jurisdictions.resolve_jurisdictions",
@@ -279,7 +279,7 @@ class TestWhoRepresentsMeHandler:
         with patch("server._civic") as mock_civic, \
              patch("server._jurisdiction", "city-san-rafael"), \
              patch("civicos_services.query.jurisdictions.resolve_jurisdictions", return_value=["city-san-rafael"]):
-            mock_civic._storage.get_elected_officials = MagicMock(return_value=officials_data)
+            mock_civic.storage.get_elected_officials = MagicMock(return_value=officials_data)
             result = self._run(_handle_who_represents_me({"jurisdiction": "city-san-rafael"}))
 
         official = result["levels"][0]["officials"][0]

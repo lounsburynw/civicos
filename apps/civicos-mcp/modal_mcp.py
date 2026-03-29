@@ -200,14 +200,14 @@ class MCPServer:
         init_time = time.time() - start
         self.logger.info(
             f"CivicOS initialized for {self.jurisdiction} "
-            f"(storage: {type(self.civic._storage).__name__}, {init_time:.1f}s)"
+            f"(storage: {type(self.civic.storage).__name__}, {init_time:.1f}s)"
         )
 
         # Pre-warm embedding model
-        if self.civic._vectors is not None:
+        if self.civic.vectors is not None:
             self.logger.info("Pre-warming embedding model...")
             start = time.time()
-            provider = self.civic._vectors._embedding_provider
+            provider = self.civic.vectors._embedding_provider
             _ = provider.encode(["warmup query"])
             warmup_time = time.time() - start
             self.logger.info(f"Embedding model ready ({provider.model_name}, {warmup_time:.1f}s)")

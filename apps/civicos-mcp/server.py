@@ -83,14 +83,14 @@ async def startup():
     init_time = time.time() - start
     logger.info(
         f"CivicOS initialized for {_jurisdiction} "
-        f"(storage: {type(_civic._storage).__name__}, {init_time:.1f}s)"
+        f"(storage: {type(_civic.storage).__name__}, {init_time:.1f}s)"
     )
 
     # Pre-warm embedding model if available
-    if _civic._vectors is not None:
+    if _civic.vectors is not None:
         logger.info("Pre-warming embedding model...")
         start = time.time()
-        provider = _civic._vectors._embedding_provider
+        provider = _civic.vectors._embedding_provider
         _ = provider.encode(["warmup query"])
         warmup_time = time.time() - start
         logger.info(f"Embedding model ready ({provider.model_name}, {warmup_time:.1f}s)")
@@ -559,7 +559,7 @@ async def _handle_who_represents_me(args: dict) -> dict:
     # Query officials at each level
     levels = []
     for level_jid in hierarchy:
-        officials = _civic._storage.get_elected_officials(
+        officials = _civic.storage.get_elected_officials(
             jurisdiction_id=level_jid,
             current_only=True,
         )
