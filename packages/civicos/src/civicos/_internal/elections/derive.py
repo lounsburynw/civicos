@@ -3,12 +3,22 @@ Derive elected officials from election contest results.
 
 Scans election_contests for winners (is_winner=True) and creates
 elected_officials records, keeping only the most recent winner per seat.
+
+Jurisdiction assignment:
+  - federal_* contests → country-united-states
+  - state_* contests   → state parent (e.g. state-california)
+  - local_council with "supervisor" → county parent (e.g. county-marin)
+  - local_mayor, local_council, local_school_board → the querying city
+  - Contests whose raw_data.division names a different city are skipped
 """
 
 import logging
 import re
 from datetime import datetime
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
+
+import yaml
 
 logger = logging.getLogger(__name__)
 
@@ -26,6 +36,123 @@ ELECTED_POSITION_TYPES = {
 }
 
 
+def _load_parent_jurisdictions(jurisdiction_id: str) -> Dict[str, str]:
+    """
+    Load parent jurisdiction hierarchy from YAML config.
+
+    Returns a dict mapping level → jurisdiction_id, e.g.:
+    {"county": "county-marin", "state": "state-california", "federal": "country-united-states"}
+    """
+    parents: Dict[str, str] = {}
+    jurisdictions_dir = Path(__file__).resolve().parents[6] / "data" / "jurisdictions"
+    yaml_path = jurisdictions_dir / f"{jurisdiction_id}.yaml"
+
+    if not yaml_path.exists():
+        logger.warning(f"No YAML config for {jurisdiction_id}")
+        return parents
+
+    try:
+        with open(yaml_path) as f:
+            config = yaml.safe_load(f)
+        for parent_id in config.get("parent_jurisdictions", []):
+            if parent_id.startswith("county-"):
+                parents["county"] = parent_id
+            elif parent_id.startswith("state-"):
+                parents["state"] = parent_id
+            elif parent_id.startswith("country-"):
+                parents["federal"] = parent_id
+    except Exception as e:
+        logger.warning(f"Failed to load parents for {jurisdiction_id}: {e}")
+
+    return parents
+
+
+def _resolve_official_jurisdiction(
+    contest_type: str,
+    contest: Dict[str, Any],
+    city_jurisdiction_id: str,
+    parent_jurisdictions: Dict[str, str],
+) -> Optional[str]:
+    """
+    Determine the correct jurisdiction_id for an official based on contest type.
+
+    Returns None if the contest belongs to a different city (should be skipped).
+    """
+    # Check if raw_data.division names a different city
+    raw_data = contest.get("raw_data") or {}
+    if isinstance(raw_data, str):
+        import json
+        try:
+            raw_data = json.loads(raw_data)
+        except (json.JSONDecodeError, TypeError):
+            raw_data = {}
+
+    division = raw_data.get("division", {})
+    division_name = division.get("displayName", "")
+    division_type = division.get("divisionType", {}).get("name", "")
+
+    # If the division is a city that doesn't match ours, skip this contest
+    if division_type == "City" and division_name:
+        # Normalize: "City of San Rafael" → "san rafael"
+        normalized_div = division_name.lower().replace("city of ", "").replace("town of ", "").strip()
+        # Extract city name from jurisdiction_id: "city-san-rafael" → "san rafael"
+        normalized_jid = city_jurisdiction_id.replace("city-", "").replace("-", " ")
+        if normalized_div != normalized_jid:
+            return None  # Contest belongs to a different city
+
+    # Map contest_type to jurisdiction level
+    if contest_type in ("federal_president", "federal_senate", "federal_house"):
+        return parent_jurisdictions.get("federal", city_jurisdiction_id)
+
+    if contest_type in ("state_governor", "state_legislature"):
+        return parent_jurisdictions.get("state", city_jurisdiction_id)
+
+    if contest_type == "local_council":
+        # County supervisors belong at the county level
+        title = contest.get("title", "").lower()
+        if "supervisor" in title:
+            return parent_jurisdictions.get("county", city_jurisdiction_id)
+        return city_jurisdiction_id
+
+    # local_mayor, local_school_board, judicial → city level
+    return city_jurisdiction_id
+
+
+def _expire_misplaced_officials(
+    storage: Any,
+    city_jurisdiction_id: str,
+    seat_winners: Dict[str, Tuple[Dict[str, Any], str]],
+) -> int:
+    """
+    Expire officials stored at the city level whose seats belong to a parent
+    jurisdiction (federal, state, county).
+
+    When re-deriving, seats that were previously assigned to the city are now
+    correctly routed to parent jurisdictions. This function closes the old
+    city-level records so they don't persist alongside the correctly-placed ones.
+    """
+    relocated_seats = [
+        official["seat"]
+        for official, _date in seat_winners.values()
+        if official["jurisdiction_id"] != city_jurisdiction_id
+    ]
+
+    if not relocated_seats:
+        return 0
+
+    expired = storage.expire_officials_by_seat(
+        city_jurisdiction_id, list(set(relocated_seats))
+    )
+
+    if expired:
+        logger.info(
+            f"Expired {expired} misplaced officials at {city_jurisdiction_id} "
+            f"(seats relocated to parent jurisdictions)"
+        )
+
+    return expired
+
+
 def derive_officials_from_contests(
     storage: Any,
     jurisdiction_id: str,
@@ -35,6 +162,10 @@ def derive_officials_from_contests(
 
     For each seat, finds the most recent election contest with a winner
     and creates an elected_officials record linking to the candidate.
+
+    Officials are assigned to the correct jurisdiction level based on
+    contest type (federal → country, state → state, etc.). Contests
+    whose raw_data.division names a different city are skipped.
 
     Args:
         storage: StorageBackend with election + official methods
@@ -48,6 +179,8 @@ def derive_officials_from_contests(
         logger.info(f"No elections found for {jurisdiction_id}")
         return 0
 
+    parent_jurisdictions = _load_parent_jurisdictions(jurisdiction_id)
+
     # Sort elections by date descending so most recent wins come first
     elections_sorted = sorted(
         elections,
@@ -55,9 +188,9 @@ def derive_officials_from_contests(
         reverse=True,
     )
 
-    # Track best (most recent) winner per seat key
-    # Key: normalized seat string, Value: (official_dict, election_date)
+    # Track best (most recent) winner per (jurisdiction, seat) key
     seat_winners: Dict[str, Tuple[Dict[str, Any], str]] = {}
+    skipped_cross_city = 0
 
     for election in elections_sorted:
         election_id = election["id"]
@@ -69,6 +202,14 @@ def derive_officials_from_contests(
             if contest_type not in ELECTED_POSITION_TYPES:
                 continue
 
+            # Determine the correct jurisdiction for this official
+            official_jurisdiction = _resolve_official_jurisdiction(
+                contest_type, contest, jurisdiction_id, parent_jurisdictions
+            )
+            if official_jurisdiction is None:
+                skipped_cross_city += 1
+                continue
+
             winners = _extract_winners(contest)
             if not winners:
                 continue
@@ -77,28 +218,50 @@ def derive_officials_from_contests(
             if not seat:
                 continue
 
+            # Key includes jurisdiction so federal seats don't collide with local
+            seat_key = f"{official_jurisdiction}:{seat}"
+
             # Only keep the first (most recent) winner per seat
-            if seat in seat_winners:
+            if seat_key in seat_winners:
                 continue
 
             for winner in winners:
                 official = _winner_to_official(
-                    winner, contest, jurisdiction_id, election_date
+                    winner, contest, official_jurisdiction, election_date
                 )
-                seat_winners[seat] = (official, election_date)
+                seat_winners[seat_key] = (official, election_date)
                 break  # One official per seat
+
+    if skipped_cross_city:
+        logger.info(
+            f"Skipped {skipped_cross_city} contests belonging to other cities"
+        )
 
     if not seat_winners:
         logger.info(f"No winners found in contests for {jurisdiction_id}")
         return 0
 
-    officials = [entry[0] for entry in seat_winners.values()]
-    logger.info(
-        f"Derived {len(officials)} officials for {jurisdiction_id} "
-        f"from {len(elections)} elections"
-    )
+    # Expire misplaced officials: seats at the querying city level that should
+    # be at a parent jurisdiction (e.g. federal officials stored at city-san-rafael).
+    # This handles re-derivation after a jurisdiction assignment fix.
+    _expire_misplaced_officials(storage, jurisdiction_id, seat_winners)
 
-    return storage.store_elected_officials(jurisdiction_id, officials)
+    # Group officials by their actual jurisdiction for separate storage calls
+    from collections import defaultdict
+    by_jurisdiction: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
+    for official, _date in seat_winners.values():
+        jid = official.get("jurisdiction_id", jurisdiction_id)
+        by_jurisdiction[jid].append(official)
+
+    total_stored = 0
+    for jid, officials in by_jurisdiction.items():
+        logger.info(
+            f"Storing {len(officials)} officials for {jid} "
+            f"(derived from {jurisdiction_id} elections)"
+        )
+        total_stored += storage.store_elected_officials(jid, officials)
+
+    return total_stored
 
 
 def _extract_winners(contest: Dict[str, Any]) -> List[Dict[str, Any]]:

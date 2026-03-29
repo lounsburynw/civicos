@@ -9100,6 +9100,35 @@ class PostgresBackend:
         finally:
             self._return_connection(conn)
 
+    def expire_officials_by_seat(
+        self,
+        jurisdiction_id: str,
+        seats: List[str],
+    ) -> int:
+        """Expire current officials at a jurisdiction matching any of the given seats."""
+        if not seats:
+            return 0
+
+        jurisdiction_id = normalize_jurisdiction(jurisdiction_id)
+        conn = self._get_connection()
+        cursor = conn.cursor()
+
+        try:
+            cursor.execute(
+                "UPDATE elected_officials SET valid_to = NOW(), deleted_at = NOW() "
+                "WHERE jurisdiction_id = %s AND seat = ANY(%s) "
+                "AND valid_to IS NULL AND deleted_at IS NULL",
+                (jurisdiction_id, seats),
+            )
+            count = cursor.rowcount
+            conn.commit()
+            return count
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            self._return_connection(conn)
+
     def get_elected_officials(
         self,
         jurisdiction_id: str,
@@ -9941,7 +9970,7 @@ def _verify_protocol_compliance() -> None:
         'store_elections', 'get_elections', 'get_election_count',
         'store_election_deadlines', 'get_election_deadlines',
         'store_election_contests', 'get_election_contests',
-        'store_elected_officials', 'get_elected_officials', 'get_official_by_name',
+        'store_elected_officials', 'get_elected_officials', 'expire_officials_by_seat', 'get_official_by_name',
     ]
     for method in required_methods:
         assert hasattr(PostgresBackend, method), (

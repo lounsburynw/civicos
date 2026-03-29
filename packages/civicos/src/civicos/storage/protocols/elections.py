@@ -110,6 +110,20 @@ class ElectionStorage(Protocol):
         """Retrieve elected officials."""
         ...
 
+    def expire_officials_by_seat(
+        self,
+        jurisdiction_id: str,
+        seats: List[str],
+    ) -> int:
+        """
+        Expire (soft-delete) current officials at a jurisdiction whose seat
+        matches any in the given list. Used to clean up officials that were
+        stored at the wrong jurisdiction level.
+
+        Returns count of expired records.
+        """
+        ...
+
     def get_official_by_name(
         self,
         jurisdiction_id: str,

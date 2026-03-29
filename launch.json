@@ -1477,8 +1477,8 @@
       {
         "name": "local_officials_curation",
         "description": "Manual curation of local officials (city council, mayor) for pilot jurisdictions. San Rafael city council has 5 members + mayor — curate into a static file (data/officials/) or directly into elected_officials storage. For scale: detect from Granicus/Legistar meeting body pages or BoardDocs roster HTML.",
-        "priority": 0,
-        "status": "not_started",
+        "priority": 2,
+        "status": "done",
         "files": [
           "data/officials/city-san-rafael.json",
           "packages/civicos/src/civicos/storage/protocols/elections.py"
@@ -1556,7 +1556,7 @@
       {
         "name": "local_candidate_data",
         "description": "Ingest candidate data for local races (city council, county supervisor, school board). The county registrar is the authoritative source — they publish candidate filings for all local offices. Marin registrar (marincounty.gov/depts/rv) has candidate filing pages. BoardDocs/Simbli could provide school board member names.",
-        "priority": 1,
+        "priority": 0,
         "status": "not_started",
         "files": [
           "packages/civicos-extraction/src/civicos_extraction/clients/marin_registrar.py"
