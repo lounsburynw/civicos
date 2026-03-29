@@ -559,13 +559,18 @@ def detect_issue_source(city_name: str, jurisdiction_id: str) -> Optional[str]:
 
 
 def _infer_division_name(jurisdiction_id: str) -> str:
-    """Infer Marin Registrar division name from a jurisdiction ID.
+    """Infer Civera ElectionStats division filter from a jurisdiction ID.
 
-    Maps jurisdiction ID prefixes to the division naming convention used
-    by the Marin County Registrar of Voters:
-    - city-san-rafael → "City of San Rafael"
-    - county-marin → "Marin County"
-    - school-novato → looks up full district name from school_districts.json
+    Returns a substring that matches all relevant divisions in the county
+    registrar's data. Uses the bare city/town name (not "City of X") so
+    that division names like "San Rafael City Council District 1" are
+    captured alongside "City of San Rafael".
+
+    Mapping:
+    - city-san-rafael → "San Rafael"   (matches City of San Rafael + council districts)
+    - town-san-anselmo → "San Anselmo" (matches Town of San Anselmo + any sub-divisions)
+    - county-marin → "Marin County"    (county-level needs the full name for specificity)
+    - school-novato → "Novato Unified School District" (looked up from school_districts.json)
 
     Falls back to title-cased slug for unknown prefixes.
     """
@@ -576,10 +581,11 @@ def _infer_division_name(jurisdiction_id: str) -> str:
     level, slug = parts[0], parts[1]
     name = slug.replace("-", " ").title()
 
-    if level == "city":
-        return f"City of {name}"
-    elif level == "town":
-        return f"Town of {name}"
+    if level in ("city", "town"):
+        # Use bare city/town name for broadest matching.
+        # "San Rafael" matches both "City of San Rafael" and
+        # "San Rafael City Council District 1".
+        return name
     elif level == "county":
         return f"{name} County"
     elif level == "school":

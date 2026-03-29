@@ -20,22 +20,27 @@ from civicos_extraction.onboard import (
 
 
 class TestInferDivisionName:
-    """Division name inference for Marin Registrar filter."""
+    """Division name inference for Civera division filter.
+
+    Cities and towns use bare names for broad matching (captures both
+    "City of X" and "X City Council District N" divisions).
+    """
 
     def test_city_prefix(self):
-        assert _infer_division_name("city-san-rafael") == "City of San Rafael"
+        # Bare name matches "City of San Rafael" AND "San Rafael City Council District 1"
+        assert _infer_division_name("city-san-rafael") == "San Rafael"
 
     def test_city_single_word(self):
-        assert _infer_division_name("city-novato") == "City of Novato"
+        assert _infer_division_name("city-novato") == "Novato"
 
     def test_city_multi_word(self):
-        assert _infer_division_name("city-mill-valley") == "City of Mill Valley"
+        assert _infer_division_name("city-mill-valley") == "Mill Valley"
 
     def test_town_prefix(self):
-        assert _infer_division_name("town-fairfax") == "Town of Fairfax"
+        assert _infer_division_name("town-fairfax") == "Fairfax"
 
     def test_town_multi_word(self):
-        assert _infer_division_name("town-san-anselmo") == "Town of San Anselmo"
+        assert _infer_division_name("town-san-anselmo") == "San Anselmo"
 
     def test_county_prefix(self):
         assert _infer_division_name("county-marin") == "Marin County"
@@ -75,7 +80,7 @@ class TestDetectElectionSources:
         result = detect_election_sources("city-san-rafael", "CA", "Marin")
         assert result["ca_sos_results"] == {"county": "marin"}
         assert result["marin_registrar_results"]["from_year"] == 2010
-        assert result["marin_registrar_results"]["division_filter"] == "City of San Rafael"
+        assert result["marin_registrar_results"]["division_filter"] == "San Rafael"
         assert len(result) == 2
 
     def test_california_marin_county(self):
