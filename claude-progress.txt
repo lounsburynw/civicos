@@ -1,3 +1,37 @@
+## Session — 2026-03-29: local_candidate_data (P0)
+
+**Item:** local_candidate_data (ballot_awareness)
+**Status:** DONE
+
+Ingested local candidate data from Civera ElectionStats GraphQL API for all 3 pilot jurisdictions.
+
+**What was done:**
+1. Fixed `extract_civera_results_to_storage` to skip elections with no matching contests (was crashing with null date error)
+2. Added jurisdiction-namespaced election IDs to prevent cross-jurisdiction contest mixing when same county election is extracted for multiple cities
+3. Broadened division_filter configs from exact matches ("City of San Rafael") to substring matches ("San Rafael") to capture council district contests
+4. Extracted historical local election results (2020-2025) for all 3 pilot cities
+5. Added `ca_sos_ballot_preview` configs for Mill Valley and San Anselmo
+6. Fixed stale test import (`_PSEUDO_CANDIDATES` moved to `civera_election_stats.py`)
+7. Wrote 4 new unit tests for extraction pipeline fixes
+
+**Data extracted:**
+- San Rafael: 5 elections, 21 contests, 37 candidates (mayor, council D1-D4, city clerk, measures)
+- Mill Valley: 6 elections, 8 contests, 26 candidates (council at-large, measures)
+- San Anselmo: 5 elections, 11 contests, 29 candidates (town council, measures)
+
+**Files modified:**
+- packages/civicos-extraction/src/civicos_extraction/clients/civera_election_stats.py (skip empty elections, jurisdiction-namespaced IDs)
+- packages/civicos-extraction/tests/test_marin_registrar.py (4 new tests, 1 fix)
+- data/extraction/city-san-rafael.json (broadened division_filter)
+- data/extraction/city-mill-valley.json (broadened division_filter, added ca_sos_ballot_preview)
+- data/extraction/city-san-anselmo.json (broadened division_filter, added ca_sos_ballot_preview)
+
+**Tests:** 38 extraction tests passing, 81 election tests passing, 20 smoke tests passing.
+
+**Next P0:** ballot_measure_content (ingest ballot measure text, fiscal impact summaries, pro/con arguments)
+
+---
+
 ## Session — 2026-03-29: whats_on_my_ballot (P0)
 
 **Item:** whats_on_my_ballot (representative_lookup)

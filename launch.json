@@ -1433,11 +1433,11 @@
     ]
   },
   "representative_lookup": {
-    "description": "Enable 'who represents me?' — the most common citizen query. Derive current officeholders from election winners already in storage, expose via v2 explore endpoint and MCP tool, fill local data gaps. Depends on election_integration (done).",
+    "description": "Enable 'who represents me?' \u2014 the most common citizen query. Derive current officeholders from election winners already in storage, expose via v2 explore endpoint and MCP tool, fill local data gaps. Depends on election_integration (done).",
     "items": [
       {
         "name": "district_detection_onboarding",
-        "description": "Add district detection to onboard.py (new Step 3.6.1). Use Census Bureau Geocoding API (free, no auth) to resolve lat/lng → congressional district, state senate district, state assembly district. Populate 'districts' field in extraction config automatically. Also fixed county name normalization (Google Maps returns 'Marin County', now stripped to 'marin'). Backfilled Mill Valley and San Anselmo via re-onboard.",
+        "description": "Add district detection to onboard.py (new Step 3.6.1). Use Census Bureau Geocoding API (free, no auth) to resolve lat/lng \u2192 congressional district, state senate district, state assembly district. Populate 'districts' field in extraction config automatically. Also fixed county name normalization (Google Maps returns 'Marin County', now stripped to 'marin'). Backfilled Mill Valley and San Anselmo via re-onboard.",
         "priority": 2,
         "status": "done",
         "files": [
@@ -1460,7 +1460,7 @@
           "scripts/modal_ingest.py"
         ],
         "test_file": "packages/civicos/tests/test_elected_officials.py",
-        "notes": "derive_officials_from_contests() in _internal/elections/derive.py. Scans elections → contests → raw_data.mapped_candidates for is_winner=True, keeps most recent per seat, maps contest_type to seat name (US House District N, State Senate District N, etc.), stores with temporal versioning. Modal function derive_elected_officials() wired. 35 tests passing. NOTE: Civera contest data not yet ingested to Postgres — run fetch_marin_election_results first to populate."
+        "notes": "derive_officials_from_contests() in _internal/elections/derive.py. Scans elections \u2192 contests \u2192 raw_data.mapped_candidates for is_winner=True, keeps most recent per seat, maps contest_type to seat name (US House District N, State Senate District N, etc.), stores with temporal versioning. Modal function derive_elected_officials() wired. 35 tests passing. NOTE: Civera contest data not yet ingested to Postgres \u2014 run fetch_marin_election_results first to populate."
       },
       {
         "name": "congress_gov_federal_officials",
@@ -1472,11 +1472,11 @@
           "scripts/modal_ingest.py"
         ],
         "test_file": "packages/civicos-extraction/tests/test_representatives.py",
-        "notes": "DONE. RepresentativesClient now config-driven — loads state_code and districts from extraction config (data/extraction/*.json) instead of hardcoded San Rafael values. Fixed term date mapper to handle int years from Congress.gov API. Federal officials (Schiff, Padilla, Huffman) stored for all 3 pilot jurisdictions. Cleaned up 456 old LegiScan entries incorrectly stored under city-san-rafael. Also improved state legislator filtering to use jurisdiction's specific assembly/senate districts. Modal function fetch_elected_officials() works for any jurisdiction."
+        "notes": "DONE. RepresentativesClient now config-driven \u2014 loads state_code and districts from extraction config (data/extraction/*.json) instead of hardcoded San Rafael values. Fixed term date mapper to handle int years from Congress.gov API. Federal officials (Schiff, Padilla, Huffman) stored for all 3 pilot jurisdictions. Cleaned up 456 old LegiScan entries incorrectly stored under city-san-rafael. Also improved state legislator filtering to use jurisdiction's specific assembly/senate districts. Modal function fetch_elected_officials() works for any jurisdiction."
       },
       {
         "name": "local_officials_curation",
-        "description": "Manual curation of local officials (city council, mayor) for pilot jurisdictions. San Rafael city council has 5 members + mayor — curate into a static file (data/officials/) or directly into elected_officials storage. For scale: detect from Granicus/Legistar meeting body pages or BoardDocs roster HTML.",
+        "description": "Manual curation of local officials (city council, mayor) for pilot jurisdictions. San Rafael city council has 5 members + mayor \u2014 curate into a static file (data/officials/) or directly into elected_officials storage. For scale: detect from Granicus/Legistar meeting body pages or BoardDocs roster HTML.",
         "priority": 2,
         "status": "done",
         "files": [
@@ -1488,7 +1488,7 @@
       },
       {
         "name": "explore_representatives_endpoint",
-        "description": "Add 'representatives' target to civic.explore verb. Query get_elected_officials() for the requested jurisdiction, walk the jurisdiction hierarchy (city → county → state → federal), and return a combined roster grouped by level. Accepts optional address parameter for geocode-based lookup.",
+        "description": "Add 'representatives' target to civic.explore verb. Query get_elected_officials() for the requested jurisdiction, walk the jurisdiction hierarchy (city \u2192 county \u2192 state \u2192 federal), and return a combined roster grouped by level. Accepts optional address parameter for geocode-based lookup.",
         "priority": 0,
         "status": "done",
         "files": [
@@ -1496,11 +1496,11 @@
           "packages/civicos-services/src/civicos_services/query/models.py"
         ],
         "test_file": "packages/civicos-services/tests/test_query_explore.py",
-        "notes": "Add 'elif what == \"representatives\"' branch to execute_explore(). Walk hierarchy: jid → parent county → parent state → federal. For each level, call storage.get_elected_officials(jid, current_only=True). If address provided, geocode first to resolve jurisdiction. Update capabilities response to advertise representatives. ~1 session."
+        "notes": "Add 'elif what == \"representatives\"' branch to execute_explore(). Walk hierarchy: jid \u2192 parent county \u2192 parent state \u2192 federal. For each level, call storage.get_elected_officials(jid, current_only=True). If address provided, geocode first to resolve jurisdiction. Update capabilities response to advertise representatives. ~1 session."
       },
       {
         "name": "mcp_who_represents_me",
-        "description": "Add who_represents_me(address) tool to MCP server. Geocodes address → resolves jurisdictions → queries elected_officials for each level → returns combined roster with name, office, party, contact info, level. The flagship citizen query.",
+        "description": "Add who_represents_me(address) tool to MCP server. Geocodes address \u2192 resolves jurisdictions \u2192 queries elected_officials for each level \u2192 returns combined roster with name, office, party, contact info, level. The flagship citizen query.",
         "priority": 0,
         "status": "done",
         "files": [
@@ -1508,7 +1508,7 @@
           "packages/civicos-services/src/civicos_services/clients/geocoding_service.py"
         ],
         "test_file": "apps/civicos-mcp/tests/test_mcp_tools.py",
-        "notes": "Implemented as civic_who_represents_me v2 tool in server.py. Geocodes address → resolve_jurisdictions(include_parents=True) → get_elected_officials per level. Falls back to jurisdiction param or server default. Added Mill Valley + San Anselmo to geocoding mappings. 17 tests."
+        "notes": "Implemented as civic_who_represents_me v2 tool in server.py. Geocodes address \u2192 resolve_jurisdictions(include_parents=True) \u2192 get_elected_officials per level. Falls back to jurisdiction param or server default. Added Mill Valley + San Anselmo to geocoding mappings. 17 tests."
       },
       {
         "name": "officials_refresh_cron",
@@ -1520,11 +1520,11 @@
           "scripts/modal_ingest.py"
         ],
         "test_file": null,
-        "notes": "Extend existing cron-election-refresh.yml to call a new derive_officials Modal function after election ingestion completes. Monthly cadence sufficient — officials don't change often. ~0.5 session."
+        "notes": "Extend existing cron-election-refresh.yml to call a new derive_officials Modal function after election ingestion completes. Monthly cadence sufficient \u2014 officials don't change often. ~0.5 session."
       },
       {
         "name": "whats_on_my_ballot",
-        "description": "The capstone citizen query: address → districts → which offices are up this cycle → candidates for each → measures for each jurisdiction → key dates. Combines representative_lookup (officials), ballot_awareness (calendar, measures), and district detection into one answer. Exposed as civic.explore what='my_ballot' and MCP tool whats_on_my_ballot(address).",
+        "description": "The capstone citizen query: address \u2192 districts \u2192 which offices are up this cycle \u2192 candidates for each \u2192 measures for each jurisdiction \u2192 key dates. Combines representative_lookup (officials), ballot_awareness (calendar, measures), and district detection into one answer. Exposed as civic.explore what='my_ballot' and MCP tool whats_on_my_ballot(address).",
         "priority": 0,
         "status": "done",
         "files": [
@@ -1532,18 +1532,18 @@
           "apps/civicos-mcp/server.py"
         ],
         "test_file": "packages/civicos/tests/test_explore_ballot.py",
-        "notes": "Implemented as explore what='my_ballot' handler. Returns elections sorted by date, contests grouped by level (federal→state→local→judicial→other), candidates from raw_data.parsed_candidates, deadlines with next_deadline computation. 16 tests passing. MCP tool description updated."
+        "notes": "Implemented as explore what='my_ballot' handler. Returns elections sorted by date, contests grouped by level (federal\u2192state\u2192local\u2192judicial\u2192other), candidates from raw_data.parsed_candidates, deadlines with next_deadline computation. 16 tests passing. MCP tool description updated."
       }
     ]
   },
   "ballot_awareness": {
-    "description": "Election cycle intelligence — know what's on the ballot, when elections happen, and what measures mean. The data layer that feeds 'what's on my ballot?' Separate from representative_lookup (who holds office now) and election_integration (data source clients).",
+    "description": "Election cycle intelligence \u2014 know what's on the ballot, when elections happen, and what measures mean. The data layer that feeds 'what's on my ballot?' Separate from representative_lookup (who holds office now) and election_integration (data source clients).",
     "items": [
       {
         "name": "election_calendar",
-        "description": "Build election cycle awareness: which seats are up when. CA has staggered terms (state senate even/odd districts alternate, assembly every 2 years, county supervisors staggered 4-year, city council staggered 4-year). Need a data model that maps office_type + district → next_election_date + term_length. Seed from CA SOS election schedule and county registrar.",
+        "description": "Build election cycle awareness: which seats are up when. CA has staggered terms (state senate even/odd districts alternate, assembly every 2 years, county supervisors staggered 4-year, city council staggered 4-year). Need a data model that maps office_type + district \u2192 next_election_date + term_length. Seed from CA SOS election schedule and county registrar.",
         "priority": 2,
-        "time_sensitive": "2026-06-02 CA primary — calendar must exist to power 'what's on my ballot'",
+        "time_sensitive": "2026-06-02 CA primary \u2014 calendar must exist to power 'what's on my ballot'",
         "status": "done",
         "files": [
           "packages/civicos/src/civicos/_internal/elections/cycles.py",
@@ -1555,20 +1555,20 @@
       },
       {
         "name": "local_candidate_data",
-        "description": "Ingest candidate data for local races (city council, county supervisor, school board). The county registrar is the authoritative source — they publish candidate filings for all local offices. Marin registrar (marincounty.gov/depts/rv) has candidate filing pages. BoardDocs/Simbli could provide school board member names.",
+        "description": "Ingest candidate data for local races (city council, county supervisor, school board). The county registrar is the authoritative source \u2014 they publish candidate filings for all local offices. Marin registrar (marincounty.gov/depts/rv) has candidate filing pages. BoardDocs/Simbli could provide school board member names.",
         "priority": 0,
-        "status": "not_started",
+        "status": "done",
         "files": [
           "packages/civicos-extraction/src/civicos_extraction/clients/marin_registrar.py"
         ],
         "test_file": null,
-        "notes": "This is the biggest gap. CA SOS only covers state/federal candidates. For city council, county supervisor, school board, and special district races, the county registrar is the only source. Marin Registrar scraper exists (Playwright-based) but only fetches election schedule, not candidate filings. Phase 1: scrape Marin candidate filing page. Phase 2: generalize for other counties. ~2-3 sessions."
+        "notes": "Extracted local candidate data from Civera ElectionStats GraphQL API for all 3 pilot jurisdictions. Fixed extraction pipeline: skip empty elections, namespace election IDs by jurisdiction, broadened division filters to capture council districts. San Rafael: 21 contests/37 candidates (mayor, council D1-D4, clerk, measures). Mill Valley: 8 contests/26 candidates. San Anselmo: 11 contests/29 candidates. School districts deferred (cross-city boundary mapping needed)."
       },
       {
         "name": "ballot_measure_content",
         "description": "Ingest ballot measure text, fiscal impact summaries, and pro/con arguments. State measures come from the CA voter guide (voterguide.sos.ca.gov). Local measures come from county sample ballots. Currently we only store pass/fail results, not the measure content itself.",
-        "priority": 1,
-        "time_sensitive": "2026-06-02 CA primary — measures on the ballot need explanatory content",
+        "priority": 0,
+        "time_sensitive": "2026-06-02 CA primary \u2014 measures on the ballot need explanatory content",
         "status": "not_started",
         "files": [
           "packages/civicos-extraction/src/civicos_extraction/clients/ca_sos_results.py"
@@ -1580,14 +1580,14 @@
         "name": "election_deadlines_scraping",
         "description": "Scrape key election deadlines from CA SOS: voter registration deadline (15 days before), same-day registration availability, mail ballot send date, early voting start, ballot drop-off locations. Currently election_deadlines table exists but is unpopulated.",
         "priority": 2,
-        "time_sensitive": "2026-06-02 CA primary — registration deadline ~2026-05-18, deadlines must be surfaceable before then",
+        "time_sensitive": "2026-06-02 CA primary \u2014 registration deadline ~2026-05-18, deadlines must be surfaceable before then",
         "status": "done",
         "files": [
           "packages/civicos/src/civicos/_internal/elections/deadlines.py",
           "scripts/seed_election_calendar.py"
         ],
         "test_file": "packages/civicos/tests/test_election_calendar.py",
-        "notes": "Implemented via generate_ca_deadlines() — computes standard CA deadlines (VBM mailing, registration, early voting, conditional registration, election day) from Elections Code rules. Seeded for all pilot jurisdictions. Deadlines now appear in whats_next() responses. Completed as part of election_calendar session."
+        "notes": "Implemented via generate_ca_deadlines() \u2014 computes standard CA deadlines (VBM mailing, registration, early voting, conditional registration, election day) from Elections Code rules. Seeded for all pilot jurisdictions. Deadlines now appear in whats_next() responses. Completed as part of election_calendar session."
       }
     ]
   }

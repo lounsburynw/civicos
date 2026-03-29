@@ -590,20 +590,31 @@ def extract_civera_results_to_storage(
         contests_data = results.get("contests", [])
         election_info = results.get("election_info", {})
 
+        # Skip elections with no matching contests (avoids null date errors
+        # when division_filter excludes all contests for this election)
+        if not contests_data:
+            logger.debug(f"  Skipping '{event.get('name')}': no contests match filter")
+            continue
+
         election_date = _parse_election_date(election_info.get("start_date"))
         election_type_name = election_info.get("type")
 
         election = civera_results_to_election(
             event, county_slug, client.graphql_url, election_date, election_type_name,
         )
+
+        # When filtering by division, namespace election ID by jurisdiction
+        # so each city gets its own election record with its own contests
+        if division_filter:
+            election["id"] = f"{election['id']}-{jurisdiction_id}"
+
         stored = storage.store_elections(jurisdiction_id, [election])
         total_elections += stored
 
-        if contests_data:
-            mapped_contests = [civera_results_to_contest(c, county_slug) for c in contests_data]
-            contest_count = storage.store_election_contests(election["id"], mapped_contests)
-            total_contests += contest_count
-            total_candidates += sum(len(c.get("candidates", [])) for c in mapped_contests)
+        mapped_contests = [civera_results_to_contest(c, county_slug) for c in contests_data]
+        contest_count = storage.store_election_contests(election["id"], mapped_contests)
+        total_contests += contest_count
+        total_candidates += sum(len(c.get("candidates", [])) for c in mapped_contests)
 
         logger.info(
             f"  Election '{event.get('name')}': {len(contests_data)} contests stored"
