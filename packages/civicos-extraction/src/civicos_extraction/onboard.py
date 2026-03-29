@@ -720,26 +720,160 @@ def detect_election_sources(
                 ca_sos["districts"] = districts
         sources["ca_sos_results"] = ca_sos
 
-    # Marin Registrar — available for Marin County jurisdictions (legacy config key)
-    if county_bare and county_bare.lower() == "marin":
-        sources["marin_registrar_results"] = {
-            "from_year": 2010,
-            "division_filter": _infer_division_name(jurisdiction_id),
-        }
-
     # Civera ElectionStats — available for counties with known Civera instances
-    # (excluding Marin, which uses the legacy marin_registrar_results key above)
     from civicos_extraction.clients.civera_election_stats import CIVERA_INSTANCES
     county_lower = county_bare.lower()
-    if county_lower in CIVERA_INSTANCES and county_lower != "marin":
+
+    if county_lower in CIVERA_INSTANCES:
         instance = CIVERA_INSTANCES[county_lower]
-        sources["civera_election_stats"] = {
-            "county_slug": county_lower,
-            "graphql_url": instance["graphql_url"],
-            "from_year": 2010,
-        }
+        division_filter = _infer_division_name(jurisdiction_id)
+
+        # Validate the division filter returns actual results from Civera
+        validated = _validate_civera_division_filter(
+            instance["graphql_url"], county_lower, division_filter,
+        )
+
+        if county_lower == "marin":
+            # Marin uses legacy marin_registrar_results config key
+            sources["marin_registrar_results"] = {
+                "from_year": 2010,
+                "division_filter": division_filter,
+            }
+        else:
+            sources["civera_election_stats"] = {
+                "county_slug": county_lower,
+                "graphql_url": instance["graphql_url"],
+                "from_year": 2010,
+                "division_filter": division_filter,
+            }
+
+        if not validated:
+            logger.warning(
+                f"Division filter '{division_filter}' returned 0 contests "
+                f"from Civera ({county_lower}). Local race data may be missing. "
+                f"Check the registrar's actual division names."
+            )
 
     return sources
+
+
+def _validate_civera_division_filter(
+    graphql_url: str,
+    county_slug: str,
+    division_filter: str,
+) -> bool:
+    """Check that a division filter returns at least one contest from Civera.
+
+    Queries the most recent general election to verify the filter matches
+    real division names. Returns True if contests found, False otherwise.
+    """
+    from civicos_extraction.clients.civera_election_stats import CiveraElectionStatsClient
+
+    try:
+        client = CiveraElectionStatsClient(
+            jurisdiction_id="validation",
+            graphql_url=graphql_url,
+            county_slug=county_slug,
+            request_delay=0,
+        )
+        # Find the most recent general election
+        events = client.list_elections(from_year=2022, to_year=2026)
+        generals = [e for e in events if "general" in e.get("name", "").lower()]
+        if not generals:
+            return True  # Can't validate, assume OK
+
+        results = client.get_election_results(
+            generals[0]["id"], division_filter=division_filter,
+        )
+        contest_count = results.get("total_contests", 0)
+        if contest_count > 0:
+            logger.info(
+                f"Civera validation: '{division_filter}' → {contest_count} contests "
+                f"in {generals[0].get('name', '?')}"
+            )
+        return contest_count > 0
+
+    except Exception as e:
+        logger.debug(f"Civera validation failed: {e}")
+        return True  # Network error — don't block onboarding
+
+
+CDE_SCHOOLS_URL = "https://www.cde.ca.gov/schooldirectory/report?rid=dl1&tp=txt"
+
+
+def detect_school_districts(
+    city_name: str,
+    county_name: str,
+) -> List[str]:
+    """Detect school districts serving a city from CA Dept of Education data.
+
+    Downloads the CDE public schools directory (tab-delimited, ~4MB) and
+    finds all districts that have at least one active school in the target
+    city. This is authoritative — it uses the school's physical address
+    city, not boundary approximations.
+
+    Args:
+        city_name: City name as it appears in CDE data (e.g., "San Rafael")
+        county_name: County name (e.g., "Marin")
+
+    Returns:
+        Sorted list of unique district names with schools in the city.
+        Empty list if download fails or no matches found.
+    """
+    try:
+        resp = requests.get(CDE_SCHOOLS_URL, timeout=30)
+        resp.raise_for_status()
+
+        # Tab-delimited, first row is headers
+        lines = resp.text.splitlines()
+        if not lines:
+            return []
+
+        headers = lines[0].split("\t")
+        city_idx = _find_column(headers, "City")
+        county_idx = _find_column(headers, "County")
+        district_idx = _find_column(headers, "District")
+        status_idx = _find_column(headers, "StatusType")
+
+        if any(i is None for i in [city_idx, county_idx, district_idx, status_idx]):
+            logger.warning("CDE file missing expected columns")
+            return []
+
+        city_lower = city_name.lower()
+        county_lower = county_name.lower()
+        districts = set()
+
+        for line in lines[1:]:
+            fields = line.split("\t")
+            if len(fields) <= max(city_idx, county_idx, district_idx, status_idx):
+                continue
+
+            if (fields[status_idx].strip().lower() == "active"
+                    and fields[county_idx].strip().lower() == county_lower
+                    and fields[city_idx].strip().lower() == city_lower):
+                district = fields[district_idx].strip()
+                if district:
+                    districts.add(district)
+
+        result = sorted(districts)
+        if result:
+            logger.info(f"CDE: {len(result)} school districts in {city_name}, {county_name}: {result}")
+        else:
+            logger.info(f"CDE: no school districts found for {city_name}, {county_name}")
+        return result
+
+    except Exception as e:
+        logger.debug(f"CDE school district detection failed: {e}")
+        return []
+
+
+def _find_column(headers: List[str], name: str) -> Optional[int]:
+    """Find column index by name (case-insensitive)."""
+    name_lower = name.lower()
+    for i, h in enumerate(headers):
+        if h.strip().lower() == name_lower:
+            return i
+    return None
 
 
 def detect_youtube_channel(city_name: str, state: str = "") -> Optional[dict]:
