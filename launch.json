@@ -1477,7 +1477,7 @@
       {
         "name": "local_officials_curation",
         "description": "Manual curation of local officials (city council, mayor) for pilot jurisdictions. San Rafael city council has 5 members + mayor — curate into a static file (data/officials/) or directly into elected_officials storage. For scale: detect from Granicus/Legistar meeting body pages or BoardDocs roster HTML.",
-        "priority": 1,
+        "priority": 0,
         "status": "not_started",
         "files": [
           "data/officials/city-san-rafael.json",
@@ -1502,13 +1502,13 @@
         "name": "mcp_who_represents_me",
         "description": "Add who_represents_me(address) tool to MCP server. Geocodes address → resolves jurisdictions → queries elected_officials for each level → returns combined roster with name, office, party, contact info, level. The flagship citizen query.",
         "priority": 0,
-        "status": "not_started",
+        "status": "done",
         "files": [
-          "apps/civicos-mcp/tools/handlers.py",
-          "apps/civicos-mcp/tools/definitions.py"
+          "apps/civicos-mcp/server.py",
+          "packages/civicos-services/src/civicos_services/clients/geocoding_service.py"
         ],
         "test_file": "apps/civicos-mcp/tests/test_mcp_tools.py",
-        "notes": "Chains existing geocoding_service.geocode() → jurisdiction resolution → storage.get_elected_officials(). City-level MCP servers only (needs GOOGLE_MAPS_API_KEY). Fallback: if no address, return officials for the server's default jurisdiction. Include links to voting records where available (via candidate_id → election_contests). ~1 session."
+        "notes": "Implemented as civic_who_represents_me v2 tool in server.py. Geocodes address → resolve_jurisdictions(include_parents=True) → get_elected_officials per level. Falls back to jurisdiction param or server default. Added Mill Valley + San Anselmo to geocoding mappings. 17 tests."
       },
       {
         "name": "officials_refresh_cron",

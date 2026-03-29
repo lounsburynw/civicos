@@ -483,7 +483,113 @@ def _get_v2_tool_definitions() -> list:
                 "required": ["what"],
             },
         },
+        {
+            "name": "civic_who_represents_me",
+            "description": "Find all elected officials who represent a given address, from city council to Congress. Geocodes the address, resolves jurisdictions at every level, and returns officials grouped by government level (federal, state, local).",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "address": {"type": "string", "description": "Street address (e.g., '123 Main St, San Rafael, CA')"},
+                    "jurisdiction": {"type": "string", "description": "Fallback jurisdiction if address is not provided (e.g., 'city-san-rafael')"},
+                },
+            },
+        },
     ]
+
+
+async def _handle_who_represents_me(args: dict) -> dict:
+    """
+    Handle who_represents_me: geocode address → resolve jurisdictions → return officials.
+
+    Falls back to the server's default jurisdiction if no address is provided.
+    """
+    from civicos_services.query.jurisdictions import resolve_jurisdictions
+
+    address = args.get("address")
+    jurisdiction_override = args.get("jurisdiction")
+
+    # Determine the base jurisdiction
+    if address:
+        try:
+            from civicos_services.clients.geocoding_service import GeocodingService
+            geo = GeocodingService()
+            geo_result = geo.geocode_address(address)
+        except ValueError:
+            # No API key configured
+            if jurisdiction_override:
+                geo_result = None
+                logger.warning("No GOOGLE_MAPS_API_KEY; using jurisdiction fallback")
+            else:
+                return {
+                    "error": "Geocoding unavailable (no API key). Provide a jurisdiction instead.",
+                    "hint": "Try: civic_who_represents_me(jurisdiction='city-san-rafael')",
+                }
+        except Exception as e:
+            logger.error(f"Geocoding error: {e}")
+            geo_result = None
+
+        if geo_result and geo_result.get("jurisdictions", {}).get("city"):
+            base_jurisdiction = geo_result["jurisdictions"]["city"]
+            resolved_address = geo_result.get("formatted_address", address)
+        elif jurisdiction_override:
+            base_jurisdiction = jurisdiction_override
+            resolved_address = None
+            logger.warning(f"Geocoding found no city for '{address}'; using fallback {jurisdiction_override}")
+        else:
+            return {
+                "error": f"Could not resolve a supported jurisdiction for '{address}'.",
+                "hint": "The address may be outside the CivicOS service area. Try providing a jurisdiction directly.",
+                "supported_cities": "San Rafael, Mill Valley, San Anselmo (Marin County, CA)",
+            }
+    elif jurisdiction_override:
+        base_jurisdiction = jurisdiction_override
+        resolved_address = None
+    else:
+        # No address and no jurisdiction — use server default
+        base_jurisdiction = _jurisdiction
+        resolved_address = None
+
+    # Walk hierarchy: city → county → state → federal
+    try:
+        hierarchy = resolve_jurisdictions(base_jurisdiction, include_parents=True)
+    except Exception as e:
+        logger.error(f"Jurisdiction resolution error: {e}")
+        hierarchy = [base_jurisdiction]
+
+    # Query officials at each level
+    levels = []
+    for level_jid in hierarchy:
+        officials = _civic._storage.get_elected_officials(
+            jurisdiction_id=level_jid,
+            current_only=True,
+        )
+        if officials:
+            levels.append({
+                "jurisdiction": level_jid,
+                "officials": [
+                    {
+                        "name": o.get("name"),
+                        "seat": o.get("seat"),
+                        "term_start": o.get("term_start"),
+                        "term_end": o.get("term_end"),
+                        "candidate_id": o.get("candidate_id"),
+                    }
+                    for o in officials
+                ],
+            })
+
+    result = {
+        "jurisdiction": base_jurisdiction,
+        "levels": levels,
+        "total_officials": sum(len(lv["officials"]) for lv in levels),
+    }
+
+    if resolved_address:
+        result["resolved_address"] = resolved_address
+    if address and not resolved_address:
+        result["note"] = "Address could not be geocoded; showing officials for fallback jurisdiction."
+
+    return result
 
 
 async def _handle_v2_tool(tool_name: str, args: dict) -> dict:
@@ -522,6 +628,8 @@ async def _handle_v2_tool(tool_name: str, args: dict) -> dict:
     elif tool_name == "civic_explore":
         req = ExploreRequest(**args)
         resp = await execute_explore(req, _civic, _jurisdiction)
+    elif tool_name == "civic_who_represents_me":
+        return await _handle_who_represents_me(args)
     else:
         raise ValueError(f"Unknown v2 tool: {tool_name}")
 
