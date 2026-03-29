@@ -1501,7 +1501,7 @@
       {
         "name": "mcp_who_represents_me",
         "description": "Add who_represents_me(address) tool to MCP server. Geocodes address → resolves jurisdictions → queries elected_officials for each level → returns combined roster with name, office, party, contact info, level. The flagship citizen query.",
-        "priority": 1,
+        "priority": 0,
         "status": "not_started",
         "files": [
           "apps/civicos-mcp/tools/handlers.py",
