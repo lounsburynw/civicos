@@ -14,13 +14,12 @@ from typing import Dict, Optional, List, Any
 from urllib.parse import urlencode
 
 import yaml
+from civicos_config import JURISDICTIONS_DIR
 
 logger = logging.getLogger("civicos-geocoding")
 
 # Module-level cache: loaded once, shared across all GeocodingService instances
 _jurisdiction_mappings: Optional[Dict[str, Dict[str, str]]] = None
-
-JURISDICTIONS_DIR = Path(__file__).resolve().parents[5] / "data" / "jurisdictions"
 
 
 def _load_jurisdiction_mappings(

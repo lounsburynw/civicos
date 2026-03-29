@@ -7,12 +7,14 @@ contact information.
 
 Usage:
     from civicos_config import JurisdictionRegistry, JurisdictionConfig
+    from civicos_config import JURISDICTIONS_DIR  # Path to data/jurisdictions/
 
     config = JurisdictionRegistry.get("san_rafael")
     config = JurisdictionRegistry.get_by_id("city-san-rafael")
     timezone = JurisdictionRegistry.get_timezone("city-san-rafael")
 """
 
+from civicos_config.paths import JURISDICTIONS_DIR
 from civicos_config.jurisdiction import (
     GranicusConfig,
     JurisdictionConfig,
@@ -25,4 +27,5 @@ __all__ = [
     "JurisdictionConfig",
     "JurisdictionRegistry",
     "CITY_CONFIGS",
+    "JURISDICTIONS_DIR",
 ]
