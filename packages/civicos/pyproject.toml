@@ -26,6 +26,7 @@ classifiers = [
 dependencies = [
     "civicos-config",       # Shared jurisdiction configuration
     "httpx>=0.24.0",      # Async HTTP for corpus fetching (from civic-legal)
+    "PyYAML>=5.4",        # YAML config parsing (jurisdiction hierarchy)
 ]
 
 [project.optional-dependencies]

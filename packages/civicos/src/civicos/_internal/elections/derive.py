@@ -15,10 +15,10 @@ Jurisdiction assignment:
 import logging
 import re
 from datetime import datetime
-from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 import yaml
+from civicos_config import JURISDICTIONS_DIR
 
 logger = logging.getLogger(__name__)
 
@@ -44,8 +44,7 @@ def _load_parent_jurisdictions(jurisdiction_id: str) -> Dict[str, str]:
     {"county": "county-marin", "state": "state-california", "federal": "country-united-states"}
     """
     parents: Dict[str, str] = {}
-    jurisdictions_dir = Path(__file__).resolve().parents[6] / "data" / "jurisdictions"
-    yaml_path = jurisdictions_dir / f"{jurisdiction_id}.yaml"
+    yaml_path = JURISDICTIONS_DIR / f"{jurisdiction_id}.yaml"
 
     if not yaml_path.exists():
         logger.warning(f"No YAML config for {jurisdiction_id}")

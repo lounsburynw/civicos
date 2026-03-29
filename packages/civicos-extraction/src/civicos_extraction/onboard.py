@@ -29,6 +29,7 @@ from typing import Any, Callable, Dict, List, Optional
 
 import requests
 
+from civicos_config import JURISDICTIONS_DIR
 from civicos_extraction.platform_detection import detect_platform
 
 logger = logging.getLogger(__name__)
@@ -1903,9 +1904,8 @@ def onboard_jurisdiction(
             country=geo_country,
             usaspending_candidates=usaspending_candidates,
         )
-        yaml_dir = Path(__file__).parents[4] / "data" / "jurisdictions"
-        yaml_dir.mkdir(parents=True, exist_ok=True)
-        yaml_path = yaml_dir / f"{jurisdiction_id}.yaml"
+        JURISDICTIONS_DIR.mkdir(parents=True, exist_ok=True)
+        yaml_path = JURISDICTIONS_DIR / f"{jurisdiction_id}.yaml"
         try:
             with open(yaml_path, "w") as f:
                 f.write(yaml_content)
