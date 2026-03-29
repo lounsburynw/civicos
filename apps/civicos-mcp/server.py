@@ -477,7 +477,7 @@ def _get_v2_tool_definitions() -> list:
             "inputSchema": {
                 "type": "object",
                 "properties": {
-                    "what": {"type": "string", "description": "What to explore: jurisdictions, corpora, corpus_schema:{name}, actions, capabilities, schema_version"},
+                    "what": {"type": "string", "description": "What to explore: jurisdictions, corpora, corpus_schema:{name}, actions, capabilities, representatives, my_ballot, schema_version"},
                     "jurisdiction": {"type": "string"},
                 },
                 "required": ["what"],

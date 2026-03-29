@@ -1526,13 +1526,13 @@
         "name": "whats_on_my_ballot",
         "description": "The capstone citizen query: address → districts → which offices are up this cycle → candidates for each → measures for each jurisdiction → key dates. Combines representative_lookup (officials), ballot_awareness (calendar, measures), and district detection into one answer. Exposed as civic.explore what='my_ballot' and MCP tool whats_on_my_ballot(address).",
         "priority": 0,
-        "status": "not_started",
+        "status": "done",
         "files": [
           "packages/civicos-services/src/civicos_services/query/verbs.py",
-          "apps/civicos-mcp/tools/handlers.py"
+          "apps/civicos-mcp/server.py"
         ],
-        "test_file": null,
-        "notes": "Depends on: derive_officials_from_winners, election_calendar, explore_representatives_endpoint. This is the culmination of representative_lookup + ballot_awareness. Should return: upcoming election date, every contest on the user's ballot (federal → state → county → city → school → special district), candidates per contest, ballot measures, and key deadlines. ~2 sessions."
+        "test_file": "packages/civicos/tests/test_explore_ballot.py",
+        "notes": "Implemented as explore what='my_ballot' handler. Returns elections sorted by date, contests grouped by level (federal→state→local→judicial→other), candidates from raw_data.parsed_candidates, deadlines with next_deadline computation. 16 tests passing. MCP tool description updated."
       }
     ]
   },

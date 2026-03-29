@@ -1295,8 +1295,139 @@ async def execute_explore(
             logger.error(f"explore/representatives error: {e}")
             data = {"jurisdiction": jid, "levels": [], "error": str(e)}
 
+    elif what == "my_ballot":
+        from datetime import date as date_type
+        import json as _json
+
+        try:
+            elections_raw = civic._storage.get_elections(jid, include_past=False)
+
+            level_map = {
+                "federal_president": "federal",
+                "federal_senate": "federal",
+                "federal_house": "federal",
+                "state_governor": "state",
+                "state_executive": "state",
+                "state_legislature": "state",
+                "state_proposition": "state",
+                "local_mayor": "local",
+                "local_council": "local",
+                "local_school_board": "local",
+                "local_measure": "local",
+                "judicial": "judicial",
+                "other": "other",
+            }
+            level_order = ["federal", "state", "local", "judicial", "other"]
+
+            today = date_type.today()
+            ballot = []
+
+            for election in elections_raw:
+                election_id = election.get("id")
+                election_date_val = election.get("election_date")
+                if isinstance(election_date_val, str):
+                    election_date = date_type.fromisoformat(election_date_val)
+                elif isinstance(election_date_val, date_type):
+                    election_date = election_date_val
+                else:
+                    election_date = None
+
+                days_until = (election_date - today).days if election_date else None
+
+                # Get contests and group by level
+                contests_raw = civic._storage.get_election_contests(election_id)
+                grouped: Dict[str, list] = {}
+                for c in contests_raw:
+                    contest_type = c.get("contest_type", "other")
+                    level = level_map.get(contest_type, "other")
+                    if level not in grouped:
+                        grouped[level] = []
+
+                    # Extract candidates from raw_data.parsed_candidates
+                    raw_data = c.get("raw_data")
+                    if isinstance(raw_data, str):
+                        raw_data = _json.loads(raw_data)
+                    parsed = (raw_data or {}).get("parsed_candidates", [])
+                    candidates = [
+                        {
+                            "name": cand.get("name"),
+                            "party": cand.get("party"),
+                            "incumbent": cand.get("incumbent", False),
+                        }
+                        for cand in parsed
+                    ]
+
+                    grouped[level].append({
+                        "id": c.get("id"),
+                        "title": c.get("title"),
+                        "contest_type": contest_type,
+                        "district_name": c.get("district_name"),
+                        "candidates": candidates,
+                    })
+
+                contest_levels = [
+                    {"level": lv, "races": grouped[lv]}
+                    for lv in level_order
+                    if lv in grouped
+                ]
+
+                # Get deadlines and compute next_deadline
+                deadlines_raw = civic._storage.get_election_deadlines(election_id)
+                deadlines = []
+                next_deadline = None
+                for d in deadlines_raw:
+                    dl_date_val = d.get("deadline_date")
+                    if isinstance(dl_date_val, str):
+                        dl_date = date_type.fromisoformat(dl_date_val)
+                    elif isinstance(dl_date_val, date_type):
+                        dl_date = dl_date_val
+                    else:
+                        dl_date = None
+
+                    is_passed = dl_date < today if dl_date else False
+                    deadlines.append({
+                        "type": d.get("deadline_type"),
+                        "date": dl_date.isoformat() if dl_date else None,
+                        "description": d.get("description"),
+                        "passed": is_passed,
+                    })
+
+                    if dl_date and not is_passed:
+                        dl_days = (dl_date - today).days
+                        if next_deadline is None or dl_days < next_deadline["days_until"]:
+                            next_deadline = {
+                                "type": d.get("deadline_type"),
+                                "date": dl_date.isoformat(),
+                                "description": d.get("description"),
+                                "days_until": dl_days,
+                            }
+
+                ballot.append({
+                    "election_id": election_id,
+                    "name": election.get("name"),
+                    "date": election_date.isoformat() if election_date else None,
+                    "type": election.get("election_type"),
+                    "days_until": days_until,
+                    "contests": contest_levels,
+                    "total_contests": len(contests_raw),
+                    "deadlines": deadlines,
+                    "next_deadline": next_deadline,
+                })
+
+            # Sort by date (nearest first)
+            ballot.sort(key=lambda e: e["date"] or "9999-12-31")
+
+            data = {
+                "jurisdiction": jid,
+                "elections": ballot,
+                "total_elections": len(ballot),
+            }
+        except Exception as e:
+            logger.error(f"explore/my_ballot error: {e}")
+            data = {"jurisdiction": jid, "elections": [], "error": str(e)}
+
     else:
-        data = {"error": f"Unknown explore target: {what}. Available: jurisdictions, corpora, corpus_schema:{{name}}, actions, capabilities, representatives, schema_version"}
+        data = {"error": f"Unknown explore target: {what}. Available: jurisdictions, corpora, corpus_schema:{{name}}, actions, capabilities, representatives, my_ballot, schema_version"}
 
     total_time = int((time.monotonic() - start) * 1000)
 

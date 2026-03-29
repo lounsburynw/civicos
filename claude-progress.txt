@@ -1,3 +1,25 @@
+## Session — 2026-03-29: whats_on_my_ballot (P0)
+
+**Item:** whats_on_my_ballot (representative_lookup)
+**Status:** DONE
+
+Implemented `explore what='my_ballot'` handler in v2 query layer. Returns:
+- Elections sorted by date (nearest first)
+- Contests grouped by government level (federal → state → local → judicial → other)
+- Candidates extracted from raw_data.parsed_candidates
+- Deadlines with next_deadline computation and days_until
+- MCP tool description updated to include my_ballot
+
+Live data: San Rafael shows 7 upcoming elections, CA Primary (June 2) has 8 contests across federal/state levels with candidates from CA SOS.
+
+**Files changed:**
+- packages/civicos-services/src/civicos_services/query/verbs.py (my_ballot handler)
+- apps/civicos-mcp/server.py (tool description)
+- packages/civicos/tests/test_explore_ballot.py (16 tests)
+- launch.json (marked done)
+
+---
+
 ## Session — 2026-03-28: derive_officials_from_winners (P0) + election abstraction
 
 **Item:** derive_officials_from_winners (representative_lookup)
