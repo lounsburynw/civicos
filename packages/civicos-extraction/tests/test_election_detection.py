@@ -6,6 +6,7 @@ detect_districts() produce correct election source configs for
 various jurisdiction types.
 """
 
+import json
 import pytest
 import requests
 from unittest.mock import patch, MagicMock
@@ -535,6 +536,127 @@ class TestDetectSchoolDistricts:
         with patch("civicos_extraction.onboard.requests.get", side_effect=requests.ConnectionError):
             result = detect_school_districts("San Rafael", "Marin")
         assert result == []
+
+
+# --- Contact info detection tests ---
+
+
+class TestDetectContactInfo:
+    """Tests for LLM-assisted contact info extraction from city websites."""
+
+    MOCK_CONTACT_HTML = (
+        "<html><body>"
+        "<h1>Contact Us</h1>"
+        "<p>City Hall: 100 Main St, Testville CA 90001</p>"
+        "<p>Phone: (555) 123-4567</p>"
+        '<p>Email: <a href="mailto:clerk@testville.gov">clerk@testville.gov</a></p>'
+        "</body></html>"
+    )
+
+    def test_extracts_from_contact_page(self):
+        from civicos_extraction.onboard import detect_contact_info
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.text = self.MOCK_CONTACT_HTML
+
+        mock_llm_resp = MagicMock()
+        mock_llm_resp.status_code = 200
+        mock_llm_resp.raise_for_status.return_value = None
+        mock_llm_resp.json.return_value = {
+            "choices": [{"message": {"content": json.dumps({
+                "clerk_email": "clerk@testville.gov",
+                "city_hall_address": "100 Main St, Testville CA 90001",
+                "phone": "(555) 123-4567",
+                "public_comment_deadline": None,
+                "in_person_time_limit": None,
+            })}}]
+        }
+
+        with patch("civicos_extraction.onboard.requests.get", return_value=mock_resp), \
+             patch("httpx.post", return_value=mock_llm_resp), \
+             patch.dict("os.environ", {"OPENAI_API_KEY": "test-key"}):
+            result = detect_contact_info("https://testville.gov", "Testville")
+
+        assert result["clerk_email"] == "clerk@testville.gov"
+        assert result["phone"] == "(555) 123-4567"
+        assert "100 Main" in result["city_hall_address"]
+
+    def test_no_api_key_returns_empty(self):
+        from civicos_extraction.onboard import detect_contact_info
+        with patch.dict("os.environ", {}, clear=True):
+            result = detect_contact_info("https://testville.gov", "Testville")
+        assert all(v is None for v in result.values())
+
+    def test_network_error_returns_empty(self):
+        from civicos_extraction.onboard import detect_contact_info
+        with patch("civicos_extraction.onboard.requests.get", side_effect=requests.ConnectionError), \
+             patch.dict("os.environ", {"OPENAI_API_KEY": "test-key"}):
+            result = detect_contact_info("https://testville.gov", "Testville")
+        assert all(v is None for v in result.values())
+
+
+# --- YouTube playlist detection tests ---
+
+
+class TestDetectYoutubePlaylist:
+    """Tests for council meeting playlist detection."""
+
+    MOCK_PLAYLISTS = {
+        "items": [
+            {"id": "PL_misc", "snippet": {"title": "Community Events 2024"}},
+            {"id": "PL_council", "snippet": {"title": "City Council Meetings"}},
+            {"id": "PL_plan", "snippet": {"title": "Planning Commission"}},
+        ]
+    }
+
+    def test_finds_council_meeting_playlist(self):
+        from civicos_extraction.onboard import detect_youtube_playlist
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = self.MOCK_PLAYLISTS
+        mock_resp.raise_for_status.return_value = None
+
+        with patch("civicos_extraction.onboard.requests.get", return_value=mock_resp), \
+             patch.dict("os.environ", {"YOUTUBE_API_KEY": "test-key"}):
+            result = detect_youtube_playlist("UC_test_channel")
+        assert result == "PL_council"
+
+    def test_no_meeting_playlist_returns_none(self):
+        from civicos_extraction.onboard import detect_youtube_playlist
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = {
+            "items": [
+                {"id": "PL1", "snippet": {"title": "Vacation Photos"}},
+                {"id": "PL2", "snippet": {"title": "Music Videos"}},
+            ]
+        }
+        mock_resp.raise_for_status.return_value = None
+
+        with patch("civicos_extraction.onboard.requests.get", return_value=mock_resp), \
+             patch.dict("os.environ", {"YOUTUBE_API_KEY": "test-key"}):
+            result = detect_youtube_playlist("UC_test_channel")
+        assert result is None
+
+    def test_no_api_key_returns_none(self):
+        from civicos_extraction.onboard import detect_youtube_playlist
+        with patch.dict("os.environ", {}, clear=True):
+            result = detect_youtube_playlist("UC_test_channel")
+        assert result is None
+
+    def test_prefers_council_meeting_over_generic(self):
+        from civicos_extraction.onboard import detect_youtube_playlist
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = {
+            "items": [
+                {"id": "PL_generic", "snippet": {"title": "Board Meeting Archives"}},
+                {"id": "PL_best", "snippet": {"title": "City Council Meeting Recordings"}},
+            ]
+        }
+        mock_resp.raise_for_status.return_value = None
+
+        with patch("civicos_extraction.onboard.requests.get", return_value=mock_resp), \
+             patch.dict("os.environ", {"YOUTUBE_API_KEY": "test-key"}):
+            result = detect_youtube_playlist("UC_test_channel")
+        assert result == "PL_best"  # Higher score: "city council" + "meeting"
 
 
 class TestDetectSchoolDistrictsLive:

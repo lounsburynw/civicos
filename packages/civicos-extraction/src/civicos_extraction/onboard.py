@@ -876,6 +876,177 @@ def _find_column(headers: List[str], name: str) -> Optional[int]:
     return None
 
 
+def detect_contact_info(
+    base_url: str,
+    city_name: str,
+) -> Dict[str, Optional[str]]:
+    """Extract contact info from a city's website.
+
+    Fetches the city website and common contact page paths, then uses
+    an LLM to extract structured contact fields from the page content.
+    The LLM processes *fetched HTML*, not its training data.
+
+    Args:
+        base_url: City website URL (e.g., "https://www.cityofsanrafael.org")
+        city_name: City name for context (e.g., "San Rafael")
+
+    Returns:
+        Dict with keys: clerk_email, city_hall_address, phone,
+        public_comment_deadline, in_person_time_limit.
+        Values are None if not found.
+
+    Cost: ~$0.002 per call (OpenAI gpt-4o-mini, ~500 input tokens).
+    """
+    api_key = os.environ.get("OPENAI_API_KEY")
+    if not api_key:
+        logger.debug("No OPENAI_API_KEY — skipping contact info detection")
+        return _empty_contact_info()
+
+    # Try common contact page paths
+    contact_paths = [
+        "/contact", "/contact-us", "/city-clerk",
+        "/government/city-clerk", "/departments/city-clerk",
+        "/city-hall", "/about/contact",
+    ]
+
+    # Try contact-specific paths first (more focused), then discover from homepage
+    import re as _re_urls
+    ua = {"User-Agent": "CivicOS-Onboarding/1.0 (civic data platform)"}
+
+    page_content = None
+    best_score = 0
+
+    # Phase 1: try known paths
+    for path in contact_paths:
+        url = base_url.rstrip("/") + path
+        try:
+            resp = requests.get(url, timeout=10, headers=ua)
+            if len(resp.text) < 500:
+                continue
+            text_lower = resp.text.lower()
+            # Score pages by how much contact-relevant content they have
+            score = sum(1 for kw in ["clerk", "@", "phone", "email", "address"]
+                        if kw in text_lower)
+            if score > best_score:
+                best_score = score
+                page_content = resp.text
+        except Exception:
+            continue
+
+    # Phase 2: discover clerk/contact links from homepage
+    if best_score < 3:
+        try:
+            resp = requests.get(base_url, timeout=10, headers=ua)
+            if resp.status_code == 200:
+                # Find links to clerk or contact pages
+                links = _re_urls.findall(
+                    r'href=["\']([^"\']*(?:clerk|contact|directory|staff)[^"\']*)["\']',
+                    resp.text, flags=_re_urls.IGNORECASE,
+                )
+                for link in links[:5]:
+                    full_url = link if link.startswith("http") else base_url.rstrip("/") + "/" + link.lstrip("/")
+                    try:
+                        resp2 = requests.get(full_url, timeout=10, headers=ua)
+                        text_lower = resp2.text.lower()
+                        score = sum(1 for kw in ["clerk", "@", "phone", "email", "address"]
+                                    if kw in text_lower)
+                        if score > best_score:
+                            best_score = score
+                            page_content = resp2.text
+                            logger.info(f"Found contact page via link discovery: {full_url}")
+                    except Exception:
+                        continue
+
+                # Fallback: use homepage itself
+                if not page_content:
+                    page_content = resp.text
+        except Exception:
+            pass
+
+    if not page_content:
+        logger.info(f"No contact page found on {base_url}")
+        return _empty_contact_info()
+
+    import re as _re
+
+    # Extract emails and phones from raw HTML (before stripping tags)
+    # mailto: links are common and get lost when we strip tags
+    raw_emails = _re.findall(r"mailto:([\w.+-]+@[\w.-]+\.\w+)", page_content, _re.IGNORECASE)
+    raw_emails += _re.findall(r"[\w.+-]+@[\w.-]+\.(?:org|gov|com|net|us)", page_content)
+    raw_emails = sorted(set(raw_emails))
+
+    raw_phones = _re.findall(r"\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}", page_content)
+    raw_phones = sorted(set(raw_phones))
+
+    # Strip HTML for LLM text
+    text = _re.sub(r"<script[^>]*>.*?</script>", "", page_content, flags=_re.DOTALL)
+    text = _re.sub(r"<style[^>]*>.*?</style>", "", text, flags=_re.DOTALL)
+    text = _re.sub(r"<[^>]+>", " ", text)
+    text = _re.sub(r"\s+", " ", text).strip()[:6000]
+
+    # Build pre-extracted data section so LLM has structured signals
+    pre_extracted = ""
+    if raw_emails:
+        pre_extracted += f"Emails found on page: {', '.join(raw_emails[:10])}\n"
+    if raw_phones:
+        pre_extracted += f"Phones found on page: {', '.join(raw_phones[:10])}\n"
+
+    prompt = (
+        f"Extract contact information for {city_name} city government from "
+        f"this web page. Return ONLY a JSON object with these keys "
+        f"(use null if not found):\n"
+        f'{{"clerk_email": "...", "city_hall_address": "...", '
+        f'"phone": "...", "public_comment_deadline": "...", '
+        f'"in_person_time_limit": "..."}}\n\n'
+        f"For clerk_email, prefer the city clerk's email specifically. "
+        f"For phone, prefer the main city hall phone number.\n\n"
+        f"{pre_extracted}\n"
+        f"Page text:\n{text}"
+    )
+
+    try:
+        import httpx
+        resp = httpx.post(
+            "https://api.openai.com/v1/chat/completions",
+            headers={"Authorization": f"Bearer {api_key}"},
+            json={
+                "model": "gpt-4o-mini",
+                "messages": [{"role": "user", "content": prompt}],
+                "temperature": 0,
+                "max_tokens": 200,
+                "response_format": {"type": "json_object"},
+            },
+            timeout=15,
+        )
+        resp.raise_for_status()
+        content = resp.json()["choices"][0]["message"]["content"]
+        parsed = json.loads(content)
+
+        result = {
+            "clerk_email": parsed.get("clerk_email"),
+            "city_hall_address": parsed.get("city_hall_address"),
+            "phone": parsed.get("phone"),
+            "public_comment_deadline": parsed.get("public_comment_deadline"),
+            "in_person_time_limit": parsed.get("in_person_time_limit"),
+        }
+        logger.info(f"Contact info extracted for {city_name}: {result}")
+        return result
+
+    except Exception as e:
+        logger.debug(f"Contact info LLM extraction failed: {e}")
+        return _empty_contact_info()
+
+
+def _empty_contact_info() -> Dict[str, Optional[str]]:
+    return {
+        "clerk_email": None,
+        "city_hall_address": None,
+        "phone": None,
+        "public_comment_deadline": None,
+        "in_person_time_limit": None,
+    }
+
+
 def detect_youtube_channel(city_name: str, state: str = "") -> Optional[dict]:
     """Search YouTube for a city's official meeting channel.
 
@@ -959,6 +1130,90 @@ def detect_youtube_channel(city_name: str, state: str = "") -> Optional[dict]:
 
     except Exception as e:
         logger.debug(f"YouTube channel detection failed for '{city_name}': {e}")
+        return None
+
+
+def detect_youtube_playlist(channel_id: str) -> Optional[str]:
+    """Find the council meeting playlist on a YouTube channel.
+
+    Lists all playlists for a channel via YouTube Data API v3 and picks
+    the one most likely to contain council/board meeting recordings.
+    Uses keyword scoring on playlist titles — no LLM needed.
+
+    Args:
+        channel_id: YouTube channel ID (from detect_youtube_channel)
+
+    Returns:
+        Playlist ID string, or None if no match found.
+
+    Cost: 1 API quota unit (playlists.list). Free tier is 10,000/day.
+    Requires YOUTUBE_API_KEY or GOOGLE_API_KEY in environment.
+    """
+    api_key = os.environ.get("YOUTUBE_API_KEY") or os.environ.get("GOOGLE_API_KEY")
+    if not api_key:
+        logger.debug("No YouTube API key — skipping playlist detection")
+        return None
+
+    try:
+        resp = requests.get(
+            "https://www.googleapis.com/youtube/v3/playlists",
+            params={
+                "key": api_key,
+                "channelId": channel_id,
+                "part": "snippet",
+                "maxResults": 50,
+            },
+            timeout=10,
+        )
+        resp.raise_for_status()
+        playlists = resp.json().get("items", [])
+
+        if not playlists:
+            logger.info(f"No playlists found for channel {channel_id}")
+            return None
+
+        # Score playlists by keyword relevance
+        # Higher score = more likely to be the meeting playlist
+        meeting_keywords = {
+            "council meeting": 20,
+            "city council": 15,
+            "town council": 15,
+            "board meeting": 10,
+            "council session": 10,
+            "regular meeting": 8,
+            "meeting": 3,
+            "council": 5,
+            "session": 2,
+        }
+
+        best_score = 0
+        best_playlist = None
+
+        for pl in playlists:
+            title = pl["snippet"]["title"].lower()
+            score = 0
+            for keyword, weight in meeting_keywords.items():
+                if keyword in title:
+                    score += weight
+
+            if score > best_score:
+                best_score = score
+                best_playlist = pl
+
+        if best_playlist and best_score >= 5:
+            playlist_id = best_playlist["id"]
+            playlist_title = best_playlist["snippet"]["title"]
+            logger.info(
+                f"YouTube playlist detected: '{playlist_title}' "
+                f"({playlist_id}, score={best_score})"
+            )
+            return playlist_id
+
+        logger.info(f"No meeting playlist found among {len(playlists)} playlists")
+        return None
+
+    except Exception as e:
+        logger.debug(f"YouTube playlist detection failed: {e}")
         return None
 
 
