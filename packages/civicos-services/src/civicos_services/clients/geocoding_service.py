@@ -51,6 +51,8 @@ class GeocodingService:
             "Antioch": "city-antioch",
             "Richmond": "city-richmond",
             "San Rafael": "city-san-rafael",
+            "Mill Valley": "city-mill-valley",
+            "San Anselmo": "city-san-anselmo",
             "Santa Rosa": "city-santa-rosa",
         }
 
