@@ -74,6 +74,19 @@ CivicOS follows a layered architecture with clear package boundaries:
 | `apps/civicos-openwebui-fork/` | Open WebUI (separate repo, symlinked) | Secondary |
 | `apps/civicos-workspace/` | Vue frontend | **DEPRECATED** |
 
+## CivicOS Private Attribute Access
+
+**NEVER** access `_storage` or `_vectors` on a CivicOS instance from outside the CivicOS class itself.
+
+Use the **public properties** instead:
+- `civic.storage` (not `civic._storage`)
+- `civic.vectors` (not `civic._vectors`)
+
+This applies everywhere: apps, services, scripts, tests. The public properties exist specifically for this purpose.
+
+**FAIL pattern:** `civic._storage.get_meetings(...)` or `_civic._vectors.search(...)`
+**PASS pattern:** `civic.storage.get_meetings(...)` or `_civic.vectors.search(...)`
+
 ## Scripts Directory (`scripts/`)
 
 Scripts are integration code for ETL, migration, and batch operations:

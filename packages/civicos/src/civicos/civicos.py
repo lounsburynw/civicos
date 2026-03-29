@@ -166,6 +166,11 @@ class CivicOS:
         return self._storage
 
     @property
+    def vectors(self) -> Optional[VectorBackend]:
+        """Public access to the vector backend."""
+        return self._vectors
+
+    @property
     def config(self) -> Optional["CivicOSConfig"]:
         """Get the CivicOSConfig if one was provided, or create one from current state."""
         if self._config is not None:

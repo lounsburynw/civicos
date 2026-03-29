@@ -108,8 +108,8 @@ async def execute_search(
     resolves target jurisdictions, fans out per-jurisdiction, and merges
     with tier-based relevance boosting.
     """
-    storage = civic._storage
-    vectors = civic._vectors
+    storage = civic.storage
+    vectors = civic.vectors
 
     # Cross-jurisdiction: delegate to multi-jurisdiction fan-out
     if request.include_parents or request.include_siblings or request.also_include:
@@ -973,8 +973,8 @@ async def _execute_concept_lookup(
             meta=ResponseMeta(schema_version=SCHEMA_VERSION, query_time_ms=total_time),
         )
 
-    storage = civic._storage
-    vectors = civic._vectors
+    storage = civic.storage
+    vectors = civic.vectors
 
     try:
         loop = asyncio.get_event_loop()
@@ -1196,7 +1196,7 @@ async def execute_explore(
         # Return available corpus types with live counts
         try:
             from civicos.diagnostics import DataStatus
-            status = DataStatus(civic._storage, civic._vectors, jid)
+            status = DataStatus(civic.storage, civic.vectors, jid)
             report = status.summary()
 
             corpora = []
@@ -1267,7 +1267,7 @@ async def execute_explore(
             hierarchy = resolve_jurisdictions(jid, include_parents=True)
             levels = []
             for level_jid in hierarchy:
-                officials = civic._storage.get_elected_officials(
+                officials = civic.storage.get_elected_officials(
                     jurisdiction_id=level_jid,
                     current_only=True,
                 )
@@ -1300,7 +1300,7 @@ async def execute_explore(
         import json as _json
 
         try:
-            elections_raw = civic._storage.get_elections(jid, include_past=False)
+            elections_raw = civic.storage.get_elections(jid, include_past=False)
 
             level_map = {
                 "federal_president": "federal",
@@ -1335,7 +1335,7 @@ async def execute_explore(
                 days_until = (election_date - today).days if election_date else None
 
                 # Get contests and group by level
-                contests_raw = civic._storage.get_election_contests(election_id)
+                contests_raw = civic.storage.get_election_contests(election_id)
                 grouped: Dict[str, list] = {}
                 for c in contests_raw:
                     contest_type = c.get("contest_type", "other")
@@ -1372,7 +1372,7 @@ async def execute_explore(
                 ]
 
                 # Get deadlines and compute next_deadline
-                deadlines_raw = civic._storage.get_election_deadlines(election_id)
+                deadlines_raw = civic.storage.get_election_deadlines(election_id)
                 deadlines = []
                 next_deadline = None
                 for d in deadlines_raw:

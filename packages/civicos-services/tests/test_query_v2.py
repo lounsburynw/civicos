@@ -188,8 +188,8 @@ def make_mock_civic():
     civic.jurisdiction = "city-san-rafael"
 
     # Storage and vector backends (used by adapters via verbs)
-    civic._storage = make_mock_storage()
-    civic._vectors = make_mock_vectors()
+    civic.storage = make_mock_storage()
+    civic.vectors = make_mock_vectors()
 
     # Old-style methods (still used by upcoming/act/explore verbs)
     civic.whats_next.return_value = [MockMeeting()]
@@ -499,7 +499,7 @@ class TestSearchIntegration:
     def test_partial_failure(self):
         """One corpus erroring shouldn't block others."""
         civic = make_mock_civic()
-        civic._storage.get_issues.side_effect = Exception("DB error")
+        civic.storage.get_issues.side_effect = Exception("DB error")
 
         req = SearchRequest(query="test", corpus=["decisions", "issues"])
         with adapter_patches():
@@ -568,7 +568,7 @@ class TestExploreIntegration:
 
     def test_explore_representatives(self):
         civic = make_mock_civic()
-        civic._storage.get_elected_officials.return_value = [
+        civic.storage.get_elected_officials.return_value = [
             {
                 "id": "official-city-san-rafael-mayor",
                 "name": "Kate Colin",
@@ -592,7 +592,7 @@ class TestExploreIntegration:
 
     def test_explore_representatives_empty(self):
         civic = make_mock_civic()
-        civic._storage.get_elected_officials.return_value = []
+        civic.storage.get_elected_officials.return_value = []
         req = ExploreRequest(what="representatives")
         resp = asyncio.get_event_loop().run_until_complete(
             _run_explore(req, civic)
@@ -1314,7 +1314,7 @@ class TestTrendMode:
         from civicos_services.query.models import SearchMode
         civic = make_mock_civic()
         # Issues adapter uses storage.get_issues() — set up matching data
-        civic._storage.get_issues.return_value = [
+        civic.storage.get_issues.return_value = [
             {"id": "iss-1", "summary": "Pothole on road", "status": "open",
              "issue_type": "Road", "address": "123 Main", "created_at": "2025-02-15",
              "description": "Pothole on road near downtown"},
@@ -1473,7 +1473,7 @@ class TestDiffMode:
     def test_diff_multi_corpus(self):
         """diff mode works across multiple corpora."""
         civic = make_mock_civic()
-        civic._storage.get_issues.return_value = []
+        civic.storage.get_issues.return_value = []
 
         old_dec = MockDecision(id="dec-old", title="Old", date=datetime(2025, 1, 1))
         new_dec = MockDecision(id="dec-new", title="New", date=datetime(2025, 8, 1))
@@ -1551,7 +1551,7 @@ class TestIntersectMode:
     def test_intersect_no_match(self):
         """intersect returns empty when no overlap between corpora."""
         civic = make_mock_civic()
-        civic._storage.get_issues.return_value = [
+        civic.storage.get_issues.return_value = [
             {"id": "iss-1", "summary": "Pothole on Elm St", "status": "open",
              "issue_type": "Road", "address": "456 Elm St", "created_at": "2025-09-01",
              "description": "Pothole on Elm St sidewalk"},

@@ -196,8 +196,8 @@ def find_similar_issues(
     try:
         result_parts = [f"# Community Issues: {topic}", ""]
 
-        if semantic and civic._vectors is not None:
-            results = civic._vectors.search(
+        if semantic and civic.vectors is not None:
+            results = civic.vectors.search(
                 topic,
                 jurisdiction,
                 'issues',
@@ -409,7 +409,7 @@ def _legislation_pulse(
       recent_outcomes     → Bill activity (proper status labels and dates)
     """
     now = datetime.now()
-    storage = civic._storage
+    storage = civic.storage
 
     # Determine state code from jurisdiction
     if jurisdiction.startswith("country-"):
@@ -748,7 +748,7 @@ def city_pulse(
     days_back = args.get("days_back", 30)
 
     now = datetime.now()
-    storage = civic._storage
+    storage = civic.storage
 
     result = {
         "jurisdiction": jurisdiction,
@@ -925,7 +925,7 @@ def get_issue_analytics(
 ) -> str:
     """Get aggregate 311 issue statistics."""
     try:
-        issues = civic._storage.get_issues(
+        issues = civic.storage.get_issues(
             jurisdiction_id=jurisdiction, limit=5000
         )
 
@@ -980,7 +980,7 @@ def geo_search_issues(
     area = args.get("area", "")
 
     try:
-        issues = civic._storage.get_issues(
+        issues = civic.storage.get_issues(
             jurisdiction_id=jurisdiction, limit=2000
         )
 
@@ -1016,7 +1016,7 @@ def search_budget(
     query = args.get("query", "")
 
     try:
-        budget_items = civic._storage.get_budget_items(jurisdiction)
+        budget_items = civic.storage.get_budget_items(jurisdiction)
 
         if not budget_items:
             return "No budget data available."
@@ -1085,8 +1085,8 @@ def search_agenda_packets(
     limit = args.get("limit", 10)
 
     try:
-        if civic._vectors:
-            results = civic._vectors.search(
+        if civic.vectors:
+            results = civic.vectors.search(
                 query, jurisdiction, 'chunks', top_k=limit
             )
 
@@ -1199,7 +1199,7 @@ def query_issue_data(
     limit = args.get("limit", 50)
 
     try:
-        issues = civic._storage.get_issues(
+        issues = civic.storage.get_issues(
             jurisdiction_id=jurisdiction,
             status=filter_status,
             limit=5000,
@@ -1271,7 +1271,7 @@ def get_issue_resolution_stats(
     zip_code = args.get("zip_code")
 
     try:
-        issues = civic._storage.get_issues(jurisdiction_id=jurisdiction, limit=5000)
+        issues = civic.storage.get_issues(jurisdiction_id=jurisdiction, limit=5000)
 
         if not issues:
             return f"No issues found for {jurisdiction}."
@@ -1321,7 +1321,7 @@ def detect_trends(
     zip_code = args.get("zip_code")
 
     try:
-        issues = civic._storage.get_issues(jurisdiction_id=jurisdiction, limit=5000)
+        issues = civic.storage.get_issues(jurisdiction_id=jurisdiction, limit=5000)
 
         if zip_code:
             issues = [i for i in issues if zip_code in (i.get('address', '') or '')]
@@ -1417,7 +1417,7 @@ def get_issue_sample(
     random_sample = args.get("random_sample", True)
 
     try:
-        issues = civic._storage.get_issues(
+        issues = civic.storage.get_issues(
             jurisdiction_id=jurisdiction,
             status=filter_status,
             limit=5000,
@@ -1486,7 +1486,7 @@ def find_issues_near_address(
     radius_meters = radius_blocks * 100
 
     try:
-        issues = civic._storage.get_issues(
+        issues = civic.storage.get_issues(
             jurisdiction_id=jurisdiction, limit=2000
         )
 
@@ -1580,7 +1580,7 @@ def find_repeat_issues(
     min_occurrences = args.get("min_occurrences", 3)
 
     try:
-        issues = civic._storage.get_issues(jurisdiction_id=jurisdiction, limit=5000)
+        issues = civic.storage.get_issues(jurisdiction_id=jurisdiction, limit=5000)
 
         if issue_type:
             issue_type_lower = issue_type.lower()
@@ -1618,7 +1618,7 @@ def get_seasonal_patterns(
     issue_type = args.get("issue_type")
 
     try:
-        issues = civic._storage.get_issues(jurisdiction_id=jurisdiction, limit=5000)
+        issues = civic.storage.get_issues(jurisdiction_id=jurisdiction, limit=5000)
 
         if issue_type:
             issue_type_lower = issue_type.lower()
@@ -1671,7 +1671,7 @@ def compare_zip_codes(
         return "Please provide at least 2 zip codes to compare."
 
     try:
-        issues = civic._storage.get_issues(jurisdiction_id=jurisdiction, limit=5000)
+        issues = civic.storage.get_issues(jurisdiction_id=jurisdiction, limit=5000)
 
         result_parts = [f"# Zip Code Comparison", ""]
 
@@ -1770,7 +1770,7 @@ def get_congressional_votes(
     chamber = args.get("chamber")
     limit = min(args.get("limit", 20), 50)
 
-    storage = civic._storage
+    storage = civic.storage
 
     # Resolve member_name to bioguide_id by searching votes
     bioguide_id = None
@@ -2132,7 +2132,7 @@ def decision_detail(
                 jurisdiction=jurisdiction,
                 decision=known_decision,
                 top_k=10,
-                vector_backend=civic._vectors,
+                vector_backend=civic.vectors,
                 storage_backend=storage,
             )
 
@@ -2160,7 +2160,7 @@ def decision_detail(
                 video_id = get_video_id_from_chunk(l.chunk_id)
                 if video_id:
                     break
-            meeting_speaker_map = build_meeting_speaker_map(video_id, civic._vectors, roster)
+            meeting_speaker_map = build_meeting_speaker_map(video_id, civic.vectors, roster)
 
             enriched_public = []
             enriched_council = []
@@ -2271,7 +2271,7 @@ def decision_detail(
             video_id = get_video_id_from_chunk(link.chunk_id)
             if video_id:
                 break
-        meeting_speaker_map = build_meeting_speaker_map(video_id, civic._vectors, roster)
+        meeting_speaker_map = build_meeting_speaker_map(video_id, civic.vectors, roster)
 
         enriched_public = []
         enriched_council = []
@@ -3092,7 +3092,7 @@ def get_congressional_hearings(
     limit = min(args.get("limit", 20), 50)
 
     try:
-        storage = civic._storage
+        storage = civic.storage
         now_date = datetime.now().date()
         end_date = now_date + timedelta(days=days_ahead)
 
@@ -4253,7 +4253,7 @@ def admin_data_status(
     from civicos.diagnostics import DataStatus
 
     target_jurisdiction = args.get("jurisdiction", jurisdiction)
-    ds = DataStatus(civic._storage, civic._vectors, target_jurisdiction)
+    ds = DataStatus(civic.storage, civic.vectors, target_jurisdiction)
     report = ds.summary()
     result = report.to_dict()
     result["gaps"] = ds.gaps()
@@ -4270,7 +4270,7 @@ def admin_vector_coverage(
     """Get vector embedding coverage by corpus type."""
     from civicos.diagnostics import VectorCoverage
 
-    vc = VectorCoverage(civic._storage, civic._vectors, jurisdiction)
+    vc = VectorCoverage(civic.storage, civic.vectors, jurisdiction)
     by_corpus = vc.by_corpus()
     corpus_type = args.get("corpus_type")
     if corpus_type:
@@ -4293,32 +4293,32 @@ def admin_system_health(
 
     # Test storage backend
     try:
-        count = civic._storage.get_decision_count(jurisdiction)
+        count = civic.storage.get_decision_count(jurisdiction)
         components["storage"] = {
             "status": "healthy",
-            "backend": type(civic._storage).__name__,
+            "backend": type(civic.storage).__name__,
             "decision_count": count,
         }
     except Exception as e:
         components["storage"] = {
             "status": "unhealthy",
-            "backend": type(civic._storage).__name__,
+            "backend": type(civic.storage).__name__,
             "error": str(e),
         }
 
     # Test vector backend
-    if civic._vectors is not None:
+    if civic.vectors is not None:
         try:
-            count = civic._vectors.count("meetings")
+            count = civic.vectors.count("meetings")
             components["vectors"] = {
                 "status": "healthy",
-                "backend": type(civic._vectors).__name__,
+                "backend": type(civic.vectors).__name__,
                 "meetings_count": count,
             }
         except Exception as e:
             components["vectors"] = {
                 "status": "unhealthy",
-                "backend": type(civic._vectors).__name__,
+                "backend": type(civic.vectors).__name__,
                 "error": str(e),
             }
     else:
