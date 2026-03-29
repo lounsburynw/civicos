@@ -1357,13 +1357,38 @@ async def execute_explore(
                         for cand in parsed
                     ]
 
-                    grouped[level].append({
+                    # Extract ballot measure content for measure contests
+                    ballot_measure = None
+                    if contest_type in ("local_measure", "state_proposition"):
+                        bm = (raw_data or {}).get("mapped_ballot_measure") or {}
+                        if bm:
+                            ballot_measure = {
+                                "title": bm.get("title"),
+                                "description": bm.get("description"),
+                                "measure_type": bm.get("measure_type"),
+                                "full_text": bm.get("full_text"),
+                                "fiscal_impact": bm.get("fiscal_impact"),
+                                "arguments_for": bm.get("arguments_for", []),
+                                "arguments_against": bm.get("arguments_against", []),
+                                "full_text_url": bm.get("full_text_url"),
+                                "passed": bm.get("passed"),
+                                "yes_votes": bm.get("yes_votes"),
+                                "no_votes": bm.get("no_votes"),
+                                "yes_percentage": bm.get("yes_percentage"),
+                                "no_percentage": bm.get("no_percentage"),
+                            }
+
+                    race_entry = {
                         "id": c.get("id"),
                         "title": c.get("title"),
                         "contest_type": contest_type,
                         "district_name": c.get("district_name"),
                         "candidates": candidates,
-                    })
+                    }
+                    if ballot_measure:
+                        race_entry["ballot_measure"] = ballot_measure
+
+                    grouped[level].append(race_entry)
 
                 contest_levels = [
                     {"level": lv, "races": grouped[lv]}

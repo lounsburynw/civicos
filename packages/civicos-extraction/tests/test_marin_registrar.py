@@ -353,6 +353,21 @@ class TestMarinResultsToContest:
         assert raw["mapped_ballot_measure"]["yes_votes"] == 18000
         assert raw["mapped_ballot_measure"]["passed"] is True
 
+    def test_ballot_measure_has_content_fields(self):
+        """Ballot measure should include content field placeholders."""
+        contest = {**SAMPLE_CONTEST_BALLOT_MEASURE}
+        contest["candidates"] = [c for c in contest["candidates"] if not (c["candidate"] or {}).get("pseudocandidate")]
+        result = marin_results_to_contest(contest)
+        bm = result["ballot_measure"]
+        assert "full_text" in bm
+        assert "fiscal_impact" in bm
+        assert "arguments_for" in bm
+        assert "arguments_against" in bm
+        assert bm["full_text"] is None  # not yet enriched
+        assert bm["fiscal_impact"] is None
+        assert bm["arguments_for"] == []
+        assert bm["arguments_against"] == []
+
 
 # ==================== Pseudo-Candidate Filtering ====================
 

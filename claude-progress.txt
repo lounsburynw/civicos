@@ -1,3 +1,26 @@
+## Session — 2026-03-29: ballot_measure_content (P0)
+
+**Item:** ballot_measure_content (ballot_awareness)
+**Status:** DONE
+
+Extended BallotMeasure model with `full_text` and `fiscal_impact` fields. Fixed `to_dict()` to serialize all content fields (measure_type, full_text_url, full_text, fiscal_impact, arguments_for, arguments_against). Updated explore `my_ballot` endpoint to display ballot measure data for local_measure and state_proposition contests. Built CA Voter Guide extraction client (`ca_voter_guide.py`) with LAO fiscal analysis and VIG full text/arguments parsing. Added content field placeholders to Civera extraction. Storage enrichment pipeline (`enrich_ballot_measure_content`) fetches and merges content into existing contests.
+
+**Tests:** 37 new tests (28 CA voter guide, 5 model to_dict, 3 marin registrar content fields, 2 explore ballot measure display — skipped, no measure data in future elections yet). All 90 election-related tests + 20 smoke tests passing.
+
+**Files created:**
+- packages/civicos-extraction/src/civicos_extraction/clients/ca_voter_guide.py
+- packages/civicos-extraction/tests/test_ca_voter_guide.py
+
+**Files modified:**
+- packages/civicos/src/civicos/_internal/elections/__init__.py (added full_text, fiscal_impact to BallotMeasure; fixed to_dict)
+- packages/civicos-services/src/civicos_services/query/verbs.py (explore my_ballot ballot_measure display)
+- packages/civicos-extraction/src/civicos_extraction/clients/civera_election_stats.py (content field placeholders)
+- packages/civicos/tests/test_election_calendar.py (5 to_dict tests)
+- packages/civicos/tests/test_explore_ballot.py (2 ballot measure content tests)
+- packages/civicos-extraction/tests/test_marin_registrar.py (1 content fields test)
+
+**Next P0:** officials_refresh_cron (GitHub Actions cron for officials data refresh)
+
 ## Session — 2026-03-29: local_candidate_data (P0)
 
 **Item:** local_candidate_data (ballot_awareness)

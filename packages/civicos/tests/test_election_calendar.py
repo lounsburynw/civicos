@@ -285,3 +285,100 @@ class TestCADeadlines:
         deadlines = generate_ca_deadlines(date(2026, 11, 3))
         reg = next(d for d in deadlines if d.deadline_type == "voter_registration")
         assert reg.deadline_date == date(2026, 10, 19)
+
+
+# ========== Election.to_dict() Ballot Measure Serialization ==========
+
+
+class TestElectionToDict:
+    """Verify to_dict() includes all ballot measure content fields."""
+
+    def _make_election_with_measure(self):
+        from civicos._internal.elections import (
+            Election, Contest, ContestType, BallotMeasure, ElectionType,
+        )
+        bm = BallotMeasure(
+            id="measure-1",
+            title="Proposition 36",
+            description="Drug and theft penalties",
+            measure_type="initiative",
+            full_text="Section 1. This act shall be known as...",
+            full_text_url="https://example.com/prop36",
+            fiscal_impact="Tens of millions of dollars annually",
+            arguments_for=["Restores accountability"],
+            arguments_against=["Costs taxpayers millions"],
+            passed=True,
+            yes_votes=5000,
+            no_votes=3000,
+            yes_percentage=62.5,
+            no_percentage=37.5,
+        )
+        contest = Contest(
+            id="contest-1",
+            title="Proposition 36",
+            contest_type=ContestType.STATE_PROPOSITION,
+            ballot_measure=bm,
+        )
+        election = Election(
+            id="election-1",
+            jurisdiction_id="city-san-rafael",
+            name="2024 General",
+            election_date=date(2024, 11, 5),
+            election_type=ElectionType.GENERAL,
+            contests=[contest],
+        )
+        return election
+
+    def test_to_dict_includes_ballot_measure(self):
+        election = self._make_election_with_measure()
+        d = election.to_dict()
+        bm = d["contests"][0]["ballot_measure"]
+        assert bm is not None
+        assert bm["id"] == "measure-1"
+        assert bm["title"] == "Proposition 36"
+
+    def test_to_dict_includes_content_fields(self):
+        election = self._make_election_with_measure()
+        d = election.to_dict()
+        bm = d["contests"][0]["ballot_measure"]
+        assert bm["full_text"] == "Section 1. This act shall be known as..."
+        assert bm["full_text_url"] == "https://example.com/prop36"
+        assert bm["fiscal_impact"] == "Tens of millions of dollars annually"
+        assert bm["measure_type"] == "initiative"
+
+    def test_to_dict_includes_arguments(self):
+        election = self._make_election_with_measure()
+        d = election.to_dict()
+        bm = d["contests"][0]["ballot_measure"]
+        assert bm["arguments_for"] == ["Restores accountability"]
+        assert bm["arguments_against"] == ["Costs taxpayers millions"]
+
+    def test_to_dict_includes_vote_tallies(self):
+        election = self._make_election_with_measure()
+        d = election.to_dict()
+        bm = d["contests"][0]["ballot_measure"]
+        assert bm["passed"] is True
+        assert bm["yes_votes"] == 5000
+        assert bm["no_votes"] == 3000
+        assert bm["yes_percentage"] == 62.5
+        assert bm["no_percentage"] == 37.5
+
+    def test_to_dict_null_measure(self):
+        from civicos._internal.elections import (
+            Election, Contest, ContestType, ElectionType,
+        )
+        contest = Contest(
+            id="contest-2",
+            title="Mayor",
+            contest_type=ContestType.LOCAL_MAYOR,
+        )
+        election = Election(
+            id="election-1",
+            jurisdiction_id="city-san-rafael",
+            name="2024 General",
+            election_date=date(2024, 11, 5),
+            election_type=ElectionType.GENERAL,
+            contests=[contest],
+        )
+        d = election.to_dict()
+        assert d["contests"][0]["ballot_measure"] is None

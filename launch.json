@@ -1513,7 +1513,7 @@
       {
         "name": "officials_refresh_cron",
         "description": "Add elected officials refresh to GitHub Actions cron. After election results are ingested, re-derive current officials from winners. Also refresh Congress.gov data monthly. Ensures officials roster stays current after elections.",
-        "priority": 3,
+        "priority": 0,
         "status": "not_started",
         "files": [
           ".github/workflows/cron-election-refresh.yml",
@@ -1569,12 +1569,15 @@
         "description": "Ingest ballot measure text, fiscal impact summaries, and pro/con arguments. State measures come from the CA voter guide (voterguide.sos.ca.gov). Local measures come from county sample ballots. Currently we only store pass/fail results, not the measure content itself.",
         "priority": 0,
         "time_sensitive": "2026-06-02 CA primary \u2014 measures on the ballot need explanatory content",
-        "status": "not_started",
+        "status": "done",
         "files": [
-          "packages/civicos-extraction/src/civicos_extraction/clients/ca_sos_results.py"
+          "packages/civicos/src/civicos/_internal/elections/__init__.py",
+          "packages/civicos-extraction/src/civicos_extraction/clients/ca_voter_guide.py",
+          "packages/civicos-extraction/src/civicos_extraction/clients/civera_election_stats.py",
+          "packages/civicos-services/src/civicos_services/query/verbs.py"
         ],
-        "test_file": null,
-        "notes": "CA voter guide is published as HTML + PDF. State measures have: title, summary, fiscal impact, arguments for/against, rebuttals. Local measures from county sample ballot PDF. Would need new storage fields on election_contests or a dedicated ballot_measures table. Valuable for the 'what's on my ballot' query. ~2 sessions."
+        "test_file": "packages/civicos-extraction/tests/test_ca_voter_guide.py",
+        "notes": "Model extended with full_text, fiscal_impact fields. to_dict() serializes all content fields. CA voter guide client extracts from LAO (fiscal impact) and VIG (full text, pro/con args). Civera extraction includes content field placeholders. Explore my_ballot displays ballot_measure data for measure-type contests. VIG HTML blocked by Cloudflare; LAO is accessible. VIG HTML for 2026 primary available April 3, 2026."
       },
       {
         "name": "election_deadlines_scraping",
