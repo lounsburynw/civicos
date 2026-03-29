@@ -15,8 +15,8 @@ from civicos_extraction.clients.marin_registrar import (
     _infer_election_type_from_name,
     _parse_election_date,
     _map_contest_type,
-    _PSEUDO_CANDIDATES,
 )
+from civicos_extraction.clients.civera_election_stats import _PSEUDO_CANDIDATES
 
 
 # ==================== Fixtures ====================
@@ -281,7 +281,7 @@ class TestMarinResultsToElection:
         assert result["name"] == "November 5, 2024 General Election"
         assert result["election_date"] == "2024-11-05"
         assert result["election_type"] == "general"
-        assert result["source"] == "marin_registrar_results"
+        assert result["source"] == "civera_election_stats"
         assert "raw_data" in result
 
     def test_infers_type_from_name_when_no_type_given(self):
@@ -369,6 +369,148 @@ class TestPseudoCandidateFiltering:
 
 
 # ==================== Integration Tests (Live API) ====================
+
+
+# ==================== Extraction Pipeline Tests ====================
+
+
+SAMPLE_COUNCIL_DISTRICT_CONTEST = {
+    "id": 730,
+    "name": "",
+    "office": {"id": 99, "name": "City Council Member"},
+    "division": {"id": 50, "displayName": "San Rafael City Council District 1", "divisionType": {"name": "City Council District"}},
+    "event": {"id": 35, "startDate": "2024-11-05T00:00:00", "type": {"name": "General"}},
+    "candidates": [
+        {
+            "displayName": "Maika Llorens Gulati",
+            "nVotes": 1818,
+            "pctCandidateVotes": 100.0,
+            "candidate": {"pseudocandidate": None},
+            "isWinner": True,
+            "party": None,
+        },
+    ],
+    "ballotQuestionId": None,
+    "ballotQuestion": None,
+    "nSeats": 1,
+    "hasWinners": True,
+}
+
+
+class TestExtractCiveraResultsToStorage:
+    """Tests for extract_civera_results_to_storage pipeline."""
+
+    def _make_mock_storage(self):
+        storage = MagicMock()
+        storage.store_elections.return_value = 1
+        storage.store_election_contests.return_value = 1
+        return storage
+
+    @patch.object(MarinRegistrarResultsClient, "_graphql")
+    def test_skips_elections_with_no_matching_contests(self, mock_graphql):
+        """Elections where division_filter excludes all contests should be skipped."""
+        from civicos_extraction.clients.marin_registrar import extract_marin_results_to_storage
+
+        # list_elections returns 1 election
+        mock_graphql.side_effect = [
+            {"searchSuggestions": {"events": [{"id": 99, "name": "2025 Special", "group": "2025", "count": 1}]}},
+            # list_contests returns contest NOT matching filter
+            {"search": {"results": [{
+                **SAMPLE_CONTEST_CANDIDATE,
+                "division": {"id": 99, "displayName": "Town of Corte Madera", "divisionType": {"name": "Town"}},
+            }]}},
+        ]
+
+        storage = self._make_mock_storage()
+        client = MarinRegistrarResultsClient("city-san-rafael")
+        result = extract_marin_results_to_storage(
+            client=client, storage=storage, jurisdiction_id="city-san-rafael",
+            from_year=2025, to_year=2026, division_filter="San Rafael",
+        )
+        assert result["elections"] == 0
+        assert result["contests"] == 0
+        storage.store_elections.assert_not_called()
+
+    @patch.object(MarinRegistrarResultsClient, "_graphql")
+    def test_division_filter_captures_council_districts(self, mock_graphql):
+        """'San Rafael' filter should match both 'City of San Rafael' and 'San Rafael City Council District X'."""
+        from civicos_extraction.clients.marin_registrar import extract_marin_results_to_storage
+
+        mock_graphql.side_effect = [
+            {"searchSuggestions": {"events": [{"id": 35, "name": "2024 Nov - General", "group": "2024", "count": 70}]}},
+            {"search": {"results": [SAMPLE_CONTEST_CANDIDATE, SAMPLE_COUNCIL_DISTRICT_CONTEST]}},
+        ]
+
+        storage = self._make_mock_storage()
+        client = MarinRegistrarResultsClient("city-san-rafael")
+        result = extract_marin_results_to_storage(
+            client=client, storage=storage, jurisdiction_id="city-san-rafael",
+            from_year=2024, to_year=2025, division_filter="San Rafael",
+        )
+        # Verify both contests were passed to storage (mayor + council district)
+        contests_arg = storage.store_election_contests.call_args[0][1]
+        assert len(contests_arg) == 2
+        titles = {c["title"] for c in contests_arg}
+        assert "Mayor" in titles
+        assert "City Council Member" in titles
+        # Verify candidate counts in return value
+        assert result["candidates"] == 3  # 2 from mayor + 1 from council district
+
+    @patch.object(MarinRegistrarResultsClient, "_graphql")
+    def test_election_ids_namespaced_by_jurisdiction(self, mock_graphql):
+        """When division_filter is used, election IDs should include jurisdiction."""
+        from civicos_extraction.clients.marin_registrar import extract_marin_results_to_storage
+
+        mock_graphql.side_effect = [
+            {"searchSuggestions": {"events": [{"id": 35, "name": "2024 Nov - General", "group": "2024", "count": 70}]}},
+            {"search": {"results": [SAMPLE_CONTEST_CANDIDATE]}},
+        ]
+
+        storage = self._make_mock_storage()
+        client = MarinRegistrarResultsClient("city-san-rafael")
+        extract_marin_results_to_storage(
+            client=client, storage=storage, jurisdiction_id="city-san-rafael",
+            from_year=2024, to_year=2025, division_filter="San Rafael",
+        )
+
+        # Verify election ID includes jurisdiction
+        call_args = storage.store_elections.call_args
+        election = call_args[0][1][0]  # positional: (jurisdiction_id, [election])
+        assert "city-san-rafael" in election["id"]
+
+        # Verify contests stored under namespaced election
+        contest_call = storage.store_election_contests.call_args
+        assert "city-san-rafael" in contest_call[0][0]  # election_id
+
+    def test_no_namespace_without_division_filter(self):
+        """Without division_filter, election IDs should not include jurisdiction."""
+        from civicos_extraction.clients.civera_election_stats import (
+            extract_civera_results_to_storage,
+            CiveraElectionStatsClient,
+            CIVERA_INSTANCES,
+        )
+
+        with patch.object(CiveraElectionStatsClient, "_graphql") as mock_graphql:
+            mock_graphql.side_effect = [
+                {"searchSuggestions": {"events": [{"id": 35, "name": "2024 Nov - General", "group": "2024", "count": 70}]}},
+                {"search": {"results": [SAMPLE_CONTEST_CANDIDATE]}},
+            ]
+
+            storage = self._make_mock_storage()
+            client = CiveraElectionStatsClient(
+                jurisdiction_id="county-marin",
+                graphql_url=CIVERA_INSTANCES["marin"]["graphql_url"],
+                county_slug="marin",
+            )
+            extract_civera_results_to_storage(
+                client=client, storage=storage, jurisdiction_id="county-marin",
+                county_slug="marin", from_year=2024, to_year=2025,
+            )
+
+            call_args = storage.store_elections.call_args
+            election = call_args[0][1][0]
+            assert election["id"] == "marin-results-35"
+            assert "county-marin" not in election["id"]
 
 
 class TestMarinRegistrarResultsIntegration:
