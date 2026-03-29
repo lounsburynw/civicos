@@ -292,29 +292,51 @@ class TestWhoRepresentsMeHandler:
 
 
 class TestGeocodingServiceMappings:
-    """Test that pilot cities are in the geocoding service mapping."""
+    """Test that jurisdiction mappings are loaded from YAML configs."""
+
+    def setup_method(self):
+        """Clear cached mappings so each test gets a fresh load."""
+        import civicos_services.clients.geocoding_service as geo_mod
+        geo_mod._jurisdiction_mappings = None
 
     def test_san_rafael_mapped(self):
-        """San Rafael is in city_to_jurisdiction."""
-        with patch.dict("os.environ", {"GOOGLE_MAPS_API_KEY": "test-key"}):
-            from civicos_services.clients.geocoding_service import GeocodingService
-            geo = GeocodingService(api_key="test-key")
-            assert geo.city_to_jurisdiction["San Rafael"] == "city-san-rafael"
+        """San Rafael is loaded from city-san-rafael.yaml."""
+        from civicos_services.clients.geocoding_service import GeocodingService
+        geo = GeocodingService(api_key="test-key")
+        assert geo.city_to_jurisdiction["San Rafael"] == "city-san-rafael"
 
     def test_mill_valley_mapped(self):
-        """Mill Valley is in city_to_jurisdiction."""
+        """Mill Valley is loaded from city-mill-valley.yaml."""
         from civicos_services.clients.geocoding_service import GeocodingService
         geo = GeocodingService(api_key="test-key")
         assert geo.city_to_jurisdiction["Mill Valley"] == "city-mill-valley"
 
     def test_san_anselmo_mapped(self):
-        """San Anselmo is in city_to_jurisdiction."""
+        """San Anselmo is loaded from city-san-anselmo.yaml."""
         from civicos_services.clients.geocoding_service import GeocodingService
         geo = GeocodingService(api_key="test-key")
         assert geo.city_to_jurisdiction["San Anselmo"] == "city-san-anselmo"
 
     def test_marin_county_mapped(self):
-        """Marin County is in county_to_jurisdiction."""
+        """Marin County is loaded from county-marin.yaml."""
         from civicos_services.clients.geocoding_service import GeocodingService
         geo = GeocodingService(api_key="test-key")
         assert geo.county_to_jurisdiction["Marin County"] == "county-marin"
+
+    def test_mappings_loaded_from_yaml(self):
+        """Mappings come from data/jurisdictions/ YAML files, not hardcoded."""
+        from civicos_services.clients.geocoding_service import _load_jurisdiction_mappings, JURISDICTIONS_DIR
+        mappings = _load_jurisdiction_mappings(JURISDICTIONS_DIR)
+        # Should have at least 3 pilot cities
+        assert len(mappings["city"]) >= 3
+        # Should have at least 1 county
+        assert len(mappings["county"]) >= 1
+        # Verify mappings match YAML file contents
+        assert all(v.startswith("city-") for v in mappings["city"].values())
+        assert all(v.startswith("county-") for v in mappings["county"].values())
+
+    def test_schema_yaml_excluded(self):
+        """schema.yaml is not loaded as a jurisdiction."""
+        from civicos_services.clients.geocoding_service import GeocodingService
+        geo = GeocodingService(api_key="test-key")
+        assert "string" not in geo.city_to_jurisdiction  # schema.yaml has display_name: string

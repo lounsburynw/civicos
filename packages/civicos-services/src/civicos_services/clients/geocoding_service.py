@@ -7,9 +7,73 @@ Privacy-preserving: Only stores lat/lng, not full addresses
 """
 
 import os
+import logging
 import requests
+from pathlib import Path
 from typing import Dict, Optional, List, Any
 from urllib.parse import urlencode
+
+import yaml
+
+logger = logging.getLogger("civicos-geocoding")
+
+# Module-level cache: loaded once, shared across all GeocodingService instances
+_jurisdiction_mappings: Optional[Dict[str, Dict[str, str]]] = None
+
+JURISDICTIONS_DIR = Path(__file__).resolve().parents[5] / "data" / "jurisdictions"
+
+
+def _load_jurisdiction_mappings(
+    jurisdictions_dir: Path = JURISDICTIONS_DIR,
+) -> Dict[str, Dict[str, str]]:
+    """
+    Build city/county → jurisdiction_id mappings from YAML config files.
+
+    Scans data/jurisdictions/*.yaml for files with level 'city' or 'county'
+    and builds lookup dicts from display_name → jurisdiction_id.
+    """
+    global _jurisdiction_mappings
+    if _jurisdiction_mappings is not None:
+        return _jurisdiction_mappings
+
+    city_map: Dict[str, str] = {}
+    county_map: Dict[str, str] = {}
+
+    if not jurisdictions_dir.is_dir():
+        logger.warning(f"Jurisdictions directory not found: {jurisdictions_dir}")
+        _jurisdiction_mappings = {"city": city_map, "county": county_map}
+        return _jurisdiction_mappings
+
+    for yaml_file in sorted(jurisdictions_dir.glob("*.yaml")):
+        if yaml_file.name == "schema.yaml":
+            continue
+        try:
+            with open(yaml_file) as f:
+                config = yaml.safe_load(f)
+            if not isinstance(config, dict):
+                continue
+
+            level = config.get("level")
+            display_name = config.get("display_name")
+            jurisdiction_id = config.get("jurisdiction_id")
+
+            if not all([level, display_name, jurisdiction_id]):
+                continue
+
+            if level == "city":
+                city_map[display_name] = jurisdiction_id
+            elif level == "county":
+                # Google Maps returns county as "Marin County", not "Marin"
+                county_name = display_name if "County" in display_name else f"{display_name} County"
+                county_map[county_name] = jurisdiction_id
+        except Exception as e:
+            logger.warning(f"Failed to parse {yaml_file.name}: {e}")
+
+    _jurisdiction_mappings = {"city": city_map, "county": county_map}
+    logger.info(
+        f"Loaded jurisdiction mappings: {len(city_map)} cities, {len(county_map)} counties"
+    )
+    return _jurisdiction_mappings
 
 
 class GeocodingService:
@@ -20,6 +84,9 @@ class GeocodingService:
     - Latitude/longitude coordinates
     - City, county, state information
     - Jurisdiction IDs for filtering
+
+    Jurisdiction mappings are loaded from data/jurisdictions/*.yaml config files.
+    Adding a new city only requires creating a YAML file — no code changes needed.
     """
 
     def __init__(self, api_key: Optional[str] = None):
@@ -33,36 +100,10 @@ class GeocodingService:
 
         self.base_url = "https://maps.googleapis.com/maps/api/geocode/json"
 
-        # Jurisdiction ID mapping (city name -> jurisdiction_id)
-        # Matches CITY_CONFIGS in automated_civic_refresh.py
-        self.city_to_jurisdiction = {
-            "Oakland": "city-oakland",
-            "Berkeley": "city-berkeley",
-            "Hayward": "city-hayward",
-            "San Leandro": "city-san-leandro",
-            "Union City": "city-union-city",
-            "Dublin": "city-dublin",
-            "Pleasanton": "city-pleasanton",
-            "El Cerrito": "city-el-cerrito",
-            "Concord": "city-concord",
-            "Pleasant Hill": "city-pleasant-hill",
-            "Pinole": "city-pinole",
-            "Pittsburg": "city-pittsburg",
-            "Antioch": "city-antioch",
-            "Richmond": "city-richmond",
-            "San Rafael": "city-san-rafael",
-            "Mill Valley": "city-mill-valley",
-            "San Anselmo": "city-san-anselmo",
-            "Santa Rosa": "city-santa-rosa",
-        }
-
-        # County name mapping
-        self.county_to_jurisdiction = {
-            "Alameda County": "county-alameda",
-            "Contra Costa County": "county-contra-costa",
-            "Marin County": "county-marin",
-            "Sonoma County": "county-sonoma",
-        }
+        # Load jurisdiction mappings from YAML configs
+        mappings = _load_jurisdiction_mappings()
+        self.city_to_jurisdiction = mappings["city"]
+        self.county_to_jurisdiction = mappings["county"]
 
     def geocode_address(self, address: str) -> Optional[Dict[str, Any]]:
         """
