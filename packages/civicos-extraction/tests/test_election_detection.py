@@ -7,13 +7,24 @@ various jurisdiction types.
 """
 
 import pytest
+import requests
 from unittest.mock import patch, MagicMock
 
 from civicos_extraction.onboard import (
     detect_election_sources,
     detect_districts,
     _infer_division_name,
+    _validate_civera_division_filter,
 )
+
+# Auto-mock the Civera validation for unit tests (avoid network calls)
+@pytest.fixture(autouse=True)
+def mock_civera_validation(monkeypatch):
+    """Skip live Civera validation in unit tests."""
+    monkeypatch.setattr(
+        "civicos_extraction.onboard._validate_civera_division_filter",
+        lambda *args, **kwargs: True,
+    )
 
 
 # --- _infer_division_name tests ---
@@ -381,6 +392,160 @@ class TestDetectDistricts:
         # At-large CD skipped, but state lower chamber included
         assert "us-rep" not in result
         assert result["state-assembly"] == [1]
+
+
+# --- Civera division filter validation tests ---
+
+
+class TestValidateCiveraDivisionFilter:
+    """Tests for the post-inference validation step.
+
+    These tests need the real _validate_civera_division_filter, so they
+    override the autouse mock by patching CiveraElectionStatsClient directly.
+    """
+
+    def _mock_client(self, elections, results_count):
+        mock_cls = MagicMock()
+        mock_inst = mock_cls.return_value
+        mock_inst.list_elections.return_value = elections
+        mock_inst.get_election_results.return_value = {
+            "total_contests": results_count, "contests": [],
+        }
+        return mock_cls
+
+    def test_valid_filter_returns_true(self, monkeypatch):
+        """Known-good filter 'San Rafael' should validate."""
+        monkeypatch.undo()  # Remove autouse mock
+        mock_cls = self._mock_client(
+            [{"id": 35, "name": "2024 Nov - General", "count": 70}], 6,
+        )
+        with patch("civicos_extraction.clients.civera_election_stats.CiveraElectionStatsClient", mock_cls):
+            assert _validate_civera_division_filter(
+                "https://example.com/api/graphql_pr", "marin", "San Rafael",
+            ) is True
+
+    def test_bad_filter_returns_false(self, monkeypatch):
+        """Non-existent division should fail validation."""
+        monkeypatch.undo()
+        mock_cls = self._mock_client(
+            [{"id": 35, "name": "2024 Nov - General", "count": 70}], 0,
+        )
+        with patch("civicos_extraction.clients.civera_election_stats.CiveraElectionStatsClient", mock_cls):
+            assert _validate_civera_division_filter(
+                "https://example.com/api/graphql_pr", "marin", "Nonexistent City",
+            ) is False
+
+    def test_network_error_returns_true(self, monkeypatch):
+        """Network failures shouldn't block onboarding."""
+        monkeypatch.undo()
+        mock_cls = MagicMock()
+        mock_cls.return_value.list_elections.side_effect = RuntimeError("timeout")
+        with patch("civicos_extraction.clients.civera_election_stats.CiveraElectionStatsClient", mock_cls):
+            assert _validate_civera_division_filter(
+                "https://example.com/api/graphql_pr", "marin", "San Rafael",
+            ) is True
+
+    def test_no_general_elections_returns_true(self, monkeypatch):
+        """If no general elections found, can't validate — assume OK."""
+        monkeypatch.undo()
+        mock_cls = self._mock_client(
+            [{"id": 99, "name": "2025 Special", "count": 1}], 0,
+        )
+        with patch("civicos_extraction.clients.civera_election_stats.CiveraElectionStatsClient", mock_cls):
+            assert _validate_civera_division_filter(
+                "https://example.com/api/graphql_pr", "marin", "San Rafael",
+            ) is True
+
+    def test_failed_validation_does_not_block_onboarding(self):
+        """Failed validation still includes the source (with warning logged)."""
+        with patch("civicos_extraction.onboard._validate_civera_division_filter", return_value=False):
+            result = detect_election_sources("city-fake-town", "CA", "Marin")
+        assert "marin_registrar_results" in result
+
+
+# --- School district detection via CDE data ---
+
+
+class TestDetectSchoolDistricts:
+    """Tests for CDE-based school district detection."""
+
+    SAMPLE_CDE_TSV = (
+        "CDSCode\tCounty\tDistrict\tSchool\tCity\tStatusType\n"
+        "1\tMarin\tMiller Creek Elementary\tSome School\tSan Rafael\tActive\n"
+        "2\tMarin\tSan Rafael City High\tTerra Linda HS\tSan Rafael\tActive\n"
+        "3\tMarin\tMill Valley Elementary\tMV School\tMill Valley\tActive\n"
+        "4\tMarin\tRoss Valley Elementary\tBrookside\tSan Anselmo\tActive\n"
+        "5\tMarin\tMiller Creek Elementary\tClosed School\tSan Rafael\tClosed\n"
+        "6\tSonoma\tPetaluma City Schools\tSome School\tPetaluma\tActive\n"
+    )
+
+    def test_finds_districts_for_city(self):
+        from civicos_extraction.onboard import detect_school_districts
+        mock_resp = MagicMock()
+        mock_resp.text = self.SAMPLE_CDE_TSV
+        mock_resp.raise_for_status.return_value = None
+
+        with patch("civicos_extraction.onboard.requests.get", return_value=mock_resp):
+            result = detect_school_districts("San Rafael", "Marin")
+        assert result == ["Miller Creek Elementary", "San Rafael City High"]
+
+    def test_excludes_closed_schools(self):
+        from civicos_extraction.onboard import detect_school_districts
+        mock_resp = MagicMock()
+        mock_resp.text = self.SAMPLE_CDE_TSV
+        mock_resp.raise_for_status.return_value = None
+
+        with patch("civicos_extraction.onboard.requests.get", return_value=mock_resp):
+            result = detect_school_districts("San Rafael", "Marin")
+        # "Closed" school should not add a duplicate Miller Creek
+        assert result.count("Miller Creek Elementary") == 1
+
+    def test_filters_by_county(self):
+        from civicos_extraction.onboard import detect_school_districts
+        mock_resp = MagicMock()
+        mock_resp.text = self.SAMPLE_CDE_TSV
+        mock_resp.raise_for_status.return_value = None
+
+        with patch("civicos_extraction.onboard.requests.get", return_value=mock_resp):
+            result = detect_school_districts("Petaluma", "Sonoma")
+        assert result == ["Petaluma City Schools"]
+
+    def test_case_insensitive(self):
+        from civicos_extraction.onboard import detect_school_districts
+        mock_resp = MagicMock()
+        mock_resp.text = self.SAMPLE_CDE_TSV
+        mock_resp.raise_for_status.return_value = None
+
+        with patch("civicos_extraction.onboard.requests.get", return_value=mock_resp):
+            result = detect_school_districts("san rafael", "marin")
+        assert len(result) == 2
+
+    def test_no_match_returns_empty(self):
+        from civicos_extraction.onboard import detect_school_districts
+        mock_resp = MagicMock()
+        mock_resp.text = self.SAMPLE_CDE_TSV
+        mock_resp.raise_for_status.return_value = None
+
+        with patch("civicos_extraction.onboard.requests.get", return_value=mock_resp):
+            result = detect_school_districts("Nonexistent City", "Marin")
+        assert result == []
+
+    def test_network_error_returns_empty(self):
+        from civicos_extraction.onboard import detect_school_districts
+        with patch("civicos_extraction.onboard.requests.get", side_effect=requests.ConnectionError):
+            result = detect_school_districts("San Rafael", "Marin")
+        assert result == []
+
+
+class TestDetectSchoolDistrictsLive:
+    """Live integration test against CDE API (requires network)."""
+
+    @pytest.mark.integration
+    def test_san_rafael_live(self):
+        from civicos_extraction.onboard import detect_school_districts
+        result = detect_school_districts("San Rafael", "Marin")
+        assert len(result) >= 2
+        assert any("Miller Creek" in d for d in result)
 
 
 class TestDetectDistrictsLive:
