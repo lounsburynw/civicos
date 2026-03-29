@@ -1,108 +1,64 @@
-# Recommended: What's On My Ballot
+# Recommended: MCP who_represents_me Tool
 
-**Priority:** P0 (whats_on_my_ballot)
+**Priority:** P0 (mcp_who_represents_me)
 **Area:** representative_lookup
-**Date:** 2026-03-28
+**Date:** 2026-03-29
 
 > This is recommended context from the previous session. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
 
 ## Context
 
-Previous session completed `election_calendar` — built a deterministic cycle resolver (`get_next_election_date()`) and CA deadline generator (`generate_ca_deadlines()`). All 3 pilot jurisdictions now have the June 2 primary and Nov 3 general elections stored with 8 contests and 5 deadlines each. `whats_next(include_elections=True)` returns elections with deadlines.
+Previous session completed `whats_on_my_ballot` — the capstone ballot query is now live as `explore what='my_ballot'`. Returns elections sorted by date, contests grouped by government level (federal/state/local/judicial), candidates from CA SOS, and deadlines with next_deadline computation. 16 integration tests passing.
 
-This is the capstone query: combine election calendar + contests + candidates + deadlines into one "what's on my ballot?" answer. The data layer is ready; this session wires it into the API.
+The data infrastructure is solid: elected officials, elections, contests, candidates, and deadlines all queryable through the v2 explore verb. Now we need to expose this as a dedicated MCP tool — the flagship citizen query: "Who represents me?"
 
 ## What Needs to Be Done
 
-Add `explore what='my_ballot'` to the v2 query layer. Given a jurisdiction, return:
-1. Next upcoming election (date, type, name)
-2. Every contest on the ballot (federal → state → local)
-3. Candidates per contest (from CA SOS ballot preview data)
-4. Key deadlines (registration, VBM, early voting, election day)
-5. Which deadlines have passed vs upcoming
+Add a `who_represents_me` tool to the MCP server that geocodes an address, resolves jurisdictions, and returns elected officials at every level. This combines the existing `explore what='representatives'` infrastructure with geocoding.
 
 ## Key Files
 
-- `packages/civicos-services/src/civicos_services/query/verbs.py:1264` — existing `explore what='representatives'` handler (pattern to follow)
-- `packages/civicos-services/src/civicos_services/query/verbs.py:1298` — dispatch switch where new `what='my_ballot'` goes
-- `packages/civicos/src/civicos/_internal/elections/cycles.py:1` — cycle resolver with `get_contests_for_jurisdiction()`, `get_next_election_date()`
-- `packages/civicos/src/civicos/_internal/elections/deadlines.py:1` — `generate_ca_deadlines()`
-- `packages/civicos/src/civicos/storage/postgres_backend.py:8747` — `get_elections()`, `get_election_contests()`, `get_election_deadlines()`
-- `data/extraction/city-san-rafael.json:26` — election_sources with district config
-- `apps/civicos-mcp/server.py` — MCP server, add `whats_on_my_ballot` tool
+- `apps/civicos-mcp/server.py:410-528` — existing v2 tool definitions and routing (pattern to follow)
+- `packages/civicos-services/src/civicos_services/query/verbs.py:1264` — `explore what='representatives'` handler (walks jurisdiction hierarchy, returns officials per level)
+- `packages/civicos-services/src/civicos_services/query/jurisdictions.py` — `resolve_jurisdictions()` for hierarchy resolution
+- `packages/civicos/src/civicos/storage/postgres_backend.py:9103` — `get_elected_officials(jurisdiction_id, current_only=True)`
 
 ## Data Already Available (Postgres)
 
-Per jurisdiction (San Rafael, Mill Valley, San Anselmo):
-- **Elections**: June 2 primary + Nov 3 general stored with source="election_cycle" or "ca_sos_ballot_preview"
-- **Contests**: 8 per election (US House D2, Assembly D12, State Senate D2, Governor, Lt Gov, AG, Controller, Treasurer)
-- **Candidates**: 3 candidates for State Senate D2 (from CA SOS), others have contest shells without candidate data yet
-- **Deadlines**: 5 per election (VBM mailed May 4, registration May 18, early voting May 23, conditional reg June 2, election day June 2)
-- **Elected Officials**: Federal (Schiff, Padilla, Huffman) + local council members stored
+- **Federal officials**: Schiff (Senate), Padilla (Senate), Huffman (House D2) for San Rafael
+- **Local officials**: San Rafael city council members stored
+- **Geocoding**: `GOOGLE_MAPS_API_KEY` available in env, used by existing geocoding_service
 
 ## Suggested Approach
 
-1. **Add `explore what='my_ballot'` handler** in `verbs.py` — follow the `representatives` pattern. Fetch upcoming elections via `storage.get_elections(jid, include_past=False)`, then for each election get contests and deadlines.
+1. **Add tool definition** in `server.py` — `who_represents_me(address, jurisdiction?)`. Address is primary; jurisdiction is fallback when no address provided.
 
-2. **Enrich contests with candidates** — `storage.get_election_contests(election_id)` returns contests with `raw_data` containing parsed candidates (see CA SOS ballot preview data). Surface candidate name, party, incumbent status.
+2. **Implement handler** — Geocode address → resolve jurisdiction from coordinates → call `explore what='representatives'` logic (or call it directly via the verb) → return officials grouped by level.
 
-3. **Compute deadline status** — mark each deadline as passed/upcoming relative to today. Highlight the next actionable deadline.
+3. **Fallback behavior** — If no address, use the server's default jurisdiction. If geocoding fails, return error with suggestion to provide jurisdiction directly.
 
-4. **Structure the response** — nested: election → contests (grouped by level: federal/state/local) → candidates, plus deadlines array.
+4. **Consider combining with ballot** — Could optionally include `my_ballot` summary (next election date, total contests) alongside officials for a comprehensive civic profile.
 
-5. **Add MCP tool** — `whats_on_my_ballot(jurisdiction)` in `apps/civicos-mcp/server.py` that calls the explore endpoint.
-
-6. **Write tests** — test the explore handler with mock storage, verify contest grouping, deadline ordering.
-
-## Example Response Shape
-
-```json
-{
-  "jurisdiction": "city-san-rafael",
-  "next_election": {
-    "name": "2026 California Primary Election",
-    "date": "2026-06-02",
-    "type": "primary",
-    "days_until": 66
-  },
-  "contests": [
-    {
-      "level": "federal",
-      "races": [
-        {"title": "US House District 2", "candidates": [{"name": "...", "party": "..."}]}
-      ]
-    },
-    {
-      "level": "state",
-      "races": [
-        {"title": "Governor", "candidates": [...]},
-        {"title": "State Senate District 2", "candidates": ["Damon Connolly (D)", "Tief Gibbs (R)", "Aaron Smith (R)"]}
-      ]
-    }
-  ],
-  "deadlines": [
-    {"type": "voter_registration", "date": "2026-05-18", "passed": false, "description": "Last day to register..."}
-  ],
-  "next_deadline": {"type": "vbm_ballots_mailed", "date": "2026-05-04", "days_until": 37}
-}
-```
+5. **Write tests** — Test MCP tool registration, mock geocoding, verify response shape.
 
 ## Tests to Run
 
 ```bash
-# Election calendar tests (should still pass)
+# Ballot tests (verify nothing regressed)
+pytest packages/civicos/tests/test_explore_ballot.py -v --override-ini="addopts="
+# Election calendar tests
 pytest packages/civicos/tests/test_election_calendar.py -v --override-ini="addopts="
-# Smoke tests
-pytest packages/civicos/tests/test_civicos.py -q --override-ini="addopts="
 # Elected officials tests
 pytest packages/civicos/tests/test_elected_officials.py -q --override-ini="addopts="
+# MCP sequences (existing)
+pytest packages/civicos/tests/test_integration_mcp_sequences.py -q --override-ini="addopts="
 ```
 
 ## Success Criteria
 
-- [ ] `POST /api/v2/civic/explore` with `what='my_ballot'` returns structured ballot data
-- [ ] Response includes contests grouped by level (federal, state, local)
-- [ ] Candidates from CA SOS data appear on contests that have them
-- [ ] Deadlines sorted with next actionable deadline highlighted
-- [ ] MCP tool `whats_on_my_ballot` works for all 3 pilot jurisdictions
-- [ ] Graceful handling when no elections exist for a jurisdiction
+- [ ] MCP tool `who_represents_me` registered and callable
+- [ ] Address input geocodes to jurisdiction and returns officials
+- [ ] Officials grouped by level (federal → state → local)
+- [ ] Fallback to default jurisdiction when no address provided
+- [ ] Works for all 3 pilot jurisdictions (San Rafael, Mill Valley, San Anselmo)
+- [ ] Graceful error when geocoding fails or address is outside service area
