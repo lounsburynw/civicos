@@ -1642,6 +1642,9 @@ def _generate_jurisdiction_yaml(
     state_abbrev: str = "CA",
     country: str = "United States",
     usaspending_candidates: Optional[List[Dict[str, Any]]] = None,
+    contact_info: Optional[Dict[str, Optional[str]]] = None,
+    youtube_playlist_id: Optional[str] = None,
+    school_districts: Optional[List[str]] = None,
 ) -> str:
     """Generate complete jurisdiction YAML content from onboarding results.
 
@@ -1714,16 +1717,18 @@ def _generate_jurisdiction_yaml(
     today = date.today().isoformat()
 
     # Build contact_info with all fields (level-aware)
-    contact_info: Dict[str, Any] = {
-        "clerk_email": contact_email or None,
+    # Merge auto-detected contact data with defaults
+    ci = contact_info or {}
+    contact_block: Dict[str, Any] = {
+        "clerk_email": ci.get("clerk_email") or contact_email or None,
         "website": website or None,
     }
     if level in ("city", "county", "town", "district", "council"):
-        contact_info.update({
-            "city_hall_address": None,
-            "phone": None,
-            "public_comment_deadline": "5:00 PM day of meeting",
-            "in_person_time_limit": "3 minutes",
+        contact_block.update({
+            "city_hall_address": ci.get("city_hall_address"),
+            "phone": ci.get("phone"),
+            "public_comment_deadline": ci.get("public_comment_deadline") or "5:00 PM day of meeting",
+            "in_person_time_limit": ci.get("in_person_time_limit") or "3 minutes",
             "public_comment_subject": "Public Comment - [Agenda Item Title]",
         })
 
@@ -1733,7 +1738,10 @@ def _generate_jurisdiction_yaml(
         "issues": None,
         "budget": None,
         "municipal_code": None,
-        "transcripts": {"source": None, "playlist_id": None},
+        "transcripts": {
+            "source": "youtube" if youtube_playlist_id else None,
+            "playlist_id": youtube_playlist_id,
+        },
     }
     if level in ("state", "province"):
         data_sources["legislation"] = "leginfo_api"
@@ -1770,7 +1778,7 @@ def _generate_jurisdiction_yaml(
         "level": level,
         "display_name": display_name,
         "parent_jurisdictions": parents,
-        "contact_info": contact_info,
+        "contact_info": contact_block,
     }
 
     # Governing body (city/county levels)
@@ -2267,11 +2275,46 @@ def onboard_jurisdiction(
             gov_count = sum(1 for c in usaspending_candidates if c["is_government"])
             _progress("usaspending", f"Found {len(usaspending_candidates)} candidates ({gov_count} government)")
 
+    # Step 3.8: Detect contact info from city website
+    contact_data: Dict[str, Optional[str]] = _empty_contact_info()
+    base_url_for_contact = config.get("base_url", url or "")
+    inferred_display = city_name or re.sub(
+        r"^(city|county|town|district|state|province|council)-", "",
+        jurisdiction_id
+    ).replace("-", " ").title()
+    if base_url_for_contact and level in ("city", "county", "town"):
+        _progress("contact", f"Detecting contact info from {base_url_for_contact}...")
+        contact_data = detect_contact_info(base_url_for_contact, inferred_display)
+        found = [k for k, v in contact_data.items() if v]
+        if found:
+            _progress("contact", f"Found: {', '.join(found)}")
+        else:
+            _progress("contact", "No contact info auto-detected (will need manual entry)")
+
+    # Step 3.9: Detect YouTube playlist (if channel was found)
+    youtube_channel = detect_youtube_channel(inferred_display, state or "")
+    youtube_playlist_id = None
+    if youtube_channel:
+        _progress("youtube", f"Found YouTube channel: {youtube_channel['channel_title']}")
+        youtube_playlist_id = detect_youtube_playlist(youtube_channel["channel_id"])
+        if youtube_playlist_id:
+            _progress("youtube", f"Found meeting playlist: {youtube_playlist_id}")
+
+    # Step 3.10: Detect school districts (CA only, requires county)
+    school_districts: List[str] = []
+    county_for_schools = ""
+    if geo_data:
+        county_for_schools = re.sub(r"\s*County$", "", geo_data.get("county", ""), flags=re.IGNORECASE).strip()
+    if county_for_schools and (state or "").upper() == "CA":
+        _progress("schools", f"Detecting school districts from CA Dept of Education...")
+        school_districts = detect_school_districts(inferred_display, county_for_schools)
+        if school_districts:
+            _progress("schools", f"Found {len(school_districts)} school districts: {school_districts}")
+
     # Step 4: Generate jurisdiction YAML (optional)
     yaml_path = None
     if generate_yaml:
-        # Strip any level prefix (city-, county-, state-, etc.) from jurisdiction_id for display
-        display_name = city_name or re.sub(r"^(city|county|town|district|state|province|council)-", "", jurisdiction_id).replace("-", " ").title()
+        display_name = inferred_display
 
         # Use geocoding data if available
         parent_jurisdictions = None
@@ -2290,6 +2333,7 @@ def onboard_jurisdiction(
             jurisdiction_id=jurisdiction_id,
             display_name=display_name,
             config=config,
+            contact_email=contact_data.get("clerk_email") or "",
             website=config.get("base_url", ""),
             parent_jurisdictions=parent_jurisdictions,
             level=level,
@@ -2298,6 +2342,9 @@ def onboard_jurisdiction(
             state_abbrev=state_abbrev,
             country=geo_country,
             usaspending_candidates=usaspending_candidates,
+            contact_info=contact_data,
+            youtube_playlist_id=youtube_playlist_id,
+            school_districts=school_districts,
         )
         JURISDICTIONS_DIR.mkdir(parents=True, exist_ok=True)
         yaml_path = JURISDICTIONS_DIR / f"{jurisdiction_id}.yaml"
