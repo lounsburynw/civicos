@@ -8,6 +8,8 @@ realistic contest data matching Civera and CA SOS formats.
 import pytest
 from unittest.mock import Mock
 
+from unittest.mock import patch
+
 from civicos._internal.elections.derive import (
     derive_officials_from_contests,
     _extract_winners,
@@ -15,6 +17,7 @@ from civicos._internal.elections.derive import (
     _extract_district_number,
     _generate_name_variations,
     _winner_to_official,
+    _resolve_official_jurisdiction,
 )
 
 
@@ -25,17 +28,25 @@ def _make_contest(
     candidates: list,
     district_name: str | None = None,
     election_id: str = "election-1",
+    division_name: str | None = None,
+    division_type: str | None = None,
 ) -> dict:
     """Build a contest dict matching DB storage format."""
+    raw_data: dict = {
+        "mapped_candidates": candidates,
+    }
+    if division_name:
+        raw_data["division"] = {
+            "displayName": division_name,
+            "divisionType": {"name": division_type or "City"},
+        }
     return {
         "id": contest_id,
         "election_id": election_id,
         "title": title,
         "contest_type": contest_type,
         "district_name": district_name,
-        "raw_data": {
-            "mapped_candidates": candidates,
-        },
+        "raw_data": raw_data,
     }
 
 
@@ -236,8 +247,24 @@ class TestWinnerToOfficial:
         assert official["id"] == "official-city-san-rafael-us-house-district-2"
 
 
+SAN_RAFAEL_PARENTS = {"county": "county-marin", "state": "state-california", "federal": "country-united-states"}
+MILL_VALLEY_PARENTS = {"county": "county-marin", "state": "state-california", "federal": "country-united-states"}
+
+
 class TestDeriveOfficialsFromContests:
     """Integration tests for the full derivation pipeline."""
+
+    @pytest.fixture(autouse=True)
+    def patch_parents(self):
+        """Patch parent jurisdiction loading so tests don't depend on YAML file paths."""
+        def mock_load(jid):
+            if jid == "city-san-rafael":
+                return SAN_RAFAEL_PARENTS
+            if jid == "city-mill-valley":
+                return MILL_VALLEY_PARENTS
+            return {}
+        with patch("civicos._internal.elections.derive._load_parent_jurisdictions", side_effect=mock_load):
+            yield
 
     @pytest.fixture
     def mock_storage(self):
@@ -264,22 +291,25 @@ class TestDeriveOfficialsFromContests:
                 ],
             ),
         ]
-        mock_storage.store_elected_officials.return_value = 2
+        mock_storage.store_elected_officials.return_value = 1
 
         result = derive_officials_from_contests(mock_storage, "city-san-rafael")
 
         assert result == 2
-        mock_storage.store_elected_officials.assert_called_once()
-        call_args = mock_storage.store_elected_officials.call_args
-        assert call_args[0][0] == "city-san-rafael"
-        officials = call_args[0][1]
-        assert len(officials) == 2
+        # Officials go to different jurisdictions: federal + county
+        assert mock_storage.store_elected_officials.call_count == 2
 
-        names = {o["name"] for o in officials}
-        assert names == {"Jared Huffman", "Damon Connolly"}
+        # Collect all stored officials across calls
+        all_calls = mock_storage.store_elected_officials.call_args_list
+        stored = {}
+        for call in all_calls:
+            jid = call[0][0]
+            stored[jid] = call[0][1]
 
-        seats = {o["seat"] for o in officials}
-        assert seats == {"US House District 2", "County Supervisor District 1"}
+        assert "country-united-states" in stored
+        assert stored["country-united-states"][0]["name"] == "Jared Huffman"
+        assert "county-marin" in stored
+        assert stored["county-marin"][0]["name"] == "Damon Connolly"
 
     def test_most_recent_winner_per_seat(self, mock_storage):
         """When multiple elections have the same seat, keep only the most recent winner."""
@@ -310,7 +340,10 @@ class TestDeriveOfficialsFromContests:
 
         derive_officials_from_contests(mock_storage, "city-san-rafael")
 
-        officials = mock_storage.store_elected_officials.call_args[0][1]
+        # Federal officials stored under country-united-states
+        call_args = mock_storage.store_elected_officials.call_args
+        assert call_args[0][0] == "country-united-states"
+        officials = call_args[0][1]
         assert len(officials) == 1
         assert officials[0]["name"] == "New Rep"
         assert officials[0]["term_start"] == "2024-11-05"
@@ -366,21 +399,33 @@ class TestDeriveOfficialsFromContests:
                 [_make_candidate("Kate Colin", is_winner=True)],
             ),
         ]
-        mock_storage.store_elected_officials.return_value = 5
+        mock_storage.store_elected_officials.return_value = 1
 
-        derive_officials_from_contests(mock_storage, "city-san-rafael")
+        result = derive_officials_from_contests(mock_storage, "city-san-rafael")
 
-        officials = mock_storage.store_elected_officials.call_args[0][1]
-        assert len(officials) == 5
+        assert result == 3  # 3 jurisdictions × 1 return each
 
-        seats = {o["seat"] for o in officials}
-        assert seats == {
-            "US House District 2",
-            "US Senate",
-            "State Assembly District 12",
-            "State Senate District 2",
-            "Mayor",
-        }
+        # Collect all stored officials across jurisdiction-grouped calls
+        all_calls = mock_storage.store_elected_officials.call_args_list
+        stored = {}
+        for call in all_calls:
+            jid = call[0][0]
+            stored[jid] = call[0][1]
+
+        # Federal officials at country level
+        assert "country-united-states" in stored
+        federal_names = {o["name"] for o in stored["country-united-states"]}
+        assert federal_names == {"Jared Huffman", "Alex Padilla"}
+
+        # State officials at state level
+        assert "state-california" in stored
+        state_names = {o["name"] for o in stored["state-california"]}
+        assert state_names == {"Damon Connolly", "Mike McGuire"}
+
+        # Local officials at city level
+        assert "city-san-rafael" in stored
+        local_names = {o["name"] for o in stored["city-san-rafael"]}
+        assert local_names == {"Kate Colin"}
 
     def test_candidate_id_links_to_contest(self, mock_storage):
         """Verify candidate_id in official links back to contest candidate."""
@@ -399,3 +444,63 @@ class TestDeriveOfficialsFromContests:
 
         officials = mock_storage.store_elected_officials.call_args[0][1]
         assert officials[0]["candidate_id"] == "cand-kate-colin"
+
+    def test_skips_contests_from_other_cities(self, mock_storage):
+        """Contests whose division names a different city are skipped."""
+        mock_storage.get_elections.return_value = [
+            {"id": "e1", "election_date": "2024-11-05"},
+        ]
+        mock_storage.get_election_contests.return_value = [
+            # This mayor contest belongs to San Rafael, not Mill Valley
+            _make_contest(
+                "c1", "Mayor", "local_mayor",
+                [_make_candidate("Kate Colin", is_winner=True)],
+                division_name="City of San Rafael",
+                division_type="City",
+            ),
+            # This is Mill Valley's own council contest
+            _make_contest(
+                "c2", "City Council", "local_council",
+                [_make_candidate("Mill Valley Councilmember", is_winner=True)],
+                division_name="City of Mill Valley",
+                division_type="City",
+            ),
+        ]
+        mock_storage.store_elected_officials.return_value = 1
+
+        derive_officials_from_contests(mock_storage, "city-mill-valley")
+
+        # Only Mill Valley's own council member should be stored
+        call_args = mock_storage.store_elected_officials.call_args
+        assert call_args[0][0] == "city-mill-valley"
+        officials = call_args[0][1]
+        assert len(officials) == 1
+        assert officials[0]["name"] == "Mill Valley Councilmember"
+
+    def test_resolve_jurisdiction_federal(self):
+        """Federal contests resolve to country-united-states."""
+        parents = {"county": "county-marin", "state": "state-california", "federal": "country-united-states"}
+        contest = _make_contest("c1", "US Senator", "federal_senate", [])
+        result = _resolve_official_jurisdiction("federal_senate", contest, "city-san-rafael", parents)
+        assert result == "country-united-states"
+
+    def test_resolve_jurisdiction_state(self):
+        """State contests resolve to state parent."""
+        parents = {"county": "county-marin", "state": "state-california", "federal": "country-united-states"}
+        contest = _make_contest("c1", "Governor", "state_governor", [])
+        result = _resolve_official_jurisdiction("state_governor", contest, "city-san-rafael", parents)
+        assert result == "state-california"
+
+    def test_resolve_jurisdiction_county_supervisor(self):
+        """County supervisor contests resolve to county parent."""
+        parents = {"county": "county-marin", "state": "state-california", "federal": "country-united-states"}
+        contest = _make_contest("c1", "County Supervisor District 1", "local_council", [])
+        result = _resolve_official_jurisdiction("local_council", contest, "city-san-rafael", parents)
+        assert result == "county-marin"
+
+    def test_resolve_jurisdiction_local_mayor(self):
+        """Mayor contests stay at city level."""
+        parents = {"county": "county-marin", "state": "state-california", "federal": "country-united-states"}
+        contest = _make_contest("c1", "Mayor", "local_mayor", [])
+        result = _resolve_official_jurisdiction("local_mayor", contest, "city-san-rafael", parents)
+        assert result == "city-san-rafael"

@@ -3791,6 +3791,33 @@ class SQLiteBackend:
         finally:
             conn.close()
 
+    def expire_officials_by_seat(
+        self,
+        jurisdiction_id: str,
+        seats: List[str],
+    ) -> int:
+        """Expire current officials at a jurisdiction matching any of the given seats."""
+        if not seats:
+            return 0
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        try:
+            placeholders = ",".join("?" for _ in seats)
+            cursor.execute(
+                f"UPDATE elected_officials SET valid_to = datetime('now'), deleted_at = datetime('now') "
+                f"WHERE jurisdiction_id = ? AND seat IN ({placeholders}) "
+                f"AND valid_to IS NULL AND deleted_at IS NULL",
+                (jurisdiction_id, *seats),
+            )
+            count = cursor.rowcount
+            conn.commit()
+            return count
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
+
     def get_elected_officials(
         self,
         jurisdiction_id: str,
