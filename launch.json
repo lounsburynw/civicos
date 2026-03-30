@@ -1,9 +1,10 @@
 {
   "version": "1.0",
   "phase": "launch",
-  "last_updated": "2026-03-28",
-  "summary": "Launch readiness: election+school onboarding (done), representative lookup (new), turnkey onboarding (done), federation queries, billing, operator tooling, multi-scale participation (done)",
+  "last_updated": "2026-03-29",
+  "summary": "Launch readiness: multi-state election portability (active), election+school onboarding (done), representative lookup (done), turnkey onboarding (done), federation queries, billing, operator tooling, multi-scale participation (done)",
   "category_order": [
+    "multi_state_portability",
     "turnkey_onboarding",
     "election_integration",
     "representative_lookup",
@@ -17,6 +18,116 @@
     "federation_testbed",
     "multi_scale_participation"
   ],
+  "multi_state_portability": {
+    "description": "Abstract election data infrastructure for multi-state support. Enable individual contributors to add new states by implementing a clear interface. Priority: all-CA coverage + top 5 states (TX, FL, NY, PA, IL).",
+    "items": [
+      {
+        "name": "state_election_config",
+        "description": "Create StateElectionConfig frozen dataclass capturing per-state election rules (primary month, deadline offsets, governor cycle, senate stagger, statewide offices, chamber names). Populate CA config from current hardcoded values. Refactor cycles.py to use config instead of hardcoded CA constants. Keep backward-compatible wrappers.",
+        "priority": 0,
+        "status": "not_started",
+        "files": [
+          "packages/civicos/src/civicos/_internal/elections/state_config.py",
+          "packages/civicos/src/civicos/_internal/elections/cycles.py"
+        ],
+        "test_file": "packages/civicos/tests/test_election_calendar.py",
+        "notes": "Phase 1 of multi-state plan. cycles.py already has state='CA' param on get_next_election_date() but ignores it. Extract CA_SENATE_CLASSES, governor base year 2026, senate stagger, statewide offices into config. ~1 session."
+      },
+      {
+        "name": "deadline_generalization",
+        "description": "Generalize deadlines.py from CA-only to config-driven. Create generate_deadlines(election_date, state_code) that reads offsets from StateElectionConfig. Keep generate_ca_deadlines() as backward-compatible wrapper.",
+        "priority": 1,
+        "status": "not_started",
+        "files": [
+          "packages/civicos/src/civicos/_internal/elections/deadlines.py",
+          "packages/civicos/src/civicos/_internal/elections/state_config.py"
+        ],
+        "test_file": "packages/civicos/tests/test_election_calendar.py",
+        "notes": "Phase 2. Can combine with Phase 1 or 3. Current CA offsets: registration=15d, VBM=29d, early_voting=10d, conditional_registration=election_day. ~0.5 session."
+      },
+      {
+        "name": "state_election_provider",
+        "description": "Create StateElectionProvider ABC with detect_election_sources() and default deadline/cycle methods. Extract CA logic from onboard.py:detect_election_sources() into providers/california.py. Refactor onboard.py to dispatch via provider registry.",
+        "priority": 1,
+        "status": "not_started",
+        "files": [
+          "packages/civicos/src/civicos/_internal/elections/providers/__init__.py",
+          "packages/civicos/src/civicos/_internal/elections/providers/california.py",
+          "packages/civicos-extraction/src/civicos_extraction/onboard.py"
+        ],
+        "test_file": null,
+        "notes": "Phase 3. The key abstraction for contributors. detect_election_sources() currently checks 'if state == CA' and knows about CA SOS + Civera + Marin registrar. Move into CaliforniaElectionProvider. ~1 session."
+      },
+      {
+        "name": "all_california_coverage",
+        "description": "Expand Civera instance discovery beyond 3 counties (Marin, Sonoma, Yolo). Add CA SOS county breakdown as universal fallback for non-Civera counties. Script to probe CA county registrar sites for GraphQL endpoints.",
+        "priority": 1,
+        "status": "not_started",
+        "files": [
+          "packages/civicos-extraction/src/civicos_extraction/clients/civera_election_stats.py",
+          "packages/civicos/src/civicos/_internal/elections/providers/california.py"
+        ],
+        "test_file": null,
+        "notes": "Phase 4. Civera instances use varied subdomain patterns — no auto-discovery, need manual probing. ca_sos_results.py already has get_county_breakdown() for fallback. ~1 session."
+      },
+      {
+        "name": "texas_election_support",
+        "description": "Add Texas as second supported state. StateElectionConfig for TX (March primary, 30-day registration, 17-day early voting, no universal VBM). TexasElectionProvider with detect_election_sources(). TX SOS client if API accessible. End-to-end test with a TX jurisdiction.",
+        "priority": 2,
+        "status": "not_started",
+        "files": [
+          "packages/civicos/src/civicos/_internal/elections/state_config.py",
+          "packages/civicos/src/civicos/_internal/elections/providers/texas.py"
+        ],
+        "test_file": null,
+        "notes": "Phase 5. First non-CA state validates the abstraction. TX senate: 31 seats, odd=2026/even=2028. Statewide: Gov, Lt Gov, AG, Comptroller, Land Commissioner, Ag Commissioner, Railroad Commissioner. ~1.5 sessions."
+      },
+      {
+        "name": "florida_election_support",
+        "description": "Add Florida election support. StateElectionConfig + provider + SOS client. FL uses Clarity Elections (Scytl) widely — building that client covers many FL counties.",
+        "priority": 2,
+        "status": "not_started",
+        "files": [
+          "packages/civicos/src/civicos/_internal/elections/providers/florida.py"
+        ],
+        "test_file": null,
+        "notes": "Phase 6a. Clarity Elections platform is used by GA, NC + hundreds of counties — building it here has outsized value. ~1 session."
+      },
+      {
+        "name": "new_york_election_support",
+        "description": "Add New York election support. StateElectionConfig + provider + SOS client. NY Board of Elections has public data downloads.",
+        "priority": 2,
+        "status": "not_started",
+        "files": [
+          "packages/civicos/src/civicos/_internal/elections/providers/new_york.py"
+        ],
+        "test_file": null,
+        "notes": "Phase 6b. ~1 session."
+      },
+      {
+        "name": "pennsylvania_election_support",
+        "description": "Add Pennsylvania election support. StateElectionConfig + provider + SOS client.",
+        "priority": 2,
+        "status": "not_started",
+        "files": [
+          "packages/civicos/src/civicos/_internal/elections/providers/pennsylvania.py"
+        ],
+        "test_file": null,
+        "notes": "Phase 6c. ~1 session."
+      },
+      {
+        "name": "illinois_election_support",
+        "description": "Add Illinois election support. StateElectionConfig + provider + SOS client.",
+        "priority": 3,
+        "status": "not_started",
+        "files": [
+          "packages/civicos/src/civicos/_internal/elections/providers/illinois.py"
+        ],
+        "test_file": null,
+        "notes": "Phase 6d. ~1 session."
+      }
+    ]
+  },
   "turnkey_onboarding": {
     "description": "100% automated city onboarding: any US city with a supported meeting platform should go from zero to fully queryable in one command. Blocking all downstream work (federation queries, billing, operator adoption).",
     "items": [
@@ -1513,7 +1624,7 @@
       {
         "name": "officials_refresh_cron",
         "description": "Add elected officials refresh to GitHub Actions cron. After election results are ingested, re-derive current officials from winners. Also refresh Congress.gov data monthly. Ensures officials roster stays current after elections.",
-        "priority": 0,
+        "priority": 1,
         "status": "not_started",
         "files": [
           ".github/workflows/cron-election-refresh.yml",
