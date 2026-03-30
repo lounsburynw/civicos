@@ -1,6 +1,6 @@
-# Recommended: StateElectionProvider ABC + CA Provider
+# Recommended: All-California Election Coverage
 
-**Priority:** P0 (state_election_provider)
+**Priority:** P0 (all_california_coverage)
 **Area:** multi_state_portability
 **Date:** 2026-03-29
 
@@ -8,73 +8,70 @@
 
 ## Context
 
-This session completed two items: `ballot_measure_content` (CA voter guide extraction client, model extensions, explore display) and the first two phases of the multi-state election portability roadmap (`state_election_config` + `deadline_generalization`). Election cycles and deadlines are now config-driven via `StateElectionConfig` — configs exist for CA, TX, FL, NY, PA, IL. All 72 election tests pass.
+This session completed Phase 3 of the multi-state portability roadmap: `StateElectionProvider` ABC + `CaliforniaElectionProvider`. Election source detection now dispatches through a provider registry — `onboard.py:detect_election_sources()` calls `get_provider(state)` which returns the CA provider (or None for unsupported states). All 150+ tests pass.
 
-The next step is the **provider abstraction** — extracting CA-specific election source detection from `onboard.py` into a `CaliforniaElectionProvider` class, behind an ABC that contributors implement per state. This is the key piece that makes adding a new state a well-defined, isolated task.
+The current CA provider only knows about 3 counties with Civera instances (Marin, Sonoma, Yolo). The remaining 55 CA counties get CA SOS statewide data but no local race results. This item expands coverage.
 
 ## What Needs to Be Done
 
-Create the `StateElectionProvider` ABC and extract California's election source detection logic into `providers/california.py`. Refactor `onboard.py:detect_election_sources()` to dispatch to the provider registry.
+1. **Expand Civera instance discovery** — Probe more CA county registrar sites for GraphQL endpoints matching the Civera ElectionStats pattern (`/api/graphql_pr`). Add discovered instances to `CIVERA_INSTANCES` registry.
+2. **CA SOS as universal fallback** — The `CASOSResultsClient` already has `get_county_breakdown()` for county-level race results. Wire this into the CA provider as a fallback for counties without Civera.
+3. **Discovery script** — Write a script to systematically probe CA county registrar websites for Civera endpoints.
 
 ## Key Files
 
-- `packages/civicos-extraction/src/civicos_extraction/onboard.py:687-757` — `detect_election_sources()` has `if state == "CA"` guard + Civera lookup + Marin registrar legacy key. This is what gets extracted.
-- `packages/civicos/src/civicos/_internal/elections/state_config.py` — `StateElectionConfig` dataclass + `STATE_CONFIGS` for 6 states (created this session)
-- `packages/civicos/src/civicos/_internal/elections/cycles.py` — Already refactored to use config (this session)
-- `packages/civicos/src/civicos/_internal/elections/deadlines.py` — Already generalized (this session)
-- `packages/civicos-extraction/src/civicos_extraction/clients/civera_election_stats.py:32-49` — `CIVERA_INSTANCES` registry (3 CA counties)
-- `packages/civicos-extraction/src/civicos_extraction/clients/factory.py` — Client factory dispatch
+- `packages/civicos-extraction/src/civicos_extraction/providers/california.py` — CA provider (just created). Civera + SOS fallback logic lives here.
+- `packages/civicos-extraction/src/civicos_extraction/clients/civera_election_stats.py:32-49` — `CIVERA_INSTANCES` registry (currently 3 counties: marin, sonoma, yolo)
+- `packages/civicos-extraction/src/civicos_extraction/clients/ca_sos_results.py` — `CASOSResultsClient` with `get_county_breakdown()` (line 286). Already functional, just not wired into the provider.
+- `packages/civicos-extraction/src/civicos_extraction/providers/__init__.py` — Provider ABC + registry
+- `packages/civicos-extraction/tests/test_election_providers.py` — 17 provider tests
+- `packages/civicos-extraction/tests/test_election_detection.py` — 61 detection tests
 
 ## Suggested Approach
 
-1. **Create `providers/__init__.py`** at `packages/civicos/src/civicos/_internal/elections/providers/__init__.py`:
-   - `StateElectionProvider` ABC with `config` property, `detect_election_sources()` abstract method, and default `generate_deadlines()` / `get_primary_date()` methods
-   - `get_provider(state_code)` registry function
-   - `_create_provider(state_code)` factory with lazy imports
+1. **Research Civera adoption** — Civera ElectionStats uses a consistent URL pattern: `https://electionstats.{county-domain}/api/graphql_pr`. The 3 known instances each have different domain patterns. Write a script to probe the top 20 CA counties by population.
 
-2. **Create `providers/california.py`**:
-   - `CaliforniaElectionProvider(StateElectionProvider)`
-   - Move body of `onboard.py:detect_election_sources()` lines 707-757 into `detect_election_sources()`
-   - Includes: CA SOS detection, Civera instance lookup, Marin registrar legacy key, division filter inference
+2. **Add discovered instances** — For each county with a working Civera endpoint, add to `CIVERA_INSTANCES` dict with `graphql_url`, `tenant`, and `county_name`.
 
-3. **Refactor `onboard.py:detect_election_sources()`**:
-   - Replace with ~5-line dispatcher: `get_provider(state)` → `provider.detect_election_sources(...)`
-   - Unsupported states return `{}` (federal reps still work via Congress.gov)
+3. **Wire CA SOS fallback** — In `CaliforniaElectionProvider.detect_election_sources()`, after the Civera check, add a fallback: if no Civera instance for this county, add a `ca_sos_county_results` source entry that tells the ingestion pipeline to use `CASOSResultsClient.get_county_breakdown()` for local races.
 
-4. **Write tests**:
-   - Provider registry dispatch test
-   - CA provider returns same results as current implementation
-   - Unsupported state returns empty dict
+4. **Update tests** — Add tests for new Civera instances and the SOS fallback path.
 
 ## Tests to Run
 
 ```bash
-# Election calendar (regression — 72 tests)
+# Provider tests (direct)
+pytest packages/civicos-extraction/tests/test_election_providers.py -v --override-ini="addopts="
+# Detection tests (regression)
+pytest packages/civicos-extraction/tests/test_election_detection.py -v --override-ini="addopts="
+# Election calendar (regression)
 pytest packages/civicos/tests/test_election_calendar.py -v --override-ini="addopts="
-# Explore ballot (regression)
-pytest packages/civicos/tests/test_explore_ballot.py -v --override-ini="addopts="
 # Smoke tests
 pytest packages/civicos/tests/test_civicos.py -q --override-ini="addopts="
 ```
 
 ## Success Criteria
 
-- [ ] `StateElectionProvider` ABC defined with `detect_election_sources()` abstract method
-- [ ] `CaliforniaElectionProvider` implements the ABC with current CA logic
-- [ ] `onboard.py:detect_election_sources()` dispatches via provider registry
-- [ ] Unsupported states return `{}` instead of crashing
-- [ ] All existing tests pass (no behavior change for CA)
-- [ ] Adding a new state requires only: config entry + provider file + factory registration
+- [ ] CIVERA_INSTANCES expanded beyond 3 counties (or documented why others don't have Civera)
+- [ ] CA SOS county breakdown wired as fallback for non-Civera counties
+- [ ] Discovery script exists for probing county registrar sites
+- [ ] All existing tests pass (zero regression)
+- [ ] New tests cover expanded Civera instances and SOS fallback path
 
-## Architecture Reference
+## Architecture Notes
 
-The plan file at `~/.claude/plans/iterative-snuggling-stream.md` has the full multi-state portability design including file layout, contributor workflow, and phasing. This is Phase 3 of 6.
+- Providers live in `civicos-extraction/providers/` (not `civicos/_internal/elections/`) to avoid layer violations
+- The `_create_provider()` factory in `providers/__init__.py` uses lazy imports
+- County normalization (lowercase, strip "County" suffix) happens in `onboard.py` dispatcher before reaching the provider
+- Marin uses legacy `marin_registrar_results` config key for backwards compatibility
 
-## Session Summary
+## Multi-State Roadmap Progress
 
-This session made 3 commits:
-1. `61d9674` — Ballot measure content: model extensions, CA voter guide client, explore display (37 tests)
-2. `5ec6238` — Added `multi_state_portability` category to launch.json (9 items)
-3. `6c15f58` — StateElectionConfig + cycles/deadlines refactor for 6 states (26 new tests)
-
-All 10 codebase critics pass. 72 election tests + 20 smoke tests green.
+| Phase | Item | Status |
+|-------|------|--------|
+| 1 | state_election_config | Done |
+| 2 | deadline_generalization | Done |
+| 3 | state_election_provider | Done |
+| **4** | **all_california_coverage** | **P0 (next)** |
+| 5 | texas_election_support | P2 |
+| 6 | florida_election_support | P2 |
