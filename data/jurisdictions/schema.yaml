@@ -87,6 +87,21 @@ data_sources:
     source: string                # "youtube", "granicus", null
     playlist_id: string           # YouTube playlist ID if applicable
 
+  # Elections (auto-detected during onboarding via StateElectionProvider)
+  elections:
+    civera_election_stats:        # Civera ElectionStats (county registrar)
+      county_slug: string         # County slug in civera_instances.json
+      graphql_url: string         # GraphQL endpoint URL
+      from_year: integer          # Earliest year to query (default: 2010)
+      division_filter: string     # Division name filter for local races
+    ca_sos_results:               # CA Secretary of State results API
+      county: string              # County slug for county breakdowns
+      county_breakdown: boolean   # True if SOS is primary local race source
+      districts:                  # Legislative districts (auto-detected via Census)
+        us-rep: [integer]
+        state-senate: [integer]
+        state-assembly: [integer]
+
   # Legislation (state/federal only)
   legislation: string             # "leginfo_api", "congress_api", null
 

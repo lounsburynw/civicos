@@ -22,9 +22,11 @@ Usage:
     elections = client.list_elections()
 """
 
+import json
 import logging
 import time
 from datetime import datetime
+from pathlib import Path
 from typing import Dict, List, Optional, Any
 
 from civicos_extraction.clients.base import HealthStatus, ValidationResult
@@ -32,30 +34,27 @@ from civicos_extraction.clients.base import HealthStatus, ValidationResult
 logger = logging.getLogger(__name__)
 
 
+def _load_civera_instances() -> Dict[str, Dict[str, str]]:
+    """Load Civera instance registry from config file.
+
+    Config lives at data/extraction/civera_instances.json. Falls back to
+    an empty dict if the file is missing (e.g., in test environments).
+    Discovery: run ``python scripts/probe_civera_counties.py`` to find new instances.
+    """
+    config_path = Path(__file__).resolve().parents[5] / "data" / "extraction" / "civera_instances.json"
+    try:
+        with open(config_path) as f:
+            data = json.load(f)
+        return data.get("instances", {})
+    except (FileNotFoundError, json.JSONDecodeError):
+        logger.warning(f"Civera instances config not found at {config_path}, using empty registry")
+        return {}
+
+
 # Registry of known Civera ElectionStats instances in California.
-# Discovered via scripts/probe_civera_counties.py scanning all 58 CA counties.
-CIVERA_INSTANCES: Dict[str, Dict[str, str]] = {
-    "marin": {
-        "graphql_url": "https://pastelections.marincounty.gov/api/graphql_pr",
-        "tenant": "marinca",
-        "county_name": "Marin County",
-    },
-    "san-joaquin": {
-        "graphql_url": "https://electionstats.sjgov.org/api/graphql_pr",
-        "tenant": "sanjoaquinca",
-        "county_name": "San Joaquin County",
-    },
-    "sonoma": {
-        "graphql_url": "https://electionstats.sonomacounty.ca.gov/api/graphql_pr",
-        "tenant": "sonomaca",
-        "county_name": "Sonoma County",
-    },
-    "yolo": {
-        "graphql_url": "https://electionstats.elections.yolocounty.gov/api/graphql_pr",
-        "tenant": "yoloca",
-        "county_name": "Yolo County",
-    },
-}
+# Source of truth: data/extraction/civera_instances.json
+# Discovery: scripts/probe_civera_counties.py
+CIVERA_INSTANCES: Dict[str, Dict[str, str]] = _load_civera_instances()
 
 
 # Pseudo-candidate values to filter out from results

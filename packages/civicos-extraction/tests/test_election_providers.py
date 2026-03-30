@@ -77,14 +77,14 @@ class TestCaliforniaElectionProvider:
     def test_marin_city(self):
         provider = CaliforniaElectionProvider()
         result = provider.detect_election_sources("city-san-rafael", "marin")
-        assert result["ca_sos_results"] == {"county": "marin"}
+        assert result["ca_sos_results"] == {"county": "marin", "county_breakdown": False}
         assert result["marin_registrar_results"]["from_year"] == 2010
         assert result["marin_registrar_results"]["division_filter"] == "San Rafael"
 
     def test_marin_county(self):
         provider = CaliforniaElectionProvider()
         result = provider.detect_election_sources("county-marin", "marin")
-        assert result["ca_sos_results"] == {"county": "marin"}
+        assert result["ca_sos_results"] == {"county": "marin", "county_breakdown": False}
         assert result["marin_registrar_results"]["division_filter"] == "Marin County"
 
     def test_non_civera_county(self):
@@ -118,11 +118,11 @@ class TestCaliforniaElectionProvider:
         assert result["ca_sos_results"]["county_breakdown"] is True
         assert "civera_election_stats" not in result
 
-    def test_civera_county_no_county_breakdown_flag(self):
-        """Civera counties do not get county_breakdown flag — Civera is primary."""
+    def test_civera_county_has_county_breakdown_false(self):
+        """Civera counties get explicit county_breakdown=False — Civera is primary."""
         provider = CaliforniaElectionProvider()
         result = provider.detect_election_sources("county-sonoma", "sonoma")
-        assert "county_breakdown" not in result["ca_sos_results"]
+        assert result["ca_sos_results"]["county_breakdown"] is False
 
     def test_with_lat_lng_adds_districts(self):
         provider = CaliforniaElectionProvider()
@@ -136,7 +136,7 @@ class TestCaliforniaElectionProvider:
     def test_without_lat_lng_no_districts(self):
         provider = CaliforniaElectionProvider()
         result = provider.detect_election_sources("city-san-rafael", "marin")
-        assert result["ca_sos_results"] == {"county": "marin"}
+        assert result["ca_sos_results"] == {"county": "marin", "county_breakdown": False}
 
     def test_empty_county_no_civera(self):
         provider = CaliforniaElectionProvider()
