@@ -24476,3 +24476,19 @@ calendar tests + 20 smoke tests all pass. Zero behavior change for CA.
 - All tests pass: 94 election + 72 calendar + 20 smoke = 186 total, 0 failures
 - TX SOS research: results.texas-election.com and sos.texas.gov/elections — web-based, no clean REST API like CA. Documented in provider docstring.
 - Multi-state roadmap: Phases 1-5 complete. Phase 6 (Florida) at P2.
+
+## 2026-03-30: Election Coverage Assessment & Lifecycle Category
+- Conducted strategic review of election/officials coverage across California
+- Documented findings in `docs/internal/election-coverage-assessment.md`:
+  - 3 tiers of CA cities (4 Civera counties, 54 SOS-only, 24 unconfigured)
+  - Data sources inventory with capabilities and hard limitations
+  - Gap analysis across three priorities (CA depth, automation, ingestion)
+- Added `election_coverage_lifecycle` category to launch.json (11 items):
+  - P1: ca_sos_snapshot_archival, backfill_election_sources, populate_deadlines_in_cron,
+    civera_periodic_discovery, non_civera_local_race_research, wire_election_fetch_into_onboard,
+    officials_derivation_in_cron
+  - P2: election_cron_enrollment_validation, calendar_aware_election_refresh,
+    ballot_preview_smart_scheduling
+  - P3: election_coverage_monitoring
+- Deprioritized FL/NY/PA/IL from P2 to P3 (CA depth first)
+- Next P0: officials_refresh_cron (representative_lookup)
