@@ -102,9 +102,9 @@ class TestDetectElectionSources:
         assert result["marin_registrar_results"]["division_filter"] == "Marin County"
 
     def test_california_non_marin(self):
-        """CA outside Marin → CA SOS only."""
+        """CA outside Marin → CA SOS only, with county_breakdown fallback."""
         result = detect_election_sources("city-los-angeles", "CA", "Los Angeles")
-        assert result["ca_sos_results"] == {"county": "los angeles"}
+        assert result["ca_sos_results"] == {"county": "los angeles", "county_breakdown": True}
         assert "marin_registrar_results" not in result
         assert len(result) == 1
 
@@ -143,9 +143,9 @@ class TestDetectElectionSources:
         assert len(result) == 0
 
     def test_empty_county(self):
-        """Empty county → no Marin Registrar."""
+        """Empty county → no Marin Registrar, SOS with county breakdown fallback."""
         result = detect_election_sources("city-test", "CA", "")
-        assert result["ca_sos_results"] == {"county": ""}
+        assert result["ca_sos_results"] == {"county": "", "county_breakdown": True}
         assert "marin_registrar_results" not in result
 
     def test_matches_existing_san_rafael_config(self):

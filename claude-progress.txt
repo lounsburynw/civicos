@@ -24440,3 +24440,29 @@ calendar tests + 20 smoke tests all pass. Zero behavior change for CA.
 3. Registration in _create_provider() factory
 
 **Next P0:** all_california_coverage (expand Civera discovery beyond 3 counties)
+
+## Session: all_california_coverage (2026-03-29)
+
+**Item:** all_california_coverage (multi_state_portability Phase 4)
+**Status:** Done
+
+**What was done:**
+1. Created `scripts/probe_civera_counties.py` — discovery script that probes all 58
+   CA counties for Civera ElectionStats GraphQL endpoints (multithreaded, configurable)
+2. **Discovered San Joaquin County** — `electionstats.sjgov.org`, 2 elections (2024).
+   Only 4 of 58 CA counties have Civera (Marin, San Joaquin, Sonoma, Yolo)
+3. Added San Joaquin to `CIVERA_INSTANCES` registry (4 counties total)
+4. Wired CA SOS county breakdown as fallback — `county_breakdown: True` flag added
+   to `ca_sos_results` source for all 54 non-Civera counties, signals ingestion
+   pipeline to use SOS `get_county_breakdown()` as primary local race data source
+5. Added 3 new provider tests (San Joaquin, county_breakdown flag), updated 2
+   detection tests. 173 total tests pass across 4 suites.
+
+**Key files changed:**
+- `packages/civicos-extraction/src/civicos_extraction/clients/civera_election_stats.py`
+- `packages/civicos-extraction/src/civicos_extraction/providers/california.py`
+- `packages/civicos-extraction/tests/test_election_providers.py`
+- `packages/civicos-extraction/tests/test_election_detection.py`
+- `scripts/probe_civera_counties.py` (NEW)
+
+**Next P0:** texas_election_support (Phase 5 — first non-CA state validates abstraction)

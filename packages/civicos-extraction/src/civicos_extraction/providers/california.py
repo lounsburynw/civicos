@@ -2,8 +2,8 @@
 California election source provider.
 
 Detects available election data sources for California jurisdictions:
-- CA Secretary of State (all CA jurisdictions)
-- Civera ElectionStats (counties with known Civera instances: Marin, Sonoma, Yolo)
+- CA Secretary of State (all CA jurisdictions, with county breakdown fallback)
+- Civera ElectionStats (counties with known instances: Marin, San Joaquin, Sonoma, Yolo)
 - Legislative district detection via Census Bureau geocoder
 
 Marin County uses a legacy "marin_registrar_results" config key for
@@ -34,18 +34,11 @@ class CaliforniaElectionProvider(StateElectionProvider):
     ) -> Dict[str, Any]:
         sources: Dict[str, Any] = {}
 
-        # CA SOS — available for all California jurisdictions
-        ca_sos: Dict[str, Any] = {"county": county}
-        if lat is not None and lng is not None:
-            from civicos_extraction.onboard import detect_districts
-            districts = detect_districts(lat, lng, self.state_code)
-            if districts:
-                ca_sos["districts"] = districts
-        sources["ca_sos_results"] = ca_sos
-
         # Civera ElectionStats — available for counties with known instances
         from civicos_extraction.clients.civera_election_stats import CIVERA_INSTANCES
-        if county in CIVERA_INSTANCES:
+        has_civera = county in CIVERA_INSTANCES
+
+        if has_civera:
             from civicos_extraction.onboard import (
                 _infer_division_name,
                 _validate_civera_division_filter,
@@ -77,5 +70,19 @@ class CaliforniaElectionProvider(StateElectionProvider):
                     f"from Civera ({county}). Local race data may be missing. "
                     f"Check the registrar's actual division names."
                 )
+
+        # CA SOS — available for all California jurisdictions.
+        # For non-Civera counties, county_breakdown=True signals the ingestion
+        # pipeline to use SOS county-level breakdowns as the primary source
+        # for local race results (statewide/district races broken down by county).
+        ca_sos: Dict[str, Any] = {"county": county}
+        if not has_civera:
+            ca_sos["county_breakdown"] = True
+        if lat is not None and lng is not None:
+            from civicos_extraction.onboard import detect_districts
+            districts = detect_districts(lat, lng, self.state_code)
+            if districts:
+                ca_sos["districts"] = districts
+        sources["ca_sos_results"] = ca_sos
 
         return sources

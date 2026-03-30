@@ -63,18 +63,19 @@
         "name": "all_california_coverage",
         "description": "Expand Civera instance discovery beyond 3 counties (Marin, Sonoma, Yolo). Add CA SOS county breakdown as universal fallback for non-Civera counties. Script to probe CA county registrar sites for GraphQL endpoints.",
         "priority": 0,
-        "status": "not_started",
+        "status": "done",
         "files": [
           "packages/civicos-extraction/src/civicos_extraction/clients/civera_election_stats.py",
-          "packages/civicos-extraction/src/civicos_extraction/providers/california.py"
+          "packages/civicos-extraction/src/civicos_extraction/providers/california.py",
+          "scripts/probe_civera_counties.py"
         ],
-        "test_file": null,
-        "notes": "Phase 4. Civera instances use varied subdomain patterns — no auto-discovery, need manual probing. ca_sos_results.py already has get_county_breakdown() for fallback. ~1 session."
+        "test_file": "packages/civicos-extraction/tests/test_election_providers.py",
+        "notes": "Phase 4 done. Probed all 58 CA counties — discovered San Joaquin (electionstats.sjgov.org, 2 elections 2024). Only 4/58 counties have Civera. CA SOS county_breakdown=True flag added for non-Civera counties as primary local race data source. 20 provider tests + 61 detection tests pass."
       },
       {
         "name": "texas_election_support",
         "description": "Add Texas as second supported state. StateElectionConfig for TX (March primary, 30-day registration, 17-day early voting, no universal VBM). TexasElectionProvider with detect_election_sources(). TX SOS client if API accessible. End-to-end test with a TX jurisdiction.",
-        "priority": 2,
+        "priority": 0,
         "status": "not_started",
         "files": [
           "packages/civicos/src/civicos/_internal/elections/state_config.py",
