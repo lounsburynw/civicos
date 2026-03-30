@@ -100,6 +100,7 @@ SUBDOMAIN_PREFIXES = [
 # Known instances (for validation — these should always be found)
 KNOWN_INSTANCES = {
     "marin": "https://pastelections.marincounty.gov/api/graphql_pr",
+    "san-joaquin": "https://electionstats.sjgov.org/api/graphql_pr",
     "sonoma": "https://electionstats.sonomacounty.ca.gov/api/graphql_pr",
     "yolo": "https://electionstats.elections.yolocounty.gov/api/graphql_pr",
 }
@@ -228,10 +229,18 @@ def main():
                 not_found.append(slug)
 
     if args.json:
+        # Output in civera_instances.json format for easy copy
+        instances = {}
+        for r in sorted(found, key=lambda x: x["county_name"]):
+            tenant = r["slug"].replace("-", "") + "ca"
+            instances[r["slug"]] = {
+                "graphql_url": r["url"],
+                "tenant": tenant,
+                "county_name": f"{r['county_name']} County",
+            }
         output = {
-            "found": sorted(found, key=lambda x: x["county_name"]),
-            "not_found": sorted(not_found),
-            "total_probed": len(counties),
+            "_comment": f"Probed {len(counties)} CA counties, found {len(found)} with Civera ElectionStats",
+            "instances": instances,
         }
         print(json.dumps(output, indent=2))
     else:

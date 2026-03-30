@@ -90,7 +90,7 @@ class TestDetectElectionSources:
     def test_california_marin_city(self):
         """CA + Marin → CA SOS + Marin Registrar."""
         result = detect_election_sources("city-san-rafael", "CA", "Marin")
-        assert result["ca_sos_results"] == {"county": "marin"}
+        assert result["ca_sos_results"] == {"county": "marin", "county_breakdown": False}
         assert result["marin_registrar_results"]["from_year"] == 2010
         assert result["marin_registrar_results"]["division_filter"] == "San Rafael"
         assert len(result) == 2
@@ -98,7 +98,7 @@ class TestDetectElectionSources:
     def test_california_marin_county(self):
         """County-level Marin jurisdiction."""
         result = detect_election_sources("county-marin", "CA", "Marin")
-        assert result["ca_sos_results"] == {"county": "marin"}
+        assert result["ca_sos_results"] == {"county": "marin", "county_breakdown": False}
         assert result["marin_registrar_results"]["division_filter"] == "Marin County"
 
     def test_california_non_marin(self):
@@ -133,7 +133,7 @@ class TestDetectElectionSources:
     def test_school_district_marin(self):
         """School district in Marin gets CA SOS + Marin Registrar with correct division."""
         result = detect_election_sources("school-novato", "CA", "Marin")
-        assert result["ca_sos_results"] == {"county": "marin"}
+        assert result["ca_sos_results"] == {"county": "marin", "county_breakdown": False}
         assert result["marin_registrar_results"]["division_filter"] == "Novato Unified School District"
 
     def test_empty_state(self):
@@ -213,7 +213,7 @@ class TestDetectElectionSources:
     def test_california_without_lat_lng_no_districts(self):
         """CA without lat/lng → no districts field."""
         result = detect_election_sources("city-san-rafael", "CA", "Marin")
-        assert result["ca_sos_results"] == {"county": "marin"}
+        assert result["ca_sos_results"] == {"county": "marin", "county_breakdown": False}
 
     def test_non_california_with_lat_lng_no_districts(self):
         """Non-CA with lat/lng → no ca_sos_results at all."""
@@ -228,7 +228,7 @@ class TestDetectElectionSources:
             result = detect_election_sources(
                 "city-san-rafael", "CA", "Marin", lat=37.9735, lng=-122.5311,
             )
-        assert result["ca_sos_results"] == {"county": "marin"}
+        assert result["ca_sos_results"] == {"county": "marin", "county_breakdown": False}
 
     def test_county_suffix_stripped(self):
         """Google Maps returns 'Marin County' — 'County' suffix must be stripped."""

@@ -72,12 +72,9 @@ class CaliforniaElectionProvider(StateElectionProvider):
                 )
 
         # CA SOS — available for all California jurisdictions.
-        # For non-Civera counties, county_breakdown=True signals the ingestion
-        # pipeline to use SOS county-level breakdowns as the primary source
-        # for local race results (statewide/district races broken down by county).
-        ca_sos: Dict[str, Any] = {"county": county}
-        if not has_civera:
-            ca_sos["county_breakdown"] = True
+        # county_breakdown: True for non-Civera counties (SOS is primary local
+        # race data source), False for Civera counties (Civera is primary).
+        ca_sos: Dict[str, Any] = {"county": county, "county_breakdown": not has_civera}
         if lat is not None and lng is not None:
             from civicos_extraction.onboard import detect_districts
             districts = detect_districts(lat, lng, self.state_code)

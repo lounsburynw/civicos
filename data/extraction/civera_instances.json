@@ -1,0 +1,25 @@
+{
+  "_comment": "Registry of known Civera ElectionStats instances in California. Discovered via scripts/probe_civera_counties.py scanning all 58 CA counties. Update this file when new instances are found.",
+  "instances": {
+    "marin": {
+      "graphql_url": "https://pastelections.marincounty.gov/api/graphql_pr",
+      "tenant": "marinca",
+      "county_name": "Marin County"
+    },
+    "san-joaquin": {
+      "graphql_url": "https://electionstats.sjgov.org/api/graphql_pr",
+      "tenant": "sanjoaquinca",
+      "county_name": "San Joaquin County"
+    },
+    "sonoma": {
+      "graphql_url": "https://electionstats.sonomacounty.ca.gov/api/graphql_pr",
+      "tenant": "sonomaca",
+      "county_name": "Sonoma County"
+    },
+    "yolo": {
+      "graphql_url": "https://electionstats.elections.yolocounty.gov/api/graphql_pr",
+      "tenant": "yoloca",
+      "county_name": "Yolo County"
+    }
+  }
+}
