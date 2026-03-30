@@ -6,9 +6,12 @@ election results via a GraphQL API. Each county has its own subdomain but shares
 the identical schema and endpoint pattern: POST /api/graphql_pr
 
 Known instances:
-    - Marin:  pastelections.marincounty.gov  (tenant: marinca, 46 elections, 2010-2025)
-    - Sonoma: electionstats.sonomacounty.ca.gov (tenant: sonomaca, 43 elections, 2009-2024)
-    - Yolo:   electionstats.elections.yolocounty.gov (tenant: yoloca, 52 elections, 1997-2025)
+    - Marin:       pastelections.marincounty.gov  (tenant: marinca, 46 elections, 2010-2025)
+    - San Joaquin: electionstats.sjgov.org (tenant: sanjoaquinca, 2 elections, 2024)
+    - Sonoma:      electionstats.sonomacounty.ca.gov (tenant: sonomaca, 43 elections, 2009-2024)
+    - Yolo:        electionstats.elections.yolocounty.gov (tenant: yoloca, 52 elections, 1997-2025)
+
+Discovery: Run ``python scripts/probe_civera_counties.py`` to scan all 58 CA counties.
 
 Usage:
     client = CiveraElectionStatsClient(
@@ -29,12 +32,18 @@ from civicos_extraction.clients.base import HealthStatus, ValidationResult
 logger = logging.getLogger(__name__)
 
 
-# Registry of known Civera ElectionStats instances in California
+# Registry of known Civera ElectionStats instances in California.
+# Discovered via scripts/probe_civera_counties.py scanning all 58 CA counties.
 CIVERA_INSTANCES: Dict[str, Dict[str, str]] = {
     "marin": {
         "graphql_url": "https://pastelections.marincounty.gov/api/graphql_pr",
         "tenant": "marinca",
         "county_name": "Marin County",
+    },
+    "san-joaquin": {
+        "graphql_url": "https://electionstats.sjgov.org/api/graphql_pr",
+        "tenant": "sanjoaquinca",
+        "county_name": "San Joaquin County",
     },
     "sonoma": {
         "graphql_url": "https://electionstats.sonomacounty.ca.gov/api/graphql_pr",

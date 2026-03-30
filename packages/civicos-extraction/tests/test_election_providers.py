@@ -90,7 +90,7 @@ class TestCaliforniaElectionProvider:
     def test_non_civera_county(self):
         provider = CaliforniaElectionProvider()
         result = provider.detect_election_sources("city-los-angeles", "los angeles")
-        assert result["ca_sos_results"] == {"county": "los angeles"}
+        assert result["ca_sos_results"] == {"county": "los angeles", "county_breakdown": True}
         assert "marin_registrar_results" not in result
         assert "civera_election_stats" not in result
 
@@ -100,6 +100,29 @@ class TestCaliforniaElectionProvider:
         assert "ca_sos_results" in result
         assert "civera_election_stats" in result
         assert result["civera_election_stats"]["county_slug"] == "sonoma"
+
+    def test_san_joaquin_gets_civera(self):
+        provider = CaliforniaElectionProvider()
+        result = provider.detect_election_sources("county-san-joaquin", "san-joaquin")
+        assert "ca_sos_results" in result
+        assert "civera_election_stats" in result
+        assert result["civera_election_stats"]["county_slug"] == "san-joaquin"
+        assert result["civera_election_stats"]["graphql_url"] == (
+            "https://electionstats.sjgov.org/api/graphql_pr"
+        )
+
+    def test_non_civera_gets_county_breakdown_flag(self):
+        """Non-Civera counties get county_breakdown=True on SOS source."""
+        provider = CaliforniaElectionProvider()
+        result = provider.detect_election_sources("city-oakland", "alameda")
+        assert result["ca_sos_results"]["county_breakdown"] is True
+        assert "civera_election_stats" not in result
+
+    def test_civera_county_no_county_breakdown_flag(self):
+        """Civera counties do not get county_breakdown flag — Civera is primary."""
+        provider = CaliforniaElectionProvider()
+        result = provider.detect_election_sources("county-sonoma", "sonoma")
+        assert "county_breakdown" not in result["ca_sos_results"]
 
     def test_with_lat_lng_adds_districts(self):
         provider = CaliforniaElectionProvider()
@@ -118,7 +141,7 @@ class TestCaliforniaElectionProvider:
     def test_empty_county_no_civera(self):
         provider = CaliforniaElectionProvider()
         result = provider.detect_election_sources("city-test", "")
-        assert result["ca_sos_results"] == {"county": ""}
+        assert result["ca_sos_results"] == {"county": "", "county_breakdown": True}
         assert "marin_registrar_results" not in result
 
 
