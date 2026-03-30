@@ -1,66 +1,62 @@
-# Recommended: Backfill Election Sources
+# Recommended: Cron Health Investigation
 
-**Priority:** P0 (backfill_election_sources)
-**Area:** election_coverage_lifecycle
+**Priority:** P0 (cron_health_investigation)
+**Area:** observability
 **Date:** 2026-03-30
 
 > This is recommended context from the previous session. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
 
 ## Context
 
-This session added a new `election_coverage_lifecycle` category to launch.json with 11 items prioritized: CA depth first, automation second, ingestion strategy third. Currently 24 extraction configs have zero `election_sources` — Berkeley, Sacramento, county-alameda, 10 school districts, and others get no election data at all. Running `detect_election_sources()` against them populates at minimum `ca_sos_results` + legislative districts via Census geocoder. This is the quickest way to expand election coverage across CA.
+User reported that "a lot of our cron jobs are failing." This session completed `backfill_election_sources` (all 16 configs now have election data), but the next planned items (`populate_deadlines_in_cron`, `officials_derivation_in_cron`) wire new logic into cron infrastructure. There's no point adding features to broken infrastructure. Investigate broadly first.
+
+## What This Session Completed
+
+- Added reusable `backfill_election_sources()` to `onboard.py` with CLI (`python -m civicos_extraction.onboard backfill-elections`)
+- All 16 extraction configs now have `election_sources` populated (CA SOS, Marin Civera, TX SOS)
+- 114 tests pass, 0 failures
+
+## Recommended Task
+
+Broad investigation of cron job health:
+1. Which GitHub Actions cron workflows exist and are they running?
+2. Which are failing, and why?
+3. Are the Modal functions they trigger still deployed and functional?
+4. Fix the failures before wiring new cron features
 
 ## Key Files
 
-- `packages/civicos-extraction/src/civicos_extraction/onboard.py:687` — `detect_election_sources()` dispatcher. Takes jurisdiction_id, state, county, lat, lng. Returns source config dict.
-- `packages/civicos-extraction/src/civicos_extraction/providers/california.py` — CA provider: returns `ca_sos_results` + Civera (if county has instance) + districts (if lat/lng).
-- `data/extraction/*.json` — 24 configs without `election_sources` (listed below).
-- `data/jurisdictions/*.yaml` — Jurisdiction YAML files with state, county, lat/lng for geocoding.
-- `packages/civicos-extraction/src/civicos_extraction/onboard.py:608` — `detect_districts()` — Census geocoder for legislative district detection.
-
-## Jurisdictions Needing Backfill
-
-**CA cities/counties (would get ca_sos_results + districts):**
-city-berkeley, city-sacramento, city-national-city, county-alameda
-
-**CA school districts (would get ca_sos_results, possibly Civera if in covered county):**
-school-kentfield, school-larkspur-corte-madera, school-marin-county-oe, school-mill-valley-sd, school-miller-creek, school-novato, school-reed-union, school-ross-valley, school-sausalito-marin-city, school-tamalpais
-
-**Other:** college-marin, county-travis (TX — would get tx_sos_results)
-
-**Skip:** city-ghost, city-test, city-warn (test fixtures), san-rafael.json/san-anselmo.json (legacy duplicates), .marin-granicus-discovery.json, civera_instances.json (not jurisdiction configs)
+- `.github/workflows/cron-*.yml` — Cron workflow definitions (GH Actions triggers `modal run`)
+- `scripts/modal_ingest.py` — Main Modal ingest script with scheduled functions
+- `scripts/modal_usage_rollup.py` — Usage rollup cron
+- `packages/civicos-extraction/src/civicos_extraction/cron/` — Cron job implementations (if dir exists)
 
 ## Suggested Approach
 
-1. **Write a one-time backfill script** (or extend `onboard.py` with `--re-detect-elections` flag) that:
-   - Iterates `data/extraction/*.json` files missing `election_sources`
-   - For each, reads the jurisdiction YAML to get state, county, lat, lng
-   - Calls `detect_election_sources(jurisdiction_id, state, county, lat, lng)`
-   - Writes the result into the extraction config's `election_sources` field
-   - Skips test/supplementary configs
-
-2. **Verify results** — Spot-check a few configs (Berkeley should get `ca_sos_results` with `county: alameda`, Marin school districts should get Civera + SOS).
-
-3. **Run election provider + detection tests** to ensure no regression.
-
-4. **Optionally combine with `populate_deadlines_in_cron`** (next P1) — since both are quick wins that expand coverage without building new clients.
+1. **Inventory cron workflows**: `ls .github/workflows/cron-*.yml` and read each
+2. **Check GH Actions run history**: `gh run list --workflow=<name> --limit=5` for each workflow
+3. **Check Modal app status**: `modal app list` and `modal app logs <app-name>`
+4. **Identify failure patterns**: Are all failing? Some? Auth/secrets, code errors, or infrastructure?
+5. **Fix root causes**: Could be expired Modal tokens, missing secrets, code bugs, or stale deployments
+6. **Verify fixes**: Re-trigger a workflow manually and confirm it succeeds
 
 ## Tests to Run
 
 ```bash
-pytest packages/civicos-extraction/tests/test_election_providers.py -q --override-ini="addopts="
-pytest packages/civicos-extraction/tests/test_election_detection.py -q --override-ini="addopts="
+# Smoke tests (baseline)
 pytest packages/civicos/tests/test_civicos.py -q --override-ini="addopts="
+
+# If cron code is modified, run integration tests
+pytest packages/civicos-extraction/tests/ -q --override-ini="addopts=" -k "cron"
 ```
 
 ## Success Criteria
 
-- [ ] All CA extraction configs have `election_sources` populated
-- [ ] county-travis gets `tx_sos_results` (validates multi-state)
-- [ ] Marin school districts get Civera + CA SOS (in covered county)
-- [ ] Non-Marin CA jurisdictions get CA SOS + districts
-- [ ] Test/supplementary configs skipped cleanly
-- [ ] All existing tests pass (zero regression)
+- [ ] All cron workflows inventoried with current status (passing/failing/disabled)
+- [ ] Root cause identified for each failing workflow
+- [ ] Critical cron jobs fixed and verified running
+- [ ] Non-critical failures documented with fix plan
+- [ ] Infrastructure confirmed ready for new cron features
 
 ## Item Sequence After This
 
@@ -69,7 +65,5 @@ pytest packages/civicos/tests/test_civicos.py -q --override-ini="addopts="
 | P1 | `populate_deadlines_in_cron` | 0.5 session |
 | P1 | `ca_sos_snapshot_archival` | 1 session |
 | P1 | `officials_derivation_in_cron` | 0.5 session |
-| P1 | `wire_election_fetch_into_onboard` | 1 session |
-| P2 | `officials_refresh_cron` | 0.5 session |
 
-See `docs/internal/election-coverage-assessment.md` for the full gap analysis.
+These all depend on healthy cron infrastructure.
