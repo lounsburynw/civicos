@@ -2,11 +2,12 @@
   "version": "1.0",
   "phase": "launch",
   "last_updated": "2026-03-30",
-  "summary": "Launch readiness: multi-state election portability (active), election+school onboarding (done), representative lookup (done), turnkey onboarding (done), federation queries, billing, operator tooling, multi-scale participation (done)",
+  "summary": "Launch readiness: election coverage lifecycle (active — CA depth, automation, ingestion strategy), multi-state portability (CA+TX done), election+school onboarding (done), representative lookup (done), turnkey onboarding (done), federation queries, billing, operator tooling, multi-scale participation (done)",
   "category_order": [
     "multi_state_portability",
     "turnkey_onboarding",
     "election_integration",
+    "election_coverage_lifecycle",
     "representative_lookup",
     "ballot_awareness",
     "security_fixes",
@@ -87,18 +88,18 @@
       {
         "name": "florida_election_support",
         "description": "Add Florida election support. StateElectionConfig + provider + SOS client. FL uses Clarity Elections (Scytl) widely \u2014 building that client covers many FL counties.",
-        "priority": 2,
+        "priority": 3,
         "status": "not_started",
         "files": [
           "packages/civicos/src/civicos/_internal/elections/providers/florida.py"
         ],
         "test_file": null,
-        "notes": "Phase 6a. Clarity Elections platform is used by GA, NC + hundreds of counties \u2014 building it here has outsized value. ~1 session."
+        "notes": "Phase 6a. Clarity Elections platform is used by GA, NC + hundreds of counties \u2014 building it here has outsized value. Deprioritized pending CA depth completion. If non_civera_local_race_research validates Clarity, this item's priority increases (shared client covers CA counties too). ~1 session."
       },
       {
         "name": "new_york_election_support",
         "description": "Add New York election support. StateElectionConfig + provider + SOS client. NY Board of Elections has public data downloads.",
-        "priority": 2,
+        "priority": 3,
         "status": "not_started",
         "files": [
           "packages/civicos/src/civicos/_internal/elections/providers/new_york.py"
@@ -109,7 +110,7 @@
       {
         "name": "pennsylvania_election_support",
         "description": "Add Pennsylvania election support. StateElectionConfig + provider + SOS client.",
-        "priority": 2,
+        "priority": 3,
         "status": "not_started",
         "files": [
           "packages/civicos/src/civicos/_internal/elections/providers/pennsylvania.py"
@@ -1542,6 +1543,136 @@
         ],
         "test_file": "packages/civicos-extraction/tests/test_ca_sos_ballot_preview.py",
         "notes": "Phase 1 complete: CA SOS PDF parser. Phase 2 (future): Marin Registrar candidate filings + local ballot measures. Phase 3 (future): deadline scraping from registrar. See docs/internal/election-data-research.md."
+      }
+    ]
+  },
+  "election_coverage_lifecycle": {
+    "description": "Deepen CA election data to every locale, automate election data flow on city onboard, and implement calendar-aware ingestion. Priority order: CA depth first, automation second, ingestion strategy third. See docs/internal/election-coverage-assessment.md.",
+    "items": [
+      {
+        "name": "ca_sos_snapshot_archival",
+        "description": "Archive CA SOS election results before overwrite. On each scheduled_election_refresh() run, diff election_id against previous snapshot. If changed, preserve old data with timestamp before fetching new. Converts the ephemeral SOS API into a persistent historical archive.",
+        "priority": 1,
+        "status": "not_started",
+        "files": [
+          "scripts/modal_ingest.py",
+          "packages/civicos-extraction/src/civicos_extraction/clients/ca_sos_results.py"
+        ],
+        "test_file": null,
+        "notes": "SOS get_reporting_status() returns current election metadata. Snapshot = store results keyed by {election_id}:{timestamp} instead of overwriting. Cheapest way to gain historical coverage for state races. ~1 session."
+      },
+      {
+        "name": "backfill_election_sources",
+        "description": "Run detect_election_sources() for the 24 extraction configs that lack election_sources. One-time script or --re-detect flag on onboard. All CA jurisdictions get at minimum ca_sos_results + legislative districts. School districts get state-level coverage.",
+        "priority": 1,
+        "status": "not_started",
+        "files": [
+          "packages/civicos-extraction/src/civicos_extraction/onboard.py"
+        ],
+        "test_file": null,
+        "notes": "24 configs currently have zero election data. Most are CA jurisdictions. Quick win: all get statewide + district race coverage. ~0.5 session."
+      },
+      {
+        "name": "populate_deadlines_in_cron",
+        "description": "Wire generate_deadlines() into scheduled_election_refresh(). After election data is stored for each jurisdiction, generate deadlines from StateElectionConfig offsets and store via store_election_deadlines(). Currently only 3 pilot jurisdictions have deadlines (from manual seed script).",
+        "priority": 1,
+        "status": "not_started",
+        "files": [
+          "scripts/modal_ingest.py",
+          "packages/civicos/src/civicos/_internal/elections/deadlines.py"
+        ],
+        "test_file": null,
+        "notes": "seed_election_calendar.py demonstrates the pattern. The cron needs the same 3 lines: generate, convert, store. ~0.5 session."
+      },
+      {
+        "name": "civera_periodic_discovery",
+        "description": "Schedule quarterly re-probe of CA counties for new Civera ElectionStats instances. Script exists (probe_civera_counties.py). Needs scheduling via GitHub Actions and auto-update of civera_instances.json. Currently 4/58 counties have Civera — new deployments could appear at any time.",
+        "priority": 1,
+        "status": "not_started",
+        "files": [
+          "scripts/probe_civera_counties.py",
+          "data/extraction/civera_instances.json",
+          ".github/workflows/"
+        ],
+        "test_file": null,
+        "notes": "Script already works. Just needs cron scheduling + auto-update. Each new Civera county unlocks historical local race data for all its cities. ~0.5 session."
+      },
+      {
+        "name": "non_civera_local_race_research",
+        "description": "Research paths to local race data for the 54 CA counties without Civera. Focus on Clarity Elections (Scytl) — used by many CA, FL, and GA counties for results reporting. If a Clarity client is viable, it could cover both CA depth and FL expansion with one client. Output: research doc with findings per county and platform recommendation.",
+        "priority": 1,
+        "status": "not_started",
+        "files": [],
+        "test_file": null,
+        "notes": "Research only, no client implementation. Clarity Elections is specifically called out in florida_election_support — shared client could serve both goals. If Clarity covers significant CA counties, florida_election_support priority should increase. ~1 session."
+      },
+      {
+        "name": "wire_election_fetch_into_onboard",
+        "description": "After detect_election_sources() populates the extraction config at onboard step 3.6, trigger an immediate election data fetch using provider dispatch logic. New cities get election data on day 1 instead of waiting up to 30 days for the monthly cron.",
+        "priority": 1,
+        "status": "not_started",
+        "files": [
+          "packages/civicos-extraction/src/civicos_extraction/onboard.py",
+          "scripts/modal_ingest.py"
+        ],
+        "test_file": null,
+        "notes": "Challenge: onboard runs locally but election fetch runs on Modal. May need Modal trigger from onboard script, or --fetch-elections flag. ~1 session."
+      },
+      {
+        "name": "officials_derivation_in_cron",
+        "description": "Call derive_elected_officials() after contest data is stored in scheduled_election_refresh(). Function exists at modal_ingest.py:3973 but is never called by the cron. Complements officials_refresh_cron in representative_lookup (which covers Congress.gov/LegiScan API refresh).",
+        "priority": 1,
+        "status": "not_started",
+        "files": [
+          "scripts/modal_ingest.py"
+        ],
+        "test_file": null,
+        "notes": "Should only derive for jurisdictions where contests were actually stored (check result counts). ~0.5 session."
+      },
+      {
+        "name": "election_cron_enrollment_validation",
+        "description": "Verify get_active_jurisdictions() includes all jurisdiction types (school-*, college-*, county-*) in the election cron dispatch. Add test confirming new jurisdictions with election_sources are auto-included without manual enrollment.",
+        "priority": 2,
+        "status": "not_started",
+        "files": [
+          "packages/civicos-extraction/src/civicos_extraction/config.py"
+        ],
+        "test_file": null,
+        "notes": "May already work. Needs validation and a test. ~0.5 session."
+      },
+      {
+        "name": "calendar_aware_election_refresh",
+        "description": "Vary scheduled_election_refresh() cadence by proximity to known election dates. Daily within 7 days of election (capture election-night SOS updates). Weekly within 90 days. Monthly otherwise. Uses get_next_election_date() from cycles.py.",
+        "priority": 2,
+        "status": "not_started",
+        "files": [
+          ".github/workflows/cron-election-refresh.yml",
+          "scripts/modal_ingest.py"
+        ],
+        "test_file": null,
+        "notes": "GitHub Actions cron can run daily; Modal function checks election proximity internally and decides whether to fetch. Depends on ca_sos_snapshot_archival (daily refresh without archival risks duplicate overwrites). ~1 session."
+      },
+      {
+        "name": "ballot_preview_smart_scheduling",
+        "description": "Trigger ballot preview fetch only in the pre-election window (~90 and ~30 days before election day). Skip outside that window. Currently runs monthly regardless. Uses election_date from ca_sos_ballot_preview config.",
+        "priority": 2,
+        "status": "not_started",
+        "files": [
+          "scripts/modal_ingest.py"
+        ],
+        "test_file": null,
+        "notes": "Config already includes election_date. Compare today to election_date - 90d. ~0.5 session."
+      },
+      {
+        "name": "election_coverage_monitoring",
+        "description": "Monthly completeness report: count elections, contests, deadlines, officials per jurisdiction. Flag jurisdictions with zero data in any category. Output to logs or GitHub issue (like existing cron-failure alerts).",
+        "priority": 3,
+        "status": "not_started",
+        "files": [
+          "scripts/modal_ingest.py"
+        ],
+        "test_file": null,
+        "notes": "Uses get_election_count() and similar from storage protocol. Same pattern as existing cron alert workflows. ~0.5 session."
       }
     ]
   },
