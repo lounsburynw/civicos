@@ -1,0 +1,152 @@
+"""
+Tests for the StateElectionProvider abstraction.
+
+Validates the provider registry, CaliforniaElectionProvider, and
+that unsupported states return empty results through the dispatcher.
+"""
+
+import pytest
+from unittest.mock import patch
+
+from civicos_extraction.providers import (
+    StateElectionProvider,
+    get_provider,
+    _PROVIDERS,
+)
+from civicos_extraction.providers.california import CaliforniaElectionProvider
+
+
+# Auto-mock Civera validation (avoid network calls)
+@pytest.fixture(autouse=True)
+def mock_civera_validation(monkeypatch):
+    monkeypatch.setattr(
+        "civicos_extraction.onboard._validate_civera_division_filter",
+        lambda *args, **kwargs: True,
+    )
+
+
+@pytest.fixture(autouse=True)
+def clear_provider_cache():
+    """Clear the provider registry between tests to avoid state leakage."""
+    _PROVIDERS.clear()
+    yield
+    _PROVIDERS.clear()
+
+
+# --- Provider Registry ---
+
+
+class TestProviderRegistry:
+    """Provider registry dispatches to the correct state provider."""
+
+    def test_get_ca_provider(self):
+        provider = get_provider("CA")
+        assert provider is not None
+        assert isinstance(provider, CaliforniaElectionProvider)
+        assert provider.state_code == "CA"
+
+    def test_get_ca_provider_case_insensitive(self):
+        provider = get_provider("ca")
+        assert provider is not None
+        assert provider.state_code == "CA"
+
+    def test_unsupported_state_returns_none(self):
+        assert get_provider("TX") is None
+        assert get_provider("OR") is None
+        assert get_provider("ZZ") is None
+
+    def test_empty_state_returns_none(self):
+        assert get_provider("") is None
+
+    def test_provider_is_cached(self):
+        p1 = get_provider("CA")
+        p2 = get_provider("CA")
+        assert p1 is p2
+
+    def test_abc_not_instantiable(self):
+        with pytest.raises(TypeError):
+            StateElectionProvider()
+
+
+# --- CaliforniaElectionProvider ---
+
+
+class TestCaliforniaElectionProvider:
+    """CA provider produces the same results as the original inline logic."""
+
+    def test_marin_city(self):
+        provider = CaliforniaElectionProvider()
+        result = provider.detect_election_sources("city-san-rafael", "marin")
+        assert result["ca_sos_results"] == {"county": "marin"}
+        assert result["marin_registrar_results"]["from_year"] == 2010
+        assert result["marin_registrar_results"]["division_filter"] == "San Rafael"
+
+    def test_marin_county(self):
+        provider = CaliforniaElectionProvider()
+        result = provider.detect_election_sources("county-marin", "marin")
+        assert result["ca_sos_results"] == {"county": "marin"}
+        assert result["marin_registrar_results"]["division_filter"] == "Marin County"
+
+    def test_non_civera_county(self):
+        provider = CaliforniaElectionProvider()
+        result = provider.detect_election_sources("city-los-angeles", "los angeles")
+        assert result["ca_sos_results"] == {"county": "los angeles"}
+        assert "marin_registrar_results" not in result
+        assert "civera_election_stats" not in result
+
+    def test_sonoma_gets_civera(self):
+        provider = CaliforniaElectionProvider()
+        result = provider.detect_election_sources("county-sonoma", "sonoma")
+        assert "ca_sos_results" in result
+        assert "civera_election_stats" in result
+        assert result["civera_election_stats"]["county_slug"] == "sonoma"
+
+    def test_with_lat_lng_adds_districts(self):
+        provider = CaliforniaElectionProvider()
+        mock_districts = {"us-rep": [2], "state-senate": [2], "state-assembly": [12]}
+        with patch("civicos_extraction.onboard.detect_districts", return_value=mock_districts):
+            result = provider.detect_election_sources(
+                "city-san-rafael", "marin", lat=37.97, lng=-122.53,
+            )
+        assert result["ca_sos_results"]["districts"] == mock_districts
+
+    def test_without_lat_lng_no_districts(self):
+        provider = CaliforniaElectionProvider()
+        result = provider.detect_election_sources("city-san-rafael", "marin")
+        assert result["ca_sos_results"] == {"county": "marin"}
+
+    def test_empty_county_no_civera(self):
+        provider = CaliforniaElectionProvider()
+        result = provider.detect_election_sources("city-test", "")
+        assert result["ca_sos_results"] == {"county": ""}
+        assert "marin_registrar_results" not in result
+
+
+# --- Dispatcher integration ---
+
+
+class TestDispatcherIntegration:
+    """The onboard.py dispatcher routes through providers correctly."""
+
+    def test_ca_dispatches_to_provider(self):
+        from civicos_extraction.onboard import detect_election_sources
+        result = detect_election_sources("city-san-rafael", "CA", "Marin")
+        assert "ca_sos_results" in result
+        assert "marin_registrar_results" in result
+
+    def test_unsupported_state_returns_empty(self):
+        from civicos_extraction.onboard import detect_election_sources
+        result = detect_election_sources("city-portland", "OR", "Multnomah")
+        assert result == {}
+
+    def test_empty_state_returns_empty(self):
+        from civicos_extraction.onboard import detect_election_sources
+        result = detect_election_sources("city-test", "", "SomeCounty")
+        assert result == {}
+
+    def test_county_normalization_in_dispatcher(self):
+        """County suffix stripping happens in dispatcher before reaching provider."""
+        from civicos_extraction.onboard import detect_election_sources
+        result = detect_election_sources("city-mill-valley", "CA", "Marin County")
+        assert result["ca_sos_results"]["county"] == "marin"
+        assert "marin_registrar_results" in result
