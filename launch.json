@@ -1565,7 +1565,7 @@
         "name": "backfill_election_sources",
         "description": "Run detect_election_sources() for the 24 extraction configs that lack election_sources. One-time script or --re-detect flag on onboard. All CA jurisdictions get at minimum ca_sos_results + legislative districts. School districts get state-level coverage.",
         "priority": 0,
-        "status": "not_started",
+        "status": "done",
         "files": [
           "packages/civicos-extraction/src/civicos_extraction/onboard.py"
         ],
@@ -1575,7 +1575,7 @@
       {
         "name": "populate_deadlines_in_cron",
         "description": "Wire generate_deadlines() into scheduled_election_refresh(). After election data is stored for each jurisdiction, generate deadlines from StateElectionConfig offsets and store via store_election_deadlines(). Currently only 3 pilot jurisdictions have deadlines (from manual seed script).",
-        "priority": 1,
+        "priority": 0,
         "status": "not_started",
         "files": [
           "scripts/modal_ingest.py",

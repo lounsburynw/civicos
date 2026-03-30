@@ -10,5 +10,11 @@
   "metadata": {
     "granicus_domain": "berkeley",
     "default_view_id": "2"
+  },
+  "election_sources": {
+    "ca_sos_results": {
+      "county": "alameda",
+      "county_breakdown": true
+    }
   }
 }

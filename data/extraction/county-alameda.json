@@ -8,5 +8,11 @@
   },
   "metadata": {
     "granicus_domain": "alamedacounty"
+  },
+  "election_sources": {
+    "ca_sos_results": {
+      "county": "alameda",
+      "county_breakdown": true
+    }
   }
 }

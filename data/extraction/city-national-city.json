@@ -5,5 +5,11 @@
   "base_url": "https://pub-nationalcity.escribemeetings.com",
   "metadata": {
     "instance_name": "nationalcity"
+  },
+  "election_sources": {
+    "ca_sos_results": {
+      "county": "san diego",
+      "county_breakdown": true
+    }
   }
 }

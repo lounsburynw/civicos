@@ -24492,3 +24492,17 @@ calendar tests + 20 smoke tests all pass. Zero behavior change for CA.
   - P3: election_coverage_monitoring
 - Deprioritized FL/NY/PA/IL from P2 to P3 (CA depth first)
 - Next P0: officials_refresh_cron (representative_lookup)
+
+## 2026-03-30: Backfill Election Sources (P0)
+- Added reusable `backfill_election_sources()` function to `onboard.py` with CLI entry point
+- CLI: `python -m civicos_extraction.onboard backfill-elections [--dry-run] [--force] [--jurisdiction X] [--default-state] [--default-county]`
+- Resolution order: jurisdiction YAML → extraction config → derive from ID → CLI defaults
+- Skips test fixtures, legacy duplicates (filename≠jurisdiction_id), hidden files
+- Backfilled 16 configs:
+  - city-berkeley, city-sacramento, county-alameda → from YAML data (CA SOS)
+  - 10 Marin school districts + college-marin → Marin Civera + CA SOS
+  - county-travis → TX SOS (validates multi-state)
+  - city-national-city → CA SOS (San Diego County)
+- All jurisdiction extraction configs now have election_sources
+- 114 tests passing (31 provider + 63 detection + 20 smoke), 0 failures
+- Reusable: run with --force after adding new providers to re-detect all

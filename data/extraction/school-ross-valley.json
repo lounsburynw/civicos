@@ -11,5 +11,15 @@
     "committee_name": "Main Governing Board",
     "district_name": "Ross Valley School District",
     "created": "2026-03-26"
+  },
+  "election_sources": {
+    "marin_registrar_results": {
+      "from_year": 2010,
+      "division_filter": "Ross Valley School District"
+    },
+    "ca_sos_results": {
+      "county": "marin",
+      "county_breakdown": false
+    }
   }
 }
