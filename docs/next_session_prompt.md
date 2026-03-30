@@ -1,76 +1,80 @@
-# Recommended: Ballot Measure Content Ingestion
+# Recommended: StateElectionProvider ABC + CA Provider
 
-**Priority:** P0 (ballot_measure_content)
-**Area:** ballot_awareness
+**Priority:** P0 (state_election_provider)
+**Area:** multi_state_portability
 **Date:** 2026-03-29
 
 > This is recommended context from the previous session. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
 
 ## Context
 
-Previous session completed `local_candidate_data` and significantly hardened the onboarding automation pipeline. Local election results (mayor, city council, town council, ballot measures) are now extracted from the Civera ElectionStats GraphQL API for all 3 pilot jurisdictions. The onboarding flow was improved with: Civera division filter validation, CDE-based school district detection, auto-detected contact info from city websites, and YouTube meeting playlist discovery.
+This session completed two items: `ballot_measure_content` (CA voter guide extraction client, model extensions, explore display) and the first two phases of the multi-state election portability roadmap (`state_election_config` + `deadline_generalization`). Election cycles and deadlines are now config-driven via `StateElectionConfig` — configs exist for CA, TX, FL, NY, PA, IL. All 72 election tests pass.
 
-The ballot data gap: we store pass/fail results for local measures (e.g., "Measure P: Yes 52%, No 48%") but **not the measure text itself** — what voters actually need to decide. State measures come from the CA voter guide; local measures come from county sample ballots.
+The next step is the **provider abstraction** — extracting CA-specific election source detection from `onboard.py` into a `CaliforniaElectionProvider` class, behind an ABC that contributors implement per state. This is the key piece that makes adding a new state a well-defined, isolated task.
 
 ## What Needs to Be Done
 
-Ingest ballot measure content: the actual question text, fiscal impact summaries, and pro/con arguments. This makes the `explore what='my_ballot'` response genuinely useful — right now it shows measure titles but not what they propose.
+Create the `StateElectionProvider` ABC and extract California's election source detection logic into `providers/california.py`. Refactor `onboard.py:detect_election_sources()` to dispatch to the provider registry.
 
 ## Key Files
 
-- `packages/civicos/src/civicos/_internal/elections/__init__.py:30-45` — `ContestType` enum includes `local_measure`, `state_proposition`
-- `packages/civicos-extraction/src/civicos_extraction/clients/civera_election_stats.py:428-441` — `_map_contest_type()` handles ballot questions, stores `raw_data.mapped_ballot_measure`
-- `packages/civicos-services/src/civicos_services/query/verbs.py:1298-1427` — `explore what='my_ballot'` ballot display code
-- `packages/civicos/src/civicos/storage/postgres_backend.py:8913-8977` — `store_election_contests()` with `raw_data` JSONB
-- `packages/civicos-extraction/src/civicos_extraction/clients/ca_sos_ballot_preview.py` — pattern for CA SOS PDF extraction
-
-## Data Sources
-
-1. **State measures** — CA Voter Guide at `voterguide.sos.ca.gov`. Published as web pages and PDFs with: measure text, fiscal impact, arguments for/against. The CA SOS ballot preview client is a good pattern to follow (PDF -> structured data).
-
-2. **Local measures** — County sample ballots. The Civera API already stores `ballotQuestion.questionText` but it's just the title. Full text + fiscal impact come from the county recorder's sample ballot publication.
-
-3. **Already stored** — `raw_data.mapped_ballot_measure` has: title, passed (bool), yes_votes, no_votes, percentages. Need to add: `full_text`, `fiscal_impact`, `argument_for`, `argument_against`.
+- `packages/civicos-extraction/src/civicos_extraction/onboard.py:687-757` — `detect_election_sources()` has `if state == "CA"` guard + Civera lookup + Marin registrar legacy key. This is what gets extracted.
+- `packages/civicos/src/civicos/_internal/elections/state_config.py` — `StateElectionConfig` dataclass + `STATE_CONFIGS` for 6 states (created this session)
+- `packages/civicos/src/civicos/_internal/elections/cycles.py` — Already refactored to use config (this session)
+- `packages/civicos/src/civicos/_internal/elections/deadlines.py` — Already generalized (this session)
+- `packages/civicos-extraction/src/civicos_extraction/clients/civera_election_stats.py:32-49` — `CIVERA_INSTANCES` registry (3 CA counties)
+- `packages/civicos-extraction/src/civicos_extraction/clients/factory.py` — Client factory dispatch
 
 ## Suggested Approach
 
-1. **Extend the ballot measure schema** — Add content fields to the `mapped_ballot_measure` structure in `raw_data` JSONB (no schema migration needed — it's JSON).
+1. **Create `providers/__init__.py`** at `packages/civicos/src/civicos/_internal/elections/providers/__init__.py`:
+   - `StateElectionProvider` ABC with `config` property, `detect_election_sources()` abstract method, and default `generate_deadlines()` / `get_primary_date()` methods
+   - `get_provider(state_code)` registry function
+   - `_create_provider(state_code)` factory with lazy imports
 
-2. **Build CA voter guide client** — Fetch state measure content from `voterguide.sos.ca.gov`. Follow the CA SOS ballot preview pattern (PDF or HTML -> structured extraction). Use LLM only to parse fetched content, not as a knowledge source.
+2. **Create `providers/california.py`**:
+   - `CaliforniaElectionProvider(StateElectionProvider)`
+   - Move body of `onboard.py:detect_election_sources()` lines 707-757 into `detect_election_sources()`
+   - Includes: CA SOS detection, Civera instance lookup, Marin registrar legacy key, division filter inference
 
-3. **Extend Civera extraction** — Check if the Civera GraphQL API has fuller ballot question text. If not, the county sample ballot (Marin registrar) is the source for local measure text.
+3. **Refactor `onboard.py:detect_election_sources()`**:
+   - Replace with ~5-line dispatcher: `get_provider(state)` → `provider.detect_election_sources(...)`
+   - Unsupported states return `{}` (federal reps still work via Congress.gov)
 
-4. **Update ballot display** — Modify `explore what='my_ballot'` to include measure content in the response.
-
-5. **Write tests** — Mock-based unit tests for extraction, integration test for ballot display.
+4. **Write tests**:
+   - Provider registry dispatch test
+   - CA provider returns same results as current implementation
+   - Unsupported state returns empty dict
 
 ## Tests to Run
 
 ```bash
-# Existing ballot tests
+# Election calendar (regression — 72 tests)
+pytest packages/civicos/tests/test_election_calendar.py -v --override-ini="addopts="
+# Explore ballot (regression)
 pytest packages/civicos/tests/test_explore_ballot.py -v --override-ini="addopts="
-# Election tests (regression)
-pytest packages/civicos/tests/test_election_calendar.py -q --override-ini="addopts="
-# Extraction tests
-pytest packages/civicos-extraction/tests/test_marin_registrar.py -q --override-ini="addopts=" -k "not integration"
+# Smoke tests
+pytest packages/civicos/tests/test_civicos.py -q --override-ini="addopts="
 ```
 
 ## Success Criteria
 
-- [ ] State measure content (text, fiscal impact, pro/con) ingested from CA voter guide
-- [ ] Local measure content ingested from county sample ballot or Civera
-- [ ] `explore what='my_ballot'` includes measure content in response
-- [ ] Content stored in `raw_data.mapped_ballot_measure` (no schema migration)
-- [ ] Works for 2024 measures already in database (backfill)
-- [ ] Extraction pattern generalizable to other counties
+- [ ] `StateElectionProvider` ABC defined with `detect_election_sources()` abstract method
+- [ ] `CaliforniaElectionProvider` implements the ABC with current CA logic
+- [ ] `onboard.py:detect_election_sources()` dispatches via provider registry
+- [ ] Unsupported states return `{}` instead of crashing
+- [ ] All existing tests pass (no behavior change for CA)
+- [ ] Adding a new state requires only: config entry + provider file + factory registration
 
-## Session Summary (for context)
+## Architecture Reference
 
-This session made 5 commits:
-1. `378ea03` — Extracted local candidate data from Civera for all 3 pilot cities (40 contests, 92 candidates)
-2. `1dc1ef1` — Fixed `_infer_division_name` to use bare city names (broader Civera matching)
-3. `cb22dde` — Added Civera validation + CDE school district detection to onboarding
-4. `e4e30c4` — Added contact info auto-detection + YouTube playlist detection
-5. `6e5b240` — Wired all auto-detection functions into `onboard_jurisdiction` flow
+The plan file at `~/.claude/plans/iterative-snuggling-stream.md` has the full multi-state portability design including file layout, contributor workflow, and phasing. This is Phase 3 of 6.
 
-Key design principle established: **LLMs process fetched external data, never their own training knowledge, for civic facts.** Authoritative sources: CDE for school districts, Civera for election results, Census for districts, city websites for contact info.
+## Session Summary
+
+This session made 3 commits:
+1. `61d9674` — Ballot measure content: model extensions, CA voter guide client, explore display (37 tests)
+2. `5ec6238` — Added `multi_state_portability` category to launch.json (9 items)
+3. `6c15f58` — StateElectionConfig + cycles/deadlines refactor for 6 states (26 new tests)
+
+All 10 codebase critics pass. 72 election tests + 20 smoke tests green.
