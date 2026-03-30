@@ -1,6 +1,6 @@
-# Recommended: All-California Election Coverage
+# Recommended: Texas Election Support
 
-**Priority:** P0 (all_california_coverage)
+**Priority:** P0 (texas_election_support)
 **Area:** multi_state_portability
 **Date:** 2026-03-29
 
@@ -8,62 +8,58 @@
 
 ## Context
 
-This session completed Phase 3 of the multi-state portability roadmap: `StateElectionProvider` ABC + `CaliforniaElectionProvider`. Election source detection now dispatches through a provider registry — `onboard.py:detect_election_sources()` calls `get_provider(state)` which returns the CA provider (or None for unsupported states). All 150+ tests pass.
+Phase 4 (`all_california_coverage`) is done. Probed all 58 CA counties — discovered San Joaquin as 4th Civera instance. Externalized CIVERA_INSTANCES to `data/extraction/civera_instances.json` (config-driven). Added explicit `county_breakdown` flag on CA SOS source for all counties (True for 54 non-Civera, False for 4 Civera counties).
 
-The current CA provider only knows about 3 counties with Civera instances (Marin, Sonoma, Yolo). The remaining 55 CA counties get CA SOS statewide data but no local race results. This item expands coverage.
-
-## What Needs to Be Done
-
-1. **Expand Civera instance discovery** — Probe more CA county registrar sites for GraphQL endpoints matching the Civera ElectionStats pattern (`/api/graphql_pr`). Add discovered instances to `CIVERA_INSTANCES` registry.
-2. **CA SOS as universal fallback** — The `CASOSResultsClient` already has `get_county_breakdown()` for county-level race results. Wire this into the CA provider as a fallback for counties without Civera.
-3. **Discovery script** — Write a script to systematically probe CA county registrar websites for Civera endpoints.
+Texas is Phase 5 — the first non-CA state, validating the multi-state provider abstraction. `StateElectionConfig` for TX already exists at `state_config.py:128` (March primary, 30-day registration, 17-day early voting, no VBM). What's missing is the provider and any TX-specific election data clients.
 
 ## Key Files
 
-- `packages/civicos-extraction/src/civicos_extraction/providers/california.py` — CA provider (just created). Civera + SOS fallback logic lives here.
-- `packages/civicos-extraction/src/civicos_extraction/clients/civera_election_stats.py:32-49` — `CIVERA_INSTANCES` registry (currently 3 counties: marin, sonoma, yolo)
-- `packages/civicos-extraction/src/civicos_extraction/clients/ca_sos_results.py` — `CASOSResultsClient` with `get_county_breakdown()` (line 286). Already functional, just not wired into the provider.
-- `packages/civicos-extraction/src/civicos_extraction/providers/__init__.py` — Provider ABC + registry
-- `packages/civicos-extraction/tests/test_election_providers.py` — 17 provider tests
-- `packages/civicos-extraction/tests/test_election_detection.py` — 61 detection tests
+- `packages/civicos-extraction/src/civicos_extraction/providers/__init__.py:80-88` — `_create_provider()` factory. Add TX branch here.
+- `packages/civicos-extraction/src/civicos_extraction/providers/california.py` — Reference implementation. TX provider follows same pattern.
+- `packages/civicos/src/civicos/_internal/elections/state_config.py:128-154` — TX `StateElectionConfig` (already exists).
+- `packages/civicos-extraction/tests/test_election_providers.py:54` — Test asserting `get_provider("TX")` returns None. Must change.
+- `packages/civicos-extraction/tests/test_election_detection.py:120` — Test for unsupported TX returning empty. Must update.
+- `data/extraction/civera_instances.json` — Config-driven Civera registry pattern to follow if TX has similar sources.
 
 ## Suggested Approach
 
-1. **Research Civera adoption** — Civera ElectionStats uses a consistent URL pattern: `https://electionstats.{county-domain}/api/graphql_pr`. The 3 known instances each have different domain patterns. Write a script to probe the top 20 CA counties by population.
+1. **Research TX SOS data availability** — Texas SOS (sos.state.tx.us) has election results. Check if they have a usable API or scrape-only. Also check county registrar APIs (Harris, Travis, Dallas, Bexar are the big ones).
 
-2. **Add discovered instances** — For each county with a working Civera endpoint, add to `CIVERA_INSTANCES` dict with `graphql_url`, `tenant`, and `county_name`.
+2. **Create `providers/texas.py`** — Implement `TexasElectionProvider(StateElectionProvider)` with `detect_election_sources()`. Initially can return TX SOS source if API exists, or a minimal source dict with documentation of what's available.
 
-3. **Wire CA SOS fallback** — In `CaliforniaElectionProvider.detect_election_sources()`, after the Civera check, add a fallback: if no Civera instance for this county, add a `ca_sos_county_results` source entry that tells the ingestion pipeline to use `CASOSResultsClient.get_county_breakdown()` for local races.
+3. **Register in factory** — Add `"TX"` branch in `_create_provider()` at `providers/__init__.py:86`.
 
-4. **Update tests** — Add tests for new Civera instances and the SOS fallback path.
+4. **Create TX SOS client** (if API exists) — `clients/tx_sos_results.py` following the `ca_sos_results.py` pattern.
+
+5. **Add tests** — Provider tests for TX detection, update detection tests that currently assert TX returns empty.
+
+6. **End-to-end test** — Test with a TX jurisdiction (e.g., `city-austin` in Travis County).
 
 ## Tests to Run
 
 ```bash
-# Provider tests (direct)
 pytest packages/civicos-extraction/tests/test_election_providers.py -v --override-ini="addopts="
-# Detection tests (regression)
 pytest packages/civicos-extraction/tests/test_election_detection.py -v --override-ini="addopts="
-# Election calendar (regression)
 pytest packages/civicos/tests/test_election_calendar.py -v --override-ini="addopts="
-# Smoke tests
 pytest packages/civicos/tests/test_civicos.py -q --override-ini="addopts="
 ```
 
 ## Success Criteria
 
-- [ ] CIVERA_INSTANCES expanded beyond 3 counties (or documented why others don't have Civera)
-- [ ] CA SOS county breakdown wired as fallback for non-Civera counties
-- [ ] Discovery script exists for probing county registrar sites
+- [ ] `TexasElectionProvider` created and registered in factory
+- [ ] `get_provider("TX")` returns a provider (not None)
+- [ ] TX SOS data source research complete (API or scrape-only documented)
+- [ ] At least TX SOS source detected for TX jurisdictions
+- [ ] Provider + detection tests updated for TX
 - [ ] All existing tests pass (zero regression)
-- [ ] New tests cover expanded Civera instances and SOS fallback path
+- [ ] End-to-end test with a TX jurisdiction (e.g., city-austin)
 
 ## Architecture Notes
 
-- Providers live in `civicos-extraction/providers/` (not `civicos/_internal/elections/`) to avoid layer violations
-- The `_create_provider()` factory in `providers/__init__.py` uses lazy imports
+- Providers live in `civicos-extraction/providers/` (not `civicos/_internal/elections/`)
+- The `_create_provider()` factory uses lazy imports — add the TX import inside the `if` branch
 - County normalization (lowercase, strip "County" suffix) happens in `onboard.py` dispatcher before reaching the provider
-- Marin uses legacy `marin_registrar_results` config key for backwards compatibility
+- Config-driven pattern: if TX has county registrar sources, create `data/extraction/tx_election_instances.json` (following the CA Civera pattern)
 
 ## Multi-State Roadmap Progress
 
@@ -72,6 +68,6 @@ pytest packages/civicos/tests/test_civicos.py -q --override-ini="addopts="
 | 1 | state_election_config | Done |
 | 2 | deadline_generalization | Done |
 | 3 | state_election_provider | Done |
-| **4** | **all_california_coverage** | **P0 (next)** |
-| 5 | texas_election_support | P2 |
+| 4 | all_california_coverage | Done |
+| **5** | **texas_election_support** | **P0 (next)** |
 | 6 | florida_election_support | P2 |
