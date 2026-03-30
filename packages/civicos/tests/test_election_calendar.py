@@ -2,7 +2,8 @@
 Tests for deterministic election cycle resolver and deadline generator.
 
 Validates cycle computation for federal and state offices, CA election
-deadlines, and contest determination from district assignments.
+deadlines, contest determination from district assignments, and
+multi-state election config portability.
 """
 
 import pytest
@@ -382,3 +383,201 @@ class TestElectionToDict:
         )
         d = election.to_dict()
         assert d["contests"][0]["ballot_measure"] is None
+
+
+# ========== Multi-State Config ==========
+
+
+class TestStateElectionConfig:
+    """StateElectionConfig registry and lookup."""
+
+    def test_ca_config_exists(self):
+        from civicos._internal.elections.state_config import get_state_config
+        config = get_state_config("CA")
+        assert config.state_code == "CA"
+        assert config.primary_month == 6
+
+    def test_tx_config_exists(self):
+        from civicos._internal.elections.state_config import get_state_config
+        config = get_state_config("TX")
+        assert config.state_code == "TX"
+        assert config.primary_month == 3
+
+    def test_supported_states(self):
+        from civicos._internal.elections.state_config import supported_states
+        states = supported_states()
+        assert "CA" in states
+        assert "TX" in states
+        assert "FL" in states
+        assert "NY" in states
+        assert "PA" in states
+        assert "IL" in states
+
+    def test_unsupported_state_raises(self):
+        from civicos._internal.elections.state_config import get_state_config
+        with pytest.raises(KeyError):
+            get_state_config("ZZ")
+
+    def test_case_insensitive(self):
+        from civicos._internal.elections.state_config import get_state_config
+        config = get_state_config("ca")
+        assert config.state_code == "CA"
+
+    def test_ca_deadline_offsets(self):
+        from civicos._internal.elections.state_config import get_state_config
+        config = get_state_config("CA")
+        assert config.registration_deadline_days == 15
+        assert config.early_voting_start_days == 10
+        assert config.vbm_mailing_days == 29
+        assert config.conditional_registration is True
+
+    def test_tx_deadline_offsets(self):
+        from civicos._internal.elections.state_config import get_state_config
+        config = get_state_config("TX")
+        assert config.registration_deadline_days == 30
+        assert config.early_voting_start_days == 17
+        assert config.vbm_mailing_days == 0
+        assert config.conditional_registration is False
+
+    def test_ca_statewide_offices(self):
+        from civicos._internal.elections.state_config import get_state_config
+        config = get_state_config("CA")
+        assert "Governor" in config.statewide_offices
+        assert "Controller" in config.statewide_offices
+        assert len(config.statewide_offices) == 5
+
+    def test_tx_statewide_offices(self):
+        from civicos._internal.elections.state_config import get_state_config
+        config = get_state_config("TX")
+        assert "Governor" in config.statewide_offices
+        assert "Comptroller" in config.statewide_offices
+        assert "Railroad Commissioner" in config.statewide_offices
+        assert len(config.statewide_offices) == 7
+
+    def test_configs_are_frozen(self):
+        from civicos._internal.elections.state_config import get_state_config
+        config = get_state_config("CA")
+        with pytest.raises(AttributeError):
+            config.primary_month = 3
+
+
+# ========== Multi-State Cycle Resolution ==========
+
+
+class TestTexasCycles:
+    """Texas election cycles use TX config, not CA defaults."""
+
+    def test_tx_governor_2026(self):
+        gen = get_next_election_date("state_governor", as_of=date(2025, 1, 1), state="TX")
+        assert gen == general_election_date(2026)
+
+    def test_tx_primary_is_march(self):
+        from civicos._internal.elections.cycles import state_primary_date
+        primary = state_primary_date(2026, "TX")
+        assert primary.month == 3  # March, not June
+
+    def test_tx_house_district(self):
+        gen = get_next_election_date("state_assembly", district=45, as_of=date(2025, 1, 1), state="TX")
+        assert gen.year == 2026
+
+    def test_tx_senate_stagger(self):
+        even = get_next_election_date("state_senate", district=2, as_of=date(2025, 1, 1), state="TX")
+        odd = get_next_election_date("state_senate", district=3, as_of=date(2025, 1, 1), state="TX")
+        assert even.year == 2026
+        assert odd.year == 2028
+
+    def test_tx_us_senate_classes(self):
+        # Cruz is Class I (2024), Cornyn is Class II (2026)
+        cruz = get_next_election_date("us_senate", senate_class="class_1", as_of=date(2025, 1, 1), state="TX")
+        cornyn = get_next_election_date("us_senate", senate_class="class_2", as_of=date(2025, 1, 1), state="TX")
+        assert cruz.year == 2030  # 2024 + 6
+        assert cornyn.year == 2026
+
+
+class TestTexasContests:
+    """Texas contest generation uses TX statewide offices."""
+
+    def test_tx_2026_has_governor(self):
+        contests = get_contests_for_jurisdiction(
+            districts={"us-rep": [21], "state-assembly": [45], "state-senate": [14]},
+            election_year=2026,
+            state="TX",
+        )
+        titles = [c["title"] for c in contests]
+        assert "Governor" in titles
+
+    def test_tx_2026_has_comptroller(self):
+        contests = get_contests_for_jurisdiction(
+            districts={"us-rep": [21]},
+            election_year=2026,
+            state="TX",
+        )
+        titles = [c["title"] for c in contests]
+        assert "Comptroller" in titles
+        assert "Controller" not in titles  # That's CA
+
+    def test_tx_lower_chamber_title(self):
+        contests = get_contests_for_jurisdiction(
+            districts={"state-assembly": [45]},
+            election_year=2026,
+            state="TX",
+        )
+        titles = [c["title"] for c in contests]
+        assert "State House District 45" in titles
+        assert "State Assembly District 45" not in titles
+
+
+# ========== Multi-State Deadlines ==========
+
+
+class TestMultiStateDeadlines:
+    """Deadline generation respects per-state config."""
+
+    def test_tx_no_vbm(self):
+        from civicos._internal.elections.deadlines import generate_deadlines
+        deadlines = generate_deadlines(date(2026, 11, 3), state_code="TX")
+        types = [d.deadline_type for d in deadlines]
+        assert "vbm_ballots_mailed" not in types  # TX has no universal VBM
+
+    def test_tx_registration_30_days(self):
+        from civicos._internal.elections.deadlines import generate_deadlines
+        deadlines = generate_deadlines(date(2026, 11, 3), state_code="TX")
+        reg = next(d for d in deadlines if d.deadline_type == "voter_registration")
+        assert reg.deadline_date == date(2026, 10, 4)  # 30 days before
+
+    def test_tx_early_voting_17_days(self):
+        from civicos._internal.elections.deadlines import generate_deadlines
+        deadlines = generate_deadlines(date(2026, 11, 3), state_code="TX")
+        early = next(d for d in deadlines if d.deadline_type == "early_voting_start")
+        assert early.deadline_date == date(2026, 10, 17)  # 17 days before
+
+    def test_tx_no_conditional_registration(self):
+        from civicos._internal.elections.deadlines import generate_deadlines
+        deadlines = generate_deadlines(date(2026, 11, 3), state_code="TX")
+        types = [d.deadline_type for d in deadlines]
+        assert "conditional_registration" not in types
+
+    def test_ca_wrapper_still_works(self):
+        deadlines = generate_ca_deadlines(date(2026, 6, 2))
+        types = [d.deadline_type for d in deadlines]
+        assert "vbm_ballots_mailed" in types
+        assert "conditional_registration" in types
+
+    def test_pa_no_early_voting(self):
+        from civicos._internal.elections.deadlines import generate_deadlines
+        deadlines = generate_deadlines(date(2026, 11, 3), state_code="PA")
+        types = [d.deadline_type for d in deadlines]
+        assert "early_voting_start" not in types  # PA has no in-person early voting
+
+    def test_il_has_conditional_registration(self):
+        from civicos._internal.elections.deadlines import generate_deadlines
+        deadlines = generate_deadlines(date(2026, 11, 3), state_code="IL")
+        types = [d.deadline_type for d in deadlines]
+        assert "conditional_registration" in types  # IL has grace period registration
+
+    def test_election_day_has_state_times(self):
+        from civicos._internal.elections.deadlines import generate_deadlines
+        deadlines = generate_deadlines(date(2026, 11, 3), state_code="NY")
+        eday = next(d for d in deadlines if d.deadline_type == "election_day")
+        assert "6:00 AM" in eday.description  # NY opens at 6 AM
+        assert "9:00 PM" in eday.description  # NY closes at 9 PM
