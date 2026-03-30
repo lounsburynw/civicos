@@ -115,10 +115,27 @@ class TestDetectElectionSources:
         assert "marin_registrar_results" not in result
         assert len(result) == 0
 
-    def test_non_california_returns_empty(self):
-        """Non-CA jurisdictions have no auto-detected sources."""
-        result = detect_election_sources("city-anytown", "TX", "Travis")
-        assert len(result) == 0
+    def test_texas_returns_tx_sos(self):
+        """TX jurisdictions get tx_sos_results."""
+        result = detect_election_sources("city-austin", "TX", "Travis")
+        assert "tx_sos_results" in result
+        assert result["tx_sos_results"]["county"] == "travis"
+        assert result["tx_sos_results"]["county_breakdown"] is True
+        assert "ca_sos_results" not in result
+
+    def test_texas_with_lat_lng_adds_districts(self):
+        """TX + lat/lng → districts populated in tx_sos_results."""
+        mock_districts = {"us-rep": [21], "state-senate": [14], "state-assembly": [47]}
+        with patch("civicos_extraction.onboard.detect_districts", return_value=mock_districts):
+            result = detect_election_sources(
+                "city-austin", "TX", "Travis", lat=30.27, lng=-97.74,
+            )
+        assert result["tx_sos_results"]["districts"] == mock_districts
+
+    def test_texas_county_suffix_stripped(self):
+        """'Travis County' → normalized to 'travis'."""
+        result = detect_election_sources("city-austin", "TX", "Travis County")
+        assert result["tx_sos_results"]["county"] == "travis"
 
     def test_state_case_insensitive(self):
         """State comparison should be case-insensitive."""
