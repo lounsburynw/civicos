@@ -8,5 +8,11 @@
   },
   "metadata": {
     "granicus_domain": "traviscounty"
+  },
+  "election_sources": {
+    "tx_sos_results": {
+      "county": "travis",
+      "county_breakdown": true
+    }
   }
 }

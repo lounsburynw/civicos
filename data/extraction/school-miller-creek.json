@@ -10,5 +10,15 @@
     "district_name": "Miller Creek School District",
     "district_website": "https://www.millercreeksd.org",
     "created": "2026-03-26"
+  },
+  "election_sources": {
+    "marin_registrar_results": {
+      "from_year": 2010,
+      "division_filter": "Miller Creek School District"
+    },
+    "ca_sos_results": {
+      "county": "marin",
+      "county_breakdown": false
+    }
   }
 }

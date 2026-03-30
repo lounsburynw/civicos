@@ -43,5 +43,11 @@
   "metadata": {
     "client_name": "sacramento",
     "body_count": 35
+  },
+  "election_sources": {
+    "ca_sos_results": {
+      "county": "sacramento",
+      "county_breakdown": true
+    }
   }
 }

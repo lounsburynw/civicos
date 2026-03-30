@@ -2638,3 +2638,236 @@ def onboard_jurisdiction(
         validation=validation_report,
         pipeline_result=pipeline_result_obj,
     )
+
+
+# ---------------------------------------------------------------------------
+# Election source backfill
+# ---------------------------------------------------------------------------
+
+_BACKFILL_SKIP_STEMS = {
+    "civera_instances",
+    "city-ghost",
+    "city-test",
+    "city-warn",
+}
+
+
+def _resolve_state_county(
+    jurisdiction_id: str,
+    config: dict,
+    jurisdiction_dir: Path,
+    default_state: Optional[str] = None,
+    default_county: Optional[str] = None,
+) -> tuple:
+    """Resolve state and county for a jurisdiction from multiple sources.
+
+    Resolution order:
+    1. Jurisdiction YAML financial.state / financial.county
+    2. Extraction config financial.state / financial.county
+    3. County derived from jurisdiction_id for county-* types
+    4. default_state / default_county fallbacks
+    """
+    state: Optional[str] = None
+    county: Optional[str] = None
+
+    # 1. Jurisdiction YAML
+    yaml_path = jurisdiction_dir / f"{jurisdiction_id}.yaml"
+    if yaml_path.exists():
+        try:
+            import yaml
+
+            with open(yaml_path) as f:
+                jur = yaml.safe_load(f) or {}
+            fin = jur.get("financial") or {}
+            state = fin.get("state")
+            county = fin.get("county")
+        except (OSError, ValueError) as e:
+            logger.warning(f"Failed to read YAML for {jurisdiction_id}: {e}")
+
+    # 2. Extraction config financial section
+    fin = config.get("financial") or {}
+    state = state or fin.get("state")
+    county = county or fin.get("county")
+
+    # 3. Derive county from jurisdiction_id for county-* types
+    if not county and jurisdiction_id.startswith("county-"):
+        county = jurisdiction_id.removeprefix("county-").replace("-", " ").title()
+
+    # 4. CLI defaults
+    state = state or default_state
+    county = county or default_county
+
+    return state, county
+
+
+def backfill_election_sources(
+    config_dir: Optional[Path] = None,
+    dry_run: bool = False,
+    force: bool = False,
+    filter_jurisdiction: Optional[str] = None,
+    default_state: Optional[str] = None,
+    default_county: Optional[str] = None,
+) -> List[Dict[str, Any]]:
+    """Backfill election_sources for extraction configs that lack them.
+
+    Iterates extraction config JSON files, resolves state/county from
+    jurisdiction YAML or config metadata, calls detect_election_sources(),
+    and writes the result back into each config.
+
+    Reusable after adding new providers — run with --force to re-detect all.
+
+    Args:
+        config_dir: Override extraction config directory.
+        dry_run: Log what would change without writing files.
+        force: Re-detect even if election_sources already present.
+        filter_jurisdiction: Only process this jurisdiction_id.
+        default_state: Fallback state code (e.g. "CA") when YAML/config lack it.
+        default_county: Fallback county name (e.g. "Marin") when YAML/config lack it.
+
+    Returns:
+        List of result dicts: {jurisdiction_id, status, detail}.
+    """
+    from civicos_extraction.config import get_config_dir
+
+    if config_dir is None:
+        config_dir = get_config_dir()
+
+    results: List[Dict[str, Any]] = []
+
+    for config_path in sorted(config_dir.glob("*.json")):
+        stem = config_path.stem
+
+        # Skip hidden files, test fixtures, non-jurisdiction configs
+        if stem.startswith(".") or stem in _BACKFILL_SKIP_STEMS:
+            continue
+
+        try:
+            with open(config_path) as f:
+                config = json.load(f)
+        except (json.JSONDecodeError, OSError) as e:
+            results.append({"jurisdiction_id": stem, "status": "error", "detail": str(e)})
+            continue
+
+        jurisdiction_id = config.get("jurisdiction_id", stem)
+
+        # Skip legacy duplicates (filename doesn't match jurisdiction_id)
+        if jurisdiction_id != stem:
+            continue
+
+        if filter_jurisdiction and jurisdiction_id != filter_jurisdiction:
+            continue
+
+        # Skip if already has election_sources (unless force)
+        if "election_sources" in config and not force:
+            results.append({
+                "jurisdiction_id": jurisdiction_id,
+                "status": "skipped",
+                "detail": "already has election_sources",
+            })
+            continue
+
+        # Resolve state and county
+        state, county = _resolve_state_county(
+            jurisdiction_id, config, JURISDICTIONS_DIR,
+            default_state, default_county,
+        )
+
+        if not state:
+            results.append({
+                "jurisdiction_id": jurisdiction_id,
+                "status": "skipped",
+                "detail": "no state found (create YAML or pass --default-state)",
+            })
+            continue
+
+        if not county:
+            results.append({
+                "jurisdiction_id": jurisdiction_id,
+                "status": "skipped",
+                "detail": f"no county found for state={state} (create YAML or pass --default-county)",
+            })
+            continue
+
+        # Detect election sources
+        try:
+            election_sources = detect_election_sources(jurisdiction_id, state, county)
+        except Exception as e:
+            results.append({
+                "jurisdiction_id": jurisdiction_id,
+                "status": "error",
+                "detail": f"detection failed: {e}",
+            })
+            continue
+
+        if not election_sources:
+            results.append({
+                "jurisdiction_id": jurisdiction_id,
+                "status": "no_sources",
+                "detail": f"no sources detected (state={state}, county={county})",
+            })
+            continue
+
+        # Write back
+        if not dry_run:
+            config["election_sources"] = election_sources
+            with open(config_path, "w") as f:
+                json.dump(config, f, indent=2)
+                f.write("\n")
+
+        action = "would update" if dry_run else "updated"
+        source_names = list(election_sources.keys())
+        results.append({
+            "jurisdiction_id": jurisdiction_id,
+            "status": action,
+            "detail": f"sources: {source_names}",
+        })
+
+    return results
+
+
+# ---------------------------------------------------------------------------
+# CLI entry point
+# ---------------------------------------------------------------------------
+
+if __name__ == "__main__":
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Jurisdiction onboarding utilities")
+    subparsers = parser.add_subparsers(dest="command")
+
+    bp = subparsers.add_parser(
+        "backfill-elections",
+        help="Backfill election_sources in extraction configs",
+    )
+    bp.add_argument("--dry-run", action="store_true", help="Log changes without writing")
+    bp.add_argument("--force", action="store_true", help="Re-detect even if already present")
+    bp.add_argument("--jurisdiction", help="Only process this jurisdiction_id")
+    bp.add_argument("--default-state", help="Fallback state code (e.g. CA)")
+    bp.add_argument("--default-county", help="Fallback county name (e.g. Marin)")
+
+    args = parser.parse_args()
+
+    if args.command == "backfill-elections":
+        logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
+        results = backfill_election_sources(
+            dry_run=args.dry_run,
+            force=args.force,
+            filter_jurisdiction=args.jurisdiction,
+            default_state=args.default_state,
+            default_county=args.default_county,
+        )
+
+        for r in results:
+            icon = {
+                "updated": "+", "would update": "~",
+                "skipped": ".", "no_sources": "-", "error": "!",
+            }.get(r["status"], "?")
+            print(f"  {icon} {r['jurisdiction_id']}: {r['detail']}")
+
+        updated = sum(1 for r in results if r["status"] in ("updated", "would update"))
+        skipped = sum(1 for r in results if r["status"] == "skipped")
+        errors = sum(1 for r in results if r["status"] == "error")
+        prefix = "DRY RUN: " if args.dry_run else ""
+        print(f"\n{prefix}Updated: {updated}, Skipped: {skipped}, Errors: {errors}")
+    else:
+        parser.print_help()
