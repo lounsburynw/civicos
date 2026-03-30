@@ -86,3 +86,6 @@ def _create_provider(state_code: str) -> None:
     if state_code == "CA":
         from civicos_extraction.providers.california import CaliforniaElectionProvider
         _PROVIDERS["CA"] = CaliforniaElectionProvider()
+    elif state_code == "TX":
+        from civicos_extraction.providers.texas import TexasElectionProvider
+        _PROVIDERS["TX"] = TexasElectionProvider()

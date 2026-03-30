@@ -1,7 +1,7 @@
 {
   "version": "1.0",
   "phase": "launch",
-  "last_updated": "2026-03-29",
+  "last_updated": "2026-03-30",
   "summary": "Launch readiness: multi-state election portability (active), election+school onboarding (done), representative lookup (done), turnkey onboarding (done), federation queries, billing, operator tooling, multi-scale participation (done)",
   "category_order": [
     "multi_state_portability",
@@ -70,13 +70,13 @@
           "scripts/probe_civera_counties.py"
         ],
         "test_file": "packages/civicos-extraction/tests/test_election_providers.py",
-        "notes": "Phase 4 done. Probed all 58 CA counties — discovered San Joaquin (electionstats.sjgov.org, 2 elections 2024). Only 4/58 counties have Civera. CA SOS county_breakdown=True flag added for non-Civera counties as primary local race data source. 20 provider tests + 61 detection tests pass."
+        "notes": "Phase 4 done. Probed all 58 CA counties \u2014 discovered San Joaquin (electionstats.sjgov.org, 2 elections 2024). Only 4/58 counties have Civera. CA SOS county_breakdown=True flag added for non-Civera counties as primary local race data source. 20 provider tests + 61 detection tests pass."
       },
       {
         "name": "texas_election_support",
         "description": "Add Texas as second supported state. StateElectionConfig for TX (March primary, 30-day registration, 17-day early voting, no universal VBM). TexasElectionProvider with detect_election_sources(). TX SOS client if API accessible. End-to-end test with a TX jurisdiction.",
         "priority": 0,
-        "status": "not_started",
+        "status": "done",
         "files": [
           "packages/civicos/src/civicos/_internal/elections/state_config.py",
           "packages/civicos-extraction/src/civicos_extraction/providers/texas.py"
@@ -86,14 +86,14 @@
       },
       {
         "name": "florida_election_support",
-        "description": "Add Florida election support. StateElectionConfig + provider + SOS client. FL uses Clarity Elections (Scytl) widely — building that client covers many FL counties.",
+        "description": "Add Florida election support. StateElectionConfig + provider + SOS client. FL uses Clarity Elections (Scytl) widely \u2014 building that client covers many FL counties.",
         "priority": 2,
         "status": "not_started",
         "files": [
           "packages/civicos/src/civicos/_internal/elections/providers/florida.py"
         ],
         "test_file": null,
-        "notes": "Phase 6a. Clarity Elections platform is used by GA, NC + hundreds of counties — building it here has outsized value. ~1 session."
+        "notes": "Phase 6a. Clarity Elections platform is used by GA, NC + hundreds of counties \u2014 building it here has outsized value. ~1 session."
       },
       {
         "name": "new_york_election_support",
@@ -1626,7 +1626,7 @@
       {
         "name": "officials_refresh_cron",
         "description": "Add elected officials refresh to GitHub Actions cron. After election results are ingested, re-derive current officials from winners. Also refresh Congress.gov data monthly. Ensures officials roster stays current after elections.",
-        "priority": 1,
+        "priority": 0,
         "status": "not_started",
         "files": [
           ".github/workflows/cron-election-refresh.yml",

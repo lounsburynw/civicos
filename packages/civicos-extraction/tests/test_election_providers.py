@@ -14,6 +14,7 @@ from civicos_extraction.providers import (
     _PROVIDERS,
 )
 from civicos_extraction.providers.california import CaliforniaElectionProvider
+from civicos_extraction.providers.texas import TexasElectionProvider
 
 
 # Auto-mock Civera validation (avoid network calls)
@@ -50,8 +51,18 @@ class TestProviderRegistry:
         assert provider is not None
         assert provider.state_code == "CA"
 
+    def test_get_tx_provider(self):
+        provider = get_provider("TX")
+        assert provider is not None
+        assert isinstance(provider, TexasElectionProvider)
+        assert provider.state_code == "TX"
+
+    def test_get_tx_provider_case_insensitive(self):
+        provider = get_provider("tx")
+        assert provider is not None
+        assert provider.state_code == "TX"
+
     def test_unsupported_state_returns_none(self):
-        assert get_provider("TX") is None
         assert get_provider("OR") is None
         assert get_provider("ZZ") is None
 
@@ -145,6 +156,61 @@ class TestCaliforniaElectionProvider:
         assert "marin_registrar_results" not in result
 
 
+# --- TexasElectionProvider ---
+
+
+class TestTexasElectionProvider:
+    """TX provider returns tx_sos_results for all Texas jurisdictions."""
+
+    def test_travis_county_city(self):
+        provider = TexasElectionProvider()
+        result = provider.detect_election_sources("city-austin", "travis")
+        assert result["tx_sos_results"] == {"county": "travis", "county_breakdown": True}
+
+    def test_harris_county_city(self):
+        provider = TexasElectionProvider()
+        result = provider.detect_election_sources("city-houston", "harris")
+        assert result["tx_sos_results"] == {"county": "harris", "county_breakdown": True}
+
+    def test_county_jurisdiction(self):
+        provider = TexasElectionProvider()
+        result = provider.detect_election_sources("county-bexar", "bexar")
+        assert result["tx_sos_results"] == {"county": "bexar", "county_breakdown": True}
+
+    def test_empty_county(self):
+        provider = TexasElectionProvider()
+        result = provider.detect_election_sources("city-test", "")
+        assert result["tx_sos_results"] == {"county": "", "county_breakdown": True}
+
+    def test_always_county_breakdown_true(self):
+        """All TX counties use county_breakdown=True (no registrar APIs yet)."""
+        provider = TexasElectionProvider()
+        result = provider.detect_election_sources("city-dallas", "dallas")
+        assert result["tx_sos_results"]["county_breakdown"] is True
+
+    def test_with_lat_lng_adds_districts(self):
+        provider = TexasElectionProvider()
+        mock_districts = {"us-rep": [21], "state-senate": [14], "state-assembly": [47]}
+        with patch("civicos_extraction.onboard.detect_districts", return_value=mock_districts):
+            result = provider.detect_election_sources(
+                "city-austin", "travis", lat=30.27, lng=-97.74,
+            )
+        assert result["tx_sos_results"]["districts"] == mock_districts
+
+    def test_without_lat_lng_no_districts(self):
+        provider = TexasElectionProvider()
+        result = provider.detect_election_sources("city-austin", "travis")
+        assert result["tx_sos_results"] == {"county": "travis", "county_breakdown": True}
+
+    def test_no_ca_sources(self):
+        """TX provider never returns CA-specific sources."""
+        provider = TexasElectionProvider()
+        result = provider.detect_election_sources("city-austin", "travis")
+        assert "ca_sos_results" not in result
+        assert "marin_registrar_results" not in result
+        assert "civera_election_stats" not in result
+
+
 # --- Dispatcher integration ---
 
 
@@ -156,6 +222,12 @@ class TestDispatcherIntegration:
         result = detect_election_sources("city-san-rafael", "CA", "Marin")
         assert "ca_sos_results" in result
         assert "marin_registrar_results" in result
+
+    def test_tx_dispatches_to_provider(self):
+        from civicos_extraction.onboard import detect_election_sources
+        result = detect_election_sources("city-austin", "TX", "Travis")
+        assert "tx_sos_results" in result
+        assert result["tx_sos_results"]["county"] == "travis"
 
     def test_unsupported_state_returns_empty(self):
         from civicos_extraction.onboard import detect_election_sources

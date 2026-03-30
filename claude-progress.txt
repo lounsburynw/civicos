@@ -24466,3 +24466,13 @@ calendar tests + 20 smoke tests all pass. Zero behavior change for CA.
 - `scripts/probe_civera_counties.py` (NEW)
 
 **Next P0:** texas_election_support (Phase 5 — first non-CA state validates abstraction)
+
+## 2026-03-30: Texas Election Support (P0)
+- Created `TexasElectionProvider` in `providers/texas.py` — returns `tx_sos_results` source for all TX jurisdictions with county_breakdown=True (no county registrar APIs discovered yet)
+- Registered TX provider in `_create_provider()` factory (`providers/__init__.py`)
+- District detection via Census geocoder reused from CA pattern (works for any state)
+- Updated test_election_providers.py: TX registry tests, 9 TX-specific provider tests, TX dispatcher test
+- Updated test_election_detection.py: TX detection tests with SOS, districts, county normalization
+- All tests pass: 94 election + 72 calendar + 20 smoke = 186 total, 0 failures
+- TX SOS research: results.texas-election.com and sos.texas.gov/elections — web-based, no clean REST API like CA. Documented in provider docstring.
+- Multi-state roadmap: Phases 1-5 complete. Phase 6 (Florida) at P2.
