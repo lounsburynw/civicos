@@ -691,8 +691,7 @@ def detect_election_sources(
     """Detect available election data sources for a jurisdiction.
 
     Called during onboarding after geocoding provides the county name.
-    Returns a dict keyed by provider name, matching the election_sources
-    schema used in extraction configs (e.g., city-san-rafael.json).
+    Dispatches to a state-specific provider (see civicos_extraction.providers).
 
     Args:
         jurisdiction_id: e.g. "city-san-rafael", "county-marin"
@@ -705,56 +704,20 @@ def detect_election_sources(
         Dict of election source configs. Example:
         {"ca_sos_results": {"county": "marin", "districts": {"us-rep": [2]}}}
     """
-    sources: dict = {}
+    from civicos_extraction.providers import get_provider
+
+    provider = get_provider(state)
+    if provider is None:
+        return {}
 
     # Normalize county name: Google Maps returns "Marin County", we need "marin"
-    county_bare = re.sub(r"\s*County$", "", county, flags=re.IGNORECASE).strip() if county else ""
+    county_normalized = re.sub(
+        r"\s*County$", "", county, flags=re.IGNORECASE,
+    ).strip().lower() if county else ""
 
-    # CA SOS — available for all California jurisdictions
-    if state and state.upper() == "CA":
-        ca_sos: Dict[str, Any] = {"county": county_bare.lower()}
-        # Detect legislative districts via Census geocoder
-        if lat is not None and lng is not None:
-            districts = detect_districts(lat, lng, state)
-            if districts:
-                ca_sos["districts"] = districts
-        sources["ca_sos_results"] = ca_sos
-
-    # Civera ElectionStats — available for counties with known Civera instances
-    from civicos_extraction.clients.civera_election_stats import CIVERA_INSTANCES
-    county_lower = county_bare.lower()
-
-    if county_lower in CIVERA_INSTANCES:
-        instance = CIVERA_INSTANCES[county_lower]
-        division_filter = _infer_division_name(jurisdiction_id)
-
-        # Validate the division filter returns actual results from Civera
-        validated = _validate_civera_division_filter(
-            instance["graphql_url"], county_lower, division_filter,
-        )
-
-        if county_lower == "marin":
-            # Marin uses legacy marin_registrar_results config key
-            sources["marin_registrar_results"] = {
-                "from_year": 2010,
-                "division_filter": division_filter,
-            }
-        else:
-            sources["civera_election_stats"] = {
-                "county_slug": county_lower,
-                "graphql_url": instance["graphql_url"],
-                "from_year": 2010,
-                "division_filter": division_filter,
-            }
-
-        if not validated:
-            logger.warning(
-                f"Division filter '{division_filter}' returned 0 contests "
-                f"from Civera ({county_lower}). Local race data may be missing. "
-                f"Check the registrar's actual division names."
-            )
-
-    return sources
+    return provider.detect_election_sources(
+        jurisdiction_id, county_normalized, lat, lng,
+    )
 
 
 def _validate_civera_division_filter(

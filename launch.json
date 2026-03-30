@@ -48,24 +48,25 @@
       {
         "name": "state_election_provider",
         "description": "Create StateElectionProvider ABC with detect_election_sources() and default deadline/cycle methods. Extract CA logic from onboard.py:detect_election_sources() into providers/california.py. Refactor onboard.py to dispatch via provider registry.",
-        "priority": 0,
-        "status": "not_started",
+        "priority": 1,
+        "status": "done",
         "files": [
-          "packages/civicos/src/civicos/_internal/elections/providers/__init__.py",
-          "packages/civicos/src/civicos/_internal/elections/providers/california.py",
-          "packages/civicos-extraction/src/civicos_extraction/onboard.py"
+          "packages/civicos-extraction/src/civicos_extraction/providers/__init__.py",
+          "packages/civicos-extraction/src/civicos_extraction/providers/california.py",
+          "packages/civicos-extraction/src/civicos_extraction/onboard.py",
+          "packages/civicos-extraction/tests/test_election_providers.py"
         ],
-        "test_file": null,
-        "notes": "Phase 3. The key abstraction for contributors. detect_election_sources() currently checks 'if state == CA' and knows about CA SOS + Civera + Marin registrar. Move into CaliforniaElectionProvider. ~1 session."
+        "test_file": "packages/civicos-extraction/tests/test_election_providers.py",
+        "notes": "Phase 3 done. ABC in extraction/providers/, CA provider extracted, onboard.py dispatches via registry. 17 new tests + 61 existing all pass. Adding a new state = config entry + provider file + factory registration."
       },
       {
         "name": "all_california_coverage",
         "description": "Expand Civera instance discovery beyond 3 counties (Marin, Sonoma, Yolo). Add CA SOS county breakdown as universal fallback for non-Civera counties. Script to probe CA county registrar sites for GraphQL endpoints.",
-        "priority": 1,
+        "priority": 0,
         "status": "not_started",
         "files": [
           "packages/civicos-extraction/src/civicos_extraction/clients/civera_election_stats.py",
-          "packages/civicos/src/civicos/_internal/elections/providers/california.py"
+          "packages/civicos-extraction/src/civicos_extraction/providers/california.py"
         ],
         "test_file": null,
         "notes": "Phase 4. Civera instances use varied subdomain patterns — no auto-discovery, need manual probing. ca_sos_results.py already has get_county_breakdown() for fallback. ~1 session."
@@ -77,7 +78,7 @@
         "status": "not_started",
         "files": [
           "packages/civicos/src/civicos/_internal/elections/state_config.py",
-          "packages/civicos/src/civicos/_internal/elections/providers/texas.py"
+          "packages/civicos-extraction/src/civicos_extraction/providers/texas.py"
         ],
         "test_file": null,
         "notes": "Phase 5. First non-CA state validates the abstraction. TX senate: 31 seats, odd=2026/even=2028. Statewide: Gov, Lt Gov, AG, Comptroller, Land Commissioner, Ag Commissioner, Railroad Commissioner. ~1.5 sessions."

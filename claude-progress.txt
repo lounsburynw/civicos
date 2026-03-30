@@ -24402,3 +24402,41 @@ Also marked election_deadlines_scraping as done (deadline generator supersedes s
 Tests: 41 election calendar tests passing, 55 smoke+officials tests passing.
 
 **Next P0:** whats_on_my_ballot (capstone citizen query: address → ballot contests + candidates + deadlines)
+
+## Session: StateElectionProvider ABC (2026-03-29)
+
+**Item:** state_election_provider (multi_state_portability, Phase 3)
+**Status:** DONE
+
+Implemented the StateElectionProvider abstraction — the key piece that makes
+adding a new state a well-defined, isolated task.
+
+**What was done:**
+- Created `StateElectionProvider` ABC in `civicos_extraction/providers/__init__.py`
+  with `detect_election_sources()` abstract method and `get_provider()` registry
+- Created `CaliforniaElectionProvider` in `providers/california.py` with CA SOS,
+  Civera, and Marin Registrar detection logic extracted from onboard.py
+- Refactored `onboard.py:detect_election_sources()` to ~10-line dispatcher:
+  normalize county → get_provider(state) → provider.detect_election_sources()
+- Unsupported states return {} instead of running dead code paths
+- Providers live in extraction package (not elections module) to avoid
+  layer violation — CA provider needs civera_extraction clients
+
+**Design decisions:**
+- Providers in extraction package (not civicos core) because implementations
+  need extraction clients (CIVERA_INSTANCES, etc.)
+- County normalization stays in dispatcher (strips "County" suffix, lowercases)
+  so all providers receive clean input
+- Lazy provider instantiation via _create_provider() factory
+- Helper functions (_infer_division_name, _validate_civera_division_filter,
+  detect_districts) stay in onboard.py as shared utilities
+
+**Tests:** 17 new provider tests + 61 existing detection tests + 72 election
+calendar tests + 20 smoke tests all pass. Zero behavior change for CA.
+
+**Adding a new state now requires:**
+1. StateElectionConfig entry in state_config.py (already done for TX, FL, NY, PA, IL)
+2. Provider file in providers/ (e.g., providers/texas.py)
+3. Registration in _create_provider() factory
+
+**Next P0:** all_california_coverage (expand Civera discovery beyond 3 counties)
