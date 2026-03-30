@@ -1,3 +1,29 @@
+## Session — 2026-03-29: state_election_config + deadline_generalization (P0)
+
+**Items:** state_election_config, deadline_generalization (multi_state_portability)
+**Status:** DONE
+
+Built the multi-state election abstraction foundation:
+- Created StateElectionConfig frozen dataclass with per-state election rules
+- Populated configs for 6 states: CA, TX, FL, NY, PA, IL
+- Refactored cycles.py to use config instead of hardcoded CA constants
+- Generalized deadlines.py with config-driven generate_deadlines(date, state_code)
+- Backward-compatible: ca_primary_date(), CA_SENATE_CLASSES, generate_ca_deadlines() all still work
+- All 46 existing tests pass unchanged, 26 new multi-state tests added
+
+Also added multi_state_portability category to launch.json with 9 items covering the full roadmap.
+
+**Files created:**
+- packages/civicos/src/civicos/_internal/elections/state_config.py
+
+**Files modified:**
+- packages/civicos/src/civicos/_internal/elections/cycles.py (config-driven, state param used)
+- packages/civicos/src/civicos/_internal/elections/deadlines.py (generic + CA wrapper)
+- packages/civicos/tests/test_election_calendar.py (26 new tests)
+- launch.json (new multi_state_portability category)
+
+**Next P0:** state_election_provider (Phase 3 — ABC + CA provider extraction)
+
 ## Session — 2026-03-29: ballot_measure_content (P0)
 
 **Item:** ballot_measure_content (ballot_awareness)

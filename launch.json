@@ -25,7 +25,7 @@
         "name": "state_election_config",
         "description": "Create StateElectionConfig frozen dataclass capturing per-state election rules (primary month, deadline offsets, governor cycle, senate stagger, statewide offices, chamber names). Populate CA config from current hardcoded values. Refactor cycles.py to use config instead of hardcoded CA constants. Keep backward-compatible wrappers.",
         "priority": 0,
-        "status": "not_started",
+        "status": "done",
         "files": [
           "packages/civicos/src/civicos/_internal/elections/state_config.py",
           "packages/civicos/src/civicos/_internal/elections/cycles.py"
@@ -37,7 +37,7 @@
         "name": "deadline_generalization",
         "description": "Generalize deadlines.py from CA-only to config-driven. Create generate_deadlines(election_date, state_code) that reads offsets from StateElectionConfig. Keep generate_ca_deadlines() as backward-compatible wrapper.",
         "priority": 1,
-        "status": "not_started",
+        "status": "done",
         "files": [
           "packages/civicos/src/civicos/_internal/elections/deadlines.py",
           "packages/civicos/src/civicos/_internal/elections/state_config.py"
@@ -48,7 +48,7 @@
       {
         "name": "state_election_provider",
         "description": "Create StateElectionProvider ABC with detect_election_sources() and default deadline/cycle methods. Extract CA logic from onboard.py:detect_election_sources() into providers/california.py. Refactor onboard.py to dispatch via provider registry.",
-        "priority": 1,
+        "priority": 0,
         "status": "not_started",
         "files": [
           "packages/civicos/src/civicos/_internal/elections/providers/__init__.py",
