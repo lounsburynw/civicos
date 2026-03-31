@@ -24541,3 +24541,13 @@ calendar tests + 20 smoke tests all pass. Zero behavior change for CA.
 - Import added alongside other election imports at function top
 - All tests pass (20 smoke, 158/160 election — 2 pre-existing failures unrelated)
 - Next P0: ca_sos_snapshot_archival
+
+## 2026-03-30: CA SOS Snapshot Archival (P0) — DONE
+- Created shared _detect_election_transition() helper in modal_ingest.py
+- Generalized election cycle transition detection for all 3 fetch functions (CA SOS, Marin, Civera)
+- Extraction functions now return election IDs (ca_sos_results: election_id, civera: election_ids)
+- Fingerprint format: "{sorted_ids}:{count_hash}" — stores IDs for comparison across runs
+- Zero-election fetches preserve previous fingerprint IDs (avoids false transitions from API timeouts)
+- All critics pass, 20/20 smoke tests, 110/112 election tests (2 pre-existing failures)
+- User feedback: ingestion should be generalizable, not CA-specific — applied to design
+- Next P0: civera_periodic_discovery

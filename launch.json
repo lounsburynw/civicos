@@ -1565,7 +1565,7 @@
         "name": "ca_sos_snapshot_archival",
         "description": "Archive CA SOS election results before overwrite. On each scheduled_election_refresh() run, diff election_id against previous snapshot. If changed, preserve old data with timestamp before fetching new. Converts the ephemeral SOS API into a persistent historical archive.",
         "priority": 0,
-        "status": "not_started",
+        "status": "done",
         "files": [
           "scripts/modal_ingest.py",
           "packages/civicos-extraction/src/civicos_extraction/clients/ca_sos_results.py"
@@ -1599,7 +1599,7 @@
       {
         "name": "civera_periodic_discovery",
         "description": "Schedule quarterly re-probe of CA counties for new Civera ElectionStats instances. Script exists (probe_civera_counties.py). Needs scheduling via GitHub Actions and auto-update of civera_instances.json. Currently 4/58 counties have Civera \u2014 new deployments could appear at any time.",
-        "priority": 1,
+        "priority": 0,
         "status": "not_started",
         "files": [
           "scripts/probe_civera_counties.py",
