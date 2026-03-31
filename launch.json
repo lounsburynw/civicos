@@ -1657,7 +1657,7 @@
       {
         "name": "calendar_aware_election_refresh",
         "description": "Vary scheduled_election_refresh() cadence by proximity to known election dates. Daily within 7 days of election (capture election-night SOS updates). Weekly within 90 days. Monthly otherwise. Uses get_next_election_date() from cycles.py.",
-        "priority": 2,
+        "priority": 0,
         "status": "not_started",
         "files": [
           ".github/workflows/cron-election-refresh.yml",
@@ -1670,7 +1670,7 @@
         "name": "ballot_preview_smart_scheduling",
         "description": "Trigger ballot preview fetch only in the pre-election window (~90 and ~30 days before election day). Skip outside that window. Currently runs monthly regardless. Uses election_date from ca_sos_ballot_preview config.",
         "priority": 0,
-        "status": "not_started",
+        "status": "done",
         "files": [
           "scripts/modal_ingest.py"
         ],

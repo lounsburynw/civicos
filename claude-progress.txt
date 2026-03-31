@@ -24594,3 +24594,17 @@ calendar tests + 20 smoke tests all pass. Zero behavior change for CA.
 - All smoke tests pass (20/20), election fetch tests pass (10/10)
 - Pre-existing: 2 failures in test_integration_election_dispatch.py (division_filter mismatch)
 - Next P0: ballot_preview_smart_scheduling
+
+## 2026-03-31: Ballot Preview Smart Scheduling (P0) — DONE
+- Added 90-day pre-election window guard to `scheduled_election_refresh()` in `scripts/modal_ingest.py:6231-6270`
+  - Parses `election_date` from ca_sos_ballot_preview config
+  - Skips fetch if election is >90 days away (too early for candidate data)
+  - Skips fetch if election has already passed (data already archived)
+  - Skips if election_date is missing or malformed
+  - Logs skip reason for observability
+  - Returns `{"status": "skipped", "reason": ...}` in results dict
+- Created `packages/civicos-extraction/tests/test_ballot_preview_scheduling.py` (12 tests)
+  - Window boundary tests (90/91 days), past elections, today/tomorrow, no date, invalid date
+  - Real 2026-06-02 primary test (63 days away = within window)
+- All smoke tests pass (20/20), scheduling tests pass (12/12)
+- Next P0: TBD
