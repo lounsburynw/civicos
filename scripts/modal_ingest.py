@@ -6026,7 +6026,17 @@ def scheduled_election_refresh():
     logger.info("Starting scheduled election refresh")
     start_time = time.time()
 
+    import os
+    from datetime import date as date_type, datetime as datetime_type
+
+    from civicos.storage.postgres_backend import PostgresBackend
+    from civicos._internal.elections.deadlines import generate_deadlines
     from civicos_extraction.config import get_active_jurisdictions
+
+    database_url = os.environ.get("DATABASE_URL")
+    if not database_url:
+        raise ValueError("DATABASE_URL not set")
+    backend = PostgresBackend(database_url)
 
     jurisdictions = get_active_jurisdictions()
     logger.info(f"Found {len(jurisdictions)} configured jurisdictions: {list(jurisdictions.keys())}")
@@ -6154,6 +6164,49 @@ def scheduled_election_refresh():
         except Exception as e:
             logger.exception(f"  [{jid}] Elected officials fetch failed")
             results[jid]["elected_officials"] = {"status": "failed", "error": str(e)}
+
+        # --- Generate Election Deadlines (for elections missing them) ---
+        try:
+            state_code = config.get("state", "CA")
+            elections = backend.get_elections(jid, include_past=False)
+            deadlines_generated = 0
+
+            for e in elections:
+                election_id = e["id"]
+                election_date = e.get("election_date")
+                if not election_date:
+                    continue
+
+                # Skip if deadlines already exist
+                existing = backend.get_election_deadlines(election_id)
+                if existing:
+                    continue
+
+                # Parse date
+                if isinstance(election_date, str):
+                    election_date = date_type.fromisoformat(election_date)
+                elif isinstance(election_date, datetime_type):
+                    election_date = election_date.date()
+
+                deadlines = generate_deadlines(election_date, state_code=state_code)
+                deadline_dicts = [
+                    {
+                        "deadline_type": d.deadline_type,
+                        "deadline_date": d.deadline_date.isoformat(),
+                        "description": d.description,
+                    }
+                    for d in deadlines
+                ]
+
+                count = backend.store_election_deadlines(election_id, deadline_dicts)
+                deadlines_generated += count
+
+            if deadlines_generated > 0:
+                logger.info(f"    Deadlines: {deadlines_generated} generated for {len(elections)} upcoming elections")
+            results[jid]["deadlines"] = {"generated": deadlines_generated, "elections_checked": len(elections)}
+        except Exception as e:
+            logger.exception(f"  [{jid}] Deadline generation failed")
+            results[jid]["deadlines"] = {"status": "failed", "error": str(e)}
 
     elapsed = time.time() - start_time
     logger.info(f"Election refresh complete in {elapsed:.1f}s for {len(jurisdictions)} jurisdictions")
