@@ -6031,6 +6031,7 @@ def scheduled_election_refresh():
 
     from civicos.storage.postgres_backend import PostgresBackend
     from civicos._internal.elections.deadlines import generate_deadlines
+    from civicos._internal.elections.derive import derive_officials_from_contests
     from civicos_extraction.config import get_active_jurisdictions
 
     database_url = os.environ.get("DATABASE_URL")
@@ -6207,6 +6208,17 @@ def scheduled_election_refresh():
         except Exception as e:
             logger.exception(f"  [{jid}] Deadline generation failed")
             results[jid]["deadlines"] = {"status": "failed", "error": str(e)}
+
+        # --- Derive Officials from Contest Winners (always runs) ---
+        try:
+            logger.info(f"  [{jid}] Deriving officials from contest winners...")
+            derived_count = derive_officials_from_contests(backend, jid)
+            results[jid]["officials_derived"] = {"count": derived_count}
+            if derived_count > 0:
+                logger.info(f"    Officials derived: {derived_count} from contest winners")
+        except Exception as e:
+            logger.exception(f"  [{jid}] Officials derivation failed")
+            results[jid]["officials_derived"] = {"status": "failed", "error": str(e)}
 
     elapsed = time.time() - start_time
     logger.info(f"Election refresh complete in {elapsed:.1f}s for {len(jurisdictions)} jurisdictions")
