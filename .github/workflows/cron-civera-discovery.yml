@@ -1,0 +1,202 @@
+# Civera ElectionStats Discovery (quarterly)
+#
+# Probes all 58 CA counties for new Civera ElectionStats deployments.
+# Currently 4 known instances (Marin, San Joaquin, Sonoma, Yolo).
+# New instances can appear when counties adopt Civera — quarterly probing
+# ensures we discover them promptly.
+#
+# If new instances are found, opens a PR to update the registry at
+# data/extraction/civera_instances.json. Does NOT auto-merge — a human
+# should review new instances before they enter the election pipeline.
+#
+# Triggers:
+#   - Quarterly on 1st of Jan/Apr/Jul/Oct at 12:00 PM UTC (4:00 AM Pacific)
+#   - Manual trigger via workflow_dispatch
+
+name: "Cron: Civera Discovery"
+
+on:
+  schedule:
+    - cron: '0 12 1 */3 *'
+  workflow_dispatch:
+
+permissions:
+  issues: write
+  contents: write
+  pull-requests: write
+
+jobs:
+  probe:
+    name: Probe CA Counties
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Run Civera probe
+        run: python scripts/probe_civera_counties.py --json --timeout 10 > /tmp/probe_output.json
+
+      - name: Compare with current registry
+        id: compare
+        run: |
+          python3 - <<'PYEOF'
+          import json
+          import os
+
+          with open("data/extraction/civera_instances.json") as f:
+              current = json.load(f)["instances"]
+
+          with open("/tmp/probe_output.json") as f:
+              probed = json.load(f)["instances"]
+
+          new_slugs = sorted(set(probed.keys()) - set(current.keys()))
+          lost_slugs = sorted(set(current.keys()) - set(probed.keys()))
+
+          with open(os.environ["GITHUB_OUTPUT"], "a") as out:
+              out.write(f"new_count={len(new_slugs)}\n")
+              out.write(f"lost_count={len(lost_slugs)}\n")
+              out.write(f"new_slugs={','.join(new_slugs)}\n")
+              out.write(f"lost_slugs={','.join(lost_slugs)}\n")
+
+          if new_slugs:
+              print(f"New Civera instances found: {new_slugs}")
+              # Merge new instances into current registry (preserve existing)
+              merged = dict(current)
+              for slug in new_slugs:
+                  merged[slug] = probed[slug]
+              output = {
+                  "_comment": current.get("_comment", f"Registry of known Civera ElectionStats instances in California. "
+                      "Discovered via scripts/probe_civera_counties.py scanning all 58 CA counties. "
+                      "Update this file when new instances are found."),
+                  "instances": dict(sorted(merged.items())),
+              }
+              # Read the original file to preserve the _comment field
+              with open("data/extraction/civera_instances.json") as f:
+                  original = json.load(f)
+              output["_comment"] = original["_comment"]
+              with open("data/extraction/civera_instances.json", "w") as f:
+                  json.dump(output, f, indent=2)
+                  f.write("\n")
+              print("Updated civera_instances.json")
+          elif lost_slugs:
+              print(f"Warning: Previously known instances not responding: {lost_slugs}")
+              print("Registry NOT updated (lost instances may be temporarily down)")
+          else:
+              print("No changes — all known instances confirmed, no new ones found")
+          PYEOF
+
+      - name: Create PR for new instances
+        if: steps.compare.outputs.new_count != '0'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          BRANCH="auto/civera-discovery-$(date +%Y%m%d)"
+          git checkout -b "$BRANCH"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/extraction/civera_instances.json
+          git commit -m "feat: Discover new Civera ElectionStats instances
+
+          New instances: ${{ steps.compare.outputs.new_slugs }}
+
+          Discovered by quarterly probe of all 58 CA counties.
+          Review before merging — new instances will be enrolled in the
+          election data pipeline on next cron run.
+
+          Co-Authored-By: github-actions[bot] <github-actions[bot]@users.noreply.github.com>"
+
+          git push origin "$BRANCH"
+          gh pr create \
+            --title "feat: New Civera ElectionStats instances discovered" \
+            --body "$(cat <<'EOF'
+          ## Summary
+          The quarterly Civera discovery probe found new ElectionStats instances.
+
+          **New instances:** ${{ steps.compare.outputs.new_slugs }}
+
+          These counties have deployed Civera ElectionStats since our last probe.
+          Once merged, the election refresh cron will automatically include them.
+
+          ## Review checklist
+          - [ ] Verify the new GraphQL URLs respond correctly
+          - [ ] Check if any new counties overlap with existing jurisdictions
+          - [ ] Consider creating extraction configs for new counties
+
+          ## How this was discovered
+          `scripts/probe_civera_counties.py` scans all 58 CA county registrar
+          websites for Civera GraphQL endpoints (`/api/graphql_pr`).
+
+          Triggered by: Cron: Civera Discovery (quarterly)
+          EOF
+          )"
+
+      - name: Log lost instances warning
+        if: steps.compare.outputs.lost_count != '0'
+        run: |
+          echo "::warning::Previously known Civera instances not responding: ${{ steps.compare.outputs.lost_slugs }}"
+          echo "These may be temporarily down. No registry changes made."
+
+  notify-failure:
+    name: Create Alert Issue
+    runs-on: ubuntu-latest
+    needs: probe
+    if: failure()
+
+    steps:
+      - name: Create or Update Issue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const today = new Date().toISOString().split('T')[0];
+            const title = `Cron failure: civera-discovery - ${today}`;
+            const body = `## Cron Failure Alert
+
+            **Workflow:** Civera Discovery
+            **Time:** ${new Date().toISOString()}
+            **Schedule:** Quarterly 1st of Jan/Apr/Jul/Oct 12 PM UTC (4 AM Pacific)
+
+            The quarterly Civera ElectionStats discovery probe failed.
+
+            **Manual retry:**
+            \`\`\`bash
+            gh workflow run cron-civera-discovery.yml
+            # or directly:
+            python scripts/probe_civera_counties.py --json --timeout 10
+            \`\`\`
+
+            **Workflow Run:** [View logs](${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID})
+            `;
+
+            const issues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              labels: 'cron-failure',
+              state: 'open'
+            });
+
+            const existing = issues.data.find(i => i.title.includes('civera-discovery'));
+            if (!existing) {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: title,
+                body: body,
+                labels: ['cron-failure', 'automated']
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: existing.number,
+                body: `## Recurrence - ${today}\n\n${body}`
+              });
+            }
