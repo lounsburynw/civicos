@@ -597,11 +597,12 @@ def extract_civera_results_to_storage(
     events = client.list_elections(from_year=from_year, to_year=to_year)
     if not events:
         logger.info(f"No elections returned from Civera ({client.graphql_url})")
-        return {"elections": 0, "contests": 0, "candidates": 0}
+        return {"elections": 0, "contests": 0, "candidates": 0, "election_ids": []}
 
     total_elections = 0
     total_contests = 0
     total_candidates = 0
+    election_ids = []
 
     for event in events:
         event_id = event.get("id")
@@ -632,6 +633,7 @@ def extract_civera_results_to_storage(
 
         stored = storage.store_elections(jurisdiction_id, [election])
         total_elections += stored
+        election_ids.append(election["id"])
 
         mapped_contests = [civera_results_to_contest(c, county_slug) for c in contests_data]
         contest_count = storage.store_election_contests(election["id"], mapped_contests)
@@ -651,4 +653,5 @@ def extract_civera_results_to_storage(
         "elections": total_elections,
         "contests": total_contests,
         "candidates": total_candidates,
+        "election_ids": election_ids,
     }

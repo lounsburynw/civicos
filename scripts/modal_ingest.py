@@ -3396,6 +3396,95 @@ def fetch_issues(
 
 
 # =============================================================================
+# Election Refresh Tracking (shared by all election fetch functions)
+# =============================================================================
+
+def _detect_election_transition(
+    backend,
+    jurisdiction: str,
+    source_name: str,
+    new_election_ids: list,
+    counts: dict,
+    logger,
+    count_fields: tuple = ("elections", "contests", "candidates"),
+    extra_hash_input: str = "",
+) -> tuple:
+    """Detect election cycle transitions and compute a refresh fingerprint.
+
+    Checks previous refresh metadata for this source, compares election IDs,
+    and logs any transitions. Returns a fingerprint suitable for last_fetch_hash
+    and transition info if a cycle change was detected.
+
+    Args:
+        backend: PostgresBackend instance
+        jurisdiction: Target jurisdiction
+        source_name: Election source (e.g., "ca_sos_results", "civera_election_stats")
+        new_election_ids: Election IDs returned by the current fetch
+        counts: Dict of counts from extraction (e.g., elections, contests, candidates)
+        logger: Logger instance
+        count_fields: Tuple of keys in counts to include in the hash
+        extra_hash_input: Additional string to include in hash (e.g., year range)
+
+    Returns:
+        (fingerprint, cycle_transition_or_None)
+    """
+    import hashlib
+    import time as _time
+
+    prev_meta = backend.get_refresh_metadata(jurisdiction, "elections", source_name)
+    prev_ids = set()
+    if prev_meta and prev_meta.get("last_fetch_hash"):
+        # Fingerprint format: "{id1,id2,...}:{count_hash}" or legacy "{count_hash}"
+        parts = prev_meta["last_fetch_hash"].split(":", 1)
+        if len(parts) == 2 and not all(c in "0123456789abcdef" for c in parts[0]):
+            prev_ids = set(parts[0].split(",")) if parts[0] else set()
+
+    new_ids = set(new_election_ids) if new_election_ids else set()
+
+    # Skip transition detection if the fetch returned no elections —
+    # an empty set likely means the API timed out or is between cycles,
+    # not that all elections were removed.  Preserve the previous fingerprint.
+    if not new_ids:
+        prev_hash = prev_meta.get("last_fetch_hash", "") if prev_meta else ""
+        count_values = ":".join(str(counts.get(f, 0)) for f in count_fields)
+        if extra_hash_input:
+            count_values += f":{extra_hash_input}"
+        count_hash = hashlib.sha256(count_values.encode()).hexdigest()[:16]
+        # Keep previous IDs in fingerprint to avoid false transitions on next run
+        if prev_hash and ":" in prev_hash:
+            ids_part = prev_hash.rsplit(":", 1)[0]
+            return f"{ids_part}:{count_hash}", None
+        return count_hash, None
+
+    cycle_transition = None
+    if prev_ids and new_ids and prev_ids != new_ids:
+        removed = sorted(prev_ids - new_ids)
+        added = sorted(new_ids - prev_ids)
+        cycle_transition = {
+            "previous_ids": sorted(prev_ids),
+            "new_ids": sorted(new_ids),
+            "added": added,
+            "removed": removed,
+            "detected_at": _time.strftime("%Y-%m-%dT%H:%M:%SZ", _time.gmtime()),
+        }
+        logger.warning(
+            f"Election cycle transition for {jurisdiction} [{source_name}]: "
+            f"removed={removed}, added={added}. "
+            f"Previous data preserved via temporal versioning."
+        )
+
+    # Fingerprint: "{sorted_ids}:{count_hash}"
+    ids_str = ",".join(sorted(new_ids)) if new_ids else ""
+    count_values = ":".join(str(counts.get(f, 0)) for f in count_fields)
+    if extra_hash_input:
+        count_values += f":{extra_hash_input}"
+    count_hash = hashlib.sha256(count_values.encode()).hexdigest()[:16]
+    fingerprint = f"{ids_str}:{count_hash}" if ids_str else count_hash
+
+    return fingerprint, cycle_transition
+
+
+# =============================================================================
 # Marin Election Results Fetch (GraphQL — ElectionStats / Civera)
 # =============================================================================
 
@@ -3486,11 +3575,12 @@ def fetch_marin_election_results(
         division_filter=division_filter or None,
     )
 
-    # Compute fingerprint for skip-check on next refresh
-    import hashlib
-    fingerprint = hashlib.sha256(
-        f"{counts['elections']}:{counts['contests']}:{counts['candidates']}:{from_year}-{to_year}".encode()
-    ).hexdigest()[:16]
+    # Detect election cycle transitions and compute fingerprint
+    fingerprint, cycle_transition = _detect_election_transition(
+        backend, jurisdiction, "marin_registrar_results",
+        counts.get("election_ids", []), counts, logger,
+        extra_hash_input=f"{from_year}-{to_year}",
+    )
 
     # Update refresh metadata
     backend.update_refresh_metadata(
@@ -3527,6 +3617,8 @@ def fetch_marin_election_results(
         "elapsed_seconds": elapsed,
         "cost_usd": 4 * elapsed * 0.000463,
     }
+    if cycle_transition:
+        result["cycle_transition"] = cycle_transition
     if vector_result:
         result["vector_result"] = vector_result
     return result
@@ -3645,10 +3737,12 @@ def fetch_civera_election_results(
         division_filter=division_filter or None,
     )
 
-    import hashlib
-    fingerprint = hashlib.sha256(
-        f"{counts['elections']}:{counts['contests']}:{counts['candidates']}:{from_year}-{to_year}".encode()
-    ).hexdigest()[:16]
+    # Detect election cycle transitions and compute fingerprint
+    fingerprint, cycle_transition = _detect_election_transition(
+        backend, jurisdiction, "civera_election_stats",
+        counts.get("election_ids", []), counts, logger,
+        extra_hash_input=f"{from_year}-{to_year}",
+    )
 
     backend.update_refresh_metadata(
         jurisdiction, "elections", "civera_election_stats",
@@ -3684,6 +3778,8 @@ def fetch_civera_election_results(
         "elapsed_seconds": elapsed,
         "cost_usd": 4 * elapsed * 0.000463,
     }
+    if cycle_transition:
+        result["cycle_transition"] = cycle_transition
     if vector_result:
         result["vector_result"] = vector_result
     return result
@@ -3726,7 +3822,6 @@ def fetch_ca_sos_election_results(
         dry_run: If True, fetch but don't store
         auto_index: If True, trigger vector indexing after successful storage
     """
-    import hashlib
     import json
     import logging
     import os
@@ -3788,10 +3883,14 @@ def fetch_ca_sos_election_results(
         election_type=election_type,
     )
 
-    # Compute fingerprint for skip-check on next refresh
-    fingerprint = hashlib.sha256(
-        f"{counts['elections']}:{counts['contests']}:{counts['candidates']}:{counts['ballot_measures']}".encode()
-    ).hexdigest()[:16]
+    # Detect election cycle transitions and compute fingerprint
+    new_election_id = counts.get("election_id")
+    election_ids = [new_election_id] if new_election_id else []
+    fingerprint, cycle_transition = _detect_election_transition(
+        backend, jurisdiction, "ca_sos_results",
+        election_ids, counts, logger,
+        count_fields=("elections", "contests", "candidates", "ballot_measures"),
+    )
 
     # Update refresh metadata
     backend.update_refresh_metadata(
@@ -3817,6 +3916,7 @@ def fetch_ca_sos_election_results(
     result = {
         "task": "ca_sos_election_results",
         "jurisdiction": jurisdiction,
+        "election_id": new_election_id,
         "elections_stored": counts["elections"],
         "contests_stored": counts["contests"],
         "candidates_stored": counts["candidates"],
@@ -3828,6 +3928,8 @@ def fetch_ca_sos_election_results(
         "elapsed_seconds": elapsed,
         "cost_usd": 4 * elapsed * 0.000463,
     }
+    if cycle_transition:
+        result["cycle_transition"] = cycle_transition
     if vector_result:
         result["vector_result"] = vector_result
     return result
