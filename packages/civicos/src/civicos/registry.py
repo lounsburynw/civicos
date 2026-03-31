@@ -55,10 +55,13 @@ def _find_registry_path() -> Optional[Path]:
             return p
 
     # Try relative to this file's project root
-    project_root = Path(__file__).resolve().parents[4]  # src/civicos -> packages/civicos -> packages -> project root
-    fallback = project_root / "config" / "registry.json"
-    if fallback.exists():
-        return fallback
+    try:
+        project_root = Path(__file__).resolve().parents[4]  # src/civicos -> packages/civicos -> packages -> project root
+        fallback = project_root / "config" / "registry.json"
+        if fallback.exists():
+            return fallback
+    except IndexError:
+        pass
 
     return None
 

@@ -28,7 +28,13 @@ from typing import Any, Dict, List, Optional
 logger = logging.getLogger(__name__)
 
 # Validation data stored here (project root, gitignored)
-_VALIDATION_DIR = Path(__file__).parents[4] / ".validation"
+def _get_validation_dir() -> Path:
+    try:
+        return Path(__file__).parents[4] / ".validation"
+    except IndexError:
+        return Path("/tmp/.validation")
+
+_VALIDATION_DIR = _get_validation_dir()
 
 
 @dataclass

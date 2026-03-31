@@ -24,6 +24,7 @@ Usage:
 
 import json
 import logging
+import os
 import time
 from datetime import datetime
 from pathlib import Path
@@ -37,11 +38,19 @@ logger = logging.getLogger(__name__)
 def _load_civera_instances() -> Dict[str, Dict[str, str]]:
     """Load Civera instance registry from config file.
 
-    Config lives at data/extraction/civera_instances.json. Falls back to
+    Config lives at data/extraction/civera_instances.json. On Modal, the
+    extraction config dir is mounted at CIVICOS_CONFIG_DIR. Falls back to
     an empty dict if the file is missing (e.g., in test environments).
     Discovery: run ``python scripts/probe_civera_counties.py`` to find new instances.
     """
-    config_path = Path(__file__).resolve().parents[5] / "data" / "extraction" / "civera_instances.json"
+    config_dir = os.environ.get("CIVICOS_CONFIG_DIR")
+    if config_dir:
+        config_path = Path(config_dir) / "civera_instances.json"
+    else:
+        try:
+            config_path = Path(__file__).resolve().parents[5] / "data" / "extraction" / "civera_instances.json"
+        except IndexError:
+            return {}
     try:
         with open(config_path) as f:
             data = json.load(f)
