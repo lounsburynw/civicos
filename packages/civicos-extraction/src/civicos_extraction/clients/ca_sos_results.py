@@ -771,6 +771,7 @@ def extract_ca_sos_results_to_storage(
             "contests": 0,
             "candidates": 0,
             "ballot_measures": 0,
+            "election_id": None,
         }
 
     # Determine election metadata from first available race
@@ -838,4 +839,5 @@ def extract_ca_sos_results_to_storage(
         "contests": total_contests,
         "candidates": total_candidates,
         "ballot_measures": total_measures,
+        "election_id": election_id,
     }
