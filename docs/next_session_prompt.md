@@ -1,6 +1,6 @@
-# Recommended: Civera Periodic Discovery
+# Recommended: Wire Election Fetch Into Onboard
 
-**Priority:** P0 (civera_periodic_discovery)
+**Priority:** P0 (wire_election_fetch_into_onboard)
 **Area:** election_coverage_lifecycle
 **Date:** 2026-03-30
 
@@ -8,47 +8,39 @@
 
 ## Context
 
-The election data pipeline is now fully wired: sources → officials fetch → deadlines → officials derivation → snapshot archival. This session generalized the snapshot archival into a shared `_detect_election_transition()` helper used by all three election fetch functions (CA SOS, Marin, Civera).
+The election data pipeline is fully wired: sources, officials fetch, deadlines, officials derivation, snapshot archival, and now quarterly Civera discovery. This session also completed non-Civera research (Clarity Elections covers 7 additional CA counties).
 
-Currently only 4 of 58 CA counties have Civera ElectionStats instances (Marin, San Joaquin, Sonoma, Yolo). The probe script exists but has never been scheduled. New Civera deployments could appear at any time — quarterly probing ensures we discover them.
+Currently, when a new city is onboarded, `detect_election_sources()` populates the extraction config with election source metadata (step 3.6), but no election data is actually fetched. The city must wait up to 30 days for the monthly `scheduled_election_refresh()` cron to run. This item wires an immediate election fetch into the onboard flow so new cities get data on day 1.
 
 ## What This Session Completed
 
-- Created `_detect_election_transition()` shared helper in `modal_ingest.py:3402`
-- Refactored all 3 election fetch functions to use it (CA SOS, Marin, Civera)
-- Extraction functions now return election IDs for transition tracking
-- Zero-election fetches preserve previous fingerprint IDs (avoids false transitions)
-- Marked `ca_sos_snapshot_archival` as done
+- Created `.github/workflows/cron-civera-discovery.yml` — quarterly probe of all 58 CA counties
+- Researched Clarity Elections: 9 CA counties have it (7 net-new beyond Civera). See `docs/internal/clarity-elections-research.md`
+- Both items marked done in `launch.json`
 
 ## Recommended Task
 
-Schedule `scripts/probe_civera_counties.py` as a quarterly GitHub Actions cron job. When new instances are discovered, auto-update `data/extraction/civera_instances.json`.
-
-1. Create `.github/workflows/cron-civera-discovery.yml` — quarterly schedule
-2. The workflow should run the probe script with `--json` output
-3. Compare output against current `data/extraction/civera_instances.json`
-4. If new instances found, commit the updated JSON (or open a PR)
-5. Consider: also update jurisdiction YAML configs to add the new source
+After `detect_election_sources()` populates the extraction config at onboard step 3.6, trigger an immediate election data fetch. The challenge: onboard runs locally but election fetch runs on Modal.
 
 ## Key Files
 
-- `scripts/probe_civera_counties.py` — 277-line probe script, already works. Scans all 58 CA counties for Civera GraphQL endpoints. Has `--json` flag for machine-readable output.
-- `data/extraction/civera_instances.json` — Registry of known instances (currently 4: marin, san-joaquin, sonoma, yolo)
-- `packages/civicos-extraction/src/civicos_extraction/clients/civera_election_stats.py` — `CIVERA_INSTANCES` dict and `CiveraElectionStatsClient`
-- `.github/workflows/cron-election-refresh.yml` — Existing election cron (pattern to follow for scheduling)
-- `scripts/modal_ingest.py:3623` — `fetch_civera_election_results()` — uses `CIVERA_INSTANCES` registry
+- `packages/civicos-extraction/src/civicos_extraction/onboard.py:2193` — where `detect_election_sources()` is called during onboard
+- `packages/civicos-extraction/src/civicos_extraction/onboard.py:687` — `detect_election_sources()` function
+- `scripts/modal_ingest.py:6103` — `scheduled_election_refresh()` — the cron entry point
+- `scripts/modal_ingest.py:3640` — `fetch_civera_election_results()` — Civera fetch function
+- `packages/civicos-extraction/src/civicos_extraction/providers/california.py` — `CaliforniaElectionProvider.detect_election_sources()`
+- `packages/civicos-extraction/src/civicos_extraction/clients/factory.py` — provider dispatch from config
 
 ## Suggested Approach
 
-1. Read `scripts/probe_civera_counties.py` to understand its output format and CLI args
-2. Read `.github/workflows/cron-election-refresh.yml` as a template for the new workflow
-3. Create `.github/workflows/cron-civera-discovery.yml`:
-   - Schedule: quarterly (`cron: '0 12 1 */3 *'` — 1st of Jan/Apr/Jul/Oct)
-   - Run `probe_civera_counties.py --json` on Modal or directly
-   - Compare against `data/extraction/civera_instances.json`
-   - If diff, commit updated file or open PR
-4. Verify `CIVERA_INSTANCES` in `civera_election_stats.py` reads from the JSON registry (or is kept in sync)
-5. Consider: when a new instance is discovered, should it auto-enroll in the election refresh cron?
+1. Read `onboard.py:2190-2210` to understand the current onboard step 3.6 flow
+2. Read `modal_ingest.py:6103-6200` to understand `scheduled_election_refresh()` dispatch logic
+3. The key design decision: how to trigger Modal from a local onboard script
+   - Option A: `modal run scripts/modal_ingest.py::fetch_civera_election_results --jurisdiction county-marin` (subprocess call)
+   - Option B: Add a `--fetch-elections` flag to the onboard CLI that triggers Modal
+   - Option C: Extract the fetch logic into a function callable both locally and on Modal
+4. Implement the chosen approach — ensure it works for both Civera and CA SOS sources
+5. Test with a jurisdiction that has election sources configured
 
 ## Tests to Run
 
@@ -56,29 +48,30 @@ Schedule `scripts/probe_civera_counties.py` as a quarterly GitHub Actions cron j
 # Smoke tests
 pytest packages/civicos/tests/test_civicos.py -q --override-ini="addopts="
 
-# Run the probe locally to verify it works
-python scripts/probe_civera_counties.py --timeout 10 --verbose
+# Election-related tests
+pytest packages/civicos-extraction/tests/test_marin_registrar.py -q --override-ini="addopts="
 ```
 
 ## Success Criteria
 
-- [ ] GitHub Actions workflow created for quarterly Civera discovery
-- [ ] Workflow runs probe script and detects new instances
-- [ ] New instances update `data/extraction/civera_instances.json`
-- [ ] `CIVERA_INSTANCES` in client code stays in sync with JSON registry
+- [ ] Onboarding a new city triggers immediate election data fetch
+- [ ] Works for both Civera and CA SOS election sources
+- [ ] Graceful failure if Modal is unavailable (onboard shouldn't fail)
 - [ ] Smoke tests pass
 
 ## Item Sequence After This
 
 | Next | Item | Est. |
 |------|------|------|
-| P1 | `non_civera_local_race_research` | 1 session |
-| P1 | `wire_election_fetch_into_onboard` | 1 session |
+| P2 | `ballot_preview_smart_scheduling` | 0.5 session |
+| P2 | `calendar_aware_election_refresh` | 1 session |
 | P2 | `election_cron_enrollment_validation` | 0.5 session |
+| P2 | `officials_refresh_cron` | 0.5 session |
 
 ## Notes
 
 - Cron jobs run via GitHub Actions, NOT `modal.Cron()` (Modal starter plan limits crons)
-- The probe script uses `requests` with ThreadPoolExecutor for parallel scanning
+- Onboard currently runs locally via CLI (`python -m civicos_extraction.onboard`)
+- The `factory.py` dispatch logic already routes election sources to the right client
 - 2 pre-existing test failures in `test_integration_election_dispatch.py` — unrelated
-- This is estimated at ~0.5 session since the probe script already exists
+- Estimated ~1 session
