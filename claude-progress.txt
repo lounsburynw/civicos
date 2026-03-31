@@ -24578,3 +24578,19 @@ calendar tests + 20 smoke tests all pass. Zero behavior change for CA.
 - Research doc: docs/internal/clarity-elections-research.md
 - Recommendation: Build Clarity client (~2-3 sessions) for +7 counties (total 11/58 = 19%)
 - Next P0: wire_election_fetch_into_onboard
+
+## 2026-03-31: Wire Election Fetch Into Onboard (P0) — DONE
+- Created `packages/civicos-extraction/src/civicos_extraction/election_fetch.py`
+  - `fetch_elections_for_jurisdiction()` — pure Python, no Modal dependency
+  - Dispatches to Civera ElectionStats, CA SOS, Marin legacy, and elected officials
+  - Each source wrapped in try/except — never fails the parent operation
+  - Graceful degradation: skips officials if no API keys, skips all if no DATABASE_URL
+- Wired into `onboard.py` as step 3.6.1 (after config save, before USAspending)
+  - Only runs if DATABASE_URL is available and election_sources were detected
+  - Reports progress via _progress() callbacks
+  - Non-blocking: onboard never fails due to election fetch failure
+- Created `packages/civicos-extraction/tests/test_election_fetch.py` (10 tests)
+  - Dispatch logic, edge cases (no sources, no DB, config=True), graceful degradation
+- All smoke tests pass (20/20), election fetch tests pass (10/10)
+- Pre-existing: 2 failures in test_integration_election_dispatch.py (division_filter mismatch)
+- Next P0: ballot_preview_smart_scheduling

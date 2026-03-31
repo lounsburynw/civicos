@@ -1624,13 +1624,13 @@
         "name": "wire_election_fetch_into_onboard",
         "description": "After detect_election_sources() populates the extraction config at onboard step 3.6, trigger an immediate election data fetch using provider dispatch logic. New cities get election data on day 1 instead of waiting up to 30 days for the monthly cron.",
         "priority": 0,
-        "status": "not_started",
+        "status": "done",
         "files": [
           "packages/civicos-extraction/src/civicos_extraction/onboard.py",
-          "scripts/modal_ingest.py"
+          "packages/civicos-extraction/src/civicos_extraction/election_fetch.py"
         ],
-        "test_file": null,
-        "notes": "Challenge: onboard runs locally but election fetch runs on Modal. May need Modal trigger from onboard script, or --fetch-elections flag. ~1 session."
+        "test_file": "packages/civicos-extraction/tests/test_election_fetch.py",
+        "notes": "Created election_fetch.py with fetch_elections_for_jurisdiction() — pure Python, no Modal dependency. Dispatches to Civera, CA SOS, Marin legacy, and elected officials clients. Wired into onboard step 3.6.1 with graceful failure handling."
       },
       {
         "name": "officials_derivation_in_cron",
@@ -1669,7 +1669,7 @@
       {
         "name": "ballot_preview_smart_scheduling",
         "description": "Trigger ballot preview fetch only in the pre-election window (~90 and ~30 days before election day). Skip outside that window. Currently runs monthly regardless. Uses election_date from ca_sos_ballot_preview config.",
-        "priority": 2,
+        "priority": 0,
         "status": "not_started",
         "files": [
           "scripts/modal_ingest.py"
