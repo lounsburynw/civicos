@@ -1,6 +1,6 @@
-# Recommended: Populate Deadlines in Cron
+# Recommended: Officials Derivation in Cron
 
-**Priority:** P0 (populate_deadlines_in_cron)
+**Priority:** P0 (officials_derivation_in_cron)
 **Area:** election_coverage_lifecycle
 **Date:** 2026-03-30
 
@@ -8,37 +8,39 @@
 
 ## Context
 
-Cron infrastructure is now healthy (previous session fixed `IndexError` crashes from `Path(__file__).parents[N]` on Modal). The `scheduled_election_refresh()` function in `modal_ingest.py` fetches election data and officials for all jurisdictions, but never generates or stores election deadlines. The `generate_deadlines()` function and `store_election_deadlines()` storage method already exist — they just need to be wired into the cron.
+The `scheduled_election_refresh()` cron now stores election data from all configured sources AND generates deadlines for elections that lack them (just completed). However, it does NOT derive elected officials from contest winners. The `derive_elected_officials()` Modal function exists (`modal_ingest.py:3973`) and calls `derive_officials_from_contests(backend, jurisdiction)`, but it's never called from the cron loop.
+
+Note: the cron already has an "Elected Officials" block (lines 6155-6166) that calls `fetch_elected_officials.local()` — this fetches officials from external APIs (Congress.gov, LegiScan, curated). The derivation task is different: it creates officials records from election contest *winners* stored in our DB.
 
 ## What This Session Completed
 
-- Fixed all cron jobs (root cause: `origin/main` was 189 commits behind local HEAD)
-- Fixed 4 `Path(__file__).parents[N]` crashes on Modal containers
-- Manually verified meetings-poll cron works (San Anselmo: 2 new meetings found, vectors indexed)
-- Closed 4 cron-failure GitHub issues (#18, #19, #20, #22)
+- Wired `generate_deadlines()` into `scheduled_election_refresh()` (P0 done)
+- After all election sources are processed per jurisdiction, upcoming elections without deadlines get state-aware deadlines generated and stored
+- Idempotent (skips elections with existing deadlines), error-tolerant (try/except per jurisdiction)
+- Created a shared `PostgresBackend` instance at line 6039 (reusable by next task)
+- All critics pass, tests pass
 
 ## Recommended Task
 
-Wire `generate_deadlines()` into `scheduled_election_refresh()` so that after election data is stored for each jurisdiction, deadlines are automatically generated from `StateElectionConfig` offsets and stored via `store_election_deadlines()`. Currently only 3 pilot jurisdictions have deadlines (from a manual seed script).
+Call `derive_officials_from_contests()` in `scheduled_election_refresh()` after contest data is stored. The function at `modal_ingest.py:3973` shows the pattern — it calls `derive_officials_from_contests(backend, jurisdiction)` which scans `election_contests` for `is_winner=True` candidates and creates `elected_officials` records.
 
 ## Key Files
 
-- `scripts/modal_ingest.py:6001` — `scheduled_election_refresh()` — loop over jurisdictions, fetch elections + officials. **Add deadline generation after officials fetch.**
-- `packages/civicos/src/civicos/_internal/elections/deadlines.py:19` — `generate_deadlines()` — takes election config + dates, returns deadline objects
-- `packages/civicos/src/civicos/storage/postgres_backend.py:8828` — `store_election_deadlines()` — persists deadlines to Postgres
-- `packages/civicos/src/civicos/storage/protocols/elections.py:56` — `store_election_deadlines()` protocol definition
-- `data/extraction/*.json` — Per-jurisdiction configs with `election_sources`
+- `scripts/modal_ingest.py:6155` — `scheduled_election_refresh()` — the officials fetch block. Add derivation after it.
+- `scripts/modal_ingest.py:3973` — `derive_elected_officials()` — standalone Modal function showing the pattern
+- `packages/civicos/src/civicos/_internal/elections/derive.py` — `derive_officials_from_contests()` — the core logic
+- `scripts/modal_ingest.py:6168` — deadline generation block (just added) — follow this pattern for error handling
 
 ## Suggested Approach
 
-1. Read `generate_deadlines()` in `deadlines.py` to understand its inputs/outputs
-2. Read the `StateElectionConfig` and how offsets work
-3. In `scheduled_election_refresh()` (~line 6160, after the officials fetch block), add a new block that:
-   - Loads the jurisdiction's `StateElectionConfig` (from extraction config or election_sources)
-   - Calls `generate_deadlines()` with the relevant election dates
-   - Calls `store_election_deadlines()` to persist
-4. Handle errors gracefully (try/except, log warnings, don't break the loop)
-5. Test by manually triggering: `gh workflow run cron-election-refresh.yml`
+1. Read `derive_officials_from_contests()` in `derive.py` to understand inputs/outputs
+2. In `scheduled_election_refresh()`, after the deadline generation block (~line 6209), add a new block:
+   - Import `derive_officials_from_contests` at the top of the function (alongside existing imports at line 6033)
+   - Call `derive_officials_from_contests(backend, jid)`
+   - Only run if any contest data was stored (check results from civera/ca_sos sources)
+   - Log results, store in `results[jid]["officials_derived"]`
+3. Error handling: wrap in try/except like the deadline block
+4. The `backend` PostgresBackend instance is already created at line 6039
 
 ## Tests to Run
 
@@ -47,28 +49,25 @@ Wire `generate_deadlines()` into `scheduled_election_refresh()` so that after el
 pytest packages/civicos/tests/test_civicos.py -q --override-ini="addopts="
 
 # Election-specific tests
-pytest packages/civicos/tests/ -q --override-ini="addopts=" -k "election or deadline"
-
-# If cron wiring is modified, integration tests
-pytest packages/civicos-extraction/tests/ -q --override-ini="addopts=" -k "cron"
+pytest packages/civicos/tests/ -q --override-ini="addopts=" -k "election or official or derive"
 ```
 
 ## Success Criteria
 
-- [ ] `scheduled_election_refresh()` calls `generate_deadlines()` after storing election data
-- [ ] Deadlines are stored via `store_election_deadlines()` for each jurisdiction with election_sources
-- [ ] Error handling: deadline generation failure doesn't block the rest of the cron
-- [ ] Manually triggered election-refresh completes without error
+- [ ] `scheduled_election_refresh()` calls `derive_officials_from_contests()` after contest data is stored
+- [ ] Only runs for jurisdictions where contests were actually stored (check result counts)
+- [ ] Error handling: derivation failure doesn't block the rest of the cron
 - [ ] Smoke tests pass
 
 ## Item Sequence After This
 
 | Next | Item | Est. |
 |------|------|------|
-| P1 | `officials_derivation_in_cron` | 0.5 session |
 | P1 | `ca_sos_snapshot_archival` | 1 session |
 | P1 | `civera_periodic_discovery` | 0.5 session |
+| P1 | `election_onboarding_integration` | 1 session |
 
-## Important: CI Tests Failing
+## Notes
 
-The full CI test suite (`Tests` workflow) is currently failing. This is unrelated to cron work — it's likely because 189 previously-unpushed commits hit CI for the first time. You may want to investigate briefly or ignore if it's pre-existing flakiness.
+- The `backend` PostgresBackend instance created at line 6039 can be reused (added this session for deadline generation)
+- 2 pre-existing test failures in `test_integration_election_dispatch.py` (config value `'San Rafael'` vs `'City of San Rafael'`) — unrelated
