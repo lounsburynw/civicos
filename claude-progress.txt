@@ -24551,3 +24551,30 @@ calendar tests + 20 smoke tests all pass. Zero behavior change for CA.
 - All critics pass, 20/20 smoke tests, 110/112 election tests (2 pre-existing failures)
 - User feedback: ingestion should be generalizable, not CA-specific — applied to design
 - Next P0: civera_periodic_discovery
+
+## 2026-03-30: Civera Periodic Discovery (P0) — DONE
+- Created .github/workflows/cron-civera-discovery.yml
+- Quarterly schedule: 1st of Jan/Apr/Jul/Oct at 12 PM UTC (4 AM Pacific)
+- Probes all 58 CA counties for new Civera ElectionStats GraphQL endpoints
+- If new instances found: opens a PR updating data/extraction/civera_instances.json
+- Lost instances (known but not responding) warn but don't remove from registry
+- Follows existing cron patterns (failure alerts, manual dispatch support)
+- No Modal needed — probe runs directly with just `requests`
+- CIVERA_INSTANCES in client code already loads from civera_instances.json (sync automatic)
+- Probe script validated locally (Marin confirmed, JSON output correct)
+- All 20/20 smoke tests pass
+- Next P0: non_civera_local_race_research
+
+## 2026-03-30: Non-Civera Local Race Research (P0) — DONE
+- Probed all 58 CA counties for Clarity Elections ENR endpoints
+- Found 9 counties with Clarity pages (7 net-new beyond Civera): Butte, Contra Costa, Madera, Merced, Santa Clara, Shasta, Ventura
+- Marin and Sonoma have both Clarity and Civera (Civera is strictly better — permanent archive)
+- Clarity data is ephemeral: Ventura Nov 2024 XML already 404, but JSON summary survives longer
+- Santa Clara Dec 2025 runoff verified: XML available with precinct-level results
+- Ventura Nov 2024: 99 contests, 85 local races (city councils, school boards, measures)
+- clarify Python library (MIT, OpenElections) handles discovery + parsing
+- Owner: COMITIA MSA (acquired Scytl 2024), NOT CivicPlus
+- Remaining 49 counties: custom sites, PDFs, Hart LiveVoterTurnout — no single platform covers them
+- Research doc: docs/internal/clarity-elections-research.md
+- Recommendation: Build Clarity client (~2-3 sessions) for +7 counties (total 11/58 = 19%)
+- Next P0: wire_election_fetch_into_onboard

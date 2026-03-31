@@ -213,6 +213,7 @@ Organized into public (ships with the repo) and internal (operations). Read only
 | `testing.md` | Test tiers, CI, commands |
 | `rollback.md` | Recovery procedures |
 | `storage-schema.md` | Database table schemas (internal, not API-facing) |
+| `clarity-elections-research.md` | Clarity Elections coverage for non-Civera CA counties |
 
 ### Private Docs (docs/private/ — gitignored)
 Financial, billing, and internal strategy docs.

@@ -1599,29 +1599,31 @@
       {
         "name": "civera_periodic_discovery",
         "description": "Schedule quarterly re-probe of CA counties for new Civera ElectionStats instances. Script exists (probe_civera_counties.py). Needs scheduling via GitHub Actions and auto-update of civera_instances.json. Currently 4/58 counties have Civera \u2014 new deployments could appear at any time.",
-        "priority": 0,
-        "status": "not_started",
+        "priority": 2,
+        "status": "done",
         "files": [
           "scripts/probe_civera_counties.py",
           "data/extraction/civera_instances.json",
-          ".github/workflows/"
+          ".github/workflows/cron-civera-discovery.yml"
         ],
         "test_file": null,
-        "notes": "Script already works. Just needs cron scheduling + auto-update. Each new Civera county unlocks historical local race data for all its cities. ~0.5 session."
+        "notes": "Quarterly GH Actions cron probes all 58 CA counties. Opens PR with updated civera_instances.json if new instances found. Lost instances warn but don't remove."
       },
       {
         "name": "non_civera_local_race_research",
         "description": "Research paths to local race data for the 54 CA counties without Civera. Focus on Clarity Elections (Scytl) \u2014 used by many CA, FL, and GA counties for results reporting. If a Clarity client is viable, it could cover both CA depth and FL expansion with one client. Output: research doc with findings per county and platform recommendation.",
-        "priority": 1,
-        "status": "not_started",
-        "files": [],
+        "priority": 2,
+        "status": "done",
+        "files": [
+          "docs/internal/clarity-elections-research.md"
+        ],
         "test_file": null,
-        "notes": "Research only, no client implementation. Clarity Elections is specifically called out in florida_election_support \u2014 shared client could serve both goals. If Clarity covers significant CA counties, florida_election_support priority should increase. ~1 session."
+        "notes": "Research complete. 9 CA counties have Clarity (7 net-new beyond Civera). Data is ephemeral (XML purged after months). clarify library (MIT) exists. Client build: ~2-3 sessions for +7 counties. See docs/internal/clarity-elections-research.md."
       },
       {
         "name": "wire_election_fetch_into_onboard",
         "description": "After detect_election_sources() populates the extraction config at onboard step 3.6, trigger an immediate election data fetch using provider dispatch logic. New cities get election data on day 1 instead of waiting up to 30 days for the monthly cron.",
-        "priority": 1,
+        "priority": 0,
         "status": "not_started",
         "files": [
           "packages/civicos-extraction/src/civicos_extraction/onboard.py",
