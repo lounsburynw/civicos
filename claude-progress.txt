@@ -24506,3 +24506,15 @@ calendar tests + 20 smoke tests all pass. Zero behavior change for CA.
 - All jurisdiction extraction configs now have election_sources
 - 114 tests passing (31 provider + 63 detection + 20 smoke), 0 failures
 - Reusable: run with --force after adding new providers to re-detect all
+
+## 2026-03-30: Cron Health Investigation (P0) — DONE
+- Root cause: origin/main was 189 commits behind local HEAD — local changes never pushed
+- All cron workflows (meetings-poll, high-velocity, low-velocity, election-refresh) failing
+  since ~2026-03-11 with same error: IndexError from Path(__file__).parents[N] on Modal
+- Two bugs fixed:
+  1. civera_election_stats.py: Path(__file__).parents[5] at module level — use CIVICOS_CONFIG_DIR env var
+  2. civicos_config/paths.py: _find_repo_root() fails on Modal — use CIVICOS_JURISDICTIONS_DIR env var
+  Also fixed: validate.py parents[4], registry.py parents[4] (wrapped in try/except)
+- Pushed 189 commits + fix commit to origin/main
+- Manually triggered meetings-poll: confirmed working (San Anselmo: 2 new meetings, vectors indexed)
+- Closed 4 cron-failure GitHub issues (#18, #19, #20, #22)

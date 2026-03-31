@@ -386,8 +386,8 @@
       {
         "name": "cron_health_investigation",
         "description": "Investigate and fix failing cron jobs. Check GH Actions cron-*.yml run history, Modal app logs, and identify which jobs are failing and why. Fix infrastructure before wiring new cron logic (populate_deadlines_in_cron, officials_derivation_in_cron).",
-        "priority": 0,
-        "status": "not_started",
+        "priority": 99,
+        "status": "done",
         "files": [
           ".github/workflows/",
           "scripts/modal_ingest.py"
@@ -1587,7 +1587,7 @@
       {
         "name": "populate_deadlines_in_cron",
         "description": "Wire generate_deadlines() into scheduled_election_refresh(). After election data is stored for each jurisdiction, generate deadlines from StateElectionConfig offsets and store via store_election_deadlines(). Currently only 3 pilot jurisdictions have deadlines (from manual seed script).",
-        "priority": 1,
+        "priority": 0,
         "status": "not_started",
         "files": [
           "scripts/modal_ingest.py",
