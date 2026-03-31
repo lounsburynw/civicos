@@ -24531,3 +24531,13 @@ calendar tests + 20 smoke tests all pass. Zero behavior change for CA.
 - State code read from config.get("state", "CA") — config-driven
 - All critics pass, 113/115 election tests pass (2 pre-existing failures), 20/20 smoke tests pass
 - Next P0: officials_derivation_in_cron
+
+## 2026-03-30: Officials Derivation in Cron (P0) — DONE
+- Wired derive_officials_from_contests() into scheduled_election_refresh() in modal_ingest.py
+- After deadline generation block, calls derive_officials_from_contests(backend, jid)
+- Runs for every jurisdiction (idempotent — derives officials from contest winners with is_winner=True)
+- Error handling: wrapped in try/except, derivation failure doesn't break the cron loop
+- Results tracked in results[jid]["officials_derived"]
+- Import added alongside other election imports at function top
+- All tests pass (20 smoke, 158/160 election — 2 pre-existing failures unrelated)
+- Next P0: ca_sos_snapshot_archival

@@ -1564,7 +1564,7 @@
       {
         "name": "ca_sos_snapshot_archival",
         "description": "Archive CA SOS election results before overwrite. On each scheduled_election_refresh() run, diff election_id against previous snapshot. If changed, preserve old data with timestamp before fetching new. Converts the ephemeral SOS API into a persistent historical archive.",
-        "priority": 1,
+        "priority": 0,
         "status": "not_started",
         "files": [
           "scripts/modal_ingest.py",
@@ -1633,8 +1633,8 @@
       {
         "name": "officials_derivation_in_cron",
         "description": "Call derive_elected_officials() after contest data is stored in scheduled_election_refresh(). Function exists at modal_ingest.py:3973 but is never called by the cron. Complements officials_refresh_cron in representative_lookup (which covers Congress.gov/LegiScan API refresh).",
-        "priority": 0,
-        "status": "not_started",
+        "priority": 99,
+        "status": "done",
         "files": [
           "scripts/modal_ingest.py"
         ],
