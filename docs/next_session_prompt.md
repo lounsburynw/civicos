@@ -1,6 +1,6 @@
-# Recommended: Officials Derivation in Cron
+# Recommended: CA SOS Snapshot Archival
 
-**Priority:** P0 (officials_derivation_in_cron)
+**Priority:** P0 (ca_sos_snapshot_archival)
 **Area:** election_coverage_lifecycle
 **Date:** 2026-03-30
 
@@ -8,39 +8,54 @@
 
 ## Context
 
-The `scheduled_election_refresh()` cron now stores election data from all configured sources AND generates deadlines for elections that lack them (just completed). However, it does NOT derive elected officials from contest winners. The `derive_elected_officials()` Modal function exists (`modal_ingest.py:3973`) and calls `derive_officials_from_contests(backend, jurisdiction)`, but it's never called from the cron loop.
+The `scheduled_election_refresh()` cron now fetches election data from all configured sources, fetches elected officials from APIs, derives officials from contest winners, and generates deadlines. This was the last three sessions of work.
 
-Note: the cron already has an "Elected Officials" block (lines 6155-6166) that calls `fetch_elected_officials.local()` — this fetches officials from external APIs (Congress.gov, LegiScan, curated). The derivation task is different: it creates officials records from election contest *winners* stored in our DB.
+The CA Secretary of State API (`api.sos.ca.gov`) is **ephemeral** — it only serves the current/most-recent election. When the SOS switches from one election cycle to another (e.g., 2024 general to 2026 primary), the old data disappears from the API. Without archival, we lose historical results.
+
+The `store_elections()` method (`postgres_backend.py:8663`) does temporal versioning at the row level (closes old versions with `valid_to`, inserts new), so we don't lose data on re-fetch of the **same** election. But when the API flips to a **different** election entirely, we need to detect this and log the transition.
 
 ## What This Session Completed
 
-- Wired `generate_deadlines()` into `scheduled_election_refresh()` (P0 done)
-- After all election sources are processed per jurisdiction, upcoming elections without deadlines get state-aware deadlines generated and stored
-- Idempotent (skips elections with existing deadlines), error-tolerant (try/except per jurisdiction)
-- Created a shared `PostgresBackend` instance at line 6039 (reusable by next task)
-- All critics pass, tests pass
+- Wired `derive_officials_from_contests()` into `scheduled_election_refresh()` (P0 done)
+- After deadline generation block, derives elected officials from contest winners for each jurisdiction
+- Idempotent, error-tolerant — follows same pattern as other cron blocks
+- The cron now has a complete pipeline: sources → officials fetch → deadlines → officials derivation
 
 ## Recommended Task
 
-Call `derive_officials_from_contests()` in `scheduled_election_refresh()` after contest data is stored. The function at `modal_ingest.py:3973` shows the pattern — it calls `derive_officials_from_contests(backend, jurisdiction)` which scans `election_contests` for `is_winner=True` candidates and creates `elected_officials` records.
+Add snapshot archival to the CA SOS fetch path in `scheduled_election_refresh()`. On each run:
+1. Before fetching new data, query existing election IDs for the jurisdiction
+2. After fetch, compare new election IDs against previous
+3. If the election ID changed (SOS switched cycles), log the transition
+4. The temporal versioning in `store_elections` already preserves old rows — this task is about **detecting** and **logging** the transition, not about data preservation (that's already handled)
+
+A fingerprint mechanism already exists at `modal_ingest.py:3791-3803` — it computes a hash of counts and stores it via `update_refresh_metadata()`. This could be extended to also track the election ID itself.
 
 ## Key Files
 
-- `scripts/modal_ingest.py:6155` — `scheduled_election_refresh()` — the officials fetch block. Add derivation after it.
-- `scripts/modal_ingest.py:3973` — `derive_elected_officials()` — standalone Modal function showing the pattern
-- `packages/civicos/src/civicos/_internal/elections/derive.py` — `derive_officials_from_contests()` — the core logic
-- `scripts/modal_ingest.py:6168` — deadline generation block (just added) — follow this pattern for error handling
+- `scripts/modal_ingest.py:6106` — CA SOS block in `scheduled_election_refresh()`. This is where archival logic goes.
+- `scripts/modal_ingest.py:3705` — `fetch_ca_sos_election_results()` — standalone Modal function. Lines 3791-3803 show the fingerprint pattern.
+- `packages/civicos-extraction/src/civicos_extraction/clients/ca_sos_results.py:725` — `extract_ca_sos_results_to_storage()` — the extraction function. Lines 754-774 have a partial-fetch guard (abort if zero data).
+- `packages/civicos/src/civicos/storage/postgres_backend.py:8663` — `store_elections()` — temporal versioning (closes old, inserts new).
+- `packages/civicos/src/civicos/storage/postgres_backend.py:8747` — `get_elections()` — for querying existing elections before fetch.
 
 ## Suggested Approach
 
-1. Read `derive_officials_from_contests()` in `derive.py` to understand inputs/outputs
-2. In `scheduled_election_refresh()`, after the deadline generation block (~line 6209), add a new block:
-   - Import `derive_officials_from_contests` at the top of the function (alongside existing imports at line 6033)
-   - Call `derive_officials_from_contests(backend, jid)`
-   - Only run if any contest data was stored (check results from civera/ca_sos sources)
-   - Log results, store in `results[jid]["officials_derived"]`
-3. Error handling: wrap in try/except like the deadline block
-4. The `backend` PostgresBackend instance is already created at line 6039
+1. Read the existing CA SOS block in `scheduled_election_refresh()` (~line 6106-6127)
+2. Before the `fetch_ca_sos_election_results.local()` call, query existing election IDs:
+   ```python
+   existing_elections = backend.get_elections(jid, include_past=False)
+   existing_ids = {e["id"] for e in existing_elections}
+   ```
+3. After the fetch, check if the returned election IDs differ from existing:
+   ```python
+   new_result = results[jid].get("ca_sos_results", {})
+   # The fetch function returns election info — check if the election_id changed
+   ```
+4. If different, log the transition and store a snapshot record (could be in `refresh_metadata` or a new field)
+5. Consider: the `extract_ca_sos_results_to_storage()` function generates the election ID from `ca_sos_race_to_election()` — you may need to read this to understand ID format
+
+Alternative simpler approach: extend the fingerprint in `fetch_ca_sos_election_results` (line 3791) to include the election ID, and compare against `last_fetch_hash` from `refresh_metadata` before fetching. If hash differs, log the change.
 
 ## Tests to Run
 
@@ -49,25 +64,28 @@ Call `derive_officials_from_contests()` in `scheduled_election_refresh()` after 
 pytest packages/civicos/tests/test_civicos.py -q --override-ini="addopts="
 
 # Election-specific tests
-pytest packages/civicos/tests/ -q --override-ini="addopts=" -k "election or official or derive"
+pytest packages/civicos/tests/ -q --override-ini="addopts=" -k "election or ca_sos"
 ```
 
 ## Success Criteria
 
-- [ ] `scheduled_election_refresh()` calls `derive_officials_from_contests()` after contest data is stored
-- [ ] Only runs for jurisdictions where contests were actually stored (check result counts)
-- [ ] Error handling: derivation failure doesn't block the rest of the cron
+- [ ] Before CA SOS fetch, existing election data is queried
+- [ ] Election cycle transitions are detected (new election ID vs previous)
+- [ ] Transitions are logged clearly (old ID, new ID, timestamp)
+- [ ] No data loss — temporal versioning already preserves old rows, this adds detection/logging
 - [ ] Smoke tests pass
 
 ## Item Sequence After This
 
 | Next | Item | Est. |
 |------|------|------|
-| P1 | `ca_sos_snapshot_archival` | 1 session |
 | P1 | `civera_periodic_discovery` | 0.5 session |
-| P1 | `election_onboarding_integration` | 1 session |
+| P1 | `non_civera_local_race_research` | 1 session |
+| P1 | `wire_election_fetch_into_onboard` | 1 session |
 
 ## Notes
 
-- The `backend` PostgresBackend instance created at line 6039 can be reused (added this session for deadline generation)
-- 2 pre-existing test failures in `test_integration_election_dispatch.py` (config value `'San Rafael'` vs `'City of San Rafael'`) — unrelated
+- The shared `PostgresBackend` instance at line 6040 is available for pre-fetch queries
+- The CA SOS API docstring at line 3718 confirms: "the API only serves the current/most-recent election — no historical data"
+- 2 pre-existing test failures in `test_integration_election_dispatch.py` (config value mismatch) — unrelated
+- The cron runs monthly via GitHub Actions (`.github/workflows/cron-*.yml`), not Modal crons
