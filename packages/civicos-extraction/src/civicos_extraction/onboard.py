@@ -2225,6 +2225,40 @@ def onboard_jurisdiction(
             errors=errors,
         )
 
+    # Step 3.6.1: Fetch election data immediately (so new cities get data on day 1)
+    election_sources_config = config.get("election_sources", {})
+    if election_sources_config:
+        database_url = os.environ.get("DATABASE_URL")
+        if database_url:
+            _progress("election_fetch", "Fetching election data (this may take a minute)...")
+            try:
+                from civicos_extraction.election_fetch import fetch_elections_for_jurisdiction
+
+                fetch_results = fetch_elections_for_jurisdiction(
+                    jurisdiction_id, election_sources_config, database_url
+                )
+                # Summarize what was fetched
+                fetched_sources = [
+                    src for src, res in fetch_results.items()
+                    if isinstance(res, dict) and res.get("status") == "completed"
+                ]
+                failed_sources = [
+                    src for src, res in fetch_results.items()
+                    if isinstance(res, dict) and res.get("status") == "failed"
+                ]
+                elapsed = fetch_results.get("elapsed_seconds", "?")
+                if fetched_sources:
+                    _progress("election_fetch", f"Election data fetched: {fetched_sources} ({elapsed}s)")
+                if failed_sources:
+                    _progress("election_fetch", f"Some sources failed (non-blocking): {failed_sources}")
+                if not fetched_sources and not failed_sources:
+                    _progress("election_fetch", "No election data sources matched — will retry via cron")
+            except Exception as e:
+                _progress("election_fetch", f"Election fetch skipped (non-blocking): {e}")
+                logger.warning(f"Election fetch during onboard failed: {e}")
+        else:
+            _progress("election_fetch", "Skipping election fetch — no DATABASE_URL (will run via cron)")
+
     # Step 3.7: Discover USAspending candidates (free API, no key needed)
     usaspending_candidates: List[Dict[str, Any]] = []
     if level in ("city", "county"):
