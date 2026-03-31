@@ -24518,3 +24518,16 @@ calendar tests + 20 smoke tests all pass. Zero behavior change for CA.
 - Pushed 189 commits + fix commit to origin/main
 - Manually triggered meetings-poll: confirmed working (San Anselmo: 2 new meetings, vectors indexed)
 - Closed 4 cron-failure GitHub issues (#18, #19, #20, #22)
+
+## 2026-03-30: Populate Deadlines in Cron (P0) — DONE
+- Wired generate_deadlines() into scheduled_election_refresh() in modal_ingest.py
+- After all election sources + officials are processed per jurisdiction:
+  1. Retrieves upcoming elections via backend.get_elections(jid, include_past=False)
+  2. Skips elections that already have deadlines (idempotent)
+  3. Generates state-aware deadlines via generate_deadlines(election_date, state_code)
+  4. Stores via store_election_deadlines()
+- Error handling: wrapped in try/except, deadline failure doesn't break the cron loop
+- Results tracked in results[jid]["deadlines"]
+- State code read from config.get("state", "CA") — config-driven
+- All critics pass, 113/115 election tests pass (2 pre-existing failures), 20/20 smoke tests pass
+- Next P0: officials_derivation_in_cron

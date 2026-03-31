@@ -1587,8 +1587,8 @@
       {
         "name": "populate_deadlines_in_cron",
         "description": "Wire generate_deadlines() into scheduled_election_refresh(). After election data is stored for each jurisdiction, generate deadlines from StateElectionConfig offsets and store via store_election_deadlines(). Currently only 3 pilot jurisdictions have deadlines (from manual seed script).",
-        "priority": 0,
-        "status": "not_started",
+        "priority": 99,
+        "status": "done",
         "files": [
           "scripts/modal_ingest.py",
           "packages/civicos/src/civicos/_internal/elections/deadlines.py"
@@ -1633,7 +1633,7 @@
       {
         "name": "officials_derivation_in_cron",
         "description": "Call derive_elected_officials() after contest data is stored in scheduled_election_refresh(). Function exists at modal_ingest.py:3973 but is never called by the cron. Complements officials_refresh_cron in representative_lookup (which covers Congress.gov/LegiScan API refresh).",
-        "priority": 1,
+        "priority": 0,
         "status": "not_started",
         "files": [
           "scripts/modal_ingest.py"
