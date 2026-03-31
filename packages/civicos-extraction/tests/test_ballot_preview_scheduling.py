@@ -14,7 +14,9 @@ from datetime import date, timedelta
 import pytest
 
 
-def ballot_preview_skip_reason(election_date_str: str | None) -> str | None:
+def ballot_preview_skip_reason(
+    election_date_str: str | None, window_days: int = 90
+) -> str | None:
     """Replicate the skip logic from scheduled_election_refresh().
 
     Returns None if fetch should proceed, or a reason string if it should be skipped.
@@ -26,7 +28,7 @@ def ballot_preview_skip_reason(election_date_str: str | None) -> str | None:
         days_until = (election_date - date.today()).days
         if days_until < 0:
             return f"already passed ({-days_until} days ago)"
-        elif days_until > 90:
+        elif days_until > window_days:
             return f"too early ({days_until} days away)"
     except ValueError:
         return f"invalid date: {election_date_str!r}"
@@ -107,3 +109,31 @@ class TestBallotPreviewWindow:
         reason = ballot_preview_skip_reason("2026-06-02")
         # 63 days away — within window
         assert reason is None
+
+
+class TestCustomWindowDays:
+    """Test configurable window_days parameter."""
+
+    def test_custom_window_30_days(self):
+        """30-day window — 60 days away should skip."""
+        future = (date.today() + timedelta(days=60)).isoformat()
+        reason = ballot_preview_skip_reason(future, window_days=30)
+        assert reason is not None
+        assert "too early" in reason
+
+    def test_custom_window_30_within(self):
+        """30-day window — 20 days away should proceed."""
+        future = (date.today() + timedelta(days=20)).isoformat()
+        assert ballot_preview_skip_reason(future, window_days=30) is None
+
+    def test_custom_window_120_days(self):
+        """120-day window — 100 days away should proceed."""
+        future = (date.today() + timedelta(days=100)).isoformat()
+        assert ballot_preview_skip_reason(future, window_days=120) is None
+
+    def test_custom_window_boundary(self):
+        """Custom window boundary — exactly at window proceeds, window+1 skips."""
+        at_boundary = (date.today() + timedelta(days=45)).isoformat()
+        past_boundary = (date.today() + timedelta(days=46)).isoformat()
+        assert ballot_preview_skip_reason(at_boundary, window_days=45) is None
+        assert ballot_preview_skip_reason(past_boundary, window_days=45) is not None

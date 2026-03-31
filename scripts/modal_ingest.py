@@ -6236,6 +6236,7 @@ def scheduled_election_refresh():
                 provider_config = {}
             election_slug = provider_config.get("election_slug", "")
             election_date_str = provider_config.get("election_date", "")
+            window_days = provider_config.get("window_days", 90)
             # Date-based guard: only fetch in the pre-election window
             skip_reason = None
             if not election_date_str:
@@ -6246,8 +6247,8 @@ def scheduled_election_refresh():
                     days_until = (election_date_parsed - date_type.today()).days
                     if days_until < 0:
                         skip_reason = f"election {election_slug} already passed ({election_date_str}, {-days_until} days ago)"
-                    elif days_until > 90:
-                        skip_reason = f"election {election_slug} is {days_until} days away (>90), too early for ballot preview"
+                    elif days_until > window_days:
+                        skip_reason = f"election {election_slug} is {days_until} days away (>{window_days}), too early for ballot preview"
                 except ValueError:
                     skip_reason = f"invalid election_date format: {election_date_str!r}"
             if skip_reason:
