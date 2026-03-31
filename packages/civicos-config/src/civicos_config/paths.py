@@ -1,11 +1,12 @@
 """
 Shared path constants for CivicOS packages.
 
-Finds the repository root by walking up from this file looking for
-phase.json (always present at repo root). This avoids fragile
-Path(__file__).parents[N] patterns that break when files move.
+On Modal/CI, paths come from environment variables (CIVICOS_JURISDICTIONS_DIR,
+CIVICOS_CONFIG_DIR). Locally, finds the repo root by walking up looking for
+phase.json.
 """
 
+import os
 from pathlib import Path
 
 
@@ -24,5 +25,10 @@ def _find_repo_root() -> Path:
     )
 
 
-REPO_ROOT = _find_repo_root()
-JURISDICTIONS_DIR = REPO_ROOT / "data" / "jurisdictions"
+# Use env vars when available (Modal sets these via image.env())
+_jurisdictions_env = os.environ.get("CIVICOS_JURISDICTIONS_DIR")
+if _jurisdictions_env:
+    JURISDICTIONS_DIR = Path(_jurisdictions_env)
+else:
+    REPO_ROOT = _find_repo_root()
+    JURISDICTIONS_DIR = REPO_ROOT / "data" / "jurisdictions"
