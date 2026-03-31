@@ -1,6 +1,6 @@
-# Recommended: CA SOS Snapshot Archival
+# Recommended: Civera Periodic Discovery
 
-**Priority:** P0 (ca_sos_snapshot_archival)
+**Priority:** P0 (civera_periodic_discovery)
 **Area:** election_coverage_lifecycle
 **Date:** 2026-03-30
 
@@ -8,54 +8,47 @@
 
 ## Context
 
-The `scheduled_election_refresh()` cron now fetches election data from all configured sources, fetches elected officials from APIs, derives officials from contest winners, and generates deadlines. This was the last three sessions of work.
+The election data pipeline is now fully wired: sources → officials fetch → deadlines → officials derivation → snapshot archival. This session generalized the snapshot archival into a shared `_detect_election_transition()` helper used by all three election fetch functions (CA SOS, Marin, Civera).
 
-The CA Secretary of State API (`api.sos.ca.gov`) is **ephemeral** — it only serves the current/most-recent election. When the SOS switches from one election cycle to another (e.g., 2024 general to 2026 primary), the old data disappears from the API. Without archival, we lose historical results.
-
-The `store_elections()` method (`postgres_backend.py:8663`) does temporal versioning at the row level (closes old versions with `valid_to`, inserts new), so we don't lose data on re-fetch of the **same** election. But when the API flips to a **different** election entirely, we need to detect this and log the transition.
+Currently only 4 of 58 CA counties have Civera ElectionStats instances (Marin, San Joaquin, Sonoma, Yolo). The probe script exists but has never been scheduled. New Civera deployments could appear at any time — quarterly probing ensures we discover them.
 
 ## What This Session Completed
 
-- Wired `derive_officials_from_contests()` into `scheduled_election_refresh()` (P0 done)
-- After deadline generation block, derives elected officials from contest winners for each jurisdiction
-- Idempotent, error-tolerant — follows same pattern as other cron blocks
-- The cron now has a complete pipeline: sources → officials fetch → deadlines → officials derivation
+- Created `_detect_election_transition()` shared helper in `modal_ingest.py:3402`
+- Refactored all 3 election fetch functions to use it (CA SOS, Marin, Civera)
+- Extraction functions now return election IDs for transition tracking
+- Zero-election fetches preserve previous fingerprint IDs (avoids false transitions)
+- Marked `ca_sos_snapshot_archival` as done
 
 ## Recommended Task
 
-Add snapshot archival to the CA SOS fetch path in `scheduled_election_refresh()`. On each run:
-1. Before fetching new data, query existing election IDs for the jurisdiction
-2. After fetch, compare new election IDs against previous
-3. If the election ID changed (SOS switched cycles), log the transition
-4. The temporal versioning in `store_elections` already preserves old rows — this task is about **detecting** and **logging** the transition, not about data preservation (that's already handled)
+Schedule `scripts/probe_civera_counties.py` as a quarterly GitHub Actions cron job. When new instances are discovered, auto-update `data/extraction/civera_instances.json`.
 
-A fingerprint mechanism already exists at `modal_ingest.py:3791-3803` — it computes a hash of counts and stores it via `update_refresh_metadata()`. This could be extended to also track the election ID itself.
+1. Create `.github/workflows/cron-civera-discovery.yml` — quarterly schedule
+2. The workflow should run the probe script with `--json` output
+3. Compare output against current `data/extraction/civera_instances.json`
+4. If new instances found, commit the updated JSON (or open a PR)
+5. Consider: also update jurisdiction YAML configs to add the new source
 
 ## Key Files
 
-- `scripts/modal_ingest.py:6106` — CA SOS block in `scheduled_election_refresh()`. This is where archival logic goes.
-- `scripts/modal_ingest.py:3705` — `fetch_ca_sos_election_results()` — standalone Modal function. Lines 3791-3803 show the fingerprint pattern.
-- `packages/civicos-extraction/src/civicos_extraction/clients/ca_sos_results.py:725` — `extract_ca_sos_results_to_storage()` — the extraction function. Lines 754-774 have a partial-fetch guard (abort if zero data).
-- `packages/civicos/src/civicos/storage/postgres_backend.py:8663` — `store_elections()` — temporal versioning (closes old, inserts new).
-- `packages/civicos/src/civicos/storage/postgres_backend.py:8747` — `get_elections()` — for querying existing elections before fetch.
+- `scripts/probe_civera_counties.py` — 277-line probe script, already works. Scans all 58 CA counties for Civera GraphQL endpoints. Has `--json` flag for machine-readable output.
+- `data/extraction/civera_instances.json` — Registry of known instances (currently 4: marin, san-joaquin, sonoma, yolo)
+- `packages/civicos-extraction/src/civicos_extraction/clients/civera_election_stats.py` — `CIVERA_INSTANCES` dict and `CiveraElectionStatsClient`
+- `.github/workflows/cron-election-refresh.yml` — Existing election cron (pattern to follow for scheduling)
+- `scripts/modal_ingest.py:3623` — `fetch_civera_election_results()` — uses `CIVERA_INSTANCES` registry
 
 ## Suggested Approach
 
-1. Read the existing CA SOS block in `scheduled_election_refresh()` (~line 6106-6127)
-2. Before the `fetch_ca_sos_election_results.local()` call, query existing election IDs:
-   ```python
-   existing_elections = backend.get_elections(jid, include_past=False)
-   existing_ids = {e["id"] for e in existing_elections}
-   ```
-3. After the fetch, check if the returned election IDs differ from existing:
-   ```python
-   new_result = results[jid].get("ca_sos_results", {})
-   # The fetch function returns election info — check if the election_id changed
-   ```
-4. If different, log the transition and store a snapshot record (could be in `refresh_metadata` or a new field)
-5. Consider: the `extract_ca_sos_results_to_storage()` function generates the election ID from `ca_sos_race_to_election()` — you may need to read this to understand ID format
-
-Alternative simpler approach: extend the fingerprint in `fetch_ca_sos_election_results` (line 3791) to include the election ID, and compare against `last_fetch_hash` from `refresh_metadata` before fetching. If hash differs, log the change.
+1. Read `scripts/probe_civera_counties.py` to understand its output format and CLI args
+2. Read `.github/workflows/cron-election-refresh.yml` as a template for the new workflow
+3. Create `.github/workflows/cron-civera-discovery.yml`:
+   - Schedule: quarterly (`cron: '0 12 1 */3 *'` — 1st of Jan/Apr/Jul/Oct)
+   - Run `probe_civera_counties.py --json` on Modal or directly
+   - Compare against `data/extraction/civera_instances.json`
+   - If diff, commit updated file or open PR
+4. Verify `CIVERA_INSTANCES` in `civera_election_stats.py` reads from the JSON registry (or is kept in sync)
+5. Consider: when a new instance is discovered, should it auto-enroll in the election refresh cron?
 
 ## Tests to Run
 
@@ -63,29 +56,29 @@ Alternative simpler approach: extend the fingerprint in `fetch_ca_sos_election_r
 # Smoke tests
 pytest packages/civicos/tests/test_civicos.py -q --override-ini="addopts="
 
-# Election-specific tests
-pytest packages/civicos/tests/ -q --override-ini="addopts=" -k "election or ca_sos"
+# Run the probe locally to verify it works
+python scripts/probe_civera_counties.py --timeout 10 --verbose
 ```
 
 ## Success Criteria
 
-- [ ] Before CA SOS fetch, existing election data is queried
-- [ ] Election cycle transitions are detected (new election ID vs previous)
-- [ ] Transitions are logged clearly (old ID, new ID, timestamp)
-- [ ] No data loss — temporal versioning already preserves old rows, this adds detection/logging
+- [ ] GitHub Actions workflow created for quarterly Civera discovery
+- [ ] Workflow runs probe script and detects new instances
+- [ ] New instances update `data/extraction/civera_instances.json`
+- [ ] `CIVERA_INSTANCES` in client code stays in sync with JSON registry
 - [ ] Smoke tests pass
 
 ## Item Sequence After This
 
 | Next | Item | Est. |
 |------|------|------|
-| P1 | `civera_periodic_discovery` | 0.5 session |
 | P1 | `non_civera_local_race_research` | 1 session |
 | P1 | `wire_election_fetch_into_onboard` | 1 session |
+| P2 | `election_cron_enrollment_validation` | 0.5 session |
 
 ## Notes
 
-- The shared `PostgresBackend` instance at line 6040 is available for pre-fetch queries
-- The CA SOS API docstring at line 3718 confirms: "the API only serves the current/most-recent election — no historical data"
-- 2 pre-existing test failures in `test_integration_election_dispatch.py` (config value mismatch) — unrelated
-- The cron runs monthly via GitHub Actions (`.github/workflows/cron-*.yml`), not Modal crons
+- Cron jobs run via GitHub Actions, NOT `modal.Cron()` (Modal starter plan limits crons)
+- The probe script uses `requests` with ThreadPoolExecutor for parallel scanning
+- 2 pre-existing test failures in `test_integration_election_dispatch.py` — unrelated
+- This is estimated at ~0.5 session since the probe script already exists
