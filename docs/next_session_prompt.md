@@ -1,6 +1,6 @@
-# Recommended: Ballot Preview Smart Scheduling
+# Recommended: Calendar-Aware Election Refresh
 
-**Priority:** P0 (ballot_preview_smart_scheduling)
+**Priority:** P0 (calendar_aware_election_refresh)
 **Area:** election_coverage_lifecycle
 **Date:** 2026-03-31
 
@@ -8,47 +8,51 @@
 
 ## Context
 
-The election pipeline is now fully wired end-to-end: source detection, onboard-time fetch (just completed), officials derivation, deadline generation, snapshot archival, and quarterly Civera discovery. The remaining election_coverage_lifecycle items are scheduling refinements.
-
-Currently, `scheduled_election_refresh()` fetches ballot preview data monthly regardless of election timing. This wastes API calls and processing outside the relevant window. The config already includes `election_date` — the fix is a date comparison guard.
+We just completed `ballot_preview_smart_scheduling` — added a 90-day window guard for `ca_sos_ballot_preview` in `scheduled_election_refresh()`. This next item generalizes that idea: vary the *entire* election refresh cadence based on proximity to known election dates. Currently the GH Actions cron fires monthly; the idea is to make it fire daily and let the Modal function itself decide what to do based on election proximity.
 
 ## What This Session Completed
 
-- Created `election_fetch.py` — shared fetch logic callable from onboard (no Modal dependency)
-- Wired immediate election fetch into onboard step 3.6.1
-- 10 new tests, all passing. Smoke tests 20/20.
+- Added date guard to ballot preview fetch (`scripts/modal_ingest.py:6231-6275`)
+- 12 new tests in `test_ballot_preview_scheduling.py`, all passing
+- Smoke tests 20/20
 
 ## Recommended Task
 
-Add a date-based guard in `scheduled_election_refresh()` that skips `ca_sos_ballot_preview` fetch unless today is within ~90 days before the election date. This is a ~0.5 session task.
+Make `scheduled_election_refresh()` calendar-aware so different source types run at different cadences depending on election proximity:
+- **Daily** within 7 days of election (capture election-night SOS results)
+- **Weekly** within 90 days (ballot previews, candidate updates)
+- **Monthly** otherwise (officials, general maintenance)
+
+The GH Actions cron should switch from monthly to daily, but the Modal function gates work internally so most daily runs are no-ops.
 
 ## Key Files
 
-- `scripts/modal_ingest.py:6232` — where ballot preview fetch is triggered in the cron
-- `scripts/modal_ingest.py:6238` — `election_date` is already read from config
-- 3 jurisdictions have ballot preview configs: city-san-rafael, city-mill-valley, city-san-anselmo
-- All 3 target the 2026-06-02 primary (election_date is in the config)
+- `scripts/modal_ingest.py:6103-6352` — `scheduled_election_refresh()` full function
+- `.github/workflows/cron-election-refresh.yml` — currently monthly (`0 3 1 * *`), needs to become daily
+- `packages/civicos/src/civicos/_internal/elections/cycles.py:142` — `get_next_election_date()` returns next election date for an office type
+- `packages/civicos/src/civicos/_internal/elections/cycles.py:330` — `get_upcoming_races()` returns all upcoming races for a jurisdiction's config
+- `data/extraction/city-san-rafael.json` — sample config with `election_sources` and `ca_sos_ballot_preview.election_date`
+- `packages/civicos-extraction/tests/test_ballot_preview_scheduling.py` — pattern for date-window tests
 
-## Sample Config (from data/extraction/city-san-rafael.json)
+## Architecture Insight
 
-```json
-"ca_sos_ballot_preview": {
-  "election_slug": "2026-primary",
-  "election_date": "2026-06-02",
-  "election_type": "primary",
-  "races": { "congress": [2], "state-senate": [2], "assembly": [12] }
-}
-```
+The function has 5 source blocks that run per-jurisdiction:
+1. **Civera ElectionStats** — historical election results (monthly is fine)
+2. **Marin Registrar** — legacy alias (monthly is fine)
+3. **CA SOS Results** — election results (daily near election day)
+4. **CA SOS Ballot Preview** — already has 90-day guard (done this session)
+5. **Elected Officials** — changes after elections (weekly near election, monthly otherwise)
+
+Plus 2 always-run blocks: deadline generation and officials derivation.
 
 ## Suggested Approach
 
-1. Read `modal_ingest.py:6230-6260` — the ballot preview block in `scheduled_election_refresh()`
-2. Add a date guard before the fetch call:
-   - Parse `election_date` from config
-   - If today is more than 90 days before election_date, skip with a log message
-   - If election_date is in the past, also skip (data already archived)
-3. Consider adding a second fetch window ~30 days before for updated candidate lists
-4. Add a unit test verifying the window logic
+1. Add a `determine_refresh_cadence()` helper that reads election dates from configs and returns a cadence level (`"daily"`, `"weekly"`, `"monthly"`, `"skip"`) based on proximity to the nearest election
+2. At the top of `scheduled_election_refresh()`, compute cadence. If cadence is `"skip"` (no elections within 90 days for a jurisdiction), skip everything except officials derivation
+3. Gate each source block: Civera/Marin/SOS results run daily near election, otherwise monthly. Officials run weekly near election, monthly otherwise. Ballot preview already has its own guard.
+4. Update GH Actions cron from monthly to daily: `0 3 * * *`
+5. Update the docstring and log messages to reflect new behavior
+6. **Simplest approach**: scan `election_date` fields in `election_sources` configs for the nearest one, similar to what ballot preview does — rather than computing from office-type cycles
 
 ## Tests to Run
 
@@ -56,25 +60,27 @@ Add a date-based guard in `scheduled_election_refresh()` that skips `ca_sos_ball
 # Smoke tests
 pytest packages/civicos/tests/test_civicos.py -q --override-ini="addopts="
 
-# Election dispatch tests (2 pre-existing failures — unrelated)
-pytest packages/civicos/tests/test_integration_election_dispatch.py -q --override-ini="addopts="
+# Ballot preview scheduling tests (from this session)
+pytest packages/civicos-extraction/tests/test_ballot_preview_scheduling.py -q --override-ini="addopts="
 
-# Election fetch tests (from this session)
-pytest packages/civicos-extraction/tests/test_election_fetch.py -q --override-ini="addopts="
+# Election calendar tests (cycles.py)
+pytest packages/civicos/tests/test_election_calendar.py -q --override-ini="addopts="
 ```
 
 ## Success Criteria
 
-- [ ] Ballot preview fetch only runs within 90 days of election_date
-- [ ] Past elections are skipped
-- [ ] Log message explains why fetch was skipped
+- [ ] `scheduled_election_refresh()` determines cadence from election proximity
+- [ ] Daily runs within 7 days of election date (results sources fire)
+- [ ] Weekly runs within 90 days (ballot preview, officials)
+- [ ] Monthly runs otherwise (general maintenance)
+- [ ] GH Actions cron updated to daily
+- [ ] No-op runs log clearly why they skipped
 - [ ] Smoke tests pass
 
 ## Item Sequence After This
 
 | Next | Item | Est. |
 |------|------|------|
-| P2 | `calendar_aware_election_refresh` | 1 session |
 | P2 | `election_cron_enrollment_validation` | 0.5 session |
 | P2 | `officials_refresh_cron` | 0.5 session |
 | P3 | `election_coverage_monitoring` | 0.5 session |
@@ -82,7 +88,7 @@ pytest packages/civicos-extraction/tests/test_election_fetch.py -q --override-in
 ## Notes
 
 - Cron jobs run via GitHub Actions, NOT `modal.Cron()` (Modal starter plan limits crons)
-- Today is 2026-03-31; the 2026-06-02 primary is 63 days away — within the 90-day window
-- The `calendar_aware_election_refresh` item (P2) is a broader version of this same idea but for all election source types, not just ballot preview
-- 2 pre-existing failures in `test_integration_election_dispatch.py` (division_filter string mismatch)
-- Estimated ~0.5 session
+- Today is 2026-03-31; the 2026-06-02 primary is 63 days away — within the 90-day "weekly" window
+- The `ca_sos_snapshot_archival` dependency mentioned in launch.json notes may not actually block this — the ballot preview guard already prevents overwrites for that source
+- 2 pre-existing failures in `test_integration_election_dispatch.py` (division_filter string mismatch) — unrelated
+- Estimated ~1 session

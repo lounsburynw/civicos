@@ -6229,31 +6229,50 @@ def scheduled_election_refresh():
                 results[jid]["ca_sos_results"] = {"status": "failed", "error": str(e)}
 
         # --- CA SOS Ballot Preview (pre-election candidate PDFs) ---
+        # Only fetch within 90 days before election_date; skip if election has passed.
         if "ca_sos_ballot_preview" in election_sources:
             provider_config = election_sources["ca_sos_ballot_preview"]
             if provider_config is True:
                 provider_config = {}
-            try:
-                election_slug = provider_config.get("election_slug", "")
-                election_date = provider_config.get("election_date", "")
-                election_type = provider_config.get("election_type", "primary")
-                races = provider_config.get("races", {})
-                races_json = json_mod.dumps(races) if races else ""
-                logger.info(f"  [{jid}] Fetching ballot preview (CA SOS, election={election_slug})...")
-                result = fetch_ballot_preview.local(
-                    jurisdiction=jid,
-                    election_slug=election_slug,
-                    election_date=election_date,
-                    election_type=election_type,
-                    races_json=races_json,
-                    dry_run=False,
-                    auto_index=True,
-                )
-                results[jid]["ca_sos_ballot_preview"] = result
-                logger.info(f"    Ballot preview: {result.get('candidates_stored', 0)} candidates stored")
-            except Exception as e:
-                logger.exception(f"  [{jid}] Ballot preview fetch failed")
-                results[jid]["ca_sos_ballot_preview"] = {"status": "failed", "error": str(e)}
+            election_slug = provider_config.get("election_slug", "")
+            election_date_str = provider_config.get("election_date", "")
+            # Date-based guard: only fetch in the pre-election window
+            skip_reason = None
+            if not election_date_str:
+                skip_reason = "no election_date configured"
+            else:
+                try:
+                    election_date_parsed = date_type.fromisoformat(election_date_str)
+                    days_until = (election_date_parsed - date_type.today()).days
+                    if days_until < 0:
+                        skip_reason = f"election {election_slug} already passed ({election_date_str}, {-days_until} days ago)"
+                    elif days_until > 90:
+                        skip_reason = f"election {election_slug} is {days_until} days away (>90), too early for ballot preview"
+                except ValueError:
+                    skip_reason = f"invalid election_date format: {election_date_str!r}"
+            if skip_reason:
+                logger.info(f"  [{jid}] Skipping ballot preview: {skip_reason}")
+                results[jid]["ca_sos_ballot_preview"] = {"status": "skipped", "reason": skip_reason}
+            else:
+                try:
+                    election_type = provider_config.get("election_type", "primary")
+                    races = provider_config.get("races", {})
+                    races_json = json_mod.dumps(races) if races else ""
+                    logger.info(f"  [{jid}] Fetching ballot preview (CA SOS, election={election_slug}, {days_until} days until election)...")
+                    result = fetch_ballot_preview.local(
+                        jurisdiction=jid,
+                        election_slug=election_slug,
+                        election_date=election_date_str,
+                        election_type=election_type,
+                        races_json=races_json,
+                        dry_run=False,
+                        auto_index=True,
+                    )
+                    results[jid]["ca_sos_ballot_preview"] = result
+                    logger.info(f"    Ballot preview: {result.get('candidates_stored', 0)} candidates stored")
+                except Exception as e:
+                    logger.exception(f"  [{jid}] Ballot preview fetch failed")
+                    results[jid]["ca_sos_ballot_preview"] = {"status": "failed", "error": str(e)}
 
         # --- Elected Officials (always runs) ---
         try:
