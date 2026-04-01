@@ -129,6 +129,9 @@ c.get_public_testimony("housing")  # Public testimony excerpts
 | Data counts/diagnostics | `DataStatus` or `StorageBackend.get_*_count()` | Raw SQL |
 | Bulk data access | `StorageBackend.get_*()` methods | Raw SQL |
 | Schema information | `CORPUS_REGISTRY` | Hardcoded column names |
+| Jurisdiction lookup | `JurisdictionRegistry` (from `civicos_config`) | Hardcoded jurisdiction lists |
+
+**Jurisdiction Registry** auto-loads from config files — no Python edits needed to register a new jurisdiction. Creating `data/extraction/{id}.json` or `data/jurisdictions/{id}.yaml` is sufficient. Timezone, display name, and hall name are derived from the `state` field and jurisdiction ID. Hardcoded entries in `jurisdiction.py` provide enrichment (wiki_files, cost_efficiency_target, etc.).
 
 **Layered architecture:**
 ```
@@ -166,6 +169,7 @@ launch.json                 # Launch checklist (active)
 claude-progress.txt         # Session state (append-only)
 init.sh                     # Verification script
 packages/civicos/             # Core API package
+packages/civicos-config/      # Shared config (JurisdictionRegistry, paths) — auto-loads from data/
 packages/civicos-relay/       # Federation-ready relay (voice, actions, sync, subscriptions)
 packages/civicos-signer/      # Portable attestation signing service (for issuer orgs)
 packages/civicos-extraction/  # Platform parsers

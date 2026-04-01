@@ -52,14 +52,14 @@ Mill Valley is the first jurisdiction onboarded after San Rafael. Same county (M
 
 **Fix needed:** Content-based body inference — parse first few rows of each view to extract actual meeting body names.
 
-### F5: Three separate registry files need manual updates (MEDIUM)
+### F5: Three separate registry files need manual updates (MEDIUM) — RESOLVED
 
 **Problem:** Adding a jurisdiction requires editing 3 files:
 1. `config/registry.json` — service routing
 2. `packages/civicos-config/src/civicos_config/jurisdiction.py` — JurisdictionRegistry
 3. `packages/civicos/src/civicos/_internal/jurisdiction.py` — aliases
 
-**Fix needed:** Generate all registry entries from the jurisdiction YAML config (`data/jurisdictions/{id}.yaml`). One file should be the source of truth.
+**Fix applied (2026-04-01):** `JurisdictionRegistry` now auto-loads from config files. Creating `data/extraction/{id}.json` or `data/jurisdictions/{id}.yaml` is sufficient — no Python code edits needed. Timezone, display_name, and hall_name are derived automatically. Only `config/registry.json` still requires a manual edit (for service routing/domain assignment), but that's a deployment concern, not a registration gate.
 
 ### F6: `openai` not in local venv (LOW)
 
