@@ -15,6 +15,11 @@ from typing import Any, Dict, Optional
 
 logger = logging.getLogger(__name__)
 
+# Handler registry — maps election source keys to fetch functions.
+# Each handler has signature: (jurisdiction_id, config, backend) -> Dict[str, Any]
+# Register new handlers here when implementing a new state's fetch client.
+_FETCH_HANDLERS: Dict[str, Any] = {}
+
 
 def fetch_elections_for_jurisdiction(
     jurisdiction_id: str,
@@ -23,8 +28,9 @@ def fetch_elections_for_jurisdiction(
 ) -> Dict[str, Any]:
     """Fetch all configured election data for a single jurisdiction.
 
-    Dispatches to Civera, CA SOS, and elected officials extraction clients
-    based on the election_sources config dict (from data/extraction/<jid>.json).
+    Dispatches to registered fetch handlers based on the election_sources
+    config dict (from data/extraction/<jid>.json). Sources without a
+    registered handler are reported as skipped, not silently ignored.
 
     Args:
         jurisdiction_id: e.g. "city-san-rafael"
@@ -48,19 +54,22 @@ def fetch_elections_for_jurisdiction(
     results: Dict[str, Any] = {}
     start_time = time.time()
 
-    # --- Civera ElectionStats ---
-    if "civera_election_stats" in election_sources:
-        results["civera_election_stats"] = _fetch_civera(
-            jurisdiction_id, election_sources["civera_election_stats"], backend
-        )
+    # Dispatch each source to its registered handler
+    for source_key, source_config in election_sources.items():
+        handler = _FETCH_HANDLERS.get(source_key)
+        if handler is not None:
+            results[source_key] = handler(jurisdiction_id, source_config, backend)
+        else:
+            logger.info(
+                f"  [{jurisdiction_id}] Election source '{source_key}' detected "
+                f"but no fetch client available yet — skipping."
+            )
+            results[source_key] = {
+                "status": "skipped",
+                "reason": f"no fetch client for '{source_key}'",
+            }
 
-    # --- CA Secretary of State ---
-    if "ca_sos_results" in election_sources:
-        results["ca_sos_results"] = _fetch_ca_sos(
-            jurisdiction_id, election_sources["ca_sos_results"], backend
-        )
-
-    # --- Elected Officials (always attempted) ---
+    # --- Elected Officials (always attempted, independent of source handlers) ---
     results["elected_officials"] = _fetch_officials(jurisdiction_id, backend)
 
     elapsed = time.time() - start_time
@@ -223,3 +232,9 @@ def _fetch_officials(
     except Exception as e:
         logger.warning(f"  [{jurisdiction_id}] Officials fetch failed: {e}")
         return {"status": "failed", "error": str(e)}
+
+
+# Register fetch handlers for source keys with working clients.
+# Add new entries here when implementing a state's extraction client.
+_FETCH_HANDLERS["civera_election_stats"] = _fetch_civera
+_FETCH_HANDLERS["ca_sos_results"] = _fetch_ca_sos

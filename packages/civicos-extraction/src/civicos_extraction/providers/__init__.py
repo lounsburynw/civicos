@@ -8,9 +8,8 @@ jurisdictions in that state.
 
 Adding a new state:
 1. Add a StateElectionConfig entry in civicos._internal.elections.state_config
-2. Create a provider file here (e.g., providers/texas.py)
-3. Register it in _create_provider() below
-4. Add tests in test_election_detection.py
+2. Done — DefaultElectionProvider auto-creates for any state with a config.
+   Only implement a custom provider if you need per-county logic (e.g., CA/Civera).
 
 Usage:
     from civicos_extraction.providers import get_provider
@@ -19,8 +18,11 @@ Usage:
         sources = provider.detect_election_sources("city-san-rafael", "marin", 37.97, -122.53)
 """
 
+import logging
 from abc import ABC, abstractmethod
 from typing import Any, Dict, Optional
+
+logger = logging.getLogger(__name__)
 
 
 class StateElectionProvider(ABC):
@@ -80,12 +82,19 @@ def get_provider(state_code: str) -> Optional[StateElectionProvider]:
 def _create_provider(state_code: str) -> None:
     """Lazy-create and register a provider instance.
 
-    Uses lazy imports to avoid circular dependencies and to keep
-    startup cost minimal — providers are only instantiated when needed.
+    CA has a custom provider (Civera per-county logic). All other states
+    with a StateElectionConfig get a DefaultElectionProvider automatically.
     """
     if state_code == "CA":
         from civicos_extraction.providers.california import CaliforniaElectionProvider
         _PROVIDERS["CA"] = CaliforniaElectionProvider()
-    elif state_code == "TX":
-        from civicos_extraction.providers.texas import TexasElectionProvider
-        _PROVIDERS["TX"] = TexasElectionProvider()
+        return
+
+    # Any state with a StateElectionConfig gets a DefaultElectionProvider
+    try:
+        from civicos._internal.elections.state_config import STATE_CONFIGS
+        if state_code in STATE_CONFIGS:
+            from civicos_extraction.providers.default import DefaultElectionProvider
+            _PROVIDERS[state_code] = DefaultElectionProvider(state_code)
+    except ImportError:
+        logger.warning(f"Could not import STATE_CONFIGS — no provider for {state_code}")

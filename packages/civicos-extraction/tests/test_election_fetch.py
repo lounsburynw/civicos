@@ -6,7 +6,10 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from civicos_extraction.election_fetch import fetch_elections_for_jurisdiction
+from civicos_extraction.election_fetch import (
+    fetch_elections_for_jurisdiction,
+    _FETCH_HANDLERS,
+)
 
 # PostgresBackend is imported inside the function body, so we patch at the source
 _PG_BACKEND = "civicos.storage.postgres_backend.PostgresBackend"
@@ -28,48 +31,50 @@ class TestFetchElectionsForJurisdiction:
         assert result["skipped"] is True
 
     @patch("civicos_extraction.election_fetch._fetch_officials")
-    @patch("civicos_extraction.election_fetch._fetch_civera")
     @patch(_PG_BACKEND)
-    def test_dispatches_civera(self, mock_backend_cls, mock_civera, mock_officials):
-        """Civera source in config dispatches to _fetch_civera."""
-        mock_civera.return_value = {"status": "completed", "elections_stored": 3}
+    def test_dispatches_civera(self, mock_backend_cls, mock_officials):
+        """Civera source in config dispatches to registered handler."""
+        mock_handler = MagicMock(return_value={"status": "completed", "elections_stored": 3})
         mock_officials.return_value = {"status": "skipped"}
 
         sources = {"civera_election_stats": {"county_slug": "marin"}}
-        result = fetch_elections_for_jurisdiction("city-test", sources, database_url="postgresql://test")
+        with patch.dict(_FETCH_HANDLERS, {"civera_election_stats": mock_handler}):
+            result = fetch_elections_for_jurisdiction("city-test", sources, database_url="postgresql://test")
 
-        mock_civera.assert_called_once()
+        mock_handler.assert_called_once()
         assert result["civera_election_stats"]["status"] == "completed"
 
     @patch("civicos_extraction.election_fetch._fetch_officials")
-    @patch("civicos_extraction.election_fetch._fetch_ca_sos")
     @patch(_PG_BACKEND)
-    def test_dispatches_ca_sos(self, mock_backend_cls, mock_ca_sos, mock_officials):
-        """CA SOS source in config dispatches to _fetch_ca_sos."""
-        mock_ca_sos.return_value = {"status": "completed", "contests_stored": 5}
+    def test_dispatches_ca_sos(self, mock_backend_cls, mock_officials):
+        """CA SOS source in config dispatches to registered handler."""
+        mock_handler = MagicMock(return_value={"status": "completed", "contests_stored": 5})
         mock_officials.return_value = {"status": "skipped"}
 
         sources = {"ca_sos_results": {"county": "marin"}}
-        result = fetch_elections_for_jurisdiction("city-test", sources, database_url="postgresql://test")
+        with patch.dict(_FETCH_HANDLERS, {"ca_sos_results": mock_handler}):
+            result = fetch_elections_for_jurisdiction("city-test", sources, database_url="postgresql://test")
 
-        mock_ca_sos.assert_called_once()
+        mock_handler.assert_called_once()
         assert result["ca_sos_results"]["status"] == "completed"
 
     @patch("civicos_extraction.election_fetch._fetch_officials")
-    @patch("civicos_extraction.election_fetch._fetch_ca_sos")
-    @patch("civicos_extraction.election_fetch._fetch_civera")
     @patch(_PG_BACKEND)
-    def test_dispatches_both_sources(self, mock_backend_cls, mock_civera, mock_ca_sos, mock_officials):
-        """Multiple sources each get dispatched."""
-        mock_civera.return_value = {"status": "completed"}
-        mock_ca_sos.return_value = {"status": "completed"}
+    def test_dispatches_both_sources(self, mock_backend_cls, mock_officials):
+        """Multiple sources each get dispatched to their handlers."""
+        mock_civera = MagicMock(return_value={"status": "completed"})
+        mock_ca_sos = MagicMock(return_value={"status": "completed"})
         mock_officials.return_value = {"status": "skipped"}
 
         sources = {
             "civera_election_stats": {"county_slug": "marin"},
             "ca_sos_results": {"county": "marin"},
         }
-        result = fetch_elections_for_jurisdiction("city-test", sources, database_url="postgresql://test")
+        with patch.dict(_FETCH_HANDLERS, {
+            "civera_election_stats": mock_civera,
+            "ca_sos_results": mock_ca_sos,
+        }):
+            result = fetch_elections_for_jurisdiction("city-test", sources, database_url="postgresql://test")
 
         mock_civera.assert_called_once()
         mock_ca_sos.assert_called_once()
@@ -82,25 +87,25 @@ class TestFetchElectionsForJurisdiction:
     def test_always_fetches_officials(self, mock_backend_cls, mock_officials):
         """Officials fetch always runs even with no election sources."""
         mock_officials.return_value = {"status": "completed", "officials_stored": 5}
+        mock_handler = MagicMock(return_value={"status": "completed"})
 
         sources = {"ca_sos_results": True}
-        with patch("civicos_extraction.election_fetch._fetch_ca_sos") as mock_sos:
-            mock_sos.return_value = {"status": "completed"}
+        with patch.dict(_FETCH_HANDLERS, {"ca_sos_results": mock_handler}):
             result = fetch_elections_for_jurisdiction("city-test", sources, database_url="postgresql://test")
 
         mock_officials.assert_called_once()
         assert result["elected_officials"]["status"] == "completed"
 
     @patch("civicos_extraction.election_fetch._fetch_officials")
-    @patch("civicos_extraction.election_fetch._fetch_civera")
     @patch(_PG_BACKEND)
-    def test_elapsed_seconds_included(self, mock_backend_cls, mock_civera, mock_officials):
+    def test_elapsed_seconds_included(self, mock_backend_cls, mock_officials):
         """Result includes elapsed_seconds for non-empty sources."""
-        mock_civera.return_value = {"status": "completed"}
+        mock_handler = MagicMock(return_value={"status": "completed"})
         mock_officials.return_value = {"status": "skipped"}
 
         sources = {"civera_election_stats": {"county_slug": "marin"}}
-        result = fetch_elections_for_jurisdiction("city-test", sources, database_url="postgresql://test")
+        with patch.dict(_FETCH_HANDLERS, {"civera_election_stats": mock_handler}):
+            result = fetch_elections_for_jurisdiction("city-test", sources, database_url="postgresql://test")
         assert "elapsed_seconds" in result
 
 

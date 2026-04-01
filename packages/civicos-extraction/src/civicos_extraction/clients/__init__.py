@@ -132,6 +132,12 @@ SUPPORTED_ELECTION_SOURCES: frozenset[str] = frozenset({
     "ca_sos_ballot_preview",
 })
 
+
+def is_election_source_supported(source_key: str) -> bool:
+    """Check whether a fetch client exists for an election source key."""
+    return source_key in SUPPORTED_ELECTION_SOURCES
+
+
 from civicos_extraction.clients.boarddocs import (
     BoardDocsClient,
     BoardDocsMeeting,

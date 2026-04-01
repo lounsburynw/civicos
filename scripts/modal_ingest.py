@@ -6309,10 +6309,13 @@ def scheduled_election_refresh():
         # Read election_sources from config
         election_sources = config.get("election_sources", {})
 
-        known_providers = {"civera_election_stats", "ca_sos_results", "ca_sos_ballot_preview"}
-        unknown = set(election_sources.keys()) - known_providers
-        if unknown:
-            logger.warning(f"  [{jid}] Unknown election source(s): {unknown} — skipped. Known: {known_providers}")
+        from civicos_extraction.clients import SUPPORTED_ELECTION_SOURCES
+        unsupported = set(election_sources.keys()) - SUPPORTED_ELECTION_SOURCES
+        if unsupported:
+            logger.info(
+                f"  [{jid}] Election source(s) without fetch clients: {unsupported}. "
+                f"Detected but not yet fetchable. Officials and deadlines still run."
+            )
 
         # --- Calendar-aware cadence gating ---
         cadence, days_until, nearest_date = determine_refresh_cadence(election_sources)

@@ -2196,11 +2196,26 @@ def onboard_jurisdiction(
         )
         config["election_sources"] = election_sources
         source_names = list(election_sources.keys())
-        districts = election_sources.get("ca_sos_results", {}).get("districts")
+        # Find districts from whichever SOS source was detected
+        districts = None
+        for _src_key, _src_config in election_sources.items():
+            if isinstance(_src_config, dict) and "districts" in _src_config:
+                districts = _src_config["districts"]
+                break
         if districts:
             _progress("election", f"Detected election sources: {source_names}, districts: {districts}")
         else:
             _progress("election", f"Detected election sources: {source_names}")
+        # Warn about sources that have no fetch client yet
+        from civicos_extraction.clients import SUPPORTED_ELECTION_SOURCES
+        unsupported_sources = [k for k in election_sources if k not in SUPPORTED_ELECTION_SOURCES]
+        if unsupported_sources:
+            _progress(
+                "election",
+                f"Note: {unsupported_sources} detected but no fetch client yet. "
+                f"Election results won't be fetched for these. "
+                f"Federal/state officials (Congress.gov, LegiScan) are not affected.",
+            )
 
     _progress("save", f"Saving config for {jurisdiction_id}...")
 
