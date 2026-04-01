@@ -1,8 +1,8 @@
 """
 Tests for the StateElectionProvider abstraction.
 
-Validates the provider registry, CaliforniaElectionProvider, and
-that unsupported states return empty results through the dispatcher.
+Validates the provider registry, CaliforniaElectionProvider,
+DefaultElectionProvider, and dispatcher integration.
 """
 
 import pytest
@@ -14,7 +14,7 @@ from civicos_extraction.providers import (
     _PROVIDERS,
 )
 from civicos_extraction.providers.california import CaliforniaElectionProvider
-from civicos_extraction.providers.texas import TexasElectionProvider
+from civicos_extraction.providers.default import DefaultElectionProvider
 
 
 # Auto-mock Civera validation (avoid network calls)
@@ -54,7 +54,7 @@ class TestProviderRegistry:
     def test_get_tx_provider(self):
         provider = get_provider("TX")
         assert provider is not None
-        assert isinstance(provider, TexasElectionProvider)
+        assert isinstance(provider, DefaultElectionProvider)
         assert provider.state_code == "TX"
 
     def test_get_tx_provider_case_insensitive(self):
@@ -62,8 +62,41 @@ class TestProviderRegistry:
         assert provider is not None
         assert provider.state_code == "TX"
 
+    def test_get_fl_provider(self):
+        provider = get_provider("FL")
+        assert provider is not None
+        assert isinstance(provider, DefaultElectionProvider)
+        assert provider.state_code == "FL"
+
+    def test_get_fl_provider_case_insensitive(self):
+        provider = get_provider("fl")
+        assert provider is not None
+        assert provider.state_code == "FL"
+
+    def test_get_ny_provider(self):
+        """NY has a StateElectionConfig — auto-gets a DefaultElectionProvider."""
+        provider = get_provider("NY")
+        assert provider is not None
+        assert isinstance(provider, DefaultElectionProvider)
+        assert provider.state_code == "NY"
+
+    def test_get_pa_provider(self):
+        """PA has a StateElectionConfig — auto-gets a DefaultElectionProvider."""
+        provider = get_provider("PA")
+        assert provider is not None
+        assert isinstance(provider, DefaultElectionProvider)
+        assert provider.state_code == "PA"
+
+    def test_get_il_provider(self):
+        """IL has a StateElectionConfig — auto-gets a DefaultElectionProvider."""
+        provider = get_provider("IL")
+        assert provider is not None
+        assert isinstance(provider, DefaultElectionProvider)
+        assert provider.state_code == "IL"
+
     def test_unsupported_state_returns_none(self):
-        assert get_provider("OR") is None
+        """States without StateElectionConfig get no provider."""
+        assert get_provider("GU") is None
         assert get_provider("ZZ") is None
 
     def test_empty_state_returns_none(self):
@@ -72,6 +105,11 @@ class TestProviderRegistry:
     def test_provider_is_cached(self):
         p1 = get_provider("CA")
         p2 = get_provider("CA")
+        assert p1 is p2
+
+    def test_default_provider_is_cached(self):
+        p1 = get_provider("TX")
+        p2 = get_provider("TX")
         assert p1 is p2
 
     def test_abc_not_instantiable(self):
@@ -158,40 +196,53 @@ class TestCaliforniaElectionProvider:
         assert "marin_registrar_results" not in result  # legacy key removed
 
 
-# --- TexasElectionProvider ---
+# --- DefaultElectionProvider (TX, FL, NY, PA, IL, etc.) ---
 
 
-class TestTexasElectionProvider:
-    """TX provider returns tx_sos_results for all Texas jurisdictions."""
+class TestDefaultElectionProvider:
+    """DefaultElectionProvider works for any state with a StateElectionConfig."""
 
-    def test_travis_county_city(self):
-        provider = TexasElectionProvider()
+    def test_tx_source_key(self):
+        provider = DefaultElectionProvider("TX")
         result = provider.detect_election_sources("city-austin", "travis")
+        assert "tx_sos_results" in result
         assert result["tx_sos_results"] == {"county": "travis", "county_breakdown": True}
 
-    def test_harris_county_city(self):
-        provider = TexasElectionProvider()
-        result = provider.detect_election_sources("city-houston", "harris")
-        assert result["tx_sos_results"] == {"county": "harris", "county_breakdown": True}
+    def test_fl_source_key(self):
+        provider = DefaultElectionProvider("FL")
+        result = provider.detect_election_sources("city-miami", "miami-dade")
+        assert "fl_sos_results" in result
+        assert result["fl_sos_results"] == {"county": "miami-dade", "county_breakdown": True}
 
-    def test_county_jurisdiction(self):
-        provider = TexasElectionProvider()
-        result = provider.detect_election_sources("county-bexar", "bexar")
-        assert result["tx_sos_results"] == {"county": "bexar", "county_breakdown": True}
+    def test_ny_source_key(self):
+        provider = DefaultElectionProvider("NY")
+        result = provider.detect_election_sources("city-new-york", "new york")
+        assert "ny_sos_results" in result
+        assert result["ny_sos_results"] == {"county": "new york", "county_breakdown": True}
+
+    def test_pa_source_key(self):
+        provider = DefaultElectionProvider("PA")
+        result = provider.detect_election_sources("city-philadelphia", "philadelphia")
+        assert "pa_sos_results" in result
+
+    def test_il_source_key(self):
+        provider = DefaultElectionProvider("IL")
+        result = provider.detect_election_sources("city-chicago", "cook")
+        assert "il_sos_results" in result
 
     def test_empty_county(self):
-        provider = TexasElectionProvider()
+        provider = DefaultElectionProvider("TX")
         result = provider.detect_election_sources("city-test", "")
         assert result["tx_sos_results"] == {"county": "", "county_breakdown": True}
 
     def test_always_county_breakdown_true(self):
-        """All TX counties use county_breakdown=True (no registrar APIs yet)."""
-        provider = TexasElectionProvider()
-        result = provider.detect_election_sources("city-dallas", "dallas")
-        assert result["tx_sos_results"]["county_breakdown"] is True
+        """Default provider always sets county_breakdown=True."""
+        provider = DefaultElectionProvider("FL")
+        result = provider.detect_election_sources("city-tampa", "hillsborough")
+        assert result["fl_sos_results"]["county_breakdown"] is True
 
     def test_with_lat_lng_adds_districts(self):
-        provider = TexasElectionProvider()
+        provider = DefaultElectionProvider("TX")
         mock_districts = {"us-rep": [21], "state-senate": [14], "state-assembly": [47]}
         with patch("civicos_extraction.onboard.detect_districts", return_value=mock_districts):
             result = provider.detect_election_sources(
@@ -200,17 +251,33 @@ class TestTexasElectionProvider:
         assert result["tx_sos_results"]["districts"] == mock_districts
 
     def test_without_lat_lng_no_districts(self):
-        provider = TexasElectionProvider()
-        result = provider.detect_election_sources("city-austin", "travis")
-        assert result["tx_sos_results"] == {"county": "travis", "county_breakdown": True}
+        provider = DefaultElectionProvider("FL")
+        result = provider.detect_election_sources("city-miami", "miami-dade")
+        assert result["fl_sos_results"] == {"county": "miami-dade", "county_breakdown": True}
 
     def test_no_ca_sources(self):
-        """TX provider never returns CA-specific sources."""
-        provider = TexasElectionProvider()
+        """Default provider never returns CA-specific sources."""
+        provider = DefaultElectionProvider("TX")
         result = provider.detect_election_sources("city-austin", "travis")
         assert "ca_sos_results" not in result
-        assert "marin_registrar_results" not in result  # legacy key removed
         assert "civera_election_stats" not in result
+
+    def test_no_cross_state_sources(self):
+        """FL provider doesn't return TX sources and vice versa."""
+        fl_provider = DefaultElectionProvider("FL")
+        fl_result = fl_provider.detect_election_sources("city-miami", "miami-dade")
+        assert "tx_sos_results" not in fl_result
+
+        tx_provider = DefaultElectionProvider("TX")
+        tx_result = tx_provider.detect_election_sources("city-austin", "travis")
+        assert "fl_sos_results" not in tx_result
+
+    def test_state_code_uppercased(self):
+        """State code is normalized to uppercase."""
+        provider = DefaultElectionProvider("ny")
+        assert provider.state_code == "NY"
+        result = provider.detect_election_sources("city-buffalo", "erie")
+        assert "ny_sos_results" in result
 
 
 # --- Dispatcher integration ---
@@ -231,7 +298,21 @@ class TestDispatcherIntegration:
         assert "tx_sos_results" in result
         assert result["tx_sos_results"]["county"] == "travis"
 
+    def test_fl_dispatches_to_provider(self):
+        from civicos_extraction.onboard import detect_election_sources
+        result = detect_election_sources("city-miami", "FL", "Miami-Dade")
+        assert "fl_sos_results" in result
+        assert result["fl_sos_results"]["county"] == "miami-dade"
+
+    def test_ny_dispatches_to_provider(self):
+        """NY auto-gets a DefaultElectionProvider via STATE_CONFIGS."""
+        from civicos_extraction.onboard import detect_election_sources
+        result = detect_election_sources("city-buffalo", "NY", "Erie")
+        assert "ny_sos_results" in result
+        assert result["ny_sos_results"]["county"] == "erie"
+
     def test_unsupported_state_returns_empty(self):
+        """States without StateElectionConfig return empty dict."""
         from civicos_extraction.onboard import detect_election_sources
         result = detect_election_sources("city-portland", "OR", "Multnomah")
         assert result == {}
