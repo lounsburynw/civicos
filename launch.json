@@ -1680,7 +1680,7 @@
       {
         "name": "election_coverage_monitoring",
         "description": "Monthly completeness report: count elections, contests, deadlines, officials per jurisdiction. Flag jurisdictions with zero data in any category. Output to logs or GitHub issue (like existing cron-failure alerts).",
-        "priority": 3,
+        "priority": 0,
         "status": "not_started",
         "files": [
           "scripts/modal_ingest.py"

@@ -1,48 +1,47 @@
-# Recommended: Election Cron Enrollment Validation
+# Recommended: Election Coverage Monitoring
 
-**Priority:** P0 (election_cron_enrollment_validation)
+**Priority:** P0 (election_coverage_monitoring)
 **Area:** election_coverage_lifecycle
-**Date:** 2026-03-31
+**Date:** 2026-04-01
 
 > This is recommended context from the previous session. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
 
 ## Context
 
-We just completed `calendar_aware_election_refresh` — the election cron now fires daily via GH Actions and uses `determine_refresh_cadence()` to gate per-jurisdiction (daily/weekly/monthly based on election proximity). We also consolidated `marin_registrar_results` into `civera_election_stats` across 15 configs.
+We completed the election cron enrollment pipeline over two sessions: calendar-aware refresh cadence, Marin consolidation, enrollment validation (require explicit `jurisdiction_id`, merge duplicates), officials refresh cron validation, and fixed 29 pre-existing test failures across the extraction suite. The election cron now reliably dispatches to all 26 jurisdictions with correct cadence gating.
 
-The cron dispatches to all jurisdictions returned by `get_active_jurisdictions()`. This next item validates that ALL jurisdiction types (school-*, college-*, county-*) are properly included and that new jurisdictions auto-enroll without manual steps.
+This next item adds observability: a monthly completeness report that flags jurisdictions with zero elections, contests, deadlines, or officials data — catching silent failures in the pipeline.
 
 ## What This Session Completed
 
-- Calendar-aware cadence gating in `scheduled_election_refresh()` (daily ≤7d, weekly 8-90d, monthly >90d)
-- Per-source gating: Civera monthly-only, CA SOS Results daily near election
-- Consolidated 15 Marin configs from `marin_registrar_results` → `civera_election_stats`
-- Updated provider, dispatcher, scheduler, and all tests (176 passing)
-- GH Actions cron switched from monthly to daily
-- 28 cadence tests, 20 smoke tests passing
+- Fixed `get_active_jurisdictions()`: require explicit `jurisdiction_id`, merge duplicate configs, exclude `civera_instances.json` (11 enrollment tests)
+- Validated officials refresh cron: Congress.gov monthly, derivation near elections, not gated by per-source logic (12 tests)
+- Fixed 29 pre-existing test failures: entity ID format updates, `civic.storage` → `civicos.storage` mock paths, missing `jsonschema` dep, stale `/tmp/test_chunks` files, ProudCity empty archives, Playwright skip guards, SAM.gov tolerance
+- Full extraction suite: 1130 passed, 12 skipped, 0 real failures
 
 ## Recommended Task
 
-Verify `get_active_jurisdictions()` includes all jurisdiction types in the election cron dispatch. Add a test confirming new jurisdictions with `election_sources` are auto-included.
-
-Currently `get_active_jurisdictions()` at `packages/civicos-extraction/src/civicos_extraction/config.py:108` scans `data/extraction/*.json` and skips files with `-schools` or `-districts` in the name. It includes `school-*`, `college-*`, `county-*`, `state-*` correctly (27 jurisdictions total). But there's no test asserting this invariant.
+Build a monthly election coverage completeness report. For each jurisdiction with `election_sources`, count elections, contests, deadlines, and officials. Flag any jurisdiction with zero data in any category. Output as structured logs and optionally as a GitHub issue (following the `cron-failure` pattern).
 
 ## Key Files
 
-- `packages/civicos-extraction/src/civicos_extraction/config.py:108` — `get_active_jurisdictions()` scans config dir
-- `packages/civicos-extraction/src/civicos_extraction/config.py:128` — skip filter for `-schools`/`-districts` supplementary files
-- `scripts/modal_ingest.py:6204` — `scheduled_election_refresh()` calls `get_active_jurisdictions()`
-- `scripts/modal_ingest.py:6092-6148` — `determine_refresh_cadence()` and `should_run_today()` helpers
-- `data/extraction/*.json` — 27 jurisdiction configs (10 city, 10 school, 5 county, 1 college, 1 state)
-- `packages/civicos-extraction/tests/test_election_refresh_cadence.py` — cadence test patterns
+- `scripts/modal_ingest.py:6176` — `scheduled_election_refresh()` already iterates all jurisdictions
+- `packages/civicos/src/civicos/storage/postgres_backend.py` — `get_elections()`, `get_election_deadlines()`, `get_elected_officials()` methods
+- `.github/workflows/cron-election-refresh.yml` — existing daily cron, could add monthly coverage check
+- `packages/civicos-extraction/src/civicos_extraction/config.py:108` — `get_active_jurisdictions()` (just fixed)
+- `packages/civicos-extraction/tests/test_election_cron_enrollment.py` — enrollment test patterns
+- `packages/civicos/src/civicos/_internal/elections/derive.py` — officials derivation
 
 ## Suggested Approach
 
-1. Write an integration test that loads `get_active_jurisdictions()` and asserts all expected prefix types are present (city, county, school, college, state)
-2. Assert no jurisdiction with `election_sources` in its config is excluded
-3. Assert supplementary files (`-schools`, `-districts`) are correctly excluded
-4. Verify that adding a new test config file with `election_sources` auto-enrolls it
-5. Check for edge cases: `civera_instances.json` and other non-jurisdiction configs that get loaded (note `city-civera_instances` appears in the scan — this is a bug)
+1. Add a `check_election_coverage()` function in `scripts/modal_ingest.py` that:
+   - Iterates `get_active_jurisdictions()` (only those with `election_sources`)
+   - For each, queries: election count, contest count, deadline count, officials count
+   - Returns structured report with per-jurisdiction status
+2. Add to `scheduled_election_refresh()` as a monthly step (1st of month only)
+3. If any jurisdiction has zero data in a category, log a warning
+4. Optionally create/update a GitHub issue with label `election-coverage` (follow `cron-failure` pattern in the workflow YAML)
+5. Write tests validating the coverage check logic
 
 ## Tests to Run
 
@@ -50,30 +49,24 @@ Currently `get_active_jurisdictions()` at `packages/civicos-extraction/src/civic
 # Smoke tests
 pytest packages/civicos/tests/test_civicos.py -q --override-ini="addopts="
 
-# Cadence tests (from this session)
+# Election enrollment + cadence + officials (from recent sessions)
+pytest packages/civicos-extraction/tests/test_election_cron_enrollment.py -q --override-ini="addopts="
 pytest packages/civicos-extraction/tests/test_election_refresh_cadence.py -q --override-ini="addopts="
-
-# Election detection tests
-pytest packages/civicos-extraction/tests/test_election_detection.py -q --override-ini="addopts="
+pytest packages/civicos-extraction/tests/test_officials_refresh_cron.py -q --override-ini="addopts="
 ```
 
 ## Success Criteria
 
-- [ ] Test validates all jurisdiction prefix types included in `get_active_jurisdictions()`
-- [ ] Test confirms auto-enrollment: new config with `election_sources` is auto-included
-- [ ] Fix `civera_instances.json` being loaded as `city-civera_instances` jurisdiction
-- [ ] No false exclusions from `-schools`/`-districts` skip filter
+- [ ] Coverage check function queries elections, contests, deadlines, officials per jurisdiction
+- [ ] Flags jurisdictions with zero data in any category
+- [ ] Integrated into monthly run (1st of month) within `scheduled_election_refresh()`
+- [ ] Structured log output with per-jurisdiction status
+- [ ] Tests validate coverage check logic with mock data
 - [ ] Smoke tests pass
-
-## Item Sequence After This
-
-| Next | Item | Est. |
-|------|------|------|
-| P2 | `officials_refresh_cron` | 0.5 session |
-| P3 | `election_coverage_monitoring` | 0.5 session |
 
 ## Notes
 
-- `city-civera_instances`, `city-ghost`, `city-test`, `city-warn` appear in `get_active_jurisdictions()` — these are non-jurisdiction config files that get incorrectly loaded. Cleaning these up would be a quick win.
-- The `-schools`/`-districts` skip filter is fragile — what if a real jurisdiction has those substrings? Consider a positive match (require `jurisdiction_id` field) instead.
-- Estimated ~0.5 session
+- The `PostgresBackend` already has `get_elections()`, `get_election_deadlines()`, etc. — use these, don't write raw SQL
+- Keep the report lightweight — it runs inside the existing cron, not as a separate workflow
+- `city-ghost`, `city-test`, `city-warn` are test configs with no `election_sources` — they won't appear in the coverage check
+- Estimated ~0.5-1 session
