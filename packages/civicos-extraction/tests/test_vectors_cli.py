@@ -40,8 +40,8 @@ class TestIncrementalIndexingSafety:
 
     @pytest.mark.unit
     @patch.dict("os.environ", {"DATABASE_URL": "postgres://test"})
-    @patch("civic.storage.pgvector_backend.PgVectorBackend")
-    @patch("civic.storage.get_storage_backend")
+    @patch("civicos.storage.pgvector_backend.PgVectorBackend")
+    @patch("civicos.storage.get_storage_backend")
     def test_incremental_mode_uses_upsert(self, mock_get_storage, MockPgVector):
         """Default (no --reindex) uses upsert via use_copy=False."""
         mock_backend = MagicMock()
@@ -73,8 +73,8 @@ class TestIncrementalIndexingSafety:
 
     @pytest.mark.unit
     @patch.dict("os.environ", {"DATABASE_URL": "postgres://test"})
-    @patch("civic.storage.pgvector_backend.PgVectorBackend")
-    @patch("civic.storage.get_storage_backend")
+    @patch("civicos.storage.pgvector_backend.PgVectorBackend")
+    @patch("civicos.storage.get_storage_backend")
     def test_reindex_matching_counts_proceeds(self, mock_get_storage, MockPgVector):
         """--reindex proceeds normally when counts match."""
         mock_backend = MagicMock()
@@ -107,8 +107,8 @@ class TestIncrementalIndexingSafety:
 
     @pytest.mark.unit
     @patch.dict("os.environ", {"DATABASE_URL": "postgres://test"})
-    @patch("civic.storage.pgvector_backend.PgVectorBackend")
-    @patch("civic.storage.get_storage_backend")
+    @patch("civicos.storage.pgvector_backend.PgVectorBackend")
+    @patch("civicos.storage.get_storage_backend")
     def test_reindex_delete_exceeds_create_fails_without_force(self, mock_get_storage, MockPgVector):
         """--reindex fails when delete > create without --force."""
         mock_backend = MagicMock()
@@ -141,8 +141,8 @@ class TestIncrementalIndexingSafety:
 
     @pytest.mark.unit
     @patch.dict("os.environ", {"DATABASE_URL": "postgres://test"})
-    @patch("civic.storage.pgvector_backend.PgVectorBackend")
-    @patch("civic.storage.get_storage_backend")
+    @patch("civicos.storage.pgvector_backend.PgVectorBackend")
+    @patch("civicos.storage.get_storage_backend")
     def test_reindex_force_proceeds_despite_mismatch(self, mock_get_storage, MockPgVector):
         """--reindex --force proceeds even when delete > create."""
         mock_backend = MagicMock()
@@ -175,8 +175,8 @@ class TestIncrementalIndexingSafety:
 
     @pytest.mark.unit
     @patch.dict("os.environ", {"DATABASE_URL": "postgres://test"})
-    @patch("civic.storage.pgvector_backend.PgVectorBackend")
-    @patch("civic.storage.get_storage_backend")
+    @patch("civicos.storage.pgvector_backend.PgVectorBackend")
+    @patch("civicos.storage.get_storage_backend")
     def test_reindex_uses_copy_mode(self, mock_get_storage, MockPgVector):
         """--reindex uses COPY mode (faster) since we've deleted existing vectors."""
         mock_backend = MagicMock()
@@ -206,8 +206,8 @@ class TestIncrementalIndexingSafety:
 
     @pytest.mark.unit
     @patch.dict("os.environ", {"DATABASE_URL": "postgres://test"})
-    @patch("civic.storage.pgvector_backend.PgVectorBackend")
-    @patch("civic.storage.get_storage_backend")
+    @patch("civicos.storage.pgvector_backend.PgVectorBackend")
+    @patch("civicos.storage.get_storage_backend")
     def test_incremental_skips_fully_indexed(self, mock_get_storage, MockPgVector):
         """Incremental mode skips corpus that is already fully indexed."""
         mock_backend = MagicMock()
