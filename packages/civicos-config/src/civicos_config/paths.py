@@ -26,9 +26,24 @@ def _find_repo_root() -> Path:
 
 
 # Use env vars when available (Modal sets these via image.env())
+_repo_root = None
+
+
+def _get_repo_root() -> Path:
+    global _repo_root
+    if _repo_root is None:
+        _repo_root = _find_repo_root()
+    return _repo_root
+
+
 _jurisdictions_env = os.environ.get("CIVICOS_JURISDICTIONS_DIR")
 if _jurisdictions_env:
     JURISDICTIONS_DIR = Path(_jurisdictions_env)
 else:
-    REPO_ROOT = _find_repo_root()
-    JURISDICTIONS_DIR = REPO_ROOT / "data" / "jurisdictions"
+    JURISDICTIONS_DIR = _get_repo_root() / "data" / "jurisdictions"
+
+_extraction_env = os.environ.get("CIVICOS_EXTRACTION_DIR")
+if _extraction_env:
+    EXTRACTION_DIR = Path(_extraction_env)
+else:
+    EXTRACTION_DIR = _get_repo_root() / "data" / "extraction"

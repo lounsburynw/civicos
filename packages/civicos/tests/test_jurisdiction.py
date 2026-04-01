@@ -77,7 +77,7 @@ class TestJurisdictionRegistry:
         assert isinstance(configs, dict)
         assert "san_rafael" in configs
         assert "berkeley" in configs
-        assert len(configs) >= 20  # We have at least 20 cities
+        assert len(configs) >= 40  # 29 hardcoded + auto-loaded from config files
 
     def test_all_jurisdiction_ids(self):
         """Get all registered jurisdiction IDs."""
@@ -370,3 +370,85 @@ class TestJurisdictionRegistryAliases:
             hyphenated = city_key.replace("_", "-")
             result = normalize_jurisdiction(hyphenated)
             assert result == config.jurisdiction_id, f"Failed for {city_key}"
+
+
+class TestAutoLoadedRegistry:
+    """Test that jurisdictions are auto-loaded from config files."""
+
+    def test_extraction_json_jurisdictions_registered(self):
+        """Jurisdictions with extraction JSON configs are auto-registered."""
+        # These have extraction JSONs but were NOT in the hardcoded registry
+        auto_loaded = [
+            "school-kentfield",
+            "school-novato",
+            "school-tamalpais",
+            "college-marin",
+            "city-sacramento",
+            "city-national-city",
+            "county-yolo",
+            "county-alameda",
+            "county-travis",
+            "state-california",
+        ]
+        for jid in auto_loaded:
+            assert JurisdictionRegistry.has_jurisdiction(jid), (
+                f"{jid} should be auto-registered from extraction config"
+            )
+
+    def test_auto_loaded_timezone_derived_from_state(self):
+        """Auto-loaded CA jurisdictions get America/Los_Angeles timezone."""
+        ca_jurisdictions = [
+            "school-kentfield",
+            "college-marin",
+            "county-yolo",
+        ]
+        for jid in ca_jurisdictions:
+            tz = JurisdictionRegistry.get_timezone(jid)
+            assert tz == "America/Los_Angeles", (
+                f"{jid} should have CA timezone, got {tz}"
+            )
+
+    def test_auto_loaded_display_name_derived(self):
+        """Auto-loaded jurisdictions have derived display names."""
+        cases = {
+            "school-kentfield": "Kentfield",
+            "county-yolo": "Yolo County",
+            "college-marin": "Marin",
+            "city-sacramento": "Sacramento",
+        }
+        for jid, expected in cases.items():
+            dn = JurisdictionRegistry.get_display_name(jid)
+            assert dn == expected, f"{jid}: expected '{expected}', got '{dn}'"
+
+    def test_hardcoded_entries_preserved(self):
+        """Hardcoded entries retain their exact values after merge."""
+        sr = JurisdictionRegistry.get("san_rafael")
+        assert sr.agent_type == "san_rafael_cms"
+        assert sr.wiki_files  # non-empty tuple from hardcoded
+        assert "cityofsanrafael.org" in sr.domains
+
+        dublin = JurisdictionRegistry.get("dublin")
+        assert dublin.granicus_config is not None
+        assert dublin.granicus_config.subdomain == "dublin"
+        assert dublin.granicus_config.view_id == 1
+
+    def test_hardcoded_count_preserved(self):
+        """All 29 hardcoded jurisdictions are still present."""
+        hardcoded_ids = [
+            "city-san-rafael", "school-san-rafael", "city-berkeley",
+            "city-mill-valley", "city-san-anselmo", "county-marin",
+            "city-santa-rosa", "city-hayward", "city-oakland",
+            "county-sonoma", "city-napa", "bart",
+        ]
+        for jid in hardcoded_ids:
+            assert JurisdictionRegistry.has_jurisdiction(jid), (
+                f"Hardcoded {jid} should still be registered"
+            )
+
+    def test_normalize_auto_loaded_jurisdictions(self):
+        """Auto-loaded jurisdictions pass normalize_jurisdiction."""
+        # These previously failed with JurisdictionError
+        assert normalize_jurisdiction("school-kentfield") == "school-kentfield"
+        assert normalize_jurisdiction("college-marin") == "college-marin"
+        assert normalize_jurisdiction("county-yolo") == "county-yolo"
+        assert normalize_jurisdiction("city-national-city") == "city-national-city"
