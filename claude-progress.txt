@@ -24625,3 +24625,16 @@ calendar tests + 20 smoke tests all pass. Zero behavior change for CA.
 - Updated 4 test files for Marin consolidation (176 total tests passing)
 - Smoke tests 20/20
 - Next P0: election_cron_enrollment_validation
+
+## 2026-03-31: Election Cron Enrollment Validation (P0) — DONE
+- Fixed `get_active_jurisdictions()` in `config.py:108`:
+  - Require explicit `jurisdiction_id` — skip registry files like `civera_instances.json`
+  - Merge duplicate configs (e.g., `san-rafael.json` + `city-san-rafael.json`) instead of overwriting
+  - Sort glob results for deterministic merge order
+- `civera_instances.json` no longer loads as bogus `city-civera_instances` jurisdiction
+- `city-san-rafael` now merges `financial`+`federal_programs` from legacy config with `election_sources` from new config
+- Wrote `test_election_cron_enrollment.py` (11 tests):
+  - 6 live tests: prefix types, civera exclusion, supplementary exclusion, election_sources enrollment, merge validation, id uniqueness
+  - 5 isolated tests: auto-enrollment, registry exclusion, supplementary skip, new jurisdiction auto-enrolls, merge mechanics
+- All tests pass: 11 enrollment + 28 cadence + 63 election detection + 20 smoke = 122 total
+- Next P0: TBD

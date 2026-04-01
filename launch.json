@@ -1647,7 +1647,7 @@
         "name": "election_cron_enrollment_validation",
         "description": "Verify get_active_jurisdictions() includes all jurisdiction types (school-*, college-*, county-*) in the election cron dispatch. Add test confirming new jurisdictions with election_sources are auto-included without manual enrollment.",
         "priority": 0,
-        "status": "not_started",
+        "status": "done",
         "files": [
           "packages/civicos-extraction/src/civicos_extraction/config.py"
         ],
