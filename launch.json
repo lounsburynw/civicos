@@ -1772,7 +1772,7 @@
         "name": "officials_refresh_cron",
         "description": "Add elected officials refresh to GitHub Actions cron. After election results are ingested, re-derive current officials from winners. Also refresh Congress.gov data monthly. Ensures officials roster stays current after elections.",
         "priority": 2,
-        "status": "not_started",
+        "status": "done",
         "files": [
           ".github/workflows/cron-election-refresh.yml",
           "scripts/modal_ingest.py"
