@@ -24708,3 +24708,24 @@ calendar tests + 20 smoke tests all pass. Zero behavior change for CA.
 - 23 election tests pass
 - 20 smoke tests pass
 - Manual verification of key stripping and None guard
+
+### Config-Driven Jurisdiction Registry (same session)
+- Replaced hardcoded `_REGISTRY` (29 entries) with lazy-loading from config files
+- Registry now auto-discovers jurisdictions from:
+  1. `data/extraction/*.json` (27 unique jurisdiction_ids)
+  2. `data/jurisdictions/*.yaml` (10 files)
+  3. Hardcoded entries (preserved as enrichment layer for wiki_files, cost_efficiency_target, etc.)
+- Total registered: 50 jurisdictions (up from 29)
+- Derived fields: timezone (from state), display_name, hall_name, domains
+- Added suffix-based normalization: "yolo-county" → "county-yolo"
+- Removed redundant registry validation guard from scheduled_election_refresh()
+- 55 jurisdiction tests pass (49 existing + 6 new)
+- 23 election tests pass, 20 smoke tests pass
+
+### Files Changed
+- `packages/civicos-config/src/civicos_config/paths.py` — added EXTRACTION_DIR
+- `packages/civicos-config/src/civicos_config/jurisdiction.py` — lazy-loading registry with merge logic
+- `packages/civicos-config/src/civicos_config/__init__.py` — export EXTRACTION_DIR
+- `packages/civicos/src/civicos/_internal/jurisdiction.py` — suffix-based normalization
+- `packages/civicos/tests/test_jurisdiction.py` — 6 new auto-loading tests
+- `scripts/modal_ingest.py` — removed redundant registry guard

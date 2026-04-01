@@ -4,10 +4,27 @@ Jurisdiction Registry - Centralized jurisdiction configuration management.
 This module provides a single source of truth for all jurisdiction-related
 configuration including timezone mappings, agent types, meeting URLs, and
 contact information.
+
+Registry entries are loaded from three sources (merged in this order):
+1. Extraction configs (data/extraction/*.json) — minimal: jurisdiction_id, source_type
+2. Jurisdiction YAMLs (data/jurisdictions/*.yaml) — rich: display_name, contact, etc.
+3. Hardcoded entries below — richest: wiki_files, cost_efficiency_target, granicus_config
+
+Fields not in config files are derived automatically:
+- timezone: from state code (CA → America/Los_Angeles)
+- display_name: from jurisdiction_id (city-san-rafael → "San Rafael")
+- hall_name: from display_name + level suffix
+- domains: from website URL
 """
 
+import json as _json_mod
+import logging
+import re as _re
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Dict, List, Optional, Tuple
+
+_logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -55,10 +72,258 @@ class JurisdictionConfig:
 
 
 # ============================================================================
-# JURISDICTION REGISTRY DATA
+# AUTO-LOADING HELPERS
 # ============================================================================
 
-_REGISTRY: Dict[str, JurisdictionConfig] = {
+_STATE_TO_TIMEZONE: Dict[str, str] = {
+    "CA": "America/Los_Angeles",
+    "WA": "America/Los_Angeles",
+    "OR": "America/Los_Angeles",
+    "NV": "America/Los_Angeles",
+    "HI": "Pacific/Honolulu",
+    "AK": "America/Anchorage",
+    "TX": "America/Chicago",
+    "IL": "America/Chicago",
+    "NY": "America/New_York",
+    "FL": "America/New_York",
+    "PA": "America/New_York",
+    "AZ": "America/Phoenix",
+    "CO": "America/Denver",
+    "MT": "America/Denver",
+}
+
+
+def _derive_display_name(jurisdiction_id: str) -> str:
+    """Derive human-readable display name from jurisdiction_id."""
+    name = jurisdiction_id
+    is_county = name.startswith("county-")
+    for prefix in ("city-", "county-", "school-", "college-", "state-", "country-"):
+        if name.startswith(prefix):
+            name = name[len(prefix):]
+            break
+    display = name.replace("-", " ").title()
+    if is_county:
+        display = f"{display} County"
+    return display
+
+
+def _derive_city_key(jurisdiction_id: str) -> str:
+    """Derive the registry-style key from jurisdiction_id.
+
+    city-san-rafael → san_rafael
+    county-marin → marin_county
+    school-kentfield → school_kentfield
+    bart → bart
+    """
+    if jurisdiction_id.startswith("city-"):
+        return jurisdiction_id[5:].replace("-", "_")
+    if jurisdiction_id.startswith("county-"):
+        return jurisdiction_id[7:].replace("-", "_") + "_county"
+    for prefix in ("school-", "college-", "state-", "country-"):
+        if jurisdiction_id.startswith(prefix):
+            tag = prefix.rstrip("-")
+            slug = jurisdiction_id[len(prefix):].replace("-", "_")
+            return f"{tag}_{slug}"
+    return jurisdiction_id.replace("-", "_")
+
+
+def _resolve_state(yaml_data: Optional[dict], json_data: Optional[dict]) -> str:
+    """Resolve state abbreviation from available config data."""
+    if yaml_data:
+        state = (yaml_data.get("financial") or {}).get("state", "")
+        if state:
+            return state
+    if json_data:
+        state = json_data.get("state", "")
+        if state:
+            return state
+        state = (json_data.get("metadata") or {}).get("state", "")
+        if state:
+            return state
+        if json_data.get("election_sources", {}).get("ca_sos_results"):
+            return "CA"
+    return ""
+
+
+def _merge_configs(base: "JurisdictionConfig", overlay: "JurisdictionConfig") -> "JurisdictionConfig":
+    """Merge two configs. Overlay wins for non-default fields."""
+    return JurisdictionConfig(
+        jurisdiction_id=overlay.jurisdiction_id,
+        agent_type=overlay.agent_type if overlay.agent_type != "standard" else base.agent_type,
+        meeting_urls=overlay.meeting_urls if overlay.meeting_urls else base.meeting_urls,
+        timezone=overlay.timezone if overlay.timezone != "UTC" else base.timezone,
+        contact_email=overlay.contact_email or base.contact_email,
+        website=overlay.website or base.website,
+        meeting_calendar_url=overlay.meeting_calendar_url or base.meeting_calendar_url,
+        cost_efficiency_target=(
+            overlay.cost_efficiency_target
+            if overlay.cost_efficiency_target is not None
+            else base.cost_efficiency_target
+        ),
+        granicus_config=overlay.granicus_config or base.granicus_config,
+        display_name=overlay.display_name or base.display_name,
+        hall_name=overlay.hall_name or base.hall_name,
+        domains=overlay.domains if overlay.domains else base.domains,
+        wiki_files=overlay.wiki_files if overlay.wiki_files else base.wiki_files,
+    )
+
+
+def _load_from_files() -> Dict[str, "JurisdictionConfig"]:
+    """Scan YAML and extraction JSON files to build registry entries."""
+    from civicos_config.paths import JURISDICTIONS_DIR, EXTRACTION_DIR
+
+    yaml_by_jid: Dict[str, dict] = {}
+    json_by_jid: Dict[str, dict] = {}
+
+    # Load jurisdiction YAMLs
+    if JURISDICTIONS_DIR.exists():
+        try:
+            import yaml
+        except ImportError:
+            yaml = None  # type: ignore
+        if yaml:
+            for path in sorted(JURISDICTIONS_DIR.glob("*.yaml")):
+                if path.name == "schema.yaml":
+                    continue
+                try:
+                    data = yaml.safe_load(path.read_text())
+                    if data and data.get("jurisdiction_id"):
+                        yaml_by_jid[data["jurisdiction_id"]] = data
+                except Exception:
+                    pass
+
+    # Load extraction JSONs
+    if EXTRACTION_DIR.exists():
+        for path in sorted(EXTRACTION_DIR.glob("*.json")):
+            if path.name.startswith("."):
+                continue
+            try:
+                data = _json_mod.loads(path.read_text())
+                jid = data.get("jurisdiction_id")
+                if jid and jid not in json_by_jid:
+                    json_by_jid[jid] = data
+            except Exception:
+                pass
+
+    # Build JurisdictionConfig for each unique jurisdiction_id
+    all_jids = set(yaml_by_jid.keys()) | set(json_by_jid.keys())
+    result: Dict[str, JurisdictionConfig] = {}
+
+    for jid in all_jids:
+        yd = yaml_by_jid.get(jid)
+        jd = json_by_jid.get(jid)
+
+        state = _resolve_state(yd, jd)
+        timezone = _STATE_TO_TIMEZONE.get(state.upper(), "UTC") if state else "UTC"
+        display_name = ""
+        hall_name = ""
+        agent_type = "standard"
+        meeting_urls: List[str] = []
+        contact_email = ""
+        website = ""
+        meeting_calendar_url = ""
+        domains: Tuple[str, ...] = ()
+
+        if yd:
+            display_name = yd.get("display_name", "")
+            contact = yd.get("contact_info") or {}
+            contact_email = contact.get("clerk_email", "") or ""
+            website = contact.get("website", "") or ""
+            governing = yd.get("governing_body") or {}
+            hall_name = governing.get("meeting_location", "") or ""
+            meetings = (yd.get("data_sources") or {}).get("meetings") or {}
+            if meetings.get("source_type"):
+                agent_type = meetings["source_type"]
+            if meetings.get("base_url"):
+                meeting_urls = [meetings["base_url"]]
+                meeting_calendar_url = meetings["base_url"]
+
+        if jd:
+            if agent_type == "standard" and jd.get("source_type"):
+                agent_type = jd["source_type"]
+            if not meeting_urls and jd.get("base_url"):
+                meeting_urls = [jd["base_url"]]
+            if not meeting_calendar_url and jd.get("base_url"):
+                meeting_calendar_url = jd["base_url"]
+
+        if not display_name:
+            display_name = _derive_display_name(jid)
+        if not hall_name and display_name:
+            if jid.startswith("county-"):
+                hall_name = f"{display_name} Administration Building"
+            elif jid.startswith(("school-", "college-")):
+                hall_name = f"{display_name} Board Room"
+            else:
+                hall_name = f"{display_name} City Hall"
+
+        if website and not domains:
+            domain = _re.sub(r"https?://(?:www\.)?", "", website).rstrip("/")
+            if domain:
+                domains = (domain,)
+
+        city_key = _derive_city_key(jid)
+        result[city_key] = JurisdictionConfig(
+            jurisdiction_id=jid,
+            agent_type=agent_type,
+            meeting_urls=meeting_urls,
+            timezone=timezone,
+            contact_email=contact_email,
+            website=website,
+            meeting_calendar_url=meeting_calendar_url,
+            display_name=display_name,
+            hall_name=hall_name,
+            domains=domains,
+        )
+
+    return result
+
+
+# ============================================================================
+# LAZY-LOADING REGISTRY CACHE
+# ============================================================================
+
+_cached_registry: Optional[Dict[str, "JurisdictionConfig"]] = None
+_cached_id_to_key: Optional[Dict[str, str]] = None
+
+
+def _get_registry() -> Dict[str, "JurisdictionConfig"]:
+    """Get the merged registry, loading from files on first access."""
+    global _cached_registry, _cached_id_to_key
+    if _cached_registry is not None:
+        return _cached_registry
+
+    try:
+        file_entries = _load_from_files()
+    except Exception:
+        file_entries = {}
+
+    merged = dict(file_entries)
+    for key, hardcoded_config in _HARDCODED_REGISTRY.items():
+        if key in merged:
+            merged[key] = _merge_configs(merged[key], hardcoded_config)
+        else:
+            merged[key] = hardcoded_config
+
+    _cached_registry = merged
+    _cached_id_to_key = {
+        config.jurisdiction_id: key for key, config in merged.items()
+    }
+    return _cached_registry
+
+
+def _get_id_to_key() -> Dict[str, str]:
+    """Get the jurisdiction_id → city_key reverse lookup."""
+    global _cached_id_to_key
+    if _cached_id_to_key is None:
+        _get_registry()
+    return _cached_id_to_key  # type: ignore
+
+
+# ============================================================================
+# HARDCODED REGISTRY DATA (enrichment layer — file-based entries are the base)
+# ============================================================================
+
+_HARDCODED_REGISTRY: Dict[str, JurisdictionConfig] = {
     # ---------- San Rafael (pilot city) ----------
     "san_rafael": JurisdictionConfig(
         jurisdiction_id="city-san-rafael",
@@ -381,12 +646,6 @@ _REGISTRY: Dict[str, JurisdictionConfig] = {
     ),
 }
 
-# Build reverse lookup from jurisdiction_id to city key
-_JURISDICTION_ID_TO_KEY: Dict[str, str] = {
-    config.jurisdiction_id: key for key, config in _REGISTRY.items()
-}
-
-
 class JurisdictionRegistry:
     """
     Centralized registry for jurisdiction configuration.
@@ -412,7 +671,7 @@ class JurisdictionRegistry:
         Returns:
             JurisdictionConfig or None if not found
         """
-        return _REGISTRY.get(city_key)
+        return _get_registry().get(city_key)
 
     @classmethod
     def get_by_id(cls, jurisdiction_id: str) -> Optional[JurisdictionConfig]:
@@ -425,9 +684,9 @@ class JurisdictionRegistry:
         Returns:
             JurisdictionConfig or None if not found
         """
-        city_key = _JURISDICTION_ID_TO_KEY.get(jurisdiction_id)
+        city_key = _get_id_to_key().get(jurisdiction_id)
         if city_key:
-            return _REGISTRY.get(city_key)
+            return _get_registry().get(city_key)
         return None
 
     @classmethod
@@ -471,7 +730,7 @@ class JurisdictionRegistry:
         Returns:
             Dictionary of city_key -> JurisdictionConfig
         """
-        return dict(_REGISTRY)
+        return dict(_get_registry())
 
     @classmethod
     def all_jurisdiction_ids(cls) -> List[str]:
@@ -481,7 +740,7 @@ class JurisdictionRegistry:
         Returns:
             List of jurisdiction IDs
         """
-        return [config.jurisdiction_id for config in _REGISTRY.values()]
+        return [config.jurisdiction_id for config in _get_registry().values()]
 
     @classmethod
     def has_jurisdiction(cls, jurisdiction_id: str) -> bool:
@@ -494,7 +753,7 @@ class JurisdictionRegistry:
         Returns:
             True if registered, False otherwise
         """
-        return jurisdiction_id in _JURISDICTION_ID_TO_KEY
+        return jurisdiction_id in _get_id_to_key()
 
     @classmethod
     def get_by_domain(cls, domain: str) -> Optional[JurisdictionConfig]:
@@ -508,7 +767,7 @@ class JurisdictionRegistry:
             JurisdictionConfig or None if not found
         """
         domain_lower = domain.lower()
-        for config in _REGISTRY.values():
+        for config in _get_registry().values():
             if any(d.lower() in domain_lower or domain_lower in d.lower()
                    for d in config.domains):
                 return config
@@ -592,13 +851,23 @@ class JurisdictionRegistry:
             Jurisdiction ID or None if not found
         """
         location_lower = location_mention.lower().strip()
-        for config in _REGISTRY.values():
+        for config in _get_registry().values():
             if config.display_name and config.display_name.lower() == location_lower:
                 return config.jurisdiction_id
             # Also check partial matches for multi-word names
             if config.display_name and location_lower in config.display_name.lower():
                 return config.jurisdiction_id
         return None
+
+    @classmethod
+    def reload(cls) -> None:
+        """Force re-scan of config files. Primarily for testing."""
+        global _cached_registry, _cached_id_to_key
+        _cached_registry = None
+        _cached_id_to_key = None
+        # Also clear CITY_CONFIGS cache
+        if hasattr(CITY_CONFIGS, "_cache"):
+            CITY_CONFIGS._cache = None
 
 
 # ============================================================================
@@ -629,7 +898,52 @@ def _config_to_dict(config: JurisdictionConfig) -> Dict:
     return result
 
 
+class _LazyCityConfigs(dict):
+    """Lazy dict that builds from registry on first access."""
+
+    def _ensure_loaded(self):
+        if not super().__len__():
+            data = {
+                key: _config_to_dict(config)
+                for key, config in _get_registry().items()
+            }
+            super().update(data)
+
+    def __getitem__(self, key):
+        self._ensure_loaded()
+        return super().__getitem__(key)
+
+    def __contains__(self, key):
+        self._ensure_loaded()
+        return super().__contains__(key)
+
+    def __iter__(self):
+        self._ensure_loaded()
+        return super().__iter__()
+
+    def __len__(self):
+        self._ensure_loaded()
+        return super().__len__()
+
+    def items(self):
+        self._ensure_loaded()
+        return super().items()
+
+    def keys(self):
+        self._ensure_loaded()
+        return super().keys()
+
+    def values(self):
+        self._ensure_loaded()
+        return super().values()
+
+    def get(self, key, default=None):
+        self._ensure_loaded()
+        return super().get(key, default)
+
+    # For reload support
+    _cache = None
+
+
 # Legacy CITY_CONFIGS dict for backward compatibility
-CITY_CONFIGS: Dict[str, Dict] = {
-    key: _config_to_dict(config) for key, config in _REGISTRY.items()
-}
+CITY_CONFIGS = _LazyCityConfigs()

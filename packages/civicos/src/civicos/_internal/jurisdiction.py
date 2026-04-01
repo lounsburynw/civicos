@@ -187,6 +187,15 @@ def normalize_jurisdiction(jurisdiction_id: str, strict: bool = True) -> str:
     if JurisdictionRegistry.has_jurisdiction(candidate):
         return candidate
 
+    # Try suffix-based inference: "yolo-county" → "county-yolo", "kentfield-school" → "school-kentfield"
+    for suffix in ("-county", "-school", "-college"):
+        if normalized.endswith(suffix):
+            prefix = suffix.lstrip("-")
+            base = normalized[: -len(suffix)]
+            candidate = f"{prefix}-{base}"
+            if JurisdictionRegistry.has_jurisdiction(candidate):
+                return candidate
+
     # Check for special jurisdiction IDs without prefix (e.g., "bart", "sonoma-county")
     if JurisdictionRegistry.has_jurisdiction(normalized):
         return normalized
