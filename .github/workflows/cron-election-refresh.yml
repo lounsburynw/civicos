@@ -1,19 +1,20 @@
-# Election & Officials Refresh (monthly)
+# Election & Officials Refresh (calendar-aware, daily trigger)
 #
-# Triggers Modal function for monthly election and elected officials data refresh.
-# Sources: Google Civic Information API, Congress.gov, LegiScan, curated local data.
+# Triggers Modal function daily. The function itself decides what to run based on
+# proximity to known election dates (daily/weekly/monthly cadence per jurisdiction).
+# Most daily runs are no-ops for jurisdictions without upcoming elections.
 #
-# Replaces Modal cron: "0 3 1 * *" (monthly 1st 3 AM UTC / prev day 7 PM Pacific)
+# Sources: Civera ElectionStats, CA SOS, Congress.gov, LegiScan, curated local data.
 #
 # Triggers:
-#   - Monthly on 1st at 3:00 AM UTC (previous day 7:00 PM Pacific)
+#   - Daily at 3:00 AM UTC (previous day 7:00 PM Pacific)
 #   - Manual trigger via workflow_dispatch
 
 name: "Cron: Election Refresh"
 
 on:
   schedule:
-    - cron: '0 3 1 * *'
+    - cron: '0 3 * * *'
   workflow_dispatch:
 
 permissions:
@@ -60,10 +61,10 @@ jobs:
 
             **Workflow:** Election Refresh
             **Time:** ${new Date().toISOString()}
-            **Schedule:** Monthly 1st 3 AM UTC (prev day 7 PM Pacific)
+            **Schedule:** Daily 3 AM UTC (prev day 7 PM Pacific)
 
-            The scheduled election and officials data refresh failed. This affects:
-            - Election data (Google Civic Information API)
+            The calendar-aware election refresh failed. This affects:
+            - Election data (Civera ElectionStats, CA SOS)
             - Federal representatives (Congress.gov)
             - State legislators (LegiScan)
 

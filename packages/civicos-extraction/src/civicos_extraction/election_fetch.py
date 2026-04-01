@@ -54,13 +54,6 @@ def fetch_elections_for_jurisdiction(
             jurisdiction_id, election_sources["civera_election_stats"], backend
         )
 
-    # --- Marin Registrar (legacy) ---
-    if "marin_registrar_results" in election_sources:
-        # Legacy alias — Civera client handles Marin too
-        results["marin_registrar_results"] = _fetch_marin_legacy(
-            jurisdiction_id, election_sources["marin_registrar_results"], backend
-        )
-
     # --- CA Secretary of State ---
     if "ca_sos_results" in election_sources:
         results["ca_sos_results"] = _fetch_ca_sos(
@@ -139,44 +132,6 @@ def _fetch_civera(
         }
     except Exception as e:
         logger.warning(f"  [{jurisdiction_id}] Civera fetch failed: {e}")
-        return {"status": "failed", "error": str(e)}
-
-
-def _fetch_marin_legacy(
-    jurisdiction_id: str, config: Any, backend: Any,
-) -> Dict[str, Any]:
-    """Fetch from Marin Registrar (legacy config — routes through Civera client)."""
-    try:
-        from civicos_extraction.clients.marin_registrar import (
-            MarinRegistrarResultsClient,
-            extract_marin_results_to_storage,
-        )
-
-        if config is True:
-            config = {}
-
-        from_year = config.get("from_year", 2010)
-        division_filter = config.get("division_filter", "")
-
-        logger.info(f"  [{jurisdiction_id}] Fetching elections (Marin legacy)...")
-
-        client = MarinRegistrarResultsClient(jurisdiction_id=jurisdiction_id)
-        counts = extract_marin_results_to_storage(
-            client=client,
-            storage=backend,
-            jurisdiction_id=jurisdiction_id,
-            from_year=from_year,
-            division_filter=division_filter or None,
-        )
-
-        logger.info(f"    Marin legacy: {counts.get('elections', 0)} elections stored")
-        return {
-            "status": "completed",
-            "elections_stored": counts.get("elections", 0),
-            "contests_stored": counts.get("contests", 0),
-        }
-    except Exception as e:
-        logger.warning(f"  [{jurisdiction_id}] Marin legacy fetch failed: {e}")
         return {"status": "failed", "error": str(e)}
 
 
