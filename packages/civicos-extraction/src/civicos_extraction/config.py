@@ -110,8 +110,12 @@ def get_active_jurisdictions() -> Dict[str, Dict[str, Any]]:
     Get all active jurisdiction configurations.
 
     Scans the config directory for *.json files and loads each one.
-    Excludes files that don't have a jurisdiction_id or are supplementary
-    configs (like school districts).
+    Requires an explicit ``jurisdiction_id`` field — files without one
+    (e.g. ``civera_instances.json``) are skipped.  Supplementary configs
+    whose filenames contain ``-schools`` or ``-districts`` are also skipped.
+
+    When multiple files map to the same jurisdiction_id, their configs
+    are merged (later file values win on key conflicts).
 
     Returns:
         Dict mapping jurisdiction_id to config dict
@@ -123,7 +127,7 @@ def get_active_jurisdictions() -> Dict[str, Dict[str, Any]]:
         logger.warning(f"Config directory not found: {config_dir}")
         return jurisdictions
 
-    for config_file in config_dir.glob("*.json"):
+    for config_file in sorted(config_dir.glob("*.json")):
         # Skip supplementary configs (e.g., san-rafael-schools.json)
         if "-schools" in config_file.name or "-districts" in config_file.name:
             continue
@@ -132,18 +136,16 @@ def get_active_jurisdictions() -> Dict[str, Dict[str, Any]]:
             with open(config_file) as f:
                 config = json.load(f)
 
-            # Must have jurisdiction_id or be derivable from filename
+            # Require explicit jurisdiction_id — skip registry/utility files
             jid = config.get("jurisdiction_id")
             if not jid:
-                # Derive from filename: san-rafael.json -> city-san-rafael
-                name = config_file.stem
-                if not name.startswith(("city-", "county-", "state-")):
-                    jid = f"city-{name}"
-                else:
-                    jid = name
-                config["jurisdiction_id"] = jid
+                continue
 
-            jurisdictions[jid] = config
+            # Merge when multiple files share the same jurisdiction_id
+            if jid in jurisdictions:
+                jurisdictions[jid].update(config)
+            else:
+                jurisdictions[jid] = config
 
         except Exception as e:
             logger.warning(f"Error loading {config_file}: {e}")
