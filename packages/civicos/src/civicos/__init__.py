@@ -70,6 +70,9 @@ from civicos.diagnostics import (
 # Jurisdiction registry (centralized config)
 from civicos.jurisdiction import JurisdictionRegistry, JurisdictionConfig, CITY_CONFIGS
 
+# Election config (state-level election rules)
+from civicos._internal.elections.state_config import supported_states
+
 # Runtime configuration (turnkey deployment)
 from civicos.config import CivicOSConfig, PeerConfig, ExtractorConfig, load_config
 

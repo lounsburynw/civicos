@@ -91,10 +91,7 @@ def _create_provider(state_code: str) -> None:
         return
 
     # Any state with a StateElectionConfig gets a DefaultElectionProvider
-    try:
-        from civicos._internal.elections.state_config import STATE_CONFIGS
-        if state_code in STATE_CONFIGS:
-            from civicos_extraction.providers.default import DefaultElectionProvider
-            _PROVIDERS[state_code] = DefaultElectionProvider(state_code)
-    except ImportError:
-        logger.warning(f"Could not import STATE_CONFIGS — no provider for {state_code}")
+    from civicos import supported_states
+    if state_code in supported_states():
+        from civicos_extraction.providers.default import DefaultElectionProvider
+        _PROVIDERS[state_code] = DefaultElectionProvider(state_code)
