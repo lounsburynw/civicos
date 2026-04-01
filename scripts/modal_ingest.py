@@ -6291,6 +6291,7 @@ def scheduled_election_refresh():
     from civicos.storage.postgres_backend import PostgresBackend
     from civicos._internal.elections.deadlines import generate_deadlines
     from civicos._internal.elections.derive import derive_officials_from_contests
+    from civicos._internal.jurisdiction import normalize_jurisdiction, JurisdictionError
     from civicos_extraction.config import get_active_jurisdictions
 
     database_url = os.environ.get("DATABASE_URL")
@@ -6305,6 +6306,15 @@ def scheduled_election_refresh():
 
     for jid, config in jurisdictions.items():
         results[jid] = {}
+
+        # Validate jurisdiction is in the registry before processing
+        try:
+            normalize_jurisdiction(jid, strict=True)
+        except JurisdictionError:
+            logger.warning(f"  [{jid}] Not in jurisdiction registry — skipping election refresh. "
+                           f"Add to registry or remove election_sources from extraction config.")
+            results[jid] = {"status": "skipped", "reason": "not_in_registry"}
+            continue
 
         # Read election_sources from config
         election_sources = config.get("election_sources", {})

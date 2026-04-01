@@ -64,7 +64,7 @@ jobs:
   index:
     name: ${{ matrix.name }}
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 45
 
     strategy:
       fail-fast: false  # Continue other jobs even if one fails
