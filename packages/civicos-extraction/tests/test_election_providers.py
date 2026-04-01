@@ -89,20 +89,22 @@ class TestCaliforniaElectionProvider:
         provider = CaliforniaElectionProvider()
         result = provider.detect_election_sources("city-san-rafael", "marin")
         assert result["ca_sos_results"] == {"county": "marin", "county_breakdown": False}
-        assert result["marin_registrar_results"]["from_year"] == 2010
-        assert result["marin_registrar_results"]["division_filter"] == "San Rafael"
+        assert result["civera_election_stats"]["county_slug"] == "marin"
+        assert result["civera_election_stats"]["from_year"] == 2010
+        assert result["civera_election_stats"]["division_filter"] == "San Rafael"
 
     def test_marin_county(self):
         provider = CaliforniaElectionProvider()
         result = provider.detect_election_sources("county-marin", "marin")
         assert result["ca_sos_results"] == {"county": "marin", "county_breakdown": False}
-        assert result["marin_registrar_results"]["division_filter"] == "Marin County"
+        assert result["civera_election_stats"]["county_slug"] == "marin"
+        assert result["civera_election_stats"]["division_filter"] == "Marin County"
 
     def test_non_civera_county(self):
         provider = CaliforniaElectionProvider()
         result = provider.detect_election_sources("city-los-angeles", "los angeles")
         assert result["ca_sos_results"] == {"county": "los angeles", "county_breakdown": True}
-        assert "marin_registrar_results" not in result
+        assert "marin_registrar_results" not in result  # legacy key removed
         assert "civera_election_stats" not in result
 
     def test_sonoma_gets_civera(self):
@@ -153,7 +155,7 @@ class TestCaliforniaElectionProvider:
         provider = CaliforniaElectionProvider()
         result = provider.detect_election_sources("city-test", "")
         assert result["ca_sos_results"] == {"county": "", "county_breakdown": True}
-        assert "marin_registrar_results" not in result
+        assert "marin_registrar_results" not in result  # legacy key removed
 
 
 # --- TexasElectionProvider ---
@@ -207,7 +209,7 @@ class TestTexasElectionProvider:
         provider = TexasElectionProvider()
         result = provider.detect_election_sources("city-austin", "travis")
         assert "ca_sos_results" not in result
-        assert "marin_registrar_results" not in result
+        assert "marin_registrar_results" not in result  # legacy key removed
         assert "civera_election_stats" not in result
 
 
@@ -221,7 +223,7 @@ class TestDispatcherIntegration:
         from civicos_extraction.onboard import detect_election_sources
         result = detect_election_sources("city-san-rafael", "CA", "Marin")
         assert "ca_sos_results" in result
-        assert "marin_registrar_results" in result
+        assert "civera_election_stats" in result
 
     def test_tx_dispatches_to_provider(self):
         from civicos_extraction.onboard import detect_election_sources
@@ -244,4 +246,4 @@ class TestDispatcherIntegration:
         from civicos_extraction.onboard import detect_election_sources
         result = detect_election_sources("city-mill-valley", "CA", "Marin County")
         assert result["ca_sos_results"]["county"] == "marin"
-        assert "marin_registrar_results" in result
+        assert "civera_election_stats" in result

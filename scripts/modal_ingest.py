@@ -6085,8 +6085,81 @@ def scheduled_meetings_poll():
 
 
 # =============================================================================
-# Monthly Election Refresh (Google Civic API)
+# Calendar-Aware Election Refresh
 # =============================================================================
+
+
+# Cadence thresholds (days before election)
+ELECTION_DAILY_THRESHOLD = 7    # ≤7 days: all sources fire every run
+ELECTION_WEEKLY_THRESHOLD = 90  # 8–90 days: officials/ballot/deadlines on weekly schedule
+
+
+def determine_refresh_cadence(
+    election_sources: dict,
+    daily_threshold: int = ELECTION_DAILY_THRESHOLD,
+    weekly_threshold: int = ELECTION_WEEKLY_THRESHOLD,
+) -> tuple:
+    """Determine refresh cadence based on proximity to nearest configured election.
+
+    Scans election_date fields across all source configs in a jurisdiction.
+
+    Args:
+        election_sources: The election_sources dict from jurisdiction config.
+        daily_threshold: Days threshold for daily cadence (default 7).
+        weekly_threshold: Days threshold for weekly cadence (default 90).
+
+    Returns (cadence, days_until_nearest, nearest_date_str):
+    - ("daily", N, "YYYY-MM-DD")  if nearest election is ≤daily_threshold days away
+    - ("weekly", N, "YYYY-MM-DD") if nearest election is ≤weekly_threshold days away
+    - ("monthly", N, "YYYY-MM-DD") if >weekly_threshold days away
+    - ("monthly", None, None)      if no valid future election dates configured
+    """
+    from datetime import date as _date
+
+    nearest_days = None
+    nearest_date_str = None
+
+    for _source_name, source_config in election_sources.items():
+        if not isinstance(source_config, dict):
+            continue
+        election_date_str = source_config.get("election_date")
+        if not election_date_str:
+            continue
+        try:
+            election_date = _date.fromisoformat(election_date_str)
+            days_until = (election_date - _date.today()).days
+            if days_until >= 0 and (nearest_days is None or days_until < nearest_days):
+                nearest_days = days_until
+                nearest_date_str = election_date_str
+        except ValueError:
+            continue
+
+    if nearest_days is not None and nearest_days <= daily_threshold:
+        return ("daily", nearest_days, nearest_date_str)
+    elif nearest_days is not None and nearest_days <= weekly_threshold:
+        return ("weekly", nearest_days, nearest_date_str)
+    else:
+        return ("monthly", nearest_days, nearest_date_str)
+
+
+def should_run_today(cadence: str) -> bool:
+    """Determine if a jurisdiction should be processed today given its cadence.
+
+    The GH Actions cron fires daily. This gates actual work:
+    - daily: always run
+    - weekly: run on Mondays and 1st of month
+    - monthly: run on 1st of month only
+    """
+    from datetime import date as _date
+
+    today = _date.today()
+    if cadence == "daily":
+        return True
+    elif cadence == "weekly":
+        return today.weekday() == 0 or today.day == 1  # Monday or 1st
+    else:
+        return today.day == 1
+
 
 @app.function(
     image=civic_image,
@@ -6101,18 +6174,19 @@ def scheduled_meetings_poll():
     # Schedule moved to GitHub Actions: .github/workflows/cron-election-refresh.yml
 )
 def scheduled_election_refresh():
-    """Monthly scheduled refresh for election and elected officials data.
+    """Calendar-aware election and officials data refresh.
 
-    Runs 1st of month at 3 AM UTC = 7 PM Pacific previous day.
-    Monthly cadence is sufficient because:
-    - VIP (Voter Information Project) publishes election data 2-3 weeks before elections
-    - Elected officials change infrequently (after elections or special circumstances)
+    Runs daily via GH Actions at 3 AM UTC. Cadence per jurisdiction varies
+    based on proximity to the nearest configured election_date:
+
+    - daily  (≤7 days):  All sources fire — capture election-night results
+    - weekly (8–90 days): Officials, ballot preview, deadlines only (Mondays + 1st)
+    - monthly (>90 days): All sources fire (1st of month only)
 
     Data sources (dispatched per-jurisdiction via election_sources config):
-    - civera_election_stats: Civera ElectionStats GraphQL (Marin, Sonoma, Yolo)
-    - marin_registrar_results: Marin County GraphQL (legacy alias for civera)
+    - civera_election_stats: Civera ElectionStats GraphQL (Marin, Sonoma, Yolo, etc.)
     - ca_sos_results: CA Secretary of State election results
-    - ca_sos_ballot_preview: CA SOS certified candidate PDFs (pre-election)
+    - ca_sos_ballot_preview: CA SOS certified candidate PDFs (pre-election, own date guard)
 
     Elected officials: Congress.gov (federal), LegiScan (state), curated (local)
 
@@ -6125,7 +6199,7 @@ def scheduled_election_refresh():
     logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
     logger = logging.getLogger(__name__)
 
-    logger.info("Starting scheduled election refresh")
+    logger.info("Starting calendar-aware election refresh")
     start_time = time.time()
 
     import os
@@ -6152,13 +6226,42 @@ def scheduled_election_refresh():
         # Read election_sources from config
         election_sources = config.get("election_sources", {})
 
-        known_providers = {"civera_election_stats", "marin_registrar_results", "ca_sos_results", "ca_sos_ballot_preview"}
+        known_providers = {"civera_election_stats", "ca_sos_results", "ca_sos_ballot_preview"}
         unknown = set(election_sources.keys()) - known_providers
         if unknown:
             logger.warning(f"  [{jid}] Unknown election source(s): {unknown} — skipped. Known: {known_providers}")
 
+        # --- Calendar-aware cadence gating ---
+        cadence, days_until, nearest_date = determine_refresh_cadence(election_sources)
+        if nearest_date:
+            logger.info(f"  [{jid}] Cadence: {cadence} ({days_until} days until {nearest_date})")
+        else:
+            logger.info(f"  [{jid}] Cadence: {cadence} (no election dates configured)")
+
+        if not should_run_today(cadence):
+            next_run = "Monday" if cadence == "weekly" else "1st of month"
+            logger.info(f"  [{jid}] Skipping: {cadence} cadence, next run {next_run}")
+            results[jid] = {"status": "skipped", "cadence": cadence, "days_until_election": days_until}
+            continue
+
+        # Per-source gating to minimize redundant writes:
+        # - Civera: pure historical data — monthly only (1st of month)
+        # - CA SOS Results: captures election-night data — daily near election, monthly otherwise
+        # - Officials, ballot preview, deadlines: always run when jurisdiction runs
+        is_first = date_type.today().day == 1
+        run_civera = is_first
+        run_sos_results = (cadence == "daily") or is_first
+        if not run_civera:
+            skipped = []
+            if "civera_election_stats" in election_sources:
+                skipped.append("civera (monthly only)")
+            if not run_sos_results and "ca_sos_results" in election_sources:
+                skipped.append("ca_sos_results (monthly only)")
+            if skipped:
+                logger.info(f"  [{jid}] Skipping: {', '.join(skipped)}")
+
         # --- Civera ElectionStats (generalized: Marin, Sonoma, Yolo, etc.) ---
-        if "civera_election_stats" in election_sources:
+        if run_civera and "civera_election_stats" in election_sources:
             provider_config = election_sources["civera_election_stats"]
             if provider_config is True:
                 provider_config = {}
@@ -6183,30 +6286,8 @@ def scheduled_election_refresh():
                 logger.exception(f"  [{jid}] Civera fetch failed")
                 results[jid]["civera_election_stats"] = {"status": "failed", "error": str(e)}
 
-        # --- Marin Registrar (legacy — still supported for existing configs) ---
-        if "marin_registrar_results" in election_sources:
-            provider_config = election_sources["marin_registrar_results"]
-            if provider_config is True:
-                provider_config = {}
-            try:
-                from_year = provider_config.get("from_year", 2010)
-                division_filter = provider_config.get("division_filter", "")
-                logger.info(f"  [{jid}] Fetching elections (Marin Registrar, from_year={from_year}, division={division_filter or 'all'})...")
-                result = fetch_marin_election_results.local(
-                    jurisdiction=jid,
-                    from_year=from_year,
-                    division_filter=division_filter,
-                    dry_run=False,
-                    auto_index=True,
-                )
-                results[jid]["marin_registrar_results"] = result
-                logger.info(f"    Marin Registrar: {result.get('elections_stored', 0)} elections stored")
-            except Exception as e:
-                logger.exception(f"  [{jid}] Marin Registrar fetch failed")
-                results[jid]["marin_registrar_results"] = {"status": "failed", "error": str(e)}
-
-        # --- CA Secretary of State ---
-        if "ca_sos_results" in election_sources:
+        # --- CA Secretary of State Results (election-night data near election) ---
+        if run_sos_results and "ca_sos_results" in election_sources:
             provider_config = election_sources["ca_sos_results"]
             if provider_config is True:
                 provider_config = {}
@@ -6343,11 +6424,15 @@ def scheduled_election_refresh():
             results[jid]["officials_derived"] = {"status": "failed", "error": str(e)}
 
     elapsed = time.time() - start_time
-    logger.info(f"Election refresh complete in {elapsed:.1f}s for {len(jurisdictions)} jurisdictions")
+    processed = sum(1 for r in results.values() if r.get("status") != "skipped")
+    skipped = sum(1 for r in results.values() if r.get("status") == "skipped")
+    logger.info(f"Election refresh complete in {elapsed:.1f}s — {processed} processed, {skipped} skipped (of {len(jurisdictions)} total)")
 
     return {
-        "schedule": "election_monthly",
-        "jurisdictions_processed": len(jurisdictions),
+        "schedule": "election_calendar_aware",
+        "jurisdictions_total": len(jurisdictions),
+        "jurisdictions_processed": processed,
+        "jurisdictions_skipped": skipped,
         "results": results,
         "elapsed_seconds": elapsed,
     }

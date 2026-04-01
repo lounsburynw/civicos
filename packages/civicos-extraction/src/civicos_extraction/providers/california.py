@@ -5,9 +5,6 @@ Detects available election data sources for California jurisdictions:
 - CA Secretary of State (all CA jurisdictions, with county breakdown fallback)
 - Civera ElectionStats (counties with known instances: Marin, San Joaquin, Sonoma, Yolo)
 - Legislative district detection via Census Bureau geocoder
-
-Marin County uses a legacy "marin_registrar_results" config key for
-backwards compatibility with existing extraction configs.
 """
 
 import logging
@@ -50,19 +47,12 @@ class CaliforniaElectionProvider(StateElectionProvider):
                 instance["graphql_url"], county, division_filter,
             )
 
-            if county == "marin":
-                # Marin uses legacy config key for backwards compatibility
-                sources["marin_registrar_results"] = {
-                    "from_year": 2010,
-                    "division_filter": division_filter,
-                }
-            else:
-                sources["civera_election_stats"] = {
-                    "county_slug": county,
-                    "graphql_url": instance["graphql_url"],
-                    "from_year": 2010,
-                    "division_filter": division_filter,
-                }
+            sources["civera_election_stats"] = {
+                "county_slug": county,
+                "graphql_url": instance["graphql_url"],
+                "from_year": 2010,
+                "division_filter": division_filter,
+            }
 
             if not validated:
                 logger.warning(

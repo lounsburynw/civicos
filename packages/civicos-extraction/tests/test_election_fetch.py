@@ -92,20 +92,6 @@ class TestFetchElectionsForJurisdiction:
         assert result["elected_officials"]["status"] == "completed"
 
     @patch("civicos_extraction.election_fetch._fetch_officials")
-    @patch("civicos_extraction.election_fetch._fetch_marin_legacy")
-    @patch(_PG_BACKEND)
-    def test_dispatches_marin_legacy(self, mock_backend_cls, mock_marin, mock_officials):
-        """Legacy marin_registrar_results source dispatches correctly."""
-        mock_marin.return_value = {"status": "completed"}
-        mock_officials.return_value = {"status": "skipped"}
-
-        sources = {"marin_registrar_results": True}
-        result = fetch_elections_for_jurisdiction("city-test", sources, database_url="postgresql://test")
-
-        mock_marin.assert_called_once()
-        assert "marin_registrar_results" in result
-
-    @patch("civicos_extraction.election_fetch._fetch_officials")
     @patch("civicos_extraction.election_fetch._fetch_civera")
     @patch(_PG_BACKEND)
     def test_elapsed_seconds_included(self, mock_backend_cls, mock_civera, mock_officials):

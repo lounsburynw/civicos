@@ -19,12 +19,13 @@
     "county": "Marin"
   },
   "election_sources": {
-    "marin_registrar_results": {
-      "from_year": 2010,
-      "division_filter": "Marin County"
-    },
     "ca_sos_results": {
       "county": "marin"
+    },
+    "civera_election_stats": {
+      "county_slug": "marin",
+      "from_year": 2010,
+      "division_filter": "Marin County"
     }
   }
 }

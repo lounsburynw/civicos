@@ -59,9 +59,10 @@ class TestElectionConfigLoading:
         jurisdictions = _load_active_jurisdictions()
         config = jurisdictions["city-san-rafael"]
         election_sources = config.get("election_sources", {})
-        assert "marin_registrar_results" in election_sources
-        marin = election_sources["marin_registrar_results"]
-        assert marin["division_filter"] == "City of San Rafael"
+        assert "civera_election_stats" in election_sources
+        civera = election_sources["civera_election_stats"]
+        assert civera["county_slug"] == "marin"
+        assert civera["division_filter"] == "San Rafael"
 
     def test_county_marin_has_ca_sos(self):
         """county-marin also has ca_sos_results (added in previous session)."""
@@ -79,7 +80,7 @@ class TestElectionDispatchLogic:
     correct provider selection and parameter passing for each jurisdiction.
     """
 
-    KNOWN_PROVIDERS = {"marin_registrar_results", "ca_sos_results"}
+    KNOWN_PROVIDERS = {"civera_election_stats", "ca_sos_results"}
 
     def _dispatch_providers(self, config):
         """Simulate the dispatch logic from scheduled_election_refresh().
@@ -90,11 +91,12 @@ class TestElectionDispatchLogic:
         election_sources = config.get("election_sources", {})
         dispatched = {}
 
-        if "marin_registrar_results" in election_sources:
-            provider_config = election_sources["marin_registrar_results"]
+        if "civera_election_stats" in election_sources:
+            provider_config = election_sources["civera_election_stats"]
             if provider_config is True:
                 provider_config = {}
-            dispatched["marin_registrar_results"] = {
+            dispatched["civera_election_stats"] = {
+                "county_slug": provider_config.get("county_slug", ""),
                 "from_year": provider_config.get("from_year", 2010),
                 "division_filter": provider_config.get("division_filter", ""),
             }
@@ -123,11 +125,11 @@ class TestElectionDispatchLogic:
         assert dispatched["ca_sos_results"]["districts_json"] == ""
 
     def test_san_rafael_dispatches_both_providers(self):
-        """city-san-rafael should dispatch Marin Registrar + CA SOS."""
+        """city-san-rafael should dispatch Civera + CA SOS."""
         jurisdictions = _load_active_jurisdictions()
         config = jurisdictions["city-san-rafael"]
         dispatched = self._dispatch_providers(config)
-        assert set(dispatched.keys()) == {"marin_registrar_results", "ca_sos_results"}
+        assert set(dispatched.keys()) == {"civera_election_stats", "ca_sos_results"}
 
         # Verify CA SOS params
         ca_sos = dispatched["ca_sos_results"]
@@ -135,17 +137,18 @@ class TestElectionDispatchLogic:
         districts = json.loads(ca_sos["districts_json"])
         assert districts == {"us-rep": [2], "state-assembly": [12], "state-senate": [2]}
 
-        # Verify Marin Registrar params
-        marin = dispatched["marin_registrar_results"]
-        assert marin["from_year"] == 2010
-        assert marin["division_filter"] == "City of San Rafael"
+        # Verify Civera params
+        civera = dispatched["civera_election_stats"]
+        assert civera["county_slug"] == "marin"
+        assert civera["from_year"] == 2010
+        assert civera["division_filter"] == "San Rafael"
 
     def test_county_marin_dispatches_both_providers(self):
-        """county-marin should dispatch Marin Registrar + CA SOS."""
+        """county-marin should dispatch Civera + CA SOS."""
         jurisdictions = _load_active_jurisdictions()
         config = jurisdictions["county-marin"]
         dispatched = self._dispatch_providers(config)
-        assert "marin_registrar_results" in dispatched
+        assert "civera_election_stats" in dispatched
         assert "ca_sos_results" in dispatched
         assert dispatched["ca_sos_results"]["county"] == "marin"
 
