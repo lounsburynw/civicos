@@ -215,7 +215,7 @@ class TestExtractChunksFromMeetingHtmlFallback:
     @patch("civicos_extraction.cli.chunks.download_and_validate_pdf")
     @patch("civicos_extraction.cli.chunks.extract_pdf_urls_from_meeting_page")
     def test_degenerate_case_no_pdf_links_uses_html(
-        self, mock_extract_pdfs, mock_download, mock_cloud_exists
+        self, mock_extract_pdfs, mock_download, mock_cloud_exists, tmp_path
     ):
         """When agenda_url returns HTML and no PDF links are found, use HTML chunks."""
         mock_cloud_exists.return_value = False
@@ -238,7 +238,7 @@ class TestExtractChunksFromMeetingHtmlFallback:
         }
 
         result = extract_chunks_from_meeting(
-            meeting, "/tmp/test_chunks", "city-test", cloud=False
+            meeting, str(tmp_path), "city-test", cloud=False
         )
 
         assert result.status == "success"
@@ -250,7 +250,7 @@ class TestExtractChunksFromMeetingHtmlFallback:
     @patch("civicos_extraction.cli.chunks.download_and_validate_pdf")
     @patch("civicos_extraction.cli.chunks.extract_pdf_urls_from_meeting_page")
     def test_degenerate_case_pdf_link_also_invalid_falls_back_to_html(
-        self, mock_extract_pdfs, mock_download, mock_cloud_exists
+        self, mock_extract_pdfs, mock_download, mock_cloud_exists, tmp_path
     ):
         """When found PDF URL also returns non-PDF, fall back to HTML chunks.
 
@@ -287,7 +287,7 @@ class TestExtractChunksFromMeetingHtmlFallback:
         }
 
         result = extract_chunks_from_meeting(
-            meeting, "/tmp/test_chunks", "city-test", cloud=False
+            meeting, str(tmp_path), "city-test", cloud=False
         )
 
         # Should succeed with HTML chunks instead of returning error

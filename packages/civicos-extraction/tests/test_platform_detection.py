@@ -1334,7 +1334,7 @@ class TestOnboardRobustness:
             state_abbrev="CA",
         )
         doc = yaml.safe_load(yaml_content)
-        assert doc["financial"]["county"] is None
+        assert "county" not in doc["financial"]
 
     def test_canadian_province_fallback(self):
         """Canadian province should fallback to country-canada, not country-united-states."""
@@ -1380,7 +1380,8 @@ class TestOnboardRobustness:
             country="United Kingdom",
         ))
         assert doc["parent_jurisdictions"] == ["country-united-kingdom"]
-        assert doc["contact_info"]["zip_code"] == ""
+        # zip_codes is a top-level list, not in contact_info
+        assert doc.get("zip_codes", []) == []
 
     def test_jurisdiction_id_strips_level_suffix_from_city_name(self):
         """'Alameda County' with level=county should produce county-alameda, not county-alameda-county."""
