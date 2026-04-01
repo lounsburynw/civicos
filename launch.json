@@ -25,7 +25,7 @@
       {
         "name": "state_election_config",
         "description": "Create StateElectionConfig frozen dataclass capturing per-state election rules (primary month, deadline offsets, governor cycle, senate stagger, statewide offices, chamber names). Populate CA config from current hardcoded values. Refactor cycles.py to use config instead of hardcoded CA constants. Keep backward-compatible wrappers.",
-        "priority": 0,
+        "priority": 2,
         "status": "done",
         "files": [
           "packages/civicos/src/civicos/_internal/elections/state_config.py",
@@ -63,7 +63,7 @@
       {
         "name": "all_california_coverage",
         "description": "Expand Civera instance discovery beyond 3 counties (Marin, Sonoma, Yolo). Add CA SOS county breakdown as universal fallback for non-Civera counties. Script to probe CA county registrar sites for GraphQL endpoints.",
-        "priority": 0,
+        "priority": 2,
         "status": "done",
         "files": [
           "packages/civicos-extraction/src/civicos_extraction/clients/civera_election_stats.py",
@@ -76,7 +76,7 @@
       {
         "name": "texas_election_support",
         "description": "Add Texas as second supported state. StateElectionConfig for TX (March primary, 30-day registration, 17-day early voting, no universal VBM). TexasElectionProvider with detect_election_sources(). TX SOS client if API accessible. End-to-end test with a TX jurisdiction.",
-        "priority": 0,
+        "priority": 2,
         "status": "done",
         "files": [
           "packages/civicos/src/civicos/_internal/elections/state_config.py",
@@ -88,7 +88,7 @@
       {
         "name": "florida_election_support",
         "description": "Add Florida election support. StateElectionConfig + provider + SOS client. FL uses Clarity Elections (Scytl) widely \u2014 building that client covers many FL counties.",
-        "priority": 3,
+        "priority": 0,
         "status": "not_started",
         "files": [
           "packages/civicos/src/civicos/_internal/elections/providers/florida.py"
@@ -137,7 +137,7 @@
       {
         "name": "civicclerk_pipeline_wiring",
         "description": "Wire CivicClerk client into fetch_meetings() in modal_ingest.py. Client exists (civicclerk.py), just needs elif branch + SUPPORTED_MEETING_SOURCES registration. Same pattern as legistar_client.",
-        "priority": 0,
+        "priority": 2,
         "status": "done",
         "files": [
           "scripts/modal_ingest.py",
@@ -163,7 +163,7 @@
       {
         "name": "html_agenda_extraction",
         "description": "Extract chunks from HTML agendas when PDF is unavailable. Some Legistar/Granicus cities serve agendas as HTML only \u2014 chunks=0 for these cities, breaking chunk search. Detect format and route to HTML parser.",
-        "priority": 0,
+        "priority": 2,
         "status": "done",
         "notes": "Currently silent failure: onboarding quality report warns chunks=0 but no remediation. Need to detect HTML vs PDF agenda format and extract text content from HTML agendas into chunks. ~1-2 sessions.",
         "files": [
@@ -175,7 +175,7 @@
       {
         "name": "onboard_quality_gates",
         "description": "Strengthen onboard.py quality validation: fail-fast on zero meetings, auto-retry on transient API errors, compare ratios against baseline, and generate actionable remediation steps instead of just warnings.",
-        "priority": 0,
+        "priority": 2,
         "status": "done",
         "files": [
           "scripts/onboard.py"
@@ -186,7 +186,7 @@
       {
         "name": "issue_provider_dispatch",
         "description": "Generalize fetch_issues() to support multiple 311 providers (SeeClickFix, FixItMarin, QAlert, etc.) via source-type dispatch \u2014 same pattern as fetch_meetings(). Add SUPPORTED_ISSUE_SOURCES registry. Currently hardcoded to SeeClickFix.",
-        "priority": 0,
+        "priority": 2,
         "status": "done",
         "files": [
           "scripts/modal_ingest.py",
@@ -198,7 +198,7 @@
       {
         "name": "issue_provider_detection",
         "description": "Auto-detect 311/issue provider during onboarding discovery. Probe known APIs (SeeClickFix, FixItMarin, QAlert) by city/county name, write detected provider to extraction config JSON. Provider can change over time \u2014 detection is re-runnable via --detect-issues.",
-        "priority": 0,
+        "priority": 2,
         "status": "done",
         "files": [
           "packages/civicos-extraction/src/civicos_extraction/onboard.py",
@@ -289,7 +289,7 @@
         "name": "coincurve_import_hard_fail",
         "description": "Make coincurve ImportError a hard failure in production. Currently silently disables ALL signature verification \u2014 _schnorr_verify() returns True for any input if library missing.",
         "status": "done",
-        "priority": 0,
+        "priority": 2,
         "source": "docs/internal/relay-acceptance-policy-spec.md (Phase 0, item 1)",
         "files": [
           "packages/civicos-relay/src/civicos_relay/voice/crypto.py"
@@ -301,7 +301,7 @@
         "name": "require_created_at_on_writes",
         "description": "All relay write endpoints must require created_at and reject writes without it. Currently Optional[int] = None, omitting it skips signature verification entirely.",
         "status": "done",
-        "priority": 0,
+        "priority": 2,
         "source": "docs/internal/relay-acceptance-policy-spec.md (Phase 0, item 2)",
         "files": [
           "packages/civicos-relay/src/civicos_relay/server/app.py"
@@ -327,7 +327,7 @@
         "name": "mcp_usage_logging",
         "description": "Wire usage_logging_middleware into MCP Modal server. Add civicos-platform secret to Modal deployment. Currently the only production service serving traffic has no usage logging.",
         "status": "done",
-        "priority": 0,
+        "priority": 2,
         "files": [
           "apps/civicos-mcp/modal_mcp.py"
         ],
@@ -349,7 +349,7 @@
         "name": "deploy_usage_rollup",
         "description": "Verify modal_usage_rollup.py is deployed as a cron job and the platform DB has the schema applied.",
         "status": "done",
-        "priority": 0,
+        "priority": 2,
         "files": [
           "scripts/modal_usage_rollup.py",
           "scripts/sql/add_platform_billing.sql",
@@ -362,7 +362,7 @@
         "name": "acceptance_policy_monitoring",
         "description": "Add monitoring for relay acceptance policy: rejections by tier, rate limit hits/day, total writes by tier.",
         "status": "done",
-        "priority": 0,
+        "priority": 2,
         "source": "docs/internal/relay-acceptance-policy-spec.md (Phase 2)",
         "files": [
           "packages/civicos-relay/src/civicos_relay/server/acceptance.py",
@@ -397,9 +397,9 @@
       },
       {
         "name": "cron_failure_triage_2026_04",
-        "description": "Triage and fix 3 cron failures from 2026-04-01: (1) Election refresh — LegiScan API key URL-encoded with quotes, city-national-city unknown in jurisdiction registry, county-marin officials NoneType.upper() after Congress.gov 404; (2) Vector refresh — chunk indexing jobs timing out (runner killed with SIGTERM); (3) Meetings poll — IndexError(5) from Modal container runtime. Also audit election data coverage: 22 jurisdictions configured but only 6 have data in Postgres.",
-        "priority": 0,
-        "status": "not_started",
+        "description": "Triage and fix 3 cron failures from 2026-04-01: (1) Election refresh \u2014 LegiScan API key URL-encoded with quotes, city-national-city unknown in jurisdiction registry, county-marin officials NoneType.upper() after Congress.gov 404; (2) Vector refresh \u2014 chunk indexing jobs timing out (runner killed with SIGTERM); (3) Meetings poll \u2014 IndexError(5) from Modal container runtime. Also audit election data coverage: 22 jurisdictions configured but only 6 have data in Postgres.",
+        "priority": 2,
+        "status": "done",
         "files": [
           "scripts/modal_ingest.py",
           ".github/workflows/cron-election-refresh.yml",
@@ -407,7 +407,7 @@
           ".github/workflows/cron-meetings-poll.yml"
         ],
         "test_file": null,
-        "notes": "LegiScan key issue is likely env var quoting in Modal secrets. city-national-city may need adding to jurisdiction registry or removing from extraction configs. Vector timeout needs longer GH Actions timeout or chunked parallelism. Meetings poll IndexError is opaque — check Modal logs."
+        "notes": "LegiScan key issue is likely env var quoting in Modal secrets. city-national-city may need adding to jurisdiction registry or removing from extraction configs. Vector timeout needs longer GH Actions timeout or chunked parallelism. Meetings poll IndexError is opaque \u2014 check Modal logs."
       }
     ]
   },
@@ -454,7 +454,7 @@
         "name": "http_ip_rate_limiting",
         "description": "Add HTTP-level per-IP rate limiting on relay before crypto verification. First line of defense against spam.",
         "status": "done",
-        "priority": 0,
+        "priority": 2,
         "source": "docs/internal/relay-acceptance-policy-spec.md (Phase 2)",
         "files": [
           "packages/civicos-relay/src/civicos_relay/server/ip_rate_limit.py"
@@ -546,7 +546,7 @@
         "name": "attestation_expiry",
         "description": "Add attestation expiry check: created_at + validity_period > now. Recommend 1-year validity. Design revocation mechanism (blocklist of revoked attestation event IDs).",
         "status": "done",
-        "priority": 0,
+        "priority": 2,
         "source": "docs/internal/relay-acceptance-policy-spec.md (Phase 3)",
         "files": [
           "packages/civicos-relay/src/civicos_relay/server/acceptance.py"
@@ -557,7 +557,7 @@
         "name": "extension_402_handling",
         "description": "Update extension to handle HTTP 402 responses from relay gracefully. Show UX guidance for attestation or payment options.",
         "status": "done",
-        "priority": 0,
+        "priority": 2,
         "source": "docs/internal/relay-acceptance-policy-spec.md (Phase 2)",
         "files": [
           "apps/civicos-extension/src/"
@@ -589,7 +589,7 @@
         "name": "token_issuance_service",
         "description": "Implement token issuance service (separate from relay). Accepts Stripe/Lightning payment, returns blinded tokens. Cannot link issued tokens to payment session.",
         "status": "done",
-        "priority": 0,
+        "priority": 2,
         "source": "docs/internal/relay-acceptance-policy-spec.md (Phase 4)",
         "files": [
           "packages/civicos-relay/src/civicos_relay/server/token_issuer.py",
@@ -627,7 +627,7 @@
         "name": "extension_token_wallet",
         "description": "Add token wallet to browser extension. Store blinded tokens in local-wallet.ts (already handles secp256k1). Include tokens in write requests automatically.",
         "status": "done",
-        "priority": 0,
+        "priority": 2,
         "source": "docs/internal/relay-acceptance-policy-spec.md (Phase 4)",
         "files": [
           "apps/civicos-extension/src/lib/blind.ts",
@@ -657,7 +657,7 @@
         "name": "token_issuer_env_config",
         "description": "Make TokenIssuer deployment parameters configurable via env vars: TOKEN_ISSUER_SECRET (issuer private key), TOKEN_ISSUER_MAX_SESSIONS (Wagner's attack cap, default 5), TOKEN_ISSUER_SESSION_TTL (nonce expiry in seconds, default 300). Wire into issuer service deployment (Modal). Add to civicos-secrets. Document token endpoints and env vars.",
         "status": "done",
-        "priority": 0,
+        "priority": 2,
         "source": "configuration critic \u2014 flagged in sessions 2026-03-22 (token_issuance_service, extension_token_wallet)",
         "files": [
           "packages/civicos-relay/src/civicos_relay/server/app.py",
@@ -700,7 +700,7 @@
         "name": "query_engine_performance",
         "description": "Connection pooling, vector search tuning, and end-to-end profiling for cross-jurisdiction query performance under load.",
         "status": "done",
-        "priority": 0,
+        "priority": 2,
         "source": "performance assessment 2026-03-17",
         "files": [
           "packages/civicos/src/civicos/storage/postgres_backend.py",
@@ -722,7 +722,7 @@
         "name": "query_interface_hardening",
         "description": "Harden v2 query interface: cursor pagination, aggregate/trend modes, live-data integration tests, ranking calibration. See docs/public/decisions/query_interface.md deferred items.",
         "status": "done",
-        "priority": 0,
+        "priority": 2,
         "files": [
           "packages/civicos-services/src/civicos_services/query/",
           "packages/civicos-services/tests/test_query_v2.py"
@@ -748,7 +748,7 @@
         "name": "query_interface_operators",
         "description": "v2 query interface operators and cross-jurisdiction support: set operators (- for diff/monitoring, & for intersection), multi-jurisdiction fan-out, civic jargon lookup via civic.context. Also: live-data integration tests and RRF ranking calibration (from hardening). See docs/public/decisions/query_interface.md open questions.",
         "status": "done",
-        "priority": 0,
+        "priority": 2,
         "files": [
           "packages/civicos-services/src/civicos_services/query/",
           "packages/civicos-services/tests/test_integration_query_v2.py"
@@ -760,7 +760,7 @@
         "name": "cron_refresh_wiring",
         "description": "Wire scheduled_high/low_velocity_refresh() cron orchestrators to use RefreshRunner.should_refresh() + refresh_corpus() instead of bespoke per-corpus ingestion logic.",
         "status": "done",
-        "priority": 0,
+        "priority": 2,
         "phase": "1",
         "source": "scalability roadmap 2026-03-22",
         "files": [
@@ -855,7 +855,7 @@
         "name": "turnkey_onboard_hardening",
         "description": "Add a validation gate (small sample + quality check before full backfill) and fix data quality gaps: HTML agenda chunk extraction for Granicus, duplicate meeting deduplication, post-onboard quality report, and idempotent re-runs.",
         "status": "done",
-        "priority": 0,
+        "priority": 2,
         "phase": "A",
         "source": "marin_sibling_ingestion validation \u2014 gaps found during Mill Valley + San Anselmo onboarding",
         "files": [
@@ -900,7 +900,7 @@
         "name": "turnkey_onboarding",
         "description": "Fix F1 (Granicus subdomain discovery) and F5 (registry generation from YAML) to make onboarding nearly turnkey. Provide a city name, get config + registrations generated automatically.",
         "status": "done",
-        "priority": 0,
+        "priority": 2,
         "phase": "A",
         "source": "federation testbed \u2014 turnkey onboarding",
         "files": [
@@ -917,7 +917,7 @@
         "name": "onboard_berkeley",
         "description": "Harden turnkey onboarding: fix geocoding state hardcode, stress test against SF/school boards, validate all 4 platforms end-to-end. Extends multi-platform discovery + LLM column map work from prior session.",
         "status": "done",
-        "priority": 0,
+        "priority": 2,
         "phase": "B",
         "source": "federation testbed \u2014 generalized onboarding",
         "files": [
@@ -933,7 +933,7 @@
         "name": "onboard_county_alameda",
         "description": "Onboard Alameda County as parent jurisdiction for Berkeley. Required for cross-county legislation context in what_applies().",
         "status": "done",
-        "priority": 0,
+        "priority": 2,
         "phase": "B",
         "source": "federation testbed \u2014 cross-county parent",
         "files": [
@@ -981,7 +981,7 @@
         "name": "pagination_protocol_update",
         "description": "Add limit/offset parameters to StorageBackend.get_*() methods. Informed by real cross-jurisdiction query patterns from testbed.",
         "status": "done",
-        "priority": 0,
+        "priority": 2,
         "phase": "B",
         "source": "architectural review \u2014 federation prerequisite",
         "spec": "docs/internal/pagination-protocol-spec.md",
@@ -1012,7 +1012,7 @@
         "name": "multi_issuer_lookup",
         "description": "Update issuer_lookup signature from (jurisdiction) -> Optional[str] to (jurisdiction) -> List[TrustedIssuer] with validity windows and trust levels. Informed by testbed findings.",
         "status": "done",
-        "priority": 0,
+        "priority": 2,
         "phase": "B",
         "source": "architectural review \u2014 federation prerequisite",
         "spec": "docs/internal/multi-issuer-lookup-spec.md",
@@ -1047,7 +1047,7 @@
         "name": "universal_adapter_design",
         "description": "Design session: LLM-powered universal adapter for cities with custom platforms (Portland, NYC). Research declarative scraping configs, LLM-inferred selectors, failure modes. Output: ADR + prototype design.",
         "status": "done",
-        "priority": 0,
+        "priority": 2,
         "test_file": ""
       },
       {
@@ -1082,7 +1082,7 @@
         "name": "onboarding_yaml_generation",
         "description": "Extend onboard.py to generate complete jurisdiction YAML (refresh policies, contact info, hierarchy, modal config) in addition to extraction JSON. Makes onboarding produce all config needed for a functioning jurisdiction.",
         "status": "done",
-        "priority": 0,
+        "priority": 2,
         "phase": "2",
         "source": "scalability roadmap 2026-03-22",
         "files": [
@@ -1096,7 +1096,7 @@
       {
         "name": "legistar_client",
         "description": "Wire Legistar meeting fetch into Modal ingestion pipeline. Sacramento has 35 discovered bodies (extraction config exists). Enables turnkey onboard for Legistar cities (Sacramento, Oakland, SF, etc.).",
-        "priority": 0,
+        "priority": 2,
         "status": "done",
         "test_file": "packages/civicos/tests/test_integration_extraction_failures.py::TestLegistarDatetimeParsing",
         "notes": "Wired legistar source_type into fetch_meetings() (modal_ingest.py), added to SUPPORTED_MEETING_SOURCES registry. Fixed datetime parsing for 12-hour time format. 42 Sacramento meetings verified via live API. 6 unit tests."
@@ -1110,7 +1110,7 @@
         "name": "extension_tab_fix",
         "description": "Fix CA/Federal extension tabs that show loading/error state because no servers exist at those endpoints. Either route existing what_applies() legislation data to those tabs, or hide tabs gracefully until servers are deployed.",
         "status": "done",
-        "priority": 0,
+        "priority": 2,
         "phase": "0",
         "source": "multi-scale participation \u2014 UX inconsistency",
         "files": [
@@ -1124,7 +1124,7 @@
         "name": "federal_comment_periods",
         "description": "Ingest federal comment periods from regulations.gov API. Store as upcoming events with deadlines. Enable civic.act submission. Highest-value federal participation surface.",
         "status": "done",
-        "priority": 0,
+        "priority": 2,
         "phase": "1",
         "source": "multi-scale participation \u2014 federal",
         "files": [
@@ -1171,7 +1171,7 @@
         "name": "congressional_votes_query",
         "description": "Wire congressional votes into v2 query layer, MCP tool, and extension. Enable 'How did my representative vote on [bill]?' queries.",
         "status": "done",
-        "priority": 0,
+        "priority": 2,
         "phase": "1",
         "source": "multi-scale participation \u2014 federal data (plan: session 4)",
         "files": [
@@ -1205,7 +1205,7 @@
         "name": "local_impact_relevance",
         "description": "Score federal rules by local relevance. Agency-to-topic mapping, geographic text matching, CFR part matching. Extension sorts by relevance, draft_federal_comment shows local context.",
         "status": "done",
-        "priority": 0,
+        "priority": 2,
         "phase": "1",
         "source": "multi-scale participation \u2014 federal data (plan: sessions 7-8)",
         "files": [
@@ -1223,7 +1223,7 @@
         "name": "vector_llm_relevance_pipeline",
         "description": "Vector-first relevance pipeline: embed local policy descriptions as query vectors, retrieve candidate federal rules by similarity, LLM-confirm relevance on candidates only. Replaces heuristic-only scoring with semantic + LLM hybrid.",
         "status": "done",
-        "priority": 0,
+        "priority": 2,
         "phase": "1",
         "source": "multi-scale participation \u2014 federal data (refinement of local_impact_relevance)",
         "files": [
@@ -1238,7 +1238,7 @@
         "name": "federal_pipeline_hardening",
         "description": "Fix US legislation refresh gap (only CA syncs), debug CA sync failure, close 12% embedding gap on federal_rules, verify all new corpora have scheduled refreshes.",
         "status": "done",
-        "priority": 0,
+        "priority": 2,
         "phase": "1",
         "source": "multi-scale participation \u2014 federal data (plan: session 9)",
         "files": [
@@ -1253,7 +1253,7 @@
         "name": "federal_server_deployment",
         "description": "Deploy country-united-states Modal server with full federal tool suite: funding search, congressional votes, hearing timeline, relevance-scored comment periods.",
         "status": "done",
-        "priority": 0,
+        "priority": 2,
         "phase": "1",
         "source": "multi-scale participation \u2014 federal infrastructure (plan: session 10)",
         "files": [
@@ -1388,7 +1388,7 @@
       {
         "name": "election_data_source_research",
         "description": "Research session: audit election data sources (Google Civic API, BallotReady, Ballotpedia, county registrars) and school board platforms (Simbli, BoardDocs) for Bay Area. Determine which sources to wire into turnkey onboarding.",
-        "priority": 0,
+        "priority": 2,
         "status": "done",
         "files": [
           "packages/civicos-extraction/src/civicos_extraction/clients/google_civic.py",
@@ -1414,7 +1414,7 @@
       {
         "name": "marin_registrar_results_client",
         "description": "Build GraphQL client for pastelections.marincounty.gov (ElectionStats/Civera platform). Historical local election results 2010-2025: 46 elections, 521 contests, 1,404 candidates with vote counts, precinct breakdowns, ballot measures. Three-query pattern: list elections, list contests, get precinct data.",
-        "priority": 0,
+        "priority": 2,
         "status": "done",
         "files": [
           "packages/civicos-extraction/src/civicos_extraction/clients/marin_registrar.py",
@@ -1426,7 +1426,7 @@
       {
         "name": "boarddocs_client",
         "description": "Build BoardDocsClient for school board meeting ingestion. Covers MCOE, Ross Valley SD, Larkspur-Corte Madera SD, Sausalito-Marin City SD, Marin Community College. Uses undocumented POST endpoints (BD-GetMeetingsList, PRINT-AgendaDetailed). Reference impl: llama-index-readers-boarddocs.",
-        "priority": 0,
+        "priority": 2,
         "status": "done",
         "files": [
           "packages/civicos-extraction/src/civicos_extraction/clients/boarddocs.py",
@@ -1438,7 +1438,7 @@
       {
         "name": "simbli_district_expansion",
         "description": "Onboard 6 additional Marin school districts via existing Simbli client: Novato USD (S=36030351), Tamalpais Union HSD (S=36030468), Miller Creek SD, Mill Valley SD, Reed Union SD, Kentfield SD. Config-only \u2014 client already works.",
-        "priority": 0,
+        "priority": 2,
         "status": "done",
         "files": [
           "config/registry.json",
@@ -1457,7 +1457,7 @@
       {
         "name": "ca_sos_results_client",
         "description": "Wire CA Secretary of State Results API (api.sos.ca.gov) for state-level race results with Marin County breakdowns. No auth required, JSON responses. Covers governor, legislature, US Congress, state propositions.",
-        "priority": 0,
+        "priority": 2,
         "status": "done",
         "files": [
           "packages/civicos-extraction/src/civicos_extraction/clients/ca_sos_results.py",
@@ -1470,7 +1470,7 @@
       {
         "name": "election_source_config",
         "description": "Add election_sources field to extraction configs. Update scheduled_election_refresh() to read per-jurisdiction election provider config and dispatch to Google Civic, Marin Registrar, and CA SOS as configured.",
-        "priority": 0,
+        "priority": 2,
         "status": "done",
         "phase": "B",
         "source": "election-onboarding-spec.md",
@@ -1485,7 +1485,7 @@
       {
         "name": "ca_sos_pipeline_wiring",
         "description": "Wire CA SOS results into monthly election cron. fetch_ca_sos_election_results() Modal function exists but is not called by scheduled_election_refresh(). Add dispatch for jurisdictions with ca_sos_results in election_sources.",
-        "priority": 0,
+        "priority": 2,
         "status": "done",
         "phase": "B",
         "source": "election-onboarding-spec.md",
@@ -1499,7 +1499,7 @@
       {
         "name": "school_district_lookup",
         "description": "Static lookup table (data/school_districts.json) mapping county -> school districts with platform URLs. Enable onboard.py --level school --city 'Novato' and --county 'Marin' --level school for batch onboarding.",
-        "priority": 0,
+        "priority": 2,
         "status": "done",
         "phase": "B",
         "source": "election-onboarding-spec.md",
@@ -1527,7 +1527,7 @@
       {
         "name": "google_civic_deprecation",
         "description": "Removed Google Civic client entirely. Representatives endpoint dead since April 2025, Elections endpoint returns minimal data. State-specific sources (CA SOS, Marin Registrar) provide better coverage.",
-        "priority": 0,
+        "priority": 2,
         "status": "done",
         "files": [
           "packages/civicos-extraction/src/civicos_extraction/clients/google_civic.py"
@@ -1538,7 +1538,7 @@
       {
         "name": "cde_school_directory",
         "description": "Build statewide school district lookup from CA Dept of Education directory. Fetch CDE district list, probe each district website for Simbli/BoardDocs platforms, and generate school_districts.json entries. Enables turnkey --level school onboarding for any CA county, not just Marin.",
-        "priority": 0,
+        "priority": 2,
         "status": "done",
         "phase": "B",
         "files": [
@@ -1578,7 +1578,7 @@
       {
         "name": "ca_sos_snapshot_archival",
         "description": "Archive CA SOS election results before overwrite. On each scheduled_election_refresh() run, diff election_id against previous snapshot. If changed, preserve old data with timestamp before fetching new. Converts the ephemeral SOS API into a persistent historical archive.",
-        "priority": 0,
+        "priority": 2,
         "status": "done",
         "files": [
           "scripts/modal_ingest.py",
@@ -1590,7 +1590,7 @@
       {
         "name": "backfill_election_sources",
         "description": "Run detect_election_sources() for the 24 extraction configs that lack election_sources. One-time script or --re-detect flag on onboard. All CA jurisdictions get at minimum ca_sos_results + legislative districts. School districts get state-level coverage.",
-        "priority": 0,
+        "priority": 2,
         "status": "done",
         "files": [
           "packages/civicos-extraction/src/civicos_extraction/onboard.py"
@@ -1637,7 +1637,7 @@
       {
         "name": "wire_election_fetch_into_onboard",
         "description": "After detect_election_sources() populates the extraction config at onboard step 3.6, trigger an immediate election data fetch using provider dispatch logic. New cities get election data on day 1 instead of waiting up to 30 days for the monthly cron.",
-        "priority": 0,
+        "priority": 2,
         "status": "done",
         "files": [
           "packages/civicos-extraction/src/civicos_extraction/onboard.py",
@@ -1660,7 +1660,7 @@
       {
         "name": "election_cron_enrollment_validation",
         "description": "Verify get_active_jurisdictions() includes all jurisdiction types (school-*, college-*, county-*) in the election cron dispatch. Add test confirming new jurisdictions with election_sources are auto-included without manual enrollment.",
-        "priority": 0,
+        "priority": 2,
         "status": "done",
         "files": [
           "packages/civicos-extraction/src/civicos_extraction/config.py"
@@ -1683,7 +1683,7 @@
       {
         "name": "ballot_preview_smart_scheduling",
         "description": "Trigger ballot preview fetch only in the pre-election window (~90 and ~30 days before election day). Skip outside that window. Currently runs monthly regardless. Uses election_date from ca_sos_ballot_preview config.",
-        "priority": 0,
+        "priority": 2,
         "status": "done",
         "files": [
           "scripts/modal_ingest.py"
@@ -1694,7 +1694,7 @@
       {
         "name": "election_coverage_monitoring",
         "description": "Monthly completeness report: count elections, contests, deadlines, officials per jurisdiction. Flag jurisdictions with zero data in any category. Output to logs or GitHub issue (like existing cron-failure alerts).",
-        "priority": 0,
+        "priority": 2,
         "status": "done",
         "files": [
           "scripts/modal_ingest.py"
@@ -1723,7 +1723,7 @@
       {
         "name": "derive_officials_from_winners",
         "description": "Build function to derive current elected officials from election_contests data. For each jurisdiction, find the most recent election per seat type, extract candidates with is_winner=true, and store via store_elected_officials(). Covers federal (congress), state (assembly/senate), county (supervisors) from data we already have.",
-        "priority": 0,
+        "priority": 2,
         "status": "done",
         "files": [
           "packages/civicos/src/civicos/_internal/elections/derive.py",
@@ -1761,7 +1761,7 @@
       {
         "name": "explore_representatives_endpoint",
         "description": "Add 'representatives' target to civic.explore verb. Query get_elected_officials() for the requested jurisdiction, walk the jurisdiction hierarchy (city \u2192 county \u2192 state \u2192 federal), and return a combined roster grouped by level. Accepts optional address parameter for geocode-based lookup.",
-        "priority": 0,
+        "priority": 2,
         "status": "done",
         "files": [
           "packages/civicos-services/src/civicos_services/query/verbs.py",
@@ -1773,7 +1773,7 @@
       {
         "name": "mcp_who_represents_me",
         "description": "Add who_represents_me(address) tool to MCP server. Geocodes address \u2192 resolves jurisdictions \u2192 queries elected_officials for each level \u2192 returns combined roster with name, office, party, contact info, level. The flagship citizen query.",
-        "priority": 0,
+        "priority": 2,
         "status": "done",
         "files": [
           "apps/civicos-mcp/server.py",
@@ -1797,7 +1797,7 @@
       {
         "name": "whats_on_my_ballot",
         "description": "The capstone citizen query: address \u2192 districts \u2192 which offices are up this cycle \u2192 candidates for each \u2192 measures for each jurisdiction \u2192 key dates. Combines representative_lookup (officials), ballot_awareness (calendar, measures), and district detection into one answer. Exposed as civic.explore what='my_ballot' and MCP tool whats_on_my_ballot(address).",
-        "priority": 0,
+        "priority": 2,
         "status": "done",
         "files": [
           "packages/civicos-services/src/civicos_services/query/verbs.py",
@@ -1828,7 +1828,7 @@
       {
         "name": "local_candidate_data",
         "description": "Ingest candidate data for local races (city council, county supervisor, school board). The county registrar is the authoritative source \u2014 they publish candidate filings for all local offices. Marin registrar (marincounty.gov/depts/rv) has candidate filing pages. BoardDocs/Simbli could provide school board member names.",
-        "priority": 0,
+        "priority": 2,
         "status": "done",
         "files": [
           "packages/civicos-extraction/src/civicos_extraction/clients/marin_registrar.py"
@@ -1839,7 +1839,7 @@
       {
         "name": "ballot_measure_content",
         "description": "Ingest ballot measure text, fiscal impact summaries, and pro/con arguments. State measures come from the CA voter guide (voterguide.sos.ca.gov). Local measures come from county sample ballots. Currently we only store pass/fail results, not the measure content itself.",
-        "priority": 0,
+        "priority": 2,
         "time_sensitive": "2026-06-02 CA primary \u2014 measures on the ballot need explanatory content",
         "status": "done",
         "files": [
