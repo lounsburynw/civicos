@@ -24608,3 +24608,20 @@ calendar tests + 20 smoke tests all pass. Zero behavior change for CA.
   - Real 2026-06-02 primary test (63 days away = within window)
 - All smoke tests pass (20/20), scheduling tests pass (12/12)
 - Next P0: TBD
+
+## 2026-03-31: Calendar-Aware Election Refresh + Marin Consolidation (P0) — DONE
+- Added `determine_refresh_cadence()` and `should_run_today()` to `scripts/modal_ingest.py:6092-6148`
+  - Cadence: daily (≤7 days), weekly (8-90 days, Mondays+1st), monthly (1st only)
+  - Thresholds configurable via `ELECTION_DAILY_THRESHOLD` / `ELECTION_WEEKLY_THRESHOLD`
+- Per-source gating in `scheduled_election_refresh()`:
+  - Civera: monthly only (1st) — pure historical, no daily need
+  - CA SOS Results: daily near election (captures election-night data), monthly otherwise
+  - Officials, ballot preview, deadlines: always run when jurisdiction runs
+- Consolidated `marin_registrar_results` → `civera_election_stats` across 15 jurisdiction configs
+  - Removed legacy Marin dispatch from scheduler, election_fetch.py, california.py provider
+  - All Civera counties now use unified `civera_election_stats` config key
+- GH Actions cron changed from monthly (`0 3 1 * *`) to daily (`0 3 * * *`)
+- Created `test_election_refresh_cadence.py` (28 tests: cadence, should-run, source gating, custom thresholds)
+- Updated 4 test files for Marin consolidation (176 total tests passing)
+- Smoke tests 20/20
+- Next P0: election_cron_enrollment_validation

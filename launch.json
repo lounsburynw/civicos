@@ -1630,7 +1630,7 @@
           "packages/civicos-extraction/src/civicos_extraction/election_fetch.py"
         ],
         "test_file": "packages/civicos-extraction/tests/test_election_fetch.py",
-        "notes": "Created election_fetch.py with fetch_elections_for_jurisdiction() — pure Python, no Modal dependency. Dispatches to Civera, CA SOS, Marin legacy, and elected officials clients. Wired into onboard step 3.6.1 with graceful failure handling."
+        "notes": "Created election_fetch.py with fetch_elections_for_jurisdiction() \u2014 pure Python, no Modal dependency. Dispatches to Civera, CA SOS, Marin legacy, and elected officials clients. Wired into onboard step 3.6.1 with graceful failure handling."
       },
       {
         "name": "officials_derivation_in_cron",
@@ -1646,7 +1646,7 @@
       {
         "name": "election_cron_enrollment_validation",
         "description": "Verify get_active_jurisdictions() includes all jurisdiction types (school-*, college-*, county-*) in the election cron dispatch. Add test confirming new jurisdictions with election_sources are auto-included without manual enrollment.",
-        "priority": 2,
+        "priority": 0,
         "status": "not_started",
         "files": [
           "packages/civicos-extraction/src/civicos_extraction/config.py"
@@ -1657,8 +1657,8 @@
       {
         "name": "calendar_aware_election_refresh",
         "description": "Vary scheduled_election_refresh() cadence by proximity to known election dates. Daily within 7 days of election (capture election-night SOS updates). Weekly within 90 days. Monthly otherwise. Uses get_next_election_date() from cycles.py.",
-        "priority": 0,
-        "status": "not_started",
+        "priority": 99,
+        "status": "done",
         "files": [
           ".github/workflows/cron-election-refresh.yml",
           "scripts/modal_ingest.py"
