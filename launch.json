@@ -394,6 +394,20 @@
         ],
         "test_file": null,
         "notes": "User reported 2026-03-30 that many cron jobs are failing. Broad investigation needed before adding new cron features."
+      },
+      {
+        "name": "cron_failure_triage_2026_04",
+        "description": "Triage and fix 3 cron failures from 2026-04-01: (1) Election refresh — LegiScan API key URL-encoded with quotes, city-national-city unknown in jurisdiction registry, county-marin officials NoneType.upper() after Congress.gov 404; (2) Vector refresh — chunk indexing jobs timing out (runner killed with SIGTERM); (3) Meetings poll — IndexError(5) from Modal container runtime. Also audit election data coverage: 22 jurisdictions configured but only 6 have data in Postgres.",
+        "priority": 0,
+        "status": "not_started",
+        "files": [
+          "scripts/modal_ingest.py",
+          ".github/workflows/cron-election-refresh.yml",
+          ".github/workflows/cron-vector-refresh.yml",
+          ".github/workflows/cron-meetings-poll.yml"
+        ],
+        "test_file": null,
+        "notes": "LegiScan key issue is likely env var quoting in Modal secrets. city-national-city may need adding to jurisdiction registry or removing from extraction configs. Vector timeout needs longer GH Actions timeout or chunked parallelism. Meetings poll IndexError is opaque — check Modal logs."
       }
     ]
   },
@@ -1681,11 +1695,11 @@
         "name": "election_coverage_monitoring",
         "description": "Monthly completeness report: count elections, contests, deadlines, officials per jurisdiction. Flag jurisdictions with zero data in any category. Output to logs or GitHub issue (like existing cron-failure alerts).",
         "priority": 0,
-        "status": "not_started",
+        "status": "done",
         "files": [
           "scripts/modal_ingest.py"
         ],
-        "test_file": null,
+        "test_file": "packages/civicos-extraction/tests/test_election_coverage_monitoring.py",
         "notes": "Uses get_election_count() and similar from storage protocol. Same pattern as existing cron alert workflows. ~0.5 session."
       }
     ]

@@ -24652,3 +24652,27 @@ calendar tests + 20 smoke tests all pass. Zero behavior change for CA.
   - Derivation near election (daily ≤7d, weekly 8-90d, monthly after)
   - Live config validation (workflow file, secrets, state codes)
 - All tests pass: 12 officials + 11 enrollment + 28 cadence + 63 detection + 20 smoke
+
+## 2026-04-01: Election Coverage Monitoring (P0) — DONE
+- Added `check_election_coverage()` to `scripts/modal_ingest.py:6164`
+  - Counts elections, contests, deadlines, officials per jurisdiction with election_sources
+  - Flags jurisdictions with zero data in any category as coverage gaps
+  - Runs monthly (1st of month) within `scheduled_election_refresh()`
+  - Returns structured report added to cron return value
+- 12 tests in `test_election_coverage_monitoring.py`: gap detection, filtering, backend queries
+- All tests pass: 12 coverage + 51 election + 20 smoke = 83 total
+- election_coverage_lifecycle category: ALL 11 ITEMS COMPLETE
+
+### Election Data Audit (current state)
+- 22 jurisdictions configured with election_sources, but only 6 have data in Postgres
+- Strong: city-san-rafael (24 elections, 29 contests, deadlines, 14 officials)
+- Strong: county-sonoma (44 elections, 987 contests, 4 officials, 0 deadlines)
+- Moderate: city-san-anselmo, city-mill-valley
+- Minimal: state-california, city-berkeley (1 election each)
+- Zero data: 16 jurisdictions (all schools, some cities/counties)
+
+### Cron Failures Identified (2026-04-01)
+1. Election refresh: LegiScan key URL-encoding, city-national-city unknown, county-marin NoneType
+2. Vector refresh: chunk indexing timeout (runner SIGTERM)
+3. Meetings poll: IndexError(5) from Modal runtime
+- Next P0: cron_failure_triage_2026_04
