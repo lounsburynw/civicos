@@ -108,7 +108,7 @@ Each jurisdiction also has its own endpoint for direct queries:
 | California | `california.civicosproject.org` |
 | Federal | `federal.civicosproject.org` |
 
-The jurisdiction registry (`config/registry.json`) lists all available jurisdictions and their domains.
+The service registry (`config/registry.json`) lists all available jurisdictions and their domains. Jurisdictions are auto-registered from config files in `data/extraction/` and `data/jurisdictions/`.
 
 ### Via TypeScript Client
 

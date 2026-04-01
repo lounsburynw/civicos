@@ -18,12 +18,31 @@ Start with what you need. Each service is independently deployable.
 
 - **PostgreSQL** — one database for MCP, a separate one for relay (if running relay). Free options: [Supabase](https://supabase.com), [Neon](https://neon.tech), [Fly.io](https://fly.io/docs/postgres).
 - **Python 3.11+** — for direct deployment. Or use [Modal](https://modal.com) for serverless.
-- **Jurisdiction code** — a canonical ID like `city-berkeley` or `county-alameda`. Check `config/registry.json` for existing codes.
+- **Jurisdiction code** — a canonical ID like `city-berkeley` or `county-alameda`. Any jurisdiction with a config file in `data/extraction/` or `data/jurisdictions/` is automatically registered.
 - **OpenAI API key** — required for the MCP server (embeddings and AI features).
 
 ## Register Your Jurisdiction
 
-If your jurisdiction isn't in `config/registry.json`, add it via PR:
+Jurisdictions are **automatically registered** when config files exist. No Python code edits are needed. The registry loads from three sources (merged in this order):
+
+1. **Extraction configs** (`data/extraction/{jurisdiction-id}.json`) — minimal registration: jurisdiction_id, source_type
+2. **Jurisdiction YAMLs** (`data/jurisdictions/{jurisdiction-id}.yaml`) — rich metadata: display_name, contact info, governing body
+3. **Hardcoded entries** (`packages/civicos-config/src/civicos_config/jurisdiction.py`) — enrichment: wiki_files, cost_efficiency_target
+
+To register a new jurisdiction, create an extraction config:
+
+```json
+{
+  "jurisdiction_id": "city-berkeley",
+  "source_type": "legistar",
+  "base_url": "https://berkeley.legistar.com",
+  "state": "CA"
+}
+```
+
+Fields like `timezone`, `display_name`, and `hall_name` are derived automatically (e.g., `state: "CA"` → `timezone: "America/Los_Angeles"`, `city-berkeley` → `display_name: "Berkeley"`).
+
+For service routing (domain assignment, Modal deployment), also add to `config/registry.json`:
 
 ```json
 {
