@@ -6161,6 +6161,89 @@ def should_run_today(cadence: str) -> bool:
         return today.day == 1
 
 
+def check_election_coverage(backend, jurisdictions, logger):
+    """Monthly election data completeness report.
+
+    For each jurisdiction with election_sources, count:
+    - elections (all, including past)
+    - contests (across all elections)
+    - deadlines (across all elections)
+    - officials (all, including former)
+
+    Returns structured report with per-jurisdiction counts and gap flags.
+    """
+    report = {
+        "jurisdictions_checked": 0,
+        "jurisdictions_with_gaps": 0,
+        "details": {},
+    }
+
+    for jid, config in jurisdictions.items():
+        election_sources = config.get("election_sources", {})
+        if not election_sources:
+            continue
+
+        report["jurisdictions_checked"] += 1
+
+        # Count elections (including past)
+        elections = backend.get_elections(jid, include_past=True)
+        election_count = len(elections)
+
+        # Count contests and deadlines across all elections
+        contest_count = 0
+        deadline_count = 0
+        for election in elections:
+            eid = election.get("id")
+            if eid:
+                contest_count += len(backend.get_election_contests(eid))
+                deadline_count += len(backend.get_election_deadlines(eid))
+
+        # Count officials (all, not just current)
+        officials = backend.get_elected_officials(jid, current_only=False)
+        official_count = len(officials)
+
+        # Flag gaps
+        gaps = []
+        if election_count == 0:
+            gaps.append("elections")
+        if contest_count == 0:
+            gaps.append("contests")
+        if deadline_count == 0:
+            gaps.append("deadlines")
+        if official_count == 0:
+            gaps.append("officials")
+
+        detail = {
+            "elections": election_count,
+            "contests": contest_count,
+            "deadlines": deadline_count,
+            "officials": official_count,
+            "gaps": gaps,
+        }
+        report["details"][jid] = detail
+
+        if gaps:
+            report["jurisdictions_with_gaps"] += 1
+            logger.warning(
+                f"  [{jid}] COVERAGE GAP: missing {', '.join(gaps)} "
+                f"(elections={election_count}, contests={contest_count}, "
+                f"deadlines={deadline_count}, officials={official_count})"
+            )
+        else:
+            logger.info(
+                f"  [{jid}] Coverage OK: "
+                f"elections={election_count}, contests={contest_count}, "
+                f"deadlines={deadline_count}, officials={official_count}"
+            )
+
+    logger.info(
+        f"Coverage report: {report['jurisdictions_checked']} checked, "
+        f"{report['jurisdictions_with_gaps']} with gaps"
+    )
+
+    return report
+
+
 @app.function(
     image=civic_image,
     secrets=[
@@ -6428,7 +6511,17 @@ def scheduled_election_refresh():
     skipped = sum(1 for r in results.values() if r.get("status") == "skipped")
     logger.info(f"Election refresh complete in {elapsed:.1f}s — {processed} processed, {skipped} skipped (of {len(jurisdictions)} total)")
 
-    return {
+    # --- Monthly coverage report (1st of month only) ---
+    coverage_report = None
+    if date_type.today().day == 1:
+        logger.info("Running monthly election coverage report...")
+        try:
+            coverage_report = check_election_coverage(backend, jurisdictions, logger)
+        except Exception as e:
+            logger.exception("Coverage report failed")
+            coverage_report = {"status": "failed", "error": str(e)}
+
+    result = {
         "schedule": "election_calendar_aware",
         "jurisdictions_total": len(jurisdictions),
         "jurisdictions_processed": processed,
@@ -6436,6 +6529,9 @@ def scheduled_election_refresh():
         "results": results,
         "elapsed_seconds": elapsed,
     }
+    if coverage_report is not None:
+        result["coverage_report"] = coverage_report
+    return result
 
 
 # =============================================================================
