@@ -796,6 +796,8 @@ class LegiScanLegislatorsClient:
             api_key: API key from legiscan.com. Falls back to LEGISCAN_API_KEY env var.
         """
         self.api_key = api_key or os.environ.get("LEGISCAN_API_KEY")
+        if self.api_key:
+            self.api_key = self.api_key.strip("'\"")
         self.session = requests.Session()
         self.last_request_time = 0.0
         self.min_request_interval = 0.2  # Conservative rate
@@ -870,6 +872,10 @@ class LegiScanLegislatorsClient:
         Returns:
             Session dict with session_id, session_title, year_start, etc.
         """
+        if not state:
+            logger.warning("No state code provided for session lookup")
+            return None
+
         # Check cache first
         cache_key = f"session_{state.upper()}"
         if cache_key in self._session_cache:
@@ -1314,7 +1320,7 @@ class RepresentativesClient:
                 )
 
         # State legislators - LegiScan primary, Open States fallback
-        if include_state:
+        if include_state and self.state_code:
             state_legislators = []
 
             # Try LegiScan first (primary source)

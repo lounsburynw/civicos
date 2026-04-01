@@ -42,6 +42,8 @@ class LegiScanClient:
 
     def __init__(self, api_key: Optional[str] = None):
         self.api_key = api_key or os.getenv('LEGISCAN_API_KEY')
+        if self.api_key:
+            self.api_key = self.api_key.strip("'\"")
 
         if not self.api_key:
             logger.warning(

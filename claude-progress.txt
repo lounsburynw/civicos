@@ -24676,3 +24676,35 @@ calendar tests + 20 smoke tests all pass. Zero behavior change for CA.
 2. Vector refresh: chunk indexing timeout (runner SIGTERM)
 3. Meetings poll: IndexError(5) from Modal runtime
 - Next P0: cron_failure_triage_2026_04
+
+## Session — 2026-04-01: cron_failure_triage_2026_04 (P0)
+
+**Item:** cron_failure_triage_2026_04
+**Status:** IN PROGRESS (fixes applied, testing passed)
+
+### Failures Triaged
+
+**1. Election Refresh (GH Actions #23831258244)** — 3 root causes:
+- **LegiScan API key quoting**: Modal secret `civic-legiscan` stores key with surrounding single quotes, causing `%27` URL-encoding. Fix: strip quotes in all 3 LegiScan client constructors.
+- **NoneType.upper() for state=None**: `county-marin` and `city-national-city` lack `"state"` field in extraction config. `LegiScanLegislatorsClient.get_current_session()` called with None. Fix: guard against None in `get_current_session()` + skip state legislators when `self.state_code` is None.
+- **Unregistered jurisdictions**: `city-national-city` and `school-tamalpais` have `election_sources` but aren't in jurisdiction registry. Fix: validate jurisdiction at top of election refresh loop, skip with warning if not registered.
+
+**2. Vector Refresh (GH Actions #23835606851)** — Timeout:
+- All chunk indexing shards (6 × 1000 docs) killed by SIGTERM after ~10-20 min.
+- Fix: increased `timeout-minutes` from 20 to 45 in `vector-refresh.yml`.
+
+**3. Meetings Poll (GH Actions #23773890264)** — Transient:
+- `IndexError(5)` from Modal's internal `container_io_manager.py`, not our code.
+- Failed once on Mar 31, all subsequent runs succeeded. No code fix needed.
+
+### Files Changed
+- `packages/civicos-extraction/src/civicos_extraction/clients/legiscan.py` — strip quotes
+- `packages/civicos-services/src/civicos_services/clients/legiscan_client.py` — strip quotes
+- `packages/civicos-extraction/src/civicos_extraction/clients/representatives.py` — strip quotes, None guard, skip state when no state_code
+- `scripts/modal_ingest.py` — validate jurisdiction registry before election refresh
+- `.github/workflows/vector-refresh.yml` — increase timeout 20→45 min
+
+### Tests
+- 23 election tests pass
+- 20 smoke tests pass
+- Manual verification of key stripping and None guard
