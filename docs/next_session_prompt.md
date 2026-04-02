@@ -1,79 +1,70 @@
-# Recommended: Election Source Auto-Detection (Session 3)
+# Recommended: Registry PR Workflow (operator_readiness)
 
-**Priority:** P0 (election_source_auto_detection)
-**Area:** multi_state_portability
+**Priority:** P0 (registry_pr_workflow)
+**Area:** operator_readiness
 **Date:** 2026-04-02
 
 > This is recommended context from the previous session. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
 
 ## Context
 
-Sessions 1-2 (2026-04-02) built the ClarityElectionsClient, validated it against live endpoints, and fixed a critical format mismatch. The live Clarity ENR uses **parallel arrays** (`CH`, `V`, `PCT` at contest level) not nested objects. Session 2 fixed the parser, discovered 42 election IDs across 7 CA counties, implemented archive-on-fetch to R2, added ballot measure auto-detection from YES/NO candidates, and integrated the `electionsettings.json` endpoint for authoritative election metadata.
+The election_source_auto_detection item is complete — Clarity Elections auto-detection now covers 48 counties across 14 US states. The onboarding pipeline (`scripts/onboard.py`) can detect meeting platforms, election sources, and generate jurisdiction configs. What's missing is a documented, CI-validated workflow for the PR that adds a new jurisdiction to `config/registry.json`. Currently there's no schema validation or CI check on registry edits.
 
-**What's done:** Parser handles both formats. Discovery uses static registry + scrape fallback. Archive-on-fetch wired. 80 Clarity tests, 299 election tests, 20 smoke tests all pass.
-
-**What still needs work:** End-to-end extraction against live data (contests into Postgres), extending to non-CA states, and marking the item done.
+Launch phase is 126/137 items done, 6 remaining.
 
 ## What to Build
 
-### 1. End-to-End Live Extraction (highest priority)
-Run the full Clarity pipeline against a live county (e.g., Contra Costa with 12 elections, or Ventura with 99 contests). Verify contests are stored correctly in Postgres. This is the final validation step.
+### 1. Registry JSON Schema Validation
+Create a validation script or JSON schema that checks `config/registry.json` for:
+- Required fields per jurisdiction (domain, display_name, parent_jurisdictions)
+- No duplicate jurisdiction IDs
+- Parent jurisdictions reference valid IDs
+- Domain uniqueness
+- Valid structure (no typos in field names)
 
-### 2. Extend to Non-CA States
-Clarity covers 30+ states. Add entries to `clarity_instances.json` for non-CA states and wire Clarity detection into `DefaultElectionProvider` (currently only `CaliforniaElectionProvider` checks for Clarity). This completes the "auto-detect election platforms" goal.
+### 2. CI Workflow for Registry PRs
+Create `.github/workflows/validate-registry.yml` that runs on PRs touching `config/registry.json` or `data/jurisdictions/*.yaml`. Should run the schema validator and existing jurisdiction tests.
 
-### 3. Mark Item Done
-Once live extraction works and non-CA detection is wired, update `launch.json` status from `not_started` to `done`.
+### 3. Document the PR Workflow
+Write a clear guide (or update existing docs) explaining how to add a new city:
+1. Run `/onboard --city "Name" --state XX --sandbox --dry-run`
+2. Review generated files (extraction config, jurisdiction YAML)
+3. Run `scripts/generate_registries.py` to update registry files
+4. Open PR — CI validates schema and runs tests
+5. Merge — city is live
 
 ## Key Files
 
-- `packages/civicos-extraction/src/civicos_extraction/clients/clarity_elections.py` — Full client. Key functions:
-  - `_is_parallel_array_format()` (line ~417) — format detection
-  - `clarity_contest_to_storage()` (line ~436) — handles both formats
-  - `discover_elections()` (line ~234) — two-tier: registry + scrape
-  - `get_election_settings()` (line ~308) — fetches authoritative name/date
-  - `extract_clarity_results_to_storage()` (line ~731) — pipeline orchestrator with archive
-- `data/extraction/clarity_instances.json` — 42 election IDs across 9 CA counties (7 net-new)
-- `packages/civicos-extraction/src/civicos_extraction/election_fetch.py:280` — `_fetch_clarity` handler with R2 archive wiring
-- `packages/civicos-extraction/src/civicos_extraction/providers/california.py:65` — Clarity detection in CA provider
-- `packages/civicos-extraction/src/civicos_extraction/providers/__init__.py` — DefaultElectionProvider (needs Clarity detection)
-- `docs/internal/clarity-elections-research.md` — Platform research, URL patterns, ephemerality notes
-- `packages/civicos-extraction/tests/test_clarity_elections.py` — 80 tests
-
-## Live Data Reference (Verified 2026-04-02)
-
-| County | Elections | Sample ID | Version | Contests |
-|--------|-----------|-----------|---------|----------|
-| Contra Costa | 12 | 122765 | 355929 | Many (incl. President, Senate, local) |
-| Ventura | 7 | 122837 | 356562 | 99 (incl. state props, local measures) |
-| Santa Clara | 1 | 125819 | 367736 | 1 (Assessor runoff) |
-
-JSON format: parallel arrays. Example field mapping:
-- `C` = contest name, `CH` = candidate names array, `V` = votes array
-- `PCT` = percentages array, `P` = party array, `W` = winner flags array
-- No `IQ` flag for ballot measures — detected via YES/NO candidate names
+- `config/registry.json` — Service URLs, deployment config for 15+ jurisdictions
+- `scripts/onboard.py` — Turnkey onboarding script (sandbox, dry-run, cleanup modes)
+- `scripts/generate_registries.py` — Auto-generates 3 registry files from YAML
+- `packages/civicos-config/src/civicos_config/jurisdiction.py` — JurisdictionRegistry class
+- `packages/civicos/tests/test_jurisdiction.py` — Existing jurisdiction tests (~100 lines)
+- `docs/internal/onboarding-friction-log.md` — Friction analysis from 6 onboardings
+- `docs/public/data-ingestion.md` — Full ingestion guide
+- `.github/workflows/` — Existing CI workflows (no registry validation yet)
 
 ## Suggested Approach
 
-1. **Run live extraction** against Contra Costa (richest data): instantiate client, call `extract_clarity_results_to_storage()` with real Postgres backend
-2. **Verify stored data** — query `store_elections` and `store_election_contests` results from Postgres
-3. **Add Clarity detection to DefaultElectionProvider** — check `has_clarity_instance()` during onboarding for any state
-4. **Probe non-CA states** — Clarity covers counties in FL, OH, TX, etc. Add a few to `clarity_instances.json`
-5. **Update launch.json** — mark `election_source_auto_detection` as `done`
+1. Read `config/registry.json` to understand current schema
+2. Write a validation script (`scripts/validate_registry.py`) that checks integrity
+3. Create `.github/workflows/validate-registry.yml` triggered on PR
+4. Add tests for registry validation (e.g., in `tests/test_registry_validation.py`)
+5. Document the workflow in `docs/public/onboarding-pr-workflow.md`
+6. Update `launch.json` status when complete
 
 ## Tests to Run
 
 ```bash
-pytest packages/civicos-extraction/tests/test_clarity_elections.py -q --override-ini="addopts="
-pytest packages/civicos-extraction/tests/test_election_fetch.py -q --override-ini="addopts="
-pytest packages/civicos-extraction/tests/ -k election -q --override-ini="addopts="
+pytest packages/civicos/tests/test_jurisdiction.py -q --override-ini="addopts="
 pytest packages/civicos/tests/test_civicos.py -q --override-ini="addopts="
+python scripts/generate_registries.py --dry-run  # verify generator works
 ```
 
 ## Success Criteria
 
-- [ ] End-to-end extraction works for at least 1 Clarity county (contests in Postgres)
-- [ ] Clarity detection wired into DefaultElectionProvider for non-CA states
-- [ ] At least 1 non-CA state added to clarity_instances.json
+- [ ] Registry validation script exists and catches common errors
+- [ ] CI workflow runs on PRs touching registry/jurisdiction files
+- [ ] Clear documentation for adding a new city via PR
+- [ ] Existing tests still pass
 - [ ] launch.json item marked done
-- [ ] All existing tests pass (no regressions)
