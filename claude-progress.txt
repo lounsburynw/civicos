@@ -24805,3 +24805,11 @@ Built Clarity Elections ENR client and wired it into the election auto-detection
 - Archive-on-fetch pipeline (store XML/JSON in R2 before parsing)
 - Explore extending detection to non-CA states
 - DefaultElectionProvider integration (currently only CaliforniaElectionProvider)
+
+### Critic Fixes (same session)
+- Fixed candidate ID collision (added index to IDs)
+- Added _check_partial_fetch() guard to all 3 election handlers (civera, ca_sos, clarity)
+- Moved CLARITY_INSTANCES from hardcoded dict to data/extraction/clarity_instances.json
+- Required explicit state in clarity config (no silent CA default)
+- Updated refresh.critic.md + configuration.critic.md with election-specific guidance
+- 61 Clarity tests + 16 fetch tests + 43 provider tests + 279 election tests + 20 smoke tests pass
