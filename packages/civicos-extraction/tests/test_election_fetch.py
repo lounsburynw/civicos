@@ -121,6 +121,91 @@ class TestFetchCivera:
         assert result["status"] in ("skipped", "failed")
 
 
+class TestFetchClarity:
+    """Test _fetch_clarity handler."""
+
+    def test_missing_state_skips(self):
+        """Clarity handler requires explicit state in config."""
+        from civicos_extraction.election_fetch import _fetch_clarity
+
+        mock_backend = MagicMock()
+        result = _fetch_clarity("city-test", {"county": "butte"}, mock_backend)
+        assert result["status"] == "skipped"
+        assert "state" in result["reason"]
+
+    def test_missing_county_skips(self):
+        from civicos_extraction.election_fetch import _fetch_clarity
+
+        mock_backend = MagicMock()
+        result = _fetch_clarity("city-test", {"state": "CA"}, mock_backend)
+        assert result["status"] == "skipped"
+        assert "county" in result["reason"]
+
+
+class TestCheckPartialFetch:
+    """Test the partial-fetch guard."""
+
+    def test_warns_on_zero_results_with_existing(self):
+        """Should log a warning when fetch returns 0 but data exists."""
+        import logging
+        from civicos_extraction.election_fetch import _check_partial_fetch
+
+        mock_backend = MagicMock()
+        mock_backend.get_election_count.return_value = 5
+
+        with patch.object(logging.getLogger("civicos_extraction.election_fetch"), "warning") as mock_warn:
+            _check_partial_fetch("city-test", "test_source", mock_backend, 0, 0)
+            mock_warn.assert_called_once()
+            assert "0 elections" in mock_warn.call_args[0][0]
+
+    def test_warns_on_large_drop(self):
+        """Should warn when new count drops >50% from existing."""
+        import logging
+        from civicos_extraction.election_fetch import _check_partial_fetch
+
+        mock_backend = MagicMock()
+        mock_backend.get_election_count.return_value = 10
+
+        with patch.object(logging.getLogger("civicos_extraction.election_fetch"), "warning") as mock_warn:
+            _check_partial_fetch("city-test", "test_source", mock_backend, 3, 5)
+            mock_warn.assert_called_once()
+            assert "50%" in mock_warn.call_args[0][0]
+
+    def test_no_warning_on_normal_fetch(self):
+        """No warning when new count is reasonable."""
+        import logging
+        from civicos_extraction.election_fetch import _check_partial_fetch
+
+        mock_backend = MagicMock()
+        mock_backend.get_election_count.return_value = 5
+
+        with patch.object(logging.getLogger("civicos_extraction.election_fetch"), "warning") as mock_warn:
+            _check_partial_fetch("city-test", "test_source", mock_backend, 5, 10)
+            mock_warn.assert_not_called()
+
+    def test_no_warning_on_first_fetch(self):
+        """No warning when no existing data (first fetch)."""
+        import logging
+        from civicos_extraction.election_fetch import _check_partial_fetch
+
+        mock_backend = MagicMock()
+        mock_backend.get_election_count.return_value = 0
+
+        with patch.object(logging.getLogger("civicos_extraction.election_fetch"), "warning") as mock_warn:
+            _check_partial_fetch("city-test", "test_source", mock_backend, 2, 5)
+            mock_warn.assert_not_called()
+
+    def test_graceful_on_backend_error(self):
+        """Should not raise if backend.get_election_count fails."""
+        from civicos_extraction.election_fetch import _check_partial_fetch
+
+        mock_backend = MagicMock()
+        mock_backend.get_election_count.side_effect = Exception("db error")
+
+        # Should not raise
+        _check_partial_fetch("city-test", "test_source", mock_backend, 0, 0)
+
+
 class TestFetchOfficials:
     """Test _fetch_officials graceful degradation."""
 
