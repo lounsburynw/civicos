@@ -24813,3 +24813,31 @@ Built Clarity Elections ENR client and wired it into the election auto-detection
 - Required explicit state in clarity config (no silent CA default)
 - Updated refresh.critic.md + configuration.critic.md with election-specific guidance
 - 61 Clarity tests + 16 fetch tests + 43 provider tests + 279 election tests + 20 smoke tests pass
+
+## Session — 2026-04-02: election_source_auto_detection session 2 (P0)
+
+**Item:** election_source_auto_detection (multi_state_portability)
+**Status:** IN PROGRESS (session 2 of ~3)
+
+### What was done
+- Validated Clarity parser against live Santa Clara, Contra Costa, Ventura endpoints
+- Fixed critical format mismatch: live Clarity uses parallel arrays (CH/V/PCT) not nested objects
+- Added `_is_parallel_array_format()` detection + full parallel-array handler in `clarity_contest_to_storage()`
+- Added YES/NO candidate name detection for ballot measures (live ENR has no IQ flag)
+- Added `get_election_settings()` method for authoritative election name/date from electionsettings.json
+- Redesigned `discover_elections()`: static registry (primary) + page scrape (fallback)
+- Discovered 42 election IDs across 7 CA counties via WebFetch probing
+- Implemented archive-on-fetch: raw JSON archived to R2 before parsing
+- Added format-drift canary warning (log when all contests produce 0 candidates)
+- 80 Clarity tests pass (19 new), 299 total election tests pass, 20 smoke tests pass
+
+### Tests
+- 80 Clarity tests pass (19 new for parallel format, archive, discovery)
+- 299 total election tests pass
+- 20 smoke tests pass
+
+### Remaining for Session 3
+- End-to-end extraction against live Clarity county (store contests in Postgres)
+- Extend detection to non-CA states (clarity_instances.json + DefaultElectionProvider)
+- Consider `clarify` library for XML detail report parsing
+- Update launch.json status when fully validated
