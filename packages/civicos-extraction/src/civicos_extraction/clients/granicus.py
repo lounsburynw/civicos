@@ -465,9 +465,11 @@ HTML:
         - "03/10/26 - 08:30 AM" (with time suffix)
         - Unknown formats (via LLM fallback)
         """
-        # Normalize whitespace first (Granicus HTML has \r\n and extra spaces)
+        # Normalize whitespace first (Granicus HTML has \r\n, \xa0, and extra spaces)
         raw_text = date_text
         date_text = re.sub(r"\s+", " ", date_text).strip()
+        # Normalize spaces around slashes (e.g., "03 / 24 / 2026" → "03/24/2026")
+        date_text = re.sub(r"\s*/\s*", "/", date_text)
         if not date_text:
             return None
 

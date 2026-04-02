@@ -85,6 +85,18 @@ _JURISDICTION_ALIASES = {
     "santa-rosa": "city-santa-rosa",
     "pleasant-hill": "city-pleasant-hill",
     "scotts-valley": "city-scotts-valley",
+
+    # Novato (auto-generated)
+    "novato": "city-novato",
+    "novato-ca": "city-novato",
+
+    # Sacramento (auto-generated)
+    "sacramento": "city-sacramento",
+    "sacramento-ca": "city-sacramento",
+
+    # Alameda County (auto-generated)
+    "alameda": "county-alameda",
+    "alameda-ca": "county-alameda",
 }
 
 # Display names for jurisdictions (override generated names)
@@ -108,6 +120,9 @@ _DISPLAY_NAMES = {
     "county-sonoma": "Sonoma County",
     "county-marin": "Marin County",
     "bart": "BART",
+    "city-novato": "Novato",
+    "city-sacramento": "Sacramento",
+    "county-alameda": "Alameda County",
 }
 
 

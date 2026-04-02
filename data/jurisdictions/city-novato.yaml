@@ -1,0 +1,97 @@
+jurisdiction_id: city-novato
+level: city
+display_name: Novato
+parent_jurisdictions:
+- county-marin
+- state-california
+- country-united-states
+contact_info:
+  clerk_email: null
+  website: https://www.novato.gov
+  city_hall_address: 901 Sherman Avenue, Novato, CA 94945
+  phone: (415) 899-8900
+  public_comment_deadline: 5:00 PM day of meeting
+  in_person_time_limit: 3 minutes
+  public_comment_subject: Public Comment - [Agenda Item Title]
+governing_body:
+  name: Novato City Council
+  members_title: Mayor and Council Members
+  meeting_schedule: Second and fourth Tuesday, 6:00 PM
+  meeting_location: Council Chambers, 901 Sherman Avenue, Novato
+data_sources:
+  meetings:
+    source_type: granicus
+    base_url: https://novato.granicus.com
+    archives:
+      multiple: '7'
+    metadata:
+      granicus_domain: novato
+      default_view_id: '7'
+      column_map:
+        name: 0
+        date: 1
+        agenda: 3
+        video: 5
+  issues: seeclickfix
+  budget: null
+  municipal_code: null
+  transcripts:
+    source: youtube
+    playlist_id: null
+    channel_id: UCW4N-TOX2F_U08sNVEc4Tag
+    channel_title: City of Petaluma
+financial:
+  state: CA
+  county: Marin
+federal_programs:
+  usaspending:
+    search_names:
+    - CITY OF NOVATO
+    allowed_names:
+    - CITY OF NOVATO
+zip_codes:
+- '94945'
+- '94947'
+- '94949'
+neighborhoods:
+- Downtown
+- Hamilton
+- Ignacio
+- Bel Marin Keys
+- South Novato
+- North Novato
+ingestion:
+  meetings: true
+  pdf_chunks: true
+  issues: true
+  municipal_code: false
+  agenda_items: true
+  decisions: true
+  legislation: true
+  transcription: false
+  diarization: false
+  vector_indexing: true
+refresh:
+  meetings:
+    interval: 1d
+    strategy: incremental
+  issues:
+    interval: 1d
+    strategy: incremental
+  municipal_code:
+    interval: 90d
+    strategy: content_hash
+  legislation:
+    interval: 7d
+    strategy: incremental
+tools_enabled: null
+tool_overrides: {}
+modal:
+  min_containers: 0
+  secrets:
+  - civicos-env
+metadata:
+  created: '2026-04-02'
+  updated: '2026-04-02'
+  notes: Granicus view_id=7 (City Council + Planning Commission). No YouTube channel.
+    NCTV closed 2023.
