@@ -1,7 +1,7 @@
 {
   "version": "1.0",
   "phase": "launch",
-  "last_updated": "2026-03-30",
+  "last_updated": "2026-04-01",
   "summary": "Launch readiness: election coverage lifecycle (active \u2014 CA depth, automation, ingestion strategy), multi-state portability (CA+TX done), election+school onboarding (done), representative lookup (done), turnkey onboarding (done), federation queries, billing, operator tooling, multi-scale participation (done)",
   "category_order": [
     "multi_state_portability",
@@ -58,7 +58,7 @@
           "packages/civicos-extraction/tests/test_election_providers.py"
         ],
         "test_file": "packages/civicos-extraction/tests/test_election_providers.py",
-        "notes": "Phase 3 done. ABC in extraction/providers/, CA provider extracted, onboard.py dispatches via registry. 17 new tests + 61 existing all pass. Adding a new state = config entry + provider file + factory registration."
+        "notes": "Phase 3 done. Generalized further: DefaultElectionProvider auto-creates for any state with StateElectionConfig. Per-state files deleted (TX, FL). Registry-based dispatch in election_fetch.py. Adding a new state = just add StateElectionConfig entry."
       },
       {
         "name": "all_california_coverage",
@@ -75,59 +75,73 @@
       },
       {
         "name": "texas_election_support",
-        "description": "Add Texas as second supported state. StateElectionConfig for TX (March primary, 30-day registration, 17-day early voting, no universal VBM). TexasElectionProvider with detect_election_sources(). TX SOS client if API accessible. End-to-end test with a TX jurisdiction.",
+        "description": "Add Texas as second supported state. StateElectionConfig for TX. Now uses DefaultElectionProvider (no per-state file needed).",
         "priority": 2,
         "status": "done",
         "files": [
-          "packages/civicos/src/civicos/_internal/elections/state_config.py",
-          "packages/civicos-extraction/src/civicos_extraction/providers/texas.py"
+          "packages/civicos/src/civicos/_internal/elections/state_config.py"
         ],
         "test_file": null,
-        "notes": "Phase 5. First non-CA state validates the abstraction. TX senate: 31 seats, odd=2026/even=2028. Statewide: Gov, Lt Gov, AG, Comptroller, Land Commissioner, Ag Commissioner, Railroad Commissioner. ~1.5 sessions."
+        "notes": "Phase 5 done. TX config added. Per-state provider file deleted — DefaultElectionProvider handles all non-CA states."
       },
       {
         "name": "florida_election_support",
-        "description": "Add Florida election support. StateElectionConfig + provider + SOS client. FL uses Clarity Elections (Scytl) widely \u2014 building that client covers many FL counties.",
-        "priority": 0,
-        "status": "not_started",
+        "description": "Add Florida election support. StateElectionConfig + DefaultElectionProvider (auto-created). No per-state provider file needed.",
+        "priority": 2,
+        "status": "done",
         "files": [
-          "packages/civicos/src/civicos/_internal/elections/providers/florida.py"
+          "packages/civicos/src/civicos/_internal/elections/state_config.py"
         ],
-        "test_file": null,
-        "notes": "Phase 6a. Clarity Elections platform is used by GA, NC + hundreds of counties \u2014 building it here has outsized value. Deprioritized pending CA depth completion. If non_civera_local_race_research validates Clarity, this item's priority increases (shared client covers CA counties too). ~1 session."
+        "test_file": "packages/civicos-extraction/tests/test_election_providers.py",
+        "notes": "Done. FL StateElectionConfig was already in state_config.py. DefaultElectionProvider auto-creates fl_sos_results source. Fetch client still needed — covered by election_source_auto_detection item."
       },
       {
         "name": "new_york_election_support",
-        "description": "Add New York election support. StateElectionConfig + provider + SOS client. NY Board of Elections has public data downloads.",
+        "description": "Add New York election support. StateElectionConfig already exists. DefaultElectionProvider auto-creates ny_sos_results. No per-state file needed.",
         "priority": 3,
-        "status": "not_started",
+        "status": "done",
         "files": [
-          "packages/civicos/src/civicos/_internal/elections/providers/new_york.py"
+          "packages/civicos/src/civicos/_internal/elections/state_config.py"
         ],
-        "test_file": null,
-        "notes": "Phase 6b. ~1 session."
+        "test_file": "packages/civicos-extraction/tests/test_election_providers.py",
+        "notes": "Done. NY StateElectionConfig was already in state_config.py. DefaultElectionProvider auto-creates ny_sos_results. Fetch client still needed — covered by election_source_auto_detection item."
       },
       {
         "name": "pennsylvania_election_support",
-        "description": "Add Pennsylvania election support. StateElectionConfig + provider + SOS client.",
+        "description": "Add Pennsylvania election support. StateElectionConfig already exists. DefaultElectionProvider auto-creates pa_sos_results.",
         "priority": 3,
-        "status": "not_started",
+        "status": "done",
         "files": [
-          "packages/civicos/src/civicos/_internal/elections/providers/pennsylvania.py"
+          "packages/civicos/src/civicos/_internal/elections/state_config.py"
         ],
-        "test_file": null,
-        "notes": "Phase 6c. ~1 session."
+        "test_file": "packages/civicos-extraction/tests/test_election_providers.py",
+        "notes": "Done. PA StateElectionConfig was already in state_config.py. Fetch client still needed — covered by election_source_auto_detection item."
       },
       {
         "name": "illinois_election_support",
-        "description": "Add Illinois election support. StateElectionConfig + provider + SOS client.",
+        "description": "Add Illinois election support. StateElectionConfig already exists. DefaultElectionProvider auto-creates il_sos_results.",
         "priority": 3,
+        "status": "done",
+        "files": [
+          "packages/civicos/src/civicos/_internal/elections/state_config.py"
+        ],
+        "test_file": "packages/civicos-extraction/tests/test_election_providers.py",
+        "notes": "Done. IL StateElectionConfig was already in state_config.py. Fetch client still needed — covered by election_source_auto_detection item."
+      },
+      {
+        "name": "election_source_auto_detection",
+        "description": "Auto-detect election reporting platforms during onboarding, like detect_platform() does for meetings. Research top election platforms (Clarity Elections, state SOS APIs, county registrar sites). Build detection probes + extraction clients. Wire into DefaultElectionProvider so onboarding produces working election data for any US city.",
+        "priority": 0,
         "status": "not_started",
         "files": [
-          "packages/civicos/src/civicos/_internal/elections/providers/illinois.py"
+          "packages/civicos-extraction/src/civicos_extraction/providers/default.py",
+          "packages/civicos-extraction/src/civicos_extraction/providers/__init__.py",
+          "packages/civicos-extraction/src/civicos_extraction/election_fetch.py",
+          "packages/civicos-extraction/src/civicos_extraction/clients/",
+          "docs/internal/clarity-elections-research.md"
         ],
-        "test_file": null,
-        "notes": "Phase 6d. ~1 session."
+        "test_file": "packages/civicos-extraction/tests/test_election_providers.py",
+        "notes": "The meetings analogy: just as we auto-detect Granicus/Legistar/BoardDocs, we should auto-detect Clarity Elections/state SOS/county registrar. Clarity Elections is highest leverage (covers hundreds of counties across 30+ states). Research existing docs/internal/clarity-elections-research.md. Build detect_election_platform() + ClarityElectionsClient. ~2-3 sessions."
       }
     ]
   },
