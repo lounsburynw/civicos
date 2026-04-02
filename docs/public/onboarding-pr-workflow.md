@@ -49,8 +49,8 @@ python scripts/generate_registries.py             # Apply changes
 
 This patches three files:
 1. `config/registry.json` — service routing (domain, Modal app name)
-2. `packages/civicos-config/.../jurisdiction.py` — JurisdictionConfig entry
-3. `packages/civicos/.../_internal/jurisdiction.py` — aliases and display names
+2. `packages/civicos-config/src/civicos_config/jurisdiction.py` — JurisdictionConfig entry
+3. `packages/civicos/src/civicos/_internal/jurisdiction.py` — aliases and display names
 
 ### 4. Validate
 

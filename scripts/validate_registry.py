@@ -34,28 +34,20 @@ except ImportError:
 ROOT = Path(__file__).resolve().parent.parent
 JURISDICTIONS_DIR = ROOT / "data" / "jurisdictions"
 REGISTRY_JSON = ROOT / "config" / "registry.json"
+VALIDATION_RULES = JURISDICTIONS_DIR / "validation_rules.json"
 
-# Valid jurisdiction levels
-VALID_LEVELS = {"federal", "state", "county", "city", "town", "school", "college", "board", "bart"}
 
-# Valid jurisdiction ID prefixes (must match level)
-LEVEL_PREFIXES = {
-    "federal": "country",
-    "state": "state",
-    "county": "county",
-    "city": "city",
-    "town": "city",  # towns use city- prefix
-    "school": "school",
-    "college": "college",
-    "board": "board",
-    "bart": "bart",
-}
+def _load_validation_rules() -> Dict[str, Any]:
+    """Load validation rules from data/jurisdictions/validation_rules.json."""
+    with open(VALIDATION_RULES) as f:
+        return json.load(f)
 
-# Known meeting source types
-VALID_SOURCE_TYPES = {
-    "proudcity", "granicus", "legistar", "civicclerk", "civicplus_cms",
-    "san_rafael_cms", "srcs_cms", "berkeley_cms", "standard",
-}
+
+_rules = _load_validation_rules()
+
+VALID_LEVELS = set(_rules["levels"])
+LEVEL_PREFIXES = _rules["level_prefixes"]
+VALID_SOURCE_TYPES = set(_rules["source_types"])
 
 # Jurisdiction ID pattern: prefix-slug (lowercase alphanumeric + hyphens)
 JURISDICTION_ID_RE = re.compile(r"^(city|county|state|country|school|college|board|bart)-[a-z0-9]+(-[a-z0-9]+)*$")
