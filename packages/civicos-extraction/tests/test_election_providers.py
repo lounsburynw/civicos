@@ -206,13 +206,18 @@ class TestDefaultElectionProvider:
         provider = DefaultElectionProvider("TX")
         result = provider.detect_election_sources("city-austin", "travis")
         assert "tx_sos_results" in result
-        assert result["tx_sos_results"] == {"county": "travis", "county_breakdown": True}
+        assert result["tx_sos_results"]["county"] == "travis"
+        # Travis has Clarity, so county_breakdown=False (Clarity provides local data)
+        assert "clarity_elections" in result
+        assert result["tx_sos_results"]["county_breakdown"] is False
 
     def test_fl_source_key(self):
         provider = DefaultElectionProvider("FL")
         result = provider.detect_election_sources("city-miami", "miami-dade")
         assert "fl_sos_results" in result
-        assert result["fl_sos_results"] == {"county": "miami-dade", "county_breakdown": True}
+        assert result["fl_sos_results"]["county"] == "miami-dade"
+        # Miami-Dade not in Clarity registry, gets county_breakdown=True
+        assert result["fl_sos_results"]["county_breakdown"] is True
 
     def test_ny_source_key(self):
         provider = DefaultElectionProvider("NY")
@@ -235,11 +240,18 @@ class TestDefaultElectionProvider:
         result = provider.detect_election_sources("city-test", "")
         assert result["tx_sos_results"] == {"county": "", "county_breakdown": True}
 
-    def test_always_county_breakdown_true(self):
-        """Default provider always sets county_breakdown=True."""
+    def test_county_breakdown_depends_on_clarity(self):
+        """Default provider sets county_breakdown based on Clarity availability."""
+        # Hillsborough FL has Clarity → county_breakdown=False
         provider = DefaultElectionProvider("FL")
         result = provider.detect_election_sources("city-tampa", "hillsborough")
-        assert result["fl_sos_results"]["county_breakdown"] is True
+        assert "clarity_elections" in result
+        assert result["fl_sos_results"]["county_breakdown"] is False
+
+        # Unknown county without Clarity → county_breakdown=True
+        result2 = provider.detect_election_sources("city-test", "unknown_county")
+        assert "clarity_elections" not in result2
+        assert result2["fl_sos_results"]["county_breakdown"] is True
 
     def test_with_lat_lng_adds_districts(self):
         provider = DefaultElectionProvider("TX")

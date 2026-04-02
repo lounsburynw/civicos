@@ -90,43 +90,53 @@ class TestCountyToUrlName:
 class TestDetectClarityElections:
     """Test Clarity Elections detection probing."""
 
-    @patch("civicos_extraction.clients.clarity_elections.requests.head")
-    def test_detect_known_county(self, mock_head):
-        mock_head.return_value = MagicMock(status_code=200)
+    def test_detect_known_county_no_probe(self):
+        """Registered counties return immediately without HTTP probe."""
         result = detect_clarity_elections("santa clara", "CA")
         assert result is not None
         assert result["county"] == "santa clara"
         assert result["url_name"] == "Santa_Clara"
         assert result["state"] == "CA"
 
-    @patch("civicos_extraction.clients.clarity_elections.requests.head")
-    def test_detect_skips_civera_preferred(self, mock_head):
+    def test_detect_skips_civera_preferred(self):
         """Counties where Civera is preferred should not return Clarity."""
         result = detect_clarity_elections("marin", "CA")
         assert result is None
-        mock_head.assert_not_called()
 
-    @patch("civicos_extraction.clients.clarity_elections.requests.head")
-    def test_detect_unknown_county_probes(self, mock_head):
-        """Unknown counties are probed dynamically."""
-        mock_head.return_value = MagicMock(status_code=200)
+    @patch("civicos_extraction.clients.clarity_elections.requests.get")
+    def test_detect_unknown_county_probes(self, mock_get):
+        """Unknown counties are probed dynamically via GET."""
+        mock_resp = MagicMock(status_code=200)
+        mock_resp.content = b"x" * 2000  # Must exceed 1000-byte threshold
+        mock_get.return_value = mock_resp
         result = detect_clarity_elections("san diego", "CA")
         assert result is not None
         assert result["url_name"] == "San_Diego"
-        mock_head.assert_called_once()
+        mock_get.assert_called_once()
 
-    @patch("civicos_extraction.clients.clarity_elections.requests.head")
-    def test_detect_unknown_county_not_found(self, mock_head):
-        mock_head.return_value = MagicMock(status_code=404)
+    @patch("civicos_extraction.clients.clarity_elections.requests.get")
+    def test_detect_unknown_county_not_found(self, mock_get):
+        mock_resp = MagicMock(status_code=404)
+        mock_resp.content = b""
+        mock_get.return_value = mock_resp
         result = detect_clarity_elections("san diego", "CA")
         assert result is None
 
-    @patch("civicos_extraction.clients.clarity_elections.requests.head")
-    def test_detect_network_error(self, mock_head):
+    @patch("civicos_extraction.clients.clarity_elections.requests.get")
+    def test_detect_network_error(self, mock_get):
+        """Network errors during probe return None."""
         import requests
-        mock_head.side_effect = requests.RequestException("timeout")
-        result = detect_clarity_elections("santa clara", "CA")
+        mock_get.side_effect = requests.RequestException("timeout")
+        result = detect_clarity_elections("san diego", "CA")
         assert result is None
+
+    def test_detect_non_ca_registered_county(self):
+        """Non-CA registered county returns immediately."""
+        result = detect_clarity_elections("travis", "TX")
+        assert result is not None
+        assert result["county"] == "travis"
+        assert result["state"] == "TX"
+        assert result["url_name"] == "Travis"
 
 
 # ==================== Client ====================
@@ -686,9 +696,10 @@ class TestFullPipelineParallelFormat:
             url_name="Santa_Clara",
         )
 
+    @patch.object(ClarityElectionsClient, "get_election_settings")
     @patch.object(ClarityElectionsClient, "get_summary")
     @patch.object(ClarityElectionsClient, "discover_elections")
-    def test_pipeline_with_parallel_format(self, mock_discover, mock_summary):
+    def test_pipeline_with_parallel_format(self, mock_discover, mock_summary, mock_settings):
         """Full pipeline works end-to-end with live parallel-array data."""
         mock_discover.return_value = [
             {"election_id": "125819", "name": "December 30, 2025 Runoff"},
@@ -704,6 +715,7 @@ class TestFullPipelineParallelFormat:
                 "T": 219510,
             },
         ]
+        mock_settings.return_value = None
 
         mock_storage = MagicMock()
         mock_storage.store_elections.return_value = 1
@@ -741,9 +753,10 @@ class TestExtractClarityResultsToStorage:
             url_name="Santa_Clara",
         )
 
+    @patch.object(ClarityElectionsClient, "get_election_settings")
     @patch.object(ClarityElectionsClient, "get_summary")
     @patch.object(ClarityElectionsClient, "discover_elections")
-    def test_full_pipeline(self, mock_discover, mock_summary):
+    def test_full_pipeline(self, mock_discover, mock_summary, mock_settings):
         mock_discover.return_value = [
             {"election_id": "125819", "name": "November 5 2024 General"},
         ]
@@ -770,6 +783,7 @@ class TestExtractClarityResultsToStorage:
                 ],
             },
         ]
+        mock_settings.return_value = None  # No settings available
 
         mock_storage = MagicMock()
         mock_storage.store_elections.return_value = 1
@@ -831,15 +845,17 @@ class TestExtractClarityResultsToStorage:
         assert counts["elections"] == 0
         mock_storage.store_elections.assert_not_called()
 
+    @patch.object(ClarityElectionsClient, "get_election_settings")
     @patch.object(ClarityElectionsClient, "get_summary")
     @patch.object(ClarityElectionsClient, "discover_elections")
-    def test_archive_on_fetch(self, mock_discover, mock_summary):
+    def test_archive_on_fetch(self, mock_discover, mock_summary, mock_settings):
         """When archive_blob is provided, raw JSON is archived before parsing."""
         mock_discover.return_value = [
             {"election_id": "125819", "name": "Test Election"},
         ]
         summary_data = [{"C": "Mayor", "CH": ["Alice"], "V": [1000], "PCT": [100.0]}]
         mock_summary.return_value = summary_data
+        mock_settings.return_value = None
 
         mock_storage = MagicMock()
         mock_storage.store_elections.return_value = 1
@@ -859,14 +875,16 @@ class TestExtractClarityResultsToStorage:
         assert "clarity-elections/CA/Santa_Clara/125819/summary.json" == call_args[1]["key"]
         assert call_args[1]["content_type"] == "application/json"
 
+    @patch.object(ClarityElectionsClient, "get_election_settings")
     @patch.object(ClarityElectionsClient, "get_summary")
     @patch.object(ClarityElectionsClient, "discover_elections")
-    def test_archive_failure_does_not_block_extraction(self, mock_discover, mock_summary):
+    def test_archive_failure_does_not_block_extraction(self, mock_discover, mock_summary, mock_settings):
         """Archive failure is logged but does not prevent data extraction."""
         mock_discover.return_value = [
             {"election_id": "125819", "name": "Test Election"},
         ]
         mock_summary.return_value = [{"C": "Mayor", "CH": ["Alice"], "V": [1000], "PCT": [100.0]}]
+        mock_settings.return_value = None
 
         mock_storage = MagicMock()
         mock_storage.store_elections.return_value = 1
@@ -988,3 +1006,250 @@ class TestCaliforniaProviderClarity:
             result = provider.detect_election_sources(jid, county)
             assert "clarity_elections" in result, f"Missing clarity_elections for {county}"
             assert result["clarity_elections"]["county"] == county
+
+
+# ==================== Default Provider Clarity Integration ====================
+
+
+class TestDefaultProviderClarity:
+    """Test DefaultElectionProvider Clarity integration for non-CA states."""
+
+    @pytest.fixture(autouse=True)
+    def clear_provider_cache(self):
+        from civicos_extraction.providers import _PROVIDERS
+        _PROVIDERS.clear()
+        yield
+        _PROVIDERS.clear()
+
+    def test_registered_county_gets_clarity_source(self):
+        """Non-CA county in registry gets clarity_elections source."""
+        from civicos_extraction.providers.default import DefaultElectionProvider
+        provider = DefaultElectionProvider("TX")
+        result = provider.detect_election_sources("city-austin", "travis")
+        assert "clarity_elections" in result
+        assert result["clarity_elections"]["county"] == "travis"
+        assert result["clarity_elections"]["state"] == "TX"
+        assert result["clarity_elections"]["url_name"] == "Travis"
+
+    def test_registered_county_sos_no_breakdown(self):
+        """Clarity counties get county_breakdown=False since Clarity provides local data."""
+        from civicos_extraction.providers.default import DefaultElectionProvider
+        provider = DefaultElectionProvider("TX")
+        result = provider.detect_election_sources("city-austin", "travis")
+        assert result["tx_sos_results"]["county_breakdown"] is False
+
+    def test_unregistered_county_no_clarity(self, monkeypatch):
+        """Counties not in registry and failing probe get no Clarity source."""
+        monkeypatch.setattr(
+            "civicos_extraction.clients.clarity_elections.detect_clarity_elections",
+            lambda county, state, **kwargs: None,
+        )
+        from civicos_extraction.providers.default import DefaultElectionProvider
+        provider = DefaultElectionProvider("WY")
+        result = provider.detect_election_sources("city-cheyenne", "laramie")
+        assert "clarity_elections" not in result
+        assert result["wy_sos_results"]["county_breakdown"] is True
+
+    def test_multi_state_registry_coverage(self):
+        """Verify registry has entries for multiple US states."""
+        from civicos_extraction.clients.clarity_elections import CLARITY_INSTANCES
+        states_with_clarity = [s for s in CLARITY_INSTANCES if CLARITY_INSTANCES[s]]
+        assert len(states_with_clarity) >= 10, (
+            f"Expected 10+ states in registry, got {len(states_with_clarity)}: "
+            f"{sorted(states_with_clarity)}"
+        )
+
+    def test_non_ca_states_in_registry(self):
+        """Non-CA states should be present in the Clarity registry."""
+        from civicos_extraction.clients.clarity_elections import CLARITY_INSTANCES
+        expected_states = ["TX", "FL", "GA", "OH", "CO", "SC", "OK", "AL"]
+        for state in expected_states:
+            assert state in CLARITY_INSTANCES, f"Missing {state} from registry"
+            assert len(CLARITY_INSTANCES[state]) > 0, f"Empty {state} in registry"
+
+    def test_texas_counties_detected(self):
+        """TX counties with Clarity produce proper election sources."""
+        from civicos_extraction.providers.default import DefaultElectionProvider
+        provider = DefaultElectionProvider("TX")
+        for county, url_name in [
+            ("travis", "Travis"),
+            ("denton", "Denton"),
+            ("el paso", "El_Paso"),
+            ("fort bend", "Fort_Bend"),
+        ]:
+            result = provider.detect_election_sources(f"city-test-{county}", county)
+            assert "clarity_elections" in result, f"Missing clarity for TX/{county}"
+            assert result["clarity_elections"]["url_name"] == url_name
+
+    def test_florida_counties_detected(self):
+        """FL counties with Clarity produce proper election sources."""
+        from civicos_extraction.providers.default import DefaultElectionProvider
+        provider = DefaultElectionProvider("FL")
+        for county in ["duval", "hillsborough", "orange", "palm beach"]:
+            result = provider.detect_election_sources(f"city-test-{county}", county)
+            assert "clarity_elections" in result, f"Missing clarity for FL/{county}"
+
+    def test_dynamic_probe_fallback(self, monkeypatch):
+        """For unregistered counties, detect_clarity_elections probes dynamically."""
+        monkeypatch.setattr(
+            "civicos_extraction.clients.clarity_elections.detect_clarity_elections",
+            lambda county, state, **kwargs: {
+                "county": county.lower(),
+                "state": state,
+                "url_name": county.title(),
+            },
+        )
+        from civicos_extraction.providers.default import DefaultElectionProvider
+        provider = DefaultElectionProvider("WA")
+        result = provider.detect_election_sources("city-seattle", "king")
+        assert "clarity_elections" in result
+        assert result["clarity_elections"]["county"] == "king"
+
+    def test_state_key_format(self):
+        """SOS source key follows {state}_sos_results format."""
+        from civicos_extraction.providers.default import DefaultElectionProvider
+        for state in ["TX", "FL", "GA", "OH"]:
+            provider = DefaultElectionProvider(state)
+            result = provider.detect_election_sources("city-test", "some_county")
+            expected_key = f"{state.lower()}_sos_results"
+            assert expected_key in result
+
+
+# ==================== Multi-State Data Quality ====================
+
+
+class TestMultiStateParallelArrayParsing:
+    """Test that non-CA Clarity data parses correctly through existing pipeline."""
+
+    def test_tx_format_parallel_arrays(self):
+        """TX Clarity data uses same parallel-array format as CA."""
+        from civicos_extraction.clients.clarity_elections import (
+            parse_summary_contests,
+            clarity_contest_to_storage,
+        )
+        # Simulated TX-style contest
+        summary = [{
+            "C": "DEM United States Senator",
+            "CH": ["Alice Smith", "Bob Jones"],
+            "V": [15000, 12000],
+            "PCT": [55.56, 44.44],
+            "P": ["DEM", "DEM"],
+            "W": ["X", ""],
+            "T": 27000,
+        }]
+        contests = parse_summary_contests(summary)
+        assert len(contests) == 1
+        mapped = clarity_contest_to_storage(contests[0], "travis", "125931")
+        assert mapped["title"] == "DEM United States Senator"
+        assert mapped["contest_type"] == "federal_senate"
+        assert len(mapped["candidates"]) == 2
+        assert mapped["candidates"][0]["name"] == "Alice Smith"
+        assert mapped["candidates"][0]["is_winner"] is True
+
+    def test_fl_format_with_ballot_measures(self):
+        """FL Clarity data with ballot measures (YES/NO candidates)."""
+        from civicos_extraction.clients.clarity_elections import (
+            parse_summary_contests,
+            clarity_contest_to_storage,
+        )
+        summary = [{
+            "C": "Amendment 1 - Partisan School Board Elections",
+            "CH": ["YES", "NO"],
+            "V": [80000, 60000],
+            "PCT": [57.14, 42.86],
+            "P": ["", ""],
+            "W": ["", ""],
+            "T": 140000,
+        }]
+        contests = parse_summary_contests(summary)
+        mapped = clarity_contest_to_storage(contests[0], "hillsborough", "43959")
+        assert mapped["contest_type"] == "local_measure"
+        assert mapped["ballot_measure"] is not None
+        assert mapped["ballot_measure"]["yes_votes"] == 80000
+        assert mapped["ballot_measure"]["no_votes"] == 60000
+
+
+# ==================== Integration: Postgres End-to-End ====================
+
+
+class TestClarityPostgresIntegration:
+    """Integration test: full Clarity pipeline with mocked HTTP, real Postgres.
+
+    Validates that the extraction pipeline correctly stores elections and
+    contests through the real Postgres storage backend. HTTP is mocked
+    to avoid depending on Clarity availability.
+    """
+
+    @pytest.fixture
+    def postgres_backend(self):
+        """Get real Postgres backend (skips if DATABASE_URL not set)."""
+        import os
+        from dotenv import load_dotenv
+
+        load_dotenv()
+        db_url = os.environ.get("DATABASE_URL")
+        if not db_url:
+            pytest.skip("DATABASE_URL not set — skipping Postgres integration test")
+
+        from civicos.storage.postgres_backend import PostgresBackend
+
+        return PostgresBackend(db_url)
+
+    @patch.object(ClarityElectionsClient, "get_election_settings")
+    @patch.object(ClarityElectionsClient, "get_summary")
+    @patch.object(ClarityElectionsClient, "discover_elections")
+    def test_clarity_to_postgres_end_to_end(
+        self, mock_discover, mock_summary, mock_settings, postgres_backend,
+    ):
+        """Full pipeline: Clarity → parse → store in real Postgres.
+
+        Uses city-san-rafael (registered pilot) with fake election ID 999999
+        to validate the storage wiring without affecting real data.
+        """
+        mock_discover.return_value = [
+            {"election_id": "999999", "name": "Integration Test Election"},
+        ]
+        mock_summary.return_value = [
+            {
+                "C": "DEM United States Senator",
+                "CH": ["Test Candidate A", "Test Candidate B"],
+                "V": [15000, 12000],
+                "PCT": [55.56, 44.44],
+                "P": ["DEM", "DEM"],
+                "W": ["X", ""],
+                "T": 27000,
+            },
+            {
+                "C": "City Proposition 1 - Parks Bond",
+                "CH": ["YES", "NO"],
+                "V": [8000, 6000],
+                "PCT": [57.14, 42.86],
+                "P": ["", ""],
+                "W": ["", ""],
+                "T": 14000,
+            },
+        ]
+        mock_settings.return_value = {
+            "ElectionName": "March 4, 2025 Primary Election",
+            "ElectionDate": "03/04/2025",
+        }
+
+        client = ClarityElectionsClient(
+            jurisdiction_id="city-san-rafael",
+            state="CA",
+            county="marin",
+            url_name="Marin",
+        )
+
+        counts = extract_clarity_results_to_storage(
+            client=client,
+            storage=postgres_backend,
+            jurisdiction_id="city-san-rafael",
+            county_slug="marin",
+            state="CA",
+        )
+
+        # Pipeline ran successfully
+        assert counts["elections"] >= 1
+        assert counts["contests"] >= 2
+        assert counts["candidates"] >= 4
