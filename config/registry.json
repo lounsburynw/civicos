@@ -146,6 +146,26 @@
         "state-california",
         "country-united-states"
       ]
+    },
+    "city-novato": {
+      "domain": "novato.civicosproject.org",
+      "display_name": "Novato",
+      "modal_app_name": "civicos-novato",
+      "parent_jurisdictions": [
+        "county-marin",
+        "state-california",
+        "country-united-states"
+      ]
+    },
+    "city-sacramento": {
+      "domain": "sacramento.civicosproject.org",
+      "display_name": "Sacramento",
+      "modal_app_name": "civicos-sacramento",
+      "parent_jurisdictions": [
+        "county-sacramento",
+        "state-california",
+        "country-united-states"
+      ]
     }
   },
   "relay": {
