@@ -57,6 +57,14 @@ class TestClarityRegistry:
     def test_has_clarity_instance_case_insensitive(self):
         assert has_clarity_instance("BUTTE", "ca") is True
 
+    def test_loaded_from_json_file(self):
+        """CLARITY_INSTANCES is loaded from data/extraction/clarity_instances.json."""
+        from civicos_extraction.clients.clarity_elections import _load_clarity_instances
+        loaded = _load_clarity_instances()
+        assert "CA" in loaded
+        assert "santa clara" in loaded["CA"]
+        assert loaded["CA"]["santa clara"]["url_name"] == "Santa_Clara"
+
 
 class TestCountyToUrlName:
     """URL name generation from county names."""
@@ -342,6 +350,19 @@ class TestClarityContestToStorage:
         )
         assert c1["id"] != c2["id"]
 
+    def test_candidate_id_collision_resistance(self):
+        """Two candidates with the same slugified name get distinct IDs."""
+        contest = {
+            "CT": "Board",
+            "V": [
+                {"CH": "Bob Smith", "TOT": 100},
+                {"CH": "Bob Smith", "TOT": 200},  # duplicate name
+            ],
+        }
+        result = clarity_contest_to_storage(contest, "test", "100")
+        ids = [c["id"] for c in result["candidates"]]
+        assert len(ids) == len(set(ids)), f"Duplicate candidate IDs: {ids}"
+
     def test_all_candidates_have_source(self):
         contest = {
             "CT": "Test",
@@ -529,7 +550,7 @@ class TestFetchClarity:
         mock_handler = MagicMock(return_value={"status": "completed", "contests_stored": 5})
         mock_officials.return_value = {"status": "skipped"}
 
-        sources = {"clarity_elections": {"county": "santa clara", "url_name": "Santa_Clara"}}
+        sources = {"clarity_elections": {"county": "santa clara", "state": "CA", "url_name": "Santa_Clara"}}
         with patch.dict(_FETCH_HANDLERS, {"clarity_elections": mock_handler}):
             result = fetch_elections_for_jurisdiction(
                 "city-cupertino", sources, database_url="postgresql://test",
@@ -565,6 +586,7 @@ class TestCaliforniaProviderClarity:
         result = provider.detect_election_sources("city-cupertino", "santa clara")
         assert "clarity_elections" in result
         assert result["clarity_elections"]["county"] == "santa clara"
+        assert result["clarity_elections"]["state"] == "CA"
         assert result["clarity_elections"]["url_name"] == "Santa_Clara"
 
     def test_clarity_county_sos_no_breakdown(self):

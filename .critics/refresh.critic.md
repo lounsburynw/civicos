@@ -54,6 +54,8 @@ Guards required:
 FAIL: Pass 800 sections to upsert that expects 2,364 → 1,564 sections falsely closed
 PASS: Detect 66% removal rate → abort with error message → operator investigates
 
+**Election-specific note:** Election data uses additive upserts (`store_elections` + `store_election_contests`), not replace-all semantics. A fetch returning 0 results does not delete existing data. However, fetch handlers MUST call `_check_partial_fetch()` from `election_fetch.py` to log warnings when fetch counts drop significantly — this helps operators detect source outages or data purges (especially for Clarity Elections, which purges old elections). The guard warns but does not block, since election sources legitimately shrink (e.g., Clarity purges old elections, SOS overwrites per-cycle).
+
 ### 4. Diff is for reporting, not for filtering?
 
 When refreshing, the full incoming dataset should be passed to the storage layer. The storage layer handles its own internal diffing (content comparison, temporal versioning). A pre-storage diff (`diff_sections`) is useful for logging/reporting, but should NOT be used to filter what gets stored.

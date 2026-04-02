@@ -75,6 +75,7 @@ class CaliforniaElectionProvider(StateElectionProvider):
                 instance = CLARITY_INSTANCES["CA"][county]
                 sources["clarity_elections"] = {
                     "county": county,
+                    "state": "CA",
                     "url_name": instance["url_name"],
                 }
                 has_clarity = True

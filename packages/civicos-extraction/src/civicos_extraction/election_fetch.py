@@ -15,6 +15,39 @@ from typing import Any, Dict, Optional
 
 logger = logging.getLogger(__name__)
 
+
+def _check_partial_fetch(
+    jurisdiction_id: str,
+    source_key: str,
+    backend: Any,
+    new_election_count: int,
+    new_contest_count: int,
+) -> None:
+    """Log a warning if a fetch returned significantly fewer results than stored.
+
+    Election data can legitimately shrink (Clarity purges old elections, SOS
+    overwrites per-cycle), so this warns rather than blocks. The warning
+    enables operators to investigate unexpected drops via logs.
+    """
+    try:
+        existing_count = backend.get_election_count(jurisdiction_id)
+    except Exception:
+        return  # Can't check — skip silently
+
+    if existing_count > 0 and new_election_count == 0 and new_contest_count == 0:
+        logger.warning(
+            f"  [{jurisdiction_id}] {source_key}: fetch returned 0 elections/contests "
+            f"but {existing_count} elections already stored. Possible source outage "
+            f"or data purge. Stored data is unchanged (upsert-safe).",
+        )
+    elif existing_count > 2 and new_election_count < existing_count * 0.5:
+        logger.warning(
+            f"  [{jurisdiction_id}] {source_key}: fetch returned {new_election_count} "
+            f"elections vs {existing_count} previously stored (>{50}% drop). "
+            f"May indicate partial fetch or source changes.",
+        )
+
+
 # Handler registry — maps election source keys to fetch functions.
 # Each handler has signature: (jurisdiction_id, config, backend) -> Dict[str, Any]
 # Register new handlers here when implementing a new state's fetch client.
@@ -125,6 +158,11 @@ def _fetch_civera(
             division_filter=division_filter or None,
         )
 
+        _check_partial_fetch(
+            jurisdiction_id, "civera_election_stats", backend,
+            counts["elections"], counts["contests"],
+        )
+
         backend.update_refresh_metadata(
             jurisdiction_id, "elections", "civera_election_stats",
             items_fetched=counts["elections"] + counts["contests"],
@@ -173,6 +211,11 @@ def _fetch_ca_sos(
             jurisdiction_id=jurisdiction_id,
             county=county or None,
             districts=districts or None,
+        )
+
+        _check_partial_fetch(
+            jurisdiction_id, "ca_sos_results", backend,
+            counts["elections"], counts["contests"],
         )
 
         backend.update_refresh_metadata(
@@ -249,10 +292,12 @@ def _fetch_clarity(
 
         county = config.get("county", "")
         url_name = config.get("url_name", "")
-        state = config.get("state", "CA")
+        state = config.get("state", "")
 
         if not county:
             return {"status": "skipped", "reason": "no county configured"}
+        if not state:
+            return {"status": "skipped", "reason": "no state configured for clarity_elections"}
 
         logger.info(
             f"  [{jurisdiction_id}] Fetching elections "
@@ -278,6 +323,11 @@ def _fetch_clarity(
             jurisdiction_id=jurisdiction_id,
             county_slug=county,
             state=state,
+        )
+
+        _check_partial_fetch(
+            jurisdiction_id, "clarity_elections", backend,
+            counts["elections"], counts["contests"],
         )
 
         backend.update_refresh_metadata(

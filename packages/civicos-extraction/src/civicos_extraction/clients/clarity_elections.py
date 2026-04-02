@@ -21,10 +21,13 @@ Usage:
         contests = client.get_summary(election_id="125819")
 """
 
+import json
 import logging
+import os
 import re
 import time
 from datetime import datetime
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import requests
@@ -39,24 +42,42 @@ logger = logging.getLogger(__name__)
 
 BASE_URL = "https://results.enr.clarityelections.com"
 
-# Known Clarity Elections instances per state.
-# url_name: county name as it appears in Clarity URLs (Title_Case with underscores).
-# prefer_civera: if True, Civera has better coverage for this county — skip Clarity.
-# Updated: 2026-03-30 (from docs/internal/clarity-elections-research.md)
-CLARITY_INSTANCES: Dict[str, Dict[str, Dict[str, Any]]] = {
-    "CA": {
-        "butte": {"url_name": "Butte"},
-        "contra costa": {"url_name": "Contra_Costa"},
-        "madera": {"url_name": "Madera"},
-        "merced": {"url_name": "Merced"},
-        "santa clara": {"url_name": "Santa_Clara"},
-        "shasta": {"url_name": "Shasta"},
-        "ventura": {"url_name": "Ventura"},
-        # Marin and Sonoma have Clarity but Civera is preferred (permanent archive)
-        "marin": {"url_name": "Marin", "prefer_civera": True},
-        "sonoma": {"url_name": "Sonoma", "prefer_civera": True},
-    },
-}
+
+def _load_clarity_instances() -> Dict[str, Dict[str, Dict[str, Any]]]:
+    """Load Clarity instance registry from config file.
+
+    Config lives at data/extraction/clarity_instances.json. On Modal, the
+    extraction config dir is mounted at CIVICOS_CONFIG_DIR. Falls back to
+    an empty dict if the file is missing (e.g., in test environments).
+    """
+    config_dir = os.environ.get("CIVICOS_CONFIG_DIR")
+    if config_dir:
+        config_path = Path(config_dir) / "clarity_instances.json"
+    else:
+        try:
+            config_path = (
+                Path(__file__).resolve().parents[5]
+                / "data"
+                / "extraction"
+                / "clarity_instances.json"
+            )
+        except IndexError:
+            return {}
+    try:
+        with open(config_path) as f:
+            data = json.load(f)
+        return data.get("instances", {})
+    except (FileNotFoundError, json.JSONDecodeError):
+        logger.warning(
+            f"Clarity instances config not found at {config_path}, "
+            f"using empty registry",
+        )
+        return {}
+
+
+# Registry of known Clarity Elections ENR instances by state.
+# Source of truth: data/extraction/clarity_instances.json
+CLARITY_INSTANCES: Dict[str, Dict[str, Dict[str, Any]]] = _load_clarity_instances()
 
 
 def _county_to_url_name(county: str) -> str:
@@ -424,7 +445,7 @@ def clarity_contest_to_storage(
 
         cand_slug = re.sub(r"[^a-z0-9]+", "-", name.lower())[:40].strip("-")
         candidates.append({
-            "id": f"{contest_id}-{cand_slug}",
+            "id": f"{contest_id}-{i}-{cand_slug}",
             "name": name,
             "party": choice.get("party"),
             "votes_received": votes,

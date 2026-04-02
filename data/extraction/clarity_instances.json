@@ -1,0 +1,45 @@
+{
+  "_comment": "Registry of known Clarity Elections ENR instances by state. Used for auto-detecting election data sources during onboarding. Discovery: probe results.enr.clarityelections.com/{state}/{county}/ for each county. Last updated: 2026-04-02 from docs/internal/clarity-elections-research.md.",
+  "instances": {
+    "CA": {
+      "butte": {
+        "url_name": "Butte",
+        "county_name": "Butte County"
+      },
+      "contra costa": {
+        "url_name": "Contra_Costa",
+        "county_name": "Contra Costa County"
+      },
+      "madera": {
+        "url_name": "Madera",
+        "county_name": "Madera County"
+      },
+      "merced": {
+        "url_name": "Merced",
+        "county_name": "Merced County"
+      },
+      "santa clara": {
+        "url_name": "Santa_Clara",
+        "county_name": "Santa Clara County"
+      },
+      "shasta": {
+        "url_name": "Shasta",
+        "county_name": "Shasta County"
+      },
+      "ventura": {
+        "url_name": "Ventura",
+        "county_name": "Ventura County"
+      },
+      "marin": {
+        "url_name": "Marin",
+        "county_name": "Marin County",
+        "prefer_civera": true
+      },
+      "sonoma": {
+        "url_name": "Sonoma",
+        "county_name": "Sonoma County",
+        "prefer_civera": true
+      }
+    }
+  }
+}

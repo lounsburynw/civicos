@@ -107,6 +107,8 @@ state_code = jur_config.financial.state
 
 Exception: Code that explicitly iterates a known set (e.g., `for state in ["CA", "US"]:` in a cron that syncs all states) is acceptable — the iteration set itself should eventually come from config, but hardcoded iteration over a small known set is low risk.
 
+**Platform instance registries (election sources, meeting platforms):** Must live in JSON data files under `data/extraction/`, NOT as hardcoded Python dicts. Examples: `civera_instances.json`, `clarity_instances.json`. The Python module loads the JSON at import time via a `_load_*_instances()` function (see `civera_election_stats.py` and `clarity_elections.py` for the pattern). New election platform registries MUST follow this pattern — never add a new hardcoded `*_INSTANCES` dict in Python code. The `state` field MUST be passed explicitly in source configs, never defaulted.
+
 ### 6. Unsupported values handled?
 
 When config dispatch encounters an unknown value:
