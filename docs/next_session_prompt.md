@@ -1,6 +1,6 @@
-# Recommended: Multi-State Portability — Florida Election Support
+# Recommended: Election Source Auto-Detection
 
-**Priority:** P0 (florida_election_support)
+**Priority:** P0 (election_source_auto_detection)
 **Area:** multi_state_portability
 **Date:** 2026-04-01
 
@@ -8,38 +8,50 @@
 
 ## Context
 
-The election pipeline is fully working for California (CA SOS, Civera, LegiScan, Congress.gov) and Texas has a skeleton provider. The multi_state_portability category is 5/9 done — the remaining 4 items are FL, NY, PA, IL election support. Florida is P0 because it uses Clarity Elections (Scytl) widely, and building that client covers many FL counties. The user explicitly asked to address multi_state_portability next.
+This session generalized the election provider system so any state with a `StateElectionConfig` auto-gets source detection during onboarding (no per-state provider files needed). All 6 configured states (CA, TX, FL, NY, PA, IL) now work. But the providers only generate placeholder source keys like `fl_sos_results` — there's no client to actually fetch election data for non-CA states, and the source detection doesn't probe what election platform a county actually uses.
 
-This session also completed: cron failure triage (3 failures fixed), config-driven jurisdiction registry (auto-loads from files, 50 jurisdictions registered), LegiScan Modal secret cleaned, docs updated.
+The key insight: **election data is the same problem as meeting data.** Meetings have ~7 platforms (Granicus, Legistar, BoardDocs, etc.) auto-detected via `detect_platform()`. Elections have a similar set of platforms (Clarity Elections, state SOS APIs, county registrar sites) that should be auto-detected the same way. Build `detect_election_platform()` + clients, analogous to the meeting platform detection.
+
+## What Changed This Session
+
+- `DefaultElectionProvider` replaces per-state files (TX/FL deleted, `providers/default.py`)
+- Registry-based dispatch in `election_fetch.py` via `_FETCH_HANDLERS` dict
+- Missing fetch clients produce explicit "skipped" status (not silent)
+- `supported_states()` exported from `civicos` public API (no `_internal` imports)
+- Per-state items (FL, NY, PA, IL) marked done in launch.json
+- 43 provider tests + 9 fetch tests + 212 election tests all pass
 
 ## What to Build
 
-**FloridaElectionProvider** following the exact pattern of CA and TX:
+**Election platform auto-detection during onboarding** — detect what election reporting system a county uses, build extraction clients for the major platforms, wire into `DefaultElectionProvider`.
 
-1. **StateElectionConfig** entry for FL in `state_config.py` (deadlines, election calendar, SOS URL)
-2. **FloridaElectionProvider** class in `providers/florida.py` implementing `StateElectionProvider` ABC
-3. **Clarity Elections client** (or FL SOS client) for fetching election results
+### Research Phase (start here)
+1. Read `docs/internal/clarity-elections-research.md` — prior research on Clarity Elections (Scytl). Covers URL patterns, JSON/XML endpoints, data ephemerality, `clarify` Python library.
+2. Research: what are the top 5 election reporting platforms in the US? How detectable are they? (Clarity is #1, what else?)
+3. Research: which state SOS sites have machine-readable APIs? (CA does, most don't)
 
-## Key Files (follow these patterns)
+### Implementation Phase
+4. Build `detect_election_platform(county, state)` — probes county registrar for Clarity, SOS API, etc.
+5. Build `ClarityElectionsClient` implementing `ElectionExtractor` protocol
+6. Register handler in `_FETCH_HANDLERS` in `election_fetch.py`
+7. Update `DefaultElectionProvider.detect_election_sources()` to call detection
+8. Add to `SUPPORTED_ELECTION_SOURCES` in `clients/__init__.py`
 
-- `packages/civicos/src/civicos/_internal/elections/state_config.py:47` — `StateElectionConfig` dataclass (311 lines). Add FL config here.
-- `packages/civicos-extraction/src/civicos_extraction/providers/__init__.py:26` — `StateElectionProvider` ABC (91 lines). Defines `detect_election_sources()` and `detect_districts()`.
-- `packages/civicos-extraction/src/civicos_extraction/providers/texas.py` — TX provider (56 lines). **Copy this as the template for FL.**
-- `packages/civicos-extraction/src/civicos_extraction/providers/california.py` — CA provider (75 lines). More complex (Civera + CA SOS). Reference for multi-source pattern.
-- `docs/internal/clarity-elections-research.md` — Research on Clarity Elections (Scytl) coverage for non-Civera CA counties. Relevant to FL since Clarity is FL's primary platform.
-- `packages/civicos-extraction/tests/test_election_providers.py` — Tests for CA and TX providers. Add FL tests here.
+## Key Files
 
-## Suggested Approach
+- `packages/civicos-extraction/src/civicos_extraction/providers/default.py` — DefaultElectionProvider (53 lines). Currently generates `{state}_sos_results` with no probing.
+- `packages/civicos-extraction/src/civicos_extraction/providers/__init__.py` — Provider registry. Auto-creates DefaultElectionProvider for any state in `supported_states()`.
+- `packages/civicos-extraction/src/civicos_extraction/election_fetch.py` — Registry-based dispatch. `_FETCH_HANDLERS` dict maps source keys to handler functions.
+- `packages/civicos-extraction/src/civicos_extraction/clients/__init__.py:128` — `SUPPORTED_ELECTION_SOURCES` frozenset.
+- `packages/civicos-extraction/src/civicos_extraction/clients/ca_sos_results.py` — CA SOS client (844 lines). Pattern for a state SOS extraction client.
+- `packages/civicos-extraction/src/civicos_extraction/clients/base.py` — `ElectionExtractor` protocol.
+- `docs/internal/clarity-elections-research.md` — Clarity Elections API research.
+- `packages/civicos-extraction/src/civicos_extraction/onboard.py:2191` — Step 3.6 where election sources are detected.
 
-1. Read `docs/internal/clarity-elections-research.md` for Clarity Elections API research
-2. Read the TX provider (`providers/texas.py`) as the simplest template
-3. Research FL SOS election data sources (dos.myflorida.com)
-4. Add `StateElectionConfig` for FL in `state_config.py` (registration deadlines, primary/general dates, SOS URL)
-5. Implement `FloridaElectionProvider` in `providers/florida.py`
-6. If Clarity Elections client is feasible, build it in `clients/` — this would also benefit CA counties without Civera
-7. Register FL provider in `providers/__init__.py`
-8. Add tests in `test_election_providers.py`
-9. If time permits, continue with NY, PA, IL (same pattern, ~56 lines each)
+## Analogous Meeting Pattern (follow this)
+
+- `packages/civicos-extraction/src/civicos_extraction/platform_detection.py` — `detect_platform()` probes multiple meeting platforms. Election detection should follow this pattern.
+- Onboarding step 2 calls `detect_platform()` -> returns platform + config -> step 3 runs platform-specific discovery. Election detection should mirror this flow.
 
 ## Tests to Run
 
@@ -47,12 +59,11 @@ This session also completed: cron failure triage (3 failures fixed), config-driv
 # Provider tests
 pytest packages/civicos-extraction/tests/test_election_providers.py -q --override-ini="addopts="
 
-# Election tests
-pytest packages/civicos-extraction/tests/test_election_cron_enrollment.py -q --override-ini="addopts="
-pytest packages/civicos-extraction/tests/test_election_coverage_monitoring.py -q --override-ini="addopts="
+# Election fetch tests
+pytest packages/civicos-extraction/tests/test_election_fetch.py -q --override-ini="addopts="
 
-# State config tests
-pytest packages/civicos/tests/test_election_calendar.py -q --override-ini="addopts="
+# All election tests
+pytest packages/civicos-extraction/tests/ -k election -q --override-ini="addopts="
 
 # Smoke tests
 pytest packages/civicos/tests/test_civicos.py -q --override-ini="addopts="
@@ -60,15 +71,9 @@ pytest packages/civicos/tests/test_civicos.py -q --override-ini="addopts="
 
 ## Success Criteria
 
-- [ ] `StateElectionConfig` for FL with correct deadlines and election calendar
-- [ ] `FloridaElectionProvider` implementing `detect_election_sources()` and `detect_districts()`
-- [ ] Tests for FL provider passing
-- [ ] If Clarity Elections client built: reusable for CA counties too
-- [ ] Bonus: NY, PA, IL providers (same pattern, lower priority)
-
-## Notes
-
-- The jurisdiction registry now auto-loads from config files — adding a FL city just requires creating `data/extraction/city-miami.json` (no Python code edits)
-- LegiScan API key is clean (Modal secret updated this session) — FL state legislators will work via LegiScan
-- Census geocoder for district detection already works for any US state
-- FL uses different election infrastructure than CA — no Civera, Clarity Elections instead
+- [ ] Research complete: top election reporting platforms identified with detection methods
+- [ ] `detect_election_platform(county, state)` probes at least Clarity Elections
+- [ ] `ClarityElectionsClient` fetches election results from Clarity JSON/XML endpoints
+- [ ] Handler registered in `_FETCH_HANDLERS` — dispatch works end-to-end
+- [ ] Onboarding a FL city produces actual election data (not "skipped")
+- [ ] Existing CA election pipeline unchanged (no regressions)
