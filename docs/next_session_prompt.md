@@ -1,68 +1,65 @@
-# Recommended: Election Source Auto-Detection
+# Recommended: Election Source Auto-Detection (Session 2)
 
 **Priority:** P0 (election_source_auto_detection)
 **Area:** multi_state_portability
-**Date:** 2026-04-01
+**Date:** 2026-04-02
 
 > This is recommended context from the previous session. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
 
 ## Context
 
-This session generalized the election provider system so any state with a `StateElectionConfig` auto-gets source detection during onboarding (no per-state provider files needed). All 6 configured states (CA, TX, FL, NY, PA, IL) now work. But the providers only generate placeholder source keys like `fl_sos_results` — there's no client to actually fetch election data for non-CA states, and the source detection doesn't probe what election platform a county actually uses.
+Session 1 (2026-04-02) built the `ClarityElectionsClient` and wired it into the CaliforniaElectionProvider. 7 net-new CA counties (Butte, Contra Costa, Madera, Merced, Santa Clara, Shasta, Ventura) are now auto-detected during onboarding, with a registered fetch handler in the dispatch pipeline. All 271 election tests pass including 59 new Clarity-specific tests.
 
-The key insight: **election data is the same problem as meeting data.** Meetings have ~7 platforms (Granicus, Legistar, BoardDocs, etc.) auto-detected via `detect_platform()`. Elections have a similar set of platforms (Clarity Elections, state SOS APIs, county registrar sites) that should be auto-detected the same way. Build `detect_election_platform()` + clients, analogous to the meeting platform detection.
+**What still needs work:** The client was built against the documented Clarity API format but has NOT been tested against live endpoints. The JSON summary parser handles multiple format variants speculatively. Session 2 should validate against real Clarity data, implement archive-on-fetch (data is ephemeral), and optionally extend detection to non-CA states.
 
-## What Changed This Session
+## What Changed Last Session
 
-- `DefaultElectionProvider` replaces per-state files (TX/FL deleted, `providers/default.py`)
-- Registry-based dispatch in `election_fetch.py` via `_FETCH_HANDLERS` dict
-- Missing fetch clients produce explicit "skipped" status (not silent)
-- `supported_states()` exported from `civicos` public API (no `_internal` imports)
-- Per-state items (FL, NY, PA, IL) marked done in launch.json
-- 43 provider tests + 9 fetch tests + 212 election tests all pass
+- **NEW** `clients/clarity_elections.py` — ClarityElectionsClient (ElectionExtractor protocol), detection, mappers, extraction
+- **UPDATED** `providers/california.py` — CaliforniaElectionProvider detects Clarity for 7 net-new counties
+- **UPDATED** `election_fetch.py` — `_fetch_clarity` handler registered in `_FETCH_HANDLERS`
+- **UPDATED** `clients/__init__.py` — `clarity_elections` in `SUPPORTED_ELECTION_SOURCES`
+- **NEW** `tests/test_clarity_elections.py` — 59 tests (all mocked HTTP)
 
 ## What to Build
 
-**Election platform auto-detection during onboarding** — detect what election reporting system a county uses, build extraction clients for the major platforms, wire into `DefaultElectionProvider`.
+### 1. Validate Against Live Clarity Data (highest priority)
+Probe a known-working Clarity county to validate JSON summary parsing. Santa Clara's Dec 2025 runoff was still live as of 2026-03-30. Fetch the real JSON, compare against what `parse_summary_contests()` and `clarity_contest_to_storage()` expect. Fix any format mismatches.
 
-### Research Phase (start here)
-1. Read `docs/internal/clarity-elections-research.md` — prior research on Clarity Elections (Scytl). Covers URL patterns, JSON/XML endpoints, data ephemerality, `clarify` Python library.
-2. Research: what are the top 5 election reporting platforms in the US? How detectable are they? (Clarity is #1, what else?)
-3. Research: which state SOS sites have machine-readable APIs? (CA does, most don't)
+### 2. Archive-on-Fetch Pipeline
+Clarity data is ephemeral (old elections are purged). On first fetch, archive the raw JSON/XML to R2 blob storage before parsing. Pattern: download to temp file, upload to R2, then parse.
 
-### Implementation Phase
-4. Build `detect_election_platform(county, state)` — probes county registrar for Clarity, SOS API, etc.
-5. Build `ClarityElectionsClient` implementing `ElectionExtractor` protocol
-6. Register handler in `_FETCH_HANDLERS` in `election_fetch.py`
-7. Update `DefaultElectionProvider.detect_election_sources()` to call detection
-8. Add to `SUPPORTED_ELECTION_SOURCES` in `clients/__init__.py`
+### 3. Election ID Discovery
+Current `discover_elections()` scrapes HTML for election IDs — Clarity pages are JavaScript SPAs so this may not work well. Consider: maintained static registry of election IDs per county (updated quarterly), or using the `clarify` Python library (`pip install clarify`, MIT) for page-level discovery.
+
+### 4. Optional: Extend to Non-CA States
+`DefaultElectionProvider` still generates placeholder `{state}_sos_results` keys. Could add Clarity detection there too — Clarity covers counties in 30+ states, not just CA. Would require expanding `CLARITY_INSTANCES` or building a dynamic probe.
 
 ## Key Files
 
-- `packages/civicos-extraction/src/civicos_extraction/providers/default.py` — DefaultElectionProvider (53 lines). Currently generates `{state}_sos_results` with no probing.
-- `packages/civicos-extraction/src/civicos_extraction/providers/__init__.py` — Provider registry. Auto-creates DefaultElectionProvider for any state in `supported_states()`.
-- `packages/civicos-extraction/src/civicos_extraction/election_fetch.py` — Registry-based dispatch. `_FETCH_HANDLERS` dict maps source keys to handler functions.
-- `packages/civicos-extraction/src/civicos_extraction/clients/__init__.py:128` — `SUPPORTED_ELECTION_SOURCES` frozenset.
-- `packages/civicos-extraction/src/civicos_extraction/clients/ca_sos_results.py` — CA SOS client (844 lines). Pattern for a state SOS extraction client.
-- `packages/civicos-extraction/src/civicos_extraction/clients/base.py` — `ElectionExtractor` protocol.
-- `docs/internal/clarity-elections-research.md` — Clarity Elections API research.
-- `packages/civicos-extraction/src/civicos_extraction/onboard.py:2191` — Step 3.6 where election sources are detected.
+- `packages/civicos-extraction/src/civicos_extraction/clients/clarity_elections.py` — ClarityElectionsClient (608 lines). Registry at line 47, detection at line 78, client at line 108, mappers at line 275, extraction at line 435.
+- `packages/civicos-extraction/src/civicos_extraction/providers/california.py:65` — Clarity detection in CaliforniaElectionProvider.
+- `packages/civicos-extraction/src/civicos_extraction/election_fetch.py:237` — `_fetch_clarity` handler.
+- `packages/civicos-extraction/src/civicos_extraction/clients/__init__.py:128` — `SUPPORTED_ELECTION_SOURCES` includes `clarity_elections`.
+- `docs/internal/clarity-elections-research.md` — Clarity API research (URL patterns, data ephemerality, `clarify` library).
+- `packages/civicos-extraction/tests/test_clarity_elections.py` — 59 tests.
 
-## Analogous Meeting Pattern (follow this)
+## Suggested Approach
 
-- `packages/civicos-extraction/src/civicos_extraction/platform_detection.py` — `detect_platform()` probes multiple meeting platforms. Election detection should follow this pattern.
-- Onboarding step 2 calls `detect_platform()` -> returns platform + config -> step 3 runs platform-specific discovery. Election detection should mirror this flow.
+1. **Probe a live Clarity endpoint** to get real JSON summary data:
+   - Santa Clara: `results.enr.clarityelections.com/CA/Santa_Clara/` (find election ID on page)
+   - Get `/{eid}/current_ver.txt`, then `/{eid}/{ver}/json/en/summary.json`
+   - Compare real JSON structure to what `parse_summary_contests()` expects
+2. **Fix any parser mismatches** — the format may use different field names than what we coded
+3. **Add archive-on-fetch** — store raw response in R2 before parsing (see `BLOB_STORAGE_URL` in `.env`)
+4. **Run the full extraction** against one real county to validate end-to-end
 
 ## Tests to Run
 
 ```bash
-# Provider tests
-pytest packages/civicos-extraction/tests/test_election_providers.py -q --override-ini="addopts="
+# Clarity-specific tests
+pytest packages/civicos-extraction/tests/test_clarity_elections.py -q --override-ini="addopts="
 
-# Election fetch tests
-pytest packages/civicos-extraction/tests/test_election_fetch.py -q --override-ini="addopts="
-
-# All election tests
+# All election tests (regression)
 pytest packages/civicos-extraction/tests/ -k election -q --override-ini="addopts="
 
 # Smoke tests
@@ -71,9 +68,8 @@ pytest packages/civicos/tests/test_civicos.py -q --override-ini="addopts="
 
 ## Success Criteria
 
-- [ ] Research complete: top election reporting platforms identified with detection methods
-- [ ] `detect_election_platform(county, state)` probes at least Clarity Elections
-- [ ] `ClarityElectionsClient` fetches election results from Clarity JSON/XML endpoints
-- [ ] Handler registered in `_FETCH_HANDLERS` — dispatch works end-to-end
-- [ ] Onboarding a FL city produces actual election data (not "skipped")
-- [ ] Existing CA election pipeline unchanged (no regressions)
+- [ ] JSON summary parser validated against real Clarity data (at least 1 county)
+- [ ] Archive-on-fetch stores raw data in R2 before parsing
+- [ ] End-to-end extraction works for at least 1 Clarity county (contests stored in Postgres)
+- [ ] Election ID discovery works or has a maintained fallback (static registry)
+- [ ] All existing tests still pass (no regressions)
