@@ -117,12 +117,21 @@ mcp_image = (
     .run_commands(
         "python -c \"from fastembed import TextEmbedding; TextEmbedding('nomic-ai/nomic-embed-text-v1.5')\""
     )
+    # Environment variables for civicos_config.paths (avoid phase.json lookup)
+    .env({
+        "CIVICOS_EXTRACTION_DIR": "/app/data/extraction",
+        "CIVICOS_CONFIG_DIR": "/app/data/extraction",
+        "CIVICOS_JURISDICTIONS_DIR": "/app/data/jurisdictions",
+    })
     # Add local packages
     .add_local_python_source("civicos")
     .add_local_python_source("civicos_config")
     .add_local_python_source("civicos_relay")
     .add_local_python_source("civicos_extraction")
     .add_local_python_source("civicos_services")
+    # Add data directories (needed by civicos_config.paths)
+    .add_local_dir("data/extraction", remote_path="/app/data/extraction")
+    .add_local_dir("data/jurisdictions", remote_path="/app/data/jurisdictions")
     # Add MCP server code
     .add_local_dir("apps/civicos-mcp", remote_path="/app/civicos-mcp")
     .add_local_file("apps/civicos_input_validator.py", remote_path="/app/civicos_input_validator.py")

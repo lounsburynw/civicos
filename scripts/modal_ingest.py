@@ -143,7 +143,11 @@ civic_image = (
         "fastapi>=0.100.0",  # Required by Modal for web endpoints
     )
     # Environment variables (must come before add_local_* per Modal requirements)
+    # CIVICOS_EXTRACTION_DIR: used by civicos_config.paths for EXTRACTION_DIR
+    # CIVICOS_CONFIG_DIR: used by civicos_extraction.config for get_config_dir()
+    # CIVICOS_JURISDICTIONS_DIR: used by civicos_config.paths for JURISDICTIONS_DIR
     .env({
+        "CIVICOS_EXTRACTION_DIR": "/config/extraction",
         "CIVICOS_CONFIG_DIR": "/config/extraction",
         "CIVICOS_JURISDICTIONS_DIR": "/config/jurisdictions",
     })
@@ -4294,6 +4298,7 @@ simbli_image = (
     )
     .run_commands("playwright install --with-deps chromium")
     .env({
+        "CIVICOS_EXTRACTION_DIR": "/config/extraction",
         "CIVICOS_CONFIG_DIR": "/config/extraction",
         "CIVICOS_JURISDICTIONS_DIR": "/config/jurisdictions",
     })
