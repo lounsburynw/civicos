@@ -1,3 +1,28 @@
+## Session — 2026-04-02: registry_pr_workflow (P0)
+
+**Item:** registry_pr_workflow (operator_readiness)
+**Status:** DONE
+
+### What was built
+- `scripts/validate_registry.py` — validates YAML files (required fields, ID format, level consistency, duplicate detection) and registry.json (domain uniqueness, parent refs, required fields, cross-file consistency)
+- `.github/workflows/validate-registry.yml` — CI workflow triggered on PRs touching `data/jurisdictions/*.yaml` or `config/registry.json`, runs validation + registry sync check
+- `packages/civicos/tests/test_registry_validation.py` — 37 tests covering validation logic, real data integrity, and script integration
+- `docs/public/onboarding-pr-workflow.md` — step-by-step guide for adding a new city via PR
+
+### Tests
+- 37 registry validation tests pass
+- 55 jurisdiction tests pass
+- 20 smoke tests pass
+
+### Files changed
+- `scripts/validate_registry.py` — new
+- `.github/workflows/validate-registry.yml` — new
+- `packages/civicos/tests/test_registry_validation.py` — new
+- `docs/public/onboarding-pr-workflow.md` — new
+- `launch.json` — registry_pr_workflow marked done
+
+---
+
 ## Session — 2026-03-29: state_election_config + deadline_generalization (P0)
 
 **Items:** state_election_config, deadline_generalization (multi_state_portability)

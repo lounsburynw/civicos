@@ -206,6 +206,7 @@ Organized into public (ships with the repo) and internal (operations). Read only
 | `decisions/` | Architecture Decision Records (vector storage, entity IDs, federation) |
 | `learning/` | Conceptual series — cryptography, Nostr, attestation, federation |
 | `essays/` | Long-form writing |
+| `onboarding-pr-workflow.md` | How to add a new city via PR (validation, CI, steps) |
 
 ### Internal Docs (docs/internal/)
 

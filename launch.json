@@ -704,12 +704,15 @@
       {
         "name": "registry_pr_workflow",
         "description": "Document and test the PR workflow for adding new jurisdictions to config/registry.json. Include CI validation of registry format.",
-        "status": "not_started",
+        "status": "done",
         "priority": 0,
         "files": [
-          "config/registry.json"
+          "config/registry.json",
+          "scripts/validate_registry.py",
+          ".github/workflows/validate-registry.yml",
+          "docs/public/onboarding-pr-workflow.md"
         ],
-        "test_file": null
+        "test_file": "packages/civicos/tests/test_registry_validation.py"
       },
       {
         "name": "query_engine_performance",
