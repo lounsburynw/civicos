@@ -1356,9 +1356,22 @@ class RepresentativesClient:
 
             representatives.extend(state_legislators)
 
-        # Local representatives (always from curated data)
+        # Local representatives (curated data, jurisdiction-specific)
         if include_local:
-            for local in SAN_RAFAEL_LOCAL_OFFICIALS:
+            # Map jurisdiction IDs to their curated local officials
+            local_officials_map = {
+                "city-san-rafael": SAN_RAFAEL_LOCAL_OFFICIALS,
+            }
+            # Marin County supervisors apply to all Marin jurisdictions
+            marin_jurisdictions = {
+                "city-san-rafael", "city-novato", "city-mill-valley",
+                "city-san-anselmo", "city-larkspur", "city-sausalito",
+                "city-fairfax", "city-corte-madera", "city-tiburon",
+                "county-marin",
+            }
+
+            local_officials = local_officials_map.get(self.jurisdiction_id, [])
+            for local in local_officials:
                 representatives.append(Representative(
                     id=local.id,
                     name=local.name,
@@ -1374,17 +1387,18 @@ class RepresentativesClient:
                     source="local",
                 ))
 
-            for supervisor in MARIN_COUNTY_SUPERVISORS:
-                representatives.append(Representative(
-                    id=supervisor.id,
-                    name=supervisor.name,
-                    office=supervisor.office,
-                    level="local",
-                    district=supervisor.district,
-                    emails=[supervisor.email] if supervisor.email else [],
-                    websites=[supervisor.website] if supervisor.website else [],
-                    source="local",
-                ))
+            if self.jurisdiction_id in marin_jurisdictions:
+                for supervisor in MARIN_COUNTY_SUPERVISORS:
+                    representatives.append(Representative(
+                        id=supervisor.id,
+                        name=supervisor.name,
+                        office=supervisor.office,
+                        level="local",
+                        district=supervisor.district,
+                        emails=[supervisor.email] if supervisor.email else [],
+                        websites=[supervisor.website] if supervisor.website else [],
+                        source="local",
+                    ))
 
         return representatives
 
