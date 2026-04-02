@@ -1,4 +1,4 @@
-# Recommended: Election Source Auto-Detection (Session 2)
+# Recommended: Election Source Auto-Detection (Session 3)
 
 **Priority:** P0 (election_source_auto_detection)
 **Area:** multi_state_portability
@@ -8,40 +8,58 @@
 
 ## Context
 
-Sessions 1a+1b (2026-04-02) built `ClarityElectionsClient` and wired it into CaliforniaElectionProvider for 7 net-new CA counties. Then addressed all codebase critic warnings: moved `CLARITY_INSTANCES` from hardcoded dict to `data/extraction/clarity_instances.json`, added `_check_partial_fetch()` guard to all 3 election handlers, fixed candidate ID collisions, and updated `refresh.critic.md` + `configuration.critic.md` with election-specific guidance.
+Sessions 1-2 (2026-04-02) built the ClarityElectionsClient, validated it against live endpoints, and fixed a critical format mismatch. The live Clarity ENR uses **parallel arrays** (`CH`, `V`, `PCT` at contest level) not nested objects. Session 2 fixed the parser, discovered 42 election IDs across 7 CA counties, implemented archive-on-fetch to R2, added ballot measure auto-detection from YES/NO candidates, and integrated the `electionsettings.json` endpoint for authoritative election metadata.
 
-**What still needs work:** The client has NOT been tested against live Clarity endpoints. The JSON summary parser handles multiple format variants speculatively. Session 2 should validate against real data, implement archive-on-fetch, and solve election ID discovery.
+**What's done:** Parser handles both formats. Discovery uses static registry + scrape fallback. Archive-on-fetch wired. 80 Clarity tests, 299 election tests, 20 smoke tests all pass.
+
+**What still needs work:** End-to-end extraction against live data (contests into Postgres), extending to non-CA states, and marking the item done.
 
 ## What to Build
 
-### 1. Validate Against Live Clarity Data (highest priority)
-Probe a known-working Clarity county. Santa Clara's Dec 2025 runoff was live as of 2026-03-30. Fetch the real JSON summary, compare against what `parse_summary_contests()` and `clarity_contest_to_storage()` expect. Fix any format mismatches.
+### 1. End-to-End Live Extraction (highest priority)
+Run the full Clarity pipeline against a live county (e.g., Contra Costa with 12 elections, or Ventura with 99 contests). Verify contests are stored correctly in Postgres. This is the final validation step.
 
-### 2. Election ID Discovery
-`discover_elections()` scrapes HTML for IDs — Clarity pages are JS SPAs so this likely won't work. Options: static registry in `clarity_instances.json` (add `election_ids` array per county), or `pip install clarify` library for page-level discovery.
+### 2. Extend to Non-CA States
+Clarity covers 30+ states. Add entries to `clarity_instances.json` for non-CA states and wire Clarity detection into `DefaultElectionProvider` (currently only `CaliforniaElectionProvider` checks for Clarity). This completes the "auto-detect election platforms" goal.
 
-### 3. Archive-on-Fetch Pipeline
-Clarity data is ephemeral (purged without warning). On first fetch, archive raw JSON to R2 before parsing. See `BLOB_STORAGE_URL` in `.env`.
-
-### 4. Optional: Extend to Non-CA States
-Clarity covers 30+ states. Expanding `clarity_instances.json` and adding Clarity detection to `DefaultElectionProvider` would give non-CA states working election data.
+### 3. Mark Item Done
+Once live extraction works and non-CA detection is wired, update `launch.json` status from `not_started` to `done`.
 
 ## Key Files
 
-- `packages/civicos-extraction/src/civicos_extraction/clients/clarity_elections.py` — Client, detection, mappers, extraction. Registry loads from JSON at line 59. Parser at line 475.
-- `data/extraction/clarity_instances.json` — Source of truth for known Clarity counties (9 CA entries).
-- `packages/civicos-extraction/src/civicos_extraction/election_fetch.py` — `_check_partial_fetch()` at line 20, `_fetch_clarity` at line 270.
-- `packages/civicos-extraction/src/civicos_extraction/providers/california.py:65` — Clarity detection, requires `state` in config.
-- `docs/internal/clarity-elections-research.md` — URL patterns, API endpoints, ephemerality, `clarify` library.
-- `packages/civicos-extraction/tests/test_clarity_elections.py` — 61 tests.
+- `packages/civicos-extraction/src/civicos_extraction/clients/clarity_elections.py` — Full client. Key functions:
+  - `_is_parallel_array_format()` (line ~417) — format detection
+  - `clarity_contest_to_storage()` (line ~436) — handles both formats
+  - `discover_elections()` (line ~234) — two-tier: registry + scrape
+  - `get_election_settings()` (line ~308) — fetches authoritative name/date
+  - `extract_clarity_results_to_storage()` (line ~731) — pipeline orchestrator with archive
+- `data/extraction/clarity_instances.json` — 42 election IDs across 9 CA counties (7 net-new)
+- `packages/civicos-extraction/src/civicos_extraction/election_fetch.py:280` — `_fetch_clarity` handler with R2 archive wiring
+- `packages/civicos-extraction/src/civicos_extraction/providers/california.py:65` — Clarity detection in CA provider
+- `packages/civicos-extraction/src/civicos_extraction/providers/__init__.py` — DefaultElectionProvider (needs Clarity detection)
+- `docs/internal/clarity-elections-research.md` — Platform research, URL patterns, ephemerality notes
+- `packages/civicos-extraction/tests/test_clarity_elections.py` — 80 tests
+
+## Live Data Reference (Verified 2026-04-02)
+
+| County | Elections | Sample ID | Version | Contests |
+|--------|-----------|-----------|---------|----------|
+| Contra Costa | 12 | 122765 | 355929 | Many (incl. President, Senate, local) |
+| Ventura | 7 | 122837 | 356562 | 99 (incl. state props, local measures) |
+| Santa Clara | 1 | 125819 | 367736 | 1 (Assessor runoff) |
+
+JSON format: parallel arrays. Example field mapping:
+- `C` = contest name, `CH` = candidate names array, `V` = votes array
+- `PCT` = percentages array, `P` = party array, `W` = winner flags array
+- No `IQ` flag for ballot measures — detected via YES/NO candidate names
 
 ## Suggested Approach
 
-1. **Probe live endpoint**: `curl https://results.enr.clarityelections.com/CA/Santa_Clara/` — find election ID in page source or try known IDs from research doc
-2. **Fetch real data**: `GET /{eid}/current_ver.txt` then `GET /{eid}/{ver}/json/en/summary.json`
-3. **Compare JSON structure** to parser expectations, fix mismatches
-4. **Run end-to-end extraction** against 1 real county, verify contests stored in Postgres
-5. **Add election IDs** to `clarity_instances.json` for discovered elections
+1. **Run live extraction** against Contra Costa (richest data): instantiate client, call `extract_clarity_results_to_storage()` with real Postgres backend
+2. **Verify stored data** — query `store_elections` and `store_election_contests` results from Postgres
+3. **Add Clarity detection to DefaultElectionProvider** — check `has_clarity_instance()` during onboarding for any state
+4. **Probe non-CA states** — Clarity covers counties in FL, OH, TX, etc. Add a few to `clarity_instances.json`
+5. **Update launch.json** — mark `election_source_auto_detection` as `done`
 
 ## Tests to Run
 
@@ -54,7 +72,8 @@ pytest packages/civicos/tests/test_civicos.py -q --override-ini="addopts="
 
 ## Success Criteria
 
-- [ ] JSON summary parser validated against real Clarity data (at least 1 county)
 - [ ] End-to-end extraction works for at least 1 Clarity county (contests in Postgres)
-- [ ] Election ID discovery solved (static registry or library-based)
-- [ ] All existing tests still pass (no regressions)
+- [ ] Clarity detection wired into DefaultElectionProvider for non-CA states
+- [ ] At least 1 non-CA state added to clarity_instances.json
+- [ ] launch.json item marked done
+- [ ] All existing tests pass (no regressions)
