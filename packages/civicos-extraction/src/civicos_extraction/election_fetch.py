@@ -234,7 +234,78 @@ def _fetch_officials(
         return {"status": "failed", "error": str(e)}
 
 
+def _fetch_clarity(
+    jurisdiction_id: str, config: Any, backend: Any,
+) -> Dict[str, Any]:
+    """Fetch from Clarity Elections ENR."""
+    try:
+        from civicos_extraction.clients.clarity_elections import (
+            ClarityElectionsClient,
+            extract_clarity_results_to_storage,
+        )
+
+        if config is True:
+            config = {}
+
+        county = config.get("county", "")
+        url_name = config.get("url_name", "")
+        state = config.get("state", "CA")
+
+        if not county:
+            return {"status": "skipped", "reason": "no county configured"}
+
+        logger.info(
+            f"  [{jurisdiction_id}] Fetching elections "
+            f"(Clarity, county={county})...",
+        )
+
+        client = ClarityElectionsClient(
+            jurisdiction_id=jurisdiction_id,
+            state=state,
+            county=county,
+            url_name=url_name or None,
+        )
+        validation = client.validate()
+        if not validation.is_valid:
+            return {
+                "status": "failed",
+                "error": f"Validation failed: {validation.errors}",
+            }
+
+        counts = extract_clarity_results_to_storage(
+            client=client,
+            storage=backend,
+            jurisdiction_id=jurisdiction_id,
+            county_slug=county,
+            state=state,
+        )
+
+        backend.update_refresh_metadata(
+            jurisdiction_id,
+            "elections",
+            "clarity_elections",
+            items_fetched=counts["elections"] + counts["contests"],
+            items_stored=counts["elections"] + counts["contests"],
+            status="completed",
+        )
+
+        logger.info(
+            f"    Clarity: {counts['elections']} elections, "
+            f"{counts['contests']} contests stored",
+        )
+        return {
+            "status": "completed",
+            "elections_stored": counts["elections"],
+            "contests_stored": counts["contests"],
+            "candidates_stored": counts["candidates"],
+        }
+    except Exception as e:
+        logger.warning(f"  [{jurisdiction_id}] Clarity fetch failed: {e}")
+        return {"status": "failed", "error": str(e)}
+
+
 # Register fetch handlers for source keys with working clients.
 # Add new entries here when implementing a state's extraction client.
 _FETCH_HANDLERS["civera_election_stats"] = _fetch_civera
 _FETCH_HANDLERS["ca_sos_results"] = _fetch_ca_sos
+_FETCH_HANDLERS["clarity_elections"] = _fetch_clarity
