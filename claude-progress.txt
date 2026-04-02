@@ -24729,3 +24729,45 @@ calendar tests + 20 smoke tests all pass. Zero behavior change for CA.
 - `packages/civicos/src/civicos/_internal/jurisdiction.py` — suffix-based normalization
 - `packages/civicos/tests/test_jurisdiction.py` — 6 new auto-loading tests
 - `scripts/modal_ingest.py` — removed redundant registry guard
+
+## Session — 2026-04-01 (Election Provider Generalization)
+
+### P0: florida_election_support → election_source_auto_detection
+
+### Generalized Election Providers for Turnkey Multi-State Support
+- Created DefaultElectionProvider — replaces per-state files (TX, FL deleted)
+- Any state with StateElectionConfig auto-gets source detection during onboarding
+- Registry-based dispatch in election_fetch.py via _FETCH_HANDLERS dict
+- Missing fetch clients produce explicit "skipped" status, not silent ignoring
+- Onboarding warns when sources lack fetch clients
+- NY, PA, IL now get providers automatically (previously returned {})
+
+### Public API for State Config
+- Exported supported_states() from civicos public API
+- Provider uses public import (no _internal access from civicos-extraction)
+- Removed try/except ImportError guard — dependency is explicit
+
+### Launch.json Updates
+- Marked FL, NY, PA, IL election support items as done (DefaultElectionProvider handles all)
+- Added new P0: election_source_auto_detection
+- Key insight: election data is same problem as meeting data — auto-detect platforms
+
+### Files Changed
+- `packages/civicos-extraction/src/civicos_extraction/providers/default.py` — NEW DefaultElectionProvider
+- `packages/civicos-extraction/src/civicos_extraction/providers/__init__.py` — STATE_CONFIGS-driven auto-creation
+- `packages/civicos-extraction/src/civicos_extraction/providers/texas.py` — DELETED
+- `packages/civicos-extraction/src/civicos_extraction/providers/florida.py` — DELETED (never committed)
+- `packages/civicos-extraction/src/civicos_extraction/election_fetch.py` — registry-based dispatch
+- `packages/civicos-extraction/src/civicos_extraction/clients/__init__.py` — is_election_source_supported()
+- `packages/civicos-extraction/src/civicos_extraction/onboard.py` — generic districts scan + warnings
+- `scripts/modal_ingest.py` — SUPPORTED_ELECTION_SOURCES import
+- `packages/civicos/src/civicos/__init__.py` — export supported_states()
+- `packages/civicos-extraction/tests/test_election_providers.py` — 43 tests (DefaultElectionProvider)
+- `packages/civicos-extraction/tests/test_election_fetch.py` — updated for registry dispatch
+
+### Tests
+- 43 provider tests pass
+- 9 fetch tests pass
+- 212 election tests pass
+- 72 election calendar tests pass
+- 20 smoke tests pass
