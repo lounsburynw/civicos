@@ -1,6 +1,30 @@
 {
-  "_comment": "Registry of known Clarity Elections ENR instances by state. Used for auto-detecting election data sources during onboarding. Discovery: probe results.enr.clarityelections.com/{state}/{county}/ for each county. election_ids ordered newest-first. Last updated: 2026-04-02 via WebFetch probing of current_ver.txt endpoints.",
+  "_comment": "Registry of known Clarity Elections ENR instances by state. Used for auto-detecting election data sources during onboarding. Discovery: probe results.enr.clarityelections.com/{state}/{county}/ for each county, then elections.json for IDs. election_ids ordered newest-first. Last updated: 2026-04-02 via automated probing of 14 US states.",
   "instances": {
+    "AL": {
+      "jefferson": {
+        "url_name": "Jefferson",
+        "county_name": "Jefferson County",
+        "election_ids": ["44331", "38350", "21129", "19303"]
+      },
+      "madison": {
+        "url_name": "Madison",
+        "county_name": "Madison County",
+        "election_ids": ["120698", "120257", "119383", "116245", "115628", "115408", "115130", "112979"]
+      },
+      "mobile": {
+        "url_name": "Mobile",
+        "county_name": "Mobile County",
+        "election_ids": []
+      }
+    },
+    "AZ": {
+      "pinal": {
+        "url_name": "Pinal",
+        "county_name": "Pinal County",
+        "election_ids": []
+      }
+    },
     "CA": {
       "butte": {
         "url_name": "Butte",
@@ -48,6 +72,255 @@
         "county_name": "Sonoma County",
         "prefer_civera": true,
         "election_ids": []
+      }
+    },
+    "CO": {
+      "adams": {
+        "url_name": "Adams",
+        "county_name": "Adams County",
+        "election_ids": []
+      },
+      "arapahoe": {
+        "url_name": "Arapahoe",
+        "county_name": "Arapahoe County",
+        "election_ids": []
+      },
+      "boulder": {
+        "url_name": "Boulder",
+        "county_name": "Boulder County",
+        "election_ids": []
+      },
+      "denver": {
+        "url_name": "Denver",
+        "county_name": "Denver County",
+        "election_ids": []
+      },
+      "douglas": {
+        "url_name": "Douglas",
+        "county_name": "Douglas County",
+        "election_ids": []
+      },
+      "el paso": {
+        "url_name": "El_Paso",
+        "county_name": "El Paso County",
+        "election_ids": []
+      },
+      "jefferson": {
+        "url_name": "Jefferson",
+        "county_name": "Jefferson County",
+        "election_ids": []
+      }
+    },
+    "FL": {
+      "duval": {
+        "url_name": "Duval",
+        "county_name": "Duval County",
+        "election_ids": ["47461", "42561", "40943", "37366", "36513", "33033", "32816", "30497"]
+      },
+      "hillsborough": {
+        "url_name": "Hillsborough",
+        "county_name": "Hillsborough County",
+        "election_ids": ["43959", "41156", "37071", "36830", "28908", "26415", "22912", "20674"]
+      },
+      "orange": {
+        "url_name": "Orange",
+        "county_name": "Orange County",
+        "election_ids": ["45265", "45266", "45267", "44831", "43105", "40933", "38488", "37550"]
+      },
+      "palm beach": {
+        "url_name": "Palm_Beach",
+        "county_name": "Palm Beach County",
+        "election_ids": ["95359", "95296", "92123", "76579", "74486", "74358", "72648", "67627"]
+      },
+      "pinellas": {
+        "url_name": "Pinellas",
+        "county_name": "Pinellas County",
+        "election_ids": []
+      },
+      "polk": {
+        "url_name": "Polk",
+        "county_name": "Polk County",
+        "election_ids": ["4172", "4177", "4181", "4164", "4160", "4152", "4148", "4113"]
+      }
+    },
+    "GA": {
+      "chatham": {
+        "url_name": "Chatham",
+        "county_name": "Chatham County",
+        "election_ids": ["123245", "121212", "120041", "119038", "119054", "118575", "118318", "116590"]
+      },
+      "clayton": {
+        "url_name": "Clayton",
+        "county_name": "Clayton County",
+        "election_ids": []
+      },
+      "cobb": {
+        "url_name": "Cobb",
+        "county_name": "Cobb County",
+        "election_ids": ["123246", "123179", "121847", "121220", "120049", "118471", "117735", "117563"]
+      },
+      "fulton": {
+        "url_name": "Fulton",
+        "county_name": "Fulton County",
+        "election_ids": ["106612", "107456", "107292", "105430", "103674", "102940", "99688", "98887"]
+      }
+    },
+    "IA": {
+      "linn": {
+        "url_name": "Linn",
+        "county_name": "Linn County",
+        "election_ids": ["123768", "122379"]
+      },
+      "polk": {
+        "url_name": "Polk",
+        "county_name": "Polk County",
+        "election_ids": []
+      },
+      "scott": {
+        "url_name": "Scott",
+        "county_name": "Scott County",
+        "election_ids": []
+      }
+    },
+    "IL": {
+      "dupage": {
+        "url_name": "DuPage",
+        "county_name": "DuPage County",
+        "election_ids": ["125941", "123485", "123233", "122435", "120375", "117398", "115972", "114213"]
+      },
+      "lake": {
+        "url_name": "Lake",
+        "county_name": "Lake County",
+        "election_ids": []
+      },
+      "will": {
+        "url_name": "Will",
+        "county_name": "Will County",
+        "election_ids": []
+      }
+    },
+    "MI": {
+      "macomb": {
+        "url_name": "Macomb",
+        "county_name": "Macomb County",
+        "election_ids": ["124350"]
+      },
+      "oakland": {
+        "url_name": "Oakland",
+        "county_name": "Oakland County",
+        "election_ids": []
+      }
+    },
+    "NE": {
+      "sarpy": {
+        "url_name": "Sarpy",
+        "county_name": "Sarpy County",
+        "election_ids": ["123023", "122854", "121674", "117800", "116155", "115136", "112992", "107143"]
+      }
+    },
+    "OH": {
+      "hamilton": {
+        "url_name": "Hamilton",
+        "county_name": "Hamilton County",
+        "election_ids": ["124347", "123661", "122586", "120192", "119018", "118315", "117747", "115759"]
+      }
+    },
+    "OK": {
+      "cleveland": {
+        "url_name": "Cleveland",
+        "county_name": "Cleveland County",
+        "election_ids": []
+      },
+      "oklahoma": {
+        "url_name": "Oklahoma",
+        "county_name": "Oklahoma County",
+        "election_ids": ["39789", "38443", "38647", "38121", "37047", "37527", "37343", "36572"]
+      },
+      "tulsa": {
+        "url_name": "Tulsa",
+        "county_name": "Tulsa County",
+        "election_ids": ["39806", "38664", "38138", "37064", "37544", "36589", "35659", "35668"]
+      }
+    },
+    "PA": {
+      "allegheny": {
+        "url_name": "Allegheny",
+        "county_name": "Allegheny County",
+        "election_ids": []
+      },
+      "delaware": {
+        "url_name": "Delaware",
+        "county_name": "Delaware County",
+        "election_ids": ["120839"]
+      }
+    },
+    "SC": {
+      "charleston": {
+        "url_name": "Charleston",
+        "county_name": "Charleston County",
+        "election_ids": []
+      },
+      "greenville": {
+        "url_name": "Greenville",
+        "county_name": "Greenville County",
+        "election_ids": []
+      },
+      "horry": {
+        "url_name": "Horry",
+        "county_name": "Horry County",
+        "election_ids": []
+      },
+      "lexington": {
+        "url_name": "Lexington",
+        "county_name": "Lexington County",
+        "election_ids": []
+      },
+      "richland": {
+        "url_name": "Richland",
+        "county_name": "Richland County",
+        "election_ids": []
+      }
+    },
+    "TX": {
+      "bexar": {
+        "url_name": "Bexar",
+        "county_name": "Bexar County",
+        "election_ids": []
+      },
+      "dallas": {
+        "url_name": "Dallas",
+        "county_name": "Dallas County",
+        "election_ids": []
+      },
+      "denton": {
+        "url_name": "Denton",
+        "county_name": "Denton County",
+        "election_ids": ["126053", "126054", "125818", "124352", "123838", "123614", "122426", "121808"]
+      },
+      "el paso": {
+        "url_name": "El_Paso",
+        "county_name": "El Paso County",
+        "election_ids": ["122595", "121722", "121027", "120338", "119384", "119079", "118683", "118001"]
+      },
+      "fort bend": {
+        "url_name": "Fort_Bend",
+        "county_name": "Fort Bend County",
+        "election_ids": ["113954", "112428", "112107", "111771", "111175", "109126", "108408", "107725"]
+      },
+      "tarrant": {
+        "url_name": "Tarrant",
+        "county_name": "Tarrant County",
+        "election_ids": ["123541"]
+      },
+      "travis": {
+        "url_name": "Travis",
+        "county_name": "Travis County",
+        "election_ids": ["125931", "125662", "124687", "123613", "123018", "122432", "121723", "121702"]
+      },
+      "williamson": {
+        "url_name": "Williamson",
+        "county_name": "Williamson County",
+        "election_ids": ["46984", "46341"]
       }
     }
   }

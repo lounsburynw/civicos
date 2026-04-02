@@ -82,7 +82,7 @@
           "packages/civicos/src/civicos/_internal/elections/state_config.py"
         ],
         "test_file": null,
-        "notes": "Phase 5 done. TX config added. Per-state provider file deleted — DefaultElectionProvider handles all non-CA states."
+        "notes": "Phase 5 done. TX config added. Per-state provider file deleted \u2014 DefaultElectionProvider handles all non-CA states."
       },
       {
         "name": "florida_election_support",
@@ -93,7 +93,7 @@
           "packages/civicos/src/civicos/_internal/elections/state_config.py"
         ],
         "test_file": "packages/civicos-extraction/tests/test_election_providers.py",
-        "notes": "Done. FL StateElectionConfig was already in state_config.py. DefaultElectionProvider auto-creates fl_sos_results source. Fetch client still needed — covered by election_source_auto_detection item."
+        "notes": "Done. FL StateElectionConfig was already in state_config.py. DefaultElectionProvider auto-creates fl_sos_results source. Fetch client still needed \u2014 covered by election_source_auto_detection item."
       },
       {
         "name": "new_york_election_support",
@@ -104,7 +104,7 @@
           "packages/civicos/src/civicos/_internal/elections/state_config.py"
         ],
         "test_file": "packages/civicos-extraction/tests/test_election_providers.py",
-        "notes": "Done. NY StateElectionConfig was already in state_config.py. DefaultElectionProvider auto-creates ny_sos_results. Fetch client still needed — covered by election_source_auto_detection item."
+        "notes": "Done. NY StateElectionConfig was already in state_config.py. DefaultElectionProvider auto-creates ny_sos_results. Fetch client still needed \u2014 covered by election_source_auto_detection item."
       },
       {
         "name": "pennsylvania_election_support",
@@ -115,7 +115,7 @@
           "packages/civicos/src/civicos/_internal/elections/state_config.py"
         ],
         "test_file": "packages/civicos-extraction/tests/test_election_providers.py",
-        "notes": "Done. PA StateElectionConfig was already in state_config.py. Fetch client still needed — covered by election_source_auto_detection item."
+        "notes": "Done. PA StateElectionConfig was already in state_config.py. Fetch client still needed \u2014 covered by election_source_auto_detection item."
       },
       {
         "name": "illinois_election_support",
@@ -126,13 +126,13 @@
           "packages/civicos/src/civicos/_internal/elections/state_config.py"
         ],
         "test_file": "packages/civicos-extraction/tests/test_election_providers.py",
-        "notes": "Done. IL StateElectionConfig was already in state_config.py. Fetch client still needed — covered by election_source_auto_detection item."
+        "notes": "Done. IL StateElectionConfig was already in state_config.py. Fetch client still needed \u2014 covered by election_source_auto_detection item."
       },
       {
         "name": "election_source_auto_detection",
         "description": "Auto-detect election reporting platforms during onboarding, like detect_platform() does for meetings. Research top election platforms (Clarity Elections, state SOS APIs, county registrar sites). Build detection probes + extraction clients. Wire into DefaultElectionProvider so onboarding produces working election data for any US city.",
-        "priority": 0,
-        "status": "not_started",
+        "priority": 2,
+        "status": "done",
         "files": [
           "packages/civicos-extraction/src/civicos_extraction/providers/default.py",
           "packages/civicos-extraction/src/civicos_extraction/providers/__init__.py",
@@ -705,7 +705,7 @@
         "name": "registry_pr_workflow",
         "description": "Document and test the PR workflow for adding new jurisdictions to config/registry.json. Include CI validation of registry format.",
         "status": "not_started",
-        "priority": 3,
+        "priority": 0,
         "files": [
           "config/registry.json"
         ],

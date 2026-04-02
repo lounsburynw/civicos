@@ -117,11 +117,13 @@ class TestDetectElectionSources:
         assert len(result) == 0
 
     def test_texas_returns_tx_sos(self):
-        """TX jurisdictions get tx_sos_results."""
+        """TX jurisdictions get tx_sos_results (and clarity_elections if registered)."""
         result = detect_election_sources("city-austin", "TX", "Travis")
         assert "tx_sos_results" in result
         assert result["tx_sos_results"]["county"] == "travis"
-        assert result["tx_sos_results"]["county_breakdown"] is True
+        # Travis has Clarity → county_breakdown=False
+        assert "clarity_elections" in result
+        assert result["tx_sos_results"]["county_breakdown"] is False
         assert "ca_sos_results" not in result
 
     def test_texas_with_lat_lng_adds_districts(self):

@@ -115,10 +115,27 @@ def detect_clarity_elections(
     else:
         url_name = _county_to_url_name(county)
 
+    # For registered instances, skip the probe — we already know it exists
+    if instance:
+        return {
+            "county": county_lower,
+            "state": state,
+            "url_name": url_name,
+        }
+
+    # Dynamic probe for unregistered counties
     url = f"{BASE_URL}/{state}/{url_name}/"
     try:
-        resp = requests.head(url, timeout=timeout, allow_redirects=True)
-        if resp.status_code < 400:
+        resp = requests.get(
+            url, timeout=timeout, allow_redirects=True,
+            headers={
+                "User-Agent": (
+                    "Mozilla/5.0 (compatible; CivicOS/1.0; "
+                    "+https://github.com/lounsburynw/civicos)"
+                ),
+            },
+        )
+        if resp.status_code == 200 and len(resp.content) > 1000:
             return {
                 "county": county_lower,
                 "state": state,
@@ -150,7 +167,13 @@ class ClarityElectionsClient:
         self._url_name = url_name or _county_to_url_name(county)
         self._base = f"{BASE_URL}/{self._state}/{self._url_name}"
         self._session = requests.Session()
-        self._session.headers.update({"Accept": "application/json, text/html"})
+        self._session.headers.update({
+            "Accept": "application/json, text/html",
+            "User-Agent": (
+                "Mozilla/5.0 (compatible; CivicOS/1.0; "
+                "+https://github.com/lounsburynw/civicos)"
+            ),
+        })
 
     @property
     def platform_name(self) -> str:

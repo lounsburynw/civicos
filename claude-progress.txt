@@ -24841,3 +24841,37 @@ Built Clarity Elections ENR client and wired it into the election auto-detection
 - Extend detection to non-CA states (clarity_instances.json + DefaultElectionProvider)
 - Consider `clarify` library for XML detail report parsing
 - Update launch.json status when fully validated
+
+## Session — 2026-04-02: election_source_auto_detection session 3 (P0)
+
+**Item:** election_source_auto_detection (multi_state_portability)
+**Status:** DONE
+
+### What was accomplished
+- **Extended Clarity detection to DefaultElectionProvider** — Non-CA states now auto-detect Clarity Elections ENR during onboarding via `detect_clarity_elections()` (static registry + dynamic HTTP probe)
+- **Probed 14 US states for Clarity coverage** — Discovered 48 counties across AL, AZ, CA, CO, FL, GA, IA, IL, MI, NE, OH, OK, PA, SC, TX with Clarity ENR pages
+- **Discovered election IDs for 17 non-CA counties** — Probed elections.json API endpoint to find live election data (TX/Travis has 127 contests, 263 candidates confirmed)
+- **Updated clarity_instances.json** — Expanded from 9 CA-only counties to 48 counties across 14 states
+- **Fixed User-Agent headers** — Clarity requires browser-like User-Agent; added to ClarityElectionsClient session and detect_clarity_elections() probe
+- **Optimized detect_clarity_elections()** — Registered instances skip HTTP probe (faster); unregistered counties use GET with content-length check instead of HEAD
+- **Wrote 13 new tests** — DefaultProvider Clarity detection, multi-state registry coverage, TX/FL/GA format parsing, Postgres integration test
+- **Postgres integration test** — End-to-end pipeline: Clarity → parse → store in real Postgres (mocked HTTP, real storage)
+- **All tests pass**: 93 Clarity, 312 election, 20 smoke
+
+### Key technical decisions
+- DefaultElectionProvider uses `detect_clarity_elections()` (both registry + dynamic probe) for broad coverage
+- Registered counties skip HTTP probe entirely (fast path)
+- `county_breakdown` on SOS source is False when Clarity provides local race data (same pattern as CA)
+- Elections.json API endpoint discovered as the SPA's data source for election ID discovery
+
+### Files changed
+- `packages/civicos-extraction/src/civicos_extraction/providers/default.py` — Clarity detection added
+- `packages/civicos-extraction/src/civicos_extraction/clients/clarity_elections.py` — User-Agent headers, optimized detection
+- `data/extraction/clarity_instances.json` — 48 counties across 14 states
+- `packages/civicos-extraction/tests/test_clarity_elections.py` — 13 new tests + mock fixes
+- `packages/civicos-extraction/tests/test_election_providers.py` — Updated for Clarity-aware behavior
+- `packages/civicos-extraction/tests/test_election_detection.py` — Updated TX test assertions
+- `launch.json` — election_source_auto_detection marked done, registry_pr_workflow set P0
+
+### Next P0
+- registry_pr_workflow (operator_readiness) — Document and test the PR workflow for adding new jurisdictions
