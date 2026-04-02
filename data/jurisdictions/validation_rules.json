@@ -1,0 +1,26 @@
+{
+  "description": "Validation rules for jurisdiction YAML files. Used by scripts/validate_registry.py.",
+  "levels": ["federal", "state", "county", "city", "town", "school", "college", "board", "bart"],
+  "level_prefixes": {
+    "federal": "country",
+    "state": "state",
+    "county": "county",
+    "city": "city",
+    "town": "city",
+    "school": "school",
+    "college": "college",
+    "board": "board",
+    "bart": "bart"
+  },
+  "source_types": [
+    "proudcity",
+    "granicus",
+    "legistar",
+    "civicclerk",
+    "civicplus_cms",
+    "san_rafael_cms",
+    "srcs_cms",
+    "berkeley_cms",
+    "standard"
+  ]
+}
