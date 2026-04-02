@@ -317,12 +317,22 @@ def _fetch_clarity(
                 "error": f"Validation failed: {validation.errors}",
             }
 
+        # Archive raw JSON to R2 (Clarity data is ephemeral)
+        archive_blob = None
+        try:
+            from civicos.storage import get_blob_storage
+
+            archive_blob = get_blob_storage()
+        except Exception:
+            logger.debug("Blob storage not available, skipping archive")
+
         counts = extract_clarity_results_to_storage(
             client=client,
             storage=backend,
             jurisdiction_id=jurisdiction_id,
             county_slug=county,
             state=state,
+            archive_blob=archive_blob,
         )
 
         _check_partial_fetch(

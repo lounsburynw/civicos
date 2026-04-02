@@ -232,29 +232,25 @@ class ClarityElectionsClient:
         )
 
     def discover_elections(self, timeout: float = 15.0) -> List[Dict[str, Any]]:
-        """Discover available elections by scraping the county landing page.
+        """Discover available elections for this county.
 
-        Clarity landing pages are JavaScript SPAs. Election IDs appear in
-        embedded URLs and script data. Returns a list of dicts with keys:
-        election_id, name, url. May return empty between election periods.
+        Uses a two-tier strategy:
+        1. Static registry: Known election IDs in clarity_instances.json
+           (reliable, works between election periods)
+        2. Landing page scrape: Regex over the SPA HTML/JS as fallback
+           (unreliable — Clarity pages are JS SPAs that load data dynamically)
+
+        Returns a list of dicts with keys: election_id, name, url.
         """
-        try:
-            resp = self._session.get(self._base + "/", timeout=timeout)
-            if resp.status_code != 200:
-                return []
+        elections: List[Dict[str, Any]] = []
+        seen: set[str] = set()
 
-            elections: List[Dict[str, Any]] = []
-            seen: set[str] = set()
-
-            # Look for election ID references in the page HTML/JS
-            for match in re.finditer(
-                r'(?:href|url|location)["\s=:]+["\']?'
-                r'(?:https?://results\.enr\.clarityelections\.com)?'
-                rf'/?{re.escape(self._state)}/{re.escape(self._url_name)}/(\d{{4,8}})/',
-                resp.text,
-                re.IGNORECASE,
-            ):
-                eid = match.group(1)
+        # Tier 1: Static registry (primary — always works)
+        state_instances = CLARITY_INSTANCES.get(self._state, {})
+        instance = state_instances.get(self._county)
+        if instance:
+            for eid in instance.get("election_ids", []):
+                eid = str(eid)
                 if eid not in seen:
                     seen.add(eid)
                     elections.append({
@@ -263,12 +259,38 @@ class ClarityElectionsClient:
                         "url": f"{self._base}/{eid}/",
                     })
 
-            return elections
+        # Tier 2: Landing page scrape (fallback — may find new IDs)
+        try:
+            resp = self._session.get(self._base + "/", timeout=timeout)
+            if resp.status_code == 200:
+                for match in re.finditer(
+                    r'(?:href|url|location)["\s=:]+["\']?'
+                    r"(?:https?://results\.enr\.clarityelections\.com)?"
+                    rf"/?{re.escape(self._state)}/{re.escape(self._url_name)}"
+                    r"/(\d{4,8})/",
+                    resp.text,
+                    re.IGNORECASE,
+                ):
+                    eid = match.group(1)
+                    if eid not in seen:
+                        seen.add(eid)
+                        elections.append({
+                            "election_id": eid,
+                            "name": f"Election {eid}",
+                            "url": f"{self._base}/{eid}/",
+                        })
+                        logger.info(
+                            f"Clarity discovery: found new election ID {eid} "
+                            f"for {self._county} via page scrape "
+                            f"(consider adding to clarity_instances.json)",
+                        )
         except requests.RequestException as e:
-            logger.warning(
-                f"Failed to discover Clarity elections for {self._county}: {e}",
-            )
-            return []
+            if not elections:
+                logger.warning(
+                    f"Failed to discover Clarity elections for {self._county}: {e}",
+                )
+
+        return elections
 
     def get_current_version(
         self, election_id: str, timeout: float = 10.0,
@@ -280,6 +302,34 @@ class ClarityElectionsClient:
             if resp.status_code == 200:
                 return resp.text.strip()
         except requests.RequestException:
+            pass
+        return None
+
+    def get_election_settings(
+        self,
+        election_id: str,
+        version: Optional[str] = None,
+        timeout: float = 10.0,
+    ) -> Optional[Dict[str, Any]]:
+        """Fetch election settings (name, date, config) for an election.
+
+        The electionsettings.json endpoint provides authoritative election
+        metadata including the official name and date.
+        """
+        if version is None:
+            version = self.get_current_version(election_id)
+        if version is None:
+            return None
+
+        url = (
+            f"{self._base}/{election_id}/{version}"
+            f"/json/en/electionsettings.json"
+        )
+        try:
+            resp = self._session.get(url, timeout=timeout)
+            if resp.status_code == 200:
+                return resp.json()
+        except (requests.RequestException, ValueError):
             pass
         return None
 
@@ -392,6 +442,25 @@ def clarity_results_to_election(
     }
 
 
+def _is_parallel_array_format(contest: Dict[str, Any]) -> bool:
+    """Detect Clarity's parallel-array JSON format.
+
+    Live Clarity summary.json uses parallel arrays at the contest level:
+    CH = ["Alice", "Bob"], V = [5000, 4000], PCT = [55.5, 44.5]
+    rather than nested objects: V = [{"CH": "Alice", "TOT": 5000}, ...]
+    """
+    ch = contest.get("CH")
+    v = contest.get("V")
+    return (
+        isinstance(ch, list)
+        and len(ch) > 0
+        and isinstance(ch[0], str)
+        and isinstance(v, list)
+        and len(v) > 0
+        and not isinstance(v[0], dict)
+    )
+
+
 def clarity_contest_to_storage(
     contest: Dict[str, Any],
     county_slug: str,
@@ -399,14 +468,128 @@ def clarity_contest_to_storage(
 ) -> Dict[str, Any]:
     """Map a Clarity JSON contest to ContestDict format.
 
-    Clarity summary.json uses compact field names. Common variants:
-    - CT or N or text: contest title
-    - IQ or isQuestion: is ballot question
-    - V or Choice: votes/choices array
-    - CH or N or text: candidate/choice name
-    - TOT or totalVotes: total votes
-    - PE or P: percentage
+    Handles two Clarity JSON formats:
+    1. Nested objects: V = [{"CH": "Alice", "TOT": 5000, "PE": "55.5"}, ...]
+       Field variants: CT/N/text for title, IQ/isQuestion for ballot question.
+    2. Parallel arrays (live ENR): C = "Assessor", CH = ["Alice", "Bob"],
+       V = [5000, 4000], PCT = [55.5, 44.5], P = ["", ""], W = [0, 1]
     """
+    # Detect parallel-array format from live Clarity ENR
+    if _is_parallel_array_format(contest):
+        title = (
+            contest.get("C")
+            or contest.get("CT")
+            or contest.get("N")
+            or contest.get("text", "Unknown Contest")
+        )
+        is_question = contest.get("IQ") or contest.get("isQuestion", False)
+        if isinstance(is_question, str):
+            is_question = is_question.lower() == "true"
+
+        # Live ENR has no IQ flag — detect ballot measures from YES/NO candidates
+        names = contest.get("CH", [])
+        if not is_question and len(names) == 2:
+            lower_names = {n.lower() for n in names}
+            if lower_names <= {"yes", "no", "bonds yes", "bonds no"}:
+                is_question = True
+
+        names = contest.get("CH", [])
+        votes_arr = contest.get("V", [])
+        pct_arr = contest.get("PCT", [])
+        party_arr = contest.get("P", [])
+        winner_arr = contest.get("W", [])
+
+        safe_title = re.sub(r"[^a-z0-9]+", "-", title.lower())[:50].strip("-")
+        county_id = county_slug.replace(" ", "-")
+        contest_id = f"clarity-{county_id}-{election_id}-{safe_title}"
+
+        candidates: List[Dict[str, Any]] = []
+        for i, name in enumerate(names):
+            votes = votes_arr[i] if i < len(votes_arr) else None
+            pct = pct_arr[i] if i < len(pct_arr) else None
+            party = party_arr[i] if i < len(party_arr) else None
+
+            if isinstance(votes, str):
+                cleaned = votes.replace(",", "")
+                votes = int(cleaned) if cleaned.isdigit() else None
+            if isinstance(pct, str):
+                try:
+                    pct = float(pct)
+                except ValueError:
+                    pct = None
+
+            # Treat empty party strings as None
+            if party == "":
+                party = None
+
+            is_winner = bool(winner_arr[i]) if i < len(winner_arr) else False
+
+            cand_slug = re.sub(r"[^a-z0-9]+", "-", name.lower())[:40].strip("-")
+            candidates.append({
+                "id": f"{contest_id}-{i}-{cand_slug}",
+                "name": name,
+                "party": party,
+                "votes_received": votes,
+                "vote_percentage": pct,
+                "is_winner": is_winner,
+                "source": "clarity_elections",
+            })
+
+        # If no W flags set, fall back to highest vote count
+        if not any(c["is_winner"] for c in candidates):
+            with_votes = [c for c in candidates if c["votes_received"] and c["votes_received"] > 0]
+            if with_votes:
+                winner = max(with_votes, key=lambda c: c["votes_received"])
+                winner["is_winner"] = True
+
+        contest_type = "local_measure" if is_question else classify_contest_type(title)
+
+        ballot_measure = None
+        if is_question:
+            yes_cand = next(
+                (c for c in candidates if c["name"].lower() in ("yes", "bonds yes")),
+                None,
+            )
+            no_cand = next(
+                (c for c in candidates if c["name"].lower() in ("no", "bonds no")),
+                None,
+            )
+            ballot_measure = {
+                "id": f"clarity-{county_id}-measure-{election_id}-{safe_title}",
+                "title": title,
+                "description": title,
+                "measure_type": "measure",
+                "full_text": None,
+                "full_text_url": None,
+                "fiscal_impact": None,
+                "arguments_for": [],
+                "arguments_against": [],
+                "passed": bool(yes_cand and yes_cand.get("is_winner")),
+                "yes_votes": yes_cand["votes_received"] if yes_cand else None,
+                "no_votes": no_cand["votes_received"] if no_cand else None,
+                "yes_percentage": yes_cand["vote_percentage"] if yes_cand else None,
+                "no_percentage": no_cand["vote_percentage"] if no_cand else None,
+                "source": "clarity_elections",
+            }
+
+        enriched_raw = {
+            **contest,
+            "mapped_candidates": candidates,
+            "mapped_ballot_measure": ballot_measure,
+        }
+
+        return {
+            "id": contest_id,
+            "title": title,
+            "contest_type": contest_type,
+            "district_name": county_slug.replace("_", " ").replace("-", " ").title() + " County",
+            "number_elected": 0 if is_question else 1,
+            "candidates": candidates,
+            "ballot_measure": ballot_measure,
+            "raw_data": enriched_raw,
+        }
+
+    # ---- Nested-object format (original session-1 fixtures) ----
     title = (
         contest.get("CT")
         or contest.get("N")
@@ -424,7 +607,7 @@ def clarity_contest_to_storage(
     if not isinstance(choices, list):
         choices = []
 
-    candidates: List[Dict[str, Any]] = []
+    candidates = []
     for i, choice in enumerate(choices):
         name = (
             choice.get("CH")
@@ -512,9 +695,11 @@ def parse_summary_contests(summary: Any) -> List[Dict[str, Any]]:
     """Extract contest dicts from Clarity summary JSON.
 
     The summary format varies by Clarity version. Common structures:
-    - Array of groups, each with "C" (contests) array
-    - Direct array of contests
+    - Array of groups, each with "C" (contests) array (nested-object format)
+    - Direct array of contests with CT/N/text keys (nested-object format)
     - Object with "Contests" key
+    - Live ENR parallel-array format: flat array where each item has C (string),
+      CH (list of names), V (list of votes), PCT (list of percentages)
     """
     contests: List[Dict[str, Any]] = []
 
@@ -522,9 +707,13 @@ def parse_summary_contests(summary: Any) -> List[Dict[str, Any]]:
         for item in summary:
             if isinstance(item, dict):
                 if "C" in item and isinstance(item["C"], list):
+                    # Grouped format: C is an array of sub-contests
                     for c in item["C"]:
                         if isinstance(c, dict):
                             contests.append(c)
+                elif "C" in item and isinstance(item["C"], str) and "CH" in item:
+                    # Live parallel-array format: C is contest name, CH is candidate list
+                    contests.append(item)
                 elif "CT" in item or "N" in item or "text" in item:
                     contests.append(item)
     elif isinstance(summary, dict):
@@ -542,11 +731,17 @@ def extract_clarity_results_to_storage(
     jurisdiction_id: str,
     county_slug: str,
     state: str = "CA",
+    archive_blob: Any = None,
 ) -> Dict[str, int]:
     """Extract election results from Clarity ENR and store them.
 
     Discovers available elections, fetches summary JSON for each,
     parses contests, and stores via storage backend.
+
+    Args:
+        archive_blob: Optional BlobStorage backend. When provided, the raw
+            summary JSON is archived before parsing. Clarity data is ephemeral
+            (purged without warning), so archiving on first fetch is critical.
 
     Returns:
         Dict with counts: {"elections": N, "contests": M, "candidates": C}
@@ -572,6 +767,35 @@ def extract_clarity_results_to_storage(
             )
             continue
 
+        # Archive raw JSON to blob storage before parsing (ephemeral data!)
+        if archive_blob is not None:
+            archive_key = (
+                f"clarity-elections/{state}/{client.url_name}"
+                f"/{eid}/summary.json"
+            )
+            try:
+                raw_json = json.dumps(summary, ensure_ascii=False).encode("utf-8")
+                archive_blob.upload(
+                    key=archive_key,
+                    data=raw_json,
+                    content_type="application/json",
+                    metadata={
+                        "election_id": eid,
+                        "county": county_slug,
+                        "state": state,
+                        "archived_at": datetime.utcnow().isoformat(),
+                    },
+                )
+                logger.info(
+                    f"  Clarity {county_slug}: archived {archive_key} "
+                    f"({len(raw_json)} bytes)",
+                )
+            except Exception as e:
+                # Archive failure should not block extraction
+                logger.warning(
+                    f"  Clarity {county_slug}: failed to archive {archive_key}: {e}",
+                )
+
         raw_contests = parse_summary_contests(summary)
         if not raw_contests:
             logger.info(
@@ -580,24 +804,33 @@ def extract_clarity_results_to_storage(
             )
             continue
 
-        # Try to extract election name from summary metadata
+        # Get authoritative election name/date from settings endpoint
+        election_date = None
+        settings = client.get_election_settings(eid)
+        if settings:
+            settings_name = settings.get("ElectionName") or settings.get("EL")
+            if settings_name:
+                ename = settings_name
+            edate_raw = settings.get("ElectionDate") or settings.get("ED")
+            if edate_raw:
+                election_date = _infer_election_date(edate_raw)
+
+        # Also check summary metadata for election name
+        summary_name = None
         if isinstance(summary, list) and summary:
             first = summary[0]
             if isinstance(first, dict):
-                ename = (
-                    first.get("EL")
-                    or first.get("ElectionName")
-                    or ename
-                )
+                summary_name = first.get("EL") or first.get("ElectionName")
         elif isinstance(summary, dict):
-            ename = (
-                summary.get("ElectionName")
-                or summary.get("EL")
-                or ename
-            )
+            summary_name = summary.get("ElectionName") or summary.get("EL")
+
+        # Prefer settings name > summary name > discovery name
+        if not settings and summary_name:
+            ename = summary_name
 
         election = clarity_results_to_election(
             eid, ename, county_slug, state, client.url_name,
+            election_date=election_date,
         )
 
         stored = storage.store_elections(jurisdiction_id, [election])
@@ -607,6 +840,17 @@ def extract_clarity_results_to_storage(
             clarity_contest_to_storage(c, county_slug, eid)
             for c in raw_contests
         ]
+
+        # Format-drift canary: warn if contests parsed but produced 0 candidates.
+        # This signals an unknown JSON schema variant that slipped through.
+        empty = [m for m in mapped if not m.get("candidates")]
+        if empty and len(empty) == len(mapped):
+            logger.warning(
+                f"  Clarity {county_slug}: election {eid} — all {len(mapped)} "
+                f"contests produced 0 candidates. Possible format drift. "
+                f"Sample keys: {sorted(raw_contests[0].keys()) if raw_contests else '?'}",
+            )
+
         contest_count = storage.store_election_contests(election["id"], mapped)
         total_contests += contest_count
         total_candidates += sum(len(c.get("candidates", [])) for c in mapped)

@@ -1,44 +1,53 @@
 {
-  "_comment": "Registry of known Clarity Elections ENR instances by state. Used for auto-detecting election data sources during onboarding. Discovery: probe results.enr.clarityelections.com/{state}/{county}/ for each county. Last updated: 2026-04-02 from docs/internal/clarity-elections-research.md.",
+  "_comment": "Registry of known Clarity Elections ENR instances by state. Used for auto-detecting election data sources during onboarding. Discovery: probe results.enr.clarityelections.com/{state}/{county}/ for each county. election_ids ordered newest-first. Last updated: 2026-04-02 via WebFetch probing of current_ver.txt endpoints.",
   "instances": {
     "CA": {
       "butte": {
         "url_name": "Butte",
-        "county_name": "Butte County"
+        "county_name": "Butte County",
+        "election_ids": ["122492", "115760", "104930"]
       },
       "contra costa": {
         "url_name": "Contra_Costa",
-        "county_name": "Contra Costa County"
+        "county_name": "Contra Costa County",
+        "election_ids": ["122765", "115758", "114138", "106123", "92672", "75371", "73707", "64177", "54036", "42275", "21781", "16613"]
       },
       "madera": {
         "url_name": "Madera",
-        "county_name": "Madera County"
+        "county_name": "Madera County",
+        "election_ids": ["122832", "116174", "114136", "107168", "92458", "75694"]
       },
       "merced": {
         "url_name": "Merced",
-        "county_name": "Merced County"
+        "county_name": "Merced County",
+        "election_ids": ["122862", "107145", "92905", "75863"]
       },
       "santa clara": {
         "url_name": "Santa_Clara",
-        "county_name": "Santa Clara County"
+        "county_name": "Santa Clara County",
+        "election_ids": ["125819"]
       },
       "shasta": {
         "url_name": "Shasta",
-        "county_name": "Shasta County"
+        "county_name": "Shasta County",
+        "election_ids": ["124185", "122319", "120178", "117232", "113948", "111879", "106201", "64166", "62357"]
       },
       "ventura": {
         "url_name": "Ventura",
-        "county_name": "Ventura County"
+        "county_name": "Ventura County",
+        "election_ids": ["122837", "115748", "114132", "89299", "73709", "63616", "53334"]
       },
       "marin": {
         "url_name": "Marin",
         "county_name": "Marin County",
-        "prefer_civera": true
+        "prefer_civera": true,
+        "election_ids": []
       },
       "sonoma": {
         "url_name": "Sonoma",
         "county_name": "Sonoma County",
-        "prefer_civera": true
+        "prefer_civera": true,
+        "election_ids": []
       }
     }
   }

@@ -13,6 +13,7 @@ from civicos_extraction.clients.clarity_elections import (
     _county_to_url_name,
     _infer_election_date,
     _infer_election_type,
+    _is_parallel_array_format,
     clarity_contest_to_storage,
     clarity_results_to_election,
     detect_clarity_elections,
@@ -220,6 +221,62 @@ class TestClarityElectionsClient:
         ver = client.get_current_version("999999")
         assert ver is None
 
+    @patch("civicos_extraction.clients.clarity_elections.requests.Session")
+    def test_discover_from_registry(self, mock_session_cls):
+        """discover_elections() returns IDs from the static registry."""
+        mock_session = MagicMock()
+        # Landing page scrape returns nothing (SPA)
+        mock_session.get.return_value = MagicMock(status_code=200, text="<html></html>")
+        mock_session_cls.return_value = mock_session
+
+        client = ClarityElectionsClient("city-test", "CA", "santa clara")
+        elections = client.discover_elections()
+        assert len(elections) >= 1
+        ids = [e["election_id"] for e in elections]
+        assert "125819" in ids
+
+    @patch("civicos_extraction.clients.clarity_elections.requests.Session")
+    def test_discover_deduplicates(self, mock_session_cls):
+        """Registry IDs and scraped IDs are deduplicated."""
+        mock_session = MagicMock()
+        # Simulate scrape finding the same ID that's in the registry
+        html = '<a href="/CA/Santa_Clara/125819/">Election</a>'
+        mock_session.get.return_value = MagicMock(status_code=200, text=html)
+        mock_session_cls.return_value = mock_session
+
+        client = ClarityElectionsClient("city-test", "CA", "santa clara")
+        elections = client.discover_elections()
+        ids = [e["election_id"] for e in elections]
+        # Should appear only once despite being in both registry and HTML
+        assert ids.count("125819") == 1
+
+    @patch("civicos_extraction.clients.clarity_elections.requests.Session")
+    def test_discover_empty_registry_falls_back_to_scrape(self, mock_session_cls):
+        """Counties not in registry still discover via scrape."""
+        mock_session = MagicMock()
+        html = '<a href="/CA/San_Diego/99999/">Election</a>'
+        mock_session.get.return_value = MagicMock(status_code=200, text=html)
+        mock_session_cls.return_value = mock_session
+
+        # san diego is not in the registry
+        client = ClarityElectionsClient("city-test", "CA", "san diego")
+        elections = client.discover_elections()
+        assert len(elections) == 1
+        assert elections[0]["election_id"] == "99999"
+
+    @patch("civicos_extraction.clients.clarity_elections.requests.Session")
+    def test_discover_scrape_failure_still_returns_registry(self, mock_session_cls):
+        """Network failure on scrape doesn't lose registry IDs."""
+        import requests as req
+        mock_session = MagicMock()
+        mock_session.get.side_effect = req.RequestException("timeout")
+        mock_session_cls.return_value = mock_session
+
+        client = ClarityElectionsClient("city-test", "CA", "santa clara")
+        elections = client.discover_elections()
+        assert len(elections) >= 1
+        assert elections[0]["election_id"] == "125819"
+
 
 # ==================== Mappers ====================
 
@@ -415,6 +472,260 @@ class TestParseSummaryContests:
         contests = parse_summary_contests(summary)
         assert len(contests) == 1
 
+    def test_parallel_array_format(self):
+        """Live Clarity ENR uses parallel arrays: C (string), CH, V, PCT."""
+        summary = [
+            {
+                "C": "Assessor",
+                "CH": ["Alice", "Bob", "Write-in"],
+                "V": [143029, 76481, 0],
+                "PCT": [65.15, 34.85, 0],
+                "P": ["", "", ""],
+                "W": [0, 0, 0],
+            },
+            {
+                "C": "Mayor",
+                "CH": ["Carol", "Dave"],
+                "V": [5000, 4000],
+                "PCT": [55.5, 44.5],
+                "P": ["", ""],
+                "W": [0, 0],
+            },
+        ]
+        contests = parse_summary_contests(summary)
+        assert len(contests) == 2
+        assert contests[0]["C"] == "Assessor"
+        assert contests[1]["C"] == "Mayor"
+
+
+# ==================== Live Parallel-Array Format ====================
+
+
+class TestParallelArrayFormat:
+    """Tests for the live Clarity ENR parallel-array JSON format."""
+
+    def test_detection_positive(self):
+        contest = {
+            "C": "Assessor",
+            "CH": ["Alice", "Bob"],
+            "V": [5000, 4000],
+        }
+        assert _is_parallel_array_format(contest) is True
+
+    def test_detection_negative_nested(self):
+        """Nested-object format should not trigger parallel detection."""
+        contest = {
+            "CT": "Mayor",
+            "V": [{"CH": "Alice", "TOT": 5000}],
+        }
+        assert _is_parallel_array_format(contest) is False
+
+    def test_detection_negative_empty(self):
+        contest = {"CT": "Mayor"}
+        assert _is_parallel_array_format(contest) is False
+
+    def test_contest_mapping(self):
+        """Full parallel-array contest maps correctly to storage format."""
+        contest = {
+            "C": "Assessor",
+            "CH": ["Neysa Fligor", "Rishi Kumar", "Write-in"],
+            "V": [143029, 76481, 0],
+            "PCT": [65.1583, 34.8417, 0],
+            "P": ["", "", ""],
+            "W": [0, 0, 0],
+            "T": 219510,
+        }
+        result = clarity_contest_to_storage(contest, "santa clara", "125819")
+        assert result["title"] == "Assessor"
+        assert len(result["candidates"]) == 3
+        assert result["candidates"][0]["name"] == "Neysa Fligor"
+        assert result["candidates"][0]["votes_received"] == 143029
+        assert result["candidates"][0]["vote_percentage"] == 65.1583
+        assert result["candidates"][1]["name"] == "Rishi Kumar"
+        assert result["candidates"][1]["votes_received"] == 76481
+        # No W flags set, so winner is highest vote count
+        assert result["candidates"][0]["is_winner"] is True
+        assert result["candidates"][1]["is_winner"] is False
+        assert result["candidates"][2]["is_winner"] is False
+
+    def test_winner_from_w_flags(self):
+        """W array flags should be used for winner detection when present."""
+        contest = {
+            "C": "Mayor",
+            "CH": ["Alice", "Bob"],
+            "V": [5000, 4000],
+            "PCT": [55.5, 44.5],
+            "W": [1, 0],
+        }
+        result = clarity_contest_to_storage(contest, "test", "100")
+        assert result["candidates"][0]["is_winner"] is True
+        assert result["candidates"][1]["is_winner"] is False
+
+    def test_empty_party_becomes_none(self):
+        contest = {
+            "C": "Council",
+            "CH": ["Alice"],
+            "V": [1000],
+            "P": [""],
+        }
+        result = clarity_contest_to_storage(contest, "test", "100")
+        assert result["candidates"][0]["party"] is None
+
+    def test_party_preserved_when_set(self):
+        contest = {
+            "C": "Governor",
+            "CH": ["Alice", "Bob"],
+            "V": [5000, 4000],
+            "P": ["DEM", "REP"],
+        }
+        result = clarity_contest_to_storage(contest, "test", "100")
+        assert result["candidates"][0]["party"] == "DEM"
+        assert result["candidates"][1]["party"] == "REP"
+
+    def test_ballot_measure_parallel(self):
+        """Ballot measures in parallel format with IQ flag."""
+        contest = {
+            "C": "Measure A: School Bond",
+            "IQ": True,
+            "CH": ["Yes", "No"],
+            "V": [6000, 4000],
+            "PCT": [60.0, 40.0],
+            "W": [1, 0],
+        }
+        result = clarity_contest_to_storage(contest, "test", "100")
+        assert result["contest_type"] == "local_measure"
+        assert result["ballot_measure"] is not None
+        assert result["ballot_measure"]["passed"] is True
+        assert result["ballot_measure"]["yes_votes"] == 6000
+        assert result["ballot_measure"]["no_votes"] == 4000
+
+    def test_ballot_measure_auto_detected_from_yes_no(self):
+        """Live ENR has no IQ flag — detect from YES/NO candidates."""
+        contest = {
+            "C": "PROP. 2 - AUTHORIZES BONDS FOR PUBLIC SCHOOL AND COMMUNITY COLLEGE FACILITIES",
+            "CH": ["YES", "NO"],
+            "V": [211275, 165402],
+            "PCT": [56.09, 43.91],
+            "W": [0, 0],
+        }
+        result = clarity_contest_to_storage(contest, "ventura", "122837")
+        assert result["ballot_measure"] is not None
+        assert result["ballot_measure"]["passed"] is True
+        assert result["ballot_measure"]["yes_votes"] == 211275
+        assert result["ballot_measure"]["no_votes"] == 165402
+        assert result["number_elected"] == 0
+
+    def test_ids_unique_across_candidates(self):
+        contest = {
+            "C": "Board",
+            "CH": ["Bob Smith", "Bob Smith"],
+            "V": [100, 200],
+        }
+        result = clarity_contest_to_storage(contest, "test", "100")
+        ids = [c["id"] for c in result["candidates"]]
+        assert len(ids) == len(set(ids))
+
+    def test_full_live_santa_clara_format(self):
+        """Exact structure from live Santa Clara Dec 2025 runoff."""
+        contest = {
+            "CATKEY": "C_0",
+            "CAT": "Results",
+            "C": "Assessor",
+            "K": "1",
+            "AggID": None,
+            "regvoters": 0,
+            "BCxContest": 0,
+            "VF": 1,
+            "TP": 579,
+            "PR": 495,
+            "TV": 0,
+            "BC": 0,
+            "RC": 0,
+            "RO": 0,
+            "CH": ["Neysa Fligor", "Rishi Kumar", "Write-in"],
+            "CHAggId": None,
+            "P": ["", "", ""],
+            "PCT": [65.1583071386269, 34.8416928613731, 0],
+            "V": [143029, 76481, 0],
+            "T": 219510,
+            "W": [0, 0, 0],
+            "CRC": [0, 0, 0],
+            "CRO": [0, 0, 0],
+            "IsCumulative": None,
+            "CumulativeVotes": None,
+            "CumulativeChoices": None,
+            "CumulativePercentages": None,
+            "IsContestNoChoice": 0,
+            "IsRCV": False,
+            "RCVAwaitingResults": False,
+        }
+        result = clarity_contest_to_storage(contest, "santa-clara", "125819")
+        assert result["title"] == "Assessor"
+        assert len(result["candidates"]) == 3
+        assert result["candidates"][0]["name"] == "Neysa Fligor"
+        assert result["candidates"][0]["votes_received"] == 143029
+        assert result["candidates"][0]["vote_percentage"] == pytest.approx(65.158, abs=0.01)
+        assert result["candidates"][1]["votes_received"] == 76481
+        # Write-in has 0 votes
+        assert result["candidates"][2]["votes_received"] == 0
+        assert result["candidates"][2]["name"] == "Write-in"
+        # Winner by vote count (W flags all 0)
+        assert result["candidates"][0]["is_winner"] is True
+        assert result["id"] == "clarity-santa-clara-125819-assessor"
+        assert result["ballot_measure"] is None
+
+
+class TestFullPipelineParallelFormat:
+    """Test extraction pipeline with live parallel-array format."""
+
+    def _make_client(self):
+        return ClarityElectionsClient(
+            jurisdiction_id="city-cupertino",
+            state="CA",
+            county="santa clara",
+            url_name="Santa_Clara",
+        )
+
+    @patch.object(ClarityElectionsClient, "get_summary")
+    @patch.object(ClarityElectionsClient, "discover_elections")
+    def test_pipeline_with_parallel_format(self, mock_discover, mock_summary):
+        """Full pipeline works end-to-end with live parallel-array data."""
+        mock_discover.return_value = [
+            {"election_id": "125819", "name": "December 30, 2025 Runoff"},
+        ]
+        mock_summary.return_value = [
+            {
+                "C": "Assessor",
+                "CH": ["Neysa Fligor", "Rishi Kumar", "Write-in"],
+                "V": [143029, 76481, 0],
+                "PCT": [65.15, 34.85, 0],
+                "P": ["", "", ""],
+                "W": [0, 0, 0],
+                "T": 219510,
+            },
+        ]
+
+        mock_storage = MagicMock()
+        mock_storage.store_elections.return_value = 1
+        mock_storage.store_election_contests.return_value = 1
+
+        client = self._make_client()
+        counts = extract_clarity_results_to_storage(
+            client, mock_storage, "city-cupertino", "santa clara", "CA",
+        )
+
+        assert counts["elections"] == 1
+        assert counts["contests"] == 1
+        assert counts["candidates"] == 3
+
+        # Verify contest was mapped from parallel format
+        contests_call = mock_storage.store_election_contests.call_args
+        contests = contests_call[0][1]
+        assert len(contests) == 1
+        assert contests[0]["title"] == "Assessor"
+        assert len(contests[0]["candidates"]) == 3
+        assert contests[0]["candidates"][0]["name"] == "Neysa Fligor"
+
 
 # ==================== Extraction ====================
 
@@ -519,6 +830,60 @@ class TestExtractClarityResultsToStorage:
 
         assert counts["elections"] == 0
         mock_storage.store_elections.assert_not_called()
+
+    @patch.object(ClarityElectionsClient, "get_summary")
+    @patch.object(ClarityElectionsClient, "discover_elections")
+    def test_archive_on_fetch(self, mock_discover, mock_summary):
+        """When archive_blob is provided, raw JSON is archived before parsing."""
+        mock_discover.return_value = [
+            {"election_id": "125819", "name": "Test Election"},
+        ]
+        summary_data = [{"C": "Mayor", "CH": ["Alice"], "V": [1000], "PCT": [100.0]}]
+        mock_summary.return_value = summary_data
+
+        mock_storage = MagicMock()
+        mock_storage.store_elections.return_value = 1
+        mock_storage.store_election_contests.return_value = 1
+
+        mock_blob = MagicMock()
+
+        client = self._make_client()
+        counts = extract_clarity_results_to_storage(
+            client, mock_storage, "city-cupertino", "santa clara", "CA",
+            archive_blob=mock_blob,
+        )
+
+        assert counts["elections"] == 1
+        mock_blob.upload.assert_called_once()
+        call_args = mock_blob.upload.call_args
+        assert "clarity-elections/CA/Santa_Clara/125819/summary.json" == call_args[1]["key"]
+        assert call_args[1]["content_type"] == "application/json"
+
+    @patch.object(ClarityElectionsClient, "get_summary")
+    @patch.object(ClarityElectionsClient, "discover_elections")
+    def test_archive_failure_does_not_block_extraction(self, mock_discover, mock_summary):
+        """Archive failure is logged but does not prevent data extraction."""
+        mock_discover.return_value = [
+            {"election_id": "125819", "name": "Test Election"},
+        ]
+        mock_summary.return_value = [{"C": "Mayor", "CH": ["Alice"], "V": [1000], "PCT": [100.0]}]
+
+        mock_storage = MagicMock()
+        mock_storage.store_elections.return_value = 1
+        mock_storage.store_election_contests.return_value = 1
+
+        mock_blob = MagicMock()
+        mock_blob.upload.side_effect = RuntimeError("R2 down")
+
+        client = self._make_client()
+        counts = extract_clarity_results_to_storage(
+            client, mock_storage, "city-cupertino", "santa clara", "CA",
+            archive_blob=mock_blob,
+        )
+
+        # Extraction still succeeds despite archive failure
+        assert counts["elections"] == 1
+        assert counts["contests"] == 1
 
 
 # ==================== Fetch Handler Dispatch ====================
