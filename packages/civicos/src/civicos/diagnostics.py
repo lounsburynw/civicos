@@ -289,6 +289,9 @@ class DataStatus:
             if config.count_method:
                 method = getattr(self._storage, config.count_method, None)
                 if method:
+                    # Elections: count all (including past) for diagnostics
+                    if corpus_type == CorpusType.ELECTIONS:
+                        return method(self._jurisdiction_id, include_past=True)
                     return method(self._jurisdiction_id)
             elif corpus_type == CorpusType.MEETINGS:
                 # Meetings uses len(get_meetings())

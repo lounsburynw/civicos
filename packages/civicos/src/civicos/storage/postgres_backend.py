@@ -8801,9 +8801,13 @@ class PostgresBackend:
 
         return [dict(row) for row in rows]
 
-    def get_election_count(self, jurisdiction_id: str) -> int:
+    def get_election_count(self, jurisdiction_id: str, include_past: bool = False) -> int:
         """
-        Get count of current (future) elections for a jurisdiction.
+        Get count of elections for a jurisdiction.
+
+        Args:
+            jurisdiction_id: Target jurisdiction
+            include_past: If True, count all elections. If False (default), only future.
         """
         # Normalize jurisdiction to canonical form
         jurisdiction_id = normalize_jurisdiction(jurisdiction_id)
@@ -8812,13 +8816,19 @@ class PostgresBackend:
         self._ensure_schema(conn)
         cursor = conn.cursor()
 
-        today = date.today().isoformat()
-        cursor.execute("""
+        query = """
             SELECT COUNT(*) FROM elections
             WHERE jurisdiction_id = %s
               AND valid_to IS NULL AND deleted_at IS NULL
-              AND election_date >= %s
-        """, (jurisdiction_id, today))
+        """
+        params: list = [jurisdiction_id]
+
+        if not include_past:
+            today = date.today().isoformat()
+            query += " AND election_date >= %s"
+            params.append(today)
+
+        cursor.execute(query, params)
         count = cursor.fetchone()[0]
         self._return_connection(conn)
         return count
@@ -9168,6 +9178,23 @@ class PostgresBackend:
         self._return_connection(conn)
 
         return [dict(row) for row in rows]
+
+    def get_elected_official_count(self, jurisdiction_id: str) -> int:
+        """Get count of current elected officials for a jurisdiction."""
+        jurisdiction_id = normalize_jurisdiction(jurisdiction_id)
+
+        conn = self._get_connection()
+        self._ensure_schema(conn)
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT COUNT(*) FROM elected_officials
+            WHERE jurisdiction_id = %s
+              AND valid_to IS NULL AND deleted_at IS NULL
+        """, (jurisdiction_id,))
+        count = cursor.fetchone()[0]
+        self._return_connection(conn)
+        return count
 
     def get_official_by_name(
         self,

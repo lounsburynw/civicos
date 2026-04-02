@@ -41,6 +41,7 @@ class CorpusType(str, Enum):
     MUNICIPAL_CODE = "municipal_code"  # Local municipal code sections
     ISSUES = "issues"           # Community issues (aka "issue" singular)
     ELECTIONS = "elections"     # Elections, contests, ballot measures
+    ELECTED_OFFICIALS = "elected_officials"  # Current and former elected officials
 
     # Budget corpora
     BUDGET = "budget_items"       # Municipal budget line items
@@ -182,6 +183,17 @@ CORPUS_REGISTRY: Dict[CorpusType, CorpusConfig] = {
         sql_table=None,  # Vector-only corpus
         vector_collection_suffix="elections",
         aliases=("election", "ballot", "vote"),
+        has_meeting_context=False,
+    ),
+    CorpusType.ELECTED_OFFICIALS: CorpusConfig(
+        display_name="Elected Officials",
+        storage_method="get_elected_officials",
+        count_method="get_elected_official_count",
+        text_extractor="_official_to_text",
+        jurisdiction_type="both",
+        sql_table="elected_officials",
+        vector_collection_suffix=None,  # Not vector-indexed
+        aliases=("official", "officials", "representative", "representatives"),
         has_meeting_context=False,
     ),
     CorpusType.BUDGET: CorpusConfig(
