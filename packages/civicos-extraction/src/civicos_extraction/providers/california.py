@@ -4,6 +4,7 @@ California election source provider.
 Detects available election data sources for California jurisdictions:
 - CA Secretary of State (all CA jurisdictions, with county breakdown fallback)
 - Civera ElectionStats (counties with known instances: Marin, San Joaquin, Sonoma, Yolo)
+- Clarity Elections ENR (7 net-new counties: Butte, Contra Costa, Madera, Merced, Santa Clara, Shasta, Ventura)
 - Legislative district detection via Census Bureau geocoder
 """
 
@@ -61,10 +62,32 @@ class CaliforniaElectionProvider(StateElectionProvider):
                     f"Check the registrar's actual division names."
                 )
 
+        # Clarity Elections — available for counties with known Clarity ENR pages.
+        # Skipped if county already has Civera (Civera has permanent archives;
+        # Clarity data is ephemeral).
+        has_clarity = False
+        if not has_civera:
+            from civicos_extraction.clients.clarity_elections import (
+                CLARITY_INSTANCES,
+                has_clarity_instance,
+            )
+            if has_clarity_instance(county, "CA"):
+                instance = CLARITY_INSTANCES["CA"][county]
+                sources["clarity_elections"] = {
+                    "county": county,
+                    "url_name": instance["url_name"],
+                }
+                has_clarity = True
+                logger.info(
+                    f"Clarity Elections detected for {county} county "
+                    f"({instance['url_name']})",
+                )
+
         # CA SOS — available for all California jurisdictions.
-        # county_breakdown: True for non-Civera counties (SOS is primary local
-        # race data source), False for Civera counties (Civera is primary).
-        ca_sos: Dict[str, Any] = {"county": county, "county_breakdown": not has_civera}
+        # county_breakdown: True when neither Civera nor Clarity is available
+        # (SOS is primary local race data source), False otherwise.
+        has_local_source = has_civera or has_clarity
+        ca_sos: Dict[str, Any] = {"county": county, "county_breakdown": not has_local_source}
         if lat is not None and lng is not None:
             from civicos_extraction.onboard import detect_districts
             districts = detect_districts(lat, lng, self.state_code)

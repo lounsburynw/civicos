@@ -24771,3 +24771,37 @@ calendar tests + 20 smoke tests all pass. Zero behavior change for CA.
 - 212 election tests pass
 - 72 election calendar tests pass
 - 20 smoke tests pass
+
+## Session — 2026-04-02 — Election Source Auto-Detection (Session 1)
+
+### Item: election_source_auto_detection (P0)
+
+Built Clarity Elections ENR client and wired it into the election auto-detection pipeline.
+
+### What Changed
+- **NEW** `clients/clarity_elections.py` — ClarityElectionsClient implementing ElectionExtractor protocol
+  - `detect_clarity_elections()` probes Clarity ENR URLs for county detection
+  - `has_clarity_instance()` checks static registry of 9 CA counties (7 net-new)
+  - `extract_clarity_results_to_storage()` full extraction pipeline
+  - Contest and election mappers (ContestDict format)
+  - Flexible JSON summary parser (handles multiple Clarity versions)
+- **UPDATED** `providers/california.py` — CaliforniaElectionProvider now detects Clarity Elections
+  - 7 net-new counties: Butte, Contra Costa, Madera, Merced, Santa Clara, Shasta, Ventura
+  - Civera-overlap counties (Marin, Sonoma) skip Clarity (Civera preferred)
+  - CA SOS county_breakdown=False when Clarity is available
+- **UPDATED** `election_fetch.py` — Added _fetch_clarity handler registered in _FETCH_HANDLERS
+- **UPDATED** `clients/__init__.py` — Added clarity_elections to SUPPORTED_ELECTION_SOURCES + exports
+- **NEW** `tests/test_clarity_elections.py` — 59 tests covering client, detection, mappers, extraction
+
+### Tests
+- 59 Clarity tests pass
+- 43 provider tests pass (no regressions)
+- 9 fetch tests pass (no regressions)
+- 271 total election tests pass
+- 20 smoke tests pass
+
+### Remaining for Session 2
+- Test against live Clarity endpoints (validate JSON summary parsing with real data)
+- Archive-on-fetch pipeline (store XML/JSON in R2 before parsing)
+- Explore extending detection to non-CA states
+- DefaultElectionProvider integration (currently only CaliforniaElectionProvider)

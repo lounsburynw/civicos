@@ -130,6 +130,7 @@ SUPPORTED_ELECTION_SOURCES: frozenset[str] = frozenset({
     "marin_registrar_results",
     "ca_sos_results",
     "ca_sos_ballot_preview",
+    "clarity_elections",
 })
 
 
@@ -161,6 +162,15 @@ from civicos_extraction.clients.ca_sos_ballot_preview import (
     ca_sos_preview_to_contest,
     extract_ca_sos_preview_to_storage,
     RACE_CONFIGS as BALLOT_PREVIEW_RACES,
+)
+from civicos_extraction.clients.clarity_elections import (
+    ClarityElectionsClient,
+    CLARITY_INSTANCES,
+    has_clarity_instance,
+    detect_clarity_elections,
+    clarity_results_to_election,
+    clarity_contest_to_storage,
+    extract_clarity_results_to_storage,
 )
 from civicos_extraction.clients.federal_register import (
     FederalRegisterClient,
@@ -261,4 +271,11 @@ __all__ = [
     "civera_results_to_election",
     "civera_results_to_contest",
     "extract_civera_results_to_storage",
+    "ClarityElectionsClient",
+    "CLARITY_INSTANCES",
+    "has_clarity_instance",
+    "detect_clarity_elections",
+    "clarity_results_to_election",
+    "clarity_contest_to_storage",
+    "extract_clarity_results_to_storage",
 ]

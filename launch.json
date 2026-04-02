@@ -137,11 +137,12 @@
           "packages/civicos-extraction/src/civicos_extraction/providers/default.py",
           "packages/civicos-extraction/src/civicos_extraction/providers/__init__.py",
           "packages/civicos-extraction/src/civicos_extraction/election_fetch.py",
+          "packages/civicos-extraction/src/civicos_extraction/clients/clarity_elections.py",
           "packages/civicos-extraction/src/civicos_extraction/clients/",
           "docs/internal/clarity-elections-research.md"
         ],
-        "test_file": "packages/civicos-extraction/tests/test_election_providers.py",
-        "notes": "The meetings analogy: just as we auto-detect Granicus/Legistar/BoardDocs, we should auto-detect Clarity Elections/state SOS/county registrar. Clarity Elections is highest leverage (covers hundreds of counties across 30+ states). Research existing docs/internal/clarity-elections-research.md. Build detect_election_platform() + ClarityElectionsClient. ~2-3 sessions."
+        "test_file": "packages/civicos-extraction/tests/test_clarity_elections.py",
+        "notes": "Session 1 done (2026-04-02): Built ClarityElectionsClient, detect_clarity_elections(), wired fetch handler, 7 net-new CA counties detected in CaliforniaElectionProvider, 59 tests. Remaining: test against live Clarity endpoints, validate JSON summary parsing with real data, archive-on-fetch to R2, explore extending to non-CA states."
       }
     ]
   },
