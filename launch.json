@@ -702,10 +702,23 @@
         "completed_in": "pending"
       },
       {
+        "name": "turnkey_onboarding_marin",
+        "description": "Apply the complete turnkey onboarding pipeline to one or more new Marin County jurisdictions end-to-end. Assess pipeline reliability, data quality, and friction. Document findings.",
+        "status": "not_started",
+        "priority": 0,
+        "files": [
+          "scripts/onboard.py",
+          "scripts/generate_registries.py",
+          "scripts/validate_registry.py",
+          "data/jurisdictions/"
+        ],
+        "test_file": null
+      },
+      {
         "name": "registry_pr_workflow",
         "description": "Document and test the PR workflow for adding new jurisdictions to config/registry.json. Include CI validation of registry format.",
         "status": "done",
-        "priority": 0,
+        "priority": 1,
         "files": [
           "config/registry.json",
           "scripts/validate_registry.py",
@@ -1416,18 +1429,6 @@
         ],
         "test_file": null,
         "notes": "Research only \u2014 no code changes. Focus on Bay Area first. Verify existing clients, survey alternatives, define integration model for elections and school boards."
-      },
-      {
-        "name": "democracy_works_client",
-        "description": "Build DemocracyWorksClient in extraction clients. REST v2 API \u2014 elections, candidates, ballot measures, deadlines, polling locations. BLOCKED: pricing unknown (sales-gated, no free tier). Must confirm nonprofit access before building.",
-        "priority": 3,
-        "status": "not_started",
-        "files": [
-          "packages/civicos-extraction/src/civicos_extraction/clients/democracy_works.py",
-          "scripts/modal_ingest.py"
-        ],
-        "test_file": "packages/civicos-extraction/tests/test_democracy_works.py",
-        "notes": "BLOCKED on pricing \u2014 sales-gated, no public free tier. Email partnerships@democracy.works to ask about nonprofit access. Do not build until pricing confirmed. If too expensive, skip and rely on Marin Registrar + CA SOS + existing Google Civic for election data."
       },
       {
         "name": "marin_registrar_results_client",

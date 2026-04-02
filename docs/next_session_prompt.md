@@ -1,6 +1,6 @@
-# Recommended: Registry PR Workflow (operator_readiness)
+# Recommended: Turnkey Onboarding — New Marin Jurisdiction(s)
 
-**Priority:** P0 (registry_pr_workflow)
+**Priority:** P0 (turnkey_onboarding_marin)
 **Area:** operator_readiness
 **Date:** 2026-04-02
 
@@ -8,63 +8,66 @@
 
 ## Context
 
-The election_source_auto_detection item is complete — Clarity Elections auto-detection now covers 48 counties across 14 US states. The onboarding pipeline (`scripts/onboard.py`) can detect meeting platforms, election sources, and generate jurisdiction configs. What's missing is a documented, CI-validated workflow for the PR that adds a new jurisdiction to `config/registry.json`. Currently there's no schema validation or CI check on registry edits.
+The onboarding pipeline (`scripts/onboard.py`) exists and has been used to generate configs for Mill Valley, San Anselmo, Berkeley, Sacramento, and Austin — but **San Rafael is the only city that has been fully onboarded end-to-end** (config generation through data ingestion, vector indexing, and production deployment). The other cities have partial YAML configs from dry-run or sandbox testing but were never pushed through the full pipeline.
 
-Launch phase is 126/137 items done, 6 remaining.
+This session completed `registry_pr_workflow` — there's now a validation script (`scripts/validate_registry.py`), a CI workflow (`.github/workflows/validate-registry.yml`), and a documented PR process (`docs/public/onboarding-pr-workflow.md`). The pipeline tooling is ready; it needs a real end-to-end exercise.
 
-## What to Build
+Launch phase is 127/137 items done, 9 remaining.
 
-### 1. Registry JSON Schema Validation
-Create a validation script or JSON schema that checks `config/registry.json` for:
-- Required fields per jurisdiction (domain, display_name, parent_jurisdictions)
-- No duplicate jurisdiction IDs
-- Parent jurisdictions reference valid IDs
-- Domain uniqueness
-- Valid structure (no typos in field names)
+## Goal
 
-### 2. CI Workflow for Registry PRs
-Create `.github/workflows/validate-registry.yml` that runs on PRs touching `config/registry.json` or `data/jurisdictions/*.yaml`. Should run the schema validator and existing jurisdiction tests.
+Pick 1-2 new Marin County jurisdictions and run the complete onboarding pipeline end-to-end. Assess reliability, data quality, and remaining friction. Document findings.
 
-### 3. Document the PR Workflow
-Write a clear guide (or update existing docs) explaining how to add a new city:
-1. Run `/onboard --city "Name" --state XX --sandbox --dry-run`
-2. Review generated files (extraction config, jurisdiction YAML)
-3. Run `scripts/generate_registries.py` to update registry files
-4. Open PR — CI validates schema and runs tests
-5. Merge — city is live
+**Marin cities not yet fully onboarded:**
+- Belvedere, Corte Madera, Fairfax, Larkspur, Novato, Ross, Sausalito, Tiburon
+
+**Good candidates:** Novato (largest un-onboarded Marin city, has school district already in registry), Sausalito, Larkspur, Fairfax, Corte Madera — all likely Granicus-based.
 
 ## Key Files
 
-- `config/registry.json` — Service URLs, deployment config for 15+ jurisdictions
-- `scripts/onboard.py` — Turnkey onboarding script (sandbox, dry-run, cleanup modes)
-- `scripts/generate_registries.py` — Auto-generates 3 registry files from YAML
-- `packages/civicos-config/src/civicos_config/jurisdiction.py` — JurisdictionRegistry class
-- `packages/civicos/tests/test_jurisdiction.py` — Existing jurisdiction tests (~100 lines)
-- `docs/internal/onboarding-friction-log.md` — Friction analysis from 6 onboardings
-- `docs/public/data-ingestion.md` — Full ingestion guide
-- `.github/workflows/` — Existing CI workflows (no registry validation yet)
+- `scripts/onboard.py` — Turnkey onboarding (platform detection, config generation, ingestion)
+- `scripts/generate_registries.py` — Patches 3 registry files from YAML
+- `scripts/validate_registry.py` — Validates YAML + registry.json integrity
+- `data/jurisdictions/schema.yaml` — YAML schema documentation
+- `data/jurisdictions/validation_rules.json` — Validation constants (levels, source types)
+- `docs/public/onboarding-pr-workflow.md` — PR workflow guide
+- `docs/internal/onboarding-friction-log.md` — Friction analysis from prior onboardings (most issues now fixed)
+- `config/registry.json` — 15 jurisdictions currently registered
 
 ## Suggested Approach
 
-1. Read `config/registry.json` to understand current schema
-2. Write a validation script (`scripts/validate_registry.py`) that checks integrity
-3. Create `.github/workflows/validate-registry.yml` triggered on PR
-4. Add tests for registry validation (e.g., in `tests/test_registry_validation.py`)
-5. Document the workflow in `docs/public/onboarding-pr-workflow.md`
-6. Update `launch.json` status when complete
+1. Pick a Marin city (Novato or Sausalito are good choices — meaningful size, likely Granicus)
+2. Run dry-run first to verify detection:
+   ```bash
+   python scripts/onboard.py --city "Novato" --state CA --county Marin --dry-run
+   ```
+3. Review generated YAML config — verify platform, meeting types, data sources
+4. Run sandbox ingestion to assess data quality:
+   ```bash
+   python scripts/onboard.py --city "Novato" --state CA --county Marin --sandbox --captions-only
+   ```
+5. Validate with the new tooling:
+   ```bash
+   python scripts/validate_registry.py
+   python scripts/generate_registries.py --check
+   ```
+6. If data looks good, run full production ingestion (remove `--sandbox`)
+7. Document friction points — update `docs/internal/onboarding-friction-log.md`
+8. If time permits, repeat for a second city
 
 ## Tests to Run
 
 ```bash
 pytest packages/civicos/tests/test_jurisdiction.py -q --override-ini="addopts="
+pytest packages/civicos/tests/test_registry_validation.py -q --override-ini="addopts="
 pytest packages/civicos/tests/test_civicos.py -q --override-ini="addopts="
-python scripts/generate_registries.py --dry-run  # verify generator works
 ```
 
 ## Success Criteria
 
-- [ ] Registry validation script exists and catches common errors
-- [ ] CI workflow runs on PRs touching registry/jurisdiction files
-- [ ] Clear documentation for adding a new city via PR
-- [ ] Existing tests still pass
+- [ ] At least one new Marin jurisdiction fully onboarded (config + data + vectors)
+- [ ] Onboarding pipeline ran without manual code fixes
+- [ ] `validate_registry.py` passes for the new jurisdiction
+- [ ] Data quality assessed (meeting counts, agenda extraction, transcript availability)
+- [ ] Friction findings documented
 - [ ] launch.json item marked done
