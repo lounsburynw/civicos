@@ -25,12 +25,20 @@
 
 5. Wired CivicPlus + universal into both local and Modal ingestion pipelines
 
-### Batch test results (5 previously-failing cities)
+### Batch test results — ALL 5 previously-failing cities now PASS
 - Corte Madera: FAIL → PASS (CivicPlus, 63 meetings, 10 bodies)
 - Larkspur: FAIL → PASS (CivicPlus, 28 meetings)
-- Fairfax: unsupported → detected as ProudCity (empty archives — ProudCity discovery issue)
-- Belvedere: unsupported → detected as universal (LLM config gen failed)
-- Ross: unsupported → still blocked (anti-bot protection needs Playwright)
+- Fairfax: FAIL → PASS (ProudCity WP REST API fallback, 99 meetings, 12+ bodies)
+- Belvedere: FAIL → PASS (ProudCity WP REST API fallback, 51 meetings, 7 bodies)
+- Ross: FAIL → PASS (Universal adapter + curl fallback, 2 meetings)
+
+### Robustness fixes (second commit)
+- ProudCity: WP REST API fallback when HTML scraping fails (non-standard archive paths, redirects)
+- ProudCity: Fixed redirect domain handling in discover_meeting_types()
+- ProudCity: Pass archives from config to client in all ingestion pipelines
+- Platform detection: curl subprocess fallback for bot-protected sites
+- Universal adapter: curl subprocess fallback for config generation
+- Universal adapter: exempt from "no meeting bodies" check (uses metadata.adapter)
 
 ### Files changed
 - NEW: packages/civicos-extraction/src/civicos_extraction/clients/civicplus.py

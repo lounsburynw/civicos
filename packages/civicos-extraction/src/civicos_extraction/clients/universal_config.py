@@ -387,13 +387,34 @@ def generate_adapter_config(
         except ImportError:
             raise ImportError("Playwright required. pip install playwright && playwright install chromium")
     else:
-        response = requests.get(
-            url,
-            headers={"User-Agent": "CivicOS-UniversalAdapter/1.0"},
-            timeout=timeout,
-        )
-        response.raise_for_status()
-        html = response.text
+        html = None
+        try:
+            response = requests.get(
+                url,
+                headers={"User-Agent": "CivicOS-UniversalAdapter/1.0"},
+                timeout=timeout,
+            )
+            response.raise_for_status()
+            html = response.text
+        except requests.RequestException:
+            pass
+
+        # Curl fallback for bot-protected sites
+        if html is None:
+            import subprocess
+            try:
+                result = subprocess.run(
+                    ["curl", "-sL", "--max-time", str(timeout), url,
+                     "-H", "User-Agent: CivicOS-UniversalAdapter/1.0"],
+                    capture_output=True, text=True, timeout=timeout + 5,
+                )
+                if result.returncode == 0 and len(result.stdout) > 500:
+                    html = result.stdout
+            except (subprocess.TimeoutExpired, FileNotFoundError):
+                pass
+
+        if not html:
+            raise RuntimeError(f"Failed to fetch {url} via requests and curl")
 
     # 2. Extract relevant sample
     sample_html = _extract_sample(html)

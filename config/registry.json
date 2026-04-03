@@ -206,6 +206,36 @@
         "state-california",
         "country-united-states"
       ]
+    },
+    "city-fairfax": {
+      "domain": "fairfax.civicosproject.org",
+      "display_name": "Fairfax",
+      "modal_app_name": "civicos-fairfax",
+      "parent_jurisdictions": [
+        "county-marin",
+        "state-california",
+        "country-united-states"
+      ]
+    },
+    "city-belvedere": {
+      "domain": "belvedere.civicosproject.org",
+      "display_name": "Belvedere",
+      "modal_app_name": "civicos-belvedere",
+      "parent_jurisdictions": [
+        "county-marin",
+        "state-california",
+        "country-united-states"
+      ]
+    },
+    "city-ross": {
+      "domain": "ross.civicosproject.org",
+      "display_name": "Ross",
+      "modal_app_name": "civicos-ross",
+      "parent_jurisdictions": [
+        "county-marin",
+        "state-california",
+        "country-united-states"
+      ]
     }
   },
   "relay": {

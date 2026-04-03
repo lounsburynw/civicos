@@ -19,6 +19,7 @@ Supported platforms:
 
 import logging
 import re
+import subprocess
 import time
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Any
@@ -28,6 +29,35 @@ import requests
 from bs4 import BeautifulSoup
 
 logger = logging.getLogger(__name__)
+
+
+def _fetch_with_curl_fallback(url: str, timeout: int = 8) -> Optional[str]:
+    """Fetch a URL, falling back to curl subprocess if requests fails.
+
+    Some sites (Ross, etc.) block Python's requests library via TLS
+    fingerprinting or bot detection, but serve content to curl.
+    """
+    try:
+        resp = requests.get(url, timeout=timeout, allow_redirects=True,
+                            headers={"User-Agent": "CivicOS-Extraction/1.0"})
+        if resp.status_code == 200:
+            return resp.text
+    except requests.RequestException:
+        pass
+
+    # Fallback: try curl
+    try:
+        result = subprocess.run(
+            ["curl", "-sL", "--max-time", str(timeout), url,
+             "-H", "User-Agent: CivicOS-Extraction/1.0"],
+            capture_output=True, text=True, timeout=timeout + 5,
+        )
+        if result.returncode == 0 and len(result.stdout) > 500:
+            return result.stdout
+    except (subprocess.TimeoutExpired, FileNotFoundError):
+        pass
+
+    return None
 
 # Maximum view_id to probe when detecting/discovering Granicus instances
 _DEFAULT_MAX_VIEW_ID = 8
@@ -297,6 +327,25 @@ def _detect_proudcity(base_url: str, timeout: int) -> tuple[float, Dict[str, Any
         metadata["status_code"] = response.status_code
 
         if response.status_code != 200:
+            # /meetings/ returned non-200 — try the WP REST API as fallback.
+            # Some ProudCity sites (e.g., Belvedere) use non-standard URLs but
+            # still expose meetings via the WordPress REST API.
+            try:
+                wp_probe = requests.get(
+                    f"{base_url.rstrip('/')}/wp-json/wp/v2/meetings?per_page=1",
+                    headers=headers, timeout=timeout,
+                )
+                if wp_probe.status_code == 200:
+                    total = int(wp_probe.headers.get("X-WP-Total", 0))
+                    if total > 0:
+                        metadata["meetings_url"] = f"{base_url.rstrip('/')}/wp-json/wp/v2/meetings"
+                        metadata["discovered_meeting_types"] = ["meetings"]
+                        metadata["meeting_type_count"] = 1
+                        metadata["wp_api"] = True
+                        metadata["wp_total"] = total
+                        return 0.75, metadata
+            except Exception:
+                pass
             metadata["error"] = f"Status {response.status_code}"
             return 0.0, metadata
 
@@ -1235,9 +1284,21 @@ def discover_platform(
 
     for city_url in city_urls:
         try:
-            resp = requests.get(city_url, timeout=timeout, allow_redirects=True)
-            if resp.status_code != 200:
-                continue
+            html = None
+            resp_url = city_url
+            try:
+                resp = requests.get(city_url, timeout=timeout, allow_redirects=True)
+                if resp.status_code == 200:
+                    html = resp.text
+                    resp_url = str(resp.url)
+            except requests.RequestException:
+                pass
+
+            # Curl fallback for bot-protected sites (e.g., Ross)
+            if html is None:
+                html = _fetch_with_curl_fallback(city_url, timeout=timeout)
+                if html is None:
+                    continue
 
             # Check if this is a ProudCity site first
             pc_confidence, pc_meta = _detect_proudcity(city_url, timeout=timeout)
@@ -1249,7 +1310,6 @@ def discover_platform(
                 }
 
             # Scan page HTML for platform links
-            html = resp.text
             for platform, pattern in _PLATFORM_PATTERNS.items():
                 match = pattern.search(html)
                 if match:
@@ -1303,7 +1363,7 @@ def discover_platform(
                         }
 
             # Check for CivicPlus: Archive.aspx links OR brand name in HTML
-            parsed_url = urlparse(str(resp.url))
+            parsed_url = urlparse(resp_url)
             resolved_base = f"{parsed_url.scheme}://{parsed_url.netloc}"
 
             civicplus_amids = set()
@@ -1352,11 +1412,10 @@ def discover_platform(
     )
     for city_url in city_urls:
         try:
-            resp = requests.get(city_url, timeout=timeout, allow_redirects=True)
-            if resp.status_code != 200:
+            html = _fetch_with_curl_fallback(city_url, timeout=timeout)
+            if not html:
                 continue
-            html = resp.text
-            parsed_base = urlparse(str(resp.url))
+            parsed_base = urlparse(city_url)
             resolved_base = f"{parsed_base.scheme}://{parsed_base.netloc}"
 
             # Find links to meeting/agenda pages

@@ -2885,6 +2885,7 @@ def fetch_meetings(
             client = ProudCityClient(
                 base_url=config.base_url,
                 jurisdiction_id=jurisdiction,
+                archives=config.archives or None,
             )
             meetings = client.get_meetings(days_ahead=days_ahead, days_past=days_past)
         elif source_type == "granicus":
@@ -5684,7 +5685,7 @@ def scheduled_high_velocity_refresh():
 
             if src_type == "proudcity":
                 from civicos_extraction.clients.proudcity import ProudCityClient
-                client = ProudCityClient(base_url=ext_config.base_url, jurisdiction_id=jid)
+                client = ProudCityClient(base_url=ext_config.base_url, jurisdiction_id=jid, archives=ext_config.archives or None)
             elif src_type == "granicus":
                 from civicos_extraction.clients.granicus import GranicusSource
                 client = GranicusSource(ext_config)
