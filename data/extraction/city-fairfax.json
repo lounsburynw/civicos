@@ -1,0 +1,34 @@
+{
+  "source_id": "proudcity-city-fairfax",
+  "source_type": "proudcity",
+  "jurisdiction_id": "city-fairfax",
+  "base_url": "https://townoffairfaxca.gov",
+  "auto_discover": true,
+  "archives": {
+    "meetings": "_wp_api"
+  },
+  "issue_source": "seeclickfix",
+  "election_sources": {
+    "civera_election_stats": {
+      "county_slug": "marin",
+      "graphql_url": "https://pastelections.marincounty.gov/api/graphql_pr",
+      "from_year": 2010,
+      "division_filter": "Fairfax"
+    },
+    "ca_sos_results": {
+      "county": "marin",
+      "county_breakdown": false,
+      "districts": {
+        "us-rep": [
+          2
+        ],
+        "state-senate": [
+          2
+        ],
+        "state-assembly": [
+          12
+        ]
+      }
+    }
+  }
+}

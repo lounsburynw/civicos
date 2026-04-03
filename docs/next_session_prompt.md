@@ -1,99 +1,73 @@
-# Recommended: Platform Coverage Expansion
+# Recommended: Token Purchase UI
 
-**Priority:** P0 (platform_coverage_expansion)
-**Area:** operator_readiness
-**Date:** 2026-04-02
+**Priority:** P0 (token_purchase_ui)
+**Area:** token_issuance
+**Date:** 2026-04-03
 
 > This is recommended context from the previous session. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
 
 ## Context
 
-The previous session onboarded 3 Marin cities (Novato, Sausalito, Tiburon) and built a headless-ready onboarding pipeline (`--trial` flag, QC script, structured diagnostics). Batch testing all 8 Marin cities revealed that 5 fail due to unsupported platforms:
+Launch phase is 134/138 items done. All token infrastructure is complete EXCEPT the purchase UI:
+- Blind signature scheme (secp256k1 Schnorr) -- done
+- Token issuance service (civicos-signer) -- done
+- Token wallet in extension (chrome.storage.local) -- done
+- Token spending in API (paymentProof param) -- done
+- Token verification in acceptance policy -- done
 
-| City | Platform | Needed |
-|------|----------|--------|
-| Corte Madera | CivicPlus (Archive.aspx) | New extraction client |
-| Larkspur | CivicPlus (Archive.aspx) | New extraction client |
-| Fairfax | WordPress (townoffairfaxca.gov) | Universal adapter |
-| Ross | Custom (townofrossca.gov) | Universal adapter |
-| Belvedere | Custom (cityofbelvedere.org) | Universal adapter |
-
-A **Universal Adapter** already exists (`packages/civicos-extraction/src/civicos_extraction/clients/universal.py`) that uses LLM to generate CSS-selector configs at onboard time, then extracts deterministically. It's just not wired into the detection fallback. Similarly, 311 issue discovery only supports SeeClickFix, but Marin County has adopted FixItMarin.
-
-Launch phase is 128/138 items done (turnkey_onboarding_marin marked done this session).
+Only 4 items remain: this one + 3 P3 federation/operator items.
 
 ## Goal
 
-Three deliverables:
-1. **CivicPlus extraction client** — thin client for CivicPlus Archive.aspx pages (unlocks Corte Madera, Larkspur)
-2. **Universal adapter as detection fallback** — when all known platforms fail, try the universal adapter on the city's agendas page (unlocks Fairfax, Ross, Belvedere)
-3. **311 provider discovery** — expand beyond SeeClickFix to detect FixItMarin and other providers
+Build the Stripe checkout -> blinded token acquisition flow in the browser extension. User clicks "Buy Tokens", pays via Stripe, receives blinded tokens in their wallet.
 
 ## Key Files
 
-- `packages/civicos-extraction/src/civicos_extraction/clients/universal.py` — Universal adapter (LLM config gen + deterministic extraction)
-- `packages/civicos-extraction/src/civicos_extraction/clients/universal_config.py` — LLM prompt for generating adapter configs
-- `packages/civicos-extraction/src/civicos_extraction/clients/factory.py` — Source factory (already has `universal` case)
-- `packages/civicos-extraction/src/civicos_extraction/platform_detection.py:1125` — `discover_platform()` — add universal adapter fallback here
-- `packages/civicos-extraction/src/civicos_extraction/onboard.py:524` — `detect_issue_source()` — currently SeeClickFix only
-- `scripts/onboard.py` — `--trial` flag for testing (use it!)
-- `docs/internal/headless-onboard-prompt.md` — Batch onboarding prompt template
+- `apps/civicos-extension/src/lib/blind.ts` -- Schnorr blind signing primitives (blind, unblind, verify)
+- `apps/civicos-extension/src/lib/token-wallet.ts` -- Wallet API (getTokens, storeTokens, requestTokens, getAvailableToken)
+- `apps/civicos-extension/src/background/service-worker.ts:195` -- Token message handlers (GET_TOKEN_COUNT, REQUEST_TOKENS, SPEND_TOKEN)
+- `apps/civicos-extension/src/lib/messaging.ts` -- Message protocol types
+- `packages/civicos-signer/src/civicos_signer/server.py` -- Token issuer service
+- `apps/civicos-extension/src/popup/Popup.svelte` -- Main popup UI (no token UI yet)
+- `apps/civicos-extension/src/side-panel/SidePanel.svelte` -- Side panel (no token UI yet)
+- `packages/civicos-client/src/api.ts` -- REST API with paymentProof support
 
-### CivicPlus Reference URLs
-- Corte Madera: `https://www.townofcortemadera.org/681/Agendas-Minutes-and-Notices` (Archive.aspx, 31 refs)
-- Larkspur: `https://www.ci.larkspur.ca.us/Archive.aspx?AMID=49`
-- Pattern: `/Archive.aspx?AMID=N` for agendas, `/Archive.aspx?AMID=M` for minutes
+### Token Discovery
 
-### Custom Site Reference URLs
-- Fairfax: `https://townoffairfaxca.gov/agendas-town-council/`
-- Ross: `https://www.townofrossca.gov/meetings`
-- Belvedere: `https://www.cityofbelvedere.org` (check for agendas page)
-
-### 311 Provider Context
-- Memory file `memory/project_311_providers.md`: Marin switching to FixItMarin (Mar 2026)
-- Current detection: `detect_issue_source()` only tries SeeClickFix
-- FixItMarin URL: unknown — needs web research
+The relay exposes `/coordination/tokens/info` which returns `{ enabled: boolean, issuer_pubkey: string }`. The extension's `requestTokens(config, count)` already handles the full blind signing protocol.
 
 ## Suggested Approach
 
-### 1. CivicPlus Client (~1 hour)
-1. Create `packages/civicos-extraction/src/civicos_extraction/clients/civicplus.py`
-2. CivicPlus Archive.aspx pages have a predictable structure: table rows with date, title, PDF links
-3. Fetch `Archive.aspx?AMID=N`, parse HTML table, extract meeting rows
-4. Register in `factory.py` and `platform_detection.py`
-5. Test: `python scripts/onboard.py --city "Corte Madera" --state CA --county Marin --trial`
+1. **Add Stripe JS SDK** to `apps/civicos-extension/package.json`
+2. **Create payment endpoint** on the API/relay that creates a Stripe Checkout Session, returns session URL
+3. **Build UI component** in extension (Popup or SidePanel) -- "Buy Tokens" button showing wallet balance
+4. **Stripe Checkout flow** -- redirect to Stripe hosted checkout, handle success callback
+5. **Webhook handler** on backend -- Stripe payment confirmed -> issue tokens via blind signing
+6. **Wire end-to-end** -- payment confirmed -> tokens in wallet -> balance updates in UI
 
-### 2. Universal Adapter Fallback (~30 min)
-1. In `platform_detection.py:discover_platform()`, after all platforms fail, try the city website URL found during website scraping and run `generate_adapter_config()` on pages that look like meeting listings
-2. Save adapter config to `data/extraction/{jid}.json` with `source_type: "universal"`
-3. Test: `python scripts/onboard.py --city "Fairfax" --state CA --county Marin --trial`
-
-### 3. 311 Provider Discovery (~30 min)
-1. Expand `detect_issue_source()` to check for FixItMarin and other providers
-2. Add provider detection patterns (URL probing)
-3. Make issue_source configurable per-jurisdiction in YAML
-
-### 4. Batch Retest
-```bash
-for city in "Corte Madera" "Larkspur" "Fairfax" "Ross" "Belvedere"; do
-  python scripts/onboard.py --city "$city" --state CA --county Marin --trial
-done
-```
+### Key decisions needed
+- Stripe Checkout (hosted) vs Stripe Elements (embedded) -- hosted is simpler
+- Where does the payment endpoint live? Relay (`/coordination/tokens/purchase`) or API?
+- Token pricing: how many tokens per dollar?
+- **Check `.env` for STRIPE_PUBLIC_KEY / STRIPE_SECRET_KEY** -- may need to set up Stripe account first
 
 ## Tests to Run
 
 ```bash
+# Smoke tests
 pytest packages/civicos/tests/test_civicos.py -q --override-ini="addopts="
-pytest packages/civicos/tests/test_jurisdiction.py -q --override-ini="addopts="
-python scripts/qc_sandbox.py -j city-corte-madera
-python scripts/qc_sandbox.py -j city-fairfax
+
+# Extension build
+cd apps/civicos-extension && npm run build
+
+# Token wallet tests (if they exist)
+cd apps/civicos-extension && npm test
 ```
 
 ## Success Criteria
 
-- [ ] CivicPlus client extracts meetings from Corte Madera and Larkspur
-- [ ] Universal adapter generates working configs for at least 1 custom site
-- [ ] All 5 previously-failing cities pass `--trial` or have clear actionable failure reasons
-- [ ] 311 provider detection finds FixItMarin for Marin jurisdictions
-- [ ] Batch retest: 7-8 out of 8 Marin cities pass `--trial`
-- [ ] launch.json item marked done
+- [ ] Stripe Checkout Session created from extension
+- [ ] Payment confirmation webhook processes correctly
+- [ ] Blinded tokens arrive in extension wallet after payment
+- [ ] Wallet balance displays in extension UI
+- [ ] Token can be spent on a voice/comment submission

@@ -377,10 +377,17 @@ class ProudCityClient(BaseExtractor):
                     "platform": self.platform_name,
                 }
             )
-            return {}
+            # Try WP REST API before giving up — some ProudCity sites
+            # (e.g., Belvedere) have /meetings/ at a non-standard path
+            # but still expose meetings via the WordPress REST API.
+            return self._discover_via_wp_api()
 
         soup = BeautifulSoup(response.content, 'html.parser')
         discovered = {}
+
+        # Determine the resolved base URL (may differ from self.base_url after redirect)
+        from urllib.parse import urlparse
+        resolved_host = urlparse(str(response.url)).netloc
 
         # Find all links ending in -meetings/ or -hearings/
         archive_pattern = re.compile(r'^/([a-z0-9-]+)-(meetings|hearings|boards|committees|events|agendas|minutes)/?$')
@@ -390,9 +397,10 @@ class ProudCityClient(BaseExtractor):
 
             # Handle both relative and absolute URLs
             if href.startswith('http'):
-                # Extract path from full URL
-                if self.base_url in href:
-                    href = href.replace(self.base_url, '')
+                # Extract path from full URL — accept both original and redirected domains
+                parsed_href = urlparse(href)
+                if parsed_href.netloc in (urlparse(self.base_url).netloc, resolved_host):
+                    href = parsed_href.path
                 else:
                     continue  # External link
 
@@ -411,6 +419,14 @@ class ProudCityClient(BaseExtractor):
                 if type_key not in discovered:
                     discovered[type_key] = path
 
+        # If HTML scraping found no archive links, try the WP REST API.
+        # Some ProudCity sites (e.g., Fairfax) use non-standard archive structures
+        # but still expose meetings via the WordPress REST API.
+        if not discovered:
+            wp_api_result = self._discover_via_wp_api()
+            if wp_api_result:
+                discovered = wp_api_result
+
         logger.info(
             "Discovered meeting types",
             extra={
@@ -422,6 +438,30 @@ class ProudCityClient(BaseExtractor):
         )
 
         return discovered
+
+    def _discover_via_wp_api(self) -> Dict[str, str]:
+        """Try WP REST API to discover meeting post types."""
+        # Follow redirects to get the actual domain
+        try:
+            probe = self.session.get(
+                f"{self.base_url}/wp-json/wp/v2/meetings?per_page=1",
+                timeout=10,
+                allow_redirects=True,
+            )
+            if probe.status_code == 200:
+                data = probe.json()
+                total = int(probe.headers.get("X-WP-Total", 0))
+                if isinstance(data, list) and (data or total > 0):
+                    # Store the resolved base URL for API calls
+                    from urllib.parse import urlparse
+                    resolved = urlparse(str(probe.url))
+                    self._wp_api_base = f"{resolved.scheme}://{resolved.netloc}"
+                    logger.info(f"WP REST API found: {total} meetings at {self._wp_api_base}")
+                    return {"meetings": "_wp_api"}
+        except Exception as e:
+            logger.debug(f"WP REST API probe failed: {e}")
+
+        return {}
 
     def get_source_inventory(self, include_coverage: bool = True) -> Dict[str, Any]:
         """
@@ -524,13 +564,21 @@ class ProudCityClient(BaseExtractor):
         all_events = []
 
         for meeting_type, path in self.archives.items():
-            archive_url = f"{self.base_url}{path}"
-            events = self._scrape_archive_page(
-                archive_url, meeting_type,
-                date_range=(start_date, end_date),
-            )
-            filtered = self._filter_by_date_range(events, start_date, end_date)
-            all_events.extend(filtered)
+            if path == "_wp_api":
+                events = self._fetch_via_wp_api(
+                    post_type=meeting_type,
+                    start_date=start_date,
+                    end_date=end_date,
+                )
+                all_events.extend(events)
+            else:
+                archive_url = f"{self.base_url}{path}"
+                events = self._scrape_archive_page(
+                    archive_url, meeting_type,
+                    date_range=(start_date, end_date),
+                )
+                filtered = self._filter_by_date_range(events, start_date, end_date)
+                all_events.extend(filtered)
 
         return all_events
 
@@ -560,6 +608,117 @@ class ProudCityClient(BaseExtractor):
         archive_url = f"{self.base_url}{self.archives[meeting_type]}"
         events = self._scrape_archive_page(archive_url, meeting_type)
         return self._filter_by_date_range(events, start_date, end_date)
+
+    def _fetch_via_wp_api(
+        self,
+        post_type: str = "meetings",
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+    ) -> List[Dict[str, Any]]:
+        """Fetch meetings from the WordPress REST API.
+
+        Used for ProudCity sites with non-standard archive structures where
+        HTML scraping fails but the WP REST API exposes meeting data.
+        """
+        from urllib.parse import urlparse
+
+        # Use the resolved base URL if available (handles redirects)
+        api_base = getattr(self, "_wp_api_base", self.base_url).rstrip("/")
+        endpoint = f"{api_base}/wp-json/wp/v2/{post_type}"
+
+        all_events = []
+        page = 1
+        per_page = 50
+        max_pages = 50  # Safety limit
+
+        while page <= max_pages:
+            params: Dict[str, Any] = {"per_page": per_page, "page": page}
+            if start_date:
+                params["after"] = f"{start_date}T00:00:00"
+            if end_date:
+                params["before"] = f"{end_date}T23:59:59"
+
+            time.sleep(self.min_request_interval)
+            try:
+                resp = self.session.get(endpoint, params=params, timeout=15)
+                if resp.status_code != 200:
+                    break
+                posts = resp.json()
+                if not posts:
+                    break
+            except Exception as e:
+                logger.warning(f"WP API page {page} failed: {e}")
+                break
+
+            for post in posts:
+                title_raw = post.get("title", {}).get("rendered", "")
+                # Strip HTML entities
+                title = re.sub(r"&#\d+;", lambda m: chr(int(m.group(0)[2:-1])), title_raw)
+                title = re.sub(r"<[^>]+>", "", title).strip()
+
+                # Parse the meeting date from the title (e.g., "Town Council Meeting: April 2, 2026")
+                meeting_date = None
+                date_match = re.search(
+                    r"(?:January|February|March|April|May|June|July|August|September"
+                    r"|October|November|December)\s+\d{1,2},?\s+\d{4}",
+                    title,
+                )
+                if date_match:
+                    for fmt in ("%B %d, %Y", "%B %d %Y"):
+                        try:
+                            meeting_date = datetime.strptime(date_match.group(), fmt).strftime("%Y-%m-%d")
+                            break
+                        except ValueError:
+                            continue
+
+                if not meeting_date:
+                    # Fall back to post publication date
+                    meeting_date = post.get("date", "")[:10]
+
+                # Extract body name from title (text before the colon)
+                body_name = title.split(":")[0].strip() if ":" in title else "Meeting"
+
+                # Build event dict compatible with normalize_event()
+                content = post.get("content", {}).get("rendered", "")
+                # Find PDF links in content
+                pdf_urls = re.findall(r'href=["\']([^"\']+\.pdf)["\']', content, re.I)
+                agenda_url = None
+                minutes_url = None
+                for pdf in pdf_urls:
+                    pdf_lower = pdf.lower()
+                    if "agenda" in pdf_lower or "packet" in pdf_lower:
+                        agenda_url = agenda_url or pdf
+                    elif "minute" in pdf_lower:
+                        minutes_url = minutes_url or pdf
+
+                # Extract slug from the link URL for unique meeting ID
+                link_url = post.get("link", "")
+                slug_match = re.search(r"/meetings/([^/]+)/?$", link_url)
+                meeting_slug = slug_match.group(1) if slug_match else f"wp-{post.get('id', 'unknown')}"
+
+                # Build event dict compatible with normalize_event()
+                # Keys must match what normalize_event() reads:
+                #   date_parsed, meeting_slug, title, meeting_type, meeting_url
+                event = {
+                    "title": title,
+                    "date_parsed": meeting_date,
+                    "meeting_slug": meeting_slug,
+                    "meeting_type": body_name.lower().replace(" ", "_"),
+                    "meeting_url": link_url,
+                    "agenda_url": agenda_url,
+                    "minutes_url": minutes_url,
+                    "source": "wp_api",
+                    "wp_id": post.get("id"),
+                }
+                all_events.append(event)
+
+            total_pages = int(resp.headers.get("X-WP-TotalPages", 1))
+            if page >= total_pages:
+                break
+            page += 1
+
+        logger.info(f"WP API fetched {len(all_events)} meetings from {api_base}")
+        return all_events
 
     def _scrape_archive_page(
         self,
@@ -841,7 +1000,8 @@ class ProudCityClient(BaseExtractor):
             jurisdiction_id=self.jurisdiction_id,
             meeting_type=event.get('meeting_type'),
             status="scheduled",
-            agenda_url=event.get('meeting_url'),
+            agenda_url=event.get('agenda_url') or event.get('meeting_url'),
+            minutes_url=event.get('minutes_url'),
             source_platform="proudcity",
             source_url=event.get('meeting_url'),
             raw_data=event

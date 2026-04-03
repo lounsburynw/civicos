@@ -506,11 +506,14 @@ def _discover_proudcity(url: str, jurisdiction_id: str) -> Dict[str, Any]:
 
     discovered = client.discover_meeting_types()
 
+    # Use the resolved base URL if the site redirected (e.g., townoffairfax.org -> townoffairfaxca.gov)
+    resolved_base = getattr(client, "_wp_api_base", url)
+
     config = {
         "source_id": f"proudcity-{jurisdiction_id}",
         "source_type": "proudcity",
         "jurisdiction_id": jurisdiction_id,
-        "base_url": url,
+        "base_url": resolved_base,
         "auto_discover": True,
         "archives": discovered,
     }
@@ -2617,8 +2620,9 @@ def onboard_jurisdiction(
         f"Index vectors: civic-extract onboard --url <url> -j {jurisdiction_id} --run-pipeline --index-vectors",
     ])
 
-    if not discovered_bodies:
-        errors.append("No meeting bodies discovered. Config will have empty archives.")
+    # Universal adapter uses metadata.adapter instead of archives — skip this check
+    source_type = config.get("source_type", "")
+    if not discovered_bodies and source_type != "universal":
         return OnboardResult(
             success=False,
             jurisdiction_id=jurisdiction_id,
