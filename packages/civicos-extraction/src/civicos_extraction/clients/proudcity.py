@@ -675,13 +675,19 @@ class ProudCityClient(BaseExtractor):
                     # Fall back to post publication date
                     meeting_date = post.get("date", "")[:10]
 
-                # Extract body name from title (text before separator)
-                # Cities use ":" (Fairfax) or "–" (San Rafael) or " - " as separators
-                body_name = "Meeting"
-                for sep in ["–", "—", " - ", ":"]:
-                    if sep in title:
-                        body_name = title.split(sep)[0].strip()
-                        break
+                # Extract body name by removing the date and any surrounding
+                # punctuation/separators. This is separator-agnostic — works
+                # whether the city uses ":" (Fairfax), "–" (San Rafael),
+                # " - ", or any other convention.
+                body_name = title
+                if date_match:
+                    body_name = title[:date_match.start()]
+                # Strip trailing separators and whitespace
+                body_name = re.sub(r"[\s:–—\-|/,]+$", "", body_name).strip()
+                # Strip leading annotations like "(Cancelled)" or "(Special)"
+                body_name = re.sub(r"\s*\([^)]*\)\s*$", "", body_name).strip()
+                if not body_name:
+                    body_name = "Meeting"
 
                 # Build event dict compatible with normalize_event()
                 content = post.get("content", {}).get("rendered", "")

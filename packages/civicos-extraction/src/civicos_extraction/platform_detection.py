@@ -1375,31 +1375,40 @@ def discover_platform(
             )
 
             if is_civicplus_site:
-                # If no AMIDs found on homepage, probe Archive.aspx directly
+                # If no AMIDs found on homepage, probe a few common AMIDs directly.
+                # CivicPlus Archive.aspx root is a form page, not an index —
+                # we need to probe specific AMIDs to confirm meeting content exists.
                 if not civicplus_amids:
-                    try:
-                        probe = requests.get(
-                            f"{resolved_base}/Archive.aspx",
-                            timeout=timeout,
-                            allow_redirects=True,
-                        )
-                        if probe.status_code == 200 and "AMID" in probe.text:
-                            for cp_match in _CIVICPLUS_RE.finditer(probe.text):
-                                civicplus_amids.add(cp_match.group(2))
-                    except Exception:
-                        pass
+                    for test_amid in ["37", "41", "49", "1", "2", "3"]:
+                        try:
+                            probe = requests.get(
+                                f"{resolved_base}/Archive.aspx?AMID={test_amid}",
+                                timeout=timeout,
+                                allow_redirects=True,
+                            )
+                            if probe.status_code == 200 and "ADID=" in probe.text:
+                                civicplus_amids.add(test_amid)
+                                break  # One hit is enough for detection
+                        except Exception:
+                            pass
 
-                if civicplus_amids or is_civicplus_site:
-                    logger.info(f"CivicPlus detected on {city_url} (AMIDs: {civicplus_amids or 'none yet'})")
+                # Only return CivicPlus if we found actual archive content.
+                # Many cities use CivicPlus as a CMS but store meetings elsewhere
+                # (Legistar, Granicus, etc.). Returning "civicplus" without AMIDs
+                # would block the universal adapter fallback.
+                if civicplus_amids:
+                    logger.info(f"CivicPlus detected on {city_url} (AMIDs: {sorted(civicplus_amids)})")
                     return {
                         "platform": "civicplus",
-                        "confidence": 0.85 if civicplus_amids else 0.65,
+                        "confidence": 0.85,
                         "details": {
                             "url": resolved_base,
                             "discovered_amids": sorted(civicplus_amids),
                             "source_page": city_url,
                         },
                     }
+                else:
+                    logger.debug(f"CivicPlus CMS detected on {city_url} but no Archive.aspx AMIDs found — continuing")
 
         except Exception:
             continue
