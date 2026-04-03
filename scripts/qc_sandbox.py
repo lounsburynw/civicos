@@ -214,6 +214,21 @@ def qc_sandbox(db_path: str, jurisdiction: str) -> dict:
 
     results["corpora"]["officials"] = corpus
 
+    # --- OFFICIALS WEB VERIFICATION ---
+    # Cross-reference extracted officials against web search results.
+    # Catches stale officials, missing names, and wrong role assignments.
+    officials_verification = _verify_officials_via_web(db_path, jurisdiction)
+    if officials_verification:
+        results["officials_verification"] = officials_verification
+        if officials_verification.get("warnings"):
+            results.setdefault("warnings", []).extend(
+                f"[officials_verify] {w}" for w in officials_verification["warnings"]
+            )
+        if officials_verification.get("errors"):
+            results.setdefault("errors", []).extend(
+                f"[officials_verify] {e}" for e in officials_verification["errors"]
+            )
+
     # --- STATUS CONSISTENCY CHECK (deterministic) ---
     _status_check = _check_status_consistency(db_path)
     if _status_check.get("warnings"):
@@ -291,6 +306,126 @@ Respond with ONLY a JSON object (no markdown fences):
 Set pass=false only for clear data quality problems (garbled content, wrong jurisdiction). \
 Minor issues like generic body names are warnings, not failures.\
 """
+
+
+_OFFICIALS_VERIFY_PROMPT = """\
+You are verifying elected officials data for {jurisdiction}. We store \
+officials at multiple levels: city council/town council, school board \
+(Governing Board Members), AND county supervisors. This is intentional — \
+all these officials represent residents of this jurisdiction.
+
+I searched the web for "{search_query}" and got these snippets:
+{search_results}
+
+Compare our extracted officials against what the web snippets show. Check:
+1. **Missing council members** — does the web mention council members we don't have?
+2. **Stale officials** — do we list anyone the web says is no longer serving?
+3. **Mayor/Vice Mayor** — does the web identify who is mayor? We may only have "Council Member".
+4. **Name accuracy** — are the names spelled correctly?
+
+Our extracted officials:
+{officials_list}
+
+Respond with ONLY a JSON object (no markdown fences):
+{{
+  "pass": true/false,
+  "verified_count": <number of officials confirmed by web results>,
+  "issues": ["specific discrepancies between our data and web results"],
+  "warnings": ["minor concerns or things we couldn't verify"],
+  "summary": "one sentence assessment"
+}}
+
+Set pass=false only if the web clearly shows we're missing current officials \
+or listing people who left office. If the web snippets are too limited to verify, \
+set pass=true with a warning.\
+"""
+
+
+def _verify_officials_via_web(db_path: str, jurisdiction: str) -> dict:
+    """Cross-reference extracted officials against web search results."""
+    import os
+
+    if not (os.environ.get("OPENAI_API_KEY") or os.environ.get("GOOGLE_API_KEY")):
+        return {}
+
+    db = sqlite3.connect(db_path)
+    db.row_factory = sqlite3.Row
+    cur = db.cursor()
+
+    try:
+        cur.execute("""
+            SELECT name, seat FROM elected_officials
+            WHERE seat LIKE '%Council%' OR seat LIKE '%Mayor%'
+               OR seat LIKE '%Supervisor%' OR seat LIKE '%Board%'
+            ORDER BY seat, name
+        """)
+        rows = cur.fetchall()
+    except sqlite3.OperationalError:
+        db.close()
+        return {}
+
+    db.close()
+
+    if not rows:
+        return {}
+
+    officials_list = "\n".join(f"- {r['name']} ({r['seat']})" for r in rows)
+
+    # Derive city name from jurisdiction_id
+    city_name = jurisdiction.replace("city-", "").replace("-", " ").title()
+    search_query = f"{city_name} city council members"
+
+    # Web search via DuckDuckGo HTML (doesn't require JS/Playwright)
+    try:
+        import requests as _req
+        from bs4 import BeautifulSoup as _BS
+        r = _req.get(
+            "https://html.duckduckgo.com/html/",
+            params={"q": search_query},
+            headers={"User-Agent": "CivicOS-QC/1.0"},
+            timeout=10,
+        )
+        if r.status_code == 200:
+            soup = _BS(r.text, "html.parser")
+            # Extract search result snippets
+            results = soup.select(".result__snippet")
+            search_results = "\n".join(r.get_text(strip=True)[:200] for r in results[:5])
+            if not search_results:
+                search_results = "(no search results)"
+        else:
+            search_results = f"(search returned {r.status_code})"
+    except Exception as e:
+        search_results = f"(web search failed: {e})"
+
+    if "(web search" in search_results:
+        return {"warnings": ["Officials web verification skipped — Playwright not available"]}
+
+    # Ask LLM to compare
+    try:
+        from civicos_services.core.llm_provider import get_model_for_task
+        import re
+
+        provider = get_model_for_task("navigation")
+        prompt = _OFFICIALS_VERIFY_PROMPT.format(
+            jurisdiction=jurisdiction,
+            search_query=search_query,
+            search_results=search_results,
+            officials_list=officials_list,
+        )
+
+        result = provider.complete(
+            [{"role": "user", "content": prompt}],
+            temperature=0.1,
+        )
+        text = result.content.strip()
+
+        json_match = re.search(r"\{.*\}", text, re.DOTALL)
+        if json_match:
+            return json.loads(json_match.group())
+        return {"warnings": [f"Officials verification returned unparseable response"]}
+
+    except Exception as e:
+        return {"warnings": [f"Officials verification failed: {e}"]}
 
 
 def _check_status_consistency(db_path: str) -> dict:
