@@ -140,6 +140,174 @@ def extract_meetings_from_page(
     return meetings
 
 
+# ---------------------------------------------------------------------------
+# Officials extraction
+# ---------------------------------------------------------------------------
+
+_OFFICIALS_PROMPT = """\
+You are extracting current elected officials from a municipal government website. \
+Below is the visible text from {jurisdiction_id}'s government/council page.
+
+Extract ALL currently serving elected officials. Include:
+- Mayor, Vice Mayor, Council Members, Board Members, Supervisors
+- Their role/title exactly as shown
+- District number if shown
+- Email and phone if shown on the page
+
+Do NOT include:
+- City staff (city manager, clerk, etc.) — only elected officials
+- Former/past officials
+- Candidates not yet in office
+
+Respond with ONLY a JSON array (no markdown fences):
+[
+  {{"name": "...", "role": "...", "district": null, "email": null, "phone": null}},
+  ...
+]
+
+If you cannot find any elected officials on this page, return an empty array [].
+
+Page text:
+{page_text}
+"""
+
+
+def extract_officials_from_page(
+    url: str,
+    jurisdiction_id: str,
+    timeout: int = 20,
+    max_text_chars: int = 10000,
+) -> List[Dict[str, Any]]:
+    """Render a government page with Playwright and extract officials via LLM.
+
+    Args:
+        url: Government/council page URL
+        jurisdiction_id: Jurisdiction ID for context
+        timeout: Page load timeout in seconds
+        max_text_chars: Max characters of page text to send to LLM
+
+    Returns:
+        List of official dicts with name, role, district, email, phone.
+    """
+    import os
+    if not (os.environ.get("OPENAI_API_KEY") or os.environ.get("GOOGLE_API_KEY")):
+        return []
+
+    html, page_text = _render_page(url, timeout)
+
+    if len(page_text) > max_text_chars:
+        page_text = page_text[:max_text_chars] + "\n\n[... truncated ...]"
+
+    from civicos_services.core.llm_provider import get_model_for_task
+    provider = get_model_for_task("navigation")
+
+    prompt = _OFFICIALS_PROMPT.format(
+        jurisdiction_id=jurisdiction_id,
+        page_text=page_text,
+    )
+
+    result = provider.complete(
+        [{"role": "user", "content": prompt}],
+        temperature=0.1,
+    )
+    text = result.content.strip()
+
+    json_match = re.search(r"\[.*\]", text, re.DOTALL)
+    if not json_match:
+        logger.warning(f"Officials LLM returned no JSON array: {text[:200]}")
+        return []
+
+    try:
+        officials_raw = json.loads(json_match.group())
+    except json.JSONDecodeError as e:
+        logger.warning(f"Failed to parse officials LLM response: {e}")
+        return []
+
+    officials = []
+    for o in officials_raw:
+        if not isinstance(o, dict) or not o.get("name"):
+            continue
+        officials.append({
+            "id": "web-{}-{}".format(
+                jurisdiction_id,
+                re.sub(r"[^a-z0-9]+", "-", o["name"].lower()).strip("-"),
+            ),
+            "name": o["name"],
+            "seat": o.get("role", "Elected Official"),
+            "jurisdiction_id": jurisdiction_id,
+            "district": o.get("district"),
+            "email": o.get("email"),
+            "phone": o.get("phone"),
+            "source": "website",
+        })
+
+    logger.info(f"Playwright+LLM extracted {len(officials)} officials from {url}")
+    return officials
+
+
+def find_government_page(base_url: str, html: str) -> Optional[str]:
+    """Find the city council / government page URL from a city's homepage.
+
+    Args:
+        base_url: City's base URL (e.g., "https://www.cortemadera.gov")
+        html: Homepage HTML content
+
+    Returns:
+        Full URL to the government/council page, or None.
+    """
+    from urllib.parse import urlparse
+
+    parsed = urlparse(base_url)
+    resolved = f"{parsed.scheme}://{parsed.netloc}"
+
+    # Find links to the council/officials page (not meeting pages)
+    _GOV_RE = re.compile(
+        r'<a[^>]*href=["\']([^"\']{3,200})["\'][^>]*>[^<]*'
+        r'(?:city\s+council|town\s+council|board\s+of|supervisors|'
+        r'elected\s+officials|your\s+government|government|'
+        r'mayor\s+and\s+council|council\s+members)[^<]*</a>',
+        re.IGNORECASE,
+    )
+
+    # Negative patterns — these are meetings/events, not official listings
+    _SKIP = {"meeting", "agenda", "minute", "event/", "calendar", "archive"}
+
+    candidates = []
+    for match in _GOV_RE.finditer(html):
+        href = match.group(1)
+        if href.startswith(("#", "javascript:", "mailto:")):
+            continue
+        if any(skip in href.lower() for skip in _SKIP):
+            continue
+        if href.startswith("/"):
+            href = resolved + href
+        elif not href.startswith("http"):
+            href = resolved + "/" + href
+        if parsed.netloc in href:
+            candidates.append(href)
+
+    if not candidates:
+        # Fallback: try common council page paths directly
+        for path in ["/government/city-council", "/government/town-council",
+                     "/city-council", "/town-council", "/council-members",
+                     "/your-government/city-council"]:
+            candidates.append(resolved + path)
+
+    # Score: prefer "council-members" > "city-council" > "government"
+    def _score(url: str) -> int:
+        lower = url.lower()
+        if "council-member" in lower or "elected-official" in lower:
+            return 10
+        if "city-council" in lower or "town-council" in lower:
+            return 5
+        if "government" in lower:
+            return 1
+        return 0
+
+    candidates.sort(key=_score, reverse=True)
+    return candidates[0] if candidates else None
+
+
 def _render_page(url: str, timeout: int = 20) -> tuple:
     """Render a page with Playwright stealth and return (html, visible_text).
 

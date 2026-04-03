@@ -273,19 +273,25 @@ def fetch_elections_local(backend, jurisdiction: str) -> dict:
         except Exception as e:
             logger.warning(f"  Civera fetch failed: {e}")
 
-    # Elected officials — derive from election contest winners.
-    # For each local_council/local_school_board contest, the most recent winners
-    # within a plausible term window (4 years) are current officials.
+    # Elected officials — two automated sources:
+    # 1. Election winners — council/school board from contest results (reliable)
+    # 2. RepresentativesClient — federal/state reps from Congress.gov + LegiScan
+    #
+    # Mayor/Vice Mayor detection is NOT automated — these are appointed roles
+    # in most CA cities. The headless onboarding prompt includes a step for
+    # Claude to search the city website and identify these roles.
+
+    # Source 1: Derive from election contest winners
     try:
         officials = _derive_officials_from_elections(backend, jurisdiction)
         if officials:
             stored = backend.store_elected_officials(jurisdiction, officials)
-            total_officials = int(stored) if stored else len(officials)
-            logger.info(f"  Officials: {total_officials} derived from election winners")
+            total_officials += int(stored) if stored else len(officials)
+            logger.info(f"  Officials: {len(officials)} derived from election winners")
     except Exception as e:
         logger.debug(f"  Officials derivation skipped: {e}")
 
-    # Also try RepresentativesClient for federal/state reps
+    # Source 3: RepresentativesClient for federal/state reps
     try:
         from civicos_extraction.clients.representatives import (
             RepresentativesClient,
