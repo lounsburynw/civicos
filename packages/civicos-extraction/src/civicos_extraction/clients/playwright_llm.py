@@ -80,7 +80,7 @@ def extract_meetings_from_page(
     if not (os.environ.get("OPENAI_API_KEY") or os.environ.get("GOOGLE_API_KEY")):
         raise RuntimeError("LLM API key required for Playwright+LLM extraction")
 
-    # 1. Render page with Playwright
+    # 1. Render page with Playwright (returns link-aware text from DOM API)
     html, page_text = _render_page(url, timeout)
 
     # Truncate to fit LLM context
@@ -104,11 +104,16 @@ def extract_meetings_from_page(
     result = provider.complete(
         [{"role": "user", "content": prompt}],
         temperature=0.1,
+        max_tokens=4096,
     )
     text = result.content.strip()
 
-    # 4. Parse JSON response
-    json_match = re.search(r"\[.*\]", text, re.DOTALL)
+    # 4. Parse JSON response (strip markdown fences if present)
+    # LLMs sometimes wrap in ```json ... ```
+    text_clean = re.sub(r"^```(?:json)?\s*", "", text)
+    text_clean = re.sub(r"\s*```\s*$", "", text_clean)
+
+    json_match = re.search(r"\[.*\]", text_clean, re.DOTALL)
     if not json_match:
         logger.warning(f"LLM returned no JSON array: {text[:200]}")
         return []
@@ -309,7 +314,14 @@ def find_government_page(base_url: str, html: str) -> Optional[str]:
 
 
 def _render_page(url: str, timeout: int = 20) -> tuple:
-    """Render a page with Playwright stealth and return (html, visible_text).
+    """Render a page with Playwright stealth and return (html, link_aware_text).
+
+    The link_aware_text is the visible page text with document link URLs
+    annotated inline (e.g., ``Agenda [https://...pdf]``). This is generated
+    via Playwright's DOM API, which correctly handles:
+    - display:none elements (excluded, unlike raw HTML parsing)
+    - JavaScript-rendered content
+    - All link types (PDFs, query-string URLs, relative paths)
 
     Attempts to click "All Meetings" or similar tabs to get full content.
     """
@@ -343,7 +355,51 @@ def _render_page(url: str, timeout: int = 20) -> tuple:
                 continue
 
         html = page.content()
-        text = page.inner_text("body")
+
+        # Extract link-aware text via DOM API.
+        # Annotates visible <a> tags that point to documents with [url].
+        link_text = page.evaluate("""() => {
+            const DOC_RE = /\\.(pdf|doc|docx|xls|xlsx)(\\?|#|$)/i;
+            const walker = document.createTreeWalker(
+                document.body,
+                NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT,
+                {
+                    acceptNode(node) {
+                        if (node.nodeType === Node.ELEMENT_NODE) {
+                            const style = window.getComputedStyle(node);
+                            if (style.display === 'none' || style.visibility === 'hidden')
+                                return NodeFilter.FILTER_REJECT;
+                            const tag = node.tagName;
+                            if (tag === 'SCRIPT' || tag === 'STYLE' || tag === 'NOSCRIPT')
+                                return NodeFilter.FILTER_REJECT;
+                            return NodeFilter.FILTER_SKIP;
+                        }
+                        return NodeFilter.FILTER_ACCEPT;
+                    }
+                }
+            );
+
+            const parts = [];
+            let node;
+            while ((node = walker.nextNode())) {
+                if (node.nodeType !== Node.TEXT_NODE) continue;
+                const text = node.textContent.trim();
+                if (!text) continue;
+
+                // Check if this text node is inside an <a> with a document href
+                const anchor = node.parentElement?.closest('a');
+                if (anchor) {
+                    const href = anchor.href;
+                    if (href && DOC_RE.test(href)) {
+                        parts.push(text + ' [' + href + ']');
+                        continue;
+                    }
+                }
+                parts.push(text);
+            }
+            return parts.join('\\n');
+        }""")
+
         browser.close()
 
-    return html, text
+    return html, link_text

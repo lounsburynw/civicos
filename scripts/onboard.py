@@ -361,6 +361,156 @@ def _diagnose_config_failure(jid: str, result) -> list:
     return diagnostics
 
 
+def _probe_meeting_source(jid: str) -> dict:
+    """Pre-ingestion probe: validate the extraction client can reach the platform.
+
+    Uses the client's built-in validate() method — no storage layer, no temp
+    databases, no full fetch. Just checks config correctness and API reachability.
+
+    For playwright_llm (no validate()), checks env prerequisites instead.
+
+    Returns a dict with:
+      - pass: bool
+      - source_type: str
+      - error: optional error message
+      - remediation: optional fix suggestion
+      - details: optional ValidationResult dict
+    """
+    from civicos_extraction.clients.base import ExtractionConfig
+
+    extraction_path = PROJECT_ROOT / "data" / "extraction" / f"{jid}.json"
+    if not extraction_path.exists():
+        return {"pass": False, "source_type": "unknown",
+                "error": "No extraction config found",
+                "remediation": "Run config generation first."}
+
+    with open(extraction_path) as f:
+        raw_config = json.load(f)
+
+    source_type = raw_config.get("source_type", "unknown")
+    base_url = raw_config.get("base_url", "")
+    archives = raw_config.get("archives", {})
+
+    # --- Config-level checks (fast, no network) ---
+
+    if source_type == "granicus" and not archives:
+        return {"pass": False, "source_type": source_type,
+                "error": "Granicus config has empty archives — no view_ids to fetch.",
+                "remediation": "Set archives in data/extraction/{}.json "
+                "(e.g., {{\"city_council\": \"7\"}}). Check ViewPublisher.php?view_id=N to find valid IDs.".format(jid)}
+
+    if source_type == "civicplus" and not archives:
+        return {"pass": False, "source_type": source_type,
+                "error": "CivicPlus config has empty archives — no AMIDs to scrape.",
+                "remediation": "Set archives in data/extraction/{}.json "
+                "(e.g., {{\"city_council\": \"49\"}}). Check Archive.aspx?AMID=N on the city site.".format(jid)}
+
+    if source_type == "playwright_llm":
+        # playwright_llm has no validate() — check prerequisites instead
+        api_key = os.environ.get("OPENAI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
+        if not api_key:
+            return {"pass": False, "source_type": source_type,
+                    "error": "Playwright+LLM requires an LLM API key (OPENAI_API_KEY or GOOGLE_API_KEY).",
+                    "remediation": "Set OPENAI_API_KEY or GOOGLE_API_KEY in .env."}
+        try:
+            from playwright.sync_api import sync_playwright  # noqa: F401
+        except ImportError:
+            return {"pass": False, "source_type": source_type,
+                    "error": "Playwright not installed.",
+                    "remediation": "pip install playwright && python -m playwright install chromium"}
+        # Can't cheaply validate without running the LLM, so pass on prereqs alone
+        return {"pass": True, "source_type": source_type}
+
+    # --- Client-level validation (hits the platform, no storage) ---
+
+    try:
+        ext_config = ExtractionConfig.from_jurisdiction(jid)
+        client = _instantiate_client(ext_config)
+        if client is None:
+            return {"pass": False, "source_type": source_type,
+                    "error": f"No client available for source_type '{source_type}'.",
+                    "remediation": f"Ensure {source_type} is in SUPPORTED_MEETING_SOURCES."}
+
+        result = client.validate()
+        if result.is_valid:
+            return {"pass": True, "source_type": source_type, "details": result.to_dict()}
+
+        # Distinguish config errors (fatal) from reachability errors (warning).
+        # A valid config with a flaky network check shouldn't block ingestion.
+        if not result.config_valid:
+            return {"pass": False, "source_type": source_type,
+                    "error": "; ".join(result.errors) if result.errors else "Invalid config",
+                    "remediation": f"Fix config in data/extraction/{jid}.json.",
+                    "details": result.to_dict()}
+        else:
+            # Config is valid but API check failed — warn, don't block
+            return {"pass": True, "source_type": source_type,
+                    "warnings": result.errors,
+                    "details": result.to_dict()}
+    except Exception as e:
+        return {"pass": False, "source_type": source_type,
+                "error": f"Probe failed: {type(e).__name__}: {e}",
+                "remediation": f"Check that {source_type} client works for {base_url}."}
+
+
+def _instantiate_client(config):
+    """Create an extraction source from an ExtractionConfig.
+
+    Uses the Source wrapper classes (not raw Client classes) because the
+    wrappers implement validate() from the DataSource protocol.
+
+    Returns None if source_type is unsupported.
+    """
+    st = config.source_type
+    if st == "granicus":
+        from civicos_extraction.clients.granicus import GranicusSource
+        return GranicusSource(config)
+    elif st == "civicplus":
+        from civicos_extraction.clients.civicplus import CivicPlusSource
+        return CivicPlusSource(config)
+    elif st == "proudcity":
+        from civicos_extraction.clients.proudcity import ProudCitySource
+        return ProudCitySource(config)
+    elif st == "legistar":
+        from civicos_extraction.clients.legistar import LegistarClient
+        return LegistarClient(
+            client_name=config.metadata.get("client_name", config.source_id.replace("legistar-", "")),
+            jurisdiction_id=config.jurisdiction_id,
+        )
+    elif st == "civicclerk":
+        from civicos_extraction.clients.civicclerk import CivicClerkClient
+        return CivicClerkClient(
+            subdomain=config.metadata.get("subdomain", config.source_id.replace("civicclerk-", "")),
+            jurisdiction_id=config.jurisdiction_id,
+        )
+    elif st == "escribe":
+        from civicos_extraction.clients.escribe import EScribeClient
+        return EScribeClient(
+            instance_name=config.metadata.get("instance_name", config.source_id.replace("escribe-", "")),
+            jurisdiction_id=config.jurisdiction_id,
+        )
+    elif st == "boarddocs":
+        from civicos_extraction.clients.boarddocs import BoardDocsClient
+        return BoardDocsClient(
+            committee_id=config.metadata.get("committee_id", ""),
+            jurisdiction_id=config.jurisdiction_id,
+        )
+    elif st == "simbli":
+        from civicos_extraction.clients.simbli import SimbliClient
+        return SimbliClient(
+            board_id=config.metadata.get("board_id", ""),
+            jurisdiction_id=config.jurisdiction_id,
+        )
+    elif st == "universal":
+        from civicos_extraction.clients.universal import UniversalSource
+        return UniversalSource(config)
+    elif st == "playwright_llm":
+        # playwright_llm has no Source wrapper with validate().
+        # Handled by prerequisite checks in _probe_meeting_source() instead.
+        return None
+    return None
+
+
 def _run_cleanup(jid: str) -> None:
     """Remove all data and configs for a jurisdiction. Used after test onboarding."""
     from dotenv import load_dotenv
@@ -1021,6 +1171,41 @@ def main():
         print(f"  modal run scripts/modal_ingest.py {stage_flags} "
               f"--jurisdiction {jid} --meetings-days-past {args.days_past}")
         return
+
+    # -------------------------------------------------------------------
+    # Phase 2.1: Pre-ingestion probe (quick platform check)
+    # -------------------------------------------------------------------
+    if has_meetings:
+        print(f"\n[Phase 2.1] Pre-ingestion probe...")
+        probe = _probe_meeting_source(jid)
+        if probe["pass"]:
+            print(f"  PASS: {probe['source_type']} — config valid, API reachable")
+            if probe.get("warnings"):
+                for w in probe["warnings"]:
+                    print(f"  WARN: {w}")
+        else:
+            print(f"  FAIL: {probe.get('error', 'Unknown error')}")
+            if probe.get("remediation"):
+                print(f"  Fix:  {probe['remediation']}")
+
+            if args.trial:
+                trial_fail = {
+                    "jurisdiction": jid,
+                    "trial": True,
+                    "pass": False,
+                    "phase": "pre_ingestion_probe",
+                    "source_type": probe.get("source_type", "unknown"),
+                    "error": probe.get("error", ""),
+                    "remediation": probe.get("remediation", ""),
+                }
+                print(f"\n[TRIAL_RESULT_JSON]")
+                print(json.dumps(trial_fail))
+
+            if not args.force_continue:
+                print(f"\n  Use --force-continue to skip this check and ingest anyway.")
+                sys.exit(1)
+            else:
+                print(f"  --force-continue: proceeding despite probe failure.")
 
     # -------------------------------------------------------------------
     # Phase 2.5: Validation gate (sample before full backfill)

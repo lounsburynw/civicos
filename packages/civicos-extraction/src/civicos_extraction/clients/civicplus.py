@@ -315,8 +315,6 @@ class CivicPlusClient(BaseExtractor):
 
         check_duration_ms = (time.time() - start_time) * 1000
         return ValidationResult(
-            source_id=self.source_id,
-            source_type=self.source_type,
             is_valid=len(errors) == 0,
             errors=errors,
             warnings=warnings,
