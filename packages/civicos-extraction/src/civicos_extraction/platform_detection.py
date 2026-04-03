@@ -32,11 +32,14 @@ logger = logging.getLogger(__name__)
 
 
 def _fetch_with_curl_fallback(url: str, timeout: int = 8) -> Optional[str]:
-    """Fetch a URL, falling back to curl subprocess if requests fails.
+    """Fetch a URL with escalating fallbacks for bot-protected sites.
 
-    Some sites (Ross, etc.) block Python's requests library via TLS
-    fingerprinting or bot detection, but serve content to curl.
+    Tries in order:
+    1. requests — fastest, works for most sites
+    2. curl — bypasses TLS fingerprinting (Ross-style blocks)
+    3. Playwright headed — bypasses Cloudflare JS challenges (Reno/Sedona-style blocks)
     """
+    # 1. requests
     try:
         resp = requests.get(url, timeout=timeout, allow_redirects=True,
                             headers={"User-Agent": "CivicOS-Extraction/1.0"})
@@ -45,7 +48,7 @@ def _fetch_with_curl_fallback(url: str, timeout: int = 8) -> Optional[str]:
     except requests.RequestException:
         pass
 
-    # Fallback: try curl
+    # 2. curl
     try:
         result = subprocess.run(
             ["curl", "-sL", "--max-time", str(timeout), url,
@@ -53,9 +56,28 @@ def _fetch_with_curl_fallback(url: str, timeout: int = 8) -> Optional[str]:
             capture_output=True, text=True, timeout=timeout + 5,
         )
         if result.returncode == 0 and len(result.stdout) > 500:
-            return result.stdout
+            # Check for "Access Denied" / "403" responses that curl receives as 200
+            if "Access Denied" not in result.stdout[:500]:
+                return result.stdout
     except (subprocess.TimeoutExpired, FileNotFoundError):
         pass
+
+    # 3. Playwright headed (bypasses Cloudflare JS challenges)
+    try:
+        from playwright.sync_api import sync_playwright
+        with sync_playwright() as p:
+            browser = p.chromium.launch(headless=False)
+            page = browser.new_page()
+            page.goto(url, wait_until="networkidle", timeout=timeout * 1000)
+            html = page.content()
+            browser.close()
+            if html and len(html) > 500 and "Access Denied" not in html[:500]:
+                logger.info(f"Playwright (headed) fetched {url}: {len(html)} bytes")
+                return html
+    except ImportError:
+        logger.debug("Playwright not installed — skipping headed browser fallback")
+    except Exception as e:
+        logger.debug(f"Playwright failed for {url}: {e}")
 
     return None
 
