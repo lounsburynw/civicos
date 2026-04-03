@@ -273,6 +273,23 @@ def fetch_elections_local(backend, jurisdiction: str) -> dict:
         except Exception as e:
             logger.warning(f"  Civera fetch failed: {e}")
 
+    # Elected officials (derived from Congress.gov + state legislature + local data)
+    try:
+        from civicos_extraction.clients.representatives import (
+            RepresentativesClient,
+            extract_elected_officials_to_storage,
+        )
+        client = RepresentativesClient(jurisdiction_id=jurisdiction)
+        stored = extract_elected_officials_to_storage(
+            client=client,
+            storage=backend,
+            jurisdiction_id=jurisdiction,
+        )
+        total_officials = stored
+        logger.info(f"  Officials: {stored} stored")
+    except Exception as e:
+        logger.debug(f"  Officials extraction skipped: {e}")
+
     return {
         "elections_fetched": total_elections,
         "officials_fetched": total_officials,
