@@ -53,13 +53,6 @@ zip_codes:
 - '94945'
 - '94947'
 - '94949'
-neighborhoods:
-- Downtown
-- Hamilton
-- Ignacio
-- Bel Marin Keys
-- South Novato
-- North Novato
 ingestion:
   meetings: true
   pdf_chunks: true
@@ -78,9 +71,6 @@ refresh:
   issues:
     interval: 1d
     strategy: incremental
-  municipal_code:
-    interval: 90d
-    strategy: content_hash
   legislation:
     interval: 7d
     strategy: incremental
@@ -93,5 +83,5 @@ modal:
 metadata:
   created: '2026-04-02'
   updated: '2026-04-02'
-  notes: Granicus view_id=7 (City Council + Planning Commission). No YouTube channel.
-    NCTV closed 2023.
+  notes: Granicus view_id=7 (City Council + Planning Commission). No YouTube channel
+    (NCTV closed 2023).

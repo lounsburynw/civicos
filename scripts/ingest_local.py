@@ -166,6 +166,61 @@ def fetch_issues_local(backend, jurisdiction: str, max_pages: int = 50) -> dict:
     return {"issues_fetched": len(all_issues), "issues_stored": stored}
 
 
+def fetch_elections_local(backend, jurisdiction: str) -> dict:
+    """Fetch election data from configured sources and store to local SQLite."""
+    import json
+
+    config_path = PROJECT_ROOT / "data" / "extraction" / f"{jurisdiction}.json"
+    if not config_path.exists():
+        logger.warning(f"[ELECTIONS] No extraction config at {config_path}")
+        return {"elections_fetched": 0, "officials_fetched": 0}
+
+    with open(config_path) as f:
+        config_data = json.load(f)
+
+    election_sources = config_data.get("election_sources", {})
+
+    if not election_sources:
+        logger.info(f"[ELECTIONS] No election sources configured for {jurisdiction}")
+        return {"elections_fetched": 0, "officials_fetched": 0}
+
+    total_elections = 0
+    total_officials = 0
+
+    # Civera election stats (county registrar)
+    if "civera_election_stats" in election_sources:
+        civera_config = election_sources["civera_election_stats"]
+        logger.info(f"[ELECTIONS] Fetching from civera_election_stats for {jurisdiction}")
+        try:
+            from civicos_extraction.clients.civera_election_stats import (
+                CiveraElectionStatsClient,
+                extract_civera_results_to_storage,
+            )
+            county_slug = civera_config.get("county_slug", "")
+            client = CiveraElectionStatsClient(
+                jurisdiction_id=jurisdiction,
+                graphql_url=civera_config.get("graphql_url", ""),
+                county_slug=county_slug,
+            )
+            counts = extract_civera_results_to_storage(
+                client=client,
+                storage=backend,
+                jurisdiction_id=jurisdiction,
+                county_slug=county_slug,
+                from_year=civera_config.get("from_year", 2010),
+                division_filter=civera_config.get("division_filter"),
+            )
+            total_elections += counts.get("elections", 0)
+            logger.info(f"  Civera: {counts.get('elections', 0)} elections, {counts.get('contests', 0)} contests")
+        except Exception as e:
+            logger.warning(f"  Civera fetch failed: {e}")
+
+    return {
+        "elections_fetched": total_elections,
+        "officials_fetched": total_officials,
+    }
+
+
 def index_vectors_local(backend, vectors, jurisdiction: str) -> dict:
     """Index meetings into ChromaDB for local semantic search."""
     if vectors is None:
@@ -244,6 +299,7 @@ def main():
     parser.add_argument("--db", help="SQLite database path (default: data/sandbox_{jurisdiction}.sqlite)")
     parser.add_argument("--meetings", action="store_true", help="Fetch meetings")
     parser.add_argument("--issues", action="store_true", help="Fetch 311 issues")
+    parser.add_argument("--elections", action="store_true", help="Fetch elections")
     parser.add_argument("--vectors", action="store_true", help="Index vectors (ChromaDB)")
     parser.add_argument("--all", action="store_true", help="Run all stages")
     parser.add_argument("--days-past", type=int, default=365, help="Days of history (default: 365)")
@@ -263,10 +319,10 @@ def main():
         parser.error("--jurisdiction is required (or use --list / --cleanup)")
 
     if args.all:
-        args.meetings = args.issues = args.vectors = True
+        args.meetings = args.issues = args.elections = args.vectors = True
 
-    if not any([args.meetings, args.issues, args.vectors]):
-        parser.error("Specify at least one stage: --meetings, --issues, --vectors, or --all")
+    if not any([args.meetings, args.issues, args.elections, args.vectors]):
+        parser.error("Specify at least one stage: --meetings, --issues, --elections, --vectors, or --all")
 
     jid = args.jurisdiction
     db_path = args.db or str(_default_db_path(jid))
@@ -276,7 +332,7 @@ def main():
     print("=" * 60)
     print(f"  Jurisdiction: {jid}")
     print(f"  Database: {db_path}")
-    print(f"  Stages: {' '.join(s for s in ['meetings', 'issues', 'vectors'] if getattr(args, s))}")
+    print(f"  Stages: {' '.join(s for s in ['meetings', 'issues', 'elections', 'vectors'] if getattr(args, s))}")
     print("=" * 60)
 
     backend, vectors = _get_backends(db_path, jid)
@@ -288,6 +344,9 @@ def main():
 
     if args.issues:
         results["issues"] = fetch_issues_local(backend, jid)
+
+    if args.elections:
+        results["elections"] = fetch_elections_local(backend, jid)
 
     if args.vectors:
         results["vectors"] = index_vectors_local(backend, vectors, jid)
