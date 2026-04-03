@@ -117,21 +117,23 @@ def fetch_meetings_local(backend, jurisdiction: str, days_past: int = 365, days_
         from civicos_extraction.clients.base import Meeting
         page_url = config.metadata.get("meeting_page_url", config.base_url)
         raw_meetings = extract_meetings_from_page(page_url, jurisdiction)
-        # Convert raw dicts to Meeting objects
+        # Convert raw dicts to Meeting objects — skip entries with unparseable dates
         meetings = []
+        now = datetime.now()
         for m in raw_meetings:
             dt_str = m.get("date", "")
             try:
                 dt = datetime.fromisoformat(dt_str)
             except (ValueError, TypeError):
-                dt = datetime.now()
+                logger.debug(f"Skipping meeting with unparseable date: {m.get('title', '?')}")
+                continue
             meetings.append(Meeting(
                 id="playwright-llm-{}-{}".format(jurisdiction, hashlib.sha256((m.get("title", "") + dt_str).encode()).hexdigest()[:12]),
                 title=m.get("title", "Meeting"),
                 meeting_datetime=dt,
                 jurisdiction_id=jurisdiction,
                 meeting_type=m.get("meeting_type"),
-                status="completed" if dt < datetime.now() else "scheduled",
+                status="completed" if dt < now else "scheduled",
                 agenda_url=m.get("agenda_url"),
                 minutes_url=m.get("minutes_url"),
                 video_url=m.get("video_url"),
@@ -159,7 +161,10 @@ def fetch_issues_local(backend, jurisdiction: str, max_pages: int = 50) -> dict:
     from civicos_extraction.clients.base import ExtractionConfig
 
     config = ExtractionConfig.from_jurisdiction(jurisdiction)
-    issue_source = config.issue_source or "seeclickfix"
+    issue_source = config.issue_source
+    if not issue_source:
+        logger.info(f"[ISSUES] No issue provider configured for {jurisdiction}, skipping")
+        return {"issues_fetched": 0, "issues_stored": 0}
     logger.info(f"[ISSUES] Fetching from {issue_source} for {jurisdiction}")
 
     if issue_source == "gogov":
@@ -326,10 +331,15 @@ def _derive_officials_from_elections(backend, jurisdiction: str) -> list:
 
     cutoff = (_dt.now() - timedelta(days=4 * 365)).strftime("%Y-%m-%d")
 
+    # NOTE: This function uses raw SQLite queries because the StorageBackend
+    # protocol does not expose a get_election_contests() method with the
+    # cross-table join needed here. It is ONLY safe for per-jurisdiction
+    # sandbox SQLite files (one DB per city). Do NOT use on a shared backend.
     try:
         import sqlite3
         db_path = getattr(backend, '_db_path', None) or getattr(backend, 'db_path', None)
         if not db_path:
+            logger.debug("  Officials derivation skipped: backend has no db_path (Postgres?)")
             return []
         conn = sqlite3.connect(str(db_path))
         conn.row_factory = sqlite3.Row
@@ -339,10 +349,11 @@ def _derive_officials_from_elections(backend, jurisdiction: str) -> list:
                    e.election_date
             FROM election_contests ec
             JOIN elections e ON ec.election_id = e.id
-            WHERE ec.contest_type IN ('local_council', 'local_school_board')
+            WHERE e.jurisdiction_id = ?
+              AND ec.contest_type IN ('local_council', 'local_school_board')
               AND e.election_date >= ?
             ORDER BY e.election_date DESC
-        """, (cutoff,))
+        """, (jurisdiction, cutoff))
         rows = cur.fetchall()
         conn.close()
         logger.info(f"  Election contests for officials: {len(rows)} local_council/school_board rows")

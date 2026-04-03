@@ -110,15 +110,27 @@ class GoGovClient:
         if not case_id:
             return None
 
-        # Location
+        # Location — both present or both null (no partial coordinates)
         location_point = raw.get("locationPoint", {})
         lat = location_point.get("lat")
         lon = location_point.get("lon")
+        if lat is None or lon is None:
+            lat = None
+            lon = None
 
-        # Dates
-        created = raw.get("dateEntered")
-        updated = raw.get("dateLastUpdated")
-        closed = raw.get("dateClosed")
+        # Dates — normalize to ISO 8601 if parseable
+        from datetime import datetime as _dt
+        def _normalize_date(val):
+            if not val:
+                return None
+            try:
+                return _dt.fromisoformat(val).isoformat()
+            except (ValueError, TypeError):
+                return val  # Store raw if unparseable
+
+        created = _normalize_date(raw.get("dateEntered"))
+        updated = _normalize_date(raw.get("dateLastUpdated"))
+        closed = _normalize_date(raw.get("dateClosed"))
 
         # Status mapping
         status_raw = (raw.get("status") or "").lower()
