@@ -15,7 +15,16 @@ Onboard {city}, {state}, {county} County to CivicOS.
 3. If YouTube channel doesn't match the city name, set transcripts.source to null in the YAML.
 4. If election_sources is missing from the extraction JSON, add civera_election_stats 
    with county_slug "{county_slug}" and division_filter "{city}".
-5. Report the [TRIAL_RESULT_JSON] output and any warnings.
+5. **Officials enrichment**: Search for "{city} city council members" to find the city's
+   government page. Use WebFetch on the result to extract current officials:
+   - Mayor and Vice Mayor (with their names)
+   - Council/board members (verify against election-derived data)
+   - Contact info (emails, phone) if visible
+   Then update data/jurisdictions/city-{slug}.yaml with the verified officials in
+   the governing_body section. The onboard pipeline auto-derives council members
+   from election winners, but cannot detect mayor/vice-mayor roles (these are
+   appointed, not elected separately in most CA cities).
+6. Report the [TRIAL_RESULT_JSON] output and any warnings.
 
 Reference: docs/public/onboarding-pr-workflow.md (troubleshooting section)
 ```
@@ -35,7 +44,11 @@ Onboard ${city}, CA, Marin County to CivicOS.
 3. If YouTube channel doesn't match the city name, set transcripts.source to null in the YAML.
 4. If election_sources is missing from the extraction JSON, add civera_election_stats 
    with county_slug "marin" and division_filter "${city}".
-5. Report the [TRIAL_RESULT_JSON] output and any warnings.
+5. **Officials**: Search for "${city} city council members" and WebFetch the result to
+   find the current mayor and vice mayor. Update the YAML governing_body section.
+   Council members are auto-derived from election results; only mayor/vice-mayor
+   roles need manual identification.
+6. Report the [TRIAL_RESULT_JSON] output and any warnings.
 
 Reference: docs/public/onboarding-pr-workflow.md (troubleshooting section)
 PROMPT
