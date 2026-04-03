@@ -1230,6 +1230,8 @@ def discover_platform(
         "civicclerk": re.compile(r"https?://([a-z0-9\-]+)\.civicclerk\.com", re.I),
         "boarddocs": re.compile(r"https?://go\.boarddocs\.com/([a-z]+/[a-z]+)", re.I),
     }
+    # CivicPlus detection: look for Archive.aspx links on the city website
+    _CIVICPLUS_RE = re.compile(r'href=["\']([^"\']*Archive\.aspx\?AMID=(\d+))', re.I)
 
     for city_url in city_urls:
         try:
@@ -1300,6 +1302,97 @@ def discover_platform(
                             },
                         }
 
+            # Check for CivicPlus: Archive.aspx links OR brand name in HTML
+            parsed_url = urlparse(str(resp.url))
+            resolved_base = f"{parsed_url.scheme}://{parsed_url.netloc}"
+
+            civicplus_amids = set()
+            for cp_match in _CIVICPLUS_RE.finditer(html):
+                civicplus_amids.add(cp_match.group(2))
+
+            is_civicplus_site = bool(civicplus_amids) or bool(
+                re.search(r'CivicPlus', html)
+            )
+
+            if is_civicplus_site:
+                # If no AMIDs found on homepage, probe Archive.aspx directly
+                if not civicplus_amids:
+                    try:
+                        probe = requests.get(
+                            f"{resolved_base}/Archive.aspx",
+                            timeout=timeout,
+                            allow_redirects=True,
+                        )
+                        if probe.status_code == 200 and "AMID" in probe.text:
+                            for cp_match in _CIVICPLUS_RE.finditer(probe.text):
+                                civicplus_amids.add(cp_match.group(2))
+                    except Exception:
+                        pass
+
+                if civicplus_amids or is_civicplus_site:
+                    logger.info(f"CivicPlus detected on {city_url} (AMIDs: {civicplus_amids or 'none yet'})")
+                    return {
+                        "platform": "civicplus",
+                        "confidence": 0.85 if civicplus_amids else 0.65,
+                        "details": {
+                            "url": resolved_base,
+                            "discovered_amids": sorted(civicplus_amids),
+                            "source_page": city_url,
+                        },
+                    }
+
+        except Exception:
+            continue
+
+    # 7. Universal adapter fallback: re-scan working city URLs for meeting listing pages
+    _MEETING_PAGE_RE = re.compile(
+        r'<a[^>]*href=["\']([^"\']{5,200})["\'][^>]*>[^<]*'
+        r'(?:agenda|meeting|minute|calendar|council\s+meeting)[^<]*</a>',
+        re.IGNORECASE,
+    )
+    for city_url in city_urls:
+        try:
+            resp = requests.get(city_url, timeout=timeout, allow_redirects=True)
+            if resp.status_code != 200:
+                continue
+            html = resp.text
+            parsed_base = urlparse(str(resp.url))
+            resolved_base = f"{parsed_base.scheme}://{parsed_base.netloc}"
+
+            # Find links to meeting/agenda pages
+            candidates = []
+            for link_match in _MEETING_PAGE_RE.finditer(html):
+                href = link_match.group(1)
+                # Skip anchors, javascript, email, external domains
+                if href.startswith(("#", "javascript:", "mailto:")):
+                    continue
+                # Make absolute
+                if href.startswith("/"):
+                    href = resolved_base + href
+                elif not href.startswith("http"):
+                    href = resolved_base + "/" + href
+                # Only keep same-domain links
+                if parsed_base.netloc in href:
+                    candidates.append(href)
+
+            if candidates:
+                # Prefer URLs with "agenda" or "meeting" in them
+                best = candidates[0]
+                for c in candidates:
+                    if "agenda" in c.lower():
+                        best = c
+                        break
+
+                logger.info(f"Universal adapter candidate found on {city_url}: {best}")
+                return {
+                    "platform": "universal",
+                    "confidence": 0.50,
+                    "details": {
+                        "url": resolved_base,
+                        "meeting_page_url": best,
+                        "source_page": city_url,
+                    },
+                }
         except Exception:
             continue
 

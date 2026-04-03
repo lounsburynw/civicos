@@ -1,0 +1,91 @@
+{
+  "source_id": "civicplus-city-corte-madera",
+  "source_type": "civicplus",
+  "jurisdiction_id": "city-corte-madera",
+  "base_url": "https://www.cortemadera.gov",
+  "archives": {
+    "town_council": "37",
+    "planning_commission": "41",
+    "public": "42",
+    "parks_and_recreation_commission": "46",
+    "fire_council": "62",
+    "accessibility_advisory_committee": "64",
+    "sanitary_district": "65",
+    "climate_action_committee": "71",
+    "meeting_audio": "72",
+    "finance_advisory_committee_fac": "78"
+  },
+  "metadata": {
+    "minutes_archives": {
+      "town_council": "48",
+      "sanitary_district": "66",
+      "fire_council": "69"
+    },
+    "discovered_amids": [
+      "36",
+      "37",
+      "38",
+      "39",
+      "41",
+      "42",
+      "43",
+      "44",
+      "45",
+      "46",
+      "47",
+      "48",
+      "50",
+      "51",
+      "52",
+      "53",
+      "54",
+      "55",
+      "57",
+      "58",
+      "59",
+      "60",
+      "61",
+      "62",
+      "63",
+      "64",
+      "65",
+      "66",
+      "67",
+      "68",
+      "69",
+      "70",
+      "71",
+      "72",
+      "73",
+      "74",
+      "75",
+      "76",
+      "77",
+      "78",
+      "79"
+    ]
+  },
+  "election_sources": {
+    "civera_election_stats": {
+      "county_slug": "marin",
+      "graphql_url": "https://pastelections.marincounty.gov/api/graphql_pr",
+      "from_year": 2010,
+      "division_filter": "Corte Madera"
+    },
+    "ca_sos_results": {
+      "county": "marin",
+      "county_breakdown": false,
+      "districts": {
+        "us-rep": [
+          2
+        ],
+        "state-senate": [
+          2
+        ],
+        "state-assembly": [
+          12
+        ]
+      }
+    }
+  }
+}
