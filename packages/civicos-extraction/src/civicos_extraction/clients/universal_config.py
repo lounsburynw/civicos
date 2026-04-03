@@ -378,14 +378,18 @@ def generate_adapter_config(
     if use_playwright:
         try:
             from playwright.sync_api import sync_playwright
+            from playwright_stealth import Stealth
+            stealth = Stealth()
             with sync_playwright() as p:
+                stealth.hook_playwright_context(p)
                 browser = p.chromium.launch(headless=True)
                 page = browser.new_page()
+                stealth.apply_stealth_sync(page)
                 page.goto(url, wait_until="networkidle", timeout=30000)
                 html = page.content()
                 browser.close()
         except ImportError:
-            raise ImportError("Playwright required. pip install playwright && playwright install chromium")
+            raise ImportError("Playwright required. pip install playwright playwright-stealth && playwright install chromium")
     else:
         html = None
         try:
