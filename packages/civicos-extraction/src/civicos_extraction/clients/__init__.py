@@ -120,7 +120,7 @@ SUPPORTED_MEETING_SOURCES: frozenset[str] = frozenset({"proudcity", "granicus", 
 # Registry of 311 issue source types with implemented fetch support.
 # Used by modal_ingest.py fetch_issues() to dispatch to the correct client.
 # Add new issue providers here as clients are wired up.
-SUPPORTED_ISSUE_SOURCES: frozenset[str] = frozenset({"seeclickfix"})
+SUPPORTED_ISSUE_SOURCES: frozenset[str] = frozenset({"seeclickfix", "gogov"})
 
 # Registry of election source types with implemented fetch support.
 # Used by modal_ingest.py and scheduled_election_refresh() for dispatch.
