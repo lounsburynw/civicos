@@ -24900,3 +24900,43 @@ Built Clarity Elections ENR client and wired it into the election auto-detection
 
 ### Next P0
 - registry_pr_workflow (operator_readiness) — Document and test the PR workflow for adding new jurisdictions
+
+## Session: 2026-04-02 — Turnkey Onboarding Marin + Headless Pipeline
+
+### Summary
+End-to-end onboarding walkthrough as a docs UX test. Onboarded 3 Marin cities (Novato, Sausalito, Tiburon). Built `--trial` flag for single-command sandbox onboarding with QC. Made pipeline headless-ready for batch city onboarding.
+
+### Commits (12)
+1. `4651c79` — Novato configs + Granicus date fix + 11 doc improvements
+2. `6ad3e4b` — Modal CIVICOS_EXTRACTION_DIR env var fix (unblocked all ingestion)
+3. `e974051` — RepresentativesClient jurisdiction-aware (was hardcoding SR officials)
+4. `781265e` — DataStatus reports elections (all, not just future) + elected officials
+5. `eec8267` — Election ingestion in local sandbox pipeline
+6. `a8f25a7` — Headless-ready: QC script, YouTube fix, --force guard, election fallback, docs
+7. `329f37b` — --trial flag: single-command sandbox onboarding with QC
+8. `c55a069` — Headless onboarding prompt template
+9. `4e53e91` — Doc reference updates (CLAUDE.md, onboarding-pr-workflow)
+10. `c5c3021` — Actionable diagnostics: view_id probe, config failure JSON
+11. `01332f0` — Website scraping for platform detection
+
+### Marin Batch Results
+- PASS: Sausalito (55 meetings), Tiburon (59 meetings), Novato (52 meetings, manual view_id fix)
+- FAIL: Corte Madera + Larkspur (CivicPlus — unsupported), Fairfax + Ross + Belvedere (custom sites)
+
+### Key Bugs Fixed
+- Granicus date parser: non-breaking spaces around slashes (affected any Granicus with this format)
+- Modal containers: wrong env var name (CIVICOS_CONFIG_DIR vs CIVICOS_EXTRACTION_DIR) blocked ALL ingestion
+- RepresentativesClient: hardcoded San Rafael officials for every jurisdiction
+- DataStatus: hid elections (future-only filter) and officials (not in CORPUS_REGISTRY)
+- onboard.py: YouTube channel false positives, --force destroying manual edits
+
+### Key Artifacts
+- `scripts/qc_sandbox.py` — Structured QC with JSON output
+- `scripts/onboard.py --trial` — Single-command sandbox onboarding
+- `docs/internal/headless-onboard-prompt.md` — Batch onboarding prompt template
+- `docs/public/onboarding-pr-workflow.md` — Overhauled (11 issues fixed)
+
+### Next P0: platform_coverage_expansion
+- CivicPlus extraction client (unlocks Corte Madera, Larkspur)
+- Wire universal adapter as detection fallback (unlocks Fairfax, Ross, Belvedere)
+- 311 provider discovery beyond SeeClickFix (FixItMarin for Marin County)

@@ -704,7 +704,7 @@
       {
         "name": "turnkey_onboarding_marin",
         "description": "Apply the complete turnkey onboarding pipeline to one or more new Marin County jurisdictions end-to-end. Assess pipeline reliability, data quality, and friction. Document findings.",
-        "status": "not_started",
+        "status": "done",
         "priority": 0,
         "files": [
           "scripts/onboard.py",
@@ -712,7 +712,8 @@
           "scripts/validate_registry.py",
           "data/jurisdictions/"
         ],
-        "test_file": null
+        "test_file": null,
+        "notes": "Novato+Sausalito+Tiburon onboarded. Pipeline: --trial, QC, headless prompt, diagnostics. 5 cities need CivicPlus/universal adapter (next session)."
       },
       {
         "name": "registry_pr_workflow",
@@ -802,6 +803,13 @@
         ],
         "test_file": "packages/civicos/tests/test_refresh.py",
         "notes": "Depends on configurable_refresh_policies completing Phase 1 (RefreshRunner generalization). ~1 session."
+      },
+      {
+        "name": "platform_coverage_expansion",
+        "status": "not_started",
+        "priority": 0,
+        "description": "Add CivicPlus extraction client, wire universal adapter as detection fallback for custom sites, expand 311 provider discovery beyond SeeClickFix (FixItMarin, etc.)",
+        "test_file": null
       }
     ]
   },
