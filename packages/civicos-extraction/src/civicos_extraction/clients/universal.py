@@ -433,12 +433,36 @@ class UniversalExtractor(BaseExtractor):
         id_source = f"{self.jurisdiction_id}:{title}:{parsed_date.isoformat()}"
         meeting_id = hashlib.sha256(id_source.encode()).hexdigest()[:16]
 
+        # Infer meeting_type from title if not set
+        meeting_type = event.get("meeting_type")
+        if not meeting_type and title:
+            # Take text before common separators as body name
+            import re as _re
+            body = _re.split(r"[:\–\—]|\s+-\s+", title)[0].strip()
+            # Remove date-like suffixes
+            body = _re.sub(
+                r"\s*(?:January|February|March|April|May|June|July|August"
+                r"|September|October|November|December)\s+\d{1,2}.*$",
+                "", body, flags=_re.IGNORECASE,
+            ).strip()
+            if body and body != title:
+                meeting_type = _re.sub(r"[^a-z0-9]+", "_", body.lower()).strip("_")
+
+        # Determine status from date
+        if "cancel" in title.lower():
+            status = "cancelled"
+        elif parsed_date < datetime.now():
+            status = "completed"
+        else:
+            status = "scheduled"
+
         return Meeting(
             id=f"universal-{meeting_id}",
             title=title,
             meeting_datetime=parsed_date,
             jurisdiction_id=self.jurisdiction_id,
-            meeting_type=event.get("meeting_type"),
+            meeting_type=meeting_type,
+            status=status,
             agenda_url=event.get("agenda_url"),
             minutes_url=event.get("minutes_url"),
             video_url=event.get("video_url"),
