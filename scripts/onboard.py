@@ -300,6 +300,67 @@ def _get_ingestion_stages(jid: str) -> list:
     return stages
 
 
+def _diagnose_config_failure(jid: str, result) -> list:
+    """Diagnose why config generation failed. Returns actionable hints for headless agents."""
+    diagnostics = []
+    extraction_path = PROJECT_ROOT / "data" / "extraction" / f"{jid}.json"
+
+    # Check if extraction config was written (partial success)
+    if extraction_path.exists():
+        try:
+            with open(extraction_path) as f:
+                config = json.load(f)
+
+            source_type = config.get("source_type", "unknown")
+            base_url = config.get("base_url", "")
+            archives = config.get("archives", {})
+            default_vid = config.get("metadata", {}).get("default_view_id", "1")
+
+            diagnostics.append(f"Platform detected: {source_type} at {base_url}")
+
+            if not archives:
+                diagnostics.append(f"Empty archives — view_id discovery failed")
+
+                if source_type == "granicus":
+                    # Probe view_ids to find which ones respond
+                    diagnostics.append(f"Probing Granicus view_ids 1-15...")
+                    try:
+                        import requests
+                        domain = config.get("metadata", {}).get("granicus_domain", "")
+                        responding = []
+                        for vid in range(1, 16):
+                            try:
+                                url = f"https://{domain}.granicus.com/ViewPublisher.php?view_id={vid}"
+                                resp = requests.get(url, timeout=5)
+                                if resp.status_code == 200 and len(resp.text) > 1000:
+                                    responding.append(vid)
+                            except Exception:
+                                pass
+                        if responding:
+                            diagnostics.append(
+                                f"Responding view_ids: {responding}. "
+                                f"Set archives.multiple to the one with meetings "
+                                f"(visit ViewPublisher.php?view_id=N to check)."
+                            )
+                        else:
+                            diagnostics.append(
+                                "No view_ids 1-15 responded. "
+                                "Search the city website for agenda/minutes links "
+                                "to find the correct Granicus URL and view_id."
+                            )
+                    except Exception as e:
+                        diagnostics.append(f"View_id probe failed: {e}")
+            else:
+                diagnostics.append(f"Archives: {archives}")
+
+        except Exception as e:
+            diagnostics.append(f"Could not read extraction config: {e}")
+    else:
+        diagnostics.append("No extraction config was written — platform detection may have failed entirely")
+
+    return diagnostics
+
+
 def _run_cleanup(jid: str) -> None:
     """Remove all data and configs for a jurisdiction. Used after test onboarding."""
     from dotenv import load_dotenv
@@ -828,6 +889,26 @@ def main():
             print(f"\nERROR: Config generation failed")
             for err in result.errors:
                 print(f"  - {err}")
+
+            # --trial: output structured JSON even on failure so headless agents can parse it
+            if args.trial:
+                _diag = _diagnose_config_failure(jid, result)
+                trial_fail = {
+                    "jurisdiction": jid,
+                    "trial": True,
+                    "pass": False,
+                    "phase": "config_generation",
+                    "errors": result.errors,
+                    "diagnostics": _diag,
+                    "next_steps": result.next_steps if hasattr(result, 'next_steps') else [],
+                }
+                if _diag:
+                    print(f"\n  Diagnostics:")
+                    for d in _diag:
+                        print(f"    - {d}")
+                print(f"\n[TRIAL_RESULT_JSON]")
+                print(json.dumps(trial_fail))
+
             sys.exit(1)
 
         jid = result.jurisdiction_id

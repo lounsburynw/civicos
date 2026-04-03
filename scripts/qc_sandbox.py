@@ -45,7 +45,33 @@ def qc_sandbox(db_path: str, jurisdiction: str) -> dict:
 
         if count == 0:
             corpus["pass"] = False
-            corpus["errors"].append("No meetings found — extraction config likely wrong")
+            # Provide actionable diagnostics
+            config_path = PROJECT_ROOT / "data" / "extraction" / f"{jurisdiction}.json"
+            if config_path.exists():
+                import json as _json
+                with open(config_path) as _cf:
+                    _config = _json.load(_cf)
+                _archives = _config.get("archives", {})
+                _vid = _config.get("metadata", {}).get("default_view_id", "?")
+                _base = _config.get("base_url", "?")
+                _stype = _config.get("source_type", "?")
+                if not _archives:
+                    corpus["errors"].append(
+                        f"No meetings found. Archives is empty in extraction config. "
+                        f"Platform={_stype}, base_url={_base}, default_view_id={_vid}. "
+                        f"Fix: find correct view_id and set archives + default_view_id."
+                    )
+                else:
+                    corpus["errors"].append(
+                        f"No meetings found despite archives={_archives}. "
+                        f"Check that view_id={_vid} at {_base} returns meeting data, "
+                        f"and that column_map matches the page layout."
+                    )
+            else:
+                corpus["errors"].append(
+                    f"No meetings found and no extraction config at {config_path}. "
+                    f"Run onboard.py --skip-ingestion first."
+                )
         else:
             cur.execute("SELECT MIN(meeting_datetime), MAX(meeting_datetime) FROM meetings")
             row = cur.fetchone()
