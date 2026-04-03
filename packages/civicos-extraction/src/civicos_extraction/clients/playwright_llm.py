@@ -93,8 +93,8 @@ def extract_meetings_from_page(
     base_url = f"{parsed.scheme}://{parsed.netloc}"
 
     # 3. Ask LLM to extract meetings
-    from civicos_services.core.llm_provider import get_model_for_task
-    provider = get_model_for_task("navigation")
+    from civicos_extraction.llm import get_llm_provider
+    provider = get_llm_provider("navigation")
 
     prompt = _EXTRACTION_PROMPT.format(
         jurisdiction_id=jurisdiction_id,
@@ -198,8 +198,8 @@ def extract_officials_from_page(
     if len(page_text) > max_text_chars:
         page_text = page_text[:max_text_chars] + "\n\n[... truncated ...]"
 
-    from civicos_services.core.llm_provider import get_model_for_task
-    provider = get_model_for_task("navigation")
+    from civicos_extraction.llm import get_llm_provider
+    provider = get_llm_provider("navigation")
 
     prompt = _OFFICIALS_PROMPT.format(
         jurisdiction_id=jurisdiction_id,

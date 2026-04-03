@@ -29,6 +29,10 @@ except ImportError:
 
 
 def qc_sandbox(db_path: str, jurisdiction: str) -> dict:
+    # NOTE: This function issues raw SQLite queries WITHOUT jurisdiction_id
+    # filters. It is ONLY safe for per-jurisdiction sandbox databases (one
+    # SQLite file per city at data/sandbox_{jid}.sqlite). Do NOT reuse
+    # against a shared multi-jurisdiction database.
     """Run all QC checks on a sandbox database. Returns structured results."""
     db = sqlite3.connect(db_path)
     db.row_factory = sqlite3.Row
@@ -402,10 +406,10 @@ def _verify_officials_via_web(db_path: str, jurisdiction: str) -> dict:
 
     # Ask LLM to compare
     try:
-        from civicos_services.core.llm_provider import get_model_for_task
+        from civicos_extraction.llm import get_llm_provider
         import re
 
-        provider = get_model_for_task("navigation")
+        provider = get_llm_provider("navigation")
         prompt = _OFFICIALS_VERIFY_PROMPT.format(
             jurisdiction=jurisdiction,
             search_query=search_query,
@@ -573,9 +577,9 @@ def _llm_content_review(db_path: str, jurisdiction: str) -> dict:
     )
 
     try:
-        from civicos_services.core.llm_provider import get_model_for_task
+        from civicos_extraction.llm import get_llm_provider
 
-        provider = get_model_for_task("navigation")
+        provider = get_llm_provider("navigation")
         messages = [{"role": "user", "content": prompt}]
         result = provider.complete(messages, temperature=0.1)
         text = result.content.strip()

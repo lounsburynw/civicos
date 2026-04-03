@@ -5692,11 +5692,20 @@ def scheduled_high_velocity_refresh():
             elif src_type == "granicus":
                 from civicos_extraction.clients.granicus import GranicusSource
                 client = GranicusSource(ext_config)
+            elif src_type == "civicplus":
+                from civicos_extraction.clients.civicplus import CivicPlusSource
+                client = CivicPlusSource(ext_config)
+            elif src_type == "universal":
+                from civicos_extraction.clients.universal import UniversalSource
+                client = UniversalSource(ext_config)
+            elif src_type in ("legistar", "civicclerk", "escribe"):
+                from civicos_extraction.clients.factory import create_source
+                client = create_source(ext_config)
             else:
                 from civicos_extraction.clients import SUPPORTED_MEETING_SOURCES
-                logger.warning(f"  [{jid}] source_type '{src_type}' not supported "
+                logger.warning(f"  [{jid}] source_type '{src_type}' not supported in refresh "
                                f"(supported: {', '.join(sorted(SUPPORTED_MEETING_SOURCES))}) — skipping")
-                results[jid]["meetings"] = {"skipped": True, "reason": f"source_type '{src_type}' not supported"}
+                results[jid]["meetings"] = {"skipped": True, "reason": f"source_type '{src_type}' not supported in refresh"}
                 continue
 
             meeting_provider = MeetingCorpusProvider(

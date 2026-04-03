@@ -473,10 +473,12 @@ class UniversalExtractor(BaseExtractor):
             if body and body != title:
                 meeting_type = _re.sub(r"[^a-z0-9]+", "_", body.lower()).strip("_")
 
-        # Determine status from date
+        # Determine status from date (use naive comparison — dates may lack TZ)
+        now_naive = datetime.now()
+        pd_naive = parsed_date.replace(tzinfo=None) if parsed_date.tzinfo else parsed_date
         if "cancel" in title.lower():
             status = "cancelled"
-        elif parsed_date < datetime.now():
+        elif pd_naive < now_naive:
             status = "completed"
         else:
             status = "scheduled"

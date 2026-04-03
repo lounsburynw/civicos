@@ -372,7 +372,7 @@ def generate_adapter_config(
     Raises:
         RuntimeError: If LLM cannot produce a valid config after retry
     """
-    from civicos_services.core.llm_provider import get_model_for_task
+    from civicos_extraction.llm import get_llm_provider
 
     # 1. Fetch the page
     if use_playwright:
@@ -447,7 +447,7 @@ def generate_adapter_config(
     sample_hash = hashlib.sha256(sample_html.encode()).hexdigest()
 
     # 3. Ask LLM to generate config
-    provider = get_model_for_task("navigation")
+    provider = get_llm_provider("navigation")
     prompt = _CONFIG_PROMPT.format(sample_html=sample_html)
 
     result = provider.complete(

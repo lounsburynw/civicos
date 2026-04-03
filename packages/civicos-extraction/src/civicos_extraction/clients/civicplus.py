@@ -224,35 +224,40 @@ class CivicPlusClient(BaseExtractor):
     def normalize_event(self, event: Dict[str, Any]) -> Meeting:
         dt = event["date"]
         body_name = event["body_name"]
+        body_slug = event.get("body_slug", "")
         description = event.get("description", "")
 
-        # Determine meeting type from description
-        meeting_type = "regular"
-        desc_lower = description.lower()
-        if "special" in desc_lower:
-            meeting_type = "special"
-        elif "workshop" in desc_lower:
-            meeting_type = "workshop"
-        elif "cancel" in desc_lower:
-            meeting_type = "cancelled"
+        # meeting_type = the governing body (not the status)
+        meeting_type = body_slug or body_name.lower().replace(" ", "_")
 
         title = f"{body_name}"
         if description and body_name.lower() not in description.lower():
             title = f"{body_name} — {description}"
 
-        meeting_id = f"civicplus-{self.jurisdiction_id}-{event['body_slug']}-{dt.strftime('%Y%m%d')}"
+        # Determine status from date and description
+        desc_lower = description.lower()
+        now_utc = datetime.now(timezone.utc)
+        dt_utc = dt.replace(tzinfo=timezone.utc)  # CivicPlus dates are date-only, no TZ
+        if "cancel" in desc_lower:
+            status = "cancelled"
+        elif dt_utc < now_utc:
+            status = "completed"
+        else:
+            status = "scheduled"
+
+        meeting_id = f"civicplus-{self.jurisdiction_id}-{body_slug}-{dt.strftime('%Y%m%d')}"
 
         return Meeting(
             id=meeting_id,
             title=title,
-            meeting_datetime=dt.replace(tzinfo=timezone.utc),
+            meeting_datetime=dt_utc,
             jurisdiction_id=self.jurisdiction_id,
             meeting_type=meeting_type,
-            status="cancelled" if meeting_type == "cancelled" else "completed" if dt < datetime.now() else "scheduled",
+            status=status,
             agenda_url=event.get("agenda_url"),
             minutes_url=event.get("minutes_url"),
             source_platform="civicplus",
-            source_url=f"{self.base_url}/Archive.aspx?AMID={self.archives.get(event['body_slug'], '')}",
+            source_url=f"{self.base_url}/Archive.aspx?AMID={self.archives.get(body_slug, '')}",
             raw_data=event,
         )
 

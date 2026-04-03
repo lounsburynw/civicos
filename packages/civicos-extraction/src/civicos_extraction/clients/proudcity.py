@@ -1004,11 +1004,14 @@ class ProudCityClient(BaseExtractor):
         slug = event.get('meeting_slug', 'unknown')
         meeting_id = f"meeting:{self.jurisdiction_id}:proudcity:{slug}"
 
-        # Determine status from date
+        # Determine status from date (use tz-aware comparison)
         dt = meeting_datetime or datetime.now()
+        # Ensure both sides are naive for comparison (ProudCity dates may lack TZ)
+        now_naive = datetime.now()
+        dt_naive = dt.replace(tzinfo=None) if dt.tzinfo else dt
         if "cancel" in event.get('title', '').lower():
             status = "cancelled"
-        elif dt < datetime.now():
+        elif dt_naive < now_naive:
             status = "completed"
         else:
             status = "scheduled"

@@ -743,13 +743,17 @@ def detect_issue_source(city_name: str, jurisdiction_id: str) -> Optional[str]:
     # --- GOGov / FixItMarin probe ---
     # GOGov (gogovapps.com) powers FixItMarin for unincorporated Marin County.
     # No public API exists, so we can only detect it — not fetch issues.
-    # Detection is URL-based: check if the county has a GOGov app.
-    _GOGOV_COUNTIES = {
-        # county_slug -> app_id (from Google Play package names)
-        "marin": "marincountyca",
-    }
+    # Instance registry: data/extraction/gogov_instances.json
+    try:
+        from civicos_extraction.config import get_config_dir
+        _gogov_path = Path(get_config_dir()) / "gogov_instances.json"
+        if not _gogov_path.exists():
+            _gogov_path = Path("data/extraction/gogov_instances.json")
+        _gogov_counties = json.loads(_gogov_path.read_text()) if _gogov_path.exists() else {}
+    except Exception:
+        _gogov_counties = {}
     county_slug = jurisdiction_id.split("-")[-1] if jurisdiction_id.startswith("county-") else None
-    if county_slug and county_slug in _GOGOV_COUNTIES:
+    if county_slug and county_slug in _gogov_counties:
         logger.info(
             f"GOGov (FixItMarin) detected for '{city_name}' — "
             "no public API available for issue fetching"
