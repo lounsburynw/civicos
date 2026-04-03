@@ -219,6 +219,7 @@ Organized into public (ships with the repo) and internal (operations). Read only
 | `rollback.md` | Recovery procedures |
 | `storage-schema.md` | Database table schemas (internal, not API-facing) |
 | `clarity-elections-research.md` | Clarity Elections coverage for non-Civera CA counties |
+| `headless-onboard-prompt.md` | Prompt template for batch onboarding via Claude Code headless mode |
 
 ### Private Docs (docs/private/ — gitignored)
 Financial, billing, and internal strategy docs.
