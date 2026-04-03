@@ -75,7 +75,15 @@ Auto-discovery works for most cities but can fail in specific cases:
 
 **"No meeting bodies discovered"** — The script found the platform domain but couldn't find valid meeting pages.
 
-- **Granicus**: View IDs don't always start at 1. Visit `https://{domain}.granicus.com/ViewPublisher.php?view_id=N` in your browser, trying N = 1 through 15, to find valid views. Update `archives` and `default_view_id` in both the YAML and JSON configs.
+- **Granicus**: View IDs don't always start at 1. To find the correct view ID:
+  1. Visit the city's official website and look for "Agendas & Minutes" or "City Council" links
+  2. The link will contain `view_id=N` (e.g., `novato.granicus.com/AgendaViewer.php?view_id=7`)
+  3. Alternatively, try `https://{domain}.granicus.com/ViewPublisher.php?view_id=N` for N = 1 through 15
+  4. Update `archives` and `default_view_id` in both the YAML and JSON configs
+  5. For the column_map, check the table headers on the ViewPublisher page (Meeting=0, Date=1, etc.)
+  
+  **For headless/automated runs**: Search the web for `site:{domain}.granicus.com ViewPublisher` or `"{city name}" granicus agendas` to find the view_id without manual browsing.
+
 - **Legistar**: The `client_name` may not match the city slug. Check the city's website for Legistar links to find the correct client name.
 
 **"Failed to fetch Granicus view"** — The Granicus subdomain is wrong. Check the city's official website for links to agendas/minutes — the correct Granicus URL will be in those links. Common patterns: `{city}.granicus.com`, `cityof{city}.granicus.com`, `{city}-{state}.granicus.com`.

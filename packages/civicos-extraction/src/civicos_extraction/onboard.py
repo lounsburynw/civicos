@@ -1081,15 +1081,10 @@ def detect_youtube_channel(city_name: str, state: str = "") -> Optional[dict]:
                         f"({result['channel_id']})")
             return result
 
-        # Fallback: return first result (no city match found)
-        first = items[0]
-        result = {
-            "channel_id": first["snippet"]["channelId"],
-            "channel_title": first["snippet"]["title"],
-        }
-        logger.info(f"YouTube channel (best guess): {result['channel_title']} "
-                     f"({result['channel_id']})")
-        return result
+        # No channel title matched the city name — don't guess
+        logger.info(f"No YouTube channel matched '{city_name}' (candidates: "
+                     f"{[i['snippet']['title'] for i in items[:3]]})")
+        return None
 
     except Exception as e:
         logger.debug(f"YouTube channel detection failed for '{city_name}': {e}")
@@ -1897,6 +1892,7 @@ def onboard_jurisdiction(
     output_dir: str = "data/extraction",
     city_name: Optional[str] = None,
     state: Optional[str] = None,
+    county: Optional[str] = None,
     level: str = "city",
     generate_yaml: bool = False,
     generate_registries: bool = False,
@@ -2188,11 +2184,15 @@ def onboard_jurisdiction(
                 f"zip {geo_data.get('zip_code', '?')}"
             )
 
-    # Step 3.6: Detect election sources + districts (requires geocoding)
-    if geo_data and geo_data.get("county"):
+    # Step 3.6: Detect election sources + districts
+    # Use geocoding results if available, fall back to county parameter
+    _election_county = (geo_data or {}).get("county") or county
+    _election_lat = (geo_data or {}).get("lat")
+    _election_lng = (geo_data or {}).get("lng")
+    if _election_county and state:
         election_sources = detect_election_sources(
-            jurisdiction_id, state or geo_data.get("state_abbrev", ""), geo_data["county"],
-            lat=geo_data.get("lat"), lng=geo_data.get("lng"),
+            jurisdiction_id, state, _election_county,
+            lat=_election_lat, lng=_election_lng,
         )
         config["election_sources"] = election_sources
         source_names = list(election_sources.keys())

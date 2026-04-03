@@ -764,12 +764,41 @@ def main():
 
     configs_exist = extraction_path.exists() and yaml_path.exists()
 
+    _should_generate = not configs_exist  # Fresh: always generate
+
     if configs_exist and not args.force:
         print(f"  Configs already exist for {jid}:")
         print(f"    Extraction: {extraction_path}")
         print(f"    YAML: {yaml_path}")
         print(f"  Skipping generation (use --force to regenerate)")
-    else:
+    elif configs_exist and args.force:
+        # Check for manual edits before clobbering
+        _has_manual_edits = False
+        try:
+            with open(yaml_path) as _yf:
+                _yaml_content = _yf.read()
+            if "manually corrected" in _yaml_content or "manually edited" in _yaml_content:
+                _has_manual_edits = True
+            import json as _json_check
+            with open(extraction_path) as _ef:
+                _ext_data = _json_check.load(_ef)
+            if _ext_data.get("archives") and _ext_data.get("metadata", {}).get("column_map"):
+                _has_manual_edits = True
+        except Exception:
+            pass
+
+        if _has_manual_edits:
+            print(f"  WARNING: Existing configs appear to have manual edits:")
+            print(f"    Extraction: {extraction_path}")
+            print(f"    YAML: {yaml_path}")
+            print(f"  --force will overwrite these edits. Backing up...")
+            import shutil
+            shutil.copy2(extraction_path, str(extraction_path) + ".bak")
+            shutil.copy2(yaml_path, str(yaml_path) + ".bak")
+            print(f"    Backed up to *.bak files")
+        _should_generate = True
+
+    if _should_generate:
         from civicos_extraction.onboard import onboard_jurisdiction
 
         result = onboard_jurisdiction(
@@ -777,6 +806,7 @@ def main():
             jurisdiction_id=args.jurisdiction or None,
             city_name=args.city or None,
             state=args.state,
+            county=args.county or None,
             level=args.level,
             generate_yaml=True,
             generate_registries=False,
