@@ -675,8 +675,13 @@ class ProudCityClient(BaseExtractor):
                     # Fall back to post publication date
                     meeting_date = post.get("date", "")[:10]
 
-                # Extract body name from title (text before the colon)
-                body_name = title.split(":")[0].strip() if ":" in title else "Meeting"
+                # Extract body name from title (text before separator)
+                # Cities use ":" (Fairfax) or "–" (San Rafael) or " - " as separators
+                body_name = "Meeting"
+                for sep in ["–", "—", " - ", ":"]:
+                    if sep in title:
+                        body_name = title.split(sep)[0].strip()
+                        break
 
                 # Build event dict compatible with normalize_event()
                 content = post.get("content", {}).get("rendered", "")
