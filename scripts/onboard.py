@@ -545,6 +545,7 @@ def _check_cron_readiness(jid: str) -> list:
     modal_supported = {
         "proudcity", "granicus", "legistar", "civicclerk",
         "escribe", "boarddocs", "civicplus", "universal", "simbli",
+        "playwright_llm",
     }
     if source_type and source_type not in modal_supported:
         issues.append(f"source_type '{source_type}' is not handled by modal_ingest.py "
