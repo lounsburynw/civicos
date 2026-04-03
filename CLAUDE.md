@@ -577,6 +577,10 @@ The extension uses Svelte, communicates with the CivicOS API, and manages local 
 
 This project uses **Nostr protocol with secp256k1 Schnorr signatures** (not P-256 ECDSA). All cryptographic operations must use the correct curve. Entity IDs follow Nostr conventions and require proper namespacing for federation. See `packages/civicos-relay/src/civicos_relay/voice/crypto.py` and `packages/civicos-relay/src/civicos_relay/nostr/kinds.py`.
 
+## LLM Integration Rules
+
+**Never ask an LLM to compare dates against "today".** Models hallucinate the current date (e.g., treating 2026 as "the future"). If logic depends on whether a date is past/future, do it in Python. If the LLM needs temporal context, pre-compute relative labels (`"10 days ago"`) instead. See `.critics/data.critic.md` check #11 for patterns.
+
 ## Constraints
 
 - Foundation-funded
