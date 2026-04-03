@@ -134,6 +134,26 @@ For auditable data (transcripts, chunks, decisions):
 - Hash stored for change detection
 - Excludes temporal metadata from hash computation
 
+### 11. LLM Date Reasoning?
+
+**Never ask an LLM to compare dates against "today" or reason about whether dates are past/future.** Models hallucinate the current date — e.g., they treat 2026 dates as "the future" regardless of the actual date provided in the prompt.
+
+Two patterns:
+- **If the check is deterministic** (date vs status, date range validation): Do it in Python.
+- **If the LLM needs temporal context** (e.g., "is this title plausible?"): Pre-compute relative labels like `"(10 days ago)"` or `"(23 days from now)"` and include them inline with the data. The LLM understands relative time without needing to know the absolute date.
+
+FAIL pattern:
+```python
+prompt = f"Today is {date.today()}. Is this meeting in the past or future? {meeting_datetime}"
+```
+
+PASS pattern:
+```python
+delta = (now - meeting_dt).days
+label = f"({delta} days ago)" if delta > 0 else f"({-delta} days from now)"
+prompt = f"Review this meeting: {meeting_datetime} {label}"
+```
+
 ## Output
 
 **Only flag issues you can see in the diff.** Do not speculate about code you haven't read. If the diff shows a field being set, don't assume the column is missing unless you've verified the schema. If two code paths use the same format string, don't claim they're inconsistent. Pre-existing patterns unchanged by the diff are out of scope.
