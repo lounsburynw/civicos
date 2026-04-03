@@ -1233,11 +1233,33 @@ def discover_platform(
     # 1. Try Legistar (fastest — single API call per candidate)
     legistar = discover_legistar_client(city_name, state=state, timeout=timeout)
     if legistar:
-        return {
-            "platform": "legistar",
-            "confidence": 0.95,
-            "details": legistar,
-        }
+        # Freshness check: cities migrate off Legistar but leave the API running.
+        # If the newest event is >180 days old, skip Legistar and keep looking.
+        client_name = legistar.get("client_name", "")
+        stale = False
+        try:
+            r = requests.get(
+                f"https://webapi.legistar.com/v1/{client_name}/events?$top=1&$orderby=EventDate+desc",
+                timeout=timeout,
+            )
+            if r.status_code == 200 and r.json():
+                from datetime import datetime as _dt
+                newest = r.json()[0].get("EventDate", "")[:10]
+                days_old = (_dt.now() - _dt.strptime(newest, "%Y-%m-%d")).days
+                if days_old > 180:
+                    logger.info(
+                        f"Legistar for {city_name} is stale (newest: {newest}, {days_old} days ago) — skipping"
+                    )
+                    stale = True
+        except Exception:
+            pass
+
+        if not stale:
+            return {
+                "platform": "legistar",
+                "confidence": 0.95,
+                "details": legistar,
+            }
 
     # 2. Try CivicClerk (fast — single API call per candidate)
     civicclerk = discover_civicclerk_subdomain(city_name, state=state, timeout=timeout)
@@ -1479,7 +1501,7 @@ def discover_platform(
     # 7. Universal adapter fallback: re-scan working city URLs for meeting listing pages
     _MEETING_PAGE_RE = re.compile(
         r'<a[^>]*href=["\']([^"\']{5,200})["\'][^>]*>[^<]*'
-        r'(?:agenda|meeting|minute|calendar|council\s+meeting)[^<]*</a>',
+        r'(?:agenda|meeting|minute|calendar|city\s+council|council\s+meeting)[^<]*</a>',
         re.IGNORECASE,
     )
     for city_url in city_urls:
