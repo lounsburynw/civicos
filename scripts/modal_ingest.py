@@ -2945,6 +2945,14 @@ def fetch_meetings(
                 dry_run=dry_run,
             )
             return result
+        elif source_type == "playwright_llm":
+            # Playwright+LLM requires browser (separate image), delegate
+            result = fetch_playwright_llm_meetings.remote(
+                jurisdiction=jurisdiction,
+                days_past=days_past,
+                dry_run=dry_run,
+            )
+            return result
         else:
             from civicos_extraction.clients import SUPPORTED_MEETING_SOURCES
             logger.warning(f"[MEETINGS] source_type '{source_type}' not yet supported "
@@ -4302,9 +4310,10 @@ def fetch_boarddocs_meetings(
 # =============================================================================
 
 # Playwright image for bot-protected sites (Simbli, CivicPlus, universal adapter).
-# Includes playwright-stealth for Cloudflare JS challenge bypass in headless mode.
+# Browser-based extraction image (Playwright + Chromium).
 # Separate from civic_image because Chromium adds ~300MB.
-simbli_image = (
+# Used by: Simbli school boards, Playwright+LLM custom sites.
+browser_image = (
     modal.Image.debian_slim(python_version="3.11")
     .apt_install("libpq-dev", "gcc")
     .pip_install(
@@ -4312,6 +4321,8 @@ simbli_image = (
         "playwright>=1.40.0",
         "playwright-stealth>=1.0.0",
         "python-dotenv>=1.0.0",
+        "openai>=1.0.0",
+        "google-generativeai>=0.8.0",
     )
     .run_commands("playwright install --with-deps chromium")
     .env({
@@ -4319,14 +4330,14 @@ simbli_image = (
         "CIVICOS_CONFIG_DIR": "/config/extraction",
         "CIVICOS_JURISDICTIONS_DIR": "/config/jurisdictions",
     })
-    .add_local_python_source("civicos", "civicos_config", "civicos_extraction")
+    .add_local_python_source("civicos", "civicos_config", "civicos_extraction", "civicos_services")
     .add_local_dir("data/extraction", remote_path="/config/extraction")
     .add_local_dir("data/jurisdictions", remote_path="/config/jurisdictions")
 )
 
 
 @app.function(
-    image=simbli_image,
+    image=browser_image,
     secrets=[modal.Secret.from_name("civic-db")],
     memory=4096,
     timeout=600,
@@ -4432,6 +4443,127 @@ def fetch_simbli_meetings(
         "board_url": board_url,
         "meetings_found": len(meetings),
         "meetings_stored": count,
+        "dry_run": False,
+        "elapsed_seconds": elapsed,
+        "cost_usd": 2 * elapsed * 0.000463,
+    }
+
+
+@app.function(
+    image=browser_image,
+    secrets=[
+        modal.Secret.from_name("civic-db"),
+        modal.Secret.from_name("civic-openai"),
+        modal.Secret.from_name("civic-google"),
+    ],
+    memory=4096,
+    timeout=600,
+    retries=modal.Retries(max_retries=1, backoff_coefficient=2.0, initial_delay=10.0),
+)
+def fetch_playwright_llm_meetings(
+    jurisdiction: str = "",
+    days_past: int = 365,
+    dry_run: bool = False,
+) -> dict:
+    """Fetch meetings from custom sites via Playwright rendering + LLM extraction.
+
+    For municipalities without a standard platform (Granicus, CivicPlus, etc.),
+    renders the page with Playwright and uses an LLM to extract meeting data
+    from the visible text. Document links (PDFs) are annotated inline via DOM API.
+
+    Args:
+        jurisdiction: Target jurisdiction ID (e.g., "city-ross")
+        days_past: How many days back to include (default: 365)
+        dry_run: If True, fetch but don't store
+    """
+    import hashlib
+    import logging
+    import os
+    import time
+    from datetime import datetime
+
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+    logger = logging.getLogger(__name__)
+    start_time = time.time()
+
+    database_url = os.environ.get("DATABASE_URL")
+    if not database_url:
+        raise ValueError("DATABASE_URL not set")
+
+    from civicos_extraction.clients.base import ExtractionConfig, Meeting
+    from civicos_extraction.clients.playwright_llm import extract_meetings_from_page
+
+    config = ExtractionConfig.from_jurisdiction(jurisdiction)
+    page_url = config.metadata.get("meeting_page_url", config.base_url)
+
+    logger.info(f"[PLAYWRIGHT_LLM] Starting: jurisdiction={jurisdiction}, url={page_url}")
+
+    raw_meetings = extract_meetings_from_page(page_url, jurisdiction)
+    logger.info(f"[PLAYWRIGHT_LLM] Extracted {len(raw_meetings)} raw meetings")
+
+    # Convert to Meeting objects, dedup by ID
+    seen_ids: set = set()
+    meetings = []
+    now = datetime.now()
+    for m in raw_meetings:
+        dt_str = m.get("date", "")
+        try:
+            dt = datetime.fromisoformat(dt_str)
+        except (ValueError, TypeError):
+            continue
+        mid = f"playwright-llm-{jurisdiction}-{hashlib.sha256((m.get('title', '') + dt_str).encode()).hexdigest()[:12]}"
+        if mid in seen_ids:
+            continue
+        seen_ids.add(mid)
+        meetings.append(Meeting(
+            id=mid,
+            title=m.get("title", "Meeting"),
+            meeting_datetime=dt,
+            jurisdiction_id=jurisdiction,
+            meeting_type=m.get("meeting_type"),
+            status="completed" if dt < now else "scheduled",
+            agenda_url=m.get("agenda_url"),
+            minutes_url=m.get("minutes_url"),
+            video_url=m.get("video_url"),
+            source_platform="playwright_llm",
+            source_url=page_url,
+        ))
+
+    logger.info(f"[PLAYWRIGHT_LLM] {len(meetings)} meetings after dedup")
+
+    if dry_run:
+        elapsed = time.time() - start_time
+        return {
+            "task": "playwright_llm_meetings",
+            "jurisdiction": jurisdiction,
+            "meetings_fetched": len(meetings),
+            "meetings_stored": 0,
+            "dry_run": True,
+            "elapsed_seconds": elapsed,
+            "cost_usd": 2 * elapsed * 0.000463,
+        }
+
+    # Store
+    from civicos.storage.postgres_backend import PostgresBackend
+    backend = PostgresBackend(database_url)
+    meeting_dicts = [m.to_dict() if hasattr(m, "to_dict") else m.__dict__ for m in meetings]
+    stored = int(backend.store_meetings(jurisdiction, meeting_dicts)) if meeting_dicts else 0
+
+    # Update refresh metadata
+    backend.update_refresh_metadata(
+        jurisdiction, "meetings", "playwright_llm",
+        items_fetched=len(meetings),
+        items_stored=stored,
+        status="completed",
+        fetch_window_days=days_past,
+    )
+
+    elapsed = time.time() - start_time
+    return {
+        "task": "playwright_llm_meetings",
+        "jurisdiction": jurisdiction,
+        "meetings_fetched": len(meetings),
+        "meetings_stored": stored,
         "dry_run": False,
         "elapsed_seconds": elapsed,
         "cost_usd": 2 * elapsed * 0.000463,
