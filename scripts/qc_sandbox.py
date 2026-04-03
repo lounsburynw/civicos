@@ -20,6 +20,13 @@ from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).parent.parent
 
+# Load .env for LLM API keys (needed for content review)
+try:
+    from dotenv import load_dotenv
+    load_dotenv(PROJECT_ROOT / ".env")
+except ImportError:
+    pass
+
 
 def qc_sandbox(db_path: str, jurisdiction: str) -> dict:
     """Run all QC checks on a sandbox database. Returns structured results."""
@@ -204,6 +211,35 @@ def qc_sandbox(db_path: str, jurisdiction: str) -> dict:
 
     results["corpora"]["officials"] = corpus
 
+    # --- STATUS CONSISTENCY CHECK (deterministic) ---
+    _status_check = _check_status_consistency(db_path)
+    if _status_check.get("warnings"):
+        results.setdefault("warnings", []).extend(
+            f"[status] {w}" for w in _status_check["warnings"]
+        )
+    if _status_check.get("errors"):
+        results.setdefault("errors", []).extend(
+            f"[status] {e}" for e in _status_check["errors"]
+        )
+
+    # --- LLM CONTENT REVIEW ---
+    # Sample meetings and ask an LLM to validate content quality.
+    # Catches garbled titles, bad body names, jurisdiction leakage,
+    # and URL issues that quantitative checks miss.
+    llm_review = _llm_content_review(db_path, jurisdiction)
+    if llm_review:
+        results["llm_review"] = llm_review
+        if llm_review.get("warnings"):
+            results["warnings"].extend(
+                f"[llm_review] {w}" for w in llm_review["warnings"]
+            )
+        if llm_review.get("errors"):
+            results["errors"].extend(
+                f"[llm_review] {e}" for e in llm_review["errors"]
+            )
+            if llm_review.get("pass") is False:
+                results["pass"] = False
+
     # --- OVERALL PASS/FAIL ---
     for name, corpus in results["corpora"].items():
         if not corpus["pass"]:
@@ -217,6 +253,183 @@ def qc_sandbox(db_path: str, jurisdiction: str) -> dict:
 
     db.close()
     return results
+
+
+_LLM_REVIEW_PROMPT = """\
+You are a data quality reviewer for a civic data platform. Review the following \
+sample of meeting records scraped from {jurisdiction}'s municipal website.
+
+Check each record for:
+1. **Title quality** — Is it a real meeting title, or garbled/truncated/HTML artifacts? \
+Titles should be human-readable body names, possibly with a date or descriptor.
+2. **Body name** — Does the meeting_type look like a real government body \
+(City Council, Planning Commission, etc.)? Flag generic types like "Meeting" or \
+overly long names that include dates or document descriptions.
+3. **Jurisdiction match** — Do the meetings look like they belong to {jurisdiction}? \
+Flag if titles reference a completely different city/county. Note: the jurisdiction_id format \
+(city-fairfax) does NOT need to match the website domain (townoffairfaxca.gov) — \
+these are different naming conventions for the same city.
+4. **URL validity** — Do the agenda/source URLs look plausible (proper domain, not placeholder)?
+
+Do NOT check date-vs-status consistency — that is validated separately.
+
+Records to review:
+{records}
+
+Respond with ONLY a JSON object (no markdown fences):
+{{
+  "pass": true/false,
+  "issues": ["list of specific problems found, empty if all good"],
+  "warnings": ["minor concerns that don't fail QC"],
+  "sample_size": {sample_size},
+  "summary": "one sentence overall assessment"
+}}
+
+Set pass=false only for clear data quality problems (garbled content, wrong jurisdiction). \
+Minor issues like generic body names are warnings, not failures.\
+"""
+
+
+def _check_status_consistency(db_path: str) -> dict:
+    """Deterministic check: does meeting status match the date?
+
+    Past meetings should be completed/cancelled, future should be scheduled.
+    """
+    from datetime import datetime, timezone
+
+    result: dict = {"warnings": [], "errors": []}
+    db = sqlite3.connect(db_path)
+    db.row_factory = sqlite3.Row
+    cur = db.cursor()
+
+    now = datetime.now(timezone.utc)
+
+    try:
+        cur.execute("SELECT meeting_datetime, status, title FROM meetings WHERE status IS NOT NULL")
+        future_completed = 0
+        past_scheduled = 0
+        for row in cur.fetchall():
+            dt_str = row["meeting_datetime"]
+            status = row["status"]
+            if not dt_str:
+                continue
+            try:
+                dt = datetime.fromisoformat(dt_str)
+                if dt.tzinfo is None:
+                    dt = dt.replace(tzinfo=timezone.utc)
+            except (ValueError, TypeError):
+                continue
+
+            if dt > now and status == "completed":
+                future_completed += 1
+            elif dt < now and status == "scheduled":
+                past_scheduled += 1
+
+        if future_completed:
+            result["errors"].append(
+                f"{future_completed} future meeting(s) marked as 'completed'"
+            )
+        if past_scheduled:
+            result["warnings"].append(
+                f"{past_scheduled} past meeting(s) still marked as 'scheduled'"
+            )
+
+    except sqlite3.OperationalError:
+        pass
+
+    db.close()
+    return result
+
+
+def _llm_content_review(db_path: str, jurisdiction: str) -> dict:
+    """Sample meetings and validate content with an LLM.
+
+    Returns a dict with pass/warnings/errors, or empty dict if LLM unavailable.
+    """
+    import os
+
+    if not (os.environ.get("OPENAI_API_KEY") or os.environ.get("GOOGLE_API_KEY")):
+        return {}
+
+    db = sqlite3.connect(db_path)
+    db.row_factory = sqlite3.Row
+    cur = db.cursor()
+
+    # Sample up to 5 meetings spread across the date range:
+    # newest, oldest, and 3 evenly spaced in between.
+    try:
+        cur.execute("SELECT COUNT(*) FROM meetings")
+        total = cur.fetchone()[0]
+        if total <= 5:
+            cur.execute("""
+                SELECT id, title, meeting_datetime, jurisdiction_id,
+                       meeting_type, status, agenda_url, source_url, source_platform
+                FROM meetings ORDER BY meeting_datetime
+            """)
+        else:
+            # Pick indices spread across the range
+            offsets = [0, total // 4, total // 2, 3 * total // 4, total - 1]
+            cur.execute(f"""
+                SELECT id, title, meeting_datetime, jurisdiction_id,
+                       meeting_type, status, agenda_url, source_url, source_platform
+                FROM (
+                    SELECT *, ROW_NUMBER() OVER (ORDER BY meeting_datetime) - 1 AS rn
+                    FROM meetings
+                )
+                WHERE rn IN ({','.join(str(o) for o in offsets)})
+                ORDER BY meeting_datetime
+            """)
+        rows = cur.fetchall()
+    except sqlite3.OperationalError:
+        db.close()
+        return {}
+
+    db.close()
+
+    if not rows:
+        return {}
+
+    # Format records for the prompt
+    records = []
+    for r in rows:
+        records.append(
+            f"- id={r['id']}\n"
+            f"  title={r['title']}\n"
+            f"  meeting_datetime={r['meeting_datetime']}\n"
+            f"  jurisdiction_id={r['jurisdiction_id']}\n"
+            f"  meeting_type={r['meeting_type']}\n"
+            f"  status={r['status']}\n"
+            f"  agenda_url={r['agenda_url']}\n"
+            f"  source_url={r['source_url']}\n"
+            f"  source_platform={r['source_platform']}"
+        )
+    records_text = "\n".join(records)
+
+    prompt = _LLM_REVIEW_PROMPT.format(
+        jurisdiction=jurisdiction,
+        records=records_text,
+        sample_size=len(rows),
+    )
+
+    try:
+        from civicos_services.core.llm_provider import get_model_for_task
+
+        provider = get_model_for_task("navigation")
+        messages = [{"role": "user", "content": prompt}]
+        result = provider.complete(messages, temperature=0.1)
+        text = result.content.strip()
+
+        # Parse JSON from response (may have markdown fences)
+        import re
+        json_match = re.search(r"\{.*\}", text, re.DOTALL)
+        if json_match:
+            review = json.loads(json_match.group())
+            return review
+        else:
+            return {"warnings": [f"LLM review returned unparseable response: {text[:200]}"]}
+
+    except Exception as e:
+        return {"warnings": [f"LLM content review skipped: {e}"]}
 
 
 def format_report(results: dict) -> str:
