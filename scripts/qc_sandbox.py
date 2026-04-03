@@ -96,9 +96,12 @@ def qc_sandbox(db_path: str, jurisdiction: str) -> dict:
             with_video = cur.fetchone()[0]
             corpus["details"]["video_coverage"] = round(with_video / count * 100, 1)
 
-            # Type breakdown
-            cur.execute("SELECT title, COUNT(*) as cnt FROM meetings GROUP BY title ORDER BY cnt DESC")
-            corpus["details"]["types"] = {row["title"]: row["cnt"] for row in cur.fetchall()}
+            # Body type breakdown (use meeting_type if available, fall back to title)
+            cur.execute("""
+                SELECT COALESCE(meeting_type, title) as body, COUNT(*) as cnt
+                FROM meetings GROUP BY body ORDER BY cnt DESC
+            """)
+            corpus["details"]["types"] = {row["body"]: row["cnt"] for row in cur.fetchall()}
 
             # Duplicate check
             cur.execute("SELECT COUNT(*) FROM (SELECT title, meeting_datetime, COUNT(*) as cnt FROM meetings GROUP BY title, meeting_datetime HAVING cnt > 1)")
