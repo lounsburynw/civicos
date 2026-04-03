@@ -41,6 +41,25 @@ After self-review identified fragile spots, addressed properly:
 - **CivicPlus validate() fix**: Removed `source_id`/`source_type` kwargs that `ValidationResult` doesn't accept.
 - **Ross: 100% agenda coverage** (was 0% → 79% → 100% across iterations).
 
+### Cron pipeline fix
+All cron jobs (meetings-poll, high-velocity, low-velocity) broken since 2026-04-02.
+Root cause: civicos_extraction/__init__.py imported onboard at module level, which pulled in
+civicos_config.paths → phase.json lookup → FileNotFoundError on Modal containers.
+Fix: removed the import (commit c43ee70). Triggered manual run, still running after 30min (good — old ones crashed in seconds).
+
+### playwright_llm in production
+Added fetch_playwright_llm_meetings() to modal_ingest.py on browser_image (renamed from simbli_image).
+All 10 source types now work in Modal production. Ross can be officially onboarded.
+
+### Cron readiness check (Phase 3.7)
+Added _check_cron_readiness() to onboard.py. Validates: extraction config parseable, source_type in modal dispatch, YAML refresh strategies valid, jurisdiction in registry.
+
+### Next P0: Production onboard Sausalito + Fairfax (with school districts)
+Definitive checklist in docs/next_session_prompt.md. Bundle:
+- city-sausalito (Granicus) + school-sausalito-marin-city (BoardDocs)
+- city-fairfax (ProudCity) + school-ross-valley (BoardDocs)
+Estimated cost: ~$4.50 total. Pending: cron run confirmation.
+
 ### Key insight
 The previous session's "FAIL" for CivicPlus/ProudCity/custom was stale — all clients work. Only Novato (wrong view_id) and Ross (needs LLM API key + Playwright) had real issues.
 
