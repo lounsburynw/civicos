@@ -766,6 +766,7 @@ def discover_granicus_subdomain(
     state: Optional[str] = None,
     timeout: int = 8,
     max_view_id: int = _DEFAULT_MAX_VIEW_ID,
+    extra_subdomains: Optional[List[str]] = None,
 ) -> Optional[Dict[str, Any]]:
     """
     Discover a Granicus subdomain by trying common URL patterns.
@@ -814,6 +815,12 @@ def discover_granicus_subdomain(
         if stripped_slug != slug:
             candidates.append(f"{stripped_slug}-{state}")  # e.g., marin-ca
             candidates.append(f"{stripped_slug}{state}")    # e.g., marinca
+
+    # Prepend any extra subdomains discovered from city website links
+    if extra_subdomains:
+        for extra in reversed(extra_subdomains):
+            if extra not in candidates:
+                candidates.insert(0, extra)
 
     headers = {"User-Agent": "Civic-Platform-Detection/1.0"}
 
@@ -1192,36 +1199,107 @@ def discover_platform(
             "details": simbli,
         }
 
-    # 6. Try ProudCity (slowest — guess website URL, then scrape)
+    # 6. Try city website scrape — fetch common URLs, extract platform links
     hyphenated = re.sub(r"[\s]+", "-", city_name.lower().strip())
-    proudcity_urls = [
+    city_urls = [
         f"https://www.cityof{slug}.org",
         f"https://cityof{slug}.org",
         f"https://www.{slug}.org",
         f"https://{slug}.org",
         f"https://www.{slug}.gov",
+        f"https://www.ci.{slug}.ca.us" if state and state.lower() == "ca" else None,
+        f"https://www.townof{slug}.org",
+        f"https://townof{slug}ca.gov" if state and state.lower() == "ca" else None,
     ]
     if state:
-        proudcity_urls.append(f"https://{slug}.{state.lower()}.gov")
-    # Add hyphenated variants for multi-word cities (e.g., "san-rafael" vs "sanrafael")
+        city_urls.append(f"https://{slug}.{state.lower()}.gov")
     if hyphenated != slug:
-        proudcity_urls.extend([
+        city_urls.extend([
             f"https://www.cityof{hyphenated}.org",
             f"https://www.{hyphenated}.org",
             f"https://www.{hyphenated}.gov",
+            f"https://www.ci.{hyphenated}.ca.us" if state and state.lower() == "ca" else None,
+            f"https://townof{hyphenated}ca.gov" if state and state.lower() == "ca" else None,
         ])
-    for url in proudcity_urls:
+    city_urls = [u for u in city_urls if u]  # Remove None entries
+
+    # Known platform domains to scan for in page links
+    _PLATFORM_PATTERNS = {
+        "granicus": re.compile(r"https?://([a-z0-9\-]+)\.granicus\.com", re.I),
+        "legistar": re.compile(r"https?://([a-z0-9\-]+)\.legistar\.com", re.I),
+        "civicclerk": re.compile(r"https?://([a-z0-9\-]+)\.civicclerk\.com", re.I),
+        "boarddocs": re.compile(r"https?://go\.boarddocs\.com/([a-z]+/[a-z]+)", re.I),
+    }
+
+    for city_url in city_urls:
         try:
-            pc_confidence, pc_meta = _detect_proudcity(url, timeout=timeout)
+            resp = requests.get(city_url, timeout=timeout, allow_redirects=True)
+            if resp.status_code != 200:
+                continue
+
+            # Check if this is a ProudCity site first
+            pc_confidence, pc_meta = _detect_proudcity(city_url, timeout=timeout)
             if pc_confidence >= 0.50:
                 return {
                     "platform": "proudcity",
                     "confidence": pc_confidence,
-                    "details": {
-                        "url": url,
-                        **pc_meta,
-                    },
+                    "details": {"url": city_url, **pc_meta},
                 }
+
+            # Scan page HTML for platform links
+            html = resp.text
+            for platform, pattern in _PLATFORM_PATTERNS.items():
+                match = pattern.search(html)
+                if match:
+                    if platform == "granicus":
+                        domain = match.group(1)
+                        granicus_url = f"https://{domain}.granicus.com"
+                        logger.info(f"Found Granicus link on {city_url}: {granicus_url}")
+                        # Re-run Granicus discovery with the actual domain
+                        granicus_result = discover_granicus_subdomain(
+                            city_name, state=state, timeout=timeout,
+                            extra_subdomains=[domain],
+                        )
+                        if granicus_result:
+                            return {
+                                "platform": "granicus",
+                                "confidence": 0.90,
+                                "details": granicus_result,
+                            }
+                        # Even if discovery didn't find view_ids, return the domain
+                        return {
+                            "platform": "granicus",
+                            "confidence": 0.70,
+                            "details": {"url": granicus_url, "granicus_domain": domain},
+                        }
+                    elif platform == "legistar":
+                        client = match.group(1)
+                        logger.info(f"Found Legistar link on {city_url}: {client}")
+                        return {
+                            "platform": "legistar",
+                            "confidence": 0.90,
+                            "details": {"client_name": client},
+                        }
+                    elif platform == "civicclerk":
+                        subdomain = match.group(1)
+                        logger.info(f"Found CivicClerk link on {city_url}: {subdomain}")
+                        return {
+                            "platform": "civicclerk",
+                            "confidence": 0.90,
+                            "details": {"subdomain": subdomain},
+                        }
+                    elif platform == "boarddocs":
+                        app_path = match.group(1)
+                        logger.info(f"Found BoardDocs link on {city_url}: {app_path}")
+                        return {
+                            "platform": "boarddocs",
+                            "confidence": 0.90,
+                            "details": {
+                                "board_url": f"https://go.boarddocs.com/{app_path}/Board.nsf/Public",
+                                "app_path": app_path,
+                            },
+                        }
+
         except Exception:
             continue
 
