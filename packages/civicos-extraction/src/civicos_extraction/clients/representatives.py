@@ -915,7 +915,11 @@ class LegiScanLegislatorsClient:
             return []
 
         people = result.get("sessionpeople", {}).get("people", [])
-        return [self._normalize_legislator(p, state.upper()) for p in people]
+        # Filter out committees — LegiScan returns both legislators (with
+        # district like "SD-014") and committees (with empty district and
+        # committee name in the "name" field). Only keep entries with districts.
+        legislators = [p for p in people if p.get("district", "").strip()]
+        return [self._normalize_legislator(p, state.upper()) for p in legislators]
 
     def get_legislator_by_district(
         self,
@@ -1338,10 +1342,10 @@ class RepresentativesClient:
                             d = int(leg.district)
                             if "Assembly" in leg.office and d in assembly_districts:
                                 filtered.append(leg)
-                            elif "Senate" in leg.office and d in senate_districts:
+                            elif "Senat" in leg.office and d in senate_districts:
                                 filtered.append(leg)
-                        else:
-                            filtered.append(leg)
+                        # Skip entries without numeric districts (shouldn't happen
+                        # after the committee filter, but defensive)
                     state_legislators = filtered
                 if state_legislators:
                     logger.debug(f"Got {len(state_legislators)} state legislators from LegiScan")
