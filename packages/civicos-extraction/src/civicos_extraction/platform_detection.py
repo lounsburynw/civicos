@@ -62,20 +62,25 @@ def _fetch_with_curl_fallback(url: str, timeout: int = 8) -> Optional[str]:
     except (subprocess.TimeoutExpired, FileNotFoundError):
         pass
 
-    # 3. Playwright headed (bypasses Cloudflare JS challenges)
+    # 3. Playwright headless + stealth (bypasses Cloudflare JS challenges)
+    # Works on servers (Modal) — no display needed.
     try:
         from playwright.sync_api import sync_playwright
+        from playwright_stealth import Stealth
+        stealth = Stealth()
         with sync_playwright() as p:
-            browser = p.chromium.launch(headless=False)
+            stealth.hook_playwright_context(p)
+            browser = p.chromium.launch(headless=True)
             page = browser.new_page()
+            stealth.apply_stealth_sync(page)
             page.goto(url, wait_until="networkidle", timeout=timeout * 1000)
             html = page.content()
             browser.close()
             if html and len(html) > 500 and "Access Denied" not in html[:500]:
-                logger.info(f"Playwright (headed) fetched {url}: {len(html)} bytes")
+                logger.info(f"Playwright (stealth) fetched {url}: {len(html)} bytes")
                 return html
     except ImportError:
-        logger.debug("Playwright not installed — skipping headed browser fallback")
+        logger.debug("Playwright/playwright-stealth not installed — skipping browser fallback")
     except Exception as e:
         logger.debug(f"Playwright failed for {url}: {e}")
 
