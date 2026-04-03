@@ -10,17 +10,25 @@ FETCH → NORMALIZE → VALIDATE → STORE
 
 Use the `/ingest` slash command to orchestrate, or run scripts directly.
 
-## Sources (San Rafael Pilot)
+## Sources
 
-| Source | Script/Command | Frequency |
-|--------|---------------|-----------|
-| Meetings (ProudCity) | `/ingest proudcity` | Weekly |
-| Issues (SeeClickFix) | `/ingest seeclickfix` | Weekly |
-| Legislation (LegiScan) | `/ingest legiscan` | Weekly |
-| Transcripts (YouTube) | `/ingest-audio city-san-rafael` | After new meetings |
-| Municipal code | One-time (Municode) | As needed |
-| Budget | One-time (PDF extraction) | Annual |
-| Executive orders | `/ingest federal-register` | Weekly |
+Meeting source is auto-detected per jurisdiction. Issue source defaults to SeeClickFix.
+
+| Source | Platforms | Frequency |
+|--------|-----------|-----------|
+| Meetings | ProudCity, Granicus, Legistar, CivicClerk, CivicPlus, eScribe, Simbli, BoardDocs, Universal | Weekly |
+| Issues | SeeClickFix (public API), GOGov (auth required — see below) | Weekly |
+| Legislation | LegiScan | Weekly |
+| Transcripts | YouTube → AssemblyAI | After new meetings |
+| Municipal code | Municode | As needed |
+| Budget | PDF extraction | Annual |
+| Executive orders | Federal Register API | Weekly |
+
+### 311 Issue Providers
+
+**SeeClickFix** — Public API, no credentials needed. Auto-detected during onboarding.
+
+**GOGov** (FixItMarin, etc.) — Requires staff credentials. API at `api.govoutreach.com`, wrapped by PyPI package [`gogov`](https://pypi.org/project/gogov/). Detection works during onboarding (`detect_issue_source()` identifies GOGov for county-level jurisdictions), but fetching requires `GOGOV_EMAIL`/`GOGOV_PASSWORD`/`GOGOV_SITE` env vars and a data sharing agreement. Known deployment: Marin County (`marincountyca`), unincorporated areas only. See `docs/public/data-ingestion.md` for full API details.
 
 ## Checkpoints
 

@@ -111,16 +111,45 @@ modal secret list  # Should show civicos-env
 
 | Platform | Integration | Example Jurisdictions |
 |----------|------------|---------------|
-| **ProudCity** | Web scraper | San Rafael |
-| **Granicus** | API | Marin County, San Anselmo, Berkeley |
+| **ProudCity** | Web scraper + WP REST API | San Rafael, Fairfax, Belvedere |
+| **Granicus** | API | Marin County, San Anselmo, Sausalito, Berkeley |
 | **Legistar** | API | Oakland, SF, Richmond, Hayward, San Pablo |
 | **CivicClerk** | API + OData | El Cerrito, Hayward, San Pablo, Richmond, Vallejo, Antioch |
+| **CivicPlus** | Web scraper (Archive.aspx) | Corte Madera, Larkspur |
+| **Universal Adapter** | LLM-generated CSS selectors | Ross, other custom sites |
+| **eScribe** | JSON API | National City, Canadian municipalities |
+| **Simbli** | Playwright | School districts (eboardsolutions.com) |
+| **BoardDocs** | Web scraper | School boards |
 
 ### Community Issues
 
-| Platform | Integration | Coverage |
-|----------|------------|----------|
-| **SeeClickFix** | API | 311/service requests (nationwide) |
+| Platform | Integration | Coverage | Auth |
+|----------|------------|----------|------|
+| **SeeClickFix** | Public API | 311/service requests (nationwide) | None |
+| **GOGov** | Authenticated API | FixItMarin, other GOGov cities | Staff credentials |
+
+#### GOGov / FixItMarin
+
+[GOGov](https://www.gogovapps.com/) (formerly GovOutreach) powers FixItMarin and similar 311 apps in other jurisdictions. Unlike SeeClickFix, the API requires authenticated access.
+
+**API details:**
+- Base URL: `https://api.govoutreach.com`
+- Auth: email/password → bearer token
+- PyPI package: [`gogov`](https://pypi.org/project/gogov/) (unofficial client, v0.8.4)
+- Key methods: `Client.search()` (paginated), `Client.get_topics()`, `Client.export_requests()`
+- Data: caseId, description, location (lat/lon), dateEntered, status, priority, custom fields
+- Public portal (read-only, no API): `https://user.govoutreach.com/{site}/`
+
+**To enable for a jurisdiction:**
+1. Obtain staff credentials from the city/county (data sharing agreement)
+2. Add to `.env`: `GOGOV_EMAIL`, `GOGOV_PASSWORD`, `GOGOV_SITE` (e.g., `marincountyca`)
+3. Set `issue_source: "gogov"` in the extraction config
+4. GOGov client implementation is pending — detection works but fetching is deferred until credentials are available
+
+**Known GOGov deployments:**
+- Marin County, CA (`marincountyca`) — FixItMarin, launched Feb 2026, unincorporated areas only
+
+**Note:** GOGov serves county-level unincorporated areas, not individual cities. Cities within Marin still use SeeClickFix or have no 311 provider.
 
 ### Legislation & Legal Code
 
