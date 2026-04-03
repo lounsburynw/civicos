@@ -413,12 +413,34 @@ def generate_adapter_config(
                     capture_output=True, text=True, timeout=timeout + 5,
                 )
                 if result.returncode == 0 and len(result.stdout) > 500:
-                    html = result.stdout
+                    if "Access Denied" not in result.stdout[:500]:
+                        html = result.stdout
             except (subprocess.TimeoutExpired, FileNotFoundError):
                 pass
 
+        # Playwright stealth fallback for Cloudflare-protected sites
+        if html is None:
+            try:
+                from playwright.sync_api import sync_playwright
+                from playwright_stealth import Stealth
+                stealth = Stealth()
+                with sync_playwright() as p:
+                    stealth.hook_playwright_context(p)
+                    browser = p.chromium.launch(headless=True)
+                    page = browser.new_page()
+                    stealth.apply_stealth_sync(page)
+                    page.goto(url, wait_until="networkidle", timeout=timeout * 1000)
+                    html = page.content()
+                    browser.close()
+                    if html and len(html) < 500:
+                        html = None
+            except ImportError:
+                pass
+            except Exception:
+                pass
+
         if not html:
-            raise RuntimeError(f"Failed to fetch {url} via requests and curl")
+            raise RuntimeError(f"Failed to fetch {url} via requests, curl, and Playwright")
 
     # 2. Extract relevant sample
     sample_html = _extract_sample(html)

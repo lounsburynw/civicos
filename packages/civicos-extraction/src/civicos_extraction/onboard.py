@@ -1540,17 +1540,48 @@ def _discover_legistar(client_name: str, jurisdiction_id: str) -> Dict[str, Any]
             key = re.sub(r"[^a-z0-9]+", "_", name.lower()).strip("_")
             archives[key] = body_id
 
-    return {
+    # Freshness check: query the most recent event to detect stale platforms.
+    # Cities sometimes migrate off Legistar but leave the API running.
+    metadata: Dict[str, Any] = {"client_name": client_name, "body_count": len(bodies)}
+    warnings: list = []
+    try:
+        import requests as _req
+        r = _req.get(
+            f"https://webapi.legistar.com/v1/{client_name}/events?$top=1&$orderby=EventDate+desc",
+            timeout=10,
+        )
+        if r.status_code == 200 and r.json():
+            newest = r.json()[0].get("EventDate", "")[:10]
+            metadata["newest_event"] = newest
+            from datetime import datetime as _dt
+            try:
+                newest_dt = _dt.strptime(newest, "%Y-%m-%d")
+                days_stale = (_dt.now() - newest_dt).days
+                metadata["days_since_newest"] = days_stale
+                if days_stale > 180:
+                    warnings.append(
+                        f"Legistar data appears stale — newest event is {newest} "
+                        f"({days_stale} days ago). The city may have migrated to a different platform."
+                    )
+            except ValueError:
+                pass
+    except Exception:
+        pass
+
+    result = {
         "config": {
             "source_id": f"legistar-{client_name}",
             "source_type": "legistar",
             "jurisdiction_id": jurisdiction_id,
             "base_url": f"https://webapi.legistar.com/v1/{client_name}",
             "archives": archives,
-            "metadata": {"client_name": client_name, "body_count": len(bodies)},
+            "metadata": metadata,
         },
         "discovered_bodies": archives,
     }
+    if warnings:
+        result["warnings"] = warnings
+    return result
 
 
 def _discover_civicclerk(subdomain: str, jurisdiction_id: str) -> Dict[str, Any]:
@@ -2118,6 +2149,7 @@ def onboard_jurisdiction(
         OnboardResult with config, discovered bodies, and next steps
     """
     errors: List[str] = []
+    warnings: List[str] = []
     pre_discovered: Optional[Dict[str, Any]] = None
 
     def _progress(step: str, message: str) -> None:
@@ -2366,6 +2398,11 @@ def onboard_jurisdiction(
 
     config = discovery_result["config"]
     discovered_bodies = discovery_result.get("discovered_bodies", {})
+
+    # Surface any warnings from platform discovery (e.g., stale Legistar data)
+    for w in discovery_result.get("warnings", []):
+        warnings.append(w)
+        _progress("warn", w)
 
     # Step 2.5: Detect issue provider (if city_name available and not already set)
     if city_name and not config.get("issue_source"):
