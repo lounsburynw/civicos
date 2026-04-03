@@ -661,8 +661,15 @@ def _discover_universal(url: str, jurisdiction_id: str) -> Dict[str, Any]:
     """Run universal adapter discovery.
 
     Uses LLM-generated CSS selectors to build an extraction config for
-    sites that don't match any known platform.
+    sites that don't match any known platform. Requires OPENAI_API_KEY
+    or GOOGLE_API_KEY for the LLM call.
     """
+    if not os.environ.get("OPENAI_API_KEY") and not os.environ.get("GOOGLE_API_KEY"):
+        raise RuntimeError(
+            "Universal adapter requires an LLM API key (OPENAI_API_KEY or GOOGLE_API_KEY). "
+            "Set one in .env and retry."
+        )
+
     from civicos_extraction.clients.universal_config import generate_adapter_config
 
     adapter_config = generate_adapter_config(url)
@@ -2124,13 +2131,16 @@ def onboard_jurisdiction(
             errors=["state is required when city_name is provided (e.g., state='CA')"],
         )
 
-    # Upfront API key checks — warn before doing network work
-    _openai_key = os.environ.get("OPENAI_API_KEY")
-    _google_key = os.environ.get("GOOGLE_MAPS_API_KEY")
-    if not _openai_key:
-        _progress("warn", "No OPENAI_API_KEY — body names will be generic (view_N) and column maps skipped")
-        logger.warning("No OPENAI_API_KEY set — LLM body naming and column mapping will use fallbacks")
-    if generate_yaml and not _google_key:
+    # Upfront API key checks — warn before doing network work.
+    # LLM calls (Granicus body naming, column maps, universal adapter) need at least
+    # one of OPENAI_API_KEY or GOOGLE_API_KEY (Gemini). Without either, Granicus
+    # onboarding degrades to generic names and the universal adapter fails entirely.
+    _has_llm_key = bool(os.environ.get("OPENAI_API_KEY") or os.environ.get("GOOGLE_API_KEY"))
+    _google_maps_key = os.environ.get("GOOGLE_MAPS_API_KEY")
+    if not _has_llm_key:
+        _progress("warn", "No OPENAI_API_KEY or GOOGLE_API_KEY — LLM features disabled (body names, column maps, universal adapter)")
+        logger.warning("No LLM API key set — Granicus body naming/column mapping will use fallbacks, universal adapter will fail")
+    if generate_yaml and not _google_maps_key:
         _progress("warn", "No GOOGLE_MAPS_API_KEY — YAML will have empty hierarchy (no geocoding)")
         logger.warning("No GOOGLE_MAPS_API_KEY set — jurisdiction YAML will lack geocoded hierarchy")
 
