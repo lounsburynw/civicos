@@ -511,6 +511,85 @@ def _instantiate_client(config):
     return None
 
 
+def _check_cron_readiness(jid: str) -> list:
+    """Verify a jurisdiction will be picked up by the cron refresh pipeline.
+
+    Checks the same code path that crons use (get_active_jurisdictions,
+    source_type dispatch in modal_ingest) without running anything on Modal.
+
+    Returns a list of issue strings. Empty list = ready for crons.
+    """
+    import yaml as _yaml
+
+    issues = []
+
+    # 1. Check extraction config is parseable by get_active_jurisdictions()
+    extraction_path = PROJECT_ROOT / "data" / "extraction" / f"{jid}.json"
+    if not extraction_path.exists():
+        issues.append(f"No extraction config at {extraction_path.relative_to(PROJECT_ROOT)}")
+        return issues
+
+    try:
+        with open(extraction_path) as f:
+            config = json.load(f)
+    except json.JSONDecodeError as e:
+        issues.append(f"Extraction config is invalid JSON: {e}")
+        return issues
+
+    if "jurisdiction_id" not in config:
+        issues.append("Extraction config missing 'jurisdiction_id' field — "
+                       "get_active_jurisdictions() will skip it")
+
+    # 2. Check source_type is handled by modal_ingest.py's fetch_meetings dispatch
+    source_type = config.get("source_type", "")
+    modal_supported = {
+        "proudcity", "granicus", "legistar", "civicclerk",
+        "escribe", "boarddocs", "civicplus", "universal", "simbli",
+    }
+    if source_type and source_type not in modal_supported:
+        issues.append(f"source_type '{source_type}' is not handled by modal_ingest.py "
+                       f"(supported: {', '.join(sorted(modal_supported))}). "
+                       f"Cron will log a warning and skip meetings for this city.")
+
+    # 3. Check YAML refresh config exists and has valid strategies
+    yaml_path = PROJECT_ROOT / "data" / "jurisdictions" / f"{jid}.yaml"
+    if not yaml_path.exists():
+        issues.append(f"No jurisdiction YAML at {yaml_path.relative_to(PROJECT_ROOT)} — "
+                       "refresh intervals won't be configured")
+    else:
+        try:
+            with open(yaml_path) as f:
+                jur_config = _yaml.safe_load(f) or {}
+            refresh = jur_config.get("refresh", {})
+            if not refresh:
+                issues.append("YAML has no 'refresh' section — crons will use defaults")
+            else:
+                valid_strategies = {"incremental", "content_hash", "full"}
+                for corpus, cfg in refresh.items():
+                    if isinstance(cfg, dict):
+                        strategy = cfg.get("strategy", "")
+                        if strategy and strategy not in valid_strategies:
+                            issues.append(f"refresh.{corpus}.strategy '{strategy}' "
+                                          f"is not valid (use: {', '.join(sorted(valid_strategies))})")
+        except Exception as e:
+            issues.append(f"Could not parse YAML: {e}")
+
+    # 4. Check registry has an entry for this jurisdiction
+    registry_path = PROJECT_ROOT / "config" / "registry.json"
+    if registry_path.exists():
+        try:
+            with open(registry_path) as f:
+                registry = json.load(f)
+            jurisdictions = registry.get("jurisdictions", registry)
+            if jid not in jurisdictions:
+                issues.append(f"'{jid}' not in config/registry.json — API won't serve it. "
+                              "Run: python scripts/generate_registries.py")
+        except Exception:
+            pass
+
+    return issues
+
+
 def _run_cleanup(jid: str) -> None:
     """Remove all data and configs for a jurisdiction. Used after test onboarding."""
     from dotenv import load_dotenv
@@ -1363,6 +1442,20 @@ def main():
     elif registry_updated:
         print(f"\n  Registry updated. Run with --deploy to redeploy API, or:")
         print(f"    modal deploy packages/civicos-services/src/civicos_services/servers/modal_api.py")
+
+    # -------------------------------------------------------------------
+    # Phase 3.7: Cron readiness check (will refresh pipeline find this city?)
+    # -------------------------------------------------------------------
+    print(f"\n[Phase 3.7] Cron readiness check...")
+    cron_issues = _check_cron_readiness(jid)
+    if cron_issues:
+        print(f"  WARNING: {len(cron_issues)} issue(s) that may affect automated refresh:")
+        for issue in cron_issues:
+            print(f"    - {issue}")
+        print(f"\n  The city is onboarded, but crons may skip it or fail.")
+        print(f"  Fix these before relying on automated refresh.")
+    else:
+        print(f"  PASS: {jid} will be picked up by cron refresh pipelines.")
 
     # -------------------------------------------------------------------
     # Phase 4: Quality report
