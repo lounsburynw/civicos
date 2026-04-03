@@ -217,9 +217,12 @@ After the PR is merged to main:
 | `data/jurisdictions/schema.yaml` | YAML schema documentation |
 | `data/extraction/{id}.json` | Extraction metadata (auto-discovered) |
 | `config/registry.json` | Service routing (generated from YAML) |
-| `scripts/onboard.py` | Auto-discovery and config generation |
+| `scripts/onboard.py` | Auto-discovery, config generation, ingestion |
 | `scripts/generate_registries.py` | Patches registry files from YAML |
 | `scripts/validate_registry.py` | Validates YAML and registry integrity |
+| `scripts/qc_sandbox.py` | QC validation for sandbox data (JSON output for automation) |
+| `scripts/ingest_local.py` | Local SQLite ingestion (meetings, issues, elections) |
+| `docs/internal/headless-onboard-prompt.md` | Prompt template for headless batch onboarding |
 
 ## CLI Quick Reference
 
@@ -232,9 +235,10 @@ Key flags:
   --county NAME         County name (recommended)
   --skip-ingestion      Generate configs only (no data ingestion)
   --dry-run             Preview without storing
+  --trial               Full sandbox trial: configs → registry → ingest → QC (one command)
   --sandbox             Ingest to local SQLite (use with --no-validate for fully local)
   --no-validate         Skip Modal validation gate (required for local-only sandbox)
-  --force               Regenerate existing configs
+  --force               Regenerate existing configs (backs up manual edits)
   --url URL             Provide platform URL directly
   --yes                 Auto-confirm cost estimates
   --deploy              Deploy API to Modal after ingestion
