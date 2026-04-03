@@ -658,11 +658,17 @@ def _discover_civicplus(
 
 
 def _discover_universal(url: str, jurisdiction_id: str) -> Dict[str, Any]:
-    """Run universal adapter discovery.
+    """Run universal adapter discovery via Playwright+LLM.
 
-    Uses LLM-generated CSS selectors to build an extraction config for
-    sites that don't match any known platform. Requires OPENAI_API_KEY
-    or GOOGLE_API_KEY for the LLM call.
+    Renders the page with Playwright (headless + stealth), sends the visible
+    text to an LLM, and gets structured meeting data back. This is more robust
+    than the CSS selector approach because:
+    - Handles JS-rendered content, tabs, dynamic tables
+    - No brittle CSS selectors
+    - LLM can distinguish government meetings from community events
+    - Works on any page structure
+
+    Trade-off: ~$0.001 per extraction (Gemini Flash).
     """
     if not os.environ.get("OPENAI_API_KEY") and not os.environ.get("GOOGLE_API_KEY"):
         raise RuntimeError(
@@ -670,25 +676,37 @@ def _discover_universal(url: str, jurisdiction_id: str) -> Dict[str, Any]:
             "Set one in .env and retry."
         )
 
-    from civicos_extraction.clients.universal_config import generate_adapter_config
+    try:
+        from civicos_extraction.clients.playwright_llm import extract_meetings_from_page
 
-    adapter_config = generate_adapter_config(url)
+        meetings = extract_meetings_from_page(url, jurisdiction_id)
+        if not meetings:
+            raise RuntimeError(f"Playwright+LLM extraction returned 0 meetings from {url}")
 
-    config = {
-        "source_id": f"universal-{jurisdiction_id}",
-        "source_type": "universal",
-        "jurisdiction_id": jurisdiction_id,
-        "base_url": url,
-        "archives": {},
-        "metadata": {
-            "adapter": adapter_config,
-        },
-    }
+        config = {
+            "source_id": f"playwright-llm-{jurisdiction_id}",
+            "source_type": "playwright_llm",
+            "jurisdiction_id": jurisdiction_id,
+            "base_url": url,
+            "archives": {},
+            "metadata": {
+                "extraction_mode": "playwright_llm",
+                "meeting_page_url": url,
+                "initial_meeting_count": len(meetings),
+            },
+        }
 
-    return {
-        "config": config,
-        "discovered_bodies": {},
-    }
+        return {
+            "config": config,
+            "discovered_bodies": {},
+            "prefetched_meetings": meetings,
+        }
+
+    except ImportError:
+        raise RuntimeError(
+            "Playwright+LLM extraction requires browser automation. "
+            "Install: pip install playwright playwright-stealth && playwright install chromium"
+        )
 
 
 def detect_issue_source(city_name: str, jurisdiction_id: str) -> Optional[str]:
@@ -2667,9 +2685,9 @@ def onboard_jurisdiction(
         f"Index vectors: civic-extract onboard --url <url> -j {jurisdiction_id} --run-pipeline --index-vectors",
     ])
 
-    # Universal adapter uses metadata.adapter instead of archives — skip this check
+    # Universal/playwright_llm adapters don't use archives — skip this check
     source_type = config.get("source_type", "")
-    if not discovered_bodies and source_type != "universal":
+    if not discovered_bodies and source_type not in ("universal", "playwright_llm"):
         return OnboardResult(
             success=False,
             jurisdiction_id=jurisdiction_id,

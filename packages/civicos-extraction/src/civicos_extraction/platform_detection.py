@@ -1498,12 +1498,32 @@ def discover_platform(
         except Exception:
             continue
 
-    # 7. Universal adapter fallback: re-scan working city URLs for meeting listing pages
+    # 7. Universal adapter fallback: scan ALL city URLs, collect candidates, pick best
     _MEETING_PAGE_RE = re.compile(
         r'<a[^>]*href=["\']([^"\']{5,200})["\'][^>]*>[^<]*'
         r'(?:agenda|meeting|minute|calendar|city\s+council|council\s+meeting)[^<]*</a>',
         re.IGNORECASE,
     )
+    _NEGATIVE = {"podcast", "blog", "news", "press", "newsletter", "subscribe", "rss"}
+    _POSITIVE = {"agenda", "council-meeting", "public-meeting", "view/council", "/meetings"}
+
+    def _score(url: str) -> int:
+        lower = url.lower()
+        if any(neg in lower for neg in _NEGATIVE):
+            return -10
+        score = 0
+        if any(pos in lower for pos in _POSITIVE):
+            score += 5
+        if "agenda" in lower:
+            score += 3
+        if "/meetings" in lower:
+            score += 3
+        if "calendar" in lower:
+            score += 1
+        return score
+
+    all_candidates = []  # (score, url, source_page)
+
     for city_url in city_urls:
         try:
             html = _fetch_with_curl_fallback(city_url, timeout=timeout)
@@ -1512,58 +1532,37 @@ def discover_platform(
             parsed_base = urlparse(city_url)
             resolved_base = f"{parsed_base.scheme}://{parsed_base.netloc}"
 
-            # Find links to meeting/agenda pages
-            candidates = []
             for link_match in _MEETING_PAGE_RE.finditer(html):
                 href = link_match.group(1)
-                # Skip anchors, javascript, email, external domains
                 if href.startswith(("#", "javascript:", "mailto:")):
                     continue
-                # Make absolute
                 if href.startswith("/"):
                     href = resolved_base + href
                 elif not href.startswith("http"):
                     href = resolved_base + "/" + href
-                # Only keep same-domain links
                 if parsed_base.netloc in href:
-                    candidates.append(href)
+                    s = _score(href)
+                    if s >= 0:
+                        all_candidates.append((s, href, city_url))
 
-            if candidates:
-                # Score candidates — prefer actual meeting pages over podcasts/blogs
-                _NEGATIVE = {"podcast", "blog", "news", "press", "newsletter", "subscribe", "rss"}
-                _POSITIVE = {"agenda", "council-meeting", "public-meeting", "view/council"}
-
-                def _score(url: str) -> int:
-                    lower = url.lower()
-                    if any(neg in lower for neg in _NEGATIVE):
-                        return -10
-                    score = 0
-                    if any(pos in lower for pos in _POSITIVE):
-                        score += 5
-                    if "agenda" in lower:
-                        score += 3
-                    if "calendar" in lower:
-                        score += 1
-                    return score
-
-                candidates.sort(key=_score, reverse=True)
-                best = candidates[0]
-                if _score(best) < 0:
-                    # All candidates are negative (podcasts, etc.) — skip
-                    continue
-
-                logger.info(f"Universal adapter candidate found on {city_url}: {best}")
-                return {
-                    "platform": "universal",
-                    "confidence": 0.50,
-                    "details": {
-                        "url": resolved_base,
-                        "meeting_page_url": best,
-                        "source_page": city_url,
-                    },
-                }
         except Exception:
             continue
+
+    if all_candidates:
+        all_candidates.sort(key=lambda x: x[0], reverse=True)
+        best_score, best_url, source_page = all_candidates[0]
+        parsed_best = urlparse(best_url)
+        resolved_base = f"{parsed_best.scheme}://{parsed_best.netloc}"
+        logger.info(f"Universal adapter candidate: {best_url} (score={best_score}, from {source_page})")
+        return {
+            "platform": "universal",
+            "confidence": 0.50,
+            "details": {
+                "url": resolved_base,
+                "meeting_page_url": best_url,
+                "source_page": source_page,
+            },
+        }
 
     return None
 
