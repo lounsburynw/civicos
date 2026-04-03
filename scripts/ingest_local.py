@@ -317,18 +317,16 @@ def fetch_elections_local(backend, jurisdiction: str) -> dict:
 def _derive_officials_from_elections(backend, jurisdiction: str) -> list:
     """Derive current elected officials from election contest winners.
 
-    Looks at local_council and local_school_board contests from the last
-    4 years (one full term cycle). Winners with isWinner=true in the most
-    recent election for each seat are current officials.
+    Looks at local_council, local_school_board, and county supervisor contests
+    from the last 4 years (one full term cycle). Winners with isWinner=true
+    in the most recent election for each seat are current officials.
     """
     import json as _json
     from datetime import datetime as _dt, timedelta
 
-    # Get contests from the last 4 years
     cutoff = (_dt.now() - timedelta(days=4 * 365)).strftime("%Y-%m-%d")
 
     try:
-        # SQLite backend
         import sqlite3
         db_path = getattr(backend, '_db_path', None) or getattr(backend, 'db_path', None)
         if not db_path:
@@ -377,7 +375,92 @@ def _derive_officials_from_elections(backend, jurisdiction: str) -> list:
                 "term_start": row["election_date"],
             })
 
+    # Also derive county supervisors from Civera county-level data
+    supervisors = _derive_county_supervisors(jurisdiction)
+    for s in supervisors:
+        if s["name"] not in seen:
+            seen.add(s["name"])
+            officials.append(s)
+
     return officials
+
+
+def _derive_county_supervisors(jurisdiction: str) -> list:
+    """Query Civera for county supervisor race winners.
+
+    Reads the county_slug from the extraction config and queries the
+    county registrar's election data for supervisor races.
+    """
+    import json as _json
+
+    config_path = PROJECT_ROOT / "data" / "extraction" / f"{jurisdiction}.json"
+    if not config_path.exists():
+        return []
+
+    with open(config_path) as f:
+        config = _json.load(f)
+
+    election_sources = config.get("election_sources", {})
+    civera = election_sources.get("civera_election_stats", {})
+    county_slug = civera.get("county_slug")
+    graphql_url = civera.get("graphql_url")
+
+    if not county_slug or not graphql_url:
+        return []
+
+    try:
+        from civicos_extraction.clients.civera_election_stats import CiveraElectionStatsClient
+
+        client = CiveraElectionStatsClient(
+            jurisdiction_id=jurisdiction,
+            graphql_url=graphql_url,
+            county_slug=county_slug,
+        )
+
+        # Get recent elections and find supervisor contests
+        elections = client.list_elections(from_year=2020)
+        seen = set()
+        supervisors = []
+
+        for elec in elections:
+            eid = elec.get("id")
+            try:
+                results = client.get_election_results(eid)
+                if not results or not isinstance(results, dict):
+                    continue
+                for contest in results.get("contests", []):
+                    if not isinstance(contest, dict):
+                        continue
+                    office = contest.get("office", {})
+                    office_name = office.get("name", "") if isinstance(office, dict) else str(office)
+                    if "supervisor" not in office_name.lower():
+                        continue
+
+                    for cand in contest.get("candidates", []):
+                        if not cand.get("isWinner"):
+                            continue
+                        name = cand.get("displayName", "").strip()
+                        if not name or name in seen:
+                            continue
+                        seen.add(name)
+
+                        supervisors.append({
+                            "id": f"elected-{jurisdiction}-supervisor-{name.lower().replace(' ', '-')}",
+                            "name": name,
+                            "seat": "County Supervisor",
+                            "jurisdiction_id": jurisdiction,
+                            "source": "civera_election_stats",
+                            "term_start": elec.get("date", "")[:10] if elec.get("date") else None,
+                        })
+            except Exception:
+                continue
+
+        logger.info(f"  County supervisors: {len(supervisors)} from {county_slug} Civera")
+        return supervisors
+
+    except Exception as e:
+        logger.debug(f"  County supervisor derivation failed: {e}")
+        return []
 
 
 def index_vectors_local(backend, vectors, jurisdiction: str) -> dict:
