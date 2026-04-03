@@ -2,20 +2,14 @@
   "source_id": "granicus-city-novato",
   "source_type": "granicus",
   "jurisdiction_id": "city-novato",
-  "state": "CA",
   "base_url": "https://novato.granicus.com",
   "archives": {
-    "multiple": "7"
+    "city_council": "7"
   },
   "metadata": {
     "granicus_domain": "novato",
     "default_view_id": "7",
-    "column_map": {
-      "name": 0,
-      "date": 1,
-      "agenda": 3,
-      "video": 5
-    }
+    "column_map": {"name": 0, "date": 1, "duration": 2, "agenda": 3, "minutes": 4, "video": 5}
   },
   "issue_source": "seeclickfix",
   "election_sources": {
@@ -29,10 +23,17 @@
       "county": "marin",
       "county_breakdown": false,
       "districts": {
-        "us-rep": [2],
-        "state-senate": [2],
-        "state-assembly": [12]
+        "us-rep": [
+          2
+        ],
+        "state-senate": [
+          2
+        ],
+        "state-assembly": [
+          12
+        ]
       }
     }
-  }
+  },
+  "state": "CA"
 }

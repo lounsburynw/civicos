@@ -1,3 +1,51 @@
+## Session — 2026-04-03: Onboarding Hardening + Marin QC
+
+**Item:** Onboarding pipeline hardening (user-directed, pre-token-purchase)
+**Status:** DONE
+
+### What was done
+1. **Diagnosed all 8 Marin cities**: Tested each extraction client directly.
+   - CivicPlus (Corte Madera, Larkspur): WORKS — 8 and 9 meetings
+   - ProudCity (Fairfax, Belvedere): WORKS — 17 and 16 meetings
+   - Granicus (Novato): BROKEN — empty archives, wrong view_id. Fixed: view_id=7 (875 meetings)
+   - Playwright+LLM (Ross): Needs LLM API key — expected limitation
+   - Granicus (Sausalito, Tiburon): Already working
+
+2. **Fixed Novato config**: view_id=7 (was using 1, which returns 404). Added column_map and archives.
+
+3. **Added pre-ingestion probe** (Phase 2.1 in onboard.py):
+   - Fetches 30-day meeting window BEFORE full ingestion
+   - Catches: empty Granicus archives, missing CivicPlus AMIDs, missing LLM API keys
+   - Outputs structured JSON for headless agents
+   - Fails with actionable error messages and remediation hints
+   - Skippable with --force-continue
+
+4. **Re-onboarded all 7 working cities**: Clean ingestion with QC verification.
+
+### QC Results (all PASS)
+| City | Meetings | Agenda | Issues | Elections |
+|------|----------|--------|--------|-----------|
+| Sausalito | 55 | 89% | 2 | 11 |
+| Tiburon | 62 | 100% | 2 | 7 |
+| Novato | 52 | 96% | 10 | 16 |
+| Corte Madera | 24 | 100% | 3 | 13 |
+| Larkspur | 28 | 100% | 0 | 13 |
+| Fairfax | 99 | 100% | 12 | 11 |
+| Belvedere | 51 | 100% | 1 | 10 |
+
+### Robustness pass (second round)
+After self-review identified fragile spots, addressed properly:
+- **Probe rewritten**: Now uses client `validate()` (no throwaway SQLite, no importlib hacks). Config errors block; reachability warnings don't.
+- **Link extraction rewritten**: Replaced hand-rolled HTML parser with Playwright DOM API (`evaluate()` + TreeWalker). Handles display:none, query-string URLs, all link types.
+- **LLM response parsing**: Strips markdown fences, max_tokens=4096 for complete responses.
+- **CivicPlus validate() fix**: Removed `source_id`/`source_type` kwargs that `ValidationResult` doesn't accept.
+- **Ross: 100% agenda coverage** (was 0% → 79% → 100% across iterations).
+
+### Key insight
+The previous session's "FAIL" for CivicPlus/ProudCity/custom was stale — all clients work. Only Novato (wrong view_id) and Ross (needs LLM API key + Playwright) had real issues.
+
+---
+
 ## Session — 2026-04-03: platform_coverage_expansion (P0)
 
 **Item:** platform_coverage_expansion (operator_readiness)

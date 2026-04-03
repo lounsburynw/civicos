@@ -26,6 +26,9 @@ import time
 from datetime import datetime
 from pathlib import Path
 
+from dotenv import load_dotenv
+load_dotenv()
+
 PROJECT_ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(PROJECT_ROOT / "packages" / "civicos-extraction" / "src"))
 sys.path.insert(0, str(PROJECT_ROOT / "packages" / "civicos" / "src"))
@@ -117,7 +120,8 @@ def fetch_meetings_local(backend, jurisdiction: str, days_past: int = 365, days_
         from civicos_extraction.clients.base import Meeting
         page_url = config.metadata.get("meeting_page_url", config.base_url)
         raw_meetings = extract_meetings_from_page(page_url, jurisdiction)
-        # Convert raw dicts to Meeting objects — skip entries with unparseable dates
+        # Convert raw dicts to Meeting objects — skip unparseable dates, dedup by ID
+        seen_ids: set = set()
         meetings = []
         now = datetime.now()
         for m in raw_meetings:
@@ -127,8 +131,12 @@ def fetch_meetings_local(backend, jurisdiction: str, days_past: int = 365, days_
             except (ValueError, TypeError):
                 logger.debug(f"Skipping meeting with unparseable date: {m.get('title', '?')}")
                 continue
+            mid = "playwright-llm-{}-{}".format(jurisdiction, hashlib.sha256((m.get("title", "") + dt_str).encode()).hexdigest()[:12])
+            if mid in seen_ids:
+                continue
+            seen_ids.add(mid)
             meetings.append(Meeting(
-                id="playwright-llm-{}-{}".format(jurisdiction, hashlib.sha256((m.get("title", "") + dt_str).encode()).hexdigest()[:12]),
+                id=mid,
                 title=m.get("title", "Meeting"),
                 meeting_datetime=dt,
                 jurisdiction_id=jurisdiction,

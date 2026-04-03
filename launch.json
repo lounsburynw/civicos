@@ -705,7 +705,7 @@
         "name": "turnkey_onboarding_marin",
         "description": "Apply the complete turnkey onboarding pipeline to one or more new Marin County jurisdictions end-to-end. Assess pipeline reliability, data quality, and friction. Document findings.",
         "status": "done",
-        "priority": 0,
+        "priority": 1,
         "files": [
           "scripts/onboard.py",
           "scripts/generate_registries.py",
