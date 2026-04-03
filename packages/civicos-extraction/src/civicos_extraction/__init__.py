@@ -82,14 +82,11 @@ from civicos_extraction.config import (
     get_hud_grantee,
     get_hud_relationship,
 )
-from civicos_extraction.onboard import (
-    onboard_jurisdiction,
-    detect_issue_source,
-    geocode_city,
-    OnboardResult,
-    CostEstimate,
-    estimate_costs,
-)
+
+# NOTE: civicos_extraction.onboard is NOT imported here.
+# It pulls in civicos_config.paths which requires repo-root discovery
+# (phase.json walk) that fails on Modal containers. Import directly:
+#   from civicos_extraction.onboard import onboard_jurisdiction
 
 __version__ = "0.1.0"
 __all__ = [
