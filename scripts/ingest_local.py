@@ -345,7 +345,9 @@ def _derive_officials_from_elections(backend, jurisdiction: str) -> list:
         """, (cutoff,))
         rows = cur.fetchall()
         conn.close()
-    except Exception:
+        logger.info(f"  Election contests for officials: {len(rows)} local_council/school_board rows")
+    except Exception as e:
+        logger.warning(f"  Election officials query failed: {e}")
         return []
 
     # Deduplicate: keep each person's most recent win
