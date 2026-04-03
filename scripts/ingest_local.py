@@ -18,10 +18,12 @@ vectors alongside it. Same StorageBackend protocol as production Postgres.
 """
 
 import argparse
+import hashlib
 import logging
 import os
 import sys
 import time
+from datetime import datetime
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).parent.parent
@@ -110,6 +112,32 @@ def fetch_meetings_local(backend, jurisdiction: str, days_past: int = 365, days_
         from civicos_extraction.clients.universal import UniversalSource
         source = UniversalSource(config)
         meetings = source.get_meetings(days_ahead=days_ahead, days_past=days_past)
+    elif source_type == "playwright_llm":
+        from civicos_extraction.clients.playwright_llm import extract_meetings_from_page
+        from civicos_extraction.clients.base import Meeting
+        page_url = config.metadata.get("meeting_page_url", config.base_url)
+        raw_meetings = extract_meetings_from_page(page_url, jurisdiction)
+        # Convert raw dicts to Meeting objects
+        meetings = []
+        for m in raw_meetings:
+            dt_str = m.get("date", "")
+            try:
+                dt = datetime.fromisoformat(dt_str)
+            except (ValueError, TypeError):
+                dt = datetime.now()
+            meetings.append(Meeting(
+                id="playwright-llm-{}-{}".format(jurisdiction, hashlib.sha256((m.get("title", "") + dt_str).encode()).hexdigest()[:12]),
+                title=m.get("title", "Meeting"),
+                meeting_datetime=dt,
+                jurisdiction_id=jurisdiction,
+                meeting_type=m.get("meeting_type"),
+                status="completed" if dt < datetime.now() else "scheduled",
+                agenda_url=m.get("agenda_url"),
+                minutes_url=m.get("minutes_url"),
+                video_url=m.get("video_url"),
+                source_platform="playwright_llm",
+                source_url=page_url,
+            ))
     else:
         logger.warning(f"Unsupported source_type: {source_type}")
         return {"meetings_fetched": 0, "meetings_stored": 0}
