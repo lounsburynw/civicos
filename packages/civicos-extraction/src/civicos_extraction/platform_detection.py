@@ -1261,7 +1261,12 @@ def discover_platform(
         f"https://townof{slug}ca.gov" if state and state.lower() == "ca" else None,
     ]
     if state:
-        city_urls.append(f"https://{slug}.{state.lower()}.gov")
+        st = state.lower()
+        city_urls.append(f"https://{slug}.{st}.gov")
+        # Common state-suffix patterns: ashevillenc.gov, boulderco.gov
+        city_urls.append(f"https://www.{slug}{st}.gov")
+        city_urls.append(f"https://www.{slug}{st}.org")
+        city_urls.append(f"https://www.cityof{slug}{st}.gov")
     if hyphenated != slug:
         city_urls.extend([
             f"https://www.cityof{hyphenated}.org",
@@ -1308,6 +1313,37 @@ def discover_platform(
                     "confidence": pc_confidence,
                     "details": {"url": city_url, **pc_meta},
                 }
+
+            # Check for non-ProudCity WordPress sites with meeting API.
+            # Many cities use WordPress (not ProudCity) and expose meetings
+            # via the WP REST API at /wp-json/wp/v2/meetings.
+            if "wp-content" in html or "wordpress" in html.lower():
+                parsed_wp = urlparse(resp_url)
+                wp_base = f"{parsed_wp.scheme}://{parsed_wp.netloc}"
+                try:
+                    wp_resp = requests.get(
+                        f"{wp_base}/wp-json/wp/v2/meetings?per_page=1",
+                        timeout=timeout,
+                        headers={"User-Agent": "CivicOS-Extraction/1.0"},
+                    )
+                    if wp_resp.status_code == 200:
+                        wp_total = int(wp_resp.headers.get("X-WP-Total", 0))
+                        if wp_total > 0:
+                            logger.info(f"WordPress meetings API found on {city_url}: {wp_total} meetings")
+                            return {
+                                "platform": "proudcity",
+                                "confidence": 0.75,
+                                "details": {
+                                    "url": wp_base,
+                                    "meetings_url": f"{wp_base}/wp-json/wp/v2/meetings",
+                                    "discovered_meeting_types": ["meetings"],
+                                    "meeting_type_count": 1,
+                                    "wp_api": True,
+                                    "wp_total": wp_total,
+                                },
+                            }
+                except Exception:
+                    pass
 
             # Scan page HTML for platform links
             for platform, pattern in _PLATFORM_PATTERNS.items():

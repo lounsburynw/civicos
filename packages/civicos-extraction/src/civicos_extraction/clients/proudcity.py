@@ -1004,13 +1004,22 @@ class ProudCityClient(BaseExtractor):
         slug = event.get('meeting_slug', 'unknown')
         meeting_id = f"meeting:{self.jurisdiction_id}:proudcity:{slug}"
 
+        # Determine status from date
+        dt = meeting_datetime or datetime.now()
+        if "cancel" in event.get('title', '').lower():
+            status = "cancelled"
+        elif dt < datetime.now():
+            status = "completed"
+        else:
+            status = "scheduled"
+
         return Meeting(
             id=meeting_id,
             title=event.get('title', 'Meeting'),
-            meeting_datetime=meeting_datetime or datetime.now(),
+            meeting_datetime=dt,
             jurisdiction_id=self.jurisdiction_id,
             meeting_type=event.get('meeting_type'),
-            status="scheduled",
+            status=status,
             agenda_url=event.get('agenda_url') or event.get('meeting_url'),
             minutes_url=event.get('minutes_url'),
             source_platform="proudcity",
