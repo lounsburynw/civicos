@@ -1,3 +1,49 @@
+## Session — 2026-04-03: platform_coverage_expansion (P0)
+
+**Item:** platform_coverage_expansion (operator_readiness)
+**Status:** DONE
+
+### What was done
+1. Created CivicPlus extraction client (`clients/civicplus.py`)
+   - Scrapes Archive.aspx?AMID=N pages to extract meetings
+   - Handles multiple date formats (spelled out, numeric, compact MMDDYYYY)
+   - Groups agendas + minutes from separate AMIDs by date
+   - Registered in factory.py, __init__.py, SUPPORTED_MEETING_SOURCES
+
+2. Added CivicPlus detection to platform_detection.py
+   - Detects Archive.aspx links on city websites (step 6)
+   - Falls back to CivicPlus brand name detection + Archive.aspx probe
+   - _discover_civicplus() in onboard.py probes AMIDs, classifies by title, filters non-meeting archives
+
+3. Wired universal adapter as detection fallback (step 7 in discover_platform)
+   - When no known platform found, scans city website for meeting/agenda links
+   - Returns candidate meeting page URL for universal adapter config generation
+
+4. Expanded 311 provider discovery
+   - Added GOGov/FixItMarin detection (no API available — detection only)
+   - FixItMarin only serves unincorporated Marin County, not individual cities
+
+5. Wired CivicPlus + universal into both local and Modal ingestion pipelines
+
+### Batch test results (5 previously-failing cities)
+- Corte Madera: FAIL → PASS (CivicPlus, 63 meetings, 10 bodies)
+- Larkspur: FAIL → PASS (CivicPlus, 28 meetings)
+- Fairfax: unsupported → detected as ProudCity (empty archives — ProudCity discovery issue)
+- Belvedere: unsupported → detected as universal (LLM config gen failed)
+- Ross: unsupported → still blocked (anti-bot protection needs Playwright)
+
+### Files changed
+- NEW: packages/civicos-extraction/src/civicos_extraction/clients/civicplus.py
+- packages/civicos-extraction/src/civicos_extraction/clients/factory.py
+- packages/civicos-extraction/src/civicos_extraction/clients/__init__.py
+- packages/civicos-extraction/src/civicos_extraction/platform_detection.py
+- packages/civicos-extraction/src/civicos_extraction/onboard.py
+- scripts/ingest_local.py
+- scripts/modal_ingest.py
+- launch.json
+
+---
+
 ## Session — 2026-04-02: registry_pr_workflow (P0)
 
 **Item:** registry_pr_workflow (operator_readiness)

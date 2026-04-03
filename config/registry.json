@@ -166,6 +166,46 @@
         "state-california",
         "country-united-states"
       ]
+    },
+    "city-sausalito": {
+      "domain": "sausalito.civicosproject.org",
+      "display_name": "Sausalito",
+      "modal_app_name": "civicos-sausalito",
+      "parent_jurisdictions": [
+        "county-marin",
+        "state-california",
+        "country-united-states"
+      ]
+    },
+    "city-tiburon": {
+      "domain": "tiburon.civicosproject.org",
+      "display_name": "Tiburon",
+      "modal_app_name": "civicos-tiburon",
+      "parent_jurisdictions": [
+        "county-marin",
+        "state-california",
+        "country-united-states"
+      ]
+    },
+    "city-corte-madera": {
+      "domain": "corte-madera.civicosproject.org",
+      "display_name": "Corte Madera",
+      "modal_app_name": "civicos-corte-madera",
+      "parent_jurisdictions": [
+        "county-marin",
+        "state-california",
+        "country-united-states"
+      ]
+    },
+    "city-larkspur": {
+      "domain": "larkspur.civicosproject.org",
+      "display_name": "Larkspur",
+      "modal_app_name": "civicos-larkspur",
+      "parent_jurisdictions": [
+        "county-marin",
+        "state-california",
+        "country-united-states"
+      ]
     }
   },
   "relay": {

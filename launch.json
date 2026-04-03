@@ -661,7 +661,7 @@
         "name": "token_purchase_ui",
         "description": "Token purchase flow in extension: Stripe checkout -> blinded tokens, and (future) Lightning -> blinded tokens.",
         "status": "not_started",
-        "priority": 3,
+        "priority": 0,
         "source": "docs/internal/relay-acceptance-policy-spec.md (Phase 4)",
         "files": [
           "apps/civicos-extension/src/"
@@ -806,8 +806,8 @@
       },
       {
         "name": "platform_coverage_expansion",
-        "status": "not_started",
-        "priority": 0,
+        "status": "done",
+        "priority": 2,
         "description": "Add CivicPlus extraction client, wire universal adapter as detection fallback for custom sites, expand 311 provider discovery beyond SeeClickFix (FixItMarin, etc.)",
         "test_file": null
       }

@@ -521,6 +521,166 @@ def _discover_proudcity(url: str, jurisdiction_id: str) -> Dict[str, Any]:
     }
 
 
+def _discover_civicplus(
+    url: str, jurisdiction_id: str, details: Optional[Dict[str, Any]] = None
+) -> Dict[str, Any]:
+    """Run CivicPlus-specific discovery.
+
+    Probes Archive.aspx pages to find which AMIDs contain meeting agendas
+    vs. minutes, and builds an extraction config.
+    """
+    import requests as _req
+
+    base_url = url.rstrip("/")
+    details = details or {}
+    discovered_amids = details.get("discovered_amids", [])
+
+    # If no AMIDs from detection, probe common ones (1-80)
+    if not discovered_amids:
+        session = _req.Session()
+        session.headers["User-Agent"] = "CivicOS-Extraction/1.0"
+        for amid in range(1, 81):
+            try:
+                resp = session.get(
+                    f"{base_url}/Archive.aspx?AMID={amid}",
+                    timeout=8,
+                    allow_redirects=True,
+                )
+                if resp.status_code == 200 and "ADID=" in resp.text:
+                    discovered_amids.append(str(amid))
+            except Exception:
+                continue
+
+    # For each AMID, fetch the page and determine body name + document type
+    archives: Dict[str, str] = {}
+    minutes_archives: Dict[str, str] = {}
+    session = _req.Session()
+    session.headers["User-Agent"] = "CivicOS-Extraction/1.0"
+
+    for amid in discovered_amids:
+        try:
+            resp = session.get(
+                f"{base_url}/Archive.aspx?AMID={amid}",
+                timeout=10,
+                allow_redirects=True,
+            )
+            if resp.status_code != 200 or "ADID=" not in resp.text:
+                continue
+
+            html = resp.text
+            # Extract archive title from the bold span
+            title_match = re.search(
+                r'<span[^>]*style="font-weight:\s*bold[^"]*"[^>]*class="archive"[^>]*>\s*\n?\s*(.+?)\s*\n?\s*</span>',
+                html,
+                re.IGNORECASE,
+            )
+            if not title_match:
+                # Try alternative: bold text in the archive header area
+                title_match = re.search(
+                    r'class="archive">\s*\n\s*([A-Z][^<\n]{3,60})\s*\n',
+                    html,
+                )
+
+            title = title_match.group(1).strip() if title_match else f"Archive {amid}"
+
+            # Count entries to gauge quality
+            entry_count = len(re.findall(r"ADID=\d+", html))
+
+            # Classify: is this a meeting-body archive or non-meeting content?
+            title_lower = title.lower()
+
+            # Skip non-meeting archives
+            _SKIP_KEYWORDS = {
+                "newsletter", "permit", "certificate", "budget",
+                "financial", "audit", "resolution", "ordinance",
+                "proclamation", "weather", "sales_tax", "revenue",
+                "expenditure", "update", "calendar_item",
+                "housing_element", "elevation",
+            }
+            if any(kw in title_lower.replace(" ", "_") for kw in _SKIP_KEYWORDS):
+                logger.debug(f"Skipping non-meeting archive AMID={amid}: '{title}'")
+                continue
+
+            slug = re.sub(r"[^a-z0-9]+", "_", title_lower).strip("_")
+            # Remove suffix words to get body slug
+            body_slug = re.sub(
+                r"_(agendas?|agenda_packets?|minutes|correspondence|notices|packets?"
+                r"|post_agenda_publication_documentation.*|received_after_agenda_publication)$",
+                "", slug,
+            )
+
+            if "minute" in title_lower:
+                minutes_archives[body_slug] = amid
+            elif "correspondence" in title_lower or "late_correspondence" in title_lower:
+                # Skip correspondence archives — not meetings
+                logger.debug(f"Skipping correspondence archive AMID={amid}: '{title}'")
+                continue
+            elif "agenda" in title_lower or "packet" in title_lower:
+                archives[body_slug] = amid
+            elif any(
+                body_word in title_lower
+                for body_word in [
+                    "council", "commission", "committee", "board",
+                    "fire", "public", "meeting",
+                ]
+            ):
+                # Meeting body without "agenda" in name — include it
+                archives[body_slug] = amid
+            else:
+                logger.debug(f"Skipping unclassified archive AMID={amid}: '{title}'")
+                continue
+
+            logger.info(f"CivicPlus AMID={amid}: '{title}' ({entry_count} entries) -> {body_slug}")
+            time.sleep(0.3)
+
+        except Exception as e:
+            logger.debug(f"CivicPlus AMID={amid} probe failed: {e}")
+
+    config = {
+        "source_id": f"civicplus-{jurisdiction_id}",
+        "source_type": "civicplus",
+        "jurisdiction_id": jurisdiction_id,
+        "base_url": base_url,
+        "archives": archives,
+        "metadata": {
+            "minutes_archives": minutes_archives,
+            "discovered_amids": discovered_amids,
+        },
+    }
+
+    return {
+        "config": config,
+        "discovered_bodies": archives,
+    }
+
+
+def _discover_universal(url: str, jurisdiction_id: str) -> Dict[str, Any]:
+    """Run universal adapter discovery.
+
+    Uses LLM-generated CSS selectors to build an extraction config for
+    sites that don't match any known platform.
+    """
+    from civicos_extraction.clients.universal_config import generate_adapter_config
+
+    adapter_config = generate_adapter_config(url)
+
+    config = {
+        "source_id": f"universal-{jurisdiction_id}",
+        "source_type": "universal",
+        "jurisdiction_id": jurisdiction_id,
+        "base_url": url,
+        "archives": {},
+        "metadata": {
+            "adapter": adapter_config,
+        },
+    }
+
+    return {
+        "config": config,
+        "discovered_bodies": {},
+    }
+
+
 def detect_issue_source(city_name: str, jurisdiction_id: str) -> Optional[str]:
     """Probe known 311/issue APIs to detect which provider a city uses.
 
@@ -552,7 +712,21 @@ def detect_issue_source(city_name: str, jurisdiction_id: str) -> Optional[str]:
     except Exception as e:
         logger.debug(f"SeeClickFix probe failed for '{city_name}': {e}")
 
-    # --- Future providers (FixItMarin, QAlert, etc.) go here ---
+    # --- GOGov / FixItMarin probe ---
+    # GOGov (gogovapps.com) powers FixItMarin for unincorporated Marin County.
+    # No public API exists, so we can only detect it — not fetch issues.
+    # Detection is URL-based: check if the county has a GOGov app.
+    _GOGOV_COUNTIES = {
+        # county_slug -> app_id (from Google Play package names)
+        "marin": "marincountyca",
+    }
+    county_slug = jurisdiction_id.split("-")[-1] if jurisdiction_id.startswith("county-") else None
+    if county_slug and county_slug in _GOGOV_COUNTIES:
+        logger.info(
+            f"GOGov (FixItMarin) detected for '{city_name}' — "
+            "no public API available for issue fetching"
+        )
+        return "gogov"
 
     logger.info(f"No issue provider detected for '{city_name}'")
     return None
@@ -1987,6 +2161,10 @@ def onboard_jurisdiction(
                 url = details.get("board_url", "")
             elif platform == "proudcity":
                 url = details.get("url", "")
+            elif platform == "civicplus":
+                url = details.get("url", "")
+            elif platform == "universal":
+                url = details.get("meeting_page_url") or details.get("url", "")
         else:
             return OnboardResult(
                 success=False,
@@ -2099,6 +2277,16 @@ def onboard_jurisdiction(
                 discovery_result = _discover_proudcity(url, jurisdiction_id)
             except Exception as e:
                 errors.append(f"ProudCity discovery failed: {e}")
+        elif platform == "civicplus":
+            try:
+                discovery_result = _discover_civicplus(url, jurisdiction_id, details)
+            except Exception as e:
+                errors.append(f"CivicPlus discovery failed: {e}")
+        elif platform == "universal":
+            try:
+                discovery_result = _discover_universal(url, jurisdiction_id)
+            except Exception as e:
+                errors.append(f"Universal adapter discovery failed: {e}")
 
         if not discovery_result:
             return OnboardResult(
@@ -2119,7 +2307,7 @@ def onboard_jurisdiction(
                 detection=detection_dict,
                 errors=[
                     f"No platform detected (confidence: {detection.confidence:.0%}). "
-                    "Supported platforms: granicus, legistar, civicclerk, escribe, simbli, boarddocs, proudcity."
+                    "Supported platforms: granicus, legistar, civicclerk, escribe, simbli, boarddocs, proudcity, civicplus."
                 ],
                 next_steps=[
                     "Check that the URL is correct",
@@ -2138,6 +2326,10 @@ def onboard_jurisdiction(
                 discovery_result = _discover_boarddocs(url, jurisdiction_id)
             elif detection.source_type == "proudcity":
                 discovery_result = _discover_proudcity(url, jurisdiction_id)
+            elif detection.source_type == "civicplus":
+                discovery_result = _discover_civicplus(url, jurisdiction_id)
+            elif detection.source_type == "universal":
+                discovery_result = _discover_universal(url, jurisdiction_id)
             else:
                 discovery_result = {
                     "config": {

@@ -93,6 +93,19 @@ def fetch_meetings_local(backend, jurisdiction: str, days_past: int = 365, days_
             jurisdiction_id=jurisdiction,
         )
         meetings = client.get_meetings(days_ahead=days_ahead, days_past=days_past)
+    elif source_type == "civicplus":
+        from civicos_extraction.clients.civicplus import CivicPlusClient
+        client = CivicPlusClient(
+            base_url=config.base_url,
+            jurisdiction_id=jurisdiction,
+            archives=config.archives or {},
+            minutes_archives=config.metadata.get("minutes_archives", {}),
+        )
+        meetings = client.get_meetings(days_ahead=days_ahead, days_past=days_past)
+    elif source_type == "universal":
+        from civicos_extraction.clients.universal import UniversalSource
+        source = UniversalSource(config)
+        meetings = source.get_meetings(days_ahead=days_ahead, days_past=days_past)
     else:
         logger.warning(f"Unsupported source_type: {source_type}")
         return {"meetings_fetched": 0, "meetings_stored": 0}

@@ -46,6 +46,9 @@ def create_source(config):
         app_path = config.metadata.get("app_path", "")
         committee_id = config.metadata.get("committee_id")
         return BoardDocsClient(app_path, config.jurisdiction_id, committee_id=committee_id)
+    elif source_type == "civicplus":
+        from civicos_extraction.clients.civicplus import CivicPlusSource
+        return CivicPlusSource(config)
     elif source_type == "universal":
         from civicos_extraction.clients.universal import UniversalSource
         return UniversalSource(config)
