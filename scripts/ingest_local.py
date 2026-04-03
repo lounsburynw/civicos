@@ -134,6 +134,19 @@ def fetch_issues_local(backend, jurisdiction: str, max_pages: int = 50) -> dict:
     issue_source = config.issue_source or "seeclickfix"
     logger.info(f"[ISSUES] Fetching from {issue_source} for {jurisdiction}")
 
+    if issue_source == "gogov":
+        from civicos_extraction.clients.gogov import GoGovClient
+        client = GoGovClient(jurisdiction_id=jurisdiction)
+        issues = client.get_issues(max_results=500)
+        if issues:
+            store_result = backend.store_issues(jurisdiction, issues)
+            stored = int(store_result)
+            logger.info(f"Stored {stored} GOGov issues")
+            client.close()
+            return {"issues_fetched": len(issues), "issues_stored": stored}
+        client.close()
+        return {"issues_fetched": 0, "issues_stored": 0}
+
     if issue_source != "seeclickfix":
         logger.warning(f"Issue source '{issue_source}' not yet supported locally")
         return {"issues_fetched": 0, "issues_stored": 0}
