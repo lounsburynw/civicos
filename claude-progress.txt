@@ -25,20 +25,53 @@
 
 5. Wired CivicPlus + universal into both local and Modal ingestion pipelines
 
-### Batch test results — ALL 5 previously-failing cities now PASS
-- Corte Madera: FAIL → PASS (CivicPlus, 63 meetings, 10 bodies)
-- Larkspur: FAIL → PASS (CivicPlus, 28 meetings)
-- Fairfax: FAIL → PASS (ProudCity WP REST API fallback, 99 meetings, 12+ bodies)
-- Belvedere: FAIL → PASS (ProudCity WP REST API fallback, 51 meetings, 7 bodies)
-- Ross: FAIL → PASS (Universal adapter + curl fallback, 2 meetings)
+### Session scope: 28 commits, 3600+ lines across 35 files
 
-### Robustness fixes (second commit)
-- ProudCity: WP REST API fallback when HTML scraping fails (non-standard archive paths, redirects)
-- ProudCity: Fixed redirect domain handling in discover_meeting_types()
-- ProudCity: Pass archives from config to client in all ingestion pipelines
-- Platform detection: curl subprocess fallback for bot-protected sites
-- Universal adapter: curl subprocess fallback for config generation
-- Universal adapter: exempt from "no meeting bodies" check (uses metadata.adapter)
+### New platforms (3)
+- CivicPlus client (Corte Madera, Larkspur — Archive.aspx scraper)
+- WP REST API for WordPress sites (Fairfax, Belvedere, Asheville NC)
+- Playwright+LLM direct extraction for unknown sites (Ross, Reno NV)
+
+### Robustness
+- Escalating fetch: requests → curl → Playwright stealth (headless, runs on Modal)
+- Stale Legistar skip (Chicago: 1017 days stale → falls through to universal)
+- CivicPlus false positive guard (probes AMIDs, not just brand name)
+- Separator-agnostic body name extraction (strips date from title)
+- URL scoring (rejects podcasts, prefers agendas, scans all city URLs)
+
+### QC pipeline (new)
+- Deterministic status check (future=completed, past=scheduled)
+- LLM content review (samples 5 meetings, validates quality via Gemini Flash)
+- Web-verified officials (DuckDuckGo search → LLM comparison)
+- Rich inline metrics in trial output (agenda%, bodies, date range)
+- Body count uses meeting_type not title
+
+### Officials (new — fully automated)
+- Council/school board derived from election winners (isWinner in Civera)
+- County supervisors derived from county-level Civera races
+- Federal reps from Congress.gov API
+- State legislators from LegiScan (committee filter + Senate match fixed)
+- Mayor/Vice Mayor via headless Claude (WebSearch step in prompt)
+
+### 311 expansion
+- GOGov client skeleton (ready for credentials)
+- gogov_instances.json config file
+
+### Critic fixes (final commit)
+- Jurisdiction: WHERE e.jurisdiction_id = ? in officials derivation
+- Architecture: civicos_extraction/llm.py centralizes cross-layer import
+- Cron: civicplus/universal/legistar/civicclerk/escribe in refresh dispatch
+- Datetime: tz-aware comparisons, meeting_type=body slug not "cancelled"
+- Config: GOGOV_COUNTIES → JSON file, null issue_source skips gracefully
+
+### Tested cities (15 across 7 states)
+- Marin 9/9: San Rafael, Sausalito, Tiburon, Novato, Corte Madera, Larkspur, Fairfax, Belvedere, Ross
+- Non-CA: Asheville NC (302), Park City UT (15), Chicago IL (5), Reno NV (9)
+- Detected: Portland OR, Taos NM, Sedona AZ
+
+### Remaining action
+- Re-onboard all 8 Marin cities with final code (officials + QC enrichment)
+- LLM date reasoning rule documented in CLAUDE.md + data critic #11
 
 ### Files changed
 - NEW: packages/civicos-extraction/src/civicos_extraction/clients/civicplus.py
