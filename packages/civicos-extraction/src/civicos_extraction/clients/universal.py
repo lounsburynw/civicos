@@ -77,28 +77,53 @@ class UniversalExtractor(BaseExtractor):
         self._last_request_time = time.time()
 
     def _fetch_page(self, url: str, timeout: int = 30) -> str:
-        """Fetch a page, using Playwright if JavaScript is required."""
+        """Fetch a page with escalating fallbacks for bot-protected sites."""
         if self.adapter.get("requires_javascript", False):
             return self._fetch_with_playwright(url)
 
         self._rate_limit()
-        response = self._session.get(url, timeout=timeout)
-        response.raise_for_status()
-        return response.text
+        # Try requests first
+        try:
+            response = self._session.get(url, timeout=timeout)
+            if response.status_code == 200:
+                return response.text
+        except Exception:
+            pass
+
+        # Curl fallback
+        import subprocess
+        try:
+            result = subprocess.run(
+                ["curl", "-sL", "--max-time", str(timeout), url,
+                 "-H", "User-Agent: CivicOS-UniversalAdapter/1.0"],
+                capture_output=True, text=True, timeout=timeout + 5,
+            )
+            if result.returncode == 0 and len(result.stdout) > 500:
+                if "Access Denied" not in result.stdout[:500]:
+                    return result.stdout
+        except (subprocess.TimeoutExpired, FileNotFoundError):
+            pass
+
+        # Playwright stealth fallback
+        return self._fetch_with_playwright(url)
 
     def _fetch_with_playwright(self, url: str) -> str:
-        """Fetch page using Playwright for JS-rendered content."""
+        """Fetch page using Playwright with stealth for bot-protected sites."""
         try:
             from playwright.sync_api import sync_playwright
+            from playwright_stealth import Stealth
         except ImportError:
             raise ImportError(
-                "Playwright required for JS-heavy pages. "
-                "Install with: pip install playwright && playwright install chromium"
+                "Playwright required for bot-protected pages. "
+                "Install with: pip install playwright playwright-stealth && playwright install chromium"
             )
 
+        stealth = Stealth()
         with sync_playwright() as p:
+            stealth.hook_playwright_context(p)
             browser = p.chromium.launch(headless=True)
             page = browser.new_page()
+            stealth.apply_stealth_sync(page)
             page.goto(url, wait_until="networkidle", timeout=30000)
             content = page.content()
             browser.close()

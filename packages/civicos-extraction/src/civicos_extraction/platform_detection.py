@@ -1507,12 +1507,28 @@ def discover_platform(
                     candidates.append(href)
 
             if candidates:
-                # Prefer URLs with "agenda" or "meeting" in them
+                # Score candidates — prefer actual meeting pages over podcasts/blogs
+                _NEGATIVE = {"podcast", "blog", "news", "press", "newsletter", "subscribe", "rss"}
+                _POSITIVE = {"agenda", "council-meeting", "public-meeting", "view/council"}
+
+                def _score(url: str) -> int:
+                    lower = url.lower()
+                    if any(neg in lower for neg in _NEGATIVE):
+                        return -10
+                    score = 0
+                    if any(pos in lower for pos in _POSITIVE):
+                        score += 5
+                    if "agenda" in lower:
+                        score += 3
+                    if "calendar" in lower:
+                        score += 1
+                    return score
+
+                candidates.sort(key=_score, reverse=True)
                 best = candidates[0]
-                for c in candidates:
-                    if "agenda" in c.lower():
-                        best = c
-                        break
+                if _score(best) < 0:
+                    # All candidates are negative (podcasts, etc.) — skip
+                    continue
 
                 logger.info(f"Universal adapter candidate found on {city_url}: {best}")
                 return {
