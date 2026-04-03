@@ -563,7 +563,15 @@ def main():
                         help="Remove all data + configs for a jurisdiction (e.g., --cleanup city-austin)")
     parser.add_argument("--sandbox", action="store_true",
                         help="Ingest to local SQLite instead of production Postgres (no Modal required)")
+    parser.add_argument("--trial", action="store_true",
+                        help="Full sandbox trial: configs → registry → ingest (meetings+issues+elections) → QC. "
+                             "No production changes. Outputs structured JSON summary.")
     args = parser.parse_args()
+
+    # --trial implies sandbox + no-validate + skip the Modal validation gate
+    if args.trial:
+        args.sandbox = True
+        args.no_validate = True
 
     # Cleanup mode: --cleanup city-austin
     if args.cleanup:
@@ -1103,13 +1111,73 @@ def main():
 
     if args.sandbox:
         db_path = PROJECT_ROOT / "data" / f"sandbox_{jid}.sqlite"
+
+        # --trial: also run elections, registries, and QC
+        if args.trial:
+            # Elections are already included via --all in ingest_local.py
+            # Registry generation
+            print(f"\n[Phase 3c] Registry generation...")
+            reg_cmd = [sys.executable, str(PROJECT_ROOT / "scripts" / "generate_registries.py")]
+            subprocess.run(reg_cmd, capture_output=True)
+            print(f"  Registry updated.")
+
+            # QC
+            print(f"\n[Phase 4] Quality check...")
+            qc_cmd = [
+                sys.executable, str(PROJECT_ROOT / "scripts" / "qc_sandbox.py"),
+                "--jurisdiction", jid, "--json",
+                "--db", str(db_path),
+            ]
+            qc_result = subprocess.run(qc_cmd, capture_output=True, text=True)
+            try:
+                qc_data = json.loads(qc_result.stdout)
+                qc_pass = qc_data.get("pass", False)
+
+                # Print human-readable summary
+                print(f"\n  {'PASS' if qc_pass else 'FAIL'}: {jid}")
+                for name, corpus in qc_data.get("corpora", {}).items():
+                    count = corpus.get("count", 0)
+                    status = "ok" if corpus.get("pass") else "FAIL"
+                    print(f"    {name:20s} {count:>6d}  [{status}]")
+
+                if qc_data.get("warnings"):
+                    print(f"\n  Warnings:")
+                    for w in qc_data["warnings"]:
+                        print(f"    - {w}")
+
+                if qc_data.get("errors"):
+                    print(f"\n  Errors:")
+                    for e in qc_data["errors"]:
+                        print(f"    - {e}")
+
+                # Print JSON for headless consumption
+                print(f"\n[TRIAL_RESULT_JSON]")
+                trial_result = {
+                    "jurisdiction": jid,
+                    "trial": True,
+                    "pass": qc_pass,
+                    "database": str(db_path),
+                    "elapsed_seconds": round(time.time() - start_time, 1),
+                    "qc": qc_data,
+                }
+                print(json.dumps(trial_result))
+
+            except (json.JSONDecodeError, Exception) as e:
+                print(f"  QC output: {qc_result.stdout[:500]}")
+                print(f"  QC error: {e}")
+
+            print(f"\n  To clean up: python scripts/onboard.py --cleanup {jid}")
+            sys.exit(0 if qc_pass else 1)
+
+        # Regular sandbox (no --trial)
         print(f"\n  [SANDBOX] Data stored in local SQLite: {db_path}")
         print(f"  [SANDBOX] Production Postgres was NOT modified.")
         try:
             import sqlite3
             conn = sqlite3.connect(str(db_path))
             cur = conn.cursor()
-            for table in ["meetings", "chunks", "issues", "agenda_items", "decisions"]:
+            for table in ["meetings", "chunks", "issues", "agenda_items", "decisions",
+                          "elections", "election_contests", "elected_officials"]:
                 try:
                     cur.execute(f"SELECT COUNT(*) FROM {table}")
                     count = cur.fetchone()[0]
@@ -1121,7 +1189,6 @@ def main():
         except Exception as e:
             print(f"  Could not read sandbox: {e}")
         print(f"\n  To clean up: python scripts/ingest_local.py --cleanup {jid}")
-        # Also clean up generated configs since this was a test
         print(f"  To also remove configs: python scripts/onboard.py --cleanup {jid}")
         sys.exit(0)
 
