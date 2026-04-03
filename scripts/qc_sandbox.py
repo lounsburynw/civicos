@@ -389,13 +389,36 @@ def _llm_content_review(db_path: str, jurisdiction: str) -> dict:
     if not rows:
         return {}
 
-    # Format records for the prompt
+    # Format records for the prompt.
+    # Pre-compute relative date labels so the LLM doesn't need to reason
+    # about what year it is. Models hallucinate that 2026 is "the future"
+    # even when told today's date.
+    from datetime import datetime as _dt, timezone as _tz
+    _now = _dt.now(_tz.utc)
+
     records = []
     for r in rows:
+        # Compute relative label
+        dt_str = r["meeting_datetime"] or ""
+        relative = ""
+        try:
+            dt = _dt.fromisoformat(dt_str)
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=_tz.utc)
+            delta = (_now - dt).days
+            if delta > 0:
+                relative = f" ({delta} days ago)"
+            elif delta < 0:
+                relative = f" ({-delta} days from now)"
+            else:
+                relative = " (today)"
+        except (ValueError, TypeError):
+            pass
+
         records.append(
             f"- id={r['id']}\n"
             f"  title={r['title']}\n"
-            f"  meeting_datetime={r['meeting_datetime']}\n"
+            f"  meeting_datetime={dt_str}{relative}\n"
             f"  jurisdiction_id={r['jurisdiction_id']}\n"
             f"  meeting_type={r['meeting_type']}\n"
             f"  status={r['status']}\n"
