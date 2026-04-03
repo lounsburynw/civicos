@@ -1214,12 +1214,52 @@ def main():
                 qc_data = json.loads(qc_result.stdout)
                 qc_pass = qc_data.get("pass", False)
 
-                # Print human-readable summary
+                # Print human-readable summary with quality metrics
                 print(f"\n  {'PASS' if qc_pass else 'FAIL'}: {jid}")
+
                 for name, corpus in qc_data.get("corpora", {}).items():
                     count = corpus.get("count", 0)
                     status = "ok" if corpus.get("pass") else "FAIL"
-                    print(f"    {name:20s} {count:>6d}  [{status}]")
+                    details = corpus.get("details", {})
+
+                    # Build inline quality metrics
+                    metrics = []
+                    if name == "meetings" and count > 0:
+                        dr = details.get("date_range", [])
+                        if dr and len(dr) == 2 and dr[0] and dr[1]:
+                            metrics.append(f"{dr[0][:10]}..{dr[1][:10]}")
+                        ac = details.get("agenda_coverage")
+                        if ac is not None:
+                            metrics.append(f"agenda {ac:.0f}%")
+                        vc = details.get("video_coverage")
+                        if vc is not None and vc > 0:
+                            metrics.append(f"video {vc:.0f}%")
+                        types = details.get("types", {})
+                        if types:
+                            metrics.append(f"{len(types)} bodies")
+                    elif name == "issues" and count > 0:
+                        dr = details.get("date_range", [])
+                        if dr and len(dr) == 2 and dr[0]:
+                            metrics.append(f"since {dr[0][:10]}")
+                        statuses = details.get("statuses", {})
+                        if statuses:
+                            metrics.append(" ".join(f"{v} {k}" for k, v in statuses.items()))
+                    elif name == "elections" and count > 0:
+                        dr = details.get("date_range", [])
+                        if dr and len(dr) == 2:
+                            metrics.append(f"{dr[0]}..{dr[1]}")
+                        sources = details.get("sources", {})
+                        if sources:
+                            metrics.append(", ".join(sources.keys()))
+
+                    metric_str = f"  ({', '.join(metrics)})" if metrics else ""
+                    print(f"    {name:20s} {count:>6d}  [{status}]{metric_str}")
+
+                # LLM review summary (one line)
+                llm = qc_data.get("llm_review", {})
+                if llm and llm.get("summary"):
+                    llm_status = "pass" if llm.get("pass") else "FAIL"
+                    print(f"    {'llm_review':20s}        [{llm_status}]  {llm['summary']}")
 
                 if qc_data.get("warnings"):
                     print(f"\n  Warnings:")
