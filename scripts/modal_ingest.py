@@ -4301,13 +4301,16 @@ def fetch_boarddocs_meetings(
 # Simbli School Board Meetings (Playwright-based)
 # =============================================================================
 
-# Simbli uses Incapsula WAF — requires Playwright + Chromium (separate image)
+# Playwright image for bot-protected sites (Simbli, CivicPlus, universal adapter).
+# Includes playwright-stealth for Cloudflare JS challenge bypass in headless mode.
+# Separate from civic_image because Chromium adds ~300MB.
 simbli_image = (
     modal.Image.debian_slim(python_version="3.11")
     .apt_install("libpq-dev", "gcc")
     .pip_install(
         "psycopg2-binary>=2.9.0",
         "playwright>=1.40.0",
+        "playwright-stealth>=1.0.0",
         "python-dotenv>=1.0.0",
     )
     .run_commands("playwright install --with-deps chromium")

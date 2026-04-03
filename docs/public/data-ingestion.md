@@ -89,6 +89,17 @@ Add these to both `.env` (local) and Modal secrets (`modal secret create civicos
 
 **Minimum for testing:** No API keys needed. Platform detection and Tier 1 ingestion (meetings, PDFs, issues) work without any keys. You'll get warnings about missing keys but the pipeline continues.
 
+### Browser automation (optional)
+
+Some city websites block programmatic access (Cloudflare, Incapsula). For these, install Playwright:
+
+```bash
+pip install playwright playwright-stealth
+playwright install chromium
+```
+
+The onboarding pipeline automatically escalates: `requests` → `curl` → Playwright headless+stealth. Without Playwright, bot-protected sites will fail detection with a clear error. Most cities don't need it.
+
 ### Verify your setup
 
 ```bash

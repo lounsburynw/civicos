@@ -60,6 +60,23 @@ Modal secrets are stored in the `civicos-secrets` (or jurisdiction-specific) sec
 
 Check secrets: `modal secret list`
 
+## Modal Images
+
+| Image | Used by | Size | Playwright |
+|-------|---------|------|------------|
+| `civic_image` | Most ingestion tasks | ~800MB | No |
+| `simbli_image` | Simbli, bot-protected sites, onboarding | ~1.1GB | Yes (headless + stealth) |
+
+The `simbli_image` includes `playwright` + `playwright-stealth` + Chromium for sites behind Cloudflare or Incapsula WAFs. Platform detection and universal adapter config generation use an escalating fetch strategy:
+
+1. `requests` — fastest, works for ~90% of sites
+2. `curl` subprocess — bypasses TLS fingerprinting
+3. Playwright headless + `playwright-stealth` — bypasses Cloudflare JS challenges
+
+**To add Playwright to a new Modal function:** use `image=simbli_image` in the `@app.function()` decorator. No display/Xvfb needed — stealth makes headless work.
+
+**Local development:** `pip install playwright playwright-stealth && playwright install chromium`
+
 ## Monitoring
 
 ```bash
