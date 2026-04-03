@@ -2479,6 +2479,11 @@ def onboard_jurisdiction(
 
     _progress("save", f"Saving config for {jurisdiction_id}...")
 
+    # Persist state code in config — needed by RepresentativesClient for
+    # federal/state official lookups (Congress.gov, LegiScan)
+    if state and "state" not in config:
+        config["state"] = state.upper()
+
     # Step 3: Save config
     from civicos_extraction.config import get_config_dir
 

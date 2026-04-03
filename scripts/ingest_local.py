@@ -273,7 +273,19 @@ def fetch_elections_local(backend, jurisdiction: str) -> dict:
         except Exception as e:
             logger.warning(f"  Civera fetch failed: {e}")
 
-    # Elected officials (derived from Congress.gov + state legislature + local data)
+    # Elected officials — derive from election contest winners.
+    # For each local_council/local_school_board contest, the most recent winners
+    # within a plausible term window (4 years) are current officials.
+    try:
+        officials = _derive_officials_from_elections(backend, jurisdiction)
+        if officials:
+            stored = backend.store_elected_officials(jurisdiction, officials)
+            total_officials = int(stored) if stored else len(officials)
+            logger.info(f"  Officials: {total_officials} derived from election winners")
+    except Exception as e:
+        logger.debug(f"  Officials derivation skipped: {e}")
+
+    # Also try RepresentativesClient for federal/state reps
     try:
         from civicos_extraction.clients.representatives import (
             RepresentativesClient,
@@ -285,15 +297,81 @@ def fetch_elections_local(backend, jurisdiction: str) -> dict:
             storage=backend,
             jurisdiction_id=jurisdiction,
         )
-        total_officials = stored
-        logger.info(f"  Officials: {stored} stored")
+        total_officials += stored
+        logger.info(f"  Officials (federal/state): {stored} from RepresentativesClient")
     except Exception as e:
-        logger.debug(f"  Officials extraction skipped: {e}")
+        logger.debug(f"  Federal/state officials skipped: {e}")
 
     return {
         "elections_fetched": total_elections,
         "officials_fetched": total_officials,
     }
+
+
+def _derive_officials_from_elections(backend, jurisdiction: str) -> list:
+    """Derive current elected officials from election contest winners.
+
+    Looks at local_council and local_school_board contests from the last
+    4 years (one full term cycle). Winners with isWinner=true in the most
+    recent election for each seat are current officials.
+    """
+    import json as _json
+    from datetime import datetime as _dt, timedelta
+
+    # Get contests from the last 4 years
+    cutoff = (_dt.now() - timedelta(days=4 * 365)).strftime("%Y-%m-%d")
+
+    try:
+        # SQLite backend
+        import sqlite3
+        db_path = getattr(backend, '_db_path', None) or getattr(backend, 'db_path', None)
+        if not db_path:
+            return []
+        conn = sqlite3.connect(str(db_path))
+        conn.row_factory = sqlite3.Row
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT ec.title, ec.contest_type, ec.district_name, ec.raw_data,
+                   e.election_date
+            FROM election_contests ec
+            JOIN elections e ON ec.election_id = e.id
+            WHERE ec.contest_type IN ('local_council', 'local_school_board')
+              AND e.election_date >= ?
+            ORDER BY e.election_date DESC
+        """, (cutoff,))
+        rows = cur.fetchall()
+        conn.close()
+    except Exception:
+        return []
+
+    # Deduplicate: keep each person's most recent win
+    seen = set()
+    officials = []
+    for row in rows:
+        try:
+            raw = _json.loads(row["raw_data"])
+        except (TypeError, _json.JSONDecodeError):
+            continue
+
+        candidates = raw.get("candidates", [])
+        for c in candidates:
+            if not c.get("isWinner"):
+                continue
+            name = c.get("displayName", "").strip()
+            if not name or name in seen:
+                continue
+            seen.add(name)
+
+            officials.append({
+                "id": f"elected-{jurisdiction}-{name.lower().replace(' ', '-')}",
+                "name": name,
+                "seat": row["title"],
+                "jurisdiction_id": jurisdiction,
+                "source": "election_results",
+                "term_start": row["election_date"],
+            })
+
+    return officials
 
 
 def index_vectors_local(backend, vectors, jurisdiction: str) -> dict:
