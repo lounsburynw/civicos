@@ -544,7 +544,30 @@ def extract_decisions_from_meeting(
 
         # Assess available sources (minutes > transcript > agenda)
         assessment = assess_sources(meeting, meeting_to_video)
-        if assessment is None:
+
+        # BoardDocs: synthesize agenda text from stored agenda items
+        boarddocs_text = None
+        if assessment is None and meeting.get("source_platform") == "boarddocs":
+            try:
+                from civicos.storage import get_storage_backend
+                backend = get_storage_backend()
+                items = backend.get_agenda_items(meeting_id)
+                if items:
+                    parts = []
+                    for item in items:
+                        title = item.get("title", "")
+                        desc = item.get("description", "")
+                        if title:
+                            parts.append(f"## {title}")
+                        if desc:
+                            parts.append(desc)
+                        parts.append("")
+                    boarddocs_text = "\n".join(parts)
+                    logger.info(f"  Synthesized {len(items)} agenda items as decision source")
+            except Exception as e:
+                logger.debug(f"  BoardDocs agenda fetch failed: {e}")
+
+        if assessment is None and boarddocs_text is None:
             logger.info(f"  Skipping (no sources available): {meeting_id}")
             return DecisionResult(
                 meeting_id=meeting_id,
@@ -552,13 +575,15 @@ def extract_decisions_from_meeting(
                 status="no_sources",
             )
 
-        source = assessment.best_source
-        logger.info(f"  Extracting decisions from {source.value}...")
+        source_type = assessment.best_source.value if assessment else "agenda"
+        if assessment:
+            logger.info(f"  Extracting decisions from {source_type}...")
+        else:
+            logger.info(f"  Extracting decisions from boarddocs agenda items...")
 
         # For transcript source, fetch and format transcript text
-        source_type = source.value
-        text_override = None
-        if source == ExtractionSource.TRANSCRIPT:
+        text_override = boarddocs_text
+        if assessment and assessment.best_source == ExtractionSource.TRANSCRIPT:
             try:
                 from civicos.storage import get_storage_backend
 

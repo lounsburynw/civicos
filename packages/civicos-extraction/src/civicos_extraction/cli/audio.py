@@ -200,8 +200,31 @@ def load_videos(
                         f"Loaded {len(videos)} videos from cloud storage ({backend.backend_type}){type_msg}{since_msg}"
                     )
                     return videos
-                else:
-                    logger.info("No videos in cloud storage, trying local fallback")
+
+                # Fallback: check meetings table for video_url (Granicus, etc.)
+                meetings = backend.get_meetings(jurisdiction_id)
+                if meetings:
+                    meetings_with_video = [
+                        m for m in meetings if m.get("video_url")
+                    ]
+                    if meetings_with_video:
+                        videos = []
+                        for m in meetings_with_video:
+                            # Use meeting ID as video_id (safe for R2 key)
+                            vid = m["id"].replace("/", "_").replace(":", "_")
+                            videos.append({
+                                "video_id": vid,
+                                "video_url": m["video_url"],
+                                "title": m.get("title", ""),
+                                "date": m.get("meeting_datetime", ""),
+                                "meeting_id": m["id"],
+                            })
+                        logger.info(
+                            f"Loaded {len(videos)} videos from meetings table (video_url field)"
+                        )
+                        return videos
+
+                logger.info("No videos in cloud storage, trying local fallback")
         except ImportError:
             logger.debug("civic.storage not available, using local fallback")
         except Exception as e:
@@ -260,18 +283,24 @@ def download_audio(
     cloud: bool = False,
     jurisdiction_id: Optional[str] = None,
     proxy: Optional[str] = None,
+    video_url: Optional[str] = None,
 ) -> DownloadResult:
     """
-    Download audio from a YouTube video using yt-dlp.
+    Download audio from a video using yt-dlp.
+
+    Supports YouTube, Granicus, and any platform yt-dlp can handle.
+    If video_url is provided, uses it directly. Otherwise constructs
+    a YouTube URL from video_id.
 
     Args:
-        video_id: YouTube video ID
+        video_id: Video identifier (YouTube ID or opaque key for R2 storage)
         output_dir: Directory to save audio files (local fallback)
         cookies_file: Path to cookies file (optional)
         quality: Audio quality in kbps
         cloud: If True, upload to R2 cloud storage
         jurisdiction_id: Jurisdiction ID for cloud storage key
         proxy: Proxy URL for yt-dlp (e.g., "http://user:pass@host:port")
+        video_url: Direct video URL. If None, constructs YouTube URL from video_id.
 
     Returns:
         DownloadResult with status and details
@@ -320,7 +349,7 @@ def download_audio(
         )
 
     try:
-        url = f"https://www.youtube.com/watch?v={video_id}"
+        url = video_url or f"https://www.youtube.com/watch?v={video_id}"
 
         ydl_opts = {
             "format": "bestaudio/best",
@@ -529,6 +558,7 @@ def run_audio_download(
             cloud=cloud,
             jurisdiction_id=jurisdiction_id,
             proxy=proxy,
+            video_url=video.get("video_url"),
         )
         results.append(result)
 
