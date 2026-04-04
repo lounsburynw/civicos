@@ -16,6 +16,8 @@ import json
 import logging
 import os
 import sys
+import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, asdict
 from datetime import datetime
 from pathlib import Path
@@ -28,6 +30,14 @@ logging.basicConfig(
     datefmt="%Y-%m-%d %H:%M:%S",
 )
 logger = logging.getLogger(__name__)
+
+# Audio format optimized for speech transcription.
+# Opus at 48kbps mono is ~7x smaller than mp3 at 128kbps stereo,
+# with no loss in transcription accuracy.
+AUDIO_CODEC = "opus"
+AUDIO_EXT = "opus"
+AUDIO_QUALITY = "48"
+AUDIO_CONTENT_TYPE = "audio/ogg"
 
 
 @dataclass
@@ -114,8 +124,8 @@ def add_audio_parser(subparsers: argparse._SubParsersAction) -> None:
     )
     parser.add_argument(
         "--quality",
-        default="128",
-        help="Audio quality in kbps (default: 128)",
+        default=AUDIO_QUALITY,
+        help=f"Audio quality in kbps (default: {AUDIO_QUALITY})",
     )
     parser.add_argument(
         "--cloud",
@@ -163,6 +173,15 @@ def run_audio(args: argparse.Namespace) -> int:
             return 1
 
         return 0
+
+
+def find_audio_r2_key(blob, jurisdiction_id: str, video_id: str) -> Optional[str]:
+    """Find the R2 key for a video's audio, checking opus then mp3 for backwards compat."""
+    for ext in (AUDIO_EXT, "mp3"):
+        key = f"audio/{jurisdiction_id}/{video_id}.{ext}"
+        if blob.exists(key):
+            return key
+    return None
 
 
 def load_videos(
@@ -279,7 +298,7 @@ def download_audio(
     video_id: str,
     output_dir: str,
     cookies_file: Optional[str] = None,
-    quality: str = "128",
+    quality: str = AUDIO_QUALITY,
     cloud: bool = False,
     jurisdiction_id: Optional[str] = None,
     proxy: Optional[str] = None,
@@ -288,22 +307,12 @@ def download_audio(
     """
     Download audio from a video using yt-dlp.
 
+    Downloads as opus at low bitrate (48kbps mono by default) — optimized for
+    speech transcription. ~7x smaller than mp3 at 128kbps stereo.
+
     Supports YouTube, Granicus, and any platform yt-dlp can handle.
     If video_url is provided, uses it directly. Otherwise constructs
     a YouTube URL from video_id.
-
-    Args:
-        video_id: Video identifier (YouTube ID or opaque key for R2 storage)
-        output_dir: Directory to save audio files (local fallback)
-        cookies_file: Path to cookies file (optional)
-        quality: Audio quality in kbps
-        cloud: If True, upload to R2 cloud storage
-        jurisdiction_id: Jurisdiction ID for cloud storage key
-        proxy: Proxy URL for yt-dlp (e.g., "http://user:pass@host:port")
-        video_url: Direct video URL. If None, constructs YouTube URL from video_id.
-
-    Returns:
-        DownloadResult with status and details
     """
     try:
         import yt_dlp
@@ -315,32 +324,32 @@ def download_audio(
             error="yt-dlp not installed",
         )
 
-    # Check if already in cloud storage
+    # Check if already in cloud storage (check both opus and mp3)
     r2_key = None
     if cloud or os.environ.get("BLOB_STORAGE_URL"):
         try:
             from civicos.storage import get_blob_storage
 
             blob = get_blob_storage()
-            r2_key = f"audio/{jurisdiction_id}/{video_id}.mp3"
-            if blob.exists(r2_key):
-                logger.info(f"  Skipping (already in cloud): {r2_key}")
+            existing_key = find_audio_r2_key(blob, jurisdiction_id, video_id)
+            if existing_key:
+                logger.info(f"  Skipping (already in cloud): {existing_key}")
                 return DownloadResult(
                     video_id=video_id,
                     status="skipped",
-                    r2_key=r2_key,
+                    r2_key=existing_key,
                 )
         except ImportError:
             logger.debug("civic.storage not available for cloud check")
         except Exception as e:
             logger.debug(f"Cloud check failed: {e}")
 
-    output_path = os.path.join(output_dir, f"{video_id}.mp3")
+    output_path = os.path.join(output_dir, f"{video_id}.{AUDIO_EXT}")
 
     # Skip if already downloaded locally (and not using cloud)
     if not (cloud or os.environ.get("BLOB_STORAGE_URL")) and os.path.exists(output_path):
         file_size_mb = os.path.getsize(output_path) / (1024 * 1024)
-        logger.info(f"  Skipping (already exists): {video_id}.mp3 ({file_size_mb:.1f} MB)")
+        logger.info(f"  Skipping (already exists): {video_id}.{AUDIO_EXT} ({file_size_mb:.1f} MB)")
         return DownloadResult(
             video_id=video_id,
             status="skipped",
@@ -349,20 +358,20 @@ def download_audio(
         )
 
     try:
-        url = video_url or f"https://www.youtube.com/watch?v={video_id}"
+        import subprocess
 
+        url = video_url or f"https://www.youtube.com/watch?v={video_id}"
+        raw_path = os.path.join(output_dir, f"{video_id}_raw")
+
+        # Step 1: Download raw audio with yt-dlp (no postprocessing).
+        # We skip FFmpegExtractAudio because it stream-copies when source
+        # codec matches target, ignoring our bitrate settings.
         ydl_opts = {
             "format": "bestaudio/best",
-            "postprocessors": [
-                {
-                    "key": "FFmpegExtractAudio",
-                    "preferredcodec": "mp3",
-                    "preferredquality": quality,
-                }
-            ],
-            "outtmpl": os.path.join(output_dir, video_id),
+            "outtmpl": raw_path + ".%(ext)s",
             "quiet": True,
             "no_warnings": True,
+            "socket_timeout": 30,
         }
 
         # Add cookies if provided
@@ -378,9 +387,34 @@ def download_audio(
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=True)
             duration_mins = info.get("duration", 0) // 60
+            raw_ext = info.get("ext", "webm")
+
+        raw_file = raw_path + f".{raw_ext}"
+        if not os.path.exists(raw_file):
+            # yt-dlp may name it differently; find the actual file
+            for f in os.listdir(output_dir):
+                if f.startswith(f"{video_id}_raw"):
+                    raw_file = os.path.join(output_dir, f)
+                    break
+
+        # Step 2: Re-encode to opus at target bitrate + mono with ffmpeg directly.
+        # This guarantees re-encoding regardless of source codec.
+        ffmpeg_cmd = [
+            "ffmpeg", "-y", "-i", raw_file,
+            "-c:a", "libopus", "-b:a", f"{quality}k", "-ac", "1",
+            "-loglevel", "error",
+            output_path,
+        ]
+        result = subprocess.run(ffmpeg_cmd, capture_output=True, text=True)
+        if result.returncode != 0:
+            raise RuntimeError(f"ffmpeg failed: {result.stderr[:200]}")
+
+        # Clean up raw file
+        if os.path.exists(raw_file):
+            os.remove(raw_file)
 
         file_size_mb = os.path.getsize(output_path) / (1024 * 1024)
-        logger.info(f"  Downloaded: {video_id}.mp3 ({duration_mins} min, {file_size_mb:.1f} MB)")
+        logger.info(f"  Downloaded: {video_id}.{AUDIO_EXT} ({duration_mins} min, {file_size_mb:.1f} MB)")
 
         # Upload to cloud storage if enabled
         r2_key = None
@@ -389,13 +423,13 @@ def download_audio(
                 from civicos.storage import get_blob_storage
 
                 blob = get_blob_storage()
-                r2_key = f"audio/{jurisdiction_id}/{video_id}.mp3"
+                r2_key = f"audio/{jurisdiction_id}/{video_id}.{AUDIO_EXT}"
 
                 with open(output_path, "rb") as f:
                     audio_data = f.read()
 
-                blob.upload(r2_key, audio_data, content_type="audio/mpeg")
-                logger.info(f"  Uploaded to cloud: {r2_key}")
+                blob.upload(r2_key, audio_data, content_type=AUDIO_CONTENT_TYPE)
+                logger.info(f"  Uploaded to cloud: {r2_key} ({file_size_mb:.1f} MB)")
 
                 # Remove local file after successful upload
                 os.remove(output_path)
@@ -425,6 +459,33 @@ def download_audio(
         )
 
 
+def _download_worker(
+    video: Dict,
+    output_dir: str,
+    cookies_file: Optional[str],
+    quality: str,
+    cloud: bool,
+    jurisdiction_id: str,
+    proxy: Optional[str],
+    worker_id: int,
+) -> DownloadResult:
+    """Worker function for parallel downloads. Runs in a thread."""
+    video_id = video.get("video_id")
+    title = video.get("title", "Unknown")
+    logger.info(f"  [worker-{worker_id}] {title}")
+
+    return download_audio(
+        video_id,
+        output_dir,
+        cookies_file,
+        quality,
+        cloud=cloud,
+        jurisdiction_id=jurisdiction_id,
+        proxy=proxy,
+        video_url=video.get("video_url"),
+    )
+
+
 def run_audio_download(
     jurisdiction_id: str,
     input_dir: str = "data",
@@ -433,14 +494,20 @@ def run_audio_download(
     checkpoint_dir: str = "data/checkpoints",
     dry_run: bool = False,
     limit: int = 0,
-    quality: str = "128",
+    quality: str = AUDIO_QUALITY,
     cloud: bool = False,
     meeting_type: Optional[str] = None,
     since_days: Optional[int] = None,
     proxy: Optional[str] = None,
+    download_delay: int = 0,
+    max_workers: int = 3,
 ) -> Optional[List[DownloadResult]]:
     """
     Run audio download for videos from a jurisdiction.
+
+    Downloads are parallelized across max_workers threads. Each worker handles
+    one video at a time (download + convert + upload). With download_delay > 0,
+    new downloads are staggered to avoid YouTube rate limiting.
 
     Args:
         jurisdiction_id: Jurisdiction ID (e.g., "city-san-rafael")
@@ -455,11 +522,14 @@ def run_audio_download(
         meeting_type: Filter by meeting type (e.g., "planning_commission")
         since_days: Only process videos discovered within this many days
         proxy: Proxy URL for yt-dlp (e.g., "http://user:pass@host:port")
+        download_delay: Seconds to wait between submitting downloads (rate limit avoidance)
+        max_workers: Maximum parallel download threads (default: 3)
 
     Returns:
         List of DownloadResult if successful, None if failed
     """
     logger.info(f"Starting audio download for {jurisdiction_id}")
+    logger.info(f"Format: {AUDIO_CODEC} @ {quality}kbps mono | Workers: {max_workers}")
     if meeting_type:
         logger.info(f"Filtering by meeting_type: {meeting_type}")
 
@@ -517,7 +587,7 @@ def run_audio_download(
             date = video.get("date", "Unknown")
 
             # Check if already downloaded
-            output_path = os.path.join(output_dir, f"{video_id}.mp3")
+            output_path = os.path.join(output_dir, f"{video_id}.{AUDIO_EXT}")
             exists = os.path.exists(output_path)
             status = "(already downloaded)" if exists else ""
 
@@ -528,62 +598,63 @@ def run_audio_download(
         # Count already downloaded
         already_downloaded = sum(
             1 for v in videos_to_process
-            if os.path.exists(os.path.join(output_dir, f"{v.get('video_id')}.mp3"))
+            if os.path.exists(os.path.join(output_dir, f"{v.get('video_id')}.{AUDIO_EXT}"))
         )
         logger.info(f"Would process {len(videos_to_process)} videos")
         logger.info(f"Already downloaded: {already_downloaded}")
         logger.info(f"To download: {len(videos_to_process) - already_downloaded}")
         return None
 
-    # Download videos
+    # Download videos in parallel
     results = []
-    items_processed = start_index
     items_downloaded = 0
     items_skipped = 0
     items_failed = 0
 
-    for i, video in enumerate(videos_to_process, start=start_index + 1):
-        video_id = video.get("video_id")
-        if not video_id:
-            continue
+    effective_workers = min(max_workers, len(videos_to_process))
+    logger.info(f"Processing {len(videos_to_process)} videos with {effective_workers} workers")
 
-        title = video.get("title", "Unknown")
-        logger.info(f"[{i}/{len(videos)}] {title}")
+    with ThreadPoolExecutor(max_workers=effective_workers) as executor:
+        futures = {}
+        for i, video in enumerate(videos_to_process):
+            video_id = video.get("video_id")
+            if not video_id:
+                continue
 
-        result = download_audio(
-            video_id,
-            output_dir,
-            cookies_file,
-            quality,
-            cloud=cloud,
-            jurisdiction_id=jurisdiction_id,
-            proxy=proxy,
-            video_url=video.get("video_url"),
-        )
-        results.append(result)
+            # Stagger submissions to avoid rate limiting
+            if i > 0 and download_delay > 0:
+                time.sleep(download_delay)
 
-        if result.status == "success":
-            items_downloaded += 1
-        elif result.status == "skipped":
-            items_skipped += 1
-        else:
-            items_failed += 1
-
-        items_processed = i
-
-        # Save checkpoint every 5 videos
-        if i % 5 == 0:
-            checkpoint = AudioCheckpoint(
-                jurisdiction_id=jurisdiction_id,
-                last_video_id=video_id,
-                items_processed=items_processed,
-                items_downloaded=items_downloaded,
-                items_skipped=items_skipped,
-                items_failed=items_failed,
-                timestamp=datetime.now().isoformat(),
+            future = executor.submit(
+                _download_worker,
+                video,
+                output_dir,
+                cookies_file,
+                quality,
+                cloud,
+                jurisdiction_id,
+                proxy,
+                i + 1,
             )
-            save_checkpoint(checkpoint, checkpoint_path)
-            logger.debug(f"Checkpoint saved: {items_processed} processed")
+            futures[future] = (i + start_index + 1, video)
+
+        for future in as_completed(futures):
+            idx, video = futures[future]
+            video_id = video.get("video_id", "?")
+            try:
+                result = future.result()
+            except Exception as e:
+                logger.error(f"  Worker crashed for {video_id}: {e}")
+                result = DownloadResult(video_id=video_id, status="error", error=str(e))
+
+            results.append(result)
+
+            if result.status == "success":
+                items_downloaded += 1
+            elif result.status == "skipped":
+                items_skipped += 1
+            else:
+                items_failed += 1
 
     # Final checkpoint
     if videos_to_process:
@@ -591,7 +662,7 @@ def run_audio_download(
         checkpoint = AudioCheckpoint(
             jurisdiction_id=jurisdiction_id,
             last_video_id=last_video_id,
-            items_processed=items_processed,
+            items_processed=start_index + len(videos_to_process),
             items_downloaded=items_downloaded,
             items_skipped=items_skipped,
             items_failed=items_failed,
