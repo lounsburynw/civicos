@@ -411,8 +411,9 @@ def find_audio_files(
                     for video in videos:
                         video_id = video.get("id") or video.get("video_id")
                         if video_id:
-                            r2_key = f"audio/{jurisdiction_id}/{video_id}.mp3"
-                            if blob.exists(r2_key):
+                            from civicos_extraction.cli.audio import find_audio_r2_key
+                            existing_key = find_audio_r2_key(blob, jurisdiction_id, video_id)
+                            if existing_key:
                                 # Add video_id to the dict for consistency
                                 video["video_id"] = video_id
                                 audio_videos.append(video)
@@ -428,8 +429,8 @@ def find_audio_files(
                         for video in all_videos:
                             video_id = video.get("id") or video.get("video_id")
                             if video_id and video_id not in seen_ids:
-                                r2_key = f"audio/{jurisdiction_id}/{video_id}.mp3"
-                                if blob.exists(r2_key) and not transcript_exists_in_cloud(video_id):
+                                existing_key = find_audio_r2_key(blob, jurisdiction_id, video_id)
+                                if existing_key and not transcript_exists_in_cloud(video_id):
                                     video["video_id"] = video_id
                                     audio_videos.append(video)
                                     seen_ids.add(video_id)
@@ -449,9 +450,9 @@ def find_audio_files(
             if audio_keys:
                 audio_videos = []
                 for key in audio_keys:
-                    if key.endswith(".mp3"):
-                        # Extract video_id from key: audio/city-san-rafael/VIDEO_ID.mp3
-                        video_id = key.replace(r2_prefix, "").replace(".mp3", "")
+                    if key.endswith(".opus") or key.endswith(".mp3"):
+                        # Extract video_id from key: audio/city-san-rafael/VIDEO_ID.{ext}
+                        video_id = key.replace(r2_prefix, "").rsplit(".", 1)[0]
                         audio_videos.append({"video_id": video_id})
                 if audio_videos:
                     logger.info(
@@ -904,10 +905,11 @@ def load_audio_from_cloud(
         from civicos.storage.integrity import compute_audio_hash
 
         blob = get_blob_storage()
-        r2_key = f"audio/{jurisdiction_id}/{video_id}.mp3"
+        from civicos_extraction.cli.audio import find_audio_r2_key
+        r2_key = find_audio_r2_key(blob, jurisdiction_id, video_id)
 
-        if not blob.exists(r2_key):
-            logger.debug(f"Audio not found in cloud: {r2_key}")
+        if not r2_key:
+            logger.debug(f"Audio not found in cloud for: {video_id}")
             return None, None
 
         audio_data = blob.download(r2_key)

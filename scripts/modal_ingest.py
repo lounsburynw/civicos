@@ -119,7 +119,7 @@ model_cache = modal.Volume.from_name("civic-model-cache", create_if_missing=True
 civic_image = (
     modal.Image.debian_slim(python_version="3.11")
     # System dependencies for psycopg2 and audio processing
-    .apt_install("libpq-dev", "gcc", "ffmpeg")
+    .apt_install("libpq-dev", "gcc", "ffmpeg", "nodejs")
     # Python dependencies for all tasks
     .pip_install(
         "psycopg2-binary>=2.9.0",
@@ -131,7 +131,7 @@ civic_image = (
         "langgraph>=0.2.0",
         "pymupdf>=1.24.0",  # For PDF parsing (chunk extraction)
         "assemblyai>=0.35.0",  # For transcription
-        "yt-dlp>=2024.1.0",  # For audio download
+        "yt-dlp>=2026.3.0",  # For audio download (YouTube patches extractors frequently; keep recent)
         "pysocks>=1.7.0",  # SOCKS5 proxy support for yt-dlp
         "google-api-python-client>=2.0.0",  # For YouTube duration validation
         "python-dotenv>=1.0.0",  # For environment variable loading
@@ -5300,11 +5300,12 @@ def extract_transcripts(
             checkpoint_dir="data/checkpoints",
             dry_run=dry_run,
             limit=limit,
-            quality="128",
             cloud=True,  # Store in R2
             meeting_type=meeting_type_filter,
             since_days=since_days_filter,
             proxy=proxy_url or None,
+            download_delay=5,  # 5s stagger between download submissions (rate limit avoidance)
+            max_workers=3,  # Parallel download+convert+upload
         )
 
         if audio_results is None and not dry_run:
