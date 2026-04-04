@@ -7306,11 +7306,17 @@ def main(
     # Wait for fetch tasks to complete before chunks and vectors
     # (chunks need meetings fetched, vectors need all data ready)
     fetch_results = {}
+    fetch_errors = {}
     for name, handle in handles:
         print(f"\nWaiting for {name}...")
-        result = handle.get()
-        fetch_results[name] = result
-        print(f"  {name}: {result.get('elapsed_seconds', 0):.1f}s, cost: ${result.get('cost_usd', 0):.4f}")
+        try:
+            result = handle.get()
+            fetch_results[name] = result
+            print(f"  {name}: {result.get('elapsed_seconds', 0):.1f}s, cost: ${result.get('cost_usd', 0):.4f}")
+        except Exception as e:
+            fetch_errors[name] = str(e)
+            print(f"  {name}: FAILED — {e}")
+            fetch_results[name] = {"error": str(e), "elapsed_seconds": 0, "cost_usd": 0}
 
     # Extract transcripts after meetings are fetched (audio download + transcription)
     transcripts_result = None
@@ -7453,6 +7459,10 @@ def main(
             status = "+" if r.get("status") == "success" else ("o" if r.get("status") == "skipped" else "x")
             print(f"    {status} {ct}: {r.get('indexed', 0)} indexed")
 
+    if fetch_errors:
+        print(f"\n⚠️  {len(fetch_errors)} stage(s) failed:")
+        for name, err in fetch_errors.items():
+            print(f"  ✗ {name}: {err[:200]}")
     print("=" * 60)
     print(f"Total estimated cost: ${total_cost:.4f}")
     print("=" * 60)

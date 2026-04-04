@@ -1,0 +1,73 @@
+# Ross Valley School District Configuration
+
+jurisdiction_id: school-ross-valley
+level: school
+display_name: Ross Valley School District
+parent_jurisdictions:
+- county-marin
+- state-california
+- country-united-states
+contact_info:
+  clerk_email: null
+  website: https://www.rossvalleyschools.org
+  city_hall_address: 110 Shaw Dr, San Anselmo, CA 94960
+  phone: (415) 454-2162
+  public_comment_deadline: null
+  in_person_time_limit: 3 minutes
+  public_comment_subject: null
+governing_body:
+  name: Board of Trustees
+  members_title: Board Members
+  meeting_schedule: null
+  meeting_location: null
+data_sources:
+  meetings:
+    source_type: boarddocs
+    base_url: https://go.boarddocs.com/ca/rova/Board.nsf
+    metadata:
+      app_path: ca/rova
+      committee_id: AB9A2R259AF0
+      committee_name: Main Governing Board
+  issues: null
+  budget: null
+  municipal_code: null
+  transcripts:
+    source: null
+    playlist_id: null
+financial:
+  state: CA
+  county: Marin
+federal_programs:
+  usaspending:
+    search_names:
+    - ROSS VALLEY SCHOOL DISTRICT
+    allowed_names:
+    - ROSS VALLEY SCHOOL DISTRICT
+zip_codes:
+- '94960'
+- '94901'
+ingestion:
+  meetings: true
+  pdf_chunks: true
+  issues: false
+  municipal_code: false
+  agenda_items: true
+  decisions: true
+  legislation: false
+  transcription: false
+  diarization: false
+  vector_indexing: true
+refresh:
+  meetings:
+    interval: 7d
+    strategy: incremental
+tools_enabled: null
+tool_overrides: {}
+modal:
+  min_containers: 0
+  secrets:
+  - civicos-env
+metadata:
+  created: '2026-04-04'
+  updated: '2026-04-04'
+  notes: School district serving Fairfax, Ross, and San Anselmo. BoardDocs platform.

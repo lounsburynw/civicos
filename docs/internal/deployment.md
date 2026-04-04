@@ -6,7 +6,7 @@ All production services run on Modal (serverless Python). Data lives in Supabase
 
 | Service | Deploy Command | URL Pattern |
 |---------|---------------|-------------|
-| REST API | `modal deploy packages/civicos-services/src/civicos_services/servers/modal_api.py` | `civicos-api-*.modal.run` |
+| REST API | _No Modal wrapper yet_ — runs locally via `./scripts/dev.sh api`. Modal wrapper needed. | `localhost:8001` (dev) |
 | MCP Server | `modal deploy apps/civicos-mcp/modal_mcp.py` | `civicos-mcp-*.modal.run` |
 | Relay | `modal deploy packages/civicos-relay/src/civicos_relay/modal_relay.py` | `civicos-relay-*.modal.run` |
 | Vector Indexing | `modal run scripts/modal_ingest.py` | (GPU job, not persistent) |

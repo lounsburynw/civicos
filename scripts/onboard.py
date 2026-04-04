@@ -282,7 +282,7 @@ def _get_ingestion_stages(jid: str) -> list:
         print(f"  Note: issue_source '{issue_source}' not yet supported — "
               f"skipping issue stages (supported: {', '.join(sorted(SUPPORTED_ISSUE_SOURCES))})")
 
-    # Check jurisdiction YAML for municipal code
+    # Check jurisdiction YAML for optional stages
     yaml_path = PROJECT_ROOT / "data" / "jurisdictions" / f"{jid}.yaml"
     if yaml_path.exists():
         with open(yaml_path) as f:
@@ -291,8 +291,11 @@ def _get_ingestion_stages(jid: str) -> list:
             print(f"  Warning: jurisdiction YAML for {jid} is not a valid config")
         else:
             ingestion = jur_config.get("ingestion", {})
-            if isinstance(ingestion, dict) and ingestion.get("municipal_code"):
-                stages.append("municipal")
+            if isinstance(ingestion, dict):
+                if ingestion.get("municipal_code"):
+                    stages.append("municipal")
+                if ingestion.get("transcription"):
+                    stages.append("transcripts")
 
     # Always include vectors (indexes whatever data exists)
     stages.append("vectors")
@@ -642,9 +645,18 @@ def _run_cleanup(jid: str) -> None:
 
 
 def _run_modal_ingestion(jid: str, days_past: int, dry_run: bool = False,
-                         stages: str = "all") -> int:
-    """Run Modal ingestion and return exit code."""
-    modal_cmd = ["modal", "run", "scripts/modal_ingest.py"]
+                         stages: str = "all", detach: bool = False) -> int:
+    """Run Modal ingestion and return exit code.
+
+    Args:
+        detach: If True, adds --detach so the Modal job runs remotely and
+                this process doesn't need to stay connected. Use for full
+                backfills; avoid for validation samples that need exit codes.
+    """
+    modal_cmd = ["modal", "run"]
+    if detach:
+        modal_cmd.append("--detach")
+    modal_cmd.append("scripts/modal_ingest.py")
 
     if stages == "all":
         # Use dynamic stages based on jurisdiction config
@@ -660,6 +672,8 @@ def _run_modal_ingestion(jid: str, days_past: int, dry_run: bool = False,
         modal_cmd.append("--dry-run")
 
     print(f"  Command: {' '.join(modal_cmd)}")
+    if detach:
+        print(f"  (detached — job continues on Modal regardless of local connection)")
     print()
     result = subprocess.run(modal_cmd, cwd=str(PROJECT_ROOT))
     return result.returncode
@@ -733,14 +747,16 @@ def _update_registry(jid: str) -> bool:
 
 
 def _deploy_modal_api() -> int:
-    """Deploy the API to Modal. Returns exit code."""
-    deploy_cmd = [
-        "modal", "deploy",
-        "packages/civicos-services/src/civicos_services/servers/modal_api.py",
-    ]
-    print(f"  Command: {' '.join(deploy_cmd)}")
-    result = subprocess.run(deploy_cmd, cwd=str(PROJECT_ROOT))
-    return result.returncode
+    """Deploy the API to Modal. Returns exit code.
+
+    NOTE: The API server (packages/civicos-services/.../api.py) does not yet
+    have a Modal wrapper (modal_api.py). Data is written directly to shared
+    Postgres/pgvector, so new jurisdictions are queryable without an API
+    redeploy. A Modal wrapper is tracked as a separate launch.json item.
+    """
+    print("  Skipping — no Modal API wrapper exists yet.")
+    print("  Data is in Postgres and will be queryable by any API instance reading from it.")
+    return 0
 
 
 def _verify_jurisdiction(jid: str) -> bool:
@@ -1412,10 +1428,10 @@ def main():
         print(f"  Command: {' '.join(local_cmd)}")
         rc = subprocess.run(local_cmd).returncode
     else:
-        print(f"\n[Phase 3] Running Modal ingestion pipeline...")
+        print(f"\n[Phase 3] Running Modal ingestion pipeline (detached)...")
         print(f"  Stages: meetings → chunks → agenda → decisions → vectors")
         print(f"  Days: {args.days_past}")
-        rc = _run_modal_ingestion(jid, args.days_past, args.dry_run)
+        rc = _run_modal_ingestion(jid, args.days_past, args.dry_run, detach=True)
 
     if rc != 0:
         print(f"\nERROR: Ingestion failed (exit code {rc})")
