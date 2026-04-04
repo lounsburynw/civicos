@@ -28,6 +28,14 @@
 - API deploy path (`modal_api.py`) has never existed — REST API needs a Modal wrapper created
 - Cron fix from previous session (c43ee70) confirmed working — manual run succeeded
 
+### BoardDocs Content Extraction (follow-up)
+- Wired BoardDocs agenda API into pipeline: fetch_boarddocs_meetings now extracts
+  chunks and agenda items directly from structured data (no PDF/LLM needed)
+- Ross Valley: 317 meetings → 11,723 chunks, 7,246 agenda items
+- SMCSD: 258 meetings → 5,401 chunks, 5,171 agenda items
+- Delegated BoardDocs to standalone Modal function (like Simbli) for full client access
+- Increased timeout to 1h for large BoardDocs portals
+
 ### Next P0: Transcript pipeline for Fairfax + Granicus audio support
 
 ## Session — 2026-04-03: Onboarding Hardening + Marin QC

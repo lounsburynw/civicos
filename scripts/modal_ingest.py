@@ -2914,16 +2914,15 @@ def fetch_meetings(
             )
             meetings = client.get_meetings(days_ahead=days_ahead, days_past=days_past)
         elif source_type == "boarddocs":
-            from civicos_extraction.clients.boarddocs import BoardDocsClient
-            from datetime import date
-            client = BoardDocsClient(
+            # BoardDocs needs full client for agenda extraction — delegate to standalone function
+            # which fetches meetings + agendas + stores chunks and agenda items directly
+            result = fetch_boarddocs_meetings.remote(
                 app_path=config.metadata.get("app_path", ""),
-                jurisdiction_id=jurisdiction,
-                committee_id=config.metadata.get("committee_id"),
+                jurisdiction=jurisdiction,
+                committee_id=config.metadata.get("committee_id", ""),
+                dry_run=dry_run,
             )
-            since_date = date.today() - timedelta(days=days_past) if days_past > 0 else None
-            bd_meetings = client.get_meetings(since=since_date)
-            meetings = [m.to_meeting(jurisdiction, config.metadata.get("app_path", "")) for m in bd_meetings]
+            return result
         elif source_type == "civicplus":
             from civicos_extraction.clients.civicplus import CivicPlusClient
             client = CivicPlusClient(
@@ -4179,26 +4178,25 @@ def derive_elected_officials(
         modal.Secret.from_name("civic-db"),
     ],
     memory=2048,
-    timeout=600,  # 10 minutes (fetches all meetings + optionally agendas)
-    retries=modal.Retries(max_retries=2, backoff_coefficient=2.0, initial_delay=10.0),
+    timeout=3600,  # 1 hour (fetches meetings + agendas + stores chunks/agenda items)
+    retries=modal.Retries(max_retries=1, backoff_coefficient=2.0, initial_delay=30.0),
 )
 def fetch_boarddocs_meetings(
     app_path: str = "ca/rova",
     jurisdiction: str = "",
     committee_id: str = "",
-    fetch_agendas: bool = False,
     dry_run: bool = False,
 ) -> dict:
-    """Fetch school board meetings from a BoardDocs portal.
+    """Fetch school board meetings and extract structured content from BoardDocs.
 
-    Queries BoardDocs undocumented POST endpoints for meeting lists and
-    optionally full agendas. No API key required.
+    Queries BoardDocs POST endpoints for meeting lists and full agendas.
+    Stores meetings, chunks, and agenda items directly — no PDF download
+    or LLM extraction needed since BoardDocs provides structured data.
 
     Args:
         app_path: BoardDocs site path (e.g., "ca/rova" for Ross Valley SD)
         jurisdiction: Target jurisdiction ID. If empty, inferred from app_path.
         committee_id: BoardDocs committee ID. If empty, auto-discovered from main page.
-        fetch_agendas: If True, also fetch full agenda HTML for each meeting (slower)
         dry_run: If True, fetch but don't store
     """
     import logging
@@ -4256,24 +4254,107 @@ def fetch_boarddocs_meetings(
             "cost_usd": 2 * elapsed * 0.000463,
         }
 
-    # Optionally fetch agendas for each meeting
-    agendas_fetched = 0
-    if fetch_agendas:
-        for m in meetings:
-            items = client.get_agenda(m.unique)
-            if items:
-                m.agenda_items = [
-                    {"category": i.category, "subject": i.subject, "type": i.item_type}
-                    for i in items
-                ]
-                agendas_fetched += 1
-
-    # Store
+    # Store meetings
     backend = PostgresBackend(database_url)
     count = extract_boarddocs_meetings_to_storage(
         client=client,
         storage=backend,
         jurisdiction_id=jurisdiction,
+    )
+
+    # Fetch agendas and extract chunks + agenda items directly.
+    # BoardDocs provides structured data via API — no PDF download or LLM needed.
+    agendas_fetched = 0
+    total_chunks = 0
+    total_agenda_items = 0
+    for m in meetings:
+        meeting_id = f"boarddocs-{m.unique}"
+        items = client.get_agenda(m.unique)
+        if not items:
+            continue
+        agendas_fetched += 1
+
+        # Build chunks from agenda item body text
+        chunks_data = []
+        agenda_items_data = []
+        chunk_idx = 0
+
+        for item_idx, item in enumerate(items):
+            text = (item.body_text or "").strip()
+            title = f"{item.category}: {item.subject}".strip(": ")
+
+            # Store as agenda item
+            actionability = "informational"
+            if item.item_type and item.item_type.lower() in ("action", "action item"):
+                actionability = "actionable"
+            elif item.item_type and item.item_type.lower() == "discussion":
+                actionability = "actionable"
+
+            agenda_items_data.append({
+                "id": f"agenda:{jurisdiction}:{meeting_id}:{item_idx}",
+                "meeting_id": meeting_id,
+                "item_number": item.category,
+                "title": title,
+                "description": text[:2000] if text else None,
+                "actionability": actionability,
+                "comment_eligible": actionability == "actionable",
+                "stance_eligible": False,
+            })
+
+            # Create chunk from body text (skip empty/procedural items)
+            if text and len(text) > 20:
+                chunks_data.append({
+                    "id": f"chunk-{meeting_id}-{chunk_idx}",
+                    "meeting_id": meeting_id,
+                    "text": text,
+                    "agenda_item": item.category,
+                    "agenda_title": title,
+                    "page_start": 0,
+                    "page_end": 0,
+                    "chunk_index": chunk_idx,
+                    "total_chunks": 1,
+                    "metadata": {
+                        "source_type": "boarddocs_agenda",
+                        "source_file": f"boarddocs://{app_path}/{m.unique}",
+                    },
+                })
+                chunk_idx += 1
+
+            # Also create chunks from attachments description if available
+            for att in (item.attachments or []):
+                att_text = att.get("name", "")
+                if att_text:
+                    chunks_data.append({
+                        "id": f"chunk-{meeting_id}-{chunk_idx}",
+                        "meeting_id": meeting_id,
+                        "text": f"Attachment: {att_text}",
+                        "agenda_item": item.category,
+                        "agenda_title": title,
+                        "page_start": 0,
+                        "page_end": 0,
+                        "chunk_index": chunk_idx,
+                        "total_chunks": 1,
+                        "metadata": {
+                            "source_type": "boarddocs_attachment",
+                            "source_file": att.get("url", ""),
+                        },
+                    })
+                    chunk_idx += 1
+
+        # Store chunks
+        if chunks_data:
+            stored = backend.store_chunks(jurisdiction, chunks_data, meeting_id=meeting_id)
+            total_chunks += stored
+            logger.info(f"  {meeting_id}: {stored} chunks from {len(items)} agenda items")
+
+        # Store agenda items
+        if agenda_items_data:
+            stored = backend.store_agenda_items(meeting_id, agenda_items_data)
+            total_agenda_items += stored
+
+    logger.info(
+        f"[BOARDDOCS] Content extraction: {agendas_fetched} agendas, "
+        f"{total_chunks} chunks, {total_agenda_items} agenda items"
     )
 
     # Update refresh metadata
@@ -4299,6 +4380,8 @@ def fetch_boarddocs_meetings(
         "meetings_found": len(meetings),
         "meetings_stored": count,
         "agendas_fetched": agendas_fetched,
+        "chunks_stored": total_chunks,
+        "agenda_items_stored": total_agenda_items,
         "dry_run": False,
         "elapsed_seconds": elapsed,
         "cost_usd": 2 * elapsed * 0.000463,
