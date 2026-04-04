@@ -236,6 +236,66 @@
         "state-california",
         "country-united-states"
       ]
+    },
+    "city-asheville": {
+      "domain": "asheville.civicosproject.org",
+      "display_name": "Asheville",
+      "modal_app_name": "civicos-asheville",
+      "parent_jurisdictions": [
+        "county-buncombe",
+        "state-north-carolina",
+        "country-united-states"
+      ]
+    },
+    "city-park": {
+      "domain": "park.civicosproject.org",
+      "display_name": "Park City",
+      "modal_app_name": "civicos-park",
+      "parent_jurisdictions": [
+        "county-summit",
+        "state-utah",
+        "country-united-states"
+      ]
+    },
+    "city-chicago": {
+      "domain": "chicago.civicosproject.org",
+      "display_name": "Chicago",
+      "modal_app_name": "civicos-chicago",
+      "parent_jurisdictions": [
+        "county-cook",
+        "state-illinois",
+        "country-united-states"
+      ]
+    },
+    "city-reno": {
+      "domain": "reno.civicosproject.org",
+      "display_name": "Reno",
+      "modal_app_name": "civicos-reno",
+      "parent_jurisdictions": [
+        "county-washoe",
+        "state-nevada",
+        "country-united-states"
+      ]
+    },
+    "school-sausalito-marin-city": {
+      "domain": "school-sausalito-marin-city.civicosproject.org",
+      "display_name": "Sausalito Marin City School District",
+      "modal_app_name": "civicos-school-sausalito-marin-city",
+      "parent_jurisdictions": [
+        "county-marin",
+        "state-california",
+        "country-united-states"
+      ]
+    },
+    "school-ross-valley": {
+      "domain": "school-ross-valley.civicosproject.org",
+      "display_name": "Ross Valley School District",
+      "modal_app_name": "civicos-school-ross-valley",
+      "parent_jurisdictions": [
+        "county-marin",
+        "state-california",
+        "country-united-states"
+      ]
     }
   },
   "relay": {

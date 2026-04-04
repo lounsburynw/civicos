@@ -1,0 +1,72 @@
+# Sausalito Marin City School District Configuration
+
+jurisdiction_id: school-sausalito-marin-city
+level: school
+display_name: Sausalito Marin City School District
+parent_jurisdictions:
+- county-marin
+- state-california
+- country-united-states
+contact_info:
+  clerk_email: null
+  website: https://www.smcsd.org
+  city_hall_address: 200 Phillips Dr, Sausalito, CA 94965
+  phone: (415) 332-3190
+  public_comment_deadline: null
+  in_person_time_limit: 3 minutes
+  public_comment_subject: null
+governing_body:
+  name: Board of Trustees
+  members_title: Board Members
+  meeting_schedule: null
+  meeting_location: null
+data_sources:
+  meetings:
+    source_type: boarddocs
+    base_url: https://go.boarddocs.com/ca/smcsd/Board.nsf
+    metadata:
+      app_path: ca/smcsd
+      committee_id: A4EP6J588C05
+      committee_name: Board of Trustees
+  issues: null
+  budget: null
+  municipal_code: null
+  transcripts:
+    source: null
+    playlist_id: null
+financial:
+  state: CA
+  county: Marin
+federal_programs:
+  usaspending:
+    search_names:
+    - SAUSALITO MARIN CITY SCHOOL DISTRICT
+    allowed_names:
+    - SAUSALITO MARIN CITY SCHOOL DISTRICT
+zip_codes:
+- '94965'
+ingestion:
+  meetings: true
+  pdf_chunks: true
+  issues: false
+  municipal_code: false
+  agenda_items: true
+  decisions: true
+  legislation: false
+  transcription: false
+  diarization: false
+  vector_indexing: true
+refresh:
+  meetings:
+    interval: 7d
+    strategy: incremental
+tools_enabled: null
+tool_overrides: {}
+modal:
+  min_containers: 0
+  secrets:
+  - civicos-env
+metadata:
+  created: '2026-04-04'
+  updated: '2026-04-04'
+  notes: School district serving Sausalito and Marin City. BoardDocs platform.

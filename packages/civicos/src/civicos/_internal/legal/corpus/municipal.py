@@ -416,19 +416,15 @@ class MunicipalCodeCorpus:
         state = None
         yaml_name = None
         try:
-            from pathlib import Path
-            # Walk up to find repo root (contains data/jurisdictions/)
-            p = Path(__file__).resolve()
-            for parent in p.parents:
-                yaml_path = parent / "data" / "jurisdictions" / f"{jid}.yaml"
-                if yaml_path.exists():
-                    import yaml
-                    with open(yaml_path) as f:
-                        data = yaml.safe_load(f)
-                    if data:
-                        state = data.get("state") or data.get("financial", {}).get("state")
-                        yaml_name = data.get("display_name")
-                    break
+            from civicos_config.paths import JURISDICTIONS_DIR
+            yaml_path = JURISDICTIONS_DIR / f"{jid}.yaml"
+            if yaml_path.exists():
+                import yaml
+                with open(yaml_path) as f:
+                    data = yaml.safe_load(f)
+                if data:
+                    state = data.get("state") or data.get("financial", {}).get("state")
+                    yaml_name = data.get("display_name")
         except Exception:
             pass
 

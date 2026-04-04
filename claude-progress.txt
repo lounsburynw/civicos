@@ -1,3 +1,35 @@
+## Session — 2026-04-04: Production Onboard Sausalito + Fairfax + School Districts
+
+**Item:** Production expansion — first cities beyond San Rafael
+**Status:** DONE
+
+### Jurisdictions Onboarded
+- city-sausalito (Granicus): 55 meetings, 448 chunks, 205 agenda items, 17 decisions
+- city-fairfax (ProudCity): 99 meetings, 1208 chunks, 151 agenda items, 27 decisions
+- school-sausalito-marin-city (BoardDocs): 11 meetings
+- school-ross-valley (BoardDocs): 15 meetings
+
+### Bugs Fixed
+- Municipal code corpus: used `Path(__file__).walk()` to find YAMLs — fails in Modal containers. Fixed to use `JURISDICTIONS_DIR` from civicos_config.paths (reads env var on Modal)
+- Modal orchestrator: single stage failure crashed entire pipeline. Added try/except per stage
+- Sausalito YAML: website pointed to Granicus domain (fixed → sausalito.gov), USAspending had school district name
+- Fairfax YAML: USAspending had Fairfax County VA entity (wrong state!)
+- Both cities: municipal_code set to true but neither is on Municode (set to false)
+
+### Infrastructure Improvements
+- onboard.py: `--detach` for Phase 3 full ingestion (Modal job survives local disconnect)
+- onboard.py: `_get_ingestion_stages()` now reads `ingestion.transcription` from YAML
+- onboard.py: `_deploy_modal_api()` gracefully skips (no Modal API wrapper exists yet)
+- docs/internal/deployment.md: Updated stale modal_api.py reference
+
+### Findings
+- Sausalito has Granicus video URLs (stored in meetings table) but pipeline only downloads audio from YouTube. yt-dlp CAN handle Granicus URLs — needs `audio.py` refactor to accept generic video URLs
+- Fairfax has YouTube channel (UCd7bg-CGX5Wz_jEB9io5F7w) — transcription enabled in YAML but needs `civic-extract youtube` + `civic-extract audio` pipeline run
+- API deploy path (`modal_api.py`) has never existed — REST API needs a Modal wrapper created
+- Cron fix from previous session (c43ee70) confirmed working — manual run succeeded
+
+### Next P0: Transcript pipeline for Fairfax + Granicus audio support
+
 ## Session — 2026-04-03: Onboarding Hardening + Marin QC
 
 **Item:** Onboarding pipeline hardening (user-directed, pre-token-purchase)
