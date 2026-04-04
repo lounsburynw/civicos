@@ -36,7 +36,14 @@
 - Delegated BoardDocs to standalone Modal function (like Simbli) for full client access
 - Increased timeout to 1h for large BoardDocs portals
 
-### Next P0: Transcript pipeline for Fairfax + Granicus audio support
+### Fairfax Transcripts
+- 13 YouTube videos discovered from ProudCity meeting pages
+- 5 downloaded via residential proxy (DataImpulse), 8 got YouTube 403s (sporadic)
+- 5 transcribed via AssemblyAI batch mode, 1,877 transcript chunks vectorized
+- Cost: $12.88 AssemblyAI
+- Proxy secret refreshed: civic-youtube-proxy (DataImpulse gw.dataimpulse.com:823)
+
+### Next P0: Investigate YouTube 403s + remaining 8 Fairfax videos + Granicus audio
 
 ## Session — 2026-04-03: Onboarding Hardening + Marin QC
 
