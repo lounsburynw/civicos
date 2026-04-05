@@ -407,6 +407,12 @@ def download_audio(
         # Step 1: Download raw audio with yt-dlp (no postprocessing).
         # We skip FFmpegExtractAudio because it stream-copies when source
         # codec matches target, ignoring our bitrate settings.
+        #
+        # For HLS streams (Granicus), there's usually only a combined
+        # audio+video stream, so "bestaudio" fails and "best" downloads
+        # the full video (~1.8 GB). We avoid this by adding
+        # download_ranges or postprocessor to extract audio only.
+        is_hls = ".m3u8" in url or "granicus.com" in url
         ydl_opts = {
             "format": "bestaudio/best",
             "outtmpl": raw_path + ".%(ext)s",
@@ -414,6 +420,15 @@ def download_audio(
             "no_warnings": True,
             "socket_timeout": 30,
         }
+
+        if is_hls:
+            # For HLS with combined audio+video streams (e.g. Granicus),
+            # "bestaudio" fails and "best" downloads the full video (~1.8 GB).
+            # Use ffmpeg as external downloader with -vn to skip video track,
+            # reducing download from ~1.8 GB to ~200 MB.
+            ydl_opts["external_downloader"] = "ffmpeg"
+            ydl_opts["external_downloader_args"] = {"ffmpeg_i": ["-vn"]}
+            logger.info(f"  HLS stream — downloading audio track only (skipping video)")
 
         # Add cookies if provided
         if cookies_file and os.path.exists(cookies_file):
