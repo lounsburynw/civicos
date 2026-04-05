@@ -299,7 +299,7 @@
         "name": "consolidated_onboard_command",
         "description": "Single modal run --onboard command that runs full pipeline per jurisdiction: discover videos, show cost estimate, fetch meetings/issues/code, download audio (Tier 1 window), transcribe (with cost cap), extract decisions, index vectors. Replaces fragmented --batch-audio + --batch-transcribe-flag + per-corpus commands.",
         "priority": 0,
-        "status": "not_started",
+        "status": "done",
         "test_file": "packages/civicos/tests/test_civicos.py",
         "depends_on": []
       }
@@ -669,7 +669,7 @@
         "name": "token_purchase_ui",
         "description": "Token purchase flow in extension: Stripe checkout -> blinded tokens, and (future) Lightning -> blinded tokens.",
         "status": "not_started",
-        "priority": 1,
+        "priority": 0,
         "source": "docs/internal/relay-acceptance-policy-spec.md (Phase 4)",
         "files": [
           "apps/civicos-extension/src/"

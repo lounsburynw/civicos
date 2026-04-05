@@ -25175,3 +25175,35 @@ Audio download pipeline was unsustainably slow: 4+ hours for 13 videos, 300 MB m
 - Single `--onboard` command replacing fragmented 3-step workflow
 - Full pipeline: meetings -> audio -> transcripts -> decisions -> vectors
 - Cost gate + Tier 1 window + per-jurisdiction cap built in
+
+## Session — 2026-04-05: Consolidated Onboard Command
+
+**Item:** consolidated_onboard_command (P0)
+**Status:** DONE
+
+### What Was Built
+- `onboard_jurisdiction()` — per-jurisdiction orchestrator chaining 6 phases:
+  Phase 1: meetings + issues (parallel)
+  Phase 2: videos + chunks (parallel, after meetings)
+  Phase 3: audio download (after video discovery)
+  Phase 4: transcription (after audio, with cost cap + Tier 1 window)
+  Phase 5: agenda + decisions (parallel)
+  Phase 6: vector indexing (all corpora)
+- `batch_onboard()` — multi-jurisdiction orchestrator, spawns parallel onboard jobs
+- `--onboard` CLI flag in main() with cost estimate + `--approve-cost` gate
+- `_print_onboard_results()` — formatted results summary
+
+### Usage
+```
+modal run scripts/modal_ingest.py --onboard --jurisdiction city-sausalito --dry-run
+modal run scripts/modal_ingest.py --onboard --jurisdiction city-sausalito --approve-cost
+modal run scripts/modal_ingest.py --onboard --jurisdictions "city-sausalito,city-tiburon" --approve-cost
+modal run scripts/modal_ingest.py --onboard --jurisdictions "city-X" --approve-cost --onboard-days-past 365
+```
+
+### Verified
+- Dry run tested on city-sausalito: 9 stages, 0 errors, 209s
+- Cost gate verified: blocks without --approve-cost, shows estimate
+- 20/20 smoke tests passing
+
+### Next P0: token_purchase_ui

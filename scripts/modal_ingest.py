@@ -5634,6 +5634,209 @@ def batch_transcribe(
 
 
 # =============================================================================
+# Consolidated Onboard (full pipeline per jurisdiction)
+# =============================================================================
+
+@app.function(
+    image=civic_image,
+    secrets=[modal.Secret.from_name("civic-db")],
+    timeout=14400,  # 4 hours for full pipeline
+)
+def onboard_jurisdiction(
+    jurisdiction: str,
+    since_date: str = "",
+    cost_cap_usd: float = 50.0,
+    days_past: int = 180,
+    dry_run: bool = False,
+) -> dict:
+    """Run complete onboarding pipeline for a single jurisdiction.
+
+    Chains all ingestion stages in dependency order with parallelism
+    where possible. Each stage spawns in its own Modal container.
+
+    Pipeline:
+      Phase 1: meetings + issues (parallel)
+      Phase 2: discover videos + extract chunks (parallel, need meetings)
+      Phase 3: download audio (needs video discovery)
+      Phase 4: transcribe audio (needs audio in R2)
+      Phase 5: agenda items + decisions (parallel, need meetings)
+      Phase 6: index all vectors (needs all data)
+
+    Args:
+        jurisdiction: Target jurisdiction ID (e.g., "city-sausalito")
+        since_date: Only transcribe meetings since this date (YYYY-MM-DD)
+        cost_cap_usd: Per-jurisdiction transcription cost cap
+        days_past: Days to look back for meetings (default 180 = ~6 months)
+        dry_run: If True, run fetches but skip audio/transcription
+    """
+    import logging
+    import time
+
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+    logger = logging.getLogger(__name__)
+    start_time = time.time()
+
+    results = {}
+    errors = []
+
+    def run_stage(name, handle):
+        """Collect result from a spawned handle, logging errors."""
+        try:
+            result = handle.get()
+            results[name] = result
+            elapsed = result.get("elapsed_seconds", 0)
+            logger.info(f"  [{jurisdiction}] {name}: OK ({elapsed:.0f}s)")
+            return result
+        except Exception as e:
+            errors.append(name)
+            results[name] = {"error": str(e)}
+            logger.error(f"  [{jurisdiction}] {name}: FAILED — {e}")
+            return None
+
+    logger.info(f"[ONBOARD] Starting pipeline: {jurisdiction} (days_past={days_past}, dry_run={dry_run})")
+
+    # Phase 1: Fetch base data (parallel)
+    logger.info(f"  [{jurisdiction}] Phase 1: meetings + issues")
+    meetings_h = fetch_meetings.spawn(
+        jurisdiction=jurisdiction, days_past=days_past, auto_index=False, dry_run=dry_run,
+    )
+    issues_h = fetch_issues.spawn(
+        jurisdiction=jurisdiction, auto_index=False, dry_run=dry_run,
+    )
+    meetings_result = run_stage("meetings", meetings_h)
+    run_stage("issues", issues_h)
+
+    # Phase 2: Discover videos + extract chunks (parallel, after meetings)
+    logger.info(f"  [{jurisdiction}] Phase 2: videos + chunks")
+    videos_h = discover_videos.spawn(
+        jurisdiction=jurisdiction, days_past=days_past, days_ahead=30, dry_run=dry_run,
+    )
+    chunks_h = extract_chunks.spawn(
+        jurisdiction=jurisdiction, auto_index=False, dry_run=dry_run,
+    )
+    run_stage("videos", videos_h)
+    run_stage("chunks", chunks_h)
+
+    # Phase 3: Download audio (after video discovery)
+    if not dry_run:
+        logger.info(f"  [{jurisdiction}] Phase 3: audio download")
+        audio_h = download_audio_for_jurisdiction.spawn(
+            jurisdiction=jurisdiction,
+        )
+        run_stage("audio", audio_h)
+    else:
+        logger.info(f"  [{jurisdiction}] Phase 3: audio download [SKIPPED — dry run]")
+        results["audio"] = {"status": "skipped", "reason": "dry_run"}
+
+    # Phase 4: Transcribe (after audio download)
+    if not dry_run:
+        logger.info(f"  [{jurisdiction}] Phase 4: transcription (since={since_date or 'default'}, cap=${cost_cap_usd:.0f})")
+        transcripts_h = extract_transcripts.spawn(
+            jurisdiction=jurisdiction,
+            since_date=since_date,
+            cost_cap_usd=cost_cap_usd,
+            batch=True,
+            auto_index=False,
+        )
+        run_stage("transcripts", transcripts_h)
+    else:
+        logger.info(f"  [{jurisdiction}] Phase 4: transcription [SKIPPED — dry run]")
+        results["transcripts"] = {"status": "skipped", "reason": "dry_run"}
+
+    # Phase 5: Agenda items + decisions (parallel, after meetings)
+    logger.info(f"  [{jurisdiction}] Phase 5: agenda + decisions")
+    agenda_h = extract_agenda_items.spawn(
+        jurisdiction=jurisdiction, auto_index=False, dry_run=dry_run,
+    )
+    decisions_h = extract_decisions.spawn(
+        jurisdiction=jurisdiction, auto_index=False, dry_run=dry_run,
+    )
+    run_stage("agenda", agenda_h)
+    run_stage("decisions", decisions_h)
+
+    # Phase 6: Index all vectors
+    logger.info(f"  [{jurisdiction}] Phase 6: vector indexing")
+    vectors_h = index_vectors.spawn(jurisdiction=jurisdiction, corpus="all")
+    run_stage("vectors", vectors_h)
+
+    elapsed = time.time() - start_time
+    logger.info(f"[ONBOARD] {jurisdiction} complete in {elapsed:.0f}s ({len(errors)} errors)")
+
+    return {
+        "jurisdiction": jurisdiction,
+        "stages": list(results.keys()),
+        "results": results,
+        "errors": errors,
+        "elapsed_seconds": round(elapsed, 1),
+    }
+
+
+@app.function(
+    image=civic_image,
+    secrets=[modal.Secret.from_name("civic-db")],
+    timeout=21600,  # 6 hours for multi-jurisdiction onboarding
+)
+def batch_onboard(
+    jurisdictions: str = "",
+    since_date: str = "",
+    cost_cap_usd: float = 50.0,
+    days_past: int = 180,
+    dry_run: bool = False,
+) -> dict:
+    """Orchestrate parallel onboarding across multiple jurisdictions.
+
+    Spawns onboard_jurisdiction for each jurisdiction in parallel.
+    Each gets its own set of Modal containers for the full pipeline.
+
+    Args:
+        jurisdictions: Comma-separated jurisdiction IDs
+        since_date: Only transcribe meetings since this date (YYYY-MM-DD)
+        cost_cap_usd: Per-jurisdiction transcription cost cap
+        days_past: Days to look back for meetings
+        dry_run: If True, skip audio/transcription stages
+    """
+    import logging
+
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+    logger = logging.getLogger(__name__)
+
+    jids = [j.strip() for j in jurisdictions.split(",") if j.strip()]
+    if not jids:
+        return {"jurisdictions": [], "message": "No jurisdictions specified"}
+
+    logger.info(f"[BATCH-ONBOARD] Spawning {len(jids)} parallel onboard jobs...")
+    handles = []
+    for jid in jids:
+        handle = onboard_jurisdiction.spawn(
+            jurisdiction=jid,
+            since_date=since_date,
+            cost_cap_usd=cost_cap_usd,
+            days_past=days_past,
+            dry_run=dry_run,
+        )
+        handles.append((jid, handle))
+        logger.info(f"  Spawned: {jid}")
+
+    results = {}
+    total_errors = 0
+    for jid, handle in handles:
+        try:
+            result = handle.get()
+            results[jid] = result
+            n_errors = len(result.get("errors", []))
+            total_errors += n_errors
+            elapsed = result.get("elapsed_seconds", 0)
+            logger.info(f"  {jid}: {len(result.get('stages', []))} stages, {n_errors} errors ({elapsed:.0f}s)")
+        except Exception as e:
+            results[jid] = {"error": str(e)}
+            total_errors += 1
+            logger.error(f"  {jid}: FAILED — {e}")
+
+    logger.info(f"\n[BATCH-ONBOARD] Complete: {len(jids)} jurisdictions, {total_errors} total errors")
+    return {"jurisdictions": jids, "results": results, "total_errors": total_errors}
+
+
+# =============================================================================
 # Transcript Extraction (Audio Download + Transcription)
 # =============================================================================
 
@@ -7467,13 +7670,85 @@ def trigger_ingest(body: dict):
 # Unified Entrypoint
 # =============================================================================
 
+def _print_onboard_results(result: dict):
+    """Print formatted onboard results summary."""
+    print("\n" + "=" * 60)
+    print("  ONBOARD RESULTS")
+    print("=" * 60)
+
+    for jid in result.get("jurisdictions", []):
+        r = result["results"].get(jid, {})
+        if "error" in r and isinstance(r.get("error"), str):
+            print(f"\n  {jid}: FAILED — {r['error']}")
+            continue
+
+        elapsed = r.get("elapsed_seconds", 0)
+        errors = r.get("errors", [])
+        print(f"\n  {jid} ({elapsed:.0f}s)")
+
+        stages = r.get("results", {})
+        for stage, stage_result in stages.items():
+            if isinstance(stage_result, dict) and "error" in stage_result:
+                print(f"    x {stage}: {stage_result['error'][:100]}")
+            elif isinstance(stage_result, dict) and stage_result.get("status") == "skipped":
+                print(f"    - {stage}: skipped ({stage_result.get('reason', '')})")
+            elif stage == "meetings":
+                fetched = stage_result.get("meetings_fetched", 0) if isinstance(stage_result, dict) else 0
+                stored = stage_result.get("meetings_stored", 0) if isinstance(stage_result, dict) else 0
+                print(f"    + meetings: {fetched} fetched, {stored} stored")
+            elif stage == "issues":
+                fetched = stage_result.get("issues_fetched", 0) if isinstance(stage_result, dict) else 0
+                stored = stage_result.get("issues_stored", 0) if isinstance(stage_result, dict) else 0
+                print(f"    + issues: {fetched} fetched, {stored} stored")
+            elif stage == "videos":
+                discovered = stage_result.get("videos_discovered", 0) if isinstance(stage_result, dict) else 0
+                stored = stage_result.get("videos_stored", 0) if isinstance(stage_result, dict) else 0
+                print(f"    + videos: {discovered} discovered, {stored} stored")
+            elif stage == "audio":
+                downloaded = stage_result.get("downloaded", 0) if isinstance(stage_result, dict) else 0
+                skipped = stage_result.get("skipped", 0) if isinstance(stage_result, dict) else 0
+                print(f"    + audio: {downloaded} downloaded, {skipped} skipped")
+            elif stage == "transcripts":
+                extracted = stage_result.get("transcripts_extracted", 0) if isinstance(stage_result, dict) else 0
+                cost = stage_result.get("transcription_cost_usd", 0) if isinstance(stage_result, dict) else 0
+                print(f"    + transcripts: {extracted} extracted (${cost:.2f})")
+            elif stage == "chunks":
+                total = stage_result.get("chunks_extracted", 0) if isinstance(stage_result, dict) else 0
+                print(f"    + chunks: {total} extracted")
+            elif stage == "agenda":
+                items = stage_result.get("items_extracted", 0) if isinstance(stage_result, dict) else 0
+                print(f"    + agenda: {items} items")
+            elif stage == "decisions":
+                total = stage_result.get("decisions_extracted", 0) if isinstance(stage_result, dict) else 0
+                print(f"    + decisions: {total} extracted")
+            elif stage == "vectors":
+                indexed = stage_result.get("total_indexed", 0) if isinstance(stage_result, dict) else 0
+                print(f"    + vectors: {indexed} indexed")
+            else:
+                print(f"    + {stage}: OK")
+
+        if errors:
+            print(f"    Errors: {', '.join(errors)}")
+
+    total_errors = result.get("total_errors", 0)
+    print()
+    print("=" * 60)
+    if total_errors > 0:
+        print(f"  {total_errors} stage(s) had errors across {len(result.get('jurisdictions', []))} jurisdictions")
+    else:
+        print(f"  All stages complete for {len(result.get('jurisdictions', []))} jurisdiction(s)")
+    print("=" * 60)
+
+
 @app.local_entrypoint()
 def main(
     all: bool = False,
     batch_audio: bool = False,
     batch_transcribe_flag: bool = False,
+    onboard: bool = False,
     approve_cost: bool = False,
     jurisdictions: str = "",
+    onboard_days_past: int = 180,
     municipal: bool = False,
     legislation: bool = False,
     executive_orders: bool = False,
@@ -7517,6 +7792,12 @@ def main(
     Unified ingestion entrypoint.
 
     Examples:
+        # Onboard a new jurisdiction (full pipeline: meetings -> audio -> transcripts -> decisions -> vectors)
+        modal run scripts/modal_ingest.py --onboard --jurisdiction city-sausalito --dry-run
+        modal run scripts/modal_ingest.py --onboard --jurisdiction city-sausalito --approve-cost
+        modal run scripts/modal_ingest.py --onboard --jurisdictions "city-sausalito,city-tiburon" --approve-cost
+        modal run scripts/modal_ingest.py --onboard --jurisdictions "city-sausalito" --approve-cost --onboard-days-past 365
+
         # Run all ingestion tasks in parallel
         modal run scripts/modal_ingest.py --all
 
@@ -7673,6 +7954,86 @@ def main(
                 cost = r.get("cost_usd", 0)
                 print(f"  {jid}: {txn} transcribed, ${cost:.2f}")
         print(f"\n  TOTAL: {result.get('total_transcribed', 0)} transcripts, ${result.get('total_cost_usd', 0):.2f}")
+        return
+
+    if onboard:
+        # Resolve jurisdiction list
+        if jurisdictions:
+            jids = [j.strip() for j in jurisdictions.split(",") if j.strip()]
+        else:
+            jids = [jurisdiction]
+
+        since = transcripts_since or ""
+        cap = transcripts_cost_cap
+
+        # Step 1: Show cost estimate
+        print("\nEstimating costs for onboarding...")
+        estimate = estimate_audio_costs.remote(jurisdictions=",".join(jids))
+
+        print("\n" + "=" * 60)
+        print("  ONBOARD — COST ESTIMATE")
+        print("=" * 60)
+        print(f"  Jurisdictions: {', '.join(jids)}")
+        print(f"  Lookback:      {onboard_days_past} days (~{onboard_days_past // 30} months)")
+        print(f"  Transcription: since {since or 'default (6 months)'}, cap ${cap:.0f}/jurisdiction")
+        print()
+        print(f"  {'Jurisdiction':<25} {'New':>4} {'YT':>4} {'Gran':>4} {'Proxy$':>8} {'Transcr$':>9}")
+        print("  " + "-" * 58)
+        for jid in jids:
+            e = estimate["jurisdictions"].get(jid, {})
+            if e:
+                print(
+                    f"  {jid:<25} {e.get('new_to_download', 0):>4} {e.get('youtube_videos', 0):>4} "
+                    f"{e.get('granicus_videos', 0):>4} ${e.get('proxy_cost_usd', 0):>6.2f} "
+                    f"${e.get('transcription_cost_usd', 0):>7.2f}"
+                )
+            else:
+                print(f"  {jid:<25}  (no video data yet — meetings will be fetched first)")
+        t = estimate["totals"]
+        print("  " + "-" * 58)
+        print(f"  Proxy bandwidth:    {t['proxy_bandwidth_gb']:.1f} GB  →  ${t['proxy_cost_usd']:.2f}")
+        print(f"  Transcription:                     →  ${t['transcription_cost_usd']:.2f}")
+        print(f"  Modal compute:                     →  ${t['modal_cost_usd']:.2f}")
+        print(f"  ─────────────────────────────────────────")
+        print(f"  Estimated total:                   →  ${t['total_estimated_cost_usd']:.2f}")
+        print()
+        print("  Pipeline: meetings → issues → videos → audio → transcripts")
+        print("            → chunks → agenda → decisions → vectors")
+        print()
+        for note in estimate.get("notes", []):
+            print(f"  * {note}")
+        print()
+
+        if dry_run:
+            print("  [DRY RUN] Launching pipeline without audio/transcription...")
+            print()
+            result = batch_onboard.remote(
+                jurisdictions=",".join(jids),
+                since_date=since,
+                cost_cap_usd=cap,
+                days_past=onboard_days_past,
+                dry_run=True,
+            )
+            _print_onboard_results(result)
+            return
+
+        if not approve_cost:
+            print("  Pass --approve-cost to proceed with full pipeline.")
+            print(f"  Example: modal run scripts/modal_ingest.py --onboard --jurisdiction {jids[0]} --approve-cost")
+            if len(jids) > 1:
+                print(f"  Example: modal run scripts/modal_ingest.py --onboard --jurisdictions \"{','.join(jids)}\" --approve-cost")
+            return
+
+        print(f"  Cost approved. Launching full onboard pipeline...")
+        print()
+        result = batch_onboard.remote(
+            jurisdictions=",".join(jids),
+            since_date=since,
+            cost_cap_usd=cap,
+            days_past=onboard_days_past,
+            dry_run=False,
+        )
+        _print_onboard_results(result)
         return
 
     if stats_only:
