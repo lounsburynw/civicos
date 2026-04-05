@@ -294,6 +294,30 @@ def load_checkpoint(path: Path) -> Optional[AudioCheckpoint]:
         return None
 
 
+def _resolve_granicus_player_url(player_url: str) -> Optional[str]:
+    """Extract the HLS stream URL from a Granicus player page.
+
+    Granicus player pages (e.g. .../player/clip/2509) embed the actual
+    media URL in a JavaScript variable: <script>video_url="https://..."</script>
+
+    Returns the stream URL, or None if the clip has no video.
+    """
+    import re
+    import urllib.request
+
+    try:
+        req = urllib.request.Request(player_url, headers={"User-Agent": "Mozilla/5.0"})
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            html = resp.read().decode("utf-8", errors="replace")
+        match = re.search(r'video_url="([^"]+)"', html)
+        if match and match.group(1):
+            return match.group(1)
+        return None
+    except Exception as e:
+        logger.warning(f"  Failed to resolve Granicus URL: {e}")
+        return None
+
+
 def download_audio(
     video_id: str,
     output_dir: str,
@@ -361,6 +385,23 @@ def download_audio(
         import subprocess
 
         url = video_url or f"https://www.youtube.com/watch?v={video_id}"
+
+        # Resolve Granicus player URLs to direct HLS stream URLs.
+        # Player pages (e.g. sananselmo-ca.granicus.com/player/clip/2509)
+        # embed the actual stream URL in a JS variable: video_url="https://..."
+        if "granicus.com/player/clip/" in url:
+            resolved = _resolve_granicus_player_url(url)
+            if resolved:
+                logger.info(f"  Resolved Granicus player URL -> HLS stream")
+                url = resolved
+            else:
+                logger.warning(f"  Granicus player URL has no video (empty video_url)")
+                return DownloadResult(
+                    video_id=video_id,
+                    status="error",
+                    error="Granicus clip has no video_url (no recording available)",
+                )
+
         raw_path = os.path.join(output_dir, f"{video_id}_raw")
 
         # Step 1: Download raw audio with yt-dlp (no postprocessing).
