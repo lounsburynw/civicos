@@ -5289,6 +5289,158 @@ def download_audio_for_jurisdiction(
 
 @app.function(
     image=civic_image,
+    secrets=[
+        modal.Secret.from_name("civic-db"),
+        modal.Secret.from_name("civic-r2"),
+    ],
+    timeout=120,
+)
+def estimate_audio_costs(jurisdictions: str = "") -> dict:
+    """Estimate costs for batch audio download before committing resources.
+
+    Returns per-jurisdiction breakdown of:
+    - Videos to download (total minus already in R2)
+    - Source type (YouTube=proxy, Granicus=free)
+    - Estimated proxy bandwidth cost
+    - Estimated R2 storage
+    - Estimated Modal compute time
+
+    Cost model (conservative estimates):
+    - Residential proxy: ~$10/GB (varies by provider)
+    - YouTube raw download: ~250 MB/video through proxy
+    - Granicus HLS audio-only: ~200 MB/video (free, no proxy)
+    - Opus output: ~60 MB/3hr meeting -> R2 storage ~$0.015/GB/month
+    - Modal compute: ~$0.10/hr per container
+    - AssemblyAI transcription: ~$0.65/hr of audio (separate step)
+    """
+    import logging
+    import os
+    import psycopg2
+
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+    logger = logging.getLogger(__name__)
+
+    conn = psycopg2.connect(os.environ["DATABASE_URL"])
+    cur = conn.cursor()
+
+    # Resolve jurisdiction list
+    if jurisdictions == "auto" or not jurisdictions:
+        cur.execute("""
+            SELECT DISTINCT jurisdiction_id FROM meetings
+            WHERE video_url IS NOT NULL
+            GROUP BY jurisdiction_id HAVING COUNT(video_url) > 0
+            ORDER BY jurisdiction_id
+        """)
+        jids = [r[0] for r in cur.fetchall()]
+    else:
+        jids = [j.strip() for j in jurisdictions.split(",") if j.strip()]
+
+    # Also include jurisdictions with videos table entries (YouTube)
+    cur.execute("SELECT DISTINCT jurisdiction_id FROM videos ORDER BY jurisdiction_id")
+    video_jids = [r[0] for r in cur.fetchall()]
+    for jid in video_jids:
+        if jid not in jids:
+            jids.append(jid)
+
+    from civicos.storage import get_blob_storage
+    blob = get_blob_storage()
+
+    PROXY_COST_PER_GB = 10.0  # $/GB — residential proxy
+    YOUTUBE_RAW_MB = 250  # avg raw download per YouTube video
+    GRANICUS_RAW_MB = 200  # avg audio-only HLS download per Granicus video
+    MODAL_COST_PER_HR = 0.10  # $/hr per container
+    ASSEMBLYAI_PER_HR = 0.65  # $/hr of audio
+    AVG_MEETING_HOURS = 2.5  # avg meeting duration
+
+    estimates = {}
+    total_proxy_gb = 0
+    total_new_videos = 0
+
+    for jid in jids:
+        # Count videos with URLs
+        cur.execute("""
+            SELECT
+                COUNT(*) FILTER (WHERE video_url LIKE '%%youtube%%') as youtube,
+                COUNT(*) FILTER (WHERE video_url LIKE '%%granicus%%') as granicus,
+                COUNT(*) FILTER (WHERE video_url NOT LIKE '%%youtube%%' AND video_url NOT LIKE '%%granicus%%' AND video_url IS NOT NULL) as other
+            FROM meetings WHERE jurisdiction_id = %s AND video_url IS NOT NULL
+        """, (jid,))
+        row = cur.fetchone()
+        yt_count, gran_count, other_count = row
+
+        # Also check videos table for YouTube discoveries
+        cur.execute("SELECT COUNT(*) FROM videos WHERE jurisdiction_id = %s", (jid,))
+        videos_table = cur.fetchone()[0]
+        # YouTube total = max of meetings.video_url YouTube count and videos table
+        yt_total = max(yt_count, videos_table)
+
+        # Count already in R2
+        r2_keys = blob.list_keys(f"audio/{jid}/")
+        existing = len(r2_keys)
+
+        total_videos = yt_total + gran_count + other_count
+        new_videos = max(0, total_videos - existing)
+
+        # Estimate how many of the new ones are YouTube vs Granicus
+        if total_videos > 0:
+            yt_ratio = yt_total / total_videos
+            gran_ratio = gran_count / total_videos
+        else:
+            yt_ratio, gran_ratio = 0, 0
+
+        new_yt = int(new_videos * yt_ratio)
+        new_gran = int(new_videos * gran_ratio)
+        new_other = new_videos - new_yt - new_gran
+
+        proxy_gb = (new_yt * YOUTUBE_RAW_MB) / 1024
+        proxy_cost = proxy_gb * PROXY_COST_PER_GB
+        total_proxy_gb += proxy_gb
+        total_new_videos += new_videos
+
+        # Estimated hours of audio for transcription cost
+        audio_hours = new_videos * AVG_MEETING_HOURS
+        transcription_cost = audio_hours * ASSEMBLYAI_PER_HR
+
+        estimates[jid] = {
+            "total_videos": total_videos,
+            "existing_in_r2": existing,
+            "new_to_download": new_videos,
+            "youtube_videos": new_yt,
+            "granicus_videos": new_gran + new_other,
+            "proxy_bandwidth_gb": round(proxy_gb, 2),
+            "proxy_cost_usd": round(proxy_cost, 2),
+            "transcription_cost_usd": round(transcription_cost, 2),
+            "audio_hours": round(audio_hours, 1),
+        }
+
+    conn.close()
+
+    total_proxy_cost = total_proxy_gb * PROXY_COST_PER_GB
+    total_audio_hours = total_new_videos * AVG_MEETING_HOURS
+    total_transcription_cost = total_audio_hours * ASSEMBLYAI_PER_HR
+    total_modal_cost = len(jids) * 1.0 * MODAL_COST_PER_HR  # ~1hr per jurisdiction
+
+    return {
+        "jurisdictions": estimates,
+        "totals": {
+            "new_videos": total_new_videos,
+            "proxy_bandwidth_gb": round(total_proxy_gb, 2),
+            "proxy_cost_usd": round(total_proxy_cost, 2),
+            "modal_cost_usd": round(total_modal_cost, 2),
+            "transcription_cost_usd": round(total_transcription_cost, 2),
+            "total_estimated_cost_usd": round(total_proxy_cost + total_modal_cost + total_transcription_cost, 2),
+        },
+        "notes": [
+            "Proxy cost applies only to YouTube videos (Granicus is free/direct)",
+            "Transcription cost is for AssemblyAI (separate --transcripts step)",
+            "Proxy cost varies by provider (~$5-15/GB for residential)",
+            "Pass --approve-cost to proceed after reviewing estimate",
+        ],
+    }
+
+
+@app.function(
+    image=civic_image,
     secrets=[modal.Secret.from_name("civic-db")],
     timeout=14400,  # 4 hours — orchestrator waits for all per-jurisdiction jobs
 )
@@ -5302,6 +5454,9 @@ def batch_audio_download(
     Each jurisdiction gets its own Modal container running in parallel.
     Containers download audio, convert to opus@48kbps mono, upload to R2.
 
+    IMPORTANT: Run with --dry-run first to see cost estimate.
+    Pass --approve-cost to skip the estimate step.
+
     Args:
         jurisdictions: Comma-separated jurisdiction IDs, or "auto" to detect
                       all jurisdictions with video URLs but missing audio.
@@ -5309,9 +5464,9 @@ def batch_audio_download(
         dry_run: If True, show what would be downloaded
 
     Usage:
-        modal run scripts/modal_ingest.py --batch-audio --jurisdictions "city-fairfax,city-sausalito"
-        modal run scripts/modal_ingest.py --batch-audio --jurisdictions auto
-        modal run scripts/modal_ingest.py --batch-audio --jurisdictions auto --detach
+        modal run scripts/modal_ingest.py --batch-audio --jurisdictions auto --dry-run
+        modal run scripts/modal_ingest.py --batch-audio --jurisdictions auto --approve-cost
+        modal run scripts/modal_ingest.py --batch-audio --jurisdictions auto --approve-cost --detach
     """
     import logging
     import os
@@ -7185,6 +7340,7 @@ def trigger_ingest(body: dict):
 def main(
     all: bool = False,
     batch_audio: bool = False,
+    approve_cost: bool = False,
     jurisdictions: str = "",
     municipal: bool = False,
     legislation: bool = False,
@@ -7280,12 +7436,54 @@ def main(
         modal run scripts/modal_ingest.py --meetings --no-auto-index  # Skip vector indexing
     """
     if batch_audio:
-        print(f"\nLaunching batch audio download...")
-        print(f"Jurisdictions: {jurisdictions or 'auto-detect'}")
+        jids_arg = jurisdictions or "auto"
+
+        # Step 1: Always show cost estimate first
+        print("\nEstimating costs...")
+        estimate = estimate_audio_costs.remote(jurisdictions=jids_arg)
+
+        print("\n" + "=" * 60)
+        print("  BATCH AUDIO DOWNLOAD — COST ESTIMATE")
+        print("=" * 60)
+        print(f"{'Jurisdiction':<25} {'New':>4} {'YT':>4} {'Gran':>4} {'Proxy$':>8} {'Transcr$':>9}")
+        print("-" * 60)
+        for jid, e in estimate["jurisdictions"].items():
+            print(
+                f"  {jid:<23} {e['new_to_download']:>4} {e['youtube_videos']:>4} "
+                f"{e['granicus_videos']:>4} ${e['proxy_cost_usd']:>6.2f} "
+                f"${e['transcription_cost_usd']:>7.2f}"
+            )
+        t = estimate["totals"]
+        print("-" * 60)
+        print(f"  {'TOTAL':<23} {t['new_videos']:>4}")
+        print()
+        print(f"  Proxy bandwidth:    {t['proxy_bandwidth_gb']:.1f} GB  →  ${t['proxy_cost_usd']:.2f}")
+        print(f"  Modal compute:                    →  ${t['modal_cost_usd']:.2f}")
+        print(f"  Transcription (if run later):      →  ${t['transcription_cost_usd']:.2f}")
+        print(f"  ─────────────────────────────────────────")
+        print(f"  Audio download total:              →  ${t['proxy_cost_usd'] + t['modal_cost_usd']:.2f}")
+        print(f"  Full pipeline (incl. transcribe):  →  ${t['total_estimated_cost_usd']:.2f}")
+        print()
+        for note in estimate.get("notes", []):
+            print(f"  * {note}")
+        print()
+
+        # Step 2: Gate on --approve-cost (or --dry-run just shows estimate)
+        if dry_run:
+            print("  [DRY RUN] No downloads started.")
+            return
+
+        if not approve_cost:
+            print("  ⛔ Pass --approve-cost to proceed with download.")
+            print("  Example: modal run scripts/modal_ingest.py --batch-audio --approve-cost")
+            return
+
+        # Step 3: Proceed with download
+        print(f"  ✓ Cost approved. Launching downloads...")
         result = batch_audio_download.remote(
-            jurisdictions=jurisdictions or "auto",
+            jurisdictions=jids_arg,
             limit=transcripts_limit,
-            dry_run=dry_run,
+            dry_run=False,
         )
         print("\n" + "=" * 60)
         print("Batch Audio Download Results")
