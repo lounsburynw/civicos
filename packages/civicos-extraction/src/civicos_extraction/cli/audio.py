@@ -430,13 +430,15 @@ def download_audio(
             ydl_opts["external_downloader_args"] = {"ffmpeg_i": ["-vn"]}
             logger.info(f"  HLS stream — downloading audio track only (skipping video)")
 
-        # Add cookies if provided
-        if cookies_file and os.path.exists(cookies_file):
+        # Add cookies if provided (YouTube only — Granicus doesn't need them)
+        is_youtube = "youtube.com" in url or "youtu.be" in url
+        if is_youtube and cookies_file and os.path.exists(cookies_file):
             ydl_opts["cookiefile"] = cookies_file
             logger.debug(f"  Using cookies from: {cookies_file}")
 
-        # Add proxy if provided (residential proxy to bypass datacenter IP blocks)
-        if proxy:
+        # Add proxy only for YouTube (residential proxy to bypass datacenter IP blocks).
+        # Granicus and other public streams don't need proxy — using it wastes bandwidth quota.
+        if is_youtube and proxy:
             ydl_opts["proxy"] = proxy
             logger.debug(f"  Using proxy: {proxy.split('@')[-1]}")
 
