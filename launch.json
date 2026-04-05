@@ -294,6 +294,14 @@
         ],
         "test_file": "packages/civicos/tests/test_integration_onboarding.py",
         "notes": "Use sample meeting count to extrapolate: meetings_in_sample * (days_past / sample_days). Cost model from modal_ingest.py docstring: ~$0.02/meeting for fetch, ~$0.05/meeting for LLM extraction. Add --yes flag to auto-proceed. ~1 session."
+      },
+      {
+        "name": "consolidated_onboard_command",
+        "description": "Single modal run --onboard command that runs full pipeline per jurisdiction: discover videos, show cost estimate, fetch meetings/issues/code, download audio (Tier 1 window), transcribe (with cost cap), extract decisions, index vectors. Replaces fragmented --batch-audio + --batch-transcribe-flag + per-corpus commands.",
+        "priority": 0,
+        "status": "not_started",
+        "test_file": "packages/civicos/tests/test_civicos.py",
+        "depends_on": []
       }
     ]
   },
@@ -661,7 +669,7 @@
         "name": "token_purchase_ui",
         "description": "Token purchase flow in extension: Stripe checkout -> blinded tokens, and (future) Lightning -> blinded tokens.",
         "status": "not_started",
-        "priority": 0,
+        "priority": 1,
         "source": "docs/internal/relay-acceptance-policy-spec.md (Phase 4)",
         "files": [
           "apps/civicos-extension/src/"

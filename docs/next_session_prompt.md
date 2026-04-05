@@ -1,73 +1,92 @@
-# Investigate YouTube 403s + Complete Fairfax Transcription
+# Consolidated Onboard Command
 
-**Priority:** User-directed (launch.json P0 is `token_purchase_ui`, but user explicitly requested this)
-**Area:** data_pipeline / transcription
-**Date:** 2026-04-04
+**Priority:** P0
+**Area:** turnkey_onboarding
+**Date:** 2026-04-05
 
-> Previous session onboarded 4 jurisdictions, built BoardDocs content extraction, and got 5/13 Fairfax transcripts. 8 videos failed with YouTube 403 errors even through the residential proxy. User wants to investigate why.
+> This is recommended context from the previous session. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
 
 ## Context
 
-This session was a major data expansion — from 1 jurisdiction to 17, from 645 to 1,707 decisions. The transcription pipeline works (5 Fairfax videos transcribed, $12.88 AssemblyAI) but YouTube is blocking 8 of 13 downloads even through DataImpulse residential proxy. The 403s are sporadic — some videos download fine, others fail mid-stream (one got to 37.9% before cutting off).
+This session optimized the audio pipeline (opus@48kbps mono, parallel downloads, Granicus HLS resolution, audio-only download) and built batch operations for audio download and transcription across jurisdictions. The pipeline now works but requires 3 separate commands: `--batch-audio`, `--batch-transcribe-flag`, and per-corpus flags. The user wants a single `--onboard` command that runs the full pipeline per jurisdiction with cost estimation and approval gates.
 
-## The Problem
+A tiered transcription policy was established (see `docs/internal/transcription-policy.md`):
+- **Tier 1** (recent 3-6 months): Full AssemblyAI transcription (~$1.60/meeting)
+- **Tier 2** (older): Agenda chunks + decisions only ($0)
 
-```
-ERROR: unable to download video data: HTTP Error 403: Forbidden
-```
+## Recommended Task
 
-8 of 13 Fairfax YouTube videos failed. Pattern:
-- Videos `qFBzyO0gLQM`, `htqDXoDU05o`, `kIK6hljdcUI`, `UGbygh9Nwqg`, `3wJhocXJNCY` — immediate 403
-- Video `iJppJPzrAbc` — read timeout through proxy
-- Video `zvOETnDPGKM` — read timeout through proxy
-- Videos `yWrNkjbnG84`, `GBeEm0LYE5E`, `98dqXLh3M2U`, `TYOoRdD2o_o`, `IzsKaNksSyU` — SUCCESS
+Build a single `--onboard` CLI command in `scripts/modal_ingest.py` that runs the complete ingestion pipeline for one or more jurisdictions:
+
+1. Show cost estimate (reuse `estimate_audio_costs`)
+2. Require `--approve-cost`
+3. Fetch meetings, issues, municipal code, agenda packets
+4. Discover/download audio (Tier 1 window, route YouTube through proxy, Granicus direct)
+5. Transcribe (with cost cap per jurisdiction)
+6. Extract decisions, agenda items
+7. Index vectors
+8. Report coverage summary
 
 ## Key Files
 
-- `packages/civicos-extraction/src/civicos_extraction/cli/audio.py:255` — `download_audio()`, now supports generic `video_url` parameter
-- `scripts/modal_ingest.py:5200-5310` — `extract_transcripts()` Modal function, uses `civic-youtube-proxy` secret
-- `data/city_fairfax_videos.json` — 13 discovered video IDs
+- `scripts/modal_ingest.py:5290` — `estimate_audio_costs()` — cost estimation function
+- `scripts/modal_ingest.py:5447` — `batch_audio_download()` — parallel audio orchestrator
+- `scripts/modal_ingest.py:5536` — `batch_transcribe()` — parallel transcription orchestrator
+- `scripts/modal_ingest.py:5610` — `extract_transcripts()` — per-jurisdiction with `since_date` + `cost_cap_usd`
+- `scripts/modal_ingest.py:7370` — `main()` CLI entrypoint
+- `packages/civicos-extraction/src/civicos_extraction/cli/audio.py` — Audio pipeline (opus, Granicus resolver, HLS audio-only)
+- `docs/internal/transcription-policy.md` — Tiered policy, cost reference, onboarding budgets
 
-## Investigation Areas
+## Current Pipeline State
 
-1. **yt-dlp version**: Modal image may have outdated yt-dlp. YouTube frequently patches extraction methods. Check `yt-dlp --version` in the Modal container vs latest release.
+- **173 audio files** in R2 across 8 jurisdictions
+- **Transcription batch launched on Modal** (since Jan 2026, $50/jurisdiction cap) — check `modal app list`
+- Granicus audio partially downloaded (hit 1hr timeout):
+  - Berkeley: 18/66, Mill Valley: 20/105, San Anselmo: 16/129, Sausalito: 9/46, County Marin: 24/25
+- YouTube complete: San Rafael 67, Fairfax 13
+- Proxy status: working but bandwidth-limited ($50 spent, `407 TRAFFIC_EXHAUSTED` possible)
 
-2. **Cookie support**: The pipeline has cookie support (`YOUTUBE_COOKIES_B64` secret) but wasn't used this session. Fresh browser cookies + proxy together may be needed.
+## Key Design Decisions
 
-3. **Proxy rotation**: DataImpulse supports rotating IPs. The current URL (`gw.dataimpulse.com:823`) may need country/session parameters. Check DataImpulse docs for `session` or `country` URL params.
-
-4. **Rate limiting pattern**: The 5 successful downloads happened sequentially — YouTube may be rate-limiting after N downloads. Adding delays between downloads might help.
-
-5. **Age-restricted/private videos**: Some failing video IDs may have restrictions. Test manually: `curl -sI "https://www.youtube.com/watch?v=qFBzyO0gLQM" | head -5`
+1. **Proxy only for YouTube** — Granicus is free HLS (`audio.py:438`)
+2. **Audio-only HLS** — `-vn` strips video, 200 MB vs 1.8 GB per meeting (`audio.py:428`)
+3. **Direct ffmpeg re-encode** — Bypass yt-dlp stream-copy, run ffmpeg with `-c:a libopus -b:a 48k -ac 1` (`audio.py:384`)
+4. **Cost gate mandatory** — `--approve-cost` required for all batch operations
+5. **Transcription defaults** — 6-month rolling window, $50/jurisdiction cap
 
 ## Suggested Approach
 
-1. Check yt-dlp version in Modal vs latest: `pip install --upgrade yt-dlp` in the image
-2. Test failed video IDs individually (are they accessible in a browser?)
-3. Try with cookies: export fresh YouTube cookies, set `YOUTUBE_COOKIES_B64` Modal secret
-4. Try with delay: add `--sleep-interval 5` or similar to yt-dlp opts
-5. Re-run: `modal run scripts/modal_ingest.py --transcripts --jurisdiction city-fairfax`
+1. Read `main()` entrypoint and existing batch handlers (`--batch-audio`, `--batch-transcribe-flag`)
+2. Create `onboard_jurisdiction()` Modal function that chains: meetings -> issues -> videos -> audio -> transcripts -> decisions -> chunks -> vectors
+3. Create `batch_onboard()` orchestrator that spawns per-jurisdiction jobs in parallel
+4. Wire `--onboard` flag in `main()` with cost estimate + `--approve-cost`
+5. Test: `modal run scripts/modal_ingest.py --onboard --jurisdiction city-sausalito`
+6. Test batch: `modal run scripts/modal_ingest.py --onboard --jurisdictions "city-oakland,city-alameda" --approve-cost`
 
-## Also Available: Sausalito Granicus Audio
+## Tests to Run
 
-Generic video URL support was shipped this session. Sausalito has Granicus video URLs stored in the meetings table. `audio.py` now falls back to meetings table `video_url` when no videos table entry exists. yt-dlp handles Granicus URLs (verified locally). Untested in production.
-
-## Platform State After Last Session
-
-- **17 jurisdictions** in Postgres
-- **1,492 meetings**, **54,760 chunks**, **1,707 decisions**, **51 transcripts**
-- Proxy refreshed: `civic-youtube-proxy` Modal secret (DataImpulse `gw.dataimpulse.com:823`, updated 2026-04-04)
-- 4 commits: `ec12190`, `ad2d3fc`, `8bc13d0`, `ef7e4d1`
-
-## Commits This Session
-
-- `ec12190` — Production onboard Sausalito, Fairfax, 2 school districts
-- `ad2d3fc` — BoardDocs structured content extraction (chunks + agenda items from API)
-- `8bc13d0` — Generic video URL support + BoardDocs decision extraction
-- `ef7e4d1` — Session progress update
+```bash
+pytest packages/civicos/tests/test_civicos.py -q --override-ini="addopts="
+modal run scripts/modal_ingest.py --batch-audio --jurisdictions auto --dry-run
+```
 
 ## Success Criteria
 
-- [ ] Root cause identified for YouTube 403s
-- [ ] Remaining 8 Fairfax videos downloaded and transcribed
-- [ ] Total Fairfax transcripts: 13 (up from 5)
+- [ ] `--onboard --jurisdiction city-X` runs full pipeline with cost gate
+- [ ] `--onboard --jurisdictions "X,Y,Z"` parallelizes across jurisdictions
+- [ ] Transcription respects Tier 1 window and cost cap
+- [ ] Works with `--detach` for fire-and-forget
+- [ ] Single command replaces current 3-step workflow
+
+## Commits This Session (10)
+
+- `ea28c03` — Opus@48kbps mono, parallel downloads, direct ffmpeg
+- `f176411` — Batch audio download parallel across jurisdictions
+- `e9a8c0d` — Batch audio timeout fix (4 hours)
+- `c7bb616` — Granicus player URL -> HLS stream resolution
+- `ff567cc` — Audio-only HLS download (10x smaller)
+- `1113ab3` — Proxy only for YouTube, not Granicus
+- `e7a3697` — Cost estimation gate for batch audio
+- `ce50576` — Tiered transcription policy docs
+- `6353cff` — Transcription date window + cost cap enforcement
+- `10f4c20` — Batch transcription parallel across jurisdictions

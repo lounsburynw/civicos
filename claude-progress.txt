@@ -25141,3 +25141,37 @@ End-to-end onboarding walkthrough as a docs UX test. Onboarded 3 Marin cities (N
 - CivicPlus extraction client (unlocks Corte Madera, Larkspur)
 - Wire universal adapter as detection fallback (unlocks Fairfax, Ross, Belvedere)
 - 311 provider discovery beyond SeeClickFix (FixItMarin for Marin County)
+
+## Session: 2026-04-05 — Audio Pipeline Optimization + Batch Operations
+
+### Problem
+Audio download pipeline was unsustainably slow: 4+ hours for 13 videos, 300 MB mp3 files, sequential processing, residential upload bottleneck.
+
+### Optimizations Shipped (10 commits)
+1. **Opus@48kbps mono** — 3.3x smaller files (88 MB vs 291 MB per meeting)
+2. **Direct ffmpeg re-encode** — bypass yt-dlp's stream-copy bug
+3. **Parallel downloads** — ThreadPoolExecutor, 3 workers default
+4. **Granicus player URL resolution** — curl + regex extracts HLS stream from player pages
+5. **Audio-only HLS download** — `-vn` flag strips video track, 200 MB vs 1.8 GB
+6. **Proxy routing** — YouTube only, Granicus direct (saves proxy bandwidth)
+7. **Batch audio download** — parallel across jurisdictions on Modal, detachable
+8. **Batch transcription** — parallel across jurisdictions on Modal, detachable
+9. **Cost estimation gate** — `--approve-cost` required, shows per-jurisdiction breakdown
+10. **Tiered transcription policy** — Tier 1 (recent, full transcription), Tier 2 (older, agenda chunks only)
+
+### Data State
+- 173 audio files in R2 across 8 jurisdictions
+- Fairfax: 13/13 complete
+- San Rafael: 67 audio files, 149 transcripts
+- Granicus batch partially complete (Berkeley 18/66, Mill Valley 20/105, etc.)
+- Transcription batch launched for since-January audio (~$46 estimated)
+
+### Cost Incident
+- $50 proxy spend in one day from batch launches without cost communication
+- Built cost estimation gate to prevent recurrence
+- Documented tiered transcription policy (docs/internal/transcription-policy.md)
+
+### Next P0: consolidated_onboard_command
+- Single `--onboard` command replacing fragmented 3-step workflow
+- Full pipeline: meetings -> audio -> transcripts -> decisions -> vectors
+- Cost gate + Tier 1 window + per-jurisdiction cap built in
