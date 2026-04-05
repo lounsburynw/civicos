@@ -5534,6 +5534,106 @@ def batch_audio_download(
 
 
 # =============================================================================
+# Batch Transcription (parallel across jurisdictions)
+# =============================================================================
+
+@app.function(
+    image=civic_image,
+    secrets=[
+        modal.Secret.from_name("civic-db"),
+        modal.Secret.from_name("civic-r2"),
+    ],
+    timeout=14400,  # 4 hours — orchestrator waits for all per-jurisdiction jobs
+)
+def batch_transcribe(
+    jurisdictions: str = "",
+    since_date: str = "",
+    cost_cap_usd: float = 50.0,
+    dry_run: bool = False,
+) -> dict:
+    """Orchestrate parallel transcription across multiple jurisdictions.
+
+    Spawns extract_transcripts for each jurisdiction that has audio in R2
+    but missing transcripts. Respects the tiered transcription policy:
+    only transcribes meetings since since_date (default 6 months).
+
+    Args:
+        jurisdictions: Comma-separated IDs, or "auto" to detect from R2 audio
+        since_date: Only transcribe meetings on or after this date (YYYY-MM-DD)
+        cost_cap_usd: Per-jurisdiction cost cap (default $50)
+        dry_run: If True, show what would be transcribed
+    """
+    import logging
+    import os
+    import psycopg2
+
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+    logger = logging.getLogger(__name__)
+
+    # Resolve jurisdictions
+    if jurisdictions == "auto" or not jurisdictions:
+        from civicos.storage import get_blob_storage
+        blob = get_blob_storage()
+
+        conn = psycopg2.connect(os.environ["DATABASE_URL"])
+        cur = conn.cursor()
+        cur.execute("SELECT DISTINCT jurisdiction_id FROM meetings ORDER BY jurisdiction_id")
+        all_jids = [r[0] for r in cur.fetchall()]
+        conn.close()
+
+        # Only include jurisdictions that have audio in R2
+        jids = []
+        for jid in all_jids:
+            keys = blob.list_keys(f"audio/{jid}/")
+            if keys:
+                jids.append(jid)
+        logger.info(f"[BATCH-TXN] Auto-detected {len(jids)} jurisdictions with audio in R2: {jids}")
+    else:
+        jids = [j.strip() for j in jurisdictions.split(",") if j.strip()]
+        logger.info(f"[BATCH-TXN] Explicit jurisdictions: {jids}")
+
+    if not jids:
+        logger.info("[BATCH-TXN] No jurisdictions to process")
+        return {"jurisdictions": [], "message": "No jurisdictions with audio found"}
+
+    # Spawn parallel transcription jobs
+    logger.info(f"[BATCH-TXN] Spawning {len(jids)} parallel transcription jobs (cost cap ${cost_cap_usd:.0f}/jurisdiction)...")
+    handles = []
+    for jid in jids:
+        handle = extract_transcripts.spawn(
+            jurisdiction=jid,
+            dry_run=dry_run,
+            batch=True,
+            auto_index=True,
+            since_date=since_date,
+            cost_cap_usd=cost_cap_usd,
+        )
+        handles.append((jid, handle))
+        logger.info(f"  Spawned: {jid}")
+
+    # Collect results
+    results = {}
+    total_cost = 0
+    total_transcribed = 0
+    for jid, handle in handles:
+        try:
+            result = handle.get()
+            results[jid] = result
+            cost = result.get("cost_usd", 0)
+            transcribed = result.get("transcripts_extracted", 0)
+            skipped = result.get("transcripts_skipped", 0)
+            total_cost += cost
+            total_transcribed += transcribed
+            logger.info(f"  {jid}: {transcribed} transcribed, {skipped} skipped, ${cost:.2f}")
+        except Exception as e:
+            results[jid] = {"error": str(e)}
+            logger.error(f"  {jid}: FAILED — {e}")
+
+    logger.info(f"\n[BATCH-TXN] Complete: {total_transcribed} transcripts, ${total_cost:.2f} total across {len(jids)} jurisdictions")
+    return {"jurisdictions": list(results.keys()), "results": results, "total_cost_usd": total_cost, "total_transcribed": total_transcribed}
+
+
+# =============================================================================
 # Transcript Extraction (Audio Download + Transcription)
 # =============================================================================
 
@@ -7371,6 +7471,7 @@ def trigger_ingest(body: dict):
 def main(
     all: bool = False,
     batch_audio: bool = False,
+    batch_transcribe_flag: bool = False,
     approve_cost: bool = False,
     jurisdictions: str = "",
     municipal: bool = False,
@@ -7527,6 +7628,51 @@ def main(
                 print(f"  {jid}: FAILED — {r['error']}")
             else:
                 print(f"  {jid}: {r.get('downloaded', 0)} new, {r.get('skipped', 0)} skipped, {r.get('failed', 0)} failed ({r.get('elapsed_seconds', 0):.0f}s)")
+        return
+
+    if batch_transcribe_flag:
+        jids_arg = jurisdictions or "auto"
+        since = transcripts_since or "2026-01-01"
+        cap = transcripts_cost_cap
+
+        # Show estimate first
+        estimate = estimate_audio_costs.remote(jurisdictions=jids_arg)
+        total_new = sum(e["new_to_download"] for e in estimate["jurisdictions"].values())
+        total_txn = estimate["totals"]["transcription_cost_usd"]
+
+        print("\n" + "=" * 60)
+        print("  BATCH TRANSCRIPTION — COST ESTIMATE")
+        print("=" * 60)
+        print(f"  Since:     {since}")
+        print(f"  Per-jurisdiction cap: ${cap:.0f}")
+        print(f"  Estimated total transcription: ${total_txn:.0f}")
+        print(f"  (actual cost depends on how many meetings have audio in R2)")
+        print()
+
+        if not approve_cost:
+            print("  Pass --approve-cost to proceed.")
+            print(f"  Example: modal run scripts/modal_ingest.py --batch-transcribe-flag --approve-cost --transcripts-since {since}")
+            return
+
+        print(f"  Cost approved. Launching transcription across jurisdictions...")
+        result = batch_transcribe.remote(
+            jurisdictions=jids_arg,
+            since_date=since,
+            cost_cap_usd=cap,
+            dry_run=dry_run,
+        )
+        print("\n" + "=" * 60)
+        print("Batch Transcription Results")
+        print("=" * 60)
+        for jid in result.get("jurisdictions", []):
+            r = result["results"].get(jid, {})
+            if "error" in r:
+                print(f"  {jid}: FAILED — {r['error']}")
+            else:
+                txn = r.get("transcripts_extracted", 0)
+                cost = r.get("cost_usd", 0)
+                print(f"  {jid}: {txn} transcribed, ${cost:.2f}")
+        print(f"\n  TOTAL: {result.get('total_transcribed', 0)} transcripts, ${result.get('total_cost_usd', 0):.2f}")
         return
 
     if stats_only:
