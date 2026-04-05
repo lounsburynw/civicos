@@ -5560,6 +5560,8 @@ def extract_transcripts(
     auto_index: bool = False,
     meeting_type: str = "",
     since_days: int = 0,
+    since_date: str = "",
+    cost_cap_usd: float = 50.0,
 ) -> dict:
     """Extract transcripts from meeting audio using AssemblyAI.
 
@@ -5575,6 +5577,12 @@ def extract_transcripts(
         discovers videos) and BEFORE index_vectors (which indexes transcripts).
         This ensures transcript data is available for vector embedding.
 
+    Transcription Policy (see docs/internal/transcription-policy.md):
+        - Tier 1 (recent): Full transcription for meetings since since_date
+        - Tier 2 (older): Covered by agenda chunks, no transcription needed
+        - Default since_date: 6 months ago (rolling window)
+        - cost_cap_usd prevents runaway spending per invocation
+
     Args:
         jurisdiction: Target jurisdiction (e.g., "city-san-rafael")
         limit: Maximum meetings to process (0 = no limit)
@@ -5583,8 +5591,12 @@ def extract_transcripts(
         auto_index: If True, trigger vector indexing after successful extraction
         meeting_type: Filter by meeting type (e.g., "planning_commission")
         since_days: Only process videos discovered within this many days (0 = no filter)
+        since_date: Only transcribe meetings on or after this date (YYYY-MM-DD).
+                    Default: 6 months ago. Implements Tier 1 transcription window.
+        cost_cap_usd: Maximum AssemblyAI spend per invocation (default $50).
+                      Stops processing when cap is reached.
 
-    Cost: ~$0.02/minute audio (~$2.40 per 2-hour meeting)
+    Cost: ~$0.65/hr audio (~$1.60 per 2.5-hour meeting)
     """
     import logging
     import os
@@ -5604,7 +5616,18 @@ def extract_transcripts(
 
     meeting_type_filter = meeting_type if meeting_type else None
     since_days_filter = since_days if since_days > 0 else None
-    logger.info(f"[TRANSCRIPTS] Starting extraction: jurisdiction={jurisdiction}, limit={limit}, batch={batch}, meeting_type={meeting_type_filter}, since_days={since_days_filter}")
+
+    # Apply transcription policy: default to 6-month window if no filter specified
+    if not since_date and not since_days_filter:
+        from datetime import datetime, timedelta
+        since_date = (datetime.now() - timedelta(days=180)).strftime("%Y-%m-%d")
+        logger.info(f"[TRANSCRIPTS] No date filter specified — defaulting to Tier 1 window: since {since_date}")
+        since_days_filter = 180
+
+    if since_date:
+        logger.info(f"[TRANSCRIPTS] Transcription window: meetings since {since_date}")
+
+    logger.info(f"[TRANSCRIPTS] Starting extraction: jurisdiction={jurisdiction}, limit={limit}, batch={batch}, meeting_type={meeting_type_filter}, since_days={since_days_filter}, cost_cap=${cost_cap_usd:.0f}")
 
     # Decode YouTube cookies from Modal secret (base64-encoded)
     # Bypasses YouTube bot detection from datacenter IPs.
@@ -5682,13 +5705,21 @@ def extract_transcripts(
     try:
         from civicos_extraction.cli.transcribe import run_transcription
 
+        # Apply cost cap: estimate meetings to process, limit if needed
+        # Average meeting = 2.5 hrs * $0.65/hr = $1.625
+        max_meetings_by_cost = int(cost_cap_usd / 1.625) if cost_cap_usd > 0 else 0
+        effective_limit = limit if limit > 0 else max_meetings_by_cost
+        if limit > 0:
+            effective_limit = min(limit, max_meetings_by_cost) if max_meetings_by_cost > 0 else limit
+        logger.info(f"[TRANSCRIPTS] Cost cap ${cost_cap_usd:.0f} -> max ~{max_meetings_by_cost} meetings (effective limit: {effective_limit})")
+
         transcribe_results = run_transcription(
             jurisdiction_id=jurisdiction,
             input_dir="data/youtube_audio",
             output_dir="data/testimony",
             checkpoint_dir="data/checkpoints",
             dry_run=dry_run,
-            limit=limit,
+            limit=effective_limit,
             min_speakers=15,
             max_speakers=50,
             cloud=True,  # Read audio from R2, store transcripts in Postgres
@@ -7367,6 +7398,8 @@ def main(
     legislation_jurisdiction: str = "state-CA",
     legislation_limit: int | None = None,
     transcripts_limit: int = 0,
+    transcripts_since: str = "",
+    transcripts_cost_cap: float = 50.0,
     chunks_limit: int = 0,
     agenda_limit: int = 0,
     decisions_limit: int = 0,
@@ -7815,13 +7848,16 @@ def main(
     # Extract transcripts after meetings are fetched (audio download + transcription)
     transcripts_result = None
     if run_transcripts:
-        print("\nRunning transcript extraction (audio + transcription)...")
+        print(f"\nRunning transcript extraction (audio + transcription)...")
+        print(f"  Cost cap: ${transcripts_cost_cap:.0f} | Since: {transcripts_since or 'default (6 months)'}")
         transcripts_result = extract_transcripts.remote(
             jurisdiction=jurisdiction,
             limit=transcripts_limit,
             dry_run=dry_run,
             batch=True,  # Use batch mode for parallel transcription
             auto_index=auto_index,
+            since_date=transcripts_since,
+            cost_cap_usd=transcripts_cost_cap,
         )
         print(f"  transcripts: {transcripts_result.get('elapsed_seconds', 0):.1f}s, cost: ${transcripts_result.get('cost_usd', 0):.4f}")
         if transcripts_result.get("duration_validation_issues", 0) > 0:
