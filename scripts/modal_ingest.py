@@ -5188,6 +5188,197 @@ def extract_decisions(
 
 
 # =============================================================================
+# Batch Audio Download (parallel across jurisdictions)
+# =============================================================================
+
+@app.function(
+    image=civic_image,
+    secrets=[
+        modal.Secret.from_name("civic-db"),
+        modal.Secret.from_name("civic-r2"),
+        modal.Secret.from_name("civic-youtube-cookies"),
+        modal.Secret.from_name("civic-youtube-proxy"),
+    ],
+    memory=4096,
+    timeout=3600,  # 1 hour per jurisdiction
+)
+def download_audio_for_jurisdiction(
+    jurisdiction: str,
+    limit: int = 0,
+    dry_run: bool = False,
+) -> dict:
+    """Download audio for a single jurisdiction. Designed to be spawned in parallel.
+
+    Downloads meeting audio (YouTube or Granicus video_url), converts to
+    opus@48kbps mono, and uploads to R2. Returns summary dict.
+
+    Usage:
+        # Spawned by batch_audio_download, or directly:
+        modal run scripts/modal_ingest.py::download_audio_for_jurisdiction --jurisdiction city-fairfax
+    """
+    import logging
+    import os
+    import time
+
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+    logger = logging.getLogger(__name__)
+    start_time = time.time()
+
+    logger.info(f"[AUDIO] Starting audio download: jurisdiction={jurisdiction}, limit={limit}")
+
+    # Decode YouTube cookies
+    import base64
+    import tempfile
+
+    cookies_b64 = os.environ.get("YOUTUBE_COOKIES_B64", "")
+    cookies_path = ""
+    if cookies_b64:
+        cookies_bytes = base64.b64decode(cookies_b64)
+        cookies_fd, cookies_path = tempfile.mkstemp(suffix=".txt", prefix="yt_cookies_")
+        with os.fdopen(cookies_fd, "wb") as f:
+            f.write(cookies_bytes)
+        logger.info("[AUDIO] YouTube cookies loaded")
+
+    proxy_url = os.environ.get("PROXY_URL", "")
+    if proxy_url:
+        proxy_display = proxy_url.split("@")[-1] if "@" in proxy_url else proxy_url
+        logger.info(f"[AUDIO] Proxy configured: {proxy_display}")
+
+    try:
+        from civicos_extraction.cli.audio import run_audio_download
+
+        results = run_audio_download(
+            jurisdiction_id=jurisdiction,
+            input_dir="data",
+            output_dir="data/youtube_audio",
+            cookies_path=cookies_path,
+            checkpoint_dir="data/checkpoints",
+            dry_run=dry_run,
+            limit=limit,
+            cloud=True,
+            proxy=proxy_url or None,
+            download_delay=5,
+            max_workers=3,
+        )
+
+        elapsed = time.time() - start_time
+        downloaded = sum(1 for r in (results or []) if r.status == "success")
+        skipped = sum(1 for r in (results or []) if r.status == "skipped")
+        failed = sum(1 for r in (results or []) if r.status == "error")
+
+        logger.info(f"[AUDIO] Complete: {downloaded} downloaded, {skipped} skipped, {failed} failed in {elapsed:.0f}s")
+
+        return {
+            "jurisdiction": jurisdiction,
+            "downloaded": downloaded,
+            "skipped": skipped,
+            "failed": failed,
+            "elapsed_seconds": round(elapsed, 1),
+        }
+    except Exception as e:
+        logger.error(f"[AUDIO] Failed for {jurisdiction}: {e}")
+        return {
+            "jurisdiction": jurisdiction,
+            "error": str(e),
+            "elapsed_seconds": round(time.time() - start_time, 1),
+        }
+    finally:
+        if cookies_path and os.path.exists(cookies_path):
+            os.remove(cookies_path)
+
+
+@app.function(
+    image=civic_image,
+    secrets=[modal.Secret.from_name("civic-db")],
+    timeout=300,
+)
+def batch_audio_download(
+    jurisdictions: str = "",
+    limit: int = 0,
+    dry_run: bool = False,
+) -> dict:
+    """Orchestrate parallel audio downloads across multiple jurisdictions.
+
+    Each jurisdiction gets its own Modal container running in parallel.
+    Containers download audio, convert to opus@48kbps mono, upload to R2.
+
+    Args:
+        jurisdictions: Comma-separated jurisdiction IDs, or "auto" to detect
+                      all jurisdictions with video URLs but missing audio.
+        limit: Max videos per jurisdiction (0 = no limit)
+        dry_run: If True, show what would be downloaded
+
+    Usage:
+        modal run scripts/modal_ingest.py --batch-audio --jurisdictions "city-fairfax,city-sausalito"
+        modal run scripts/modal_ingest.py --batch-audio --jurisdictions auto
+        modal run scripts/modal_ingest.py --batch-audio --jurisdictions auto --detach
+    """
+    import logging
+    import os
+    import psycopg2
+
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+    logger = logging.getLogger(__name__)
+
+    jids = []
+    if jurisdictions == "auto" or not jurisdictions:
+        # Auto-detect: jurisdictions with video_url in meetings
+        conn = psycopg2.connect(os.environ["DATABASE_URL"])
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT DISTINCT jurisdiction_id, COUNT(video_url) as video_count
+            FROM meetings
+            WHERE video_url IS NOT NULL
+            GROUP BY jurisdiction_id
+            HAVING COUNT(video_url) > 0
+            ORDER BY jurisdiction_id
+        """)
+        jids = [r[0] for r in cur.fetchall()]
+        conn.close()
+        logger.info(f"[BATCH] Auto-detected {len(jids)} jurisdictions with video URLs: {jids}")
+    else:
+        jids = [j.strip() for j in jurisdictions.split(",") if j.strip()]
+        logger.info(f"[BATCH] Explicit jurisdictions: {jids}")
+
+    if not jids:
+        logger.info("[BATCH] No jurisdictions to process")
+        return {"jurisdictions": [], "message": "No jurisdictions found"}
+
+    # Spawn parallel jobs — each runs in its own container
+    logger.info(f"[BATCH] Spawning {len(jids)} parallel audio download jobs...")
+    handles = []
+    for jid in jids:
+        handle = download_audio_for_jurisdiction.spawn(
+            jurisdiction=jid,
+            limit=limit,
+            dry_run=dry_run,
+        )
+        handles.append((jid, handle))
+        logger.info(f"  Spawned: {jid}")
+
+    # Collect results (blocks until all complete)
+    results = {}
+    for jid, handle in handles:
+        try:
+            result = handle.get()
+            results[jid] = result
+            downloaded = result.get("downloaded", 0)
+            skipped = result.get("skipped", 0)
+            failed = result.get("failed", 0)
+            elapsed = result.get("elapsed_seconds", 0)
+            logger.info(f"  {jid}: {downloaded} new, {skipped} skipped, {failed} failed ({elapsed:.0f}s)")
+        except Exception as e:
+            results[jid] = {"error": str(e)}
+            logger.error(f"  {jid}: FAILED — {e}")
+
+    total_downloaded = sum(r.get("downloaded", 0) for r in results.values())
+    total_failed = sum(r.get("failed", 0) for r in results.values())
+    logger.info(f"\n[BATCH] Complete: {total_downloaded} new audio files, {total_failed} failures across {len(jids)} jurisdictions")
+
+    return {"jurisdictions": list(results.keys()), "results": results}
+
+
+# =============================================================================
 # Transcript Extraction (Audio Download + Transcription)
 # =============================================================================
 
@@ -6993,6 +7184,8 @@ def trigger_ingest(body: dict):
 @app.local_entrypoint()
 def main(
     all: bool = False,
+    batch_audio: bool = False,
+    jurisdictions: str = "",
     municipal: bool = False,
     legislation: bool = False,
     executive_orders: bool = False,
@@ -7086,6 +7279,25 @@ def main(
         modal run scripts/modal_ingest.py --meetings  # Indexes meeting vectors after store
         modal run scripts/modal_ingest.py --meetings --no-auto-index  # Skip vector indexing
     """
+    if batch_audio:
+        print(f"\nLaunching batch audio download...")
+        print(f"Jurisdictions: {jurisdictions or 'auto-detect'}")
+        result = batch_audio_download.remote(
+            jurisdictions=jurisdictions or "auto",
+            limit=transcripts_limit,
+            dry_run=dry_run,
+        )
+        print("\n" + "=" * 60)
+        print("Batch Audio Download Results")
+        print("=" * 60)
+        for jid in result.get("jurisdictions", []):
+            r = result["results"].get(jid, {})
+            if "error" in r:
+                print(f"  {jid}: FAILED — {r['error']}")
+            else:
+                print(f"  {jid}: {r.get('downloaded', 0)} new, {r.get('skipped', 0)} skipped, {r.get('failed', 0)} failed ({r.get('elapsed_seconds', 0):.0f}s)")
+        return
+
     if stats_only:
         result = get_stats.remote(jurisdiction)
         print("\n" + "=" * 60)
