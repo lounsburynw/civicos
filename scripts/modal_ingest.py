@@ -5290,7 +5290,7 @@ def download_audio_for_jurisdiction(
 @app.function(
     image=civic_image,
     secrets=[modal.Secret.from_name("civic-db")],
-    timeout=300,
+    timeout=14400,  # 4 hours — orchestrator waits for all per-jurisdiction jobs
 )
 def batch_audio_download(
     jurisdictions: str = "",
