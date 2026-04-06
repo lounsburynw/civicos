@@ -4811,7 +4811,7 @@ def fetch_simbli_meetings(
 
     # Resolve board_url from extraction config if not provided directly
     if not board_url and jurisdiction:
-        from civicos_extraction.config import ExtractionConfig
+        from civicos_extraction.clients.base import ExtractionConfig
         config = ExtractionConfig.from_jurisdiction(jurisdiction)
         board_url = config.metadata.get("board_url", config.base_url)
 
