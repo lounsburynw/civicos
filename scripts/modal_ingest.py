@@ -6211,6 +6211,7 @@ def scheduled_low_velocity_refresh():
         # Read state jurisdictions from registry or YAML configs
         _leg_targets = [("federal", "US Federal", "US")]
         import glob as _glob
+        from pathlib import Path
         for _yp in sorted(_glob.glob(str(Path(__file__).parent.parent / "data" / "jurisdictions" / "state-*.yaml"))):
             import yaml as _lyaml
             with open(_yp) as _yf:
@@ -6457,12 +6458,16 @@ def scheduled_low_velocity_refresh():
         except Exception as e:
             logger.warning(f"Failed to send pipeline summary notification: {e}")
 
+    if pipeline_error:
+        # Re-raise so Modal returns non-zero exit code to GH Actions.
+        # Without this, crashed pipelines silently report "success".
+        raise pipeline_error
+
     return {
         "schedule": "low_velocity_weekly",
         "jurisdictions_processed": len(jurisdictions),
         "results": results,
         "elapsed_seconds": elapsed,
-        "error": str(pipeline_error) if pipeline_error else None,
     }
 
 
