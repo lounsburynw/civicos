@@ -669,7 +669,7 @@
         "name": "token_purchase_ui",
         "description": "Token purchase flow in extension: Stripe checkout -> blinded tokens, and (future) Lightning -> blinded tokens.",
         "status": "not_started",
-        "priority": 0,
+        "priority": 2,
         "source": "docs/internal/relay-acceptance-policy-spec.md (Phase 4)",
         "files": [
           "apps/civicos-extension/src/"
@@ -916,8 +916,8 @@
       {
         "name": "cross_marin_query_prototype",
         "description": "Cross-jurisdiction queries within Marin County via v2 query layer. SearchRequest.include_parents/include_siblings with tier-based relevance boosting.",
-        "status": "in_progress",
-        "priority": 1,
+        "status": "not_started",
+        "priority": 0,
         "phase": "A",
         "source": "federation testbed \u2014 query federation",
         "spec": "docs/internal/cross-jurisdiction-query-spec.md",
