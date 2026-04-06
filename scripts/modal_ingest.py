@@ -1271,7 +1271,7 @@ def fetch_federal_rules(
 
 @app.function(
     image=civic_image,
-    secrets=[modal.Secret.from_name("civic-db")],
+    secrets=[modal.Secret.from_name("civic-db"), modal.Secret.from_name("civic-openai")],
     memory=4096,
     timeout=3600,  # 1 hour (LLM calls)
 )
