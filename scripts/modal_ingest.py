@@ -2799,8 +2799,9 @@ def index_vectors(
                 results[ct] = {"status": "skipped", "indexed": 0}
                 continue
 
-            # Page size: each worker handles ~500 source records (expands to ~7K chunks)
-            page_size = 500
+            # Page size: each worker handles ~100 source records (expands to ~1.5K chunks).
+            # 500 was too large — bills expand 10-15x and OOM'd 64GB workers.
+            page_size = 100
             effective_workers = min(num_workers, max(2, (total + page_size - 1) // page_size))
             pages = [(offset, min(page_size, total - offset)) for offset in range(0, total, page_size)]
 
