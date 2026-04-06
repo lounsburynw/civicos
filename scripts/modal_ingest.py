@@ -2550,36 +2550,45 @@ def _embed_legislation_page(
 
         logger.info(f"Page offset={offset}: {len(raw)} bills → {len(chunks)} chunks")
 
-        # Embed
-        texts = [c.get("text") or c.get("content") or "" for c in chunks]
-        embeddings = pgvector.encode_texts(texts, batch_size=len(texts))
+        # Embed and store in sub-batches to limit peak memory.
+        # Processing all 3K+ chunks at once OOM'd 64GB workers.
+        EMBED_BATCH = 256
+        total_success = 0
+        total_failed = 0
 
-        # Build records
-        records = []
-        for chunk, embedding in zip(chunks, embeddings):
-            content = chunk.get("text") or chunk.get("content") or ""
-            chunk_id = chunk.get("id") or hashlib.sha256(
-                f"{jurisdiction_id}:{corpus_type}:{content[:200]}".encode()
-            ).hexdigest()[:32]
+        for batch_start in range(0, len(chunks), EMBED_BATCH):
+            batch_chunks = chunks[batch_start:batch_start + EMBED_BATCH]
+            texts = [c.get("text") or c.get("content") or "" for c in batch_chunks]
+            embeddings = pgvector.encode_texts(texts, batch_size=100)
 
-            records.append({
-                "id": chunk_id,
-                "content": content,
-                "embedding": embedding.tolist() if hasattr(embedding, 'tolist') else embedding,
-                "meeting_id": chunk.get("meeting_id"),
-                "meeting_title": chunk.get("meeting_title"),
-                "meeting_datetime": chunk.get("meeting_datetime"),
-                "metadata": chunk.get("metadata", {}),
-            })
+            records = []
+            for chunk, embedding in zip(batch_chunks, embeddings):
+                content = chunk.get("text") or chunk.get("content") or ""
+                chunk_id = chunk.get("id") or hashlib.sha256(
+                    f"{jurisdiction_id}:{corpus_type}:{content[:200]}".encode()
+                ).hexdigest()[:32]
 
-        result = pgvector.bulk_insert_embeddings(
-            records=records,
-            jurisdiction_id=jurisdiction_id,
-            corpus_type=corpus_type,
-            use_copy=reindex,
-        )
-        logger.info(f"Page offset={offset}: indexed {result['success']} embeddings")
-        return result
+                records.append({
+                    "id": chunk_id,
+                    "content": content,
+                    "embedding": embedding.tolist() if hasattr(embedding, 'tolist') else embedding,
+                    "meeting_id": chunk.get("meeting_id"),
+                    "meeting_title": chunk.get("meeting_title"),
+                    "meeting_datetime": chunk.get("meeting_datetime"),
+                    "metadata": chunk.get("metadata", {}),
+                })
+
+            result = pgvector.bulk_insert_embeddings(
+                records=records,
+                jurisdiction_id=jurisdiction_id,
+                corpus_type=corpus_type,
+                use_copy=reindex,
+            )
+            total_success += result.get("success", 0)
+            total_failed += result.get("failed", 0)
+
+        logger.info(f"Page offset={offset}: indexed {total_success} embeddings ({total_failed} failed)")
+        return {"success": total_success, "failed": total_failed}
 
     except Exception as e:
         logger.exception(f"Page offset={offset} failed: {e}")
