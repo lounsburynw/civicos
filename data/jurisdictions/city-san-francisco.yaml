@@ -1,0 +1,219 @@
+# San Francisco City & County Configuration
+#
+# Unified configuration for City and County of San Francisco, California.
+# SF is a consolidated city-county — no separate county entity.
+#
+# NOTE: Legistar events API is broken for SF (server config error).
+# Meetings are extracted via Playwright+LLM on the Legistar web calendar.
+# Legislation is still accessible via the Legistar matters API (client: sfgov).
+
+# =============================================================================
+# Identity
+# =============================================================================
+
+jurisdiction_id: city-san-francisco
+level: city
+display_name: San Francisco
+
+# =============================================================================
+# Hierarchy
+# =============================================================================
+
+parent_jurisdictions:
+  - state-california
+  - country-united-states
+
+# =============================================================================
+# Contact Information
+# =============================================================================
+
+contact_info:
+  clerk_email: board.of.supervisors@sfgov.org
+  city_hall_address: "1 Dr Carlton B Goodlett Pl, San Francisco, CA 94102"
+  phone: "(415) 554-5184"
+  website: "https://sf.gov"
+  public_comment_deadline: "Noon the day before the meeting"
+  in_person_time_limit: "2 minutes"
+  public_comment_subject: "Public Comment - [Agenda Item Number]"
+
+# =============================================================================
+# Governing Body
+# =============================================================================
+
+governing_body:
+  name: San Francisco Board of Supervisors
+  members_title: Supervisors
+  meeting_schedule: "Tuesdays, 2:00 PM"
+  meeting_location: "Board of Supervisors Chambers, City Hall, Room 250"
+
+# =============================================================================
+# Data Sources
+# =============================================================================
+
+data_sources:
+  # Meeting extraction (Playwright+LLM on Legistar web calendar)
+  # Legistar events API is broken for SF; matters API works for legislation.
+  meetings:
+    source_type: playwright_llm
+    base_url: https://sfgov.legistar.com/Calendar.aspx
+
+  # Issue tracking (SeeClickFix / SF311)
+  issues: seeclickfix
+
+  # Budget data
+  budget: municipal_portal
+
+  # Municipal code
+  municipal_code: municode
+
+  # Meeting transcripts (SFGovTV YouTube)
+  # TODO: Find correct SFGovTV channel (not South San Francisco)
+  transcripts:
+    source: youtube
+    playlist_id: null
+
+# =============================================================================
+# Financial Context
+# =============================================================================
+
+financial:
+  state: CA
+  county: San Francisco
+
+federal_programs:
+  hud_grantee: City and County of San Francisco
+  hud_relationship: entitlement
+  usaspending:
+    search_names:
+      - "CITY & COUNTY OF SAN FRANCISCO"
+      - "CITY AND COUNTY OF SAN FRANCISCO"
+      - "SAN FRANCISCO HOUSING AUTHORITY"
+    allowed_names:
+      - "CITY & COUNTY OF SAN FRANCISCO"
+      - "CITY AND COUNTY OF SAN FRANCISCO"
+      - "SAN FRANCISCO HOUSING AUTHORITY"
+  notes: "SF is a direct HUD entitlement city. Housing Authority is a separate entity but integral to city operations."
+
+# =============================================================================
+# Geography
+# =============================================================================
+
+zip_codes:
+  - "94102"
+  - "94103"
+  - "94104"
+  - "94105"
+  - "94107"
+  - "94108"
+  - "94109"
+  - "94110"
+  - "94111"
+  - "94112"
+  - "94114"
+  - "94115"
+  - "94116"
+  - "94117"
+  - "94118"
+  - "94121"
+  - "94122"
+  - "94123"
+  - "94124"
+  - "94127"
+  - "94129"
+  - "94130"
+  - "94131"
+  - "94132"
+  - "94133"
+  - "94134"
+  - "94158"
+
+neighborhoods:
+  - Mission
+  - Castro
+  - SoMa
+  - Financial District
+  - Nob Hill
+  - Russian Hill
+  - North Beach
+  - Chinatown
+  - Haight-Ashbury
+  - Sunset
+  - Richmond
+  - Marina
+  - Pacific Heights
+  - Tenderloin
+  - Hayes Valley
+  - Noe Valley
+  - Potrero Hill
+  - Dogpatch
+  - Bayview-Hunters Point
+  - Excelsior
+  - Outer Sunset
+  - Inner Sunset
+  - Bernal Heights
+  - Glen Park
+  - Twin Peaks
+  - Visitacion Valley
+  - Presidio
+
+# =============================================================================
+# Ingestion Tiers
+# =============================================================================
+
+ingestion:
+  # Tier 1: Free
+  meetings: true
+  pdf_chunks: true
+  issues: true
+  municipal_code: true
+  # Tier 2: Low cost (LLM)
+  agenda_items: true
+  decisions: true
+  legislation: true
+  # Tier 3: Higher cost (audio) — disabled initially
+  transcription: false
+  diarization: false
+  # Tier 4: GPU
+  vector_indexing: true
+
+# =============================================================================
+# Refresh Policies
+# =============================================================================
+
+refresh:
+  municipal_code:
+    interval: 90d
+    strategy: content_hash
+  meetings:
+    interval: 1d
+    strategy: incremental
+  issues:
+    interval: 1d
+    strategy: incremental
+  legislation:
+    interval: 7d
+    strategy: incremental
+
+# =============================================================================
+# Tool Configuration
+# =============================================================================
+
+tools_enabled: null
+tool_overrides: {}
+
+# =============================================================================
+# Modal Deployment
+# =============================================================================
+
+modal:
+  min_containers: 0
+  secrets:
+    - civicos-env
+
+# =============================================================================
+# Metadata
+# =============================================================================
+
+metadata:
+  created: "2026-04-06"
+  notes: "Legistar events API has server-side config error. Meetings via Playwright+LLM on web calendar. Legislation via Legistar matters API (client: sfgov)."

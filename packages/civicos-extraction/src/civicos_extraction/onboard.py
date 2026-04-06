@@ -1549,7 +1549,13 @@ def geocode_city(
 
 
 def _discover_legistar(client_name: str, jurisdiction_id: str) -> Dict[str, Any]:
-    """Run Legistar-specific body discovery using the API."""
+    """Run Legistar-specific body discovery using the API.
+
+    If the bodies endpoint works but the events endpoint is broken (server-side
+    config error, 500, etc.), automatically falls back to playwright_llm using
+    the Legistar web calendar. The Legistar client_name is preserved in metadata
+    so the matters API can still be used for legislation.
+    """
     from civicos_extraction.clients.legistar import LegistarClient
 
     client = LegistarClient(client_name=client_name, jurisdiction_id=jurisdiction_id)
@@ -1562,33 +1568,72 @@ def _discover_legistar(client_name: str, jurisdiction_id: str) -> Dict[str, Any]
             key = re.sub(r"[^a-z0-9]+", "_", name.lower()).strip("_")
             archives[key] = body_id
 
-    # Freshness check: query the most recent event to detect stale platforms.
-    # Cities sometimes migrate off Legistar but leave the API running.
+    # Health check: probe the events endpoint to verify it actually works.
+    # Some Legistar instances have working /bodies but broken /events
+    # (e.g., SF returns "Agenda Draft Status not configured" 500 error).
     metadata: Dict[str, Any] = {"client_name": client_name, "body_count": len(bodies)}
     warnings: list = []
+    events_healthy = False
     try:
         import requests as _req
         r = _req.get(
             f"https://webapi.legistar.com/v1/{client_name}/events?$top=1&$orderby=EventDate+desc",
             timeout=10,
         )
-        if r.status_code == 200 and r.json():
-            newest = r.json()[0].get("EventDate", "")[:10]
-            metadata["newest_event"] = newest
-            from datetime import datetime as _dt
-            try:
-                newest_dt = _dt.strptime(newest, "%Y-%m-%d")
-                days_stale = (_dt.now() - newest_dt).days
-                metadata["days_since_newest"] = days_stale
-                if days_stale > 180:
-                    warnings.append(
-                        f"Legistar data appears stale — newest event is {newest} "
-                        f"({days_stale} days ago). The city may have migrated to a different platform."
-                    )
-            except ValueError:
-                pass
+        if r.status_code == 200:
+            data = r.json()
+            if isinstance(data, list) and data:
+                events_healthy = True
+                newest = data[0].get("EventDate", "")[:10]
+                metadata["newest_event"] = newest
+                from datetime import datetime as _dt
+                try:
+                    newest_dt = _dt.strptime(newest, "%Y-%m-%d")
+                    days_stale = (_dt.now() - newest_dt).days
+                    metadata["days_since_newest"] = days_stale
+                    if days_stale > 180:
+                        warnings.append(
+                            f"Legistar data appears stale — newest event is {newest} "
+                            f"({days_stale} days ago). The city may have migrated to a different platform."
+                        )
+                except ValueError:
+                    pass
+            else:
+                # 200 but empty or non-list response
+                events_healthy = False
+        # Non-200 status (500, 404, etc.)
     except Exception:
-        pass
+        events_healthy = False
+
+    # If events endpoint is broken, fall back to playwright_llm for meetings
+    # while preserving the Legistar client_name for legislation/matters access.
+    if not events_healthy:
+        calendar_url = f"https://{client_name}.legistar.com/Calendar.aspx"
+        logger.warning(
+            f"Legistar events API broken for '{client_name}' — "
+            f"falling back to playwright_llm with {calendar_url}"
+        )
+        warnings.append(
+            f"Legistar events API is unavailable for '{client_name}'. "
+            f"Using Playwright+LLM scraper on web calendar instead. "
+            f"Legislation access via Legistar matters API is preserved."
+        )
+        # Try playwright_llm discovery on the Legistar web calendar
+        try:
+            playwright_result = _discover_universal(calendar_url, jurisdiction_id)
+            # Merge Legistar metadata into the playwright_llm config
+            pw_config = playwright_result["config"]
+            pw_config["metadata"]["legistar_client_name"] = client_name
+            pw_config["metadata"]["legistar_body_count"] = len(bodies)
+            pw_config["metadata"]["legistar_events_broken"] = True
+            if warnings:
+                playwright_result.setdefault("warnings", []).extend(warnings)
+            return playwright_result
+        except Exception as e:
+            # Playwright fallback failed too — return the Legistar config with
+            # a warning so the user knows meetings won't work
+            logger.warning(f"Playwright fallback also failed: {e}")
+            warnings.append(f"Playwright+LLM fallback failed: {e}")
 
     result = {
         "config": {
@@ -2385,6 +2430,25 @@ def onboard_jurisdiction(
         try:
             if detection.source_type == "granicus":
                 discovery_result = _discover_granicus(url, jurisdiction_id)
+            elif detection.source_type == "legistar":
+                client_name = (
+                    detection.metadata.get("client_name")
+                    or detection.metadata.get("extracted_client_name", "")
+                )
+                if client_name:
+                    discovery_result = _discover_legistar(client_name, jurisdiction_id)
+                else:
+                    discovery_result = {
+                        "config": {
+                            "source_id": f"legistar-{jurisdiction_id}",
+                            "source_type": "legistar",
+                            "jurisdiction_id": jurisdiction_id,
+                            "base_url": url,
+                            "archives": {},
+                            "metadata": detection.metadata,
+                        },
+                        "discovered_bodies": {},
+                    }
             elif detection.source_type == "escribe":
                 discovery_result = _discover_escribe(url, jurisdiction_id)
             elif detection.source_type == "simbli":

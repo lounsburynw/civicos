@@ -97,6 +97,66 @@ _JURISDICTION_ALIASES = {
     # Alameda County (auto-generated)
     "alameda": "county-alameda",
     "alameda-ca": "county-alameda",
+
+    # Sausalito (auto-generated)
+    "sausalito": "city-sausalito",
+    "sausalito-ca": "city-sausalito",
+
+    # Tiburon (auto-generated)
+    "tiburon": "city-tiburon",
+    "tiburon-ca": "city-tiburon",
+
+    # Corte Madera (auto-generated)
+    "corte-madera": "city-corte-madera",
+    "corte-madera-ca": "city-corte-madera",
+    "cortemadera": "city-corte-madera",
+
+    # Larkspur (auto-generated)
+    "larkspur": "city-larkspur",
+    "larkspur-ca": "city-larkspur",
+
+    # Fairfax (auto-generated)
+    "fairfax": "city-fairfax",
+    "fairfax-ca": "city-fairfax",
+
+    # Belvedere (auto-generated)
+    "belvedere": "city-belvedere",
+    "belvedere-ca": "city-belvedere",
+
+    # Ross (auto-generated)
+    "ross": "city-ross",
+    "ross-ca": "city-ross",
+
+    # Asheville (auto-generated)
+    "asheville": "city-asheville",
+    "asheville-ca": "city-asheville",
+
+    # Park City (auto-generated)
+    "park": "city-park",
+    "park-ca": "city-park",
+
+    # Chicago (auto-generated)
+    "chicago": "city-chicago",
+    "chicago-ca": "city-chicago",
+
+    # Reno (auto-generated)
+    "reno": "city-reno",
+    "reno-ca": "city-reno",
+
+    # San Francisco (auto-generated)
+    "san-francisco": "city-san-francisco",
+    "san-francisco-ca": "city-san-francisco",
+    "sanfrancisco": "city-san-francisco",
+
+    # Ross Valley School District (auto-generated)
+    "school-ross-valley": "school-ross-valley",
+    "school-ross-valley-ca": "school-ross-valley",
+    "schoolrossvalley": "school-ross-valley",
+
+    # Sausalito Marin City School District (auto-generated)
+    "school-sausalito-marin-city": "school-sausalito-marin-city",
+    "school-sausalito-marin-city-ca": "school-sausalito-marin-city",
+    "schoolsausalitomarincity": "school-sausalito-marin-city",
 }
 
 # Display names for jurisdictions (override generated names)
@@ -123,6 +183,20 @@ _DISPLAY_NAMES = {
     "city-novato": "Novato",
     "city-sacramento": "Sacramento",
     "county-alameda": "Alameda County",
+    "city-sausalito": "Sausalito",
+    "city-tiburon": "Tiburon",
+    "city-corte-madera": "Corte Madera",
+    "city-larkspur": "Larkspur",
+    "city-fairfax": "Fairfax",
+    "city-belvedere": "Belvedere",
+    "city-ross": "Ross",
+    "city-asheville": "Asheville",
+    "city-park": "Park City",
+    "city-chicago": "Chicago",
+    "city-reno": "Reno",
+    "city-san-francisco": "San Francisco",
+    "school-ross-valley": "Ross Valley School District",
+    "school-sausalito-marin-city": "Sausalito Marin City School District",
 }
 
 

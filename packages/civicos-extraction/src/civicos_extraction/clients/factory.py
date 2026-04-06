@@ -52,6 +52,9 @@ def create_source(config):
     elif source_type == "universal":
         from civicos_extraction.clients.universal import UniversalSource
         return UniversalSource(config)
+    elif source_type == "playwright_llm":
+        from civicos_extraction.clients.playwright_llm import PlaywrightLLMSource
+        return PlaywrightLLMSource(config)
     # Election source types
     elif source_type == "civera_election_stats":
         from civicos_extraction.clients.civera_election_stats import CiveraElectionStatsClient
