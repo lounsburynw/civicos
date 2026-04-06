@@ -5917,18 +5917,22 @@ def extract_transcripts(
     if not assemblyai_key and not dry_run:
         raise ValueError("ASSEMBLYAI_API_KEY not set. Create Modal secret: modal secret create civic-assemblyai ASSEMBLYAI_API_KEY='...'")
 
+    from datetime import datetime, timedelta
+
     meeting_type_filter = meeting_type if meeting_type else None
     since_days_filter = since_days if since_days > 0 else None
 
+    # Convert since_date to since_days_filter so downstream functions actually filter
+    if since_date and not since_days_filter:
+        since_dt = datetime.strptime(since_date, "%Y-%m-%d")
+        since_days_filter = (datetime.now() - since_dt).days
+        logger.info(f"[TRANSCRIPTS] Transcription window: since {since_date} ({since_days_filter} days)")
+
     # Apply transcription policy: default to 6-month window if no filter specified
     if not since_date and not since_days_filter:
-        from datetime import datetime, timedelta
         since_date = (datetime.now() - timedelta(days=180)).strftime("%Y-%m-%d")
-        logger.info(f"[TRANSCRIPTS] No date filter specified — defaulting to Tier 1 window: since {since_date}")
         since_days_filter = 180
-
-    if since_date:
-        logger.info(f"[TRANSCRIPTS] Transcription window: meetings since {since_date}")
+        logger.info(f"[TRANSCRIPTS] No date filter specified — defaulting to Tier 1 window: since {since_date}")
 
     logger.info(f"[TRANSCRIPTS] Starting extraction: jurisdiction={jurisdiction}, limit={limit}, batch={batch}, meeting_type={meeting_type_filter}, since_days={since_days_filter}, cost_cap=${cost_cap_usd:.0f}")
 
