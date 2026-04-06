@@ -35,6 +35,11 @@ import requests
 # Default timeout for PDF parsing (5 minutes)
 PDF_PARSE_TIMEOUT_SECONDS = 300
 
+# Browser User-Agent for PDF downloads (some city sites block bare requests)
+_DOWNLOAD_HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+}
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -452,7 +457,7 @@ def download_pdf(url: str, timeout: int = 60) -> Optional[bytes]:
         Use download_and_validate_pdf() for full validation with degenerate case detection.
     """
     try:
-        response = requests.get(url, timeout=timeout)
+        response = requests.get(url, timeout=timeout, headers=_DOWNLOAD_HEADERS)
         response.raise_for_status()
 
         # Check content type
@@ -1001,7 +1006,7 @@ def download_and_validate_pdf(
             import urllib3
             urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-        response = requester.get(url, timeout=timeout, verify=verify)
+        response = requester.get(url, timeout=timeout, verify=verify, headers=_DOWNLOAD_HEADERS)
 
         content_type = response.headers.get("Content-Type", "")
         content = response.content
