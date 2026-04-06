@@ -873,6 +873,8 @@ def main():
                         help="Use free YouTube captions instead of AssemblyAI transcription")
     parser.add_argument("--cleanup", metavar="JURISDICTION_ID",
                         help="Remove all data + configs for a jurisdiction (e.g., --cleanup city-austin)")
+    parser.add_argument("--with-schools", action="store_true",
+                        help="After city onboard, auto-onboard detected school districts (BoardDocs/Simbli)")
     parser.add_argument("--sandbox", action="store_true",
                         help="Ingest to local SQLite instead of production Postgres (no Modal required)")
     parser.add_argument("--trial", action="store_true",
@@ -1644,6 +1646,77 @@ def main():
     else:
         print(f"\nVerify:")
         print(f"  modal run scripts/modal_ingest.py --stats-only --jurisdiction {jid}")
+
+    # -------------------------------------------------------------------
+    # Phase 5: School district onboarding (--with-schools)
+    # -------------------------------------------------------------------
+    if getattr(args, "with_schools", False) and args.level == "city":
+        # School districts were detected during config generation (stored in onboard result).
+        # Re-detect them here since we don't persist the list across phases.
+        city_name = args.city or (jid.replace("city-", "").replace("-", " ").title())
+        county_name = args.county or ""
+        if county_name:
+            from civicos_extraction.onboard import detect_school_districts
+            districts = detect_school_districts(city_name, county_name)
+        else:
+            districts = []
+
+        if districts:
+            print(f"\n{'=' * 60}")
+            print(f"Phase 5: School District Onboarding ({len(districts)} districts)")
+            print(f"{'=' * 60}")
+
+            # Filter out generic/non-board districts (county offices, ROPs)
+            board_districts = [
+                d for d in districts
+                if not any(skip in d.lower() for skip in ["county office", "county rop", "county rp", "sbe -"])
+            ]
+            skipped = len(districts) - len(board_districts)
+            if skipped:
+                print(f"  Skipping {skipped} non-board entities (county offices, SBE charters)")
+
+            for district in board_districts:
+                print(f"\n  --- {district} ---")
+
+                # Build headless prompt for Claude to find the BoardDocs URL and onboard
+                state = args.state or "CA"
+                sandbox_flag = "--trial" if args.sandbox or args.trial else ""
+                prompt = (
+                    f"Onboard the school district \"{district}\" in {county_name} County, {state} to CivicOS.\n\n"
+                    f"1. Search the web for: site:go.boarddocs.com \"{district}\"\n"
+                    f"   If no BoardDocs result, try: site:simbli.com \"{district}\"\n"
+                    f"   If neither works, try: \"{district}\" board meeting agenda minutes\n"
+                    f"2. Once you find the meeting platform URL, run:\n"
+                    f"   python scripts/onboard.py --url \"<URL>\" --state {state} --level school {sandbox_flag}\n"
+                    f"3. If the district name in the URL doesn't match, add --jurisdiction school-<slug>\n"
+                    f"4. Report the result (pass/fail) and any warnings.\n\n"
+                    f"If you cannot find a meeting platform URL after searching, report that the district "
+                    f"needs manual onboarding and move on."
+                )
+
+                # Spawn claude headless
+                claude_cmd = ["claude", "-p", prompt, "--output-format", "text"]
+                print(f"  Spawning headless agent for {district}...")
+                try:
+                    result = subprocess.run(
+                        claude_cmd,
+                        capture_output=True,
+                        text=True,
+                        timeout=300,  # 5 min per district
+                    )
+                    # Print last few lines of output (summary)
+                    output_lines = result.stdout.strip().split("\n")
+                    for line in output_lines[-5:]:
+                        print(f"    {line}")
+                    if result.returncode != 0:
+                        print(f"    (exit code {result.returncode})")
+                except subprocess.TimeoutExpired:
+                    print(f"    TIMEOUT (5 min) — skip, onboard manually")
+                except FileNotFoundError:
+                    print(f"    'claude' CLI not found — install Claude Code to use --with-schools")
+                    break
+        else:
+            print(f"\n  No school districts detected for {city_name}, {county_name}")
 
     sys.exit(exit_code)
 
