@@ -104,7 +104,7 @@ def extract_meetings_from_page(
     result = provider.complete(
         [{"role": "user", "content": prompt}],
         temperature=0.1,
-        max_tokens=4096,
+        max_tokens=16384,
     )
     text = result.content.strip()
 
@@ -115,14 +115,34 @@ def extract_meetings_from_page(
 
     json_match = re.search(r"\[.*\]", text_clean, re.DOTALL)
     if not json_match:
-        logger.warning(f"LLM returned no JSON array: {text[:200]}")
-        return []
-
-    try:
-        meetings_raw = json.loads(json_match.group())
-    except json.JSONDecodeError as e:
-        logger.warning(f"Failed to parse LLM response: {e}")
-        return []
+        # Handle truncated responses — try to salvage partial JSON array
+        partial = re.search(r"\[.*", text_clean, re.DOTALL)
+        if partial:
+            # Close the truncated array by finding the last complete object
+            raw = partial.group()
+            last_brace = raw.rfind("}")
+            if last_brace > 0:
+                raw = raw[:last_brace + 1] + "]"
+                try:
+                    meetings_raw = json.loads(raw)
+                    logger.warning(
+                        f"LLM response truncated — salvaged {len(meetings_raw)} meetings"
+                    )
+                except json.JSONDecodeError:
+                    logger.warning(f"LLM returned no parseable JSON array: {text[:200]}")
+                    return []
+            else:
+                logger.warning(f"LLM returned no JSON array: {text[:200]}")
+                return []
+        else:
+            logger.warning(f"LLM returned no JSON array: {text[:200]}")
+            return []
+    else:
+        try:
+            meetings_raw = json.loads(json_match.group())
+        except json.JSONDecodeError as e:
+            logger.warning(f"Failed to parse LLM response: {e}")
+            return []
 
     # 5. Normalize and resolve URLs
     meetings = []
@@ -353,6 +373,27 @@ def _render_page(url: str, timeout: int = 20) -> tuple:
                     break
             except Exception:
                 continue
+
+        # Legistar calendar: expand date range from "This Month" to "This Year"
+        # by interacting with the RadComboBox year dropdown and clicking Search.
+        if "legistar.com/Calendar" in url:
+            try:
+                year_input = page.query_selector("#ctl00_ContentPlaceHolder1_lstYears_Input")
+                if year_input:
+                    year_input.click()
+                    page.wait_for_timeout(500)
+                    this_year = page.query_selector('li:has-text("This Year")')
+                    if this_year:
+                        this_year.click()
+                        page.wait_for_timeout(300)
+                        search_btn = page.query_selector("#ctl00_ContentPlaceHolder1_btnSearch")
+                        if search_btn:
+                            search_btn.click()
+                            page.wait_for_load_state("networkidle", timeout=15000)
+                            page.wait_for_timeout(1000)
+                            logger.info("Legistar: expanded calendar to 'This Year'")
+            except Exception as e:
+                logger.warning(f"Legistar date expansion failed: {e}")
 
         html = page.content()
 
