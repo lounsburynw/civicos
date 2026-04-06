@@ -43,9 +43,18 @@ civic_image = (
     .pip_install(
         "psycopg2-binary>=2.9.0",
         "requests>=2.28.0",
+        "beautifulsoup4>=4.12.0",
+        "httpx>=0.24.0",
+        "langgraph>=0.2.0",
     )
-    .add_local_python_source("civicos")
-    .add_local_python_source("civicos_extraction")
+    .env({
+        "CIVICOS_EXTRACTION_DIR": "/config/extraction",
+        "CIVICOS_CONFIG_DIR": "/config/extraction",
+        "CIVICOS_JURISDICTIONS_DIR": "/config/jurisdictions",
+    })
+    .add_local_python_source("civicos", "civicos_config", "civicos_extraction")
+    .add_local_dir("data/extraction", remote_path="/config/extraction")
+    .add_local_dir("data/jurisdictions", remote_path="/config/jurisdictions")
 )
 
 

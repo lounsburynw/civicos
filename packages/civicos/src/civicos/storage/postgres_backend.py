@@ -4860,6 +4860,17 @@ class PostgresBackend:
         cursor = conn.cursor()
 
         try:
+            # Ensure city_state exists (FK target for refresh_metadata)
+            cursor.execute("""
+                INSERT INTO city_states (jurisdiction_id, jurisdiction_name, as_of)
+                VALUES (%s, %s, %s)
+                ON CONFLICT (jurisdiction_id) DO NOTHING
+            """, (
+                jurisdiction_id,
+                jurisdiction_id.replace('-', ' ').title(),
+                datetime.now().isoformat(),
+            ))
+
             cursor.execute("""
                 INSERT INTO refresh_metadata (
                     jurisdiction_id, corpus_type, source_name,
