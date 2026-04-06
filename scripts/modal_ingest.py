@@ -2802,15 +2802,22 @@ def index_vectors(
             # Page size: each worker handles ~100 source records (expands to ~1.5K chunks).
             # 500 was too large — bills expand 10-15x and OOM'd 64GB workers.
             page_size = 100
-            effective_workers = min(num_workers, max(2, (total + page_size - 1) // page_size))
             pages = [(offset, min(page_size, total - offset)) for offset in range(0, total, page_size)]
 
-            logger.info(f"  {total} {ct} records — dispatching {len(pages)} pages to workers (self-fetching)")
+            # Cap concurrent workers to avoid exhausting Supabase connection pool.
+            # Each worker opens 2 connections (storage + pgvector), pool limit ~60.
+            max_concurrent = 20
+            logger.info(f"  {total} {ct} records — {len(pages)} pages, max {max_concurrent} concurrent workers")
 
-            worker_results = list(_embed_legislation_page.starmap([
-                (state_code, offset, size, jurisdiction, ct, reindex)
-                for offset, size in pages
-            ]))
+            worker_results = []
+            for wave_start in range(0, len(pages), max_concurrent):
+                wave = pages[wave_start:wave_start + max_concurrent]
+                logger.info(f"  Wave {wave_start // max_concurrent + 1}: pages {wave_start}-{wave_start + len(wave) - 1}")
+                wave_results = list(_embed_legislation_page.starmap([
+                    (state_code, offset, size, jurisdiction, ct, reindex)
+                    for offset, size in wave
+                ]))
+                worker_results.extend(wave_results)
 
             failed_workers = [r for r in worker_results if r.get("error")]
             if failed_workers:
