@@ -2489,6 +2489,103 @@ def _embed_and_store_batch_inner(
     return result
 
 
+@app.function(
+    image=civic_image,
+    secrets=[modal.Secret.from_name("civic-db")],
+    memory=65536,  # 64GB per worker
+    timeout=900,
+    volumes={"/cache": model_cache},
+)
+def _embed_legislation_page(
+    state_code: str,
+    offset: int,
+    page_size: int,
+    jurisdiction_id: str,
+    corpus_type: str,
+    reindex: bool = False,
+) -> dict:
+    """Worker that fetches its own page of legislation from Postgres, chunks, embeds, and stores.
+
+    Unlike _embed_and_store_batch, this worker never receives chunk data from the
+    orchestrator — it fetches directly from the database. This keeps the orchestrator's
+    memory footprint minimal for large corpora (70K+ chunks from legislation full text).
+    """
+    import logging
+    import os
+    import hashlib
+
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+    logger = logging.getLogger(__name__)
+
+    try:
+        os.environ["FASTEMBED_CACHE_PATH"] = "/cache/fastembed"
+
+        from civicos.storage import get_storage_backend
+        from civicos.storage.pgvector_backend import PgVectorBackend
+        from civicos._internal.legal.embeddings.chunker import (
+            expand_legislation_to_chunks,
+            expand_executive_orders_to_chunks,
+            expand_federal_rules_to_chunks,
+        )
+
+        database_url = os.environ.get("DATABASE_URL")
+        backend = get_storage_backend(database_url)
+        pgvector = PgVectorBackend(connection_string=database_url, provider_type="fastembed")
+
+        # Fetch this worker's page of data
+        if corpus_type == "legislation":
+            raw = backend.get_legislation(state=state_code, limit=page_size, offset=offset)
+            chunks = expand_legislation_to_chunks(raw)
+        elif corpus_type == "executive_orders":
+            raw = backend.get_executive_orders(limit=page_size, offset=offset)
+            chunks = expand_executive_orders_to_chunks(raw)
+        elif corpus_type == "federal_rules":
+            raw = backend.get_federal_rules(limit=page_size, offset=offset)
+            chunks = expand_federal_rules_to_chunks(raw)
+        else:
+            return {"success": 0, "failed": 0, "error": f"Unsupported corpus_type: {corpus_type}"}
+
+        if not chunks:
+            return {"success": 0, "failed": 0}
+
+        logger.info(f"Page offset={offset}: {len(raw)} bills → {len(chunks)} chunks")
+
+        # Embed
+        texts = [c.get("text") or c.get("content") or "" for c in chunks]
+        embeddings = pgvector.encode_texts(texts, batch_size=len(texts))
+
+        # Build records
+        records = []
+        for chunk, embedding in zip(chunks, embeddings):
+            content = chunk.get("text") or chunk.get("content") or ""
+            chunk_id = chunk.get("id") or hashlib.sha256(
+                f"{jurisdiction_id}:{corpus_type}:{content[:200]}".encode()
+            ).hexdigest()[:32]
+
+            records.append({
+                "id": chunk_id,
+                "content": content,
+                "embedding": embedding.tolist() if hasattr(embedding, 'tolist') else embedding,
+                "meeting_id": chunk.get("meeting_id"),
+                "meeting_title": chunk.get("meeting_title"),
+                "meeting_datetime": chunk.get("meeting_datetime"),
+                "metadata": chunk.get("metadata", {}),
+            })
+
+        result = pgvector.bulk_insert_embeddings(
+            records=records,
+            jurisdiction_id=jurisdiction_id,
+            corpus_type=corpus_type,
+            use_copy=reindex,
+        )
+        logger.info(f"Page offset={offset}: indexed {result['success']} embeddings")
+        return result
+
+    except Exception as e:
+        logger.exception(f"Page offset={offset} failed: {e}")
+        return {"success": 0, "failed": len(chunks) if 'chunks' in dir() else page_size, "error": str(e)}
+
+
 def _embed_and_store_inline(
     chunks: list[dict],
     jurisdiction_id: str,
@@ -2681,24 +2778,64 @@ def index_vectors(
             chunks = expand_municipal_code_to_chunks(raw)
         elif ct == "issues":
             chunks = backend.get_issues(jurisdiction)
-        elif ct == "legislation":
-            # jurisdiction is "state-california" or "state-CA" or "federal-US"
-            raw_code = jurisdiction.split("-", 1)[-1].upper()
-            # Map full state names to abbreviations (legislation table uses 2-letter codes)
-            STATE_ABBREVS = {"CALIFORNIA": "CA", "TEXAS": "TX", "NEW YORK": "NY", "FLORIDA": "FL"}
-            state_code = STATE_ABBREVS.get(raw_code, raw_code)
-            raw = backend.get_legislation(state=state_code)
-            chunks = expand_legislation_to_chunks(raw)
-        elif ct == "executive_orders":
-            raw = backend.get_executive_orders()
-            chunks = expand_executive_orders_to_chunks(raw)
+        elif ct in ("legislation", "executive_orders", "federal_rules"):
+            # Large text corpora: dispatch to workers that fetch their own pages
+            # from Postgres. This avoids loading 70K+ chunks into the orchestrator.
+            if ct == "legislation":
+                raw_code = jurisdiction.split("-", 1)[-1].upper()
+                STATE_ABBREVS = {"CALIFORNIA": "CA", "TEXAS": "TX", "NEW YORK": "NY", "FLORIDA": "FL"}
+                state_code = STATE_ABBREVS.get(raw_code, raw_code)
+                total = backend.get_legislation_count(state_code)
+            elif ct == "executive_orders":
+                state_code = "US"
+                total = backend.get_executive_orders_count()
+            elif ct == "federal_rules":
+                state_code = "US"
+                total = backend.get_federal_rules_count()
+
+            if total == 0:
+                logger.warning(f"  No {ct} found for {jurisdiction}")
+                pgvector.rebuild_hnsw_index(ct)
+                results[ct] = {"status": "skipped", "indexed": 0}
+                continue
+
+            # Page size: each worker handles ~500 source records (expands to ~7K chunks)
+            page_size = 500
+            effective_workers = min(num_workers, max(2, (total + page_size - 1) // page_size))
+            pages = [(offset, min(page_size, total - offset)) for offset in range(0, total, page_size)]
+
+            logger.info(f"  {total} {ct} records — dispatching {len(pages)} pages to workers (self-fetching)")
+
+            worker_results = list(_embed_legislation_page.starmap([
+                (state_code, offset, size, jurisdiction, ct, reindex)
+                for offset, size in pages
+            ]))
+
+            failed_workers = [r for r in worker_results if r.get("error")]
+            if failed_workers:
+                logger.warning(f"  {len(failed_workers)}/{len(worker_results)} workers failed for {ct}")
+                for fw in failed_workers:
+                    logger.warning(f"    Worker error: {fw['error']}")
+            total_success = sum(r.get("success", 0) for r in worker_results)
+            total_failed = sum(r.get("failed", 0) for r in worker_results)
+
+            logger.info(f"  Rebuilding HNSW index for {ct}...")
+            index_rebuilt = pgvector.rebuild_hnsw_index(ct)
+
+            results[ct] = {
+                "status": "success" if total_failed == 0 else "partial",
+                "indexed": total_success,
+                "failed": total_failed,
+                "workers": len(pages),
+                "hnsw_rebuilt": index_rebuilt,
+            }
+            logger.info(f"  Indexed {total_success} chunks ({total_failed} failed), HNSW {'rebuilt' if index_rebuilt else 'FAILED'}")
+            continue
+
         elif ct == "agenda_items":
             chunks = backend.get_agenda_items(jurisdiction_id=jurisdiction)
         elif ct == "programs":
             chunks = backend.get_programs()
-        elif ct == "federal_rules":
-            raw = backend.get_federal_rules()
-            chunks = expand_federal_rules_to_chunks(raw)
         elif ct == "budget_items":
             try:
                 chunks = backend.get_budget_items(jurisdiction)
