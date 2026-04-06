@@ -2682,7 +2682,11 @@ def index_vectors(
         elif ct == "issues":
             chunks = backend.get_issues(jurisdiction)
         elif ct == "legislation":
-            state_code = jurisdiction.split("-")[-1].upper()
+            # jurisdiction is "state-california" or "state-CA" or "federal-US"
+            raw_code = jurisdiction.split("-", 1)[-1].upper()
+            # Map full state names to abbreviations (legislation table uses 2-letter codes)
+            STATE_ABBREVS = {"CALIFORNIA": "CA", "TEXAS": "TX", "NEW YORK": "NY", "FLORIDA": "FL"}
+            state_code = STATE_ABBREVS.get(raw_code, raw_code)
             raw = backend.get_legislation(state=state_code)
             chunks = expand_legislation_to_chunks(raw)
         elif ct == "executive_orders":
