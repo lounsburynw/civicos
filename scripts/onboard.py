@@ -295,7 +295,12 @@ def _get_ingestion_stages(jid: str) -> list:
                 if ingestion.get("municipal_code"):
                     stages.append("municipal")
                 if ingestion.get("transcription"):
-                    stages.append("transcripts")
+                    # Use --transcribe (which includes Granicus video discovery)
+                    # instead of bare --transcripts when a Granicus domain is configured
+                    if ext_config.get("metadata", {}).get("granicus_domain"):
+                        stages.append("transcribe")
+                    else:
+                        stages.append("transcripts")
 
     # Always include vectors (indexes whatever data exists)
     stages.append("vectors")

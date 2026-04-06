@@ -169,9 +169,9 @@ ingestion:
   agenda_items: true
   decisions: true
   legislation: true
-  # Tier 3: Higher cost (audio) — disabled initially
-  transcription: false
-  diarization: false
+  # Tier 3: Audio (Granicus MP3 → AssemblyAI)
+  transcription: true
+  diarization: true
   # Tier 4: GPU
   vector_indexing: true
 
