@@ -2763,10 +2763,14 @@ def index_vectors(
             total_failed = worker_result["failed"]
             num_batches = 0
         else:
-            logger.info(f"  {len(chunks)} chunks — dispatching to {num_workers} parallel workers")
+            # Cap workers to avoid exhausting Supabase connection pool (max ~60 conns).
+            # Each worker opens its own DB connection, so 40 workers + other services
+            # can exceed max_client_conn. Scale workers with data size.
+            effective_workers = min(num_workers, max(4, len(chunks) // 100))
+            logger.info(f"  {len(chunks)} chunks — dispatching to {effective_workers} parallel workers")
 
             # Split into batches for parallel processing
-            batch_size = max(1, len(chunks) // num_workers)
+            batch_size = max(1, len(chunks) // effective_workers)
             batches = [
                 (chunks[i:i + batch_size], jurisdiction, ct, reindex)
                 for i in range(0, len(chunks), batch_size)
@@ -6606,6 +6610,29 @@ def scheduled_high_velocity_refresh():
             elif src_type in ("legistar", "civicclerk", "escribe"):
                 from civicos_extraction.clients.factory import create_source
                 client = create_source(ext_config)
+            elif src_type == "boarddocs":
+                # BoardDocs has a dedicated function that handles meetings + agendas +
+                # chunks + agenda items in one pass. Delegate to it directly instead of
+                # using MeetingCorpusProvider (which only handles the meetings part).
+                bd_result = fetch_boarddocs_meetings.local(
+                    app_path=ext_config.metadata.get("app_path", ""),
+                    jurisdiction=jid,
+                    committee_id=ext_config.metadata.get("committee_id", ""),
+                    dry_run=False,
+                )
+                meetings_result = {
+                    "task": "meetings",
+                    "jurisdiction": jid,
+                    "status": "updated" if bd_result.get("meetings_stored", 0) > 0 else "unchanged",
+                    "meetings_stored": bd_result.get("meetings_stored", 0),
+                    "chunks_stored": bd_result.get("chunks_stored", 0),
+                    "agenda_items_stored": bd_result.get("agenda_items_stored", 0),
+                }
+                results[jid]["meetings"] = meetings_result
+                logger.info(f"    BoardDocs: {bd_result.get('meetings_stored', 0)} meetings, "
+                            f"{bd_result.get('chunks_stored', 0)} chunks, "
+                            f"{bd_result.get('agenda_items_stored', 0)} agenda items")
+                client = None  # Signal to skip MeetingCorpusProvider path below
             else:
                 from civicos_extraction.clients import SUPPORTED_MEETING_SOURCES
                 logger.warning(f"  [{jid}] source_type '{src_type}' not supported in refresh "
@@ -6613,32 +6640,34 @@ def scheduled_high_velocity_refresh():
                 results[jid]["meetings"] = {"skipped": True, "reason": f"source_type '{src_type}' not supported in refresh"}
                 continue
 
-            meeting_provider = MeetingCorpusProvider(
-                client=client, jurisdiction_id=jid, source_name=src_type,
-            )
-            meeting_refresh = runner.refresh_corpus(meeting_provider, reindex_vectors=True)
+            # BoardDocs sets client=None (already handled meetings+chunks+agendas above)
+            if client is not None:
+                meeting_provider = MeetingCorpusProvider(
+                    client=client, jurisdiction_id=jid, source_name=src_type,
+                )
+                meeting_refresh = runner.refresh_corpus(meeting_provider, reindex_vectors=True)
 
-            # Extract reactive signals from MeetingStoreResult for downstream stages
-            sr = meeting_provider.last_store_result
-            meetings_result = {
-                "task": "meetings",
-                "jurisdiction": jid,
-                "status": meeting_refresh.status,
-                "meetings_stored": meeting_refresh.sections_added,
-                "vectors_indexed": meeting_refresh.vectors_reindexed,
-                # Reactive signals (from MeetingStoreResult, None-safe)
-                "new_meeting_ids": getattr(sr, "new_meeting_ids", []) if sr else [],
-                "updated_meeting_ids": getattr(sr, "updated_meeting_ids", []) if sr else [],
-                "minutes_appeared_ids": getattr(sr, "minutes_appeared", []) if sr else [],
-                "video_appeared_ids": getattr(sr, "video_appeared", []) if sr else [],
-                "agenda_appeared_ids": getattr(sr, "agenda_appeared", []) if sr else [],
-                "has_new_material": getattr(sr, "has_new_material", False) if sr else False,
-                "has_minutes_updates": getattr(sr, "has_minutes_updates", False) if sr else False,
-                "has_video_updates": getattr(sr, "has_video_updates", False) if sr else False,
-                "has_agenda_updates": getattr(sr, "has_agenda_updates", False) if sr else False,
-            }
-            if meeting_refresh.status == "error":
-                meetings_result["error"] = meeting_refresh.error
+                # Extract reactive signals from MeetingStoreResult for downstream stages
+                sr = meeting_provider.last_store_result
+                meetings_result = {
+                    "task": "meetings",
+                    "jurisdiction": jid,
+                    "status": meeting_refresh.status,
+                    "meetings_stored": meeting_refresh.sections_added,
+                    "vectors_indexed": meeting_refresh.vectors_reindexed,
+                    # Reactive signals (from MeetingStoreResult, None-safe)
+                    "new_meeting_ids": getattr(sr, "new_meeting_ids", []) if sr else [],
+                    "updated_meeting_ids": getattr(sr, "updated_meeting_ids", []) if sr else [],
+                    "minutes_appeared_ids": getattr(sr, "minutes_appeared", []) if sr else [],
+                    "video_appeared_ids": getattr(sr, "video_appeared", []) if sr else [],
+                    "agenda_appeared_ids": getattr(sr, "agenda_appeared", []) if sr else [],
+                    "has_new_material": getattr(sr, "has_new_material", False) if sr else False,
+                    "has_minutes_updates": getattr(sr, "has_minutes_updates", False) if sr else False,
+                    "has_video_updates": getattr(sr, "has_video_updates", False) if sr else False,
+                    "has_agenda_updates": getattr(sr, "has_agenda_updates", False) if sr else False,
+                }
+                if meeting_refresh.status == "error":
+                    meetings_result["error"] = meeting_refresh.error
         except Exception as e:
             logger.exception(f"  [{jid}] Meeting refresh failed")
             meetings_result = {"status": "failed", "error": str(e)}
