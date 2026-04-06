@@ -403,3 +403,119 @@ def _render_page(url: str, timeout: int = 20) -> tuple:
         browser.close()
 
     return html, link_text
+
+
+# ---------------------------------------------------------------------------
+# Source wrapper for pipeline integration
+# ---------------------------------------------------------------------------
+
+
+class PlaywrightLLMSource:
+    """DataSource wrapper around the Playwright+LLM extraction functions.
+
+    Implements the source protocol (source_id, source_type, health,
+    get_events, normalize_event) so that playwright_llm can be used as a
+    drop-in replacement in the extraction pipeline and factory.
+    """
+
+    def __init__(self, config):
+        """Initialize from an ExtractionConfig.
+
+        Args:
+            config: ExtractionConfig with source_type='playwright_llm' and
+                    metadata.meeting_page_url set to the calendar URL.
+        """
+        self.jurisdiction_id = config.jurisdiction_id
+        self._meeting_page_url = config.metadata.get("meeting_page_url", config.base_url)
+        self._config = config
+
+    @property
+    def source_id(self) -> str:
+        return f"playwright-llm-{self.jurisdiction_id}"
+
+    @property
+    def source_type(self) -> str:
+        return "playwright_llm"
+
+    def health(self):
+        """Check that the meeting page is reachable and returns meetings."""
+        import time as _time
+        from civicos_extraction.clients.base import HealthStatus
+
+        start = _time.time()
+        errors = []
+        count = 0
+        try:
+            meetings = extract_meetings_from_page(
+                url=self._meeting_page_url,
+                jurisdiction_id=self.jurisdiction_id,
+            )
+            count = len(meetings)
+        except Exception as e:
+            errors.append(f"Playwright+LLM health check failed: {e}")
+
+        elapsed_ms = (_time.time() - start) * 1000
+        return HealthStatus(
+            source_id=self.source_id,
+            source_type=self.source_type,
+            jurisdiction_id=self.jurisdiction_id,
+            is_available=count > 0,
+            available_count=count,
+            last_checked=datetime.now(timezone.utc),
+            check_duration_ms=elapsed_ms,
+            errors=errors,
+        )
+
+    def validate(self):
+        """Validate that the config has what we need."""
+        from civicos_extraction.clients.base import ValidationResult
+
+        errors = []
+        if not self._meeting_page_url:
+            errors.append("No meeting_page_url in config metadata")
+        return ValidationResult(
+            is_valid=not errors,
+            config_valid=not errors,
+            api_reachable=True,
+            errors=errors,
+        )
+
+    def get_events(self, days_ahead: int = 90, days_past: int = 0):
+        """Extract meetings via Playwright+LLM."""
+        return extract_meetings_from_page(
+            url=self._meeting_page_url,
+            jurisdiction_id=self.jurisdiction_id,
+        )
+
+    def get_meetings(self, days_ahead: int = 90, days_past: int = 0):
+        """Alias for get_events."""
+        return self.get_events(days_ahead=days_ahead, days_past=days_past)
+
+    def normalize_event(self, event: Dict[str, Any]):
+        """Normalize a Playwright+LLM meeting dict to Meeting format."""
+        import hashlib
+        from civicos_extraction.clients.base import Meeting
+
+        title = event.get("title", "Unknown Meeting")
+        date_str = event.get("date", "")
+        try:
+            parsed_date = datetime.fromisoformat(date_str)
+        except (ValueError, TypeError):
+            parsed_date = datetime(1970, 1, 1)
+
+        id_source = f"{self.jurisdiction_id}:{title}:{parsed_date.isoformat()}"
+        meeting_id = hashlib.sha256(id_source.encode()).hexdigest()[:16]
+
+        return Meeting(
+            meeting_id=meeting_id,
+            title=title,
+            meeting_datetime=parsed_date,
+            meeting_type=event.get("meeting_type", ""),
+            jurisdiction_id=self.jurisdiction_id,
+            source_id=self.source_id,
+            source_type=self.source_type,
+            source_url=self._meeting_page_url,
+            agenda_url=event.get("agenda_url"),
+            minutes_url=event.get("minutes_url"),
+            video_url=event.get("video_url"),
+        )

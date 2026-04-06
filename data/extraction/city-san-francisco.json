@@ -1,0 +1,23 @@
+{
+  "source_id": "playwright-llm-city-san-francisco",
+  "source_type": "playwright_llm",
+  "jurisdiction_id": "city-san-francisco",
+  "base_url": "https://sfgov.legistar.com/Calendar.aspx",
+  "archives": {},
+  "metadata": {
+    "extraction_mode": "playwright_llm",
+    "meeting_page_url": "https://sfgov.legistar.com/Calendar.aspx",
+    "initial_meeting_count": 6,
+    "legistar_client_name": "sfgov",
+    "legistar_body_count": 151,
+    "legistar_events_broken": true
+  },
+  "issue_source": "seeclickfix",
+  "election_sources": {
+    "ca_sos_results": {
+      "county": "san francisco",
+      "county_breakdown": true
+    }
+  },
+  "state": "CA"
+}
