@@ -1,8 +1,11 @@
 # Data Freshness Alerting for Civic Platform
 #
-# Daily check for data pipeline health:
-#   - Decisions should be within 7 days of latest meeting
-#   - Vector counts should match SQL within 5% threshold
+# Daily check for data pipeline health across ALL jurisdictions and corpus types.
+#
+# Checks:
+#   1. Corpus staleness — each corpus type has a max-age threshold
+#   2. Cron health — each cron workflow must have succeeded within its cadence window
+#   3. Pipeline errors — refresh_metadata entries with status='failed'
 #
 # Creates GitHub Issue on threshold breach.
 #
@@ -22,7 +25,6 @@ on:
 
 env:
   DATABASE_URL: ${{ secrets.DATABASE_URL }}
-  JURISDICTION: city-san-rafael
 
 # Permissions needed for creating issues on failure
 permissions:
@@ -36,10 +38,8 @@ jobs:
     timeout-minutes: 10
 
     outputs:
-      freshness_ok: ${{ steps.freshness.outputs.freshness_ok }}
-      freshness_report: ${{ steps.freshness.outputs.freshness_report }}
-      sync_ok: ${{ steps.sync.outputs.sync_ok }}
-      sync_report: ${{ steps.sync.outputs.sync_report }}
+      has_alerts: ${{ steps.check.outputs.has_alerts }}
+      report: ${{ steps.check.outputs.report }}
 
     steps:
       - uses: actions/checkout@v4
@@ -54,256 +54,241 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install psycopg2-binary
-          pip install -e packages/civicos-config
-          pip install -e packages/civicos[embeddings]
-          pip install -e packages/civicos-extraction
 
-      - name: Check decision freshness
-        id: freshness
+      - name: Check corpus freshness and pipeline health
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          python3 << 'EOF'
+          python3 << 'PYEOF'
+          import json
           import os
-          import psycopg2
-          from datetime import datetime, timezone
+          import subprocess
+          import sys
+          from datetime import datetime, timezone, timedelta
 
           database_url = os.environ.get("DATABASE_URL")
           if not database_url:
               print("ERROR: DATABASE_URL not set")
-              exit(1)
+              sys.exit(1)
 
-          jurisdiction = os.environ.get("JURISDICTION", "city-san-rafael")
-
-          conn = psycopg2.connect(database_url)
-          cur = conn.cursor()
-
-          # Get latest meeting date
-          cur.execute("""
-              SELECT MAX(meeting_datetime)::date
-              FROM meetings
-              WHERE jurisdiction_id = %s
-                AND valid_to IS NULL
-                AND deleted_at IS NULL
-          """, (jurisdiction,))
-          latest_meeting = cur.fetchone()[0]
-
-          # Get latest decision's meeting date (cast to date for comparison)
-          cur.execute("""
-              SELECT MAX(meeting_date::date)
-              FROM decisions
-              WHERE jurisdiction_id = %s
-                AND valid_to IS NULL
-                AND deleted_at IS NULL
-          """, (jurisdiction,))
-          latest_decision_meeting = cur.fetchone()[0]
-
-          conn.close()
-
-          # Calculate gap
-          if latest_meeting and latest_decision_meeting:
-              gap_days = (latest_meeting - latest_decision_meeting).days
-          else:
-              gap_days = 999  # Force alert if no data
-
-          # Thresholds
-          FRESHNESS_THRESHOLD_DAYS = 7
-
-          print("=" * 60)
-          print("Decision Freshness Check")
-          print("=" * 60)
-          print(f"Jurisdiction: {jurisdiction}")
-          print(f"Latest meeting: {latest_meeting}")
-          print(f"Latest decision's meeting date: {latest_decision_meeting}")
-          print(f"Gap: {gap_days} days")
-          print(f"Threshold: {FRESHNESS_THRESHOLD_DAYS} days")
-
-          # Generate report
-          report_lines = [
-              f"**Jurisdiction:** {jurisdiction}",
-              f"**Latest meeting:** {latest_meeting}",
-              f"**Latest decision extracted from:** {latest_decision_meeting}",
-              f"**Gap:** {gap_days} days (threshold: {FRESHNESS_THRESHOLD_DAYS})",
-          ]
-
-          if gap_days <= FRESHNESS_THRESHOLD_DAYS:
-              print("Status: OK")
-              with open(os.environ["GITHUB_OUTPUT"], "a") as f:
-                  f.write("freshness_ok=true\n")
-                  f.write(f"freshness_report={' | '.join(report_lines)}\n")
-          else:
-              print(f"Status: STALE (exceeds {FRESHNESS_THRESHOLD_DAYS} day threshold)")
-              with open(os.environ["GITHUB_OUTPUT"], "a") as f:
-                  f.write("freshness_ok=false\n")
-                  f.write(f"freshness_report={' | '.join(report_lines)}\n")
-          EOF
-
-      - name: Check vector-SQL sync
-        id: sync
-        run: |
-          python3 << 'EOF'
-          import os
           import psycopg2
-
-          database_url = os.environ.get("DATABASE_URL")
-          jurisdiction = os.environ.get("JURISDICTION", "city-san-rafael")
-
           conn = psycopg2.connect(database_url)
           cur = conn.cursor()
 
-          # Thresholds per corpus type
-          # Note: meetings uses higher threshold due to temporal versioning complexity
-          # Issues allow more variance because some have no text content
-          THRESHOLDS = {
-              "decisions": 0.05,   # 5% - critical, should be exact
-              "meetings": 0.20,    # 20% - temporal versioning can cause variance
-              "issues": 0.35,      # 35% - many issues have no text content
+          alerts = []
+          info = []
+
+          # ================================================================
+          # 1. Corpus staleness via refresh_metadata
+          # ================================================================
+          # Max age (days) before a corpus is considered stale.
+          # These are generous — real cadences are tighter (daily/weekly).
+          # The goal is to catch multi-week outages, not daily jitter.
+          STALENESS_THRESHOLDS = {
+              "meetings":    {"max_days": 3,  "label": "Meetings"},
+              "issues":      {"max_days": 3,  "label": "Issues (311)"},
+              "decisions":   {"max_days": 14, "label": "Decisions"},
+              "legislation": {"max_days": 14, "label": "Legislation"},
+              "elections":   {"max_days": 3,  "label": "Elections"},
+              "elected_officials": {"max_days": 3, "label": "Elected Officials"},
           }
 
-          print("=" * 60)
-          print("Vector-SQL Sync Check")
-          print("=" * 60)
+          print("=" * 70)
+          print("CORPUS FRESHNESS CHECK")
+          print("=" * 70)
 
-          mismatches = []
-          report_lines = []
+          # Get latest refresh per jurisdiction + corpus type
+          cur.execute("""
+              SELECT jurisdiction_id, corpus_type, status,
+                     last_fetch_at, error_message
+              FROM refresh_metadata
+              WHERE corpus_type IN %s
+              ORDER BY jurisdiction_id, corpus_type
+          """, (tuple(STALENESS_THRESHOLDS.keys()),))
 
-          for corpus_type, threshold in THRESHOLDS.items():
-              # Get SQL count (deleted_at IS NULL for all types)
-              # Note: We don't use valid_to filter because vector indexing
-              # indexes all non-deleted records, not just "current" temporal versions
-              if corpus_type == "decisions":
-                  cur.execute("""
-                      SELECT COUNT(*)
-                      FROM decisions
-                      WHERE jurisdiction_id = %s
-                        AND deleted_at IS NULL
-                  """, (jurisdiction,))
-              elif corpus_type == "meetings":
-                  cur.execute("""
-                      SELECT COUNT(*)
-                      FROM meetings
-                      WHERE jurisdiction_id = %s
-                        AND deleted_at IS NULL
-                  """, (jurisdiction,))
-              elif corpus_type == "issues":
-                  cur.execute("""
-                      SELECT COUNT(*)
-                      FROM issues
-                      WHERE jurisdiction_id = %s
-                  """, (jurisdiction,))
+          rows = cur.fetchall()
+          now = datetime.now()
 
-              sql_count = cur.fetchone()[0]
+          # Track which jurisdictions have each corpus
+          seen = set()
+          stale_corpora = []
+          failed_corpora = []
 
-              # Get vector count
-              cur.execute("""
-                  SELECT COUNT(*)
-                  FROM vector_embeddings
-                  WHERE jurisdiction_id = %s
-                    AND corpus_type = %s
-              """, (jurisdiction, corpus_type))
-              vector_count = cur.fetchone()[0]
+          for jid, corpus, status, last_fetch, error in rows:
+              seen.add((jid, corpus))
+              threshold = STALENESS_THRESHOLDS.get(corpus, {})
+              max_days = threshold.get("max_days", 7)
+              label = threshold.get("label", corpus)
 
-              # Calculate mismatch ratio
-              if sql_count > 0:
-                  diff = abs(vector_count - sql_count)
-                  mismatch_ratio = diff / sql_count
+              if status == "failed":
+                  age_str = f"last attempt: {last_fetch.strftime('%Y-%m-%d') if last_fetch else 'never'}"
+                  err_short = (error or "unknown")[:80]
+                  failed_corpora.append(f"  - **{jid}** / {label}: `{err_short}` ({age_str})")
+                  print(f"  FAILED: {jid} / {label}: {err_short}")
+                  continue
+
+              if last_fetch is None:
+                  stale_corpora.append(f"  - **{jid}** / {label}: never fetched")
+                  print(f"  STALE: {jid} / {label}: never fetched")
+                  continue
+
+              age_days = (now - last_fetch).total_seconds() / 86400
+              if age_days > max_days:
+                  stale_corpora.append(
+                      f"  - **{jid}** / {label}: {age_days:.0f} days old (threshold: {max_days}d)"
+                  )
+                  print(f"  STALE: {jid} / {label}: {age_days:.0f}d old (max {max_days}d)")
               else:
-                  diff = vector_count
-                  mismatch_ratio = 1.0 if vector_count > 0 else 0.0
+                  print(f"  OK: {jid} / {label}: {age_days:.1f}d old")
 
-              # Determine status
-              # If vector_count is less than 50% of sql_count, it's likely not indexed yet
-              # rather than drift - we still alert but with a different message
-              if sql_count > 0 and vector_count < sql_count * 0.5:
-                  status = "NOT_INDEXED"
-              elif mismatch_ratio <= threshold:
-                  status = "OK"
-              else:
-                  status = "MISMATCH"
+          if stale_corpora:
+              alerts.append("### Stale Corpora\n" + "\n".join(stale_corpora))
+          if failed_corpora:
+              alerts.append("### Failed Refreshes\n" + "\n".join(failed_corpora))
 
-              print(f"\n{corpus_type.upper()}:")
-              print(f"  SQL count: {sql_count}")
-              print(f"  Vector count: {vector_count}")
-              print(f"  Difference: {diff} ({mismatch_ratio * 100:.1f}%)")
-              print(f"  Threshold: {threshold * 100:.0f}%")
-              print(f"  Status: {status}")
+          # ================================================================
+          # 2. Cron workflow health via GitHub API
+          # ================================================================
+          print("\n" + "=" * 70)
+          print("CRON WORKFLOW HEALTH")
+          print("=" * 70)
 
-              report_lines.append(f"{corpus_type}: SQL={sql_count} Vector={vector_count} ({status})")
+          CRON_CADENCES = {
+              "cron-high-velocity-refresh.yml":   {"max_hours": 48, "label": "High-Velocity Refresh"},
+              "cron-meetings-poll.yml":            {"max_hours": 12, "label": "Meetings Poll"},
+              "cron-low-velocity-refresh.yml":     {"max_hours": 192, "label": "Low-Velocity Refresh (weekly)"},
+              "cron-california-legislation.yml":   {"max_hours": 192, "label": "CA Legislation (weekly)"},
+              "cron-election-refresh.yml":         {"max_hours": 48, "label": "Election Refresh"},
+          }
 
-              if status in ("MISMATCH", "NOT_INDEXED"):
-                  mismatches.append({
-                      "corpus": corpus_type,
-                      "sql_count": sql_count,
-                      "vector_count": vector_count,
-                      "mismatch_pct": mismatch_ratio * 100,
-                      "threshold_pct": threshold * 100,
-                      "status": status,
-                  })
+          cron_failures = []
+          for workflow_file, config in CRON_CADENCES.items():
+              max_hours = config["max_hours"]
+              label = config["label"]
+              try:
+                  result = subprocess.run(
+                      ["gh", "run", "list",
+                       f"--workflow={workflow_file}",
+                       "--limit=1",
+                       "--json=conclusion,startedAt",
+                       "--jq=.[0]"],
+                      capture_output=True, text=True, timeout=30
+                  )
+                  if result.returncode != 0 or not result.stdout.strip():
+                      cron_failures.append(f"  - **{label}**: could not query workflow status")
+                      print(f"  UNKNOWN: {label}")
+                      continue
+
+                  run = json.loads(result.stdout.strip())
+                  conclusion = run.get("conclusion", "unknown")
+                  started = run.get("startedAt", "")
+
+                  if started:
+                      run_time = datetime.fromisoformat(started.replace("Z", "+00:00"))
+                      age_hours = (datetime.now(timezone.utc) - run_time).total_seconds() / 3600
+                  else:
+                      age_hours = 999
+
+                  if conclusion == "failure":
+                      cron_failures.append(
+                          f"  - **{label}**: last run FAILED ({age_hours:.0f}h ago)"
+                      )
+                      print(f"  FAILED: {label}: last run failed {age_hours:.0f}h ago")
+                  elif age_hours > max_hours:
+                      cron_failures.append(
+                          f"  - **{label}**: last success {age_hours:.0f}h ago (threshold: {max_hours}h)"
+                      )
+                      print(f"  STALE: {label}: {age_hours:.0f}h since last run (max {max_hours}h)")
+                  else:
+                      print(f"  OK: {label}: {conclusion} {age_hours:.0f}h ago")
+
+              except Exception as e:
+                  cron_failures.append(f"  - **{label}**: check error: {str(e)[:60]}")
+                  print(f"  ERROR: {label}: {e}")
+
+          if cron_failures:
+              alerts.append("### Cron Workflow Issues\n" + "\n".join(cron_failures))
 
           conn.close()
 
-          with open(os.environ["GITHUB_OUTPUT"], "a") as f:
-              if mismatches:
-                  f.write("sync_ok=false\n")
-              else:
-                  f.write("sync_ok=true\n")
-              f.write(f"sync_report={' | '.join(report_lines)}\n")
-          EOF
+          # ================================================================
+          # 3. Output results
+          # ================================================================
+          has_alerts = len(alerts) > 0
+          report = "\n\n".join(alerts) if alerts else "All checks passed."
 
-  # Create issue on failure
+          print(f"\n{'!' * 70}")
+          print(f"RESULT: {'ALERTS FOUND' if has_alerts else 'ALL OK'}")
+          print(f"{'!' * 70}")
+
+          with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+              f.write(f"has_alerts={'true' if has_alerts else 'false'}\n")
+
+          # Write report to file (avoids shell escaping issues)
+          with open("freshness_report.md", "w") as f:
+              f.write(report)
+
+          PYEOF
+
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: freshness-report
+          path: freshness_report.md
+
+  # Push notification + GitHub issue on failure
   notify-failure:
-    name: Create Alert Issue
+    name: Alert on Pipeline Issues
     runs-on: ubuntu-latest
     needs: check-freshness
-    if: needs.check-freshness.outputs.freshness_ok == 'false' || needs.check-freshness.outputs.sync_ok == 'false'
+    if: needs.check-freshness.outputs.has_alerts == 'true'
 
     steps:
+      - uses: actions/checkout@v4
+
+      - name: Download report
+        uses: actions/download-artifact@v4
+        with:
+          name: freshness-report
+
+      - name: Send push notification via ntfy
+        if: env.NTFY_URL != ''
+        env:
+          NTFY_URL: ${{ secrets.CIVICOS_NTFY_WEBHOOK_URL }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          REPORT=$(cat freshness_report.md | head -20)
+          curl -s \
+            -H "Title: Data pipeline alert" \
+            -H "Priority: 4" \
+            -H "Tags: warning,chart_with_downwards_trend" \
+            -H "Click: ${RUN_URL}" \
+            -d "${REPORT}" \
+            "${NTFY_URL}" || echo "ntfy push failed (non-fatal)"
+
       - name: Create or Update Issue
         uses: actions/github-script@v7
         with:
           script: |
-            const freshnessOk = '${{ needs.check-freshness.outputs.freshness_ok }}' === 'true';
-            const syncOk = '${{ needs.check-freshness.outputs.sync_ok }}' === 'true';
-            const freshnessReport = '${{ needs.check-freshness.outputs.freshness_report }}';
-            const syncReport = '${{ needs.check-freshness.outputs.sync_report }}';
-
+            const fs = require('fs');
+            const report = fs.readFileSync('freshness_report.md', 'utf8');
             const today = new Date().toISOString().split('T')[0];
 
-            let alertType = [];
-            if (!freshnessOk) alertType.push('decisions stale');
-            if (!syncOk) alertType.push('vector sync mismatch');
-
-            const title = `Data freshness alert - ${today}`;
-            const body = `## Data Freshness Alert
+            const title = `Data pipeline alert - ${today}`;
+            const body = `## Data Pipeline Health Alert
 
             **Time:** ${new Date().toISOString()}
-            **Alerts:** ${alertType.join(', ')}
-
-            ### Decision Freshness
-            ${freshnessOk ? '✅ OK' : '⚠️ STALE'}
-            ${freshnessReport.split(' | ').join('\n')}
-
-            ### Vector-SQL Sync
-            ${syncOk ? '✅ OK' : '⚠️ MISMATCH'}
-            ${syncReport.split(' | ').join('\n')}
-
-            ### Actions Required
-
-            ${!freshnessOk ? `
-            **Decision Extraction Needed:**
-            Decisions are more than 7 days behind the latest meeting. Run decision extraction:
-            \`\`\`bash
-            modal run scripts/modal_ingest.py --decisions --jurisdiction city-san-rafael
-            \`\`\`
-            ` : ''}
-
-            ${!syncOk ? `
-            **Vector Reindex Needed:**
-            Vector counts don't match SQL. Run vector refresh:
-            \`\`\`bash
-            modal run scripts/modal_ingest.py --vectors --jurisdiction city-san-rafael
-            \`\`\`
-            ` : ''}
-
             **Workflow Run:** [View logs](${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID})
+
+            ${report}
+
+            ### How to investigate
+
+            1. Check cron logs: \`gh run view <run-id> --log-failed\`
+            2. Check refresh metadata: \`/data-status\` in Claude Code
+            3. Re-run failed cron: \`gh workflow run <workflow>.yml\`
             `;
 
             // Check for existing open issue
@@ -315,7 +300,6 @@ jobs:
             });
 
             if (issues.data.length === 0) {
-              // Create new issue
               await github.rest.issues.create({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
@@ -325,7 +309,6 @@ jobs:
               });
               console.log('Created new data freshness alert issue');
             } else {
-              // Add comment to existing issue
               await github.rest.issues.createComment({
                 owner: context.repo.owner,
                 repo: context.repo.repo,

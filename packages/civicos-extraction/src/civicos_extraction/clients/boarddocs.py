@@ -678,6 +678,7 @@ def extract_boarddocs_meetings_to_storage(
         boarddocs_meeting_to_storage(m, jurisdiction_id, client.app_path)
         for m in meetings
     ]
-    count = storage.store_meetings(jurisdiction_id, mapped)
-    logger.info(f"Stored {count} meetings for {jurisdiction_id} from BoardDocs")
-    return count
+    result = storage.store_meetings(jurisdiction_id, mapped)
+    stored = int(result)
+    logger.info(f"Stored {stored} meetings for {jurisdiction_id} from BoardDocs")
+    return stored
