@@ -709,6 +709,49 @@ def _discover_universal(url: str, jurisdiction_id: str) -> Dict[str, Any]:
         )
 
 
+def _detect_granicus_video_archive(
+    city_name: Optional[str], jurisdiction_id: str
+) -> Optional[Dict[str, Any]]:
+    """Probe for a Granicus video archive hosting meeting recordings.
+
+    Many cities use Granicus for meeting video/streaming even when their primary
+    meeting platform is something else (Legistar, ProudCity, etc.). This probes
+    common Granicus subdomain patterns to find a video archive.
+
+    Returns dict with domain, view_id, clip_count if found, else None.
+    """
+    import requests as _req
+
+    # Build candidate subdomains from city name and jurisdiction ID
+    candidates = set()
+    slug = jurisdiction_id.replace("city-", "").replace("county-", "")
+    candidates.add(slug.replace("-", ""))            # "sanfrancisco"
+    candidates.add(slug)                              # "san-francisco"
+    if city_name:
+        candidates.add(city_name.lower().replace(" ", ""))   # "sanfrancisco"
+        candidates.add(city_name.lower().replace(" ", "-"))  # "san-francisco"
+        # Common patterns: "cityof{name}", "{name}ca"
+        clean = city_name.lower().replace(" ", "")
+        candidates.add(f"cityof{clean}")              # "cityofsanfrancisco"
+        candidates.add(f"{clean}-ca")                 # "sanfrancisco-ca"
+
+    for domain in candidates:
+        try:
+            url = f"https://{domain}.granicus.com/ViewPublisher.php?view_id=10"
+            r = _req.get(url, timeout=8)
+            if r.status_code != 200:
+                continue
+            # Count clips — a real video archive has MediaPlayer links
+            import re as _re
+            clip_count = len(_re.findall(r'clip_id=\d+', r.text))
+            if clip_count >= 5:
+                return {"domain": domain, "view_id": 10, "clip_count": clip_count}
+        except Exception:
+            continue
+
+    return None
+
+
 def detect_issue_source(city_name: str, jurisdiction_id: str) -> Optional[str]:
     """Probe known 311/issue APIs to detect which provider a city uses.
 
@@ -2499,6 +2542,24 @@ def onboard_jurisdiction(
             _progress("issues", f"Detected issue provider: {detected_source}")
         else:
             _progress("issues", "No issue provider detected (will use default)")
+
+    # Step 3: Detect Granicus video archive (for transcription).
+    # Many cities use Granicus for meeting video/streaming regardless of their
+    # primary meeting platform (Legistar, ProudCity, etc.). Probe common subdomains
+    # to auto-populate granicus_domain for the transcription pipeline.
+    if not config.get("metadata", {}).get("granicus_domain"):
+        _progress("granicus_video", "Probing for Granicus video archive...")
+        granicus_result = _detect_granicus_video_archive(city_name, jurisdiction_id)
+        if granicus_result:
+            config.setdefault("metadata", {})["granicus_domain"] = granicus_result["domain"]
+            config["metadata"]["granicus_video_view_id"] = granicus_result["view_id"]
+            _progress(
+                "granicus_video",
+                f"Found Granicus video archive: {granicus_result['domain']}.granicus.com "
+                f"(view {granicus_result['view_id']}, {granicus_result['clip_count']} clips)"
+            )
+        else:
+            _progress("granicus_video", "No Granicus video archive found")
 
     # Step 3.5: Geocoding enrichment (if city_name available)
     geo_data: Optional[Dict[str, Any]] = None
