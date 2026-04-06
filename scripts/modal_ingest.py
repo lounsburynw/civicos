@@ -4406,6 +4406,7 @@ browser_image = (
     .pip_install(
         "psycopg2-binary>=2.9.0",
         "beautifulsoup4>=4.12.0",
+        "pyyaml>=6.0",
         "playwright>=1.40.0",
         "playwright-stealth>=1.0.0",
         "python-dotenv>=1.0.0",
