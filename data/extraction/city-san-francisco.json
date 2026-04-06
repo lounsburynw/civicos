@@ -10,7 +10,9 @@
     "initial_meeting_count": 6,
     "legistar_client_name": "sfgov",
     "legistar_body_count": 151,
-    "legistar_events_broken": true
+    "legistar_events_broken": true,
+    "granicus_domain": "sanfrancisco",
+    "granicus_video_view_id": 10
   },
   "issue_source": "seeclickfix",
   "election_sources": {

@@ -3239,6 +3239,208 @@ def discover_videos(
 
 
 # =============================================================================
+# Granicus Video URL Discovery
+# =============================================================================
+
+@app.function(
+    image=civic_image,
+    secrets=[modal.Secret.from_name("civic-db")],
+    memory=2048,
+    timeout=300,
+)
+def discover_granicus_videos(
+    jurisdiction: str = "",
+    dry_run: bool = False,
+) -> dict:
+    """Discover Granicus video recording URLs and link them to stored meetings.
+
+    Scrapes the Granicus ViewPublisher archive page for clip IDs and dates,
+    then matches clips to meetings in Postgres by date. Updates the video_url
+    field on matched meetings so extract_transcripts() can download audio.
+
+    This enables transcription for jurisdictions where meetings are recorded
+    via Granicus (cable TV/web streaming) instead of YouTube.
+
+    Args:
+        jurisdiction: Target jurisdiction (e.g., "city-san-francisco")
+        dry_run: If True, discover but don't update database
+    """
+    import logging
+    import os
+    import re
+    import time
+    from datetime import datetime
+
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+    logger = logging.getLogger(__name__)
+    start_time = time.time()
+
+    database_url = os.environ.get("DATABASE_URL")
+    if not database_url:
+        raise ValueError("DATABASE_URL not set")
+
+    logger.info(f"[GRANICUS_VIDEO] Starting discovery: jurisdiction={jurisdiction}")
+
+    # 1. Read extraction config to find Granicus domain
+    from civicos_extraction.clients.base import ExtractionConfig
+
+    config = ExtractionConfig.from_jurisdiction(jurisdiction)
+    granicus_domain = None
+
+    # Check metadata for explicit Granicus domain
+    metadata = config.metadata or {}
+    if metadata.get("granicus_domain"):
+        granicus_domain = metadata["granicus_domain"]
+    elif metadata.get("legistar_client_name"):
+        # Legistar jurisdictions may have a Granicus video archive under the same domain
+        granicus_domain = metadata["legistar_client_name"]
+    elif config.source_type == "granicus":
+        # Extract domain from base_url: https://foo.granicus.com → foo
+        import urllib.parse
+        parsed = urllib.parse.urlparse(config.base_url)
+        if "granicus.com" in (parsed.hostname or ""):
+            granicus_domain = parsed.hostname.split(".granicus.com")[0]
+
+    if not granicus_domain:
+        logger.info("[GRANICUS_VIDEO] No Granicus domain found — skipping")
+        return {
+            "task": "discover_granicus_videos",
+            "jurisdiction": jurisdiction,
+            "skipped": True,
+            "reason": "no_granicus_domain",
+            "elapsed_seconds": time.time() - start_time,
+            "cost_usd": 0,
+        }
+
+    # 2. Probe Granicus ViewPublisher to find the view with meeting recordings.
+    #    Use explicit view ID from config if available, else probe common defaults.
+    import requests
+
+    explicit_view = metadata.get("granicus_video_view_id")
+    view_ids_to_try = [explicit_view] if explicit_view else [10]
+    for _, vid in (config.archives or {}).items():
+        try:
+            view_ids_to_try.append(int(vid))
+        except (ValueError, TypeError):
+            pass
+    view_ids_to_try = list(dict.fromkeys(view_ids_to_try))  # dedupe, preserve order
+
+    best_view_id = None
+    best_clips = []
+
+    for view_id in view_ids_to_try:
+        url = f"https://{granicus_domain}.granicus.com/ViewPublisher.php?view_id={view_id}"
+        try:
+            r = requests.get(url, timeout=15)
+            if r.status_code != 200:
+                continue
+            clip_matches = re.findall(r'clip_id=(\d+)', r.text)
+            if len(clip_matches) > len(best_clips):
+                best_view_id = view_id
+                best_clips = clip_matches
+                # Parse dates for this view
+                rows = re.findall(r'<tr[^>]*>(.*?)</tr>', r.text, re.DOTALL)
+                parsed_clips = []
+                for row in rows:
+                    clip_match = re.search(r'clip_id=(\d+)', row)
+                    if not clip_match:
+                        continue
+                    cells = re.findall(r'<td[^>]*>(.*?)</td>', row, re.DOTALL)
+                    clean = [re.sub(r'<[^>]+>', '', c).strip() for c in cells]
+                    if clean:
+                        date_match = re.search(r'(\d{2}/\d{2}/\d{2,4})$', clean[0])
+                        if date_match:
+                            try:
+                                fmt = '%m/%d/%y' if len(date_match.group(1)) <= 8 else '%m/%d/%Y'
+                                dt = datetime.strptime(date_match.group(1), fmt)
+                                parsed_clips.append({
+                                    'clip_id': clip_match.group(1),
+                                    'date': dt.strftime('%Y-%m-%d'),
+                                })
+                            except ValueError:
+                                pass
+                if parsed_clips:
+                    best_clips = parsed_clips
+        except Exception as e:
+            logger.warning(f"  View {view_id} probe failed: {e}")
+
+    if not best_clips or not isinstance(best_clips[0], dict):
+        logger.info(f"[GRANICUS_VIDEO] No clips with dates found for {granicus_domain}")
+        return {
+            "task": "discover_granicus_videos",
+            "jurisdiction": jurisdiction,
+            "granicus_domain": granicus_domain,
+            "clips_found": 0,
+            "matched": 0,
+            "elapsed_seconds": time.time() - start_time,
+            "cost_usd": 0,
+        }
+
+    logger.info(f"[GRANICUS_VIDEO] Found {len(best_clips)} clips in view {best_view_id}")
+
+    # 3. Build date → clip_id mapping
+    clips_by_date = {}
+    for clip in best_clips:
+        clips_by_date[clip['date']] = clip['clip_id']
+
+    # 4. Load meetings from Postgres and match by date
+    import psycopg2
+
+    conn = psycopg2.connect(database_url)
+    cur = conn.cursor()
+
+    cur.execute(
+        "SELECT id, meeting_datetime, video_url FROM meetings WHERE jurisdiction_id = %s",
+        (jurisdiction,)
+    )
+    rows = cur.fetchall()
+
+    updated = 0
+    already_set = 0
+    for mid, mdt, existing_video in rows:
+        if existing_video:
+            already_set += 1
+            continue
+        if mdt is None:
+            continue
+        date_key = str(mdt)[:10]
+        if date_key in clips_by_date:
+            clip_id = clips_by_date[date_key]
+            video_url = f"https://{granicus_domain}.granicus.com/player/clip/{clip_id}"
+            if not dry_run:
+                cur.execute(
+                    "UPDATE meetings SET video_url = %s WHERE id = %s AND jurisdiction_id = %s",
+                    (video_url, mid, jurisdiction)
+                )
+            updated += 1
+            logger.info(f"  ✓ {date_key} → clip {clip_id}")
+
+    if not dry_run:
+        conn.commit()
+    cur.close()
+    conn.close()
+
+    elapsed = time.time() - start_time
+    logger.info(
+        f"[GRANICUS_VIDEO] Complete: {updated} matched, {already_set} already set, "
+        f"{len(best_clips)} clips in archive"
+    )
+
+    return {
+        "task": "discover_granicus_videos",
+        "jurisdiction": jurisdiction,
+        "granicus_domain": granicus_domain,
+        "view_id": best_view_id,
+        "clips_found": len(best_clips),
+        "matched": updated,
+        "already_set": already_set,
+        "dry_run": dry_run,
+        "elapsed_seconds": elapsed,
+        "cost_usd": 2 * elapsed * 0.000463,
+    }
+
+
+# =============================================================================
 # Issue Fetch (Incremental)
 # =============================================================================
 
@@ -7802,6 +8004,7 @@ def main(
     ballot_preview: bool = False,
     elected_officials: bool = False,
     videos: bool = False,
+    transcribe: bool = False,
     transcripts: bool = False,
     chunks: bool = False,
     agenda: bool = False,
@@ -8125,7 +8328,7 @@ def main(
     run_elections = elections  # Not in --all (use scheduled_election_refresh)
     run_ballot_preview = ballot_preview  # Not in --all (pre-election only)
     run_elected_officials = elected_officials  # Not in --all (monthly refresh)
-    run_transcripts = all or transcripts
+    run_transcripts = all or transcripts or transcribe
     run_chunks = all or chunks
     run_agenda = all or agenda
     run_decisions = decisions  # Explicitly not in --all (weekly only)
@@ -8134,7 +8337,7 @@ def main(
     run_score_rules = score_rules  # Not in --all (explicit or auto after fetch)
     run_refresh = refresh  # Not in --all (explicit only)
 
-    if not (run_municipal or run_legislation or run_executive_orders or run_federal_programs or run_federal_rules or run_federal_awards or run_legislative_events or run_meetings or run_issues or run_elections or run_ballot_preview or run_elected_officials or run_videos or run_transcripts or run_chunks or run_agenda or run_decisions or run_vectors or run_score_rules or run_refresh):
+    if not (run_municipal or run_legislation or run_executive_orders or run_federal_programs or run_federal_rules or run_federal_awards or run_legislative_events or run_meetings or run_issues or run_elections or run_ballot_preview or run_elected_officials or run_videos or run_transcripts or run_chunks or run_agenda or run_decisions or run_vectors or run_score_rules or run_refresh or transcribe):
         print("No tasks specified. Use --all, --municipal, --legislation, --executive-orders, --federal-programs, --federal-rules, --federal-awards, --legislative-events, --meetings, --issues, --elections, --ballot-preview, --elected-officials, --videos, --transcripts, --chunks, --agenda, --decisions, --vectors, or --refresh")
         print("Use --stats-only to check current state")
         return
@@ -8391,6 +8594,26 @@ def main(
             fetch_errors[name] = str(e)
             print(f"  {name}: FAILED — {e}")
             fetch_results[name] = {"error": str(e), "elapsed_seconds": 0, "cost_usd": 0}
+
+    # Discover Granicus video URLs before transcript extraction.
+    # This matches Granicus archive clips to meetings by date, populating
+    # video_url so extract_transcripts() can download audio.
+    if run_transcripts:
+        print(f"\nDiscovering Granicus video URLs...")
+        try:
+            granicus_result = discover_granicus_videos.remote(
+                jurisdiction=jurisdiction,
+                dry_run=dry_run,
+            )
+            matched = granicus_result.get("matched", 0)
+            if granicus_result.get("skipped"):
+                print(f"  Granicus: skipped ({granicus_result.get('reason', 'no domain')})")
+            elif matched > 0:
+                print(f"  Granicus: {matched} meetings linked to video clips")
+            else:
+                print(f"  Granicus: {granicus_result.get('clips_found', 0)} clips found, 0 new matches")
+        except Exception as e:
+            print(f"  Granicus video discovery failed (non-fatal): {e}")
 
     # Extract transcripts after meetings are fetched (audio download + transcription)
     transcripts_result = None
