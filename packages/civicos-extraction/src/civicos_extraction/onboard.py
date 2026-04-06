@@ -722,6 +722,11 @@ def _detect_granicus_video_archive(
     """
     import requests as _req
 
+    # Minimum clips to consider a valid video archive. Set to 5 to avoid
+    # false positives from placeholder/test Granicus instances that have
+    # 1-2 clips. Real city archives typically have 50+ clips.
+    MIN_ARCHIVE_CLIP_COUNT = 5
+
     # Build candidate subdomains from city name and jurisdiction ID
     candidates = set()
     slug = jurisdiction_id.replace("city-", "").replace("county-", "")
@@ -736,6 +741,9 @@ def _detect_granicus_video_archive(
         candidates.add(f"{clean}-ca")                 # "sanfrancisco-ca"
 
     for domain in candidates:
+        # Validate subdomain: alphanumeric + hyphens only (prevents SSRF)
+        if not re.match(r'^[a-z0-9-]+$', domain):
+            continue
         try:
             url = f"https://{domain}.granicus.com/ViewPublisher.php?view_id=10"
             r = _req.get(url, timeout=8)
@@ -744,7 +752,7 @@ def _detect_granicus_video_archive(
             # Count clips — a real video archive has MediaPlayer links
             import re as _re
             clip_count = len(_re.findall(r'clip_id=\d+', r.text))
-            if clip_count >= 5:
+            if clip_count >= MIN_ARCHIVE_CLIP_COUNT:
                 return {"domain": domain, "view_id": 10, "clip_count": clip_count}
         except Exception:
             continue

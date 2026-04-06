@@ -3461,6 +3461,19 @@ def discover_granicus_videos(
             "cost_usd": 0,
         }
 
+    # Validate domain: must be alphanumeric/hyphens only (subdomain of granicus.com).
+    # Prevents SSRF if a malicious config tried to point to a non-Granicus host.
+    if not re.match(r'^[a-z0-9-]+$', granicus_domain):
+        logger.warning(f"[GRANICUS_VIDEO] Invalid domain '{granicus_domain}' — must be alphanumeric/hyphens")
+        return {
+            "task": "discover_granicus_videos",
+            "jurisdiction": jurisdiction,
+            "skipped": True,
+            "reason": "invalid_granicus_domain",
+            "elapsed_seconds": time.time() - start_time,
+            "cost_usd": 0,
+        }
+
     # 2. Probe Granicus ViewPublisher to find the view with meeting recordings.
     #    Use explicit view ID from config if available, else probe common defaults.
     import requests
@@ -3484,10 +3497,8 @@ def discover_granicus_videos(
             if r.status_code != 200:
                 continue
             clip_matches = re.findall(r'clip_id=(\d+)', r.text)
-            if len(clip_matches) > len(best_clips):
-                best_view_id = view_id
-                best_clips = clip_matches
-                # Parse dates for this view
+            if len(clip_matches) > (len(best_clips) if isinstance(best_clips, list) else 0):
+                # Parse dates for this view before committing as best
                 rows = re.findall(r'<tr[^>]*>(.*?)</tr>', r.text, re.DOTALL)
                 parsed_clips = []
                 for row in rows:
@@ -3502,13 +3513,17 @@ def discover_granicus_videos(
                             try:
                                 fmt = '%m/%d/%y' if len(date_match.group(1)) <= 8 else '%m/%d/%Y'
                                 dt = datetime.strptime(date_match.group(1), fmt)
+                                # Validate: reject dates before 1990 or more than 1 year in the future
+                                if dt.year < 1990 or dt.year > datetime.now().year + 1:
+                                    continue
                                 parsed_clips.append({
                                     'clip_id': clip_match.group(1),
                                     'date': dt.strftime('%Y-%m-%d'),
                                 })
                             except ValueError:
                                 pass
-                if parsed_clips:
+                if parsed_clips and len(parsed_clips) > len(best_clips):
+                    best_view_id = view_id
                     best_clips = parsed_clips
         except Exception as e:
             logger.warning(f"  View {view_id} probe failed: {e}")
@@ -3532,42 +3547,31 @@ def discover_granicus_videos(
     for clip in best_clips:
         clips_by_date[clip['date']] = clip['clip_id']
 
-    # 4. Load meetings from Postgres and match by date
-    import psycopg2
+    # 4. Load meetings via StorageBackend and match by date
+    from civicos.storage import get_storage_backend
 
-    conn = psycopg2.connect(database_url)
-    cur = conn.cursor()
-
-    cur.execute(
-        "SELECT id, meeting_datetime, video_url FROM meetings WHERE jurisdiction_id = %s",
-        (jurisdiction,)
-    )
-    rows = cur.fetchall()
+    backend = get_storage_backend(database_url)
+    meetings = backend.get_meetings(jurisdiction)
 
     updated = 0
     already_set = 0
-    for mid, mdt, existing_video in rows:
+    for m in meetings:
+        existing_video = m.get("video_url") if isinstance(m, dict) else getattr(m, "video_url", None)
         if existing_video:
             already_set += 1
             continue
-        if mdt is None:
+        mid = m.get("id") if isinstance(m, dict) else getattr(m, "id", None)
+        mdt = m.get("meeting_datetime") if isinstance(m, dict) else getattr(m, "meeting_datetime", None)
+        if mdt is None or mid is None:
             continue
         date_key = str(mdt)[:10]
         if date_key in clips_by_date:
             clip_id = clips_by_date[date_key]
             video_url = f"https://{granicus_domain}.granicus.com/player/clip/{clip_id}"
             if not dry_run:
-                cur.execute(
-                    "UPDATE meetings SET video_url = %s WHERE id = %s AND jurisdiction_id = %s",
-                    (video_url, mid, jurisdiction)
-                )
+                backend.update_meeting(jurisdiction, mid, {"video_url": video_url})
             updated += 1
             logger.info(f"  ✓ {date_key} → clip {clip_id}")
-
-    if not dry_run:
-        conn.commit()
-    cur.close()
-    conn.close()
 
     elapsed = time.time() - start_time
     logger.info(

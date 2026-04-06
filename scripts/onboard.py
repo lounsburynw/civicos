@@ -1676,16 +1676,22 @@ def main():
                 print(f"  Skipping {skipped} non-board entities (county offices, SBE charters)")
 
             for district in board_districts:
-                print(f"\n  --- {district} ---")
+                # Sanitize district name: strip quotes and non-alphanumeric chars
+                # that could break the prompt or subprocess args.
+                safe_district = re.sub(r'[^\w\s\-\.\,\(\)]', '', district).strip()
+                if not safe_district:
+                    print(f"\n  --- {district} --- SKIPPED (invalid name after sanitization)")
+                    continue
+                print(f"\n  --- {safe_district} ---")
 
                 # Build headless prompt for Claude to find the BoardDocs URL and onboard
                 state = args.state or "CA"
                 sandbox_flag = "--trial" if args.sandbox or args.trial else ""
                 prompt = (
-                    f"Onboard the school district \"{district}\" in {county_name} County, {state} to CivicOS.\n\n"
-                    f"1. Search the web for: site:go.boarddocs.com \"{district}\"\n"
-                    f"   If no BoardDocs result, try: site:simbli.com \"{district}\"\n"
-                    f"   If neither works, try: \"{district}\" board meeting agenda minutes\n"
+                    f"Onboard the school district \"{safe_district}\" in {county_name} County, {state} to CivicOS.\n\n"
+                    f"1. Search the web for: site:go.boarddocs.com \"{safe_district}\"\n"
+                    f"   If no BoardDocs result, try: site:simbli.com \"{safe_district}\"\n"
+                    f"   If neither works, try: \"{safe_district}\" board meeting agenda minutes\n"
                     f"2. Once you find the meeting platform URL, run:\n"
                     f"   python scripts/onboard.py --url \"<URL>\" --state {state} --level school {sandbox_flag}\n"
                     f"3. If the district name in the URL doesn't match, add --jurisdiction school-<slug>\n"
@@ -1696,7 +1702,7 @@ def main():
 
                 # Spawn claude headless
                 claude_cmd = ["claude", "-p", prompt, "--output-format", "text"]
-                print(f"  Spawning headless agent for {district}...")
+                print(f"  Spawning headless agent for {safe_district}...")
                 try:
                     result = subprocess.run(
                         claude_cmd,

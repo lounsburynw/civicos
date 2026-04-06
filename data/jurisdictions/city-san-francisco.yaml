@@ -170,6 +170,8 @@ ingestion:
   decisions: true
   legislation: true
   # Tier 3: Audio (Granicus MP3 → AssemblyAI)
+  # transcription: controls whether _get_ingestion_stages() includes --transcribe/--transcripts
+  # diarization: always enabled when transcribing (speaker_labels=True in AssemblyAI config)
   transcription: true
   diarization: true
   # Tier 4: GPU
