@@ -66,11 +66,10 @@ data_sources:
   # Municipal code
   municipal_code: municode
 
-  # Meeting transcripts (SFGovTV YouTube)
-  # TODO: Find correct SFGovTV channel (not South San Francisco)
+  # Meeting transcripts — SFGovTV streams via cable/Granicus, not YouTube.
+  # Full meeting recordings are not available on YouTube.
   transcripts:
-    source: youtube
-    playlist_id: null
+    source: null
 
 # =============================================================================
 # Financial Context

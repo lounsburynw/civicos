@@ -359,7 +359,7 @@ def _render_page(url: str, timeout: int = 20) -> tuple:
         # Extract link-aware text via DOM API.
         # Annotates visible <a> tags that point to documents with [url].
         link_text = page.evaluate("""() => {
-            const DOC_RE = /\\.(pdf|doc|docx|xls|xlsx)(\\?|#|$)/i;
+            const DOC_RE = /\\.(pdf|doc|docx|xls|xlsx)(\\?|#|$)|View\\.ashx\\?M=[AM]/i;
             const walker = document.createTreeWalker(
                 document.body,
                 NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT,
