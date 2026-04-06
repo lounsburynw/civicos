@@ -25206,4 +25206,34 @@ modal run scripts/modal_ingest.py --onboard --jurisdictions "city-X" --approve-c
 - Cost gate verified: blocks without --approve-cost, shows estimate
 - 20/20 smoke tests passing
 
+### Bugs Fixed During Onboarding
+1. **--transcripts-since flag was a no-op** — `since_date` was only used for logging, never converted to `since_days_filter` that downstream functions use. Fixed by converting date to days delta.
+2. **PDF downloads blocked by city sites** — `download_pdf()` and `download_and_validate_pdf()` in chunks.py sent bare requests without User-Agent. Sites like townofrossca.gov drop the connection. Fixed with browser UA header.
+3. **Agenda integrator blocked by same issue** — `AgendaIntegrator.session` used custom `Civic-Engagement-Platform/1.0` UA, also blocked. Fixed with browser UA.
+
+### Marin County Data Onboarded
+Ran --onboard for 11 Marin jurisdictions. Final state:
+
+| Jurisdiction      | Mtg | Dec | Txn | Chk    |
+|-------------------|-----|-----|-----|--------|
+| city-san-rafael   | 146 |  83 | 152 | 10,057 |
+| county-marin      | 139 | 114 |  36 | 19,855 |
+| city-san-anselmo  | 183 | 110 |  30 |    505 |
+| city-mill-valley  | 121 | 243 |  30 |  2,527 |
+| city-berkeley     |  86 | 273 |  30 |  1,560 |
+| city-fairfax      |  99 |  27 |  13 |  1,208 |
+| city-sausalito    |  55 |  17 |  30 |    448 |
+| city-corte-madera |  29 |  75 |   0 |  6,788 |
+| city-larkspur     |  35 |  18 |   0 |     78 |
+| city-belvedere    |  26 |  26 |   0 |    114 |
+| city-novato       |  18 |  36 |  13 |    114 |
+| city-ross         |  17 |   6 |   0 |     52 |
+
+~90% of Marin population covered with transcripts. Corte Madera/Belvedere/Larkspur have no video recordings. Ross has no video.
+
+### Costs
+- AssemblyAI transcription: ~$270 across 4 cities (30 each capped at $50)
+- Novato: $24 (13 meetings)
+- Audio download: $0 (all Granicus = free HLS)
+
 ### Next P0: token_purchase_ui
