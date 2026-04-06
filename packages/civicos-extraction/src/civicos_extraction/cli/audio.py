@@ -318,6 +318,42 @@ def _resolve_granicus_player_url(player_url: str) -> Optional[str]:
         return None
 
 
+def _resolve_granicus_mp3_url(player_url: str) -> Optional[str]:
+    """Extract a direct MP3 download URL from a Granicus MediaPlayer page.
+
+    Many Granicus instances expose direct MP3 files alongside HLS streams:
+      https://archive-video.granicus.com/{domain}/{domain}_{guid}.mp3
+
+    This is much faster than HLS download (direct HTTP vs segment-by-segment)
+    and produces better quality audio (original MP3 vs re-encoded HLS audio).
+
+    Returns the MP3 URL, or None if no direct MP3 is available.
+    """
+    import re
+    import urllib.request
+
+    # Convert player/clip URL to MediaPlayer URL if needed
+    # player/clip/52067 → MediaPlayer.php?view_id=10&clip_id=52067
+    if "/player/clip/" in player_url:
+        clip_id = player_url.rstrip("/").rsplit("/", 1)[-1]
+        domain = player_url.split("//")[1].split(".granicus.com")[0]
+        media_url = f"https://{domain}.granicus.com/MediaPlayer.php?view_id=10&clip_id={clip_id}"
+    else:
+        media_url = player_url
+
+    try:
+        req = urllib.request.Request(media_url, headers={"User-Agent": "Mozilla/5.0"})
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            html = resp.read().decode("utf-8", errors="replace")
+        match = re.search(r'(https://archive-video\.granicus\.com/[^\s"\']+\.mp3)', html)
+        if match:
+            return match.group(1)
+        return None
+    except Exception as e:
+        logger.warning(f"  Failed to resolve Granicus MP3 URL: {e}")
+        return None
+
+
 def download_audio(
     video_id: str,
     output_dir: str,
@@ -386,21 +422,27 @@ def download_audio(
 
         url = video_url or f"https://www.youtube.com/watch?v={video_id}"
 
-        # Resolve Granicus player URLs to direct HLS stream URLs.
-        # Player pages (e.g. sananselmo-ca.granicus.com/player/clip/2509)
-        # embed the actual stream URL in a JS variable: video_url="https://..."
-        if "granicus.com/player/clip/" in url:
-            resolved = _resolve_granicus_player_url(url)
-            if resolved:
-                logger.info(f"  Resolved Granicus player URL -> HLS stream")
-                url = resolved
+        # Resolve Granicus player URLs to direct download.
+        # Prefer direct MP3 (fast HTTP download) over HLS (slow segment-by-segment).
+        if "granicus.com/player/clip/" in url or "granicus.com/MediaPlayer" in url:
+            # Try direct MP3 first — much faster than HLS
+            mp3_url = _resolve_granicus_mp3_url(url)
+            if mp3_url:
+                logger.info(f"  Granicus: direct MP3 download (bypassing HLS)")
+                url = mp3_url
             else:
-                logger.warning(f"  Granicus player URL has no video (empty video_url)")
-                return DownloadResult(
-                    video_id=video_id,
-                    status="error",
-                    error="Granicus clip has no video_url (no recording available)",
-                )
+                # Fall back to HLS stream
+                resolved = _resolve_granicus_player_url(url)
+                if resolved:
+                    logger.info(f"  Resolved Granicus player URL -> HLS stream")
+                    url = resolved
+                else:
+                    logger.warning(f"  Granicus player URL has no video (empty video_url)")
+                    return DownloadResult(
+                        video_id=video_id,
+                        status="error",
+                        error="Granicus clip has no video_url (no recording available)",
+                    )
 
         raw_path = os.path.join(output_dir, f"{video_id}_raw")
 
@@ -412,7 +454,8 @@ def download_audio(
         # audio+video stream, so "bestaudio" fails and "best" downloads
         # the full video (~1.8 GB). We avoid this by adding
         # download_ranges or postprocessor to extract audio only.
-        is_hls = ".m3u8" in url or "granicus.com" in url
+        is_direct_audio = url.endswith(".mp3") or url.endswith(".wav") or url.endswith(".ogg")
+        is_hls = (not is_direct_audio) and (".m3u8" in url or "granicus.com" in url)
         ydl_opts = {
             "format": "bestaudio/best",
             "outtmpl": raw_path + ".%(ext)s",
