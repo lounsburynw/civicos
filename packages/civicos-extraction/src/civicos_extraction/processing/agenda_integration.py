@@ -93,7 +93,7 @@ class AgendaIntegrator:
 
         self.session = requests.Session()
         self.session.headers.update({
-            'User-Agent': 'Civic-Engagement-Platform/1.0 (Foundation-funded civic transparency tool)'
+            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         })
 
         # Initialize structured API clients for robustness
