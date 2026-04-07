@@ -32,7 +32,9 @@ env:
   CIVICOS_SMTP_PORT: ${{ secrets.CIVICOS_SMTP_PORT }}
   CIVICOS_SMTP_USERNAME: ${{ secrets.CIVICOS_SMTP_USERNAME }}
   CIVICOS_SMTP_PASSWORD: ${{ secrets.CIVICOS_SMTP_PASSWORD }}
-  CIVICOS_NTFY_TOPIC: ${{ secrets.CIVICOS_NTFY_TOPIC }}
+  # CIVICOS_NTFY_WEBHOOK_URL is the full URL (e.g. https://ntfy.sh/civicos-admin-123).
+  # notify.py expects CIVICOS_NTFY_TOPIC (just the topic name), so extract it.
+  CIVICOS_NTFY_WEBHOOK_URL: ${{ secrets.CIVICOS_NTFY_WEBHOOK_URL }}
   CIVICOS_SLACK_WEBHOOK_URL: ${{ secrets.CIVICOS_SLACK_WEBHOOK_URL }}
   CIVICOS_DAILY_BUDGET: '5.0'
   CIVICOS_MONTHLY_BUDGET: '50.0'
@@ -80,6 +82,18 @@ jobs:
           print('=== PLAINTEXT ===' )
           print(preview['plaintext'])
           "
+
+      - name: Extract ntfy topic from webhook URL
+        if: ${{ env.CIVICOS_NTFY_WEBHOOK_URL != '' }}
+        run: |
+          # Webhook URL format: https://ntfy.sh/topic-name
+          # notify.py expects CIVICOS_NTFY_TOPIC=topic-name and CIVICOS_NTFY_URL=https://ntfy.sh
+          URL="${{ env.CIVICOS_NTFY_WEBHOOK_URL }}"
+          TOPIC=$(echo "$URL" | sed -E 's|^https?://[^/]+/||')
+          SERVER=$(echo "$URL" | sed -E "s|/${TOPIC}$||")
+          echo "CIVICOS_NTFY_TOPIC=${TOPIC}" >> $GITHUB_ENV
+          echo "CIVICOS_NTFY_URL=${SERVER}" >> $GITHUB_ENV
+          echo "Extracted topic: ${TOPIC}, server: ${SERVER}"
 
       - name: Send Cost Digest
         if: ${{ github.event.inputs.preview_only != 'true' }}

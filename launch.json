@@ -916,8 +916,8 @@
       {
         "name": "cross_marin_query_prototype",
         "description": "Cross-jurisdiction queries within Marin County via v2 query layer. SearchRequest.include_parents/include_siblings with tier-based relevance boosting.",
-        "status": "not_started",
-        "priority": 0,
+        "status": "done",
+        "priority": 1,
         "phase": "A",
         "source": "federation testbed \u2014 query federation",
         "spec": "docs/internal/cross-jurisdiction-query-spec.md",
@@ -927,7 +927,7 @@
           "packages/civicos-services/src/civicos_services/query/models.py"
         ],
         "test_file": "packages/civicos-services/tests/test_query_v2.py",
-        "notes": "Infrastructure done: jurisdiction resolution, tier boosting (self=1.0, sibling=0.8), parallel fan-out, semantic relevance scores (04792c2), noise filter MIN_RELEVANCE=0.45, 130+ tests. Data ready: SR 83 decisions, MV 60, SA 96. Decision IDs migrated to meeting-scoped ordinals (f08025f). Remaining: (1) downward resolution \u2014 query county-marin should fan out to child cities, (2) cache registry.json in memory, (3) mount v2 on REST API server."
+        "notes": "DONE 2026-04-06. Infrastructure complete: jurisdiction resolution (parents/siblings/downward children), tier boosting (self=1.0, sibling=0.8, parent_county=0.9, parent_state=0.7, parent_federal=0.5, cross_county=0.5), parallel asyncio fan-out, semantic relevance scores, MIN_RELEVANCE=0.45 noise filter, registry caching (civicos.registry._registry module-level), v2 mounted on REST API (api.py:134-145). All 35 jurisdiction unit tests + 23 integration tests pass. End-to-end verified against live PostgreSQL with expanded Marin dataset (10 cities + 9 school districts): 'housing' query for city-san-rafael with include_siblings=True returns Mill Valley housing study sessions at positions 9-10 (raw scores ~0.69 boosted to 0.55 by 0.8x sibling weight); Berkeley correctly excluded as cross_county. Phase B (cross_county) is the next P0."
       },
       {
         "name": "onboarding_friction_log",
@@ -1012,7 +1012,7 @@
         "name": "cross_county_query_prototype",
         "description": "Prototype cross-county queries: Berkeley (Alameda) vs San Rafael (Marin). Test relevance filtering \u2014 when are cross-county results useful vs noise?",
         "status": "in_progress",
-        "priority": 1,
+        "priority": 0,
         "phase": "B",
         "source": "federation testbed \u2014 cross-county federation",
         "spec": "docs/internal/cross-county-relevance-spec.md",

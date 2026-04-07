@@ -1,92 +1,86 @@
-# Consolidated Onboard Command
+# Recommended: Cross-County Query Prototype (Phase B)
 
 **Priority:** P0
-**Area:** turnkey_onboarding
-**Date:** 2026-04-05
+**Area:** federation_testbed > cross_county_query_prototype
+**Status in launch.json:** in_progress
+**Date:** 2026-04-06
+**Spec:** `docs/internal/cross-county-relevance-spec.md` (and `cross-jurisdiction-query-spec.md` for context)
 
-> This is recommended context from the previous session. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
+> Recommended context from prior session. Review and decide whether to accept, modify, or `/start` for fresh prioritization.
 
 ## Context
 
-This session optimized the audio pipeline (opus@48kbps mono, parallel downloads, Granicus HLS resolution, audio-only download) and built batch operations for audio download and transcription across jurisdictions. The pipeline now works but requires 3 separate commands: `--batch-audio`, `--batch-transcribe-flag`, and per-corpus flags. The user wants a single `--onboard` command that runs the full pipeline per jurisdiction with cost estimation and approval gates.
+Last session verified `cross_marin_query_prototype` end-to-end on the expanded Marin dataset (10 cities + 9 school districts) and marked it `done`. All Phase A acceptance criteria pass: jurisdiction resolution, tier boosting, sibling boundary enforcement, parallel fan-out, real-data semantic ranking. Phase B (cross-county) is the natural follow-up — Berkeley is already onboarded (273 decisions, 79 meetings), the v2 layer already has `also_include` for explicit cross-county opt-in (commit `d2d20f4`), and `get_jurisdiction_tier()` already returns `cross_county` correctly.
 
-A tiered transcription policy was established (see `docs/internal/transcription-policy.md`):
-- **Tier 1** (recent 3-6 months): Full AssemblyAI transcription (~$1.60/meeting)
-- **Tier 2** (older): Agenda chunks + decisions only ($0)
+The remaining work is **end-to-end validation against real cross-county data plus answering the spec's open question: "when should cross-county results appear?"**
+
+## Verified Data State (2026-04-06)
+
+| Jurisdiction | Meetings | Decisions | Notes |
+|---|---|---|---|
+| city-san-rafael | 106 | 111 | base for tests |
+| city-berkeley | 79 | **273** | ✅ ingested — confirmed against Postgres |
+| city-san-francisco | 40 | 188 | ✅ ingested last session |
+| county-marin | 131 | 105 | ✅ ingested |
+| **county-alameda** | **0** | **0** | ❌ **NOT ingested** despite `onboard_county_alameda` marked done |
+
+⚠️ **`county-alameda` is the data gap.** Berkeley's parent chain (`city-berkeley → county-alameda → state-california → country-united-states`) has nothing at the county level. This means parent-chain queries from Berkeley return empty for county results — Phase B can either work around this or fix it as part of the work. Verify the launch.json status of `onboard_county_alameda` is wrong before assuming the test design.
 
 ## Recommended Task
 
-Build a single `--onboard` CLI command in `scripts/modal_ingest.py` that runs the complete ingestion pipeline for one or more jurisdictions:
+Validate cross-county queries against real data and answer the spec's open questions:
 
-1. Show cost estimate (reuse `estimate_audio_costs`)
-2. Require `--approve-cost`
-3. Fetch meetings, issues, municipal code, agenda packets
-4. Discover/download audio (Tier 1 window, route YouTube through proxy, Granicus direct)
-5. Transcribe (with cost cap per jurisdiction)
-6. Extract decisions, agenda items
-7. Index vectors
-8. Report coverage summary
+1. **`also_include` end-to-end test**: SR + Berkeley with `also_include=["city-berkeley"]` for "housing" — do Berkeley results appear with `cross_county` tier weight (0.5)? Are they actually useful or noise?
+2. **Boundary regression test**: SR with `include_siblings=True` (only) must NOT pull Berkeley. Add a real-data integration test if missing.
+3. **Shared state-parent test**: SR + Berkeley both have `state-california` as a parent. With `include_parents=True`, state-level legislation should appear once for both — verify dedup and that the relevance weight is `parent_state` (0.7), not double-counted.
+4. **Spec open question**: when *should* cross-county results appear? Document the answer in `docs/internal/cross-county-relevance-spec.md` based on tested results. Likely: "only on explicit `also_include`, never via implicit fan-out."
 
 ## Key Files
 
-- `scripts/modal_ingest.py:5290` — `estimate_audio_costs()` — cost estimation function
-- `scripts/modal_ingest.py:5447` — `batch_audio_download()` — parallel audio orchestrator
-- `scripts/modal_ingest.py:5536` — `batch_transcribe()` — parallel transcription orchestrator
-- `scripts/modal_ingest.py:5610` — `extract_transcripts()` — per-jurisdiction with `since_date` + `cost_cap_usd`
-- `scripts/modal_ingest.py:7370` — `main()` CLI entrypoint
-- `packages/civicos-extraction/src/civicos_extraction/cli/audio.py` — Audio pipeline (opus, Granicus resolver, HLS audio-only)
-- `docs/internal/transcription-policy.md` — Tiered policy, cost reference, onboarding budgets
-
-## Current Pipeline State
-
-- **173 audio files** in R2 across 8 jurisdictions
-- **Transcription batch launched on Modal** (since Jan 2026, $50/jurisdiction cap) — check `modal app list`
-- Granicus audio partially downloaded (hit 1hr timeout):
-  - Berkeley: 18/66, Mill Valley: 20/105, San Anselmo: 16/129, Sausalito: 9/46, County Marin: 24/25
-- YouTube complete: San Rafael 67, Fairfax 13
-- Proxy status: working but bandwidth-limited ($50 spent, `407 TRAFFIC_EXHAUSTED` possible)
-
-## Key Design Decisions
-
-1. **Proxy only for YouTube** — Granicus is free HLS (`audio.py:438`)
-2. **Audio-only HLS** — `-vn` strips video, 200 MB vs 1.8 GB per meeting (`audio.py:428`)
-3. **Direct ffmpeg re-encode** — Bypass yt-dlp stream-copy, run ffmpeg with `-c:a libopus -b:a 48k -ac 1` (`audio.py:384`)
-4. **Cost gate mandatory** — `--approve-cost` required for all batch operations
-5. **Transcription defaults** — 6-month rolling window, $50/jurisdiction cap
+- `packages/civicos-services/src/civicos_services/query/jurisdictions.py:141-177` — `get_jurisdiction_tier()` (Berkeley→SR returns `cross_county`)
+- `packages/civicos-services/src/civicos_services/query/jurisdictions.py:54-127` — `resolve_jurisdictions()` — `also_include` is handled in `verbs.py`, not here
+- `packages/civicos-services/src/civicos_services/query/verbs.py:391-401` — where `also_include` is appended to `target_jids` after `resolve_jurisdictions`
+- `packages/civicos-services/src/civicos_services/query/models.py:109-140` — `SearchRequest.also_include`, `include_parents`, `include_siblings`
+- `packages/civicos-services/tests/test_query_v2.py:1822-1991` — existing cross-jurisdiction tests (mocked)
+- `packages/civicos-services/tests/test_integration_query_v2.py` — existing real-Postgres tests (23 pass, 159s) — add cross-county cases here
+- `docs/internal/cross-county-relevance-spec.md` — the spec to update with test findings
 
 ## Suggested Approach
 
-1. Read `main()` entrypoint and existing batch handlers (`--batch-audio`, `--batch-transcribe-flag`)
-2. Create `onboard_jurisdiction()` Modal function that chains: meetings -> issues -> videos -> audio -> transcripts -> decisions -> chunks -> vectors
-3. Create `batch_onboard()` orchestrator that spawns per-jurisdiction jobs in parallel
-4. Wire `--onboard` flag in `main()` with cost estimate + `--approve-cost`
-5. Test: `modal run scripts/modal_ingest.py --onboard --jurisdiction city-sausalito`
-6. Test batch: `modal run scripts/modal_ingest.py --onboard --jurisdictions "city-oakland,city-alameda" --approve-cost`
+1. Start with a 1-shot live verification script (analogous to last session's): SR base, run three queries — `include_siblings=True`, `also_include=["city-berkeley"]`, `include_parents=True` — and dump top results with jurisdiction + relevance.
+2. Confirm Berkeley results carry `cross_county` tier (0.5x weight) and that boundary-crossing requires explicit `also_include`.
+3. Add 2-3 integration test cases to `test_integration_query_v2.py` covering the boundary regression and the `also_include` path against real Postgres.
+4. Decide whether the empty-`county-alameda` situation is in scope: either (a) carve it out as a known data gap, file a separate item to re-run `/onboard county-alameda`, and proceed with city-level testing only, or (b) actually onboard county-alameda first (likely 1-2hr extraction job) so the parent-chain test is meaningful.
+5. Document spec answers and mark `cross_county_query_prototype` `done`.
 
 ## Tests to Run
 
 ```bash
-pytest packages/civicos/tests/test_civicos.py -q --override-ini="addopts="
-modal run scripts/modal_ingest.py --batch-audio --jurisdictions auto --dry-run
+# Unit tests for cross-jurisdiction (fast)
+source civicos-env/bin/activate && pytest packages/civicos-services/tests/test_query_v2.py -q \
+  --override-ini="addopts=" -k "tier or sibling or parent or jurisdiction or cross or also_include"
+
+# Integration tests against real Postgres (slower; ~3 min)
+source civicos-env/bin/activate && pytest packages/civicos-services/tests/test_integration_query_v2.py -q \
+  --override-ini="addopts="
 ```
 
 ## Success Criteria
 
-- [ ] `--onboard --jurisdiction city-X` runs full pipeline with cost gate
-- [ ] `--onboard --jurisdictions "X,Y,Z"` parallelizes across jurisdictions
-- [ ] Transcription respects Tier 1 window and cost cap
-- [ ] Works with `--detach` for fire-and-forget
-- [ ] Single command replaces current 3-step workflow
+- [ ] Live cross-county query (SR + `also_include=["city-berkeley"]`, "housing") returns Berkeley results with relevance ≤ 0.5x raw cosine (`cross_county` weight applied)
+- [ ] SR + `include_siblings=True` does NOT include Berkeley (regression test added to `test_integration_query_v2.py`)
+- [ ] State-parent dedup verified — `state-california` results appear once when querying via either SR or Berkeley with `include_parents=True`
+- [ ] Spec open question on "when should cross-county appear" answered in `docs/internal/cross-county-relevance-spec.md`
+- [ ] `county-alameda` empty-state either (a) explicitly out of scope with a follow-up item filed, or (b) re-ingested
+- [ ] `cross_county_query_prototype` marked `done` in `launch.json`
+- [ ] New P0 promoted before `/nextsesh`
 
-## Commits This Session (10)
+## Caveats / Things to Verify
 
-- `ea28c03` — Opus@48kbps mono, parallel downloads, direct ffmpeg
-- `f176411` — Batch audio download parallel across jurisdictions
-- `e9a8c0d` — Batch audio timeout fix (4 hours)
-- `c7bb616` — Granicus player URL -> HLS stream resolution
-- `ff567cc` — Audio-only HLS download (10x smaller)
-- `1113ab3` — Proxy only for YouTube, not Granicus
-- `e7a3697` — Cost estimation gate for batch audio
-- `ce50576` — Tiered transcription policy docs
-- `6353cff` — Transcription date window + cost cap enforcement
-- `10f4c20` — Batch transcription parallel across jurisdictions
+- **county-alameda data gap is the most important caveat** — last session's notes (and the prior next-session prompt) implied Berkeley's parent county was loaded; it isn't. `onboard_county_alameda` in launch.json is marked `done` but Postgres says zero rows. Worth investigating *why* — was it a stub onboard with no extraction run, or did the extraction fail silently?
+- The single-jurisdiction code path leaves `CivicResult.jurisdiction = None` (asymmetry with the cross-jid path which tags every result). Minor; not a bug for Phase B but watch for it in test assertions.
+- Last session's verification used `execute_search(req, civic, base_jid)` — note signature is `(request, civic, jurisdiction)`, not `(request, storage, vectors, jurisdiction)`.
+
+## Open PRs
+
+None as of session end.

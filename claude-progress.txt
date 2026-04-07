@@ -25237,3 +25237,83 @@ Ran --onboard for 11 Marin jurisdictions. Final state:
 - Audio download: $0 (all Granicus = free HLS)
 
 ### Next P0: token_purchase_ui
+
+## Session — 2026-04-06: SF Onboarding + Pipeline E2E
+
+### SF Onboarded (city-san-francisco)
+- Platform: Legistar (events API broken → Playwright+LLM fallback)
+- 40 meetings, 154 decisions, 100 issues, 775 chunks, 6 transcripts
+- 3,921 vectors indexed (all corpora searchable)
+- Granicus video archive: 798 clips, 6 matched to BOS meetings
+- Direct MP3 download from archive-video.granicus.com (bypasses slow HLS)
+- Cost: ~$30 total (transcription $24 + extraction $3.45 + vectors $2.08)
+
+### Pipeline Improvements (systemic, all jurisdictions benefit)
+1. Legistar events fallback → Playwright+LLM when API broken
+2. PlaywrightLLMSource class (DataSource protocol for pipeline)
+3. Legistar calendar year expansion (This Month → This Year)
+4. LLM truncation salvage for large meeting sets
+5. Agenda URL extraction for Legistar View.ashx patterns
+6. Direct Granicus MP3 download (vs slow HLS segment-by-segment)
+7. discover_granicus_videos() — auto-match clips to meetings by date
+8. --transcribe flag chains: Granicus video discovery → audio → transcription
+9. Auto-detect Granicus video archives during onboarding
+10. --with-schools flag spawns Claude headless agents for school district onboarding
+11. Modal browser_image deps (beautifulsoup4, pyyaml)
+12. Fixed Simbli ExtractionConfig import
+
+### School Districts Ingested
+- school-larkspur-corte-madera: 137 meetings, 394 decisions, 2,786 vectors
+- school-tamalpais: 37 meetings
+- school-novato: 41 meetings
+- 3 remaining (Mill Valley SD, Reed Union, Kentfield): agendaonline.net Simbli variant needs fix
+
+### Next P0: cross_marin_query_prototype (federation queries)
+
+## Session — 2026-04-06: Cross-Marin Query Prototype — End-to-End Verification
+
+**Item:** federation_testbed > cross_marin_query_prototype (P0)
+**Status:** DONE
+**Spec:** docs/internal/cross-jurisdiction-query-spec.md (Phase A)
+
+### What Was Found
+Item was tagged "not_started" but launch.json's own notes flagged 3 supposedly-remaining
+sub-tasks. Investigation showed all 3 were already implemented:
+
+1. **Downward resolution** — `jurisdictions.py:89-104` already handles county → child cities
+   via `_find_children()`, then falls through to sideways sibling resolution for cities.
+2. **Registry caching** — `civicos/registry.py:34, 71-87` caches via module-level `_registry`
+   variable; `civicos_services/query/jurisdictions.py:_get_registry()` delegates to it.
+3. **v2 mounted on REST API** — `servers/api.py:134-145` instantiates `create_v2_router()`
+   with the default jurisdiction (`CIVICOS_JURISDICTION` env var, default city-san-rafael).
+
+So the actual P0 work was end-to-end verification on the now-expanded Marin dataset
+(QC report from 2026-03-17 had only tested 3 cities; we now have 10 + 9 school districts).
+
+### Verification Performed
+- 35 jurisdiction-related unit tests in `test_query_v2.py` — all pass (0.54s)
+- 23 integration tests in `test_integration_query_v2.py` — all pass against real
+  PostgreSQL (159s)
+- Live end-to-end query against PostgresBackend:
+  - `resolve_jurisdictions("city-san-rafael", include_siblings=True)` returns 19 Marin
+    jurisdictions (10 cities + 9 school districts), all correctly tagged `tier=sibling`,
+    `weight=0.8`. Berkeley correctly classified as `cross_county` and absent.
+  - `execute_search("housing", include_siblings=True)`:
+    - Top 8 results: SR housing decisions (rel 0.55-0.65)
+    - Positions 9-10: Mill Valley inclusionary housing study sessions (raw scores
+      ~0.69 boosted to 0.55 by 0.8x sibling weight — exactly as designed)
+    - `jurisdiction_results` populated for all 19 jurisdictions
+    - Berkeley & SF absent (boundary enforcement holds)
+  - Control: `include_siblings=False` returns only base-jurisdiction results
+
+### Notes / Asymmetry Observed (Not Fixed)
+- Single-jurisdiction code path leaves `CivicResult.jurisdiction = None`, while the
+  cross-jurisdiction path tags every result with its source jid. Minor inconsistency,
+  not a functional bug — left for a future cleanup.
+- Spec's open question on regional-body data (TAM, MMWD) remains blocked on ingestion,
+  not code.
+
+### Next P0
+Promoted `cross_county_query_prototype` (Phase B, in_progress) from P1 → P0. Berkeley +
+county-alameda are already onboarded, and the Marin sibling data needed as a baseline
+is now in place — the only thing the prior session was waiting on.
