@@ -1,103 +1,67 @@
-# Recommended: Re-extract Alameda County (`onboard_county_alameda`)
+# Recommended: Validate Mass-Ingest Jurisdictions (`validate_mass_ingest_jurisdictions`)
 
 **Priority:** P0
-**Area:** federation_testbed > onboard_county_alameda
-**Status in launch.json:** not_started (re-opened 2026-04-07)
+**Area:** federation_testbed > validate_mass_ingest_jurisdictions
 **Date:** 2026-04-07
 
 > Recommended context from prior session. Review and decide whether to accept, modify, or `/start` for fresh prioritization.
 
 ## Context
 
-Phase B of `cross_county_query_prototype` shipped today. The cross-county query layer is fully validated end-to-end against `city-berkeley` and `city-san-francisco` (real Postgres, 6 new integration tests + 8 unit tests). A new `SearchRequest.per_jurisdiction_limit` knob was added to guarantee visibility of named cross-county jurisdictions in the flat ranked stream.
+Two parallel sessions landed on 2026-04-07. One fixed the dedup P0 (`fix_decision_storage_dedup` shipped via `compute_stable_decision_id()` content-hash IDs — see `packages/civicos/src/civicos/storage/integrity.py`, 21 unit + 4 integration tests). The other did a data-status audit of all 15 mass-ingest jurisdictions (Marin 11 cities + county-marin + SF + county-alameda + city-berkeley) and filed 7 new launch.json items. Both sessions are now done.
 
-**The blocker for Phase B follow-on**: `county-alameda` is empty in Postgres despite `onboard_county_alameda` being marked done back on 2026-03-13 (commit `d6f3adc`). Verified 0 meetings, 0 decisions, 0 transcripts as of 2026-04-07. Berkeley's parent-chain queries (`include_parents=True` from `city-berkeley`) currently return nothing at the county level, which means we can't fully demonstrate cross-county *parent* semantics — only sibling/explicit cases.
-
-## Why This Happened
-
-The original extraction config (`data/extraction/county-alameda.json` in commit `d6f3adc`) had 6 Granicus archive views: `view_2` through `view_9`. In commit `ee9d584` (2026-03-18) the file was simplified to a single `board: "1"` view as a "chore" — but extraction was never re-run after the simplification. Either the original views were wrong (which is why they were simplified) or `board: 1` is wrong (which is why the database is empty). Both are possible; the prior session didn't verify.
+The audit surfaced two concrete silent failures (tiburon empty, alameda ghost) plus several quality gaps. **None of these were caught by automated checks — they only showed up when someone counted rows per jurisdiction.** The umbrella P0 codifies that manual pass so the next launch readiness review is reproducible, not ad hoc.
 
 ## Recommended Task
 
-Re-run Alameda County extraction with the correct Granicus archive view IDs, and verify it actually populates Postgres.
+Run a per-jurisdiction launch-validation pass across all 15 mass-ingest jurisdictions. For each: verify storage/vector counts, run 3 canonical v2 API queries, eyeball results for sanity. Produce a pass/fail checklist. Promote failures into concrete follow-up items (several are already filed — see below).
 
-### Key Files
-- `data/extraction/county-alameda.json` — current config (single `board: "1"` view)
-- `data/jurisdictions/county-alameda.yaml` — jurisdiction registration
-- `packages/civicos-extraction/src/civicos_extraction/clients/granicus.py` — Granicus client
-- `scripts/verify_cross_county_phase_b.py` — Phase B verification script (use to retest after onboarding)
+## Key Files
 
-### Suggested Approach
+- `launch.json` ~line 1195 — `validate_mass_ingest_jurisdictions` (P0) with full item notes
+- `launch.json` — already-filed sub-items: `fix_tiburon_empty` (P1), `complete_alameda_ingest_or_scope` (P1), `index_county_marin_decision_vectors` (P2), `fairfax_cortemadera_video_discovery` (P2), `sf_audio_backfill` (P2), `document_mass_ingest_cost_ceiling` (P2)
+- `scripts/verify_cross_county_phase_b.py` — existing verification script pattern, good starting point for a broader version
+- `/tmp/mass_ingest_status.json` — live counts snapshot from 2026-04-07 audit (may not persist across restarts)
+- Memory: `project_mass_ingest_april_2026.md` — scope, validation tiers, known issues per jurisdiction
+- Memory: `feedback_verify_handoff_diagnoses.md` — **READ THIS FIRST.** Don't treat same-title rows as duplicates without inspecting disambiguating fields. The prior session learned this the hard way.
 
-1. **Visit the Granicus archive UI directly** to find the correct view ID(s):
-   `https://alamedacounty.granicus.com/ViewPublisher.php?view_id=N` — try N=1..15. Look for the Board of Supervisors archive. The git history of `county-alameda.json` shows what was tried before (commits `d6f3adc` and `ee9d584`).
-2. **Update `data/extraction/county-alameda.json`** with the verified view ID(s) — possibly multiple if BoS, committees, etc. are split across views.
-3. **Re-run the extraction** via the onboarding pipeline:
-   ```bash
-   /onboard county-alameda
-   # or directly: python3 -m civicos_extraction.cli.onboard_cli county-alameda
-   ```
-4. **Verify Postgres population**:
-   ```bash
-   source civicos-env/bin/activate && python3 -c "
-   from dotenv import load_dotenv; load_dotenv()
-   from civicos import CivicOS
-   c = CivicOS('county-alameda')
-   print(f'meetings: {len(c.storage.get_meetings(\"county-alameda\"))}')
-   print(f'decisions: {len(c.storage.get_decisions(\"county-alameda\"))}')"
-   ```
-5. **Re-run the Phase B verification script** to confirm Berkeley parent-chain queries now find county-alameda:
-   ```bash
-   python3 scripts/verify_cross_county_phase_b.py
-   ```
-   Then add a new test to `TestCrossCountyIntegration` that runs `include_parents=True` from `city-berkeley` and asserts `county-alameda` appears in the bucket.
+## Suggested Approach
 
-### Caveats
-
-- The notes field on `onboard_county_alameda` still says "Onboarded via turnkey pipeline" from the prior failed attempt — that's misleading. Don't trust prior status; verify directly against Postgres before declaring done.
-- If the Granicus archive genuinely has no public meetings (unlikely for a major California county), document the dead-end and consider Legistar as a fallback. Alameda County uses both depending on the body.
-- This is **only Phase B follow-on**, not a brand-new ETL piece. Don't expand scope.
+1. **Read the audit snapshot.** `cat /tmp/mass_ingest_status.json` if it's still there, otherwise regenerate (use `civic.storage.get_*_count(jid)` and `civic.vectors.count(jid, corpus)` — per `feedback_data_status_gaps`, query `elections` and `elected_officials` tables directly since the API counts undercount them).
+2. **Write a validation script** (`scripts/validate_mass_ingest.py`) that iterates the 15 jurisdictions and for each: (a) fetches storage + vector counts for decisions/meetings/transcripts/chunks/issues/municipal_code/agenda_items, (b) runs 3 v2 API queries (`housing`, `budget`, `what's next`), (c) reports pass/fail with a clear reason. Output to stdout + JSON file.
+3. **Run it. Eyeball the results.** Known failures you should see: `city-tiburon` (0 everywhere), `county-alameda` (decisions but no drill-down context), `county-marin` (0 decision vectors despite 105 decisions).
+4. **File any NEW failures** as launch.json items. Don't re-file the already-known ones (check the list above).
+5. **Mark `validate_mass_ingest_jurisdictions` done** only after the pass has been run AND all findings are either fixed or filed.
+6. **Promote one of the P1 sub-items** (`fix_tiburon_empty` or `complete_alameda_ingest_or_scope`) to P0 before `/nextsesh`.
 
 ## Tests to Run
 
 ```bash
-# Smoke (always)
+# Smoke
 source civicos-env/bin/activate && pytest packages/civicos/tests/test_civicos.py -q --override-ini="addopts="
 
-# Re-run Phase B integration tests after onboarding to confirm no regressions
-pytest packages/civicos-services/tests/test_integration_query_v2.py::TestCrossCountyIntegration -q --override-ini="addopts="
+# Verify dedup fix is still intact (parallel session's work)
+pytest packages/civicos/tests/test_integration_decision_dedup.py -q --override-ini="addopts="
 
-# Phase B live verification (requires Postgres)
+# Cross-county verification from the earlier Phase B work
 python3 scripts/verify_cross_county_phase_b.py
 ```
 
 ## Success Criteria
 
-- [ ] `data/extraction/county-alameda.json` has verified working Granicus view ID(s) (or Legistar config)
-- [ ] `county-alameda` has nonzero meetings AND nonzero decisions in Postgres
-- [ ] Berkeley parent-chain query (`include_parents=True` from `city-berkeley`) returns at least one `county-alameda` result for a relevant query
-- [ ] New integration test added to `TestCrossCountyIntegration` covering Berkeley→county-alameda parent chain
-- [ ] `onboard_county_alameda` marked `done` in `launch.json`
-- [ ] New P0 promoted before `/nextsesh`
+- [ ] `scripts/validate_mass_ingest.py` exists and runs against all 15 jurisdictions
+- [ ] Pass/fail report produced (JSON or markdown) with reason codes per failure
+- [ ] Known issues (tiburon, alameda, marin vectors) re-surfaced by the script (proving it works)
+- [ ] Any NEW failures filed as launch.json items
+- [ ] `validate_mass_ingest_jurisdictions` marked done in launch.json
+- [ ] New P0 promoted (recommend `fix_tiburon_empty` — smallest concrete next step)
 
-## Phase B Summary (just shipped)
+## Caveats
 
-For full context, see `claude-progress.txt` Session 2026-04-07 entry. Key bits:
-
-- `cross_county_query_prototype` marked **done**, demoted to P1
-- New `SearchRequest.per_jurisdiction_limit: Optional[int]` (1-50) — when set, each jid bucket is capped at N AND the flat results list is built by interleaving top-N from each jid (not winner-take-all). Default `None` preserves backwards compat.
-- Validated end-to-end with `also_include=[city-berkeley, city-san-francisco]` from `city-san-rafael`. Tier weight 0.5x enforced. Latency ~900-2500ms for 3 jids, ~4700ms for 19-jid Marin sibling fan-out.
-- Spec `docs/internal/cross-county-relevance-spec.md` updated with answers to 4 of 5 open questions (topic classification still deferred).
-
-## Other Open Items (background, not P0)
-
-| Priority | Item | Notes |
-|---|---|---|
-| P2 | `fix_decision_storage_dedup` | Berkeley + SF have 4-5 identical decision rows each. Likely upsert idempotency bug in Granicus/Legistar paths. Not blocking. |
-| P3 | `fix_sf_county_parent` | `city-san-francisco` registry lacks `county-san-francisco` parent. Works coincidentally for cross-county tier. Cosmetic. |
-| P3 | `federation_adr` | Architecture decision record (deferred). |
-| P3 | `direct_city_submission` | Authenticated clerk endpoint (deferred). |
-| P2 | `token_purchase_ui` | **Deprioritized** per April 2026 roadmap pivot. Don't promote. |
+- **Don't expand scope.** This is a validation pass, not a fix-everything sprint. Surfacing and filing is enough — the actual fixes are separate launch.json items.
+- **The dedup fix is already live.** `compute_stable_decision_id()` in `packages/civicos/src/civicos/storage/integrity.py` is the authoritative ID scheme. Don't write a new dedup key. Don't treat same-title rows as duplicates — per `feedback_verify_handoff_diagnoses.md`, same title ≠ same decision (e.g., 4 Berkeley housing projects at 4 different sites with identical generic LLM summaries).
+- **DataStatus undercounts elections/officials.** Query `elections` and `elected_officials` tables directly via `civic.storage._get_connection()` — the API count methods return 0 for these even when rows exist (659 elections, 532 officials in DB as of 2026-04-07).
+- **Foundation-funded.** If the validation pass wants to kick off remediation (re-ingestion, audio backfill, vector indexing), wait on `document_mass_ingest_cost_ceiling` or get explicit budget approval. $50 proxy surprise on 2026-04-05 is the reason for this guardrail.
 
 ## Open PRs
 
