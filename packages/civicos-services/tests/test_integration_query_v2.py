@@ -674,3 +674,48 @@ class TestCrossCountyIntegration:
             assert len(resp.jurisdiction_results[jid]) > 0, (
                 f"{jid} bucket empty even though storage has data"
             )
+
+    def test_berkeley_parent_chain_reaches_alameda_county(self, civic):
+        """include_parents=True from city-berkeley must reach county-alameda.
+
+        Berkeley's registered parents are county-alameda → state-california →
+        country-united-states. A parent-chain query from Berkeley should fan
+        out to all three. The county is the closest parent (parent_county
+        weight 0.9), and we assert it appears in the per-jurisdiction bucket
+        with at least one decision boosted by the parent_county weight cap.
+
+        This is the cross-county *parent* semantic — distinct from the
+        sibling/explicit also_include cases above. It validates that a city
+        in one county can pull civic context from its actual parent county
+        rather than only from siblings or explicit opt-in.
+        """
+        req = SearchRequest(
+            query="housing",
+            corpus=["decisions"],
+            include_parents=True,
+            limit=30,
+        )
+        resp = _run(execute_search(req, civic, self.BERKELEY))
+
+        assert resp.jurisdiction_results is not None
+        bucket_jids = set(resp.jurisdiction_results.keys())
+
+        # County must be reachable as a parent of Berkeley
+        assert "county-alameda" in bucket_jids, (
+            f"county-alameda missing from Berkeley parent-chain buckets: "
+            f"{sorted(bucket_jids)}"
+        )
+
+        alameda_bucket = resp.jurisdiction_results["county-alameda"]
+        assert len(alameda_bucket) > 0, (
+            "Expected county-alameda housing decisions in parent-chain bucket"
+        )
+
+        # parent_county tier weight is 0.9; raw cosine ∈ [0, 1]; boosted ≤ 0.9
+        for r in alameda_bucket:
+            assert r.jurisdiction == "county-alameda"
+            assert r.relevance is not None
+            assert r.relevance <= 0.9 + 1e-6, (
+                f"county-alameda relevance {r.relevance} exceeds parent_county "
+                f"weight cap of 0.9"
+            )

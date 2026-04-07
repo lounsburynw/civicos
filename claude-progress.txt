@@ -25388,3 +25388,105 @@ Query "housing", decisions corpus:
 ### Next P0
 `onboard_county_alameda` (re-extract). Unblocks Berkeley parent-chain queries
 and completes the cross-county federation testbed data state.
+
+================================================================================
+Session 2026-04-07 (late AM): Alameda County re-extraction (P0)
+================================================================================
+
+### Task
+`federation_testbed.onboard_county_alameda` — re-extract Alameda County after
+the 2026-03-13 onboard left Postgres empty. Required to complete Phase B
+cross-county federation testbed by making Berkeley parent-chain queries
+actually reach its parent county.
+
+### Root Cause
+`data/extraction/county-alameda.json` in commit ee9d584 was "simplified" to a
+single `archives: {"board": "1"}` view. But view_id=1 on
+alamedacounty.granicus.com returns HTTP 404 — it doesn't exist. Fetches
+silently returned 0 meetings. Verified by direct HTTP probe of view IDs 1-15.
+
+### Investigation
+Probed all view IDs 1-15 on alamedacounty.granicus.com/ViewPublisher.php:
+- view_1: 404 (the broken "simplified" target)
+- view_2: "BOS View" (1935 rows) — Board of Supervisors + MACs + committees
+- view_3: "CDA View" (1245 rows) — Planning Commission + Zoning Adjustments
+- view_4: "BOS Test View" (512 rows) — test view, skip
+- view_5: 302 redirect, skip
+- view_6: "Mobile BOS View" (837 rows) — mobile-format duplicate of view_2
+- view_7: 404
+- view_8: "ACPWA View" (15 rows) — Public Works committees
+- view_9: "CDA AWM View" (20 rows) — Agricultural Water Mgmt
+- view_10: "CDA HCD View" (4 rows) — Housing & Community Dev
+- view_11-15: 404
+
+Chose view_2 + view_3 as the minimal set covering BoS (legislative body) and
+CDA (Planning/Zoning). Skipped view_6 to avoid mobile dupes, view_8/9/10 for
+being too sparse, view_4 for being explicitly test data.
+
+### Config Changes
+- `data/extraction/county-alameda.json`: archives → {board_of_supervisors: "2",
+  community_development: "3"}, default_view_id: "2"
+- `data/jurisdictions/county-alameda.yaml`: same archives update for
+  documentary consistency (actual extraction reads JSON only, but drift is
+  confusing)
+
+### Extraction Pipeline
+1. Validated new config via GranicusSource.health() → 1923 available items
+2. Fetched meetings directly via Python (GranicusSource.get_meetings()
+   writing to PostgresBackend) for speed: 264 meetings in 5s, spanning
+   2025-04-10 to 2026-04-14
+3. Ran `modal run --detach scripts/modal_ingest.py --jurisdiction
+   county-alameda --decisions --vectors`
+   - First attempt: shell pipe to `tail -80` caused "local client
+     disconnected" mid-run, terminated at meeting 138/264 with 414 decisions
+     stored (partial)
+   - Second attempt with --detach survived: 152 meetings yielded 301 new
+     decisions + 111 skipped (already extracted). Auto-indexed 715 decision
+     embeddings on T4 GPU
+4. Final Postgres state for county-alameda:
+   - meetings: 264
+   - decisions: 715 (note: inflated by the known dedup bug)
+   - vector_embeddings (decisions): 715
+   - Cost: single OpenAI extraction run, sub-dollar total
+
+### Decision Quality Sample
+Real substantive content:
+- "Public Hearing on Proposed Workforce and Services Reduction at Alameda
+  Health System"
+- "Authorization to Join Amicus Brief Supporting Birthright Citizenship"
+- "Congressionally Directed Spending Request for Health Care for the
+  Homeless Mobile Unit Expansion"
+- "H.R.7267 / S. 3706 Produce Prescriptions for Veterans Act"
+- "Budget Allocation for Lay-Off Reprieve"
+
+### Test Added
+New `test_berkeley_parent_chain_reaches_alameda_county` in
+`TestCrossCountyIntegration`. Calls `execute_search(req, civic, "city-berkeley")`
+with `include_parents=True`, asserts county-alameda appears in
+`jurisdiction_results` bucket with nonzero decisions, each capped at
+parent_county tier weight (0.9).
+
+### Test Results
+- New test: PASS (~40s, includes embedding model warmup)
+- Full TestCrossCountyIntegration: 7/7 PASS (6 existing + 1 new, ~22s)
+- `scripts/verify_cross_county_phase_b.py`: ALL CHECKS PASS (still validates
+  the SR-based cross-county prototype)
+- Smoke tests (`test_civicos.py`): 20/20 PASS
+
+### Launch.json Changes
+- `federation_testbed.onboard_county_alameda`: not_started → done, priority
+  0 → 1. Notes updated with root cause + re-extraction details.
+- `federation_testbed.fix_decision_storage_dedup`: P2 → P0. The county-alameda
+  re-extraction reproduced the dedup bug at scale (301 extracted but 715
+  landed in the table, ~2.4x inflation). This is now actively polluting
+  cross-county query results in a way that's visible in the verification
+  script output.
+
+### Next P0
+`fix_decision_storage_dedup`. Scope: audit `store_decisions()` in
+PostgresBackend and the extraction-side ID generation in Granicus/Legistar
+clients. Likely the upsert key isn't stable across re-extractions, or the
+ON CONFLICT clause isn't matching semantic duplicates. Verification:
+`python3 scripts/verify_cross_county_phase_b.py` should stop showing the
+"4x Authorizing funding for affordable housing projects" pattern after
+the fix + a reindex.

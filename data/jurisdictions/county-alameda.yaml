@@ -17,12 +17,8 @@ data_sources:
     source_type: granicus
     base_url: https://alamedacounty.granicus.com
     archives:
-      view_2: '2'
-      view_3: '3'
-      view_4: '4'
-      view_6: '6'
-      view_8: '8'
-      view_9: '9'
+      board_of_supervisors: '2'
+      community_development: '3'
     metadata:
       granicus_domain: alamedacounty
       default_view_id: '2'

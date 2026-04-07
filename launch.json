@@ -979,17 +979,18 @@
       {
         "name": "onboard_county_alameda",
         "description": "Onboard Alameda County as parent jurisdiction for Berkeley. Required for cross-county legislation context in what_applies().",
-        "status": "not_started",
-        "priority": 0,
+        "status": "done",
+        "priority": 1,
         "phase": "B",
         "source": "federation testbed \u2014 cross-county parent",
         "files": [
           "data/extraction/county-alameda.json",
           "data/jurisdictions/county-alameda.yaml",
-          "config/registry.json"
+          "config/registry.json",
+          "packages/civicos-services/tests/test_integration_query_v2.py"
         ],
-        "test_file": "packages/civicos-extraction/tests/test_platform_detection.py",
-        "notes": "Re-opened 2026-04-07: original onboard (commit d6f3adc, 2026-03-13) left Postgres empty. The extraction config was simplified from 6 Granicus archive views to a single 'board: 1' view in commit ee9d584 without re-running extraction. Verified 0 meetings, 0 decisions, 0 transcripts as of 2026-04-07. Phase B cross-county query work validated against city-berkeley directly, but Berkeley's parent-chain queries (include_parents from city-berkeley) currently return nothing at the county level. This blocks proper Phase B follow-on testing. Action: identify the correct Granicus archive view ID(s) for Alameda County Board of Supervisors and re-run extraction. Acceptance: county-alameda has nonzero meetings AND nonzero decisions in Postgres. (prior notes: Alameda County onboarded via turnkey pipeline. Also fixed 3 robustness bugs: (1) upfront API key warnings, (2) validate defaults to 1, (3) empty archives returns failure not success. Fixed YAML generator: level passthrough (was hardcoded 'city') and self-reference filtering in parent_jurisdictions. 88/88 tests pass (83 original + 5 new robustness tests).)"
+        "test_file": "packages/civicos-services/tests/test_integration_query_v2.py",
+        "notes": "Re-extracted 2026-04-07 after Phase B follow-on investigation. Root cause: the simplified 'board: 1' view from commit ee9d584 pointed to view_id=1 which 404s on alamedacounty.granicus.com. Probed view IDs 1-15 directly to identify real archives: view_2 'BOS View' (1935 rows, Board of Supervisors + MACs + committees), view_3 'CDA View' (1245 rows, Planning Commission + Zoning Adjustments). Skipped view_4 (BOS Test View), view_6 (Mobile BOS View, duplicates view_2), view_8/9/10 (small specialized committees). Fetched 264 meetings locally via GranicusSource to Postgres, then ran `modal run --detach scripts/modal_ingest.py --jurisdiction county-alameda --decisions --vectors`. Final state: 264 meetings, 715 decisions stored, 715 decisions corpus embeddings. Added test_berkeley_parent_chain_reaches_alameda_county to TestCrossCountyIntegration asserting include_parents=True from city-berkeley returns county-alameda bucket with parent_county tier weight <= 0.9. All 7 TestCrossCountyIntegration tests pass. Phase B verification script still passes. (prior notes: original onboard d6f3adc left Postgres empty; ee9d584 simplified config without re-running extraction.)"
       },
       {
         "name": "escribe_client",
@@ -1150,16 +1151,16 @@
       },
       {
         "name": "fix_decision_storage_dedup",
-        "description": "Decisions table contains exact duplicates for some jurisdictions. On the 'housing' query against city-berkeley, 4 identical 'Authorizing funding for affordable housing projects' entries appear with the same title and same vector relevance (0.3304). city-san-francisco has 5 identical 'Affordable Housing and Sustainable Communities Program' entries. Likely an upsert idempotency bug in the Granicus or Legistar extraction path. Investigate root cause and add a uniqueness constraint or normalize the upsert key. Discovered during Phase B cross-county validation (2026-04-07).",
+        "description": "Decisions table contains exact duplicates for some jurisdictions. On the 'housing' query against city-berkeley, 4 identical 'Authorizing funding for affordable housing projects' entries appear with the same title and same vector relevance (0.3304). city-san-francisco has 5 identical 'Affordable Housing and Sustainable Communities Program' entries. After county-alameda re-extraction (2026-04-07), the same pattern reproduces: 715 decisions stored despite only 412 unique extractions (301 new + 111 skipped). Likely an upsert idempotency bug in the Granicus or Legistar extraction path. Investigate root cause and add a uniqueness constraint or normalize the upsert key.",
         "status": "not_started",
-        "priority": 2,
+        "priority": 0,
         "source": "Phase B cross-county query validation finding",
         "files": [
           "packages/civicos-extraction/src/civicos_extraction/clients/granicus.py",
           "packages/civicos-extraction/src/civicos_extraction/clients/legistar.py",
           "packages/civicos/src/civicos/storage/postgres_backend.py"
         ],
-        "notes": "Reproduce: from city-san-rafael, run search 'housing' with also_include=['city-berkeley', 'city-san-francisco'] and observe duplicate titles + identical relevance scores in the per-jid buckets. Verification script: scripts/verify_cross_county_phase_b.py."
+        "notes": "Promoted to P0 on 2026-04-07 after county-alameda re-extraction reproduced the bug at larger scale: 264 meetings fetched, 301 decisions extracted, 111 skipped (pre-existing), but final table count is 715 \u2014 a ~1.7x duplication factor against city-alameda alone. This is a correctness bug, not cosmetic: every cross-county query that hits the decisions corpus pulls in duplicates that waste limit slots and crowd out substantive results. Reproduce: from city-san-rafael, run search 'housing' with also_include=['city-berkeley', 'city-san-francisco'] and observe duplicate titles + identical relevance scores in the per-jid buckets. Verification script: scripts/verify_cross_county_phase_b.py. First step: inspect the actual upsert key and the ON CONFLICT clause in store_decisions() (PostgresBackend) and compare against what Granicus vs Legistar extraction paths emit \u2014 do both paths generate stable decision IDs, or does something like the LLM extraction slot different IDs for the same underlying decision? Expect the fix to live in either the extraction side (stable ID derivation) or the storage side (semantic dedup on title+meeting_id)."
       },
       {
         "name": "fix_sf_county_parent",
