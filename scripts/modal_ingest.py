@@ -2503,8 +2503,17 @@ def _embed_legislation_page(
     jurisdiction_id: str,
     corpus_type: str,
     reindex: bool = False,
+    bill_ids: Optional[list] = None,
 ) -> dict:
-    """Worker that fetches its own page of legislation from Postgres, chunks, embeds, and stores.
+    """Worker that fetches its own page of records from Postgres, chunks, embeds, and stores.
+
+    Two paging modes:
+    - For legislation: pass `bill_ids` (a list of specific bill IDs) and the worker
+      uses get_legislation_batch. This lets the orchestrator do chunk-count-aware
+      paging — small bills get grouped, monster bills get dedicated workers.
+    - For executive_orders / federal_rules: pass `offset` + `page_size` and the worker
+      uses ordinal pagination. These corpora are smaller per-record so size variance
+      doesn't bite.
 
     Unlike _embed_and_store_batch, this worker never receives chunk data from the
     orchestrator — it fetches directly from the database. This keeps the orchestrator's
@@ -2516,6 +2525,7 @@ def _embed_legislation_page(
 
     logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
     logger = logging.getLogger(__name__)
+    page_label = f"bill_ids[{len(bill_ids)}]" if bill_ids else f"offset={offset}"
 
     try:
         os.environ["FASTEMBED_CACHE_PATH"] = "/cache/fastembed"
@@ -2532,9 +2542,15 @@ def _embed_legislation_page(
         backend = get_storage_backend(database_url)
         pgvector = PgVectorBackend(connection_string=database_url, provider_type="fastembed")
 
-        # Fetch this worker's page of data
+        # Fetch this worker's data
         if corpus_type == "legislation":
-            raw = backend.get_legislation(state=state_code, limit=page_size, offset=offset)
+            if bill_ids:
+                # Chunk-count-aware paging mode: orchestrator picked specific bills
+                bills_dict = backend.get_legislation_batch(state=state_code, bill_ids=bill_ids)
+                raw = list(bills_dict.values())
+            else:
+                # Legacy ordinal paging
+                raw = backend.get_legislation(state=state_code, limit=page_size, offset=offset)
             chunks = expand_legislation_to_chunks(raw)
         elif corpus_type == "executive_orders":
             raw = backend.get_executive_orders(limit=page_size, offset=offset)
@@ -2548,7 +2564,7 @@ def _embed_legislation_page(
         if not chunks:
             return {"success": 0, "failed": 0}
 
-        logger.info(f"Page offset={offset}: {len(raw)} bills → {len(chunks)} chunks")
+        logger.info(f"Page {page_label}: {len(raw)} records → {len(chunks)} chunks")
 
         # Embed and store in sub-batches to limit peak memory.
         # Processing all 3K+ chunks at once OOM'd 64GB workers.
@@ -2587,11 +2603,11 @@ def _embed_legislation_page(
             total_success += result.get("success", 0)
             total_failed += result.get("failed", 0)
 
-        logger.info(f"Page offset={offset}: indexed {total_success} embeddings ({total_failed} failed)")
+        logger.info(f"Page {page_label}: indexed {total_success} embeddings ({total_failed} failed)")
         return {"success": total_success, "failed": total_failed}
 
     except Exception as e:
-        logger.exception(f"Page offset={offset} failed: {e}")
+        logger.exception(f"Page {page_label} failed: {e}")
         return {"success": 0, "failed": len(chunks) if 'chunks' in dir() else page_size, "error": str(e)}
 
 
@@ -2790,51 +2806,135 @@ def index_vectors(
         elif ct in ("legislation", "executive_orders", "federal_rules"):
             # Large text corpora: dispatch to workers that fetch their own pages
             # from Postgres. This avoids loading 70K+ chunks into the orchestrator.
+            #
+            # For legislation: chunk-count-aware bin-packing. Some CA bills (Budget
+            # Acts) are 2 MB while the median is 8 KB — naive 100-bill pages put a
+            # giant bill into the same worker as 99 small ones, blowing past the
+            # function timeout. Now: monster bills get their own dedicated worker,
+            # small bills get grouped to ~1.5 MB total text per page.
+            #
+            # For EOs / federal rules: ordinal pagination is fine (smaller per-record).
+            pages = []  # Each entry: ("legacy", offset, size) or ("ids", bill_ids_list)
+
             if ct == "legislation":
                 raw_code = jurisdiction.split("-", 1)[-1].upper()
                 STATE_ABBREVS = {"CALIFORNIA": "CA", "TEXAS": "TX", "NEW YORK": "NY", "FLORIDA": "FL"}
                 state_code = STATE_ABBREVS.get(raw_code, raw_code)
-                total = backend.get_legislation_count(state_code)
-            elif ct == "executive_orders":
-                state_code = "US"
-                total = backend.get_executive_orders_count()
-            elif ct == "federal_rules":
-                state_code = "US"
-                total = backend.get_federal_rules_count()
 
-            if total == 0:
-                logger.warning(f"  No {ct} found for {jurisdiction}")
-                pgvector.rebuild_hnsw_index(ct)
-                results[ct] = {"status": "skipped", "indexed": 0}
-                continue
+                # Fetch bill_id + size for bin-packing (no full_text — just metadata).
+                conn_tmp = backend._get_connection()
+                cur_tmp = conn_tmp.cursor()
+                cur_tmp.execute("""
+                    SELECT bill_id, length(full_text) AS text_len
+                    FROM legislation
+                    WHERE state = %s
+                      AND full_text IS NOT NULL
+                      AND valid_from <= NOW()
+                      AND (valid_to IS NULL OR valid_to > NOW())
+                      AND deleted_at IS NULL
+                    ORDER BY text_len DESC
+                """, (state_code,))
+                bill_sizes = cur_tmp.fetchall()
+                backend._return_connection(conn_tmp)
 
-            # Page size: each worker handles ~100 source records (expands to ~1.5K chunks).
-            # 500 was too large — bills expand 10-15x and OOM'd 64GB workers.
-            page_size = 100
-            pages = [(offset, min(page_size, total - offset)) for offset in range(0, total, page_size)]
+                if not bill_sizes:
+                    logger.warning(f"  No {ct} found for {jurisdiction}")
+                    pgvector.rebuild_hnsw_index(ct)
+                    results[ct] = {"status": "skipped", "indexed": 0}
+                    continue
+
+                # Bin-pack: target ~1.5 MB of text per page (~1,000 chunks at 1500
+                # chars/chunk). Bills > 500 KB get their own dedicated page.
+                TARGET_BYTES_PER_PAGE = 1_500_000
+                GIANT_BILL_THRESHOLD = 500_000
+                current_page_ids = []
+                current_page_bytes = 0
+                for bill_id, text_len in bill_sizes:
+                    if text_len >= GIANT_BILL_THRESHOLD:
+                        pages.append(("ids", [bill_id]))
+                        continue
+                    if current_page_bytes + text_len > TARGET_BYTES_PER_PAGE and current_page_ids:
+                        pages.append(("ids", current_page_ids))
+                        current_page_ids = []
+                        current_page_bytes = 0
+                    current_page_ids.append(bill_id)
+                    current_page_bytes += text_len
+                if current_page_ids:
+                    pages.append(("ids", current_page_ids))
+
+                total = len(bill_sizes)
+                giant_count = sum(1 for _, sz in bill_sizes if sz >= GIANT_BILL_THRESHOLD)
+                logger.info(
+                    f"  {total} {ct} records ({giant_count} giants) → "
+                    f"{len(pages)} pages (chunk-count-aware bin-packing)"
+                )
+            else:
+                if ct == "executive_orders":
+                    state_code = "US"
+                    total = backend.get_executive_orders_count()
+                else:
+                    state_code = "US"
+                    total = backend.get_federal_rules_count()
+
+                if total == 0:
+                    logger.warning(f"  No {ct} found for {jurisdiction}")
+                    pgvector.rebuild_hnsw_index(ct)
+                    results[ct] = {"status": "skipped", "indexed": 0}
+                    continue
+
+                page_size = 100
+                pages = [
+                    ("legacy", offset, min(page_size, total - offset))
+                    for offset in range(0, total, page_size)
+                ]
+                logger.info(f"  {total} {ct} records — {len(pages)} pages (ordinal pagination)")
 
             # Cap concurrent workers to avoid exhausting Supabase connection pool.
             # Each worker opens 2 connections (storage + pgvector), pool limit ~60.
             max_concurrent = 20
-            logger.info(f"  {total} {ct} records — {len(pages)} pages, max {max_concurrent} concurrent workers")
 
             worker_results = []
             for wave_start in range(0, len(pages), max_concurrent):
                 wave = pages[wave_start:wave_start + max_concurrent]
                 logger.info(f"  Wave {wave_start // max_concurrent + 1}: pages {wave_start}-{wave_start + len(wave) - 1}")
-                wave_results = list(_embed_legislation_page.starmap(
-                    [
-                        (state_code, offset, size, jurisdiction, ct, reindex)
-                        for offset, size in wave
-                    ],
-                    return_exceptions=True,
-                ))
-                # Convert any exception objects to error dicts so the next wave still runs
-                for i, r in enumerate(wave_results):
-                    if isinstance(r, Exception):
-                        offset, size = wave[i]
-                        logger.warning(f"  Page offset={offset} raised: {r}")
-                        wave_results[i] = {"success": 0, "failed": size, "error": str(r)}
+
+                # Build starmap arguments based on page type
+                starmap_args = []
+                for page in wave:
+                    if page[0] == "ids":
+                        bill_ids_list = page[1]
+                        starmap_args.append((state_code, 0, 0, jurisdiction, ct, reindex, bill_ids_list))
+                    else:
+                        _, offset, size = page
+                        starmap_args.append((state_code, offset, size, jurisdiction, ct, reindex, None))
+
+                # Belt-and-suspenders: wrap the entire wave in try/except so a single
+                # worker timeout (which starmap propagates despite return_exceptions=True)
+                # doesn't abort the whole indexing run. We accept losing 1 wave's results
+                # rather than losing all subsequent waves.
+                try:
+                    wave_results = list(_embed_legislation_page.starmap(
+                        starmap_args,
+                        return_exceptions=True,
+                    ))
+                    for i, r in enumerate(wave_results):
+                        if isinstance(r, Exception):
+                            page = wave[i]
+                            page_label = f"bill_ids[{len(page[1])}]" if page[0] == "ids" else f"offset={page[1]}"
+                            logger.warning(f"  Page {page_label} raised: {r}")
+                            failed_count = len(page[1]) if page[0] == "ids" else page[2]
+                            wave_results[i] = {"success": 0, "failed": failed_count, "error": str(r)}
+                except Exception as wave_error:
+                    logger.exception(f"  Wave {wave_start // max_concurrent + 1} aborted: {wave_error}")
+                    # Mark all pages in this wave as failed but continue to next wave
+                    wave_results = []
+                    for page in wave:
+                        failed_count = len(page[1]) if page[0] == "ids" else page[2]
+                        wave_results.append({
+                            "success": 0,
+                            "failed": failed_count,
+                            "error": f"wave aborted: {wave_error}",
+                        })
                 worker_results.extend(wave_results)
 
             failed_workers = [r for r in worker_results if r.get("error")]
