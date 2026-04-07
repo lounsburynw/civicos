@@ -1,9 +1,9 @@
 # Cross-County Relevance Filtering Spec
 
-**Status:** Not started (depends on Phase A validation)
-**Date:** 2026-03-11 (updated 2026-03-13)
+**Status:** Validated against real Postgres (2026-04-07)
+**Date:** 2026-03-11 (updated 2026-04-07)
 **Launch.json item:** `cross_county_query_prototype`
-**Depends on:** `cross_marin_query_prototype` (Phase A findings inform this)
+**Depends on:** `cross_marin_query_prototype` (Phase A findings inform this) — **DONE**
 
 ## Problem
 
@@ -79,8 +79,19 @@ Cross-jurisdiction is implemented in the v2 query interface (`civicos-services/q
 # Explicit sibling inclusion
 {"query": "housing", "corpus": ["decisions"], "include_parents": true, "include_siblings": true}
 
-# Explicit cross-county (pass jurisdiction directly)
+# Explicit cross-county via direct target (single-jurisdiction query)
 {"query": "rent control", "corpus": ["decisions"], "jurisdiction": "city-berkeley"}
+
+# Explicit cross-county via also_include (base + named targets, tier-boosted)
+{"query": "housing", "corpus": ["decisions"], "also_include": ["city-berkeley"]}
+
+# Comparative cross-county (every named jid guaranteed visible in flat view)
+{
+  "query": "housing",
+  "corpus": ["decisions"],
+  "also_include": ["city-berkeley", "city-san-francisco"],
+  "per_jurisdiction_limit": 5
+}
 ```
 
 **Response** includes `jurisdiction_results` grouping:
@@ -112,10 +123,115 @@ Each `CivicResult` has a `jurisdiction` field identifying its source. See `packa
 
 5. **Do cross-county results ever surface without explicit request?** If someone searches "rent control" in San Rafael (which doesn't have rent control), should Berkeley results appear as precedent? This is a product decision informed by the testbed.
 
-## Open Questions
+## Phase B Validation (2026-04-07)
 
-1. **Regional body resolution** — TAM, MMWD, etc. are not jurisdictions in the current model. They're shared across cities but don't have a `jurisdiction_id`. Should they? Or are they discovered via topic search across siblings?
+Validated end-to-end against PostgreSQL using the live verification script
+`scripts/verify_cross_county_phase_b.py`. Test data:
 
-2. **Result deduplication** — if county-marin passes a housing ordinance that references state legislation, both might appear in results. Deduplicate by entity ID, or show both with different jurisdiction labels?
+| Jurisdiction | County | Decisions | Vector embeddings |
+|---|---|---|---|
+| city-san-rafael | Marin | 111 | 111 |
+| city-berkeley | Alameda | 273 | 273 |
+| city-san-francisco | (consolidated) | 188 | 188 |
+| county-alameda | — | **0** | **0** (data gap) |
 
-3. **Latency budget** — cross-county queries with 4+ jurisdictions. What's the acceptable latency ceiling?
+**Verified semantics** — query "housing" from `city-san-rafael` (decisions corpus):
+
+| Mode | Result | Berkeley present? | SF present? |
+|---|---|---|---|
+| `include_siblings=True` | 19 Marin jurisdictions fanned out | ❌ No | ❌ No |
+| `include_parents=True` | county-marin, state-california, country-united-states | ❌ No | ❌ No |
+| `also_include=[berkeley, sf]` (default cap) | 15 results, SR dominates | ✅ 5 | ❌ 0 (crowded out) |
+| `also_include=[berkeley, sf], per_jurisdiction_limit=5` | 15 results, balanced | ✅ 5 | ✅ 5 |
+
+**Tier weights confirmed**: Berkeley and SF results both capped at `0.5x` raw
+cosine similarity (raw cosine 0.56-0.66 → boosted 0.28-0.33).
+
+### Answers to Open Questions
+
+1. **When should cross-county results appear?**
+   *Answer*: **Only on explicit `also_include`. Never via implicit fan-out.**
+   `include_siblings` and `include_parents` are bounded to the parent-county
+   chain. Cross-county results require the caller to name the target jid.
+   Validated by the `siblings_only_excludes_other_counties` and
+   `parents_only_excludes_other_counties` integration tests.
+
+2. **Visibility of named cross-county jurisdictions**
+   *Problem found*: With the default global top-K cap, a cross-county jid's
+   results can be silently dropped from the flat ranked stream when another
+   jid's marginally higher cosine similarity wins ranking. Tested with SR +
+   Berkeley + SF — Berkeley filled positions 11-15 and SF was cut entirely
+   from the flat view at `limit=15`, even though SF had 188 housing-relevant
+   decisions in its bucket.
+   *Resolution*: Added `SearchRequest.per_jurisdiction_limit` (Phase B). When
+   set, each fanned-out jid contributes up to N results to the flat view AND
+   each `jurisdiction_results` bucket is capped at N. Total flat results size
+   is bounded by `per_jurisdiction_limit × num_jurisdictions`. Default `None`
+   preserves the global top-K behavior. Comparative cross-county queries
+   should set this knob; federation discovery queries (siblings within county)
+   typically should not.
+
+3. **Result deduplication** *(still open — deferred)*
+   If county-marin passes a housing ordinance that references state
+   legislation, both might appear in results. Phase B does NOT deduplicate
+   by entity ID — each jid's results are independent and labeled by source.
+   This is acceptable for now because (a) cross-jurisdiction overlap of
+   actual entity IDs is rare (each jid has its own ID-space) and (b) the
+   `jurisdiction` field on `CivicResult` lets clients group/dedup as needed.
+   Revisit if/when we get real entity overlap (e.g., shared regional body
+   decisions).
+
+4. **Latency budget** *(observed, within target)*
+   Real-data measurements (single corpus, decisions only):
+   - 1 jid (base only): ~80-300 ms
+   - 3 jids (`also_include` 2 cross-county): ~900-2500 ms total
+   - 19 jids (Marin sibling fan-out): ~4700 ms total
+   The fan-out is parallel, so cost scales with the slowest jid, not linearly.
+   Target ceiling: <8s for 5 jids, <15s for 20 jids. Currently meeting both.
+
+5. **Regional body resolution** *(still open — out of scope for Phase B)*
+   TAM, MMWD, and other regional bodies are not yet modeled as jurisdictions.
+   The Phase B prototype only validates city-to-city cross-county queries.
+   Regional body modeling is tracked separately under multi_scale_participation
+   in `launch.json`.
+
+## Known Data Gaps (filed for follow-up)
+
+These were discovered during Phase B validation but are out of scope for the
+query layer itself:
+
+1. **`county-alameda` extraction never populated data** — onboarded
+   2026-03-13 (commit `d6f3adc`), but Postgres has 0 meetings, 0 decisions,
+   0 transcripts. The original config had 6 Granicus archive views which
+   were simplified to a single `board: "1"` view in commit `ee9d584` without
+   re-running extraction. Berkeley's parent-chain queries (`include_parents`
+   from `city-berkeley`) currently get nothing at the county level. Refile
+   `onboard_county_alameda` as `not_started`.
+
+2. **Berkeley + SF have duplicate decisions in storage** — On the "housing"
+   query, Berkeley returns 4 identical "Authorizing funding for affordable
+   housing projects" entries (same title, same `0.3304` relevance) and SF
+   returns 5 identical "Affordable Housing and Sustainable Communities
+   Program" entries. Likely an upsert idempotency issue in the Granicus or
+   Legistar extraction path. Should be a `data.critic` violation; file
+   under `data_integrity`.
+
+3. **`city-san-francisco` registry entry lacks `county-san-francisco` parent**
+   — SF is a consolidated city-county, so its parent_jurisdictions is just
+   `[state-california, country-united-states]`. Cross-county tier resolution
+   still works coincidentally because the tier check returns `cross_county`
+   when neither base nor target shares any county. But it's structurally
+   wrong and should list `county-san-francisco` for federation symmetry
+   (regional bodies, parent-chain queries, etc.).
+
+## Open Questions (remaining)
+
+1. **Topic classification for sibling relevance** (Rule 4 above) — still
+   not implemented. Phase A and B both treat sibling inclusion as a binary
+   opt-in via `include_siblings`. The policy/operational distinction would
+   need a topic classifier or keyword table that we don't have yet. Defer.
+
+2. **Cross-county precedent surfacing** — should there be a higher-level
+   "find precedent" query that scans all populated jurisdictions for similar
+   decisions? Not the same as `also_include`, which requires the caller to
+   name targets. This is a product feature, not a query primitive.

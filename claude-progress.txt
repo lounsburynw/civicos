@@ -25317,3 +25317,74 @@ So the actual P0 work was end-to-end verification on the now-expanded Marin data
 Promoted `cross_county_query_prototype` (Phase B, in_progress) from P1 → P0. Berkeley +
 county-alameda are already onboarded, and the Marin sibling data needed as a baseline
 is now in place — the only thing the prior session was waiting on.
+
+## Session 2026-04-07 — cross_county_query_prototype Phase B DONE
+
+### Summary
+Completed `cross_county_query_prototype` end-to-end. Validated cross-county queries
+against real PostgreSQL using city-san-rafael (Marin) base + also_include=
+[city-berkeley (Alameda), city-san-francisco (consolidated)]. Added a new
+`SearchRequest.per_jurisdiction_limit` knob to guarantee visibility of named
+cross-county jids in the flat ranked stream.
+
+### Live Verification (scripts/verify_cross_county_phase_b.py)
+Query "housing", decisions corpus:
+- `include_siblings=True`: 19 Marin jurisdictions, Berkeley + SF absent ✓
+- `include_parents=True`: county-marin + state-california + country-united-states,
+  Berkeley + SF absent ✓
+- `also_include=[berkeley, sf]` (default): Berkeley fills positions 11-15, SF
+  crowded out of flat top-15 (still in per-jid bucket) — motivated new knob
+- `also_include=[berkeley, sf], per_jurisdiction_limit=5`: all 3 jids visible,
+  15 total flat results, buckets capped at 5 ✓
+- Tier weights enforced: Berkeley max 0.3304, SF max 0.3073, both ≤ 0.5 cap ✓
+
+### Code Changes
+- `query/models.py`: added `SearchRequest.per_jurisdiction_limit: Optional[int]`
+  (1-50), defaults to None. When set, flat results are bounded by
+  `per_jurisdiction_limit × num_jurisdictions`, not `request.limit`.
+- `query/verbs.py`: `_execute_cross_jurisdiction_search` now sorts each jid bucket
+  by relevance, caps at per_jid_limit, and skips the global `request.limit` cut
+  when in comparative mode. Per-jid searches are dispatched with
+  `limit=per_jid_limit` so each has enough material.
+- `query/verbs.py`: `execute_search` also dispatches to cross-jurisdiction fan-out
+  when only `per_jurisdiction_limit` is set (not just include_parents/siblings/
+  also_include), so comparative mode works for single-jid queries too.
+- `scripts/verify_cross_county_phase_b.py`: new one-shot verification script.
+
+### Tests
+- `test_query_v2.py`: +8 unit tests for per_jurisdiction_limit (field/validation/
+  cap-each-bucket/flat-total/visibility/backwards-compat). 157 tests pass.
+- `test_integration_query_v2.py`: +6 integration tests under new
+  `TestCrossCountyIntegration` class (siblings/parents exclude other counties,
+  also_include Berkeley/SF with tier weight check, per_jurisdiction_limit makes
+  cross-county visible, default winner-take-all preserved). 29 integration tests
+  pass (23 existing + 6 new, ~165s total).
+
+### Spec Updates
+`docs/internal/cross-county-relevance-spec.md` updated with:
+- Phase B validation results table (jurisdictions, counts, modes tested)
+- Answers to 4 of 5 open questions (topic classification still deferred)
+- 3 known data gaps filed as follow-up launch items
+- per_jurisdiction_limit documented in API surface section
+
+### Data Gaps Discovered (filed as follow-up items)
+1. **county-alameda extraction never populated data** — onboarded 2026-03-13 but
+   Postgres shows 0 meetings/decisions/transcripts. Original config had 6
+   Granicus archive views, simplified to `board: "1"` in commit ee9d584
+   without re-running extraction. Re-opened `onboard_county_alameda` as P0.
+2. **Berkeley + SF have duplicate decisions in storage** — 4-5 identical entries
+   each on housing query. Likely upsert idempotency bug in Granicus/Legistar
+   extraction. Filed as `fix_decision_storage_dedup` (P2).
+3. **city-san-francisco registry lacks county-san-francisco parent** — structurally
+   wrong for federation symmetry, works coincidentally due to empty-county
+   intersection. Filed as `fix_sf_county_parent` (P3).
+
+### Launch.json Changes
+- `federation_testbed.cross_county_query_prototype`: status=done, priority=1
+- `federation_testbed.onboard_county_alameda`: re-opened status=not_started, priority=0 (new P0)
+- Added `federation_testbed.fix_decision_storage_dedup` (P2, not_started)
+- Added `federation_testbed.fix_sf_county_parent` (P3, not_started)
+
+### Next P0
+`onboard_county_alameda` (re-extract). Unblocks Berkeley parent-chain queries
+and completes the cross-county federation testbed data state.

@@ -2023,3 +2023,147 @@ class TestCrossJurisdictionSearch:
         assert response.results == []
         assert "error" in response.meta.corpus_status
         assert "city-nonexistent" in response.meta.corpus_status["error"]
+
+    # === per_jurisdiction_limit (comparative cross-jid mode) ===
+
+    def test_search_request_per_jurisdiction_limit_field(self):
+        """SearchRequest accepts per_jurisdiction_limit and defaults to None."""
+        req = SearchRequest(query="housing", corpus=["decisions"])
+        assert req.per_jurisdiction_limit is None
+
+        req2 = SearchRequest(
+            query="housing",
+            corpus=["decisions"],
+            per_jurisdiction_limit=5,
+        )
+        assert req2.per_jurisdiction_limit == 5
+
+    def test_per_jurisdiction_limit_validation(self):
+        """per_jurisdiction_limit must be in [1, 50]."""
+        with pytest.raises(ValueError):
+            SearchRequest(query="x", corpus=["decisions"], per_jurisdiction_limit=0)
+        with pytest.raises(ValueError):
+            SearchRequest(query="x", corpus=["decisions"], per_jurisdiction_limit=51)
+
+    @pytest.mark.asyncio
+    async def test_per_jurisdiction_limit_triggers_cross_jurisdiction(self):
+        """per_jurisdiction_limit alone triggers cross-jurisdiction fan-out."""
+        from civicos_services.query.verbs import execute_search
+
+        civic = make_mock_civic()
+        # No also_include / parents / siblings — but per_jurisdiction_limit is set
+        req = SearchRequest(
+            query="housing",
+            corpus=["decisions"],
+            per_jurisdiction_limit=3,
+        )
+
+        with adapter_patches():
+            response = await execute_search(req, civic, "city-san-rafael")
+
+        # Even with just the base jid, comparative mode produces jurisdiction_results
+        assert response.jurisdiction_results is not None
+        assert "city-san-rafael" in response.jurisdiction_results
+
+    @pytest.mark.asyncio
+    async def test_per_jurisdiction_limit_caps_each_bucket(self):
+        """Each jid bucket in jurisdiction_results is capped at per_jurisdiction_limit."""
+        from civicos_services.query.verbs import execute_search
+
+        civic = make_mock_civic()
+        # Provide 5 mock decisions per jid; cap at 2
+        many_decisions = [
+            MockDecision(id=f"dec-{i}", title=f"Housing decision {i}")
+            for i in range(5)
+        ]
+        req = SearchRequest(
+            query="housing",
+            corpus=["decisions"],
+            also_include=["city-berkeley"],
+            per_jurisdiction_limit=2,
+        )
+
+        with adapter_patches(decisions=many_decisions):
+            response = await execute_search(req, civic, "city-san-rafael")
+
+        assert response.jurisdiction_results is not None
+        for jid, bucket in response.jurisdiction_results.items():
+            assert len(bucket) <= 2, f"{jid} bucket exceeded cap: {len(bucket)}"
+
+    @pytest.mark.asyncio
+    async def test_per_jurisdiction_limit_flat_results_total(self):
+        """Flat results in comparative mode are bounded by N × num_jurisdictions, not request.limit."""
+        from civicos_services.query.verbs import execute_search
+
+        civic = make_mock_civic()
+        many_decisions = [
+            MockDecision(id=f"dec-{i}", title=f"Housing decision {i}")
+            for i in range(10)
+        ]
+        req = SearchRequest(
+            query="housing",
+            corpus=["decisions"],
+            also_include=["city-berkeley"],
+            per_jurisdiction_limit=3,
+            limit=2,  # Intentionally smaller than 3 × 2 jids — should be ignored in comparative mode
+        )
+
+        with adapter_patches(decisions=many_decisions):
+            response = await execute_search(req, civic, "city-san-rafael")
+
+        # 2 jids × 3 cap = up to 6 results, NOT limited to request.limit=2
+        assert len(response.results) > 2, (
+            f"Comparative mode should not apply request.limit, got {len(response.results)}"
+        )
+        assert len(response.results) <= 6
+
+    @pytest.mark.asyncio
+    async def test_per_jurisdiction_limit_makes_cross_county_visible(self):
+        """In comparative mode, cross-county jurisdictions appear in flat results
+        even when their tier-boosted relevance is lower than base jurisdiction's."""
+        from civicos_services.query.verbs import execute_search
+
+        civic = make_mock_civic()
+        req = SearchRequest(
+            query="housing",
+            corpus=["decisions"],
+            also_include=["city-berkeley"],
+            per_jurisdiction_limit=3,
+        )
+
+        with adapter_patches():
+            response = await execute_search(req, civic, "city-san-rafael")
+
+        flat_jids = {r.jurisdiction for r in response.results}
+        # Both base and cross-county jid must be visible in flat results
+        assert "city-san-rafael" in flat_jids
+        assert "city-berkeley" in flat_jids
+
+    @pytest.mark.asyncio
+    async def test_default_winner_take_all_unchanged(self):
+        """Without per_jurisdiction_limit, request.limit caps the flat results
+        and lower-tier jids may be crowded out — preserves backwards compat."""
+        from civicos_services.query.verbs import execute_search
+
+        civic = make_mock_civic()
+        many_decisions = [
+            MockDecision(id=f"dec-{i}", title=f"Housing decision {i}")
+            for i in range(20)
+        ]
+        req = SearchRequest(
+            query="housing",
+            corpus=["decisions"],
+            also_include=["city-berkeley"],
+            limit=5,  # default per_jurisdiction_limit=None
+        )
+
+        with adapter_patches(decisions=many_decisions):
+            response = await execute_search(req, civic, "city-san-rafael")
+
+        # Flat results capped by request.limit
+        assert len(response.results) <= 5
+        # jurisdiction_results buckets are NOT capped
+        assert response.jurisdiction_results is not None
+        # Both jids fanned out (mocks return same data, but bucket sizes are uncapped)
+        assert "city-san-rafael" in response.jurisdiction_results
+        assert "city-berkeley" in response.jurisdiction_results

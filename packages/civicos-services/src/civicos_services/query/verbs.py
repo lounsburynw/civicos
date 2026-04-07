@@ -112,7 +112,12 @@ async def execute_search(
     vectors = civic.vectors
 
     # Cross-jurisdiction: delegate to multi-jurisdiction fan-out
-    if request.include_parents or request.include_siblings or request.also_include:
+    if (
+        request.include_parents
+        or request.include_siblings
+        or request.also_include
+        or request.per_jurisdiction_limit is not None
+    ):
         return await _execute_cross_jurisdiction_search(request, storage, vectors, jurisdiction)
 
     start = time.monotonic()
@@ -415,11 +420,19 @@ async def _execute_cross_jurisdiction_search(
         except Exception:
             pass  # Fall back to per-search encoding
 
-    # Create a single-jurisdiction request (no cross-jurisdiction flags)
+    # Create a single-jurisdiction request (no cross-jurisdiction flags).
+    # When per_jurisdiction_limit is set, each fan-out search fetches that many
+    # results from each jid (rather than the global request.limit) so that the
+    # comparative interleave has enough material per jid.
+    per_jid_limit = request.per_jurisdiction_limit
     per_jid_request = request.model_copy(update={
         "include_parents": False,
         "include_siblings": False,
         "also_include": None,
+        "per_jurisdiction_limit": None,
+        # If comparative mode, ask each jid for exactly per_jid_limit results.
+        # Otherwise leave request.limit alone (planner will divide among corpora).
+        **({"limit": per_jid_limit} if per_jid_limit is not None else {}),
     })
 
     # Fan out per-jurisdiction in parallel — all use shared storage/vectors
@@ -459,8 +472,13 @@ async def _execute_cross_jurisdiction_search(
             if r.relevance is not None:
                 r.relevance = round(r.relevance * tier_weight, 4)
             jid_results.append(r)
-            all_results.append(r)
+        # Sort within-jid by tier-boosted relevance so per-jid caps take the
+        # best N from each (not whatever the adapter happened to return first).
+        jid_results.sort(key=lambda r: r.relevance or 0, reverse=True)
+        if per_jid_limit is not None:
+            jid_results = jid_results[:per_jid_limit]
         jurisdiction_grouped[jid] = jid_results
+        all_results.extend(jid_results)
 
         # Merge per-corpus meta (prefix with jurisdiction for uniqueness)
         for corpus, ms in response.meta.corpus_times_ms.items():
@@ -472,7 +490,12 @@ async def _execute_cross_jurisdiction_search(
 
     # Sort by tier-boosted relevance
     all_results.sort(key=lambda r: r.relevance or 0, reverse=True)
-    merged = all_results[:request.limit]
+    # In comparative mode the per-jid caps already bound the total; otherwise
+    # apply the global request.limit cap to the flat ranked stream.
+    if per_jid_limit is None:
+        merged = all_results[:request.limit]
+    else:
+        merged = all_results
 
     total_time = int((time.monotonic() - start) * 1000)
     meta = ResponseMeta(

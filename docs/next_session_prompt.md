@@ -1,85 +1,103 @@
-# Recommended: Cross-County Query Prototype (Phase B)
+# Recommended: Re-extract Alameda County (`onboard_county_alameda`)
 
 **Priority:** P0
-**Area:** federation_testbed > cross_county_query_prototype
-**Status in launch.json:** in_progress
-**Date:** 2026-04-06
-**Spec:** `docs/internal/cross-county-relevance-spec.md` (and `cross-jurisdiction-query-spec.md` for context)
+**Area:** federation_testbed > onboard_county_alameda
+**Status in launch.json:** not_started (re-opened 2026-04-07)
+**Date:** 2026-04-07
 
 > Recommended context from prior session. Review and decide whether to accept, modify, or `/start` for fresh prioritization.
 
 ## Context
 
-Last session verified `cross_marin_query_prototype` end-to-end on the expanded Marin dataset (10 cities + 9 school districts) and marked it `done`. All Phase A acceptance criteria pass: jurisdiction resolution, tier boosting, sibling boundary enforcement, parallel fan-out, real-data semantic ranking. Phase B (cross-county) is the natural follow-up — Berkeley is already onboarded (273 decisions, 79 meetings), the v2 layer already has `also_include` for explicit cross-county opt-in (commit `d2d20f4`), and `get_jurisdiction_tier()` already returns `cross_county` correctly.
+Phase B of `cross_county_query_prototype` shipped today. The cross-county query layer is fully validated end-to-end against `city-berkeley` and `city-san-francisco` (real Postgres, 6 new integration tests + 8 unit tests). A new `SearchRequest.per_jurisdiction_limit` knob was added to guarantee visibility of named cross-county jurisdictions in the flat ranked stream.
 
-The remaining work is **end-to-end validation against real cross-county data plus answering the spec's open question: "when should cross-county results appear?"**
+**The blocker for Phase B follow-on**: `county-alameda` is empty in Postgres despite `onboard_county_alameda` being marked done back on 2026-03-13 (commit `d6f3adc`). Verified 0 meetings, 0 decisions, 0 transcripts as of 2026-04-07. Berkeley's parent-chain queries (`include_parents=True` from `city-berkeley`) currently return nothing at the county level, which means we can't fully demonstrate cross-county *parent* semantics — only sibling/explicit cases.
 
-## Verified Data State (2026-04-06)
+## Why This Happened
 
-| Jurisdiction | Meetings | Decisions | Notes |
-|---|---|---|---|
-| city-san-rafael | 106 | 111 | base for tests |
-| city-berkeley | 79 | **273** | ✅ ingested — confirmed against Postgres |
-| city-san-francisco | 40 | 188 | ✅ ingested last session |
-| county-marin | 131 | 105 | ✅ ingested |
-| **county-alameda** | **0** | **0** | ❌ **NOT ingested** despite `onboard_county_alameda` marked done |
-
-⚠️ **`county-alameda` is the data gap.** Berkeley's parent chain (`city-berkeley → county-alameda → state-california → country-united-states`) has nothing at the county level. This means parent-chain queries from Berkeley return empty for county results — Phase B can either work around this or fix it as part of the work. Verify the launch.json status of `onboard_county_alameda` is wrong before assuming the test design.
+The original extraction config (`data/extraction/county-alameda.json` in commit `d6f3adc`) had 6 Granicus archive views: `view_2` through `view_9`. In commit `ee9d584` (2026-03-18) the file was simplified to a single `board: "1"` view as a "chore" — but extraction was never re-run after the simplification. Either the original views were wrong (which is why they were simplified) or `board: 1` is wrong (which is why the database is empty). Both are possible; the prior session didn't verify.
 
 ## Recommended Task
 
-Validate cross-county queries against real data and answer the spec's open questions:
+Re-run Alameda County extraction with the correct Granicus archive view IDs, and verify it actually populates Postgres.
 
-1. **`also_include` end-to-end test**: SR + Berkeley with `also_include=["city-berkeley"]` for "housing" — do Berkeley results appear with `cross_county` tier weight (0.5)? Are they actually useful or noise?
-2. **Boundary regression test**: SR with `include_siblings=True` (only) must NOT pull Berkeley. Add a real-data integration test if missing.
-3. **Shared state-parent test**: SR + Berkeley both have `state-california` as a parent. With `include_parents=True`, state-level legislation should appear once for both — verify dedup and that the relevance weight is `parent_state` (0.7), not double-counted.
-4. **Spec open question**: when *should* cross-county results appear? Document the answer in `docs/internal/cross-county-relevance-spec.md` based on tested results. Likely: "only on explicit `also_include`, never via implicit fan-out."
+### Key Files
+- `data/extraction/county-alameda.json` — current config (single `board: "1"` view)
+- `data/jurisdictions/county-alameda.yaml` — jurisdiction registration
+- `packages/civicos-extraction/src/civicos_extraction/clients/granicus.py` — Granicus client
+- `scripts/verify_cross_county_phase_b.py` — Phase B verification script (use to retest after onboarding)
 
-## Key Files
+### Suggested Approach
 
-- `packages/civicos-services/src/civicos_services/query/jurisdictions.py:141-177` — `get_jurisdiction_tier()` (Berkeley→SR returns `cross_county`)
-- `packages/civicos-services/src/civicos_services/query/jurisdictions.py:54-127` — `resolve_jurisdictions()` — `also_include` is handled in `verbs.py`, not here
-- `packages/civicos-services/src/civicos_services/query/verbs.py:391-401` — where `also_include` is appended to `target_jids` after `resolve_jurisdictions`
-- `packages/civicos-services/src/civicos_services/query/models.py:109-140` — `SearchRequest.also_include`, `include_parents`, `include_siblings`
-- `packages/civicos-services/tests/test_query_v2.py:1822-1991` — existing cross-jurisdiction tests (mocked)
-- `packages/civicos-services/tests/test_integration_query_v2.py` — existing real-Postgres tests (23 pass, 159s) — add cross-county cases here
-- `docs/internal/cross-county-relevance-spec.md` — the spec to update with test findings
+1. **Visit the Granicus archive UI directly** to find the correct view ID(s):
+   `https://alamedacounty.granicus.com/ViewPublisher.php?view_id=N` — try N=1..15. Look for the Board of Supervisors archive. The git history of `county-alameda.json` shows what was tried before (commits `d6f3adc` and `ee9d584`).
+2. **Update `data/extraction/county-alameda.json`** with the verified view ID(s) — possibly multiple if BoS, committees, etc. are split across views.
+3. **Re-run the extraction** via the onboarding pipeline:
+   ```bash
+   /onboard county-alameda
+   # or directly: python3 -m civicos_extraction.cli.onboard_cli county-alameda
+   ```
+4. **Verify Postgres population**:
+   ```bash
+   source civicos-env/bin/activate && python3 -c "
+   from dotenv import load_dotenv; load_dotenv()
+   from civicos import CivicOS
+   c = CivicOS('county-alameda')
+   print(f'meetings: {len(c.storage.get_meetings(\"county-alameda\"))}')
+   print(f'decisions: {len(c.storage.get_decisions(\"county-alameda\"))}')"
+   ```
+5. **Re-run the Phase B verification script** to confirm Berkeley parent-chain queries now find county-alameda:
+   ```bash
+   python3 scripts/verify_cross_county_phase_b.py
+   ```
+   Then add a new test to `TestCrossCountyIntegration` that runs `include_parents=True` from `city-berkeley` and asserts `county-alameda` appears in the bucket.
 
-## Suggested Approach
+### Caveats
 
-1. Start with a 1-shot live verification script (analogous to last session's): SR base, run three queries — `include_siblings=True`, `also_include=["city-berkeley"]`, `include_parents=True` — and dump top results with jurisdiction + relevance.
-2. Confirm Berkeley results carry `cross_county` tier (0.5x weight) and that boundary-crossing requires explicit `also_include`.
-3. Add 2-3 integration test cases to `test_integration_query_v2.py` covering the boundary regression and the `also_include` path against real Postgres.
-4. Decide whether the empty-`county-alameda` situation is in scope: either (a) carve it out as a known data gap, file a separate item to re-run `/onboard county-alameda`, and proceed with city-level testing only, or (b) actually onboard county-alameda first (likely 1-2hr extraction job) so the parent-chain test is meaningful.
-5. Document spec answers and mark `cross_county_query_prototype` `done`.
+- The notes field on `onboard_county_alameda` still says "Onboarded via turnkey pipeline" from the prior failed attempt — that's misleading. Don't trust prior status; verify directly against Postgres before declaring done.
+- If the Granicus archive genuinely has no public meetings (unlikely for a major California county), document the dead-end and consider Legistar as a fallback. Alameda County uses both depending on the body.
+- This is **only Phase B follow-on**, not a brand-new ETL piece. Don't expand scope.
 
 ## Tests to Run
 
 ```bash
-# Unit tests for cross-jurisdiction (fast)
-source civicos-env/bin/activate && pytest packages/civicos-services/tests/test_query_v2.py -q \
-  --override-ini="addopts=" -k "tier or sibling or parent or jurisdiction or cross or also_include"
+# Smoke (always)
+source civicos-env/bin/activate && pytest packages/civicos/tests/test_civicos.py -q --override-ini="addopts="
 
-# Integration tests against real Postgres (slower; ~3 min)
-source civicos-env/bin/activate && pytest packages/civicos-services/tests/test_integration_query_v2.py -q \
-  --override-ini="addopts="
+# Re-run Phase B integration tests after onboarding to confirm no regressions
+pytest packages/civicos-services/tests/test_integration_query_v2.py::TestCrossCountyIntegration -q --override-ini="addopts="
+
+# Phase B live verification (requires Postgres)
+python3 scripts/verify_cross_county_phase_b.py
 ```
 
 ## Success Criteria
 
-- [ ] Live cross-county query (SR + `also_include=["city-berkeley"]`, "housing") returns Berkeley results with relevance ≤ 0.5x raw cosine (`cross_county` weight applied)
-- [ ] SR + `include_siblings=True` does NOT include Berkeley (regression test added to `test_integration_query_v2.py`)
-- [ ] State-parent dedup verified — `state-california` results appear once when querying via either SR or Berkeley with `include_parents=True`
-- [ ] Spec open question on "when should cross-county appear" answered in `docs/internal/cross-county-relevance-spec.md`
-- [ ] `county-alameda` empty-state either (a) explicitly out of scope with a follow-up item filed, or (b) re-ingested
-- [ ] `cross_county_query_prototype` marked `done` in `launch.json`
+- [ ] `data/extraction/county-alameda.json` has verified working Granicus view ID(s) (or Legistar config)
+- [ ] `county-alameda` has nonzero meetings AND nonzero decisions in Postgres
+- [ ] Berkeley parent-chain query (`include_parents=True` from `city-berkeley`) returns at least one `county-alameda` result for a relevant query
+- [ ] New integration test added to `TestCrossCountyIntegration` covering Berkeley→county-alameda parent chain
+- [ ] `onboard_county_alameda` marked `done` in `launch.json`
 - [ ] New P0 promoted before `/nextsesh`
 
-## Caveats / Things to Verify
+## Phase B Summary (just shipped)
 
-- **county-alameda data gap is the most important caveat** — last session's notes (and the prior next-session prompt) implied Berkeley's parent county was loaded; it isn't. `onboard_county_alameda` in launch.json is marked `done` but Postgres says zero rows. Worth investigating *why* — was it a stub onboard with no extraction run, or did the extraction fail silently?
-- The single-jurisdiction code path leaves `CivicResult.jurisdiction = None` (asymmetry with the cross-jid path which tags every result). Minor; not a bug for Phase B but watch for it in test assertions.
-- Last session's verification used `execute_search(req, civic, base_jid)` — note signature is `(request, civic, jurisdiction)`, not `(request, storage, vectors, jurisdiction)`.
+For full context, see `claude-progress.txt` Session 2026-04-07 entry. Key bits:
+
+- `cross_county_query_prototype` marked **done**, demoted to P1
+- New `SearchRequest.per_jurisdiction_limit: Optional[int]` (1-50) — when set, each jid bucket is capped at N AND the flat results list is built by interleaving top-N from each jid (not winner-take-all). Default `None` preserves backwards compat.
+- Validated end-to-end with `also_include=[city-berkeley, city-san-francisco]` from `city-san-rafael`. Tier weight 0.5x enforced. Latency ~900-2500ms for 3 jids, ~4700ms for 19-jid Marin sibling fan-out.
+- Spec `docs/internal/cross-county-relevance-spec.md` updated with answers to 4 of 5 open questions (topic classification still deferred).
+
+## Other Open Items (background, not P0)
+
+| Priority | Item | Notes |
+|---|---|---|
+| P2 | `fix_decision_storage_dedup` | Berkeley + SF have 4-5 identical decision rows each. Likely upsert idempotency bug in Granicus/Legistar paths. Not blocking. |
+| P3 | `fix_sf_county_parent` | `city-san-francisco` registry lacks `county-san-francisco` parent. Works coincidentally for cross-county tier. Cosmetic. |
+| P3 | `federation_adr` | Architecture decision record (deferred). |
+| P3 | `direct_city_submission` | Authenticated clerk endpoint (deferred). |
+| P2 | `token_purchase_ui` | **Deprioritized** per April 2026 roadmap pivot. Don't promote. |
 
 ## Open PRs
 

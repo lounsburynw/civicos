@@ -1,7 +1,7 @@
 {
   "version": "1.0",
   "phase": "launch",
-  "last_updated": "2026-04-01",
+  "last_updated": "2026-04-07",
   "summary": "Launch readiness: election coverage lifecycle (active \u2014 CA depth, automation, ingestion strategy), multi-state portability (CA+TX done), election+school onboarding (done), representative lookup (done), turnkey onboarding (done), federation queries, billing, operator tooling, multi-scale participation (done)",
   "category_order": [
     "multi_state_portability",
@@ -979,8 +979,8 @@
       {
         "name": "onboard_county_alameda",
         "description": "Onboard Alameda County as parent jurisdiction for Berkeley. Required for cross-county legislation context in what_applies().",
-        "status": "done",
-        "priority": 2,
+        "status": "not_started",
+        "priority": 0,
         "phase": "B",
         "source": "federation testbed \u2014 cross-county parent",
         "files": [
@@ -989,7 +989,7 @@
           "config/registry.json"
         ],
         "test_file": "packages/civicos-extraction/tests/test_platform_detection.py",
-        "notes": "Alameda County onboarded via turnkey pipeline. Also fixed 3 robustness bugs: (1) upfront API key warnings, (2) validate defaults to 1, (3) empty archives returns failure not success. Fixed YAML generator: level passthrough (was hardcoded 'city') and self-reference filtering in parent_jurisdictions. 88/88 tests pass (83 original + 5 new robustness tests)."
+        "notes": "Re-opened 2026-04-07: original onboard (commit d6f3adc, 2026-03-13) left Postgres empty. The extraction config was simplified from 6 Granicus archive views to a single 'board: 1' view in commit ee9d584 without re-running extraction. Verified 0 meetings, 0 decisions, 0 transcripts as of 2026-04-07. Phase B cross-county query work validated against city-berkeley directly, but Berkeley's parent-chain queries (include_parents from city-berkeley) currently return nothing at the county level. This blocks proper Phase B follow-on testing. Action: identify the correct Granicus archive view ID(s) for Alameda County Board of Supervisors and re-run extraction. Acceptance: county-alameda has nonzero meetings AND nonzero decisions in Postgres. (prior notes: Alameda County onboarded via turnkey pipeline. Also fixed 3 robustness bugs: (1) upfront API key warnings, (2) validate defaults to 1, (3) empty archives returns failure not success. Fixed YAML generator: level passthrough (was hardcoded 'city') and self-reference filtering in parent_jurisdictions. 88/88 tests pass (83 original + 5 new robustness tests).)"
       },
       {
         "name": "escribe_client",
@@ -1011,8 +1011,8 @@
       {
         "name": "cross_county_query_prototype",
         "description": "Prototype cross-county queries: Berkeley (Alameda) vs San Rafael (Marin). Test relevance filtering \u2014 when are cross-county results useful vs noise?",
-        "status": "in_progress",
-        "priority": 0,
+        "status": "done",
+        "priority": 1,
         "phase": "B",
         "source": "federation testbed \u2014 cross-county federation",
         "spec": "docs/internal/cross-county-relevance-spec.md",
@@ -1022,7 +1022,7 @@
           "packages/civicos-services/src/civicos_services/query/jurisdictions.py"
         ],
         "test_file": "packages/civicos-services/tests/test_query_v2.py",
-        "notes": "also_include field added to SearchRequest (d2d20f4), jurisdiction ID validation (622423b). Validated 5 spec questions with real data. 138 tests pass. Remaining: officially onboard Marin cities and cross-county jurisdictions before marking done."
+        "notes": "Phase B done 2026-04-07. Validated end-to-end against PostgreSQL with city-san-rafael (Marin) base, also_include=[city-berkeley, city-san-francisco]. Confirmed: (1) cross-county only via explicit also_include \u2014 never via include_siblings or include_parents; (2) tier weight 0.5x raw cosine enforced; (3) parallel fan-out latency ~900-2500ms for 3 jids. Added per_jurisdiction_limit knob to make named cross-county jids guaranteed visible (default winner-take-all preserved). 6 new integration tests + 8 unit tests, 35 cross-jid tests passing total. Spec updated with answers to all 5 open questions. Verification script: scripts/verify_cross_county_phase_b.py. Follow-ups filed: re_extract_county_alameda (P0), fix_decision_storage_dedup, fix_sf_county_parent."
       },
       {
         "name": "pagination_protocol_update",
@@ -1147,6 +1147,32 @@
         "status": "done",
         "test_file": "packages/civicos/tests/test_integration_extraction_failures.py::TestLegistarDatetimeParsing",
         "notes": "Wired legistar source_type into fetch_meetings() (modal_ingest.py), added to SUPPORTED_MEETING_SOURCES registry. Fixed datetime parsing for 12-hour time format. 42 Sacramento meetings verified via live API. 6 unit tests."
+      },
+      {
+        "name": "fix_decision_storage_dedup",
+        "description": "Decisions table contains exact duplicates for some jurisdictions. On the 'housing' query against city-berkeley, 4 identical 'Authorizing funding for affordable housing projects' entries appear with the same title and same vector relevance (0.3304). city-san-francisco has 5 identical 'Affordable Housing and Sustainable Communities Program' entries. Likely an upsert idempotency bug in the Granicus or Legistar extraction path. Investigate root cause and add a uniqueness constraint or normalize the upsert key. Discovered during Phase B cross-county validation (2026-04-07).",
+        "status": "not_started",
+        "priority": 2,
+        "source": "Phase B cross-county query validation finding",
+        "files": [
+          "packages/civicos-extraction/src/civicos_extraction/clients/granicus.py",
+          "packages/civicos-extraction/src/civicos_extraction/clients/legistar.py",
+          "packages/civicos/src/civicos/storage/postgres_backend.py"
+        ],
+        "notes": "Reproduce: from city-san-rafael, run search 'housing' with also_include=['city-berkeley', 'city-san-francisco'] and observe duplicate titles + identical relevance scores in the per-jid buckets. Verification script: scripts/verify_cross_county_phase_b.py."
+      },
+      {
+        "name": "fix_sf_county_parent",
+        "description": "city-san-francisco's registry entry lacks county-san-francisco as a parent jurisdiction. Its parent_jurisdictions is just [state-california, country-united-states]. SF is a consolidated city-county, but the registry should still list county-san-francisco for federation symmetry \u2014 parent-chain queries, regional body resolution, and tier weighting all assume each city has a parent county. Cross-county tier resolution currently returns 'cross_county' for SR\u2192SF coincidentally (neither shares any county) but this is structurally wrong.",
+        "status": "not_started",
+        "priority": 3,
+        "source": "Phase B cross-county query validation finding",
+        "files": [
+          "config/registry.json",
+          "data/jurisdictions/city-san-francisco.yaml",
+          "data/jurisdictions/county-san-francisco.yaml"
+        ],
+        "notes": "Decide whether SF should be modeled as: (a) city with county-san-francisco parent (where county-san-francisco is a separate registry entry, possibly stub), or (b) special-case 'consolidated' jurisdiction type. Option (a) is simpler and consistent with the existing data model. Discovered during Phase B cross-county validation (2026-04-07)."
       }
     ]
   },
