@@ -1164,6 +1164,7 @@ class PgVectorBackend:
                              metadata, updated_at)
                         VALUES %s
                         ON CONFLICT (id, corpus_type) DO UPDATE SET
+                            jurisdiction_id = EXCLUDED.jurisdiction_id,
                             content = EXCLUDED.content,
                             embedding = EXCLUDED.embedding,
                             embedding_model = EXCLUDED.embedding_model,
@@ -2034,6 +2035,7 @@ class PgVectorBackend:
                          metadata, updated_at)
                     VALUES %s
                     ON CONFLICT (id, corpus_type) DO UPDATE SET
+                        jurisdiction_id = EXCLUDED.jurisdiction_id,
                         content = EXCLUDED.content,
                         embedding = EXCLUDED.embedding,
                         embedding_model = EXCLUDED.embedding_model,
@@ -2071,6 +2073,7 @@ class PgVectorBackend:
                                  metadata, updated_at)
                             VALUES %s
                             ON CONFLICT (id, corpus_type) DO UPDATE SET
+                                jurisdiction_id = EXCLUDED.jurisdiction_id,
                                 content = EXCLUDED.content,
                                 embedding = EXCLUDED.embedding,
                                 embedding_model = EXCLUDED.embedding_model,
