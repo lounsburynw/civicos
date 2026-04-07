@@ -1234,26 +1234,52 @@
       {
         "name": "validate_mass_ingest_jurisdictions",
         "description": "Run a per-jurisdiction launch-validation pass across all 15 mass-ingest jurisdictions (Marin 11 cities + county-marin + city-san-francisco + county-alameda + city-berkeley). For each: confirm storage+vector counts are non-zero where expected, run 3 canonical queries through the v2 API (housing, budget, recent meetings), and eyeball results for sanity. Produces a per-city pass/fail checklist and surfaces any silent-failure onboarding states.",
-        "status": "not_started",
-        "priority": 0,
+        "status": "done",
+        "priority": 1,
         "source": "mass ingest risk register 2026-04-07",
         "files": [
+          "scripts/validate_mass_ingest.py",
           "scripts/verify_cross_county_phase_b.py"
         ],
-        "notes": "Promoted to P0 on 2026-04-07 after data-status audit of all 15 jurisdictions surfaced 2 concrete launch blockers (tiburon empty, alameda ghost) plus several quality gaps. This is the umbrella item that ranks and closes out the remaining per-jurisdiction issues before launch. Dedup bug (formerly P0) is done. The validation pass is cheap (~1 hour) but high-signal: it's the only thing that catches silent onboarding failures like tiburon, which has a YAML + extraction config but zero rows in every corpus table. Live counts captured at /tmp/mass_ingest_status.json from 2026-04-07 audit. Sub-items filed as fix_tiburon_empty, complete_alameda_ingest_or_scope, index_county_marin_decision_vectors."
+        "notes": "DONE 2026-04-07. Wrote scripts/validate_mass_ingest.py (15 jurisdictions \u00d7 storage counts + elections/officials direct SQL + vector counts + 3 v2 API queries (housing, budget, upcoming) + pass/fail with reason codes). Final result: 14 PASS / 1 FAIL (city-tiburon, expected). 3 PASS-with-warnings reproduced the known issues (county-marin no decision vectors, county-alameda ghost, city-belvedere zero transcripts despite 26 meetings). Detailed JSON report at /tmp/mass_ingest_validation.json. Discovered 2 NEW silent-failure bugs filed as upcoming_verb_ignores_jurisdiction (cross-jurisdiction routing) and decisions_adapter_crashes_on_empty_vectors (NoneType state_manager fallback path). Original snapshot /tmp/mass_ingest_status.json was within 1-2 rows of fresh counts \u2014 no jurisdictions have drifted."
+      },
+      {
+        "name": "upcoming_verb_ignores_jurisdiction",
+        "description": "execute_upcoming() at packages/civicos-services/src/civicos_services/query/verbs.py line ~640 calls civic.whats_next(days=...) which uses civic.jurisdiction (the CivicOS instance attribute set at construction) rather than the explicit jurisdiction parameter passed into the verb. Same pattern repeats for the hearings and comment_periods event types in the same function. Effect: cross-jurisdiction fan-out routes upcoming queries to the wrong jurisdiction whenever a single CivicOS instance is reused across multiple jurisdiction calls. Discovered during mass-ingest validation pass on 2026-04-07: a shared-instance validation script returned san-rafael's upcoming events for tiburon, county-marin, county-alameda, and city-belvedere queries (all reported the same 'Bicycle & Pedestrian Advisory Committee' top result).",
+        "status": "not_started",
+        "priority": 2,
+        "source": "validate_mass_ingest_jurisdictions 2026-04-07",
+        "files": [
+          "packages/civicos-services/src/civicos_services/query/verbs.py"
+        ],
+        "test_file": null,
+        "notes": "Fix: thread `jid` through to a per-call jurisdiction-aware whats_next() (e.g., add a jurisdiction kwarg to CivicOS.whats_next or call the storage backend directly). Add a regression test that constructs ONE CivicOS(jid_a) and calls execute_upcoming(req, civic, jid_b) \u2014 the result must reflect jid_b's events, not jid_a's. Search request handlers already accept per-call jurisdiction correctly (verified during the same validation pass), so this is upcoming-specific. Severity: silent failure with no error \u2014 returned data looks plausible. Easy to miss in single-jurisdiction usage but catastrophic for federation/cross-jurisdiction routing."
+      },
+      {
+        "name": "decisions_adapter_crashes_on_empty_vectors",
+        "description": "DecisionsAdapter.search() at packages/civicos-services/src/civicos_services/query/adapters.py:57 calls civicos.history.search_decisions(state_manager=None, ...). When the explicit vector_backend returns no results AND _jurisdiction_has_embeddings(jurisdiction) is True for some other corpus but the per-corpus auto-detect ALSO returns empty for decisions, search_decisions falls through to line 1207 (`city_state = state_manager.get_city_state(jurisdiction)`) and crashes with `AttributeError: 'NoneType' object has no attribute 'get_city_state'`. The verbs layer catches it per-corpus and emits a `Corpus decisions error` log line at WARN, but does NOT propagate the error to the response \u2014 the user just sees fewer results with no indication anything failed. Reproduced on city-tiburon (no vectors at all) and county-marin (105 decisions but 0 decision vectors) during the mass-ingest validation pass.",
+        "status": "not_started",
+        "priority": 2,
+        "source": "validate_mass_ingest_jurisdictions 2026-04-07",
+        "files": [
+          "packages/civicos-services/src/civicos_services/query/adapters.py",
+          "packages/civicos/src/civicos/history.py"
+        ],
+        "test_file": null,
+        "notes": "Two reasonable fixes: (1) make search_decisions defensive \u2014 if state_manager is None and no vector results were found, return [] immediately instead of falling through to a None deref; (2) make DecisionsAdapter pass a real (non-None) state_manager OR explicitly opt out of the legacy keyword fallback path. Option (1) is the smaller fix and matches the existing 'graceful degradation' pattern elsewhere in history.py. Add a unit test that calls search_decisions(state_manager=None, jurisdiction='city-tiburon', query='housing', vector_backend=<empty backend>) and asserts it returns [] without raising. Also: the verbs.py per-corpus exception swallowing should at minimum log at ERROR (currently INFO/WARN) when the failure is an AttributeError vs an expected timeout/connection error \u2014 silent NoneType derefs in production are hard to triage."
       },
       {
         "name": "fix_tiburon_empty",
         "description": "city-tiburon has a YAML file (data/jurisdictions/city-tiburon.yaml) and extraction config (data/extraction/city-tiburon.json) but contains 0 meetings, 0 decisions, 0 chunks, 0 everything in the storage tables (as of 2026-04-07). Onboarding either never ran or failed silently. Either re-run /onboard city-tiburon with investigation into why it failed, or remove city-tiburon from the registry before launch so users don't land on a broken city page.",
         "status": "not_started",
-        "priority": 1,
+        "priority": 0,
         "source": "mass ingest data-status audit 2026-04-07",
         "files": [
           "data/jurisdictions/city-tiburon.yaml",
           "data/extraction/city-tiburon.json"
         ],
         "test_file": null,
-        "notes": "Only 7 officials exist for tiburon (populated separately). All other corpus counts are 0. Unlike Ross (thin but non-empty: 19 meetings, 6 decisions, 52 chunks), tiburon has no data at all. Compare against successfully-onboarded neighbors (belvedere: 26 meetings, 26 decisions, 114 chunks)."
+        "notes": "Promoted to P0 on 2026-04-07 after validate_mass_ingest_jurisdictions completed \u2014 this is the only outright FAIL among the 15 mass-ingest jurisdictions and the smallest concrete launch blocker. Only 7 officials exist for tiburon (populated separately). All other corpus counts are 0. Unlike Ross (thin but non-empty: 19 meetings, 6 decisions, 52 chunks), tiburon has no data at all. Compare against successfully-onboarded neighbors (belvedere: 26 meetings, 26 decisions, 114 chunks). The validation script confirms tiburon now correctly returns 0 upcoming events and 0 search results \u2014 no fake/leaked data \u2014 so users would land on a genuinely empty city page if launched as-is."
       },
       {
         "name": "complete_alameda_ingest_or_scope",

@@ -25717,3 +25717,188 @@ Zero code changes. Deliberately did not pick up any risk-register
 follow-ups because the user said they were working on the dedup P0 in
 the parallel session, and several of the cheap wins (tiburon, alameda,
 marin vectors) want a validation pass first anyway.
+
+================================================================================
+Session: validate_mass_ingest_jurisdictions (2026-04-07, P0 done)
+================================================================================
+
+### Goal
+Run a per-jurisdiction validation pass across the 15 mass-ingest jurisdictions
+(Marin 11 cities + county-marin + SF + county-alameda + city-berkeley) to
+produce a reproducible pass/fail signal before launch. Surface and FILE any
+new silent-failure issues; don't expand into fix-everything scope.
+
+### What I built
+- scripts/validate_mass_ingest.py — single-purpose validation script.
+  For each jurisdiction it fetches:
+    - Storage counts (meetings, decisions, transcripts, chunks, issues,
+      municipal_code, agenda_items) via the StorageBackend protocol
+    - Meetings via direct SQL (no public count method exists)
+    - Elections + elected_officials via direct SQL (DataStatus undercounts
+      these per feedback_data_status_gaps)
+    - Vector counts per corpus via civic.vectors.count(...)
+    - 3 v2 API queries: housing (search, decisions+meetings), budget (same),
+      and an upcoming meetings fetch
+  Then classifies pass/fail with reason codes:
+    - Hard fail: storage call errored, totally empty, query raised, or all
+      queries returned zero results despite non-empty storage
+    - Soft warning: ghost patterns (decisions but no drill-down corpora),
+      missing decision/meeting vectors, zero transcripts despite many meetings
+  Writes detailed JSON to /tmp/mass_ingest_validation.json. Exits non-zero
+  if any jurisdiction failed.
+
+### Final result
+14 PASS / 1 FAIL out of 15 jurisdictions. Exit code 1.
+- FAIL: city-tiburon (empty across the board, expected — already filed as
+  fix_tiburon_empty)
+- PASS+warn: county-marin (no decision vectors, expected — already filed
+  as index_county_marin_decision_vectors)
+- PASS+warn: county-alameda (ghost pattern: 709 decisions, 0 transcripts/
+  chunks/issues/officials; 0 meeting vectors; expected — already filed as
+  complete_alameda_ingest_or_scope)
+- PASS+warn: city-belvedere (zero transcripts despite 26 meetings; existing
+  audio backfill story, didn't file separately)
+- All other 11: clean pass with non-zero results on housing + budget + upcoming.
+
+The original /tmp/mass_ingest_status.json snapshot was within 1-2 rows of
+fresh counts. No drift since the 2026-04-07 audit. Snapshot is essentially
+canonical.
+
+### NEW silent-failure bugs surfaced (filed, NOT fixed)
+1. **upcoming_verb_ignores_jurisdiction** (federation_testbed P2)
+   - File: packages/civicos-services/src/civicos_services/query/verbs.py
+     line ~640
+   - Bug: execute_upcoming() takes a `jurisdiction: str` param but the
+     meetings/hearings/comment_periods event types call
+     `civic.whats_next(days=...)` which reads `civic.jurisdiction` (the
+     CivicOS instance attribute set at construction). Effect: cross-
+     jurisdiction routing returns the wrong jurisdiction's events whenever
+     a single CivicOS instance is reused across multiple jurisdiction calls.
+   - How I caught it: my first attempt at the validation script used a
+     SHARED CivicOS instance to avoid creating per-jurisdiction connection
+     pools. The upcoming column showed belvedere/tiburon/marin/alameda all
+     returning the same san-rafael event ("Bicycle & Pedestrian Advisory
+     Committee – April 8, 2026 (Cancelled)"). For tiburon (which has 0
+     meetings stored) the data was unmistakably wrong.
+   - Workaround in the script: revert to per-jurisdiction CivicOS. The
+     PostgresBackend pool is class-level so this is cheap as long as
+     connections are returned properly.
+   - Severity: silent failure with no error. Returned data looks plausible.
+     Easy to miss in single-jurisdiction usage, catastrophic for any
+     federation/comparison flow.
+
+2. **decisions_adapter_crashes_on_empty_vectors** (federation_testbed P2)
+   - Files: packages/civicos-services/src/civicos_services/query/adapters.py
+     line 57 (DecisionsAdapter.search), packages/civicos/src/civicos/
+     history.py line 1207 (search_decisions fallback)
+   - Bug: DecisionsAdapter.search calls
+       search_decisions(state_manager=None, ..., vector_backend=vectors,
+                        storage_backend=storage)
+     Inside search_decisions:
+       1. If vector_backend returns empty (e.g. county-marin: 105 decisions
+          but 0 decision vectors), fall through.
+       2. _jurisdiction_has_embeddings(jurisdiction) checks pgvector across
+          ALL corpora — for county-marin it returns True (other corpora have
+          vectors). Calls _search_semantic_decisions which also returns
+          empty for decisions specifically.
+       3. Falls through to line 1207:
+            city_state = state_manager.get_city_state(jurisdiction)
+          → AttributeError: 'NoneType' object has no attribute 'get_city_state'
+     The verbs layer catches it per-corpus and emits "Corpus decisions error"
+     at WARN. The user just sees fewer results with no indication anything
+     failed.
+   - Triggered on: city-tiburon (no vectors at all), county-marin (105
+     decisions, 0 decision vectors).
+   - Suggested fix: make search_decisions defensive — if state_manager is
+     None and prior search paths returned empty, return [] immediately
+     instead of falling through. Add a unit test. Also bump the
+     verbs.py per-corpus exception logging from INFO/WARN to ERROR
+     specifically for AttributeError (silent NoneType derefs in production
+     are hard to triage).
+
+### Bugs found in my own validation script (caught and fixed before final run)
+- Used `with conn:` to manage psycopg2 connections — that opens a
+  transaction, it does NOT close the connection. Pool exhausted around
+  iteration 11. Fix: `try: ... finally: s._return_connection(conn)`.
+  Documented in memory/project_mass_ingest_april_2026.md as a gotcha.
+- Assumed `get_meeting_count()` exists on StorageBackend. It doesn't.
+  Fix: direct SQL on the same predicate the storage layer uses
+  (`valid_to IS NULL AND deleted_at IS NULL`).
+- Assumed UpcomingResponse has an `events` attribute. It's `results`.
+- Used a shared CivicOS to dodge pool exhaustion, which exposed the
+  upcoming-verb bug above. Reverted after fixing the connection leak.
+
+### What I deliberately did NOT do
+- Did NOT fix either of the two new silent-failure bugs in this session.
+  Per the handoff: "This is a validation pass, not a fix-everything sprint.
+  Surfacing and filing is enough."
+- Did NOT promote upcoming_verb_ignores_jurisdiction to P0 even though it's
+  a real cross-jurisdiction bug. Reason: tiburon empty is the more concrete
+  user-visible launch blocker (one user-facing city is broken vs. one API
+  edge case). Both are P2; whoever picks them up next can decide order.
+- Did NOT re-file already-known issues. tiburon, alameda, marin vectors,
+  belvedere transcripts, fairfax/cm video discovery, sf audio backfill,
+  cost ceiling — all previously captured.
+
+### Files touched
+- scripts/validate_mass_ingest.py (NEW)
+- launch.json (validate_mass_ingest_jurisdictions: not_started/P0 → done/P1;
+  added 2 new items; promoted fix_tiburon_empty P1 → P0)
+- memory/project_mass_ingest_april_2026.md (added validation script ref,
+  silent-failure bug list, connection-pool gotcha)
+- claude-progress.txt (this append)
+- /tmp/mass_ingest_validation.json (detailed JSON report — not committed)
+
+### Next session recommendation
+P0 is fix_tiburon_empty. Smallest concrete next step. Two paths:
+  (a) Re-run /onboard city-tiburon and trace why it produced 0 rows
+      (the YAML + extraction config exist; something in the pipeline
+      silently dropped everything)
+  (b) Remove tiburon from the registry before launch and revisit later
+Either works. (a) is the right answer if the onboarding bug is fixable in
+under an hour and would surface for other cities; (b) is the right answer
+if (a) is rabbit-holey and the project would rather ship 14 cities than
+spend a session debugging one.
+
+The 2 new silent-failure bugs are P2 follow-ups. Worth fixing before
+launch but not blocking.
+
+### Post-critic fixes (same session)
+Critics flagged 2 critical issues on the staged validation script. Both were real bugs and both are now fixed.
+
+1. **data critic — elected_officials missing `valid_to IS NULL` predicate**
+   My direct SQL on elected_officials only had `deleted_at IS NULL` and no
+   `valid_to IS NULL`, which overcounts expired temporal versions. Per
+   PostgresBackend.get_elected_official_count() at line 9233, the correct
+   predicate is `valid_to IS NULL AND deleted_at IS NULL`. Re-running with
+   the correct predicate produced realistic counts:
+     - san-rafael: 86 → 16 (matches actual current council size)
+     - mill-valley: 32 → 14
+     - corte-madera: 144 → 44
+     - san-francisco: 129 → 125
+   The original /tmp/mass_ingest_status.json from the previous session had
+   16 for san-rafael — confirming the prior session used the correct
+   method. I introduced the overcount in my validation script. Critic
+   caught it.
+
+2. **architecture critic — scripts/ may not use private _get_connection**
+   .critics/architecture.critic.md explicitly forbids
+   `backend._get_connection()` in scripts/. I had used it for meetings,
+   elections, and elected_officials. Fix: switched to public methods only.
+     - meetings: `len(s.get_meetings(jid))` (slightly more expensive — loads
+       row dicts rather than COUNT(*) — but acceptable for ~250 rows max
+       per jurisdiction in a one-off validation script)
+     - elections: `s.get_election_count(jid, include_past=True)` (the
+       `include_past` flag was the missing piece; default is future-only
+       which is what made the prior memory note say "DataStatus undercounts
+       elections")
+     - elected_officials: `s.get_elected_official_count(jid)` (this method
+       does exist; the 4-day-old feedback memory was outdated when it said
+       "elected_officials not reported at all")
+
+After both fixes, the validation produces an identical 14P/1F verdict
+(see above). Same known failures, same warnings, but with correct counts
+and no protocol/architecture violations.
+
+The other 8 critics (pipeline, protocol, security, jurisdiction, session,
+refresh, configuration, docs) all PASS.
