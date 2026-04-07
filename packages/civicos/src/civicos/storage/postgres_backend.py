@@ -17,7 +17,13 @@ from typing import Any, Dict, List, Optional
 logger = logging.getLogger(__name__)
 
 from .backend import MeetingStoreResult, StorageBackend, StorageStats, StorageValidationResult
-from .integrity import compute_transcript_hash, compute_chunk_hash, compute_decision_hash
+from .integrity import (
+    compute_transcript_hash,
+    compute_chunk_hash,
+    compute_decision_hash,
+    compute_stable_decision_id,
+    has_stable_decision_id_inputs,
+)
 from civicos._internal.jurisdiction import normalize_jurisdiction
 
 
@@ -2609,15 +2615,41 @@ class PostgresBackend:
             for decision in decisions:
                 # Support both 'id' and 'decision_id' field names
                 raw_id = decision.get('id') or decision.get('decision_id')
-                # Trust pre-constructed decision IDs (new format: decision:{jur}:{meeting_id}:{ordinal})
-                # Fall back to legacy construction for data without pre-constructed IDs
+                # Trust pre-constructed decision IDs (new format:
+                # decision:{jur}:{meeting_ref}:{12-char hex} produced by
+                # compute_stable_decision_id in the extraction CLI).
+                # Fall back to deriving the same stable ID for data without
+                # a pre-constructed ID — e.g., legacy JSON imports or test
+                # fixtures. Both paths must use the same hash so the
+                # temporal-versioning UPDATE below can match.
                 if raw_id and raw_id.startswith('decision:'):
                     decision_id = raw_id
                 else:
-                    meeting_date = decision.get('meeting_date', '')
-                    agenda_item = decision.get('agenda_item', raw_id or 'unknown')
-                    item_part = _normalize_item_ref(agenda_item)
-                    decision_id = f"decision:{jurisdiction_id}:{meeting_date}:{item_part}"
+                    # Prefer meeting_id when present (modern legacy imports),
+                    # fall back to meeting_date for older payloads without it
+                    meeting_ref = (
+                        decision.get('meeting_id')
+                        or decision.get('meeting_date', '')
+                    )
+                    item_ref_value = decision.get('agenda_item') or raw_id
+                    # Convert cents -> dollars for the helper, if present
+                    cents = decision.get('financial_impact_cents')
+                    budget = (cents / 100.0) if cents else decision.get('budget_amount')
+                    if not has_stable_decision_id_inputs(item_ref_value, decision.get('title')):
+                        # No item_ref and no title — preserve legacy behavior
+                        # but log so this can be tracked
+                        item_part = _normalize_item_ref(raw_id or 'unknown')
+                        decision_id = f"decision:{jurisdiction_id}:{meeting_ref}:legacy_{item_part}"
+                    else:
+                        decision_id = compute_stable_decision_id(
+                            jurisdiction_id=jurisdiction_id,
+                            meeting_ref=meeting_ref,
+                            item_ref=item_ref_value,
+                            title=decision.get('title'),
+                            item_type=decision.get('item_type', 'action'),
+                            outcome=decision.get('outcome'),
+                            budget_amount=budget,
+                        )
 
                 # Close previous version of this specific decision only
                 # Skip if the current version was created at the same timestamp

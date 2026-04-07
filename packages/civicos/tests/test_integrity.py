@@ -17,6 +17,8 @@ from civicos.storage.integrity import (
     compute_transcript_hash,
     compute_chunk_hash,
     compute_decision_hash,
+    compute_stable_decision_id,
+    has_stable_decision_id_inputs,
     verify_audio_hash,
     verify_content_hash,
     verify_pdf_hash,
@@ -440,3 +442,192 @@ class TestVerifyPdfHash:
     def test_verify_pdf_none_data_returns_false(self):
         """None PDF data returns False."""
         assert verify_pdf_hash(None, "somehash") is False
+
+
+# Helper to build a baseline decision payload — keeps each test focused on
+# the field under examination instead of repeating the kwargs everywhere.
+def _decision_kwargs(**overrides):
+    base = dict(
+        jurisdiction_id="city-test",
+        meeting_ref="meeting-123",
+        item_ref="5.A",
+        title="Authorizing funding for affordable housing projects",
+        item_type="action",
+        outcome="approved",
+        budget_amount=2_500_000.0,
+    )
+    base.update(overrides)
+    return base
+
+
+class TestComputeStableDecisionId:
+    """
+    Tests for compute_stable_decision_id — the upsert key for decisions.
+
+    The bug this helper fixes (launch.json:fix_decision_storage_dedup):
+    decision IDs were derived from the LLM's enumeration order, so re-extracting
+    a meeting produced different IDs and accumulated duplicate rows. The fix is
+    to derive the ID from the LLM-stable subset of fields. These tests are the
+    regression guard.
+    """
+
+    def test_namespaced_format(self):
+        """ID has the expected namespaced shape."""
+        decision_id = compute_stable_decision_id(**_decision_kwargs())
+        assert decision_id.startswith("decision:city-test:meeting-123:")
+        # 12-char hex digest
+        suffix = decision_id.rsplit(":", 1)[1]
+        assert len(suffix) == 12
+        assert all(c in "0123456789abcdef" for c in suffix)
+
+    def test_idempotent(self):
+        """Same inputs produce same ID across calls — the core property."""
+        id1 = compute_stable_decision_id(**_decision_kwargs())
+        id2 = compute_stable_decision_id(**_decision_kwargs())
+        assert id1 == id2
+
+    def test_normalizes_whitespace_in_title(self):
+        """Extra/collapsed whitespace in title doesn't change the ID."""
+        id1 = compute_stable_decision_id(**_decision_kwargs())
+        id2 = compute_stable_decision_id(
+            **_decision_kwargs(
+                title="  Authorizing  funding  for  affordable housing projects  "
+            )
+        )
+        assert id1 == id2
+
+    def test_normalizes_case_in_title(self):
+        """Title case differences don't change the ID."""
+        id1 = compute_stable_decision_id(**_decision_kwargs())
+        id2 = compute_stable_decision_id(
+            **_decision_kwargs(title="AUTHORIZING FUNDING FOR AFFORDABLE HOUSING PROJECTS")
+        )
+        assert id1 == id2
+
+    def test_normalizes_case_in_item_ref(self):
+        """item_ref case differences don't change the ID."""
+        id1 = compute_stable_decision_id(**_decision_kwargs(item_ref="5.A"))
+        id2 = compute_stable_decision_id(**_decision_kwargs(item_ref="5.a"))
+        assert id1 == id2
+
+    def test_normalizes_case_in_item_type_and_outcome(self):
+        """Enum case differences don't change the ID."""
+        id1 = compute_stable_decision_id(**_decision_kwargs())
+        id2 = compute_stable_decision_id(
+            **_decision_kwargs(item_type="ACTION", outcome="Approved")
+        )
+        assert id1 == id2
+
+    def test_outcome_disambiguates(self):
+        """Same hearing approved vs continued must produce different IDs."""
+        id_approved = compute_stable_decision_id(**_decision_kwargs(outcome="approved"))
+        id_continued = compute_stable_decision_id(**_decision_kwargs(outcome="continued"))
+        assert id_approved != id_continued
+
+    def test_item_type_disambiguates(self):
+        """Consent calendar item vs action item with same label must differ."""
+        id_action = compute_stable_decision_id(**_decision_kwargs(item_type="action"))
+        id_consent = compute_stable_decision_id(**_decision_kwargs(item_type="consent"))
+        assert id_action != id_consent
+
+    def test_budget_disambiguates(self):
+        """Two appropriations with same title but different amounts must differ."""
+        id1 = compute_stable_decision_id(**_decision_kwargs(budget_amount=2_500_000.0))
+        id2 = compute_stable_decision_id(**_decision_kwargs(budget_amount=5_000_000.0))
+        assert id1 != id2
+
+    def test_budget_rounds_to_dollars(self):
+        """Float precision drift below the dollar level doesn't change the ID."""
+        id1 = compute_stable_decision_id(**_decision_kwargs(budget_amount=2_500_000.0))
+        id2 = compute_stable_decision_id(**_decision_kwargs(budget_amount=2_500_000.49))
+        assert id1 == id2
+
+    def test_jurisdiction_in_namespace(self):
+        """Different jurisdictions produce different IDs even for identical content."""
+        id_a = compute_stable_decision_id(**_decision_kwargs(jurisdiction_id="city-a"))
+        id_b = compute_stable_decision_id(**_decision_kwargs(jurisdiction_id="city-b"))
+        assert id_a != id_b
+        assert "city-a" in id_a
+        assert "city-b" in id_b
+
+    def test_meeting_ref_in_namespace(self):
+        """Different meetings produce different IDs even for identical content."""
+        id_m1 = compute_stable_decision_id(**_decision_kwargs(meeting_ref="meeting-1"))
+        id_m2 = compute_stable_decision_id(**_decision_kwargs(meeting_ref="meeting-2"))
+        assert id_m1 != id_m2
+
+    def test_empty_budget_treated_as_zero(self):
+        """None budget and zero budget produce the same ID (both = no budget)."""
+        id_none = compute_stable_decision_id(**_decision_kwargs(budget_amount=None))
+        id_zero = compute_stable_decision_id(**_decision_kwargs(budget_amount=0))
+        assert id_none == id_zero
+
+    def test_empty_inputs_still_produce_well_formed_id(self):
+        """Edge case: no item_ref, no title — still returns a valid namespaced ID."""
+        decision_id = compute_stable_decision_id(
+            jurisdiction_id="city-test",
+            meeting_ref="meeting-123",
+            item_ref=None,
+            title=None,
+            item_type=None,
+            outcome=None,
+            budget_amount=None,
+        )
+        assert decision_id.startswith("decision:city-test:meeting-123:")
+
+    def test_reordering_simulation(self):
+        """
+        Simulate the actual bug: same set of decisions in different LLM order.
+
+        Before the fix, decision A would get ordinal :01 in run 1 and :02 in
+        run 2 (or vice versa), causing the temporal-versioning UPDATE to miss
+        and accumulate duplicates. With stable IDs, A always gets the same ID
+        regardless of position in the list.
+        """
+        decision_a = dict(item_ref="5.A", title="Approve contract X", outcome="approved", budget_amount=100_000)
+        decision_b = dict(item_ref="5.B", title="Approve contract Y", outcome="approved", budget_amount=200_000)
+
+        # Run 1: LLM returns [A, B]
+        run1_ids = [
+            compute_stable_decision_id(
+                jurisdiction_id="city-test", meeting_ref="m1",
+                item_type="action", **d,
+            )
+            for d in [decision_a, decision_b]
+        ]
+        # Run 2: LLM returns [B, A] (different order)
+        run2_ids = [
+            compute_stable_decision_id(
+                jurisdiction_id="city-test", meeting_ref="m1",
+                item_type="action", **d,
+            )
+            for d in [decision_b, decision_a]
+        ]
+
+        # Each decision must hash to the same ID across runs, regardless of order
+        assert run1_ids[0] == run2_ids[1]  # A's ID consistent
+        assert run1_ids[1] == run2_ids[0]  # B's ID consistent
+        # And A != B (they're distinct decisions)
+        assert run1_ids[0] != run1_ids[1]
+
+
+class TestHasStableDecisionIdInputs:
+    """Tests for the precondition check used by callers to detect the empty edge case."""
+
+    def test_both_present(self):
+        assert has_stable_decision_id_inputs("5.A", "Some title") is True
+
+    def test_only_item_ref(self):
+        assert has_stable_decision_id_inputs("5.A", None) is True
+
+    def test_only_title(self):
+        assert has_stable_decision_id_inputs(None, "Some title") is True
+
+    def test_both_none(self):
+        assert has_stable_decision_id_inputs(None, None) is False
+
+    def test_both_empty_string(self):
+        assert has_stable_decision_id_inputs("", "") is False
+
+    def test_both_whitespace(self):
+        assert has_stable_decision_id_inputs("   ", "  \t\n ") is False

@@ -1151,16 +1151,34 @@
       },
       {
         "name": "fix_decision_storage_dedup",
-        "description": "Decisions table contains exact duplicates for some jurisdictions. On the 'housing' query against city-berkeley, 4 identical 'Authorizing funding for affordable housing projects' entries appear with the same title and same vector relevance (0.3304). city-san-francisco has 5 identical 'Affordable Housing and Sustainable Communities Program' entries. After county-alameda re-extraction (2026-04-07), the same pattern reproduces: 715 decisions stored despite only 412 unique extractions (301 new + 111 skipped). Likely an upsert idempotency bug in the Granicus or Legistar extraction path. Investigate root cause and add a uniqueness constraint or normalize the upsert key.",
-        "status": "not_started",
-        "priority": 0,
+        "description": "Decisions table accumulated duplicates because decision IDs were derived from the LLM's enumeration order (`decision:{jur}:{meeting_id}:{ordinal}`), which is non-deterministic across re-extractions and even within a single extraction when the LLM lists the same decision twice. Fixed by deriving IDs from a SHA-256 hash of LLM-stable fields (item_ref, title, item_type, outcome, budget_amount) so the temporal-versioning UPDATE in store_decisions() correctly matches prior versions across runs.",
+        "status": "done",
+        "priority": 1,
         "source": "Phase B cross-county query validation finding",
+        "test_file": "packages/civicos/tests/test_integration_decision_dedup.py",
         "files": [
+          "packages/civicos/src/civicos/storage/integrity.py",
+          "packages/civicos/src/civicos/storage/postgres_backend.py",
+          "packages/civicos-extraction/src/civicos_extraction/cli/decisions.py",
+          "packages/civicos/tests/test_integrity.py",
+          "packages/civicos/tests/test_integration_decision_dedup.py",
+          "scripts/cleanup_decision_dedup.py"
+        ],
+        "notes": "Resolved 2026-04-07. The handoff hypothesis (4x affordable-housing rows in Berkeley as smoking gun) was MISDIAGNOSED \u2014 those 4 rows are 4 legitimately distinct housing-project decisions (North Berkeley BART, Ephesian Legacy Court, People's Park, Ashby Lofts) with identical generic LLM titles but distinct agenda_items. Same for SF's '5 identical AHSC' \u2014 4 different meetings + 1 meeting with two sub-items. Real bug scope was much smaller: 8 actual same-run LLM duplications across 3 jurisdictions (county-alameda 6, city-novato 1, city-san-francisco 1). Cleanup applied via scripts/cleanup_decision_dedup.py (uses the same compute_stable_decision_id hash as the forward fix to guarantee consistency \u2014 zero false positives). Cross-county verification (scripts/verify_cross_county_phase_b.py) ALL CHECKS PASS post-fix. 21 unit tests + 4 integration tests added (test_integration_decision_dedup.py is the regression guard \u2014 reordered batch test is the exact bug repro). Forward fix prevents both re-extraction and same-run duplication causes. Follow-up: add_real_source_item_id to thread platform-stable IDs through extractors (P3)."
+      },
+      {
+        "name": "add_real_source_item_id",
+        "description": "Thread a real source-platform item ID (Granicus / Legistar / BoardDocs internal ID) through the extraction dataclass and storage so the stable decision ID can be derived from a true platform-stable reference instead of the synthetic-D fields (item_type, outcome, budget_amount). Today's fix uses the synthetic-D from already-available HighStakesDecision fields, which is sufficient but theoretically less robust if two genuinely-distinct decisions in one meeting share all of (item_ref, title, item_type, outcome, budget). Adds source_item_id: Optional[str] to HighStakesDecision and updates Granicus/Legistar/BoardDocs clients to populate it where the platform exposes one. Hash function adds source_item_id to the key when present.",
+        "status": "not_started",
+        "priority": 3,
+        "source": "fix_decision_storage_dedup follow-up",
+        "files": [
+          "packages/civicos-extraction/src/civicos_extraction/processing/retrospective_analyzer.py",
           "packages/civicos-extraction/src/civicos_extraction/clients/granicus.py",
           "packages/civicos-extraction/src/civicos_extraction/clients/legistar.py",
-          "packages/civicos/src/civicos/storage/postgres_backend.py"
+          "packages/civicos/src/civicos/storage/integrity.py"
         ],
-        "notes": "Promoted to P0 on 2026-04-07 after county-alameda re-extraction reproduced the bug at larger scale: 264 meetings fetched, 301 decisions extracted, 111 skipped (pre-existing), but final table count is 715 \u2014 a ~1.7x duplication factor against city-alameda alone. This is a correctness bug, not cosmetic: every cross-county query that hits the decisions corpus pulls in duplicates that waste limit slots and crowd out substantive results. Reproduce: from city-san-rafael, run search 'housing' with also_include=['city-berkeley', 'city-san-francisco'] and observe duplicate titles + identical relevance scores in the per-jid buckets. Verification script: scripts/verify_cross_county_phase_b.py. First step: inspect the actual upsert key and the ON CONFLICT clause in store_decisions() (PostgresBackend) and compare against what Granicus vs Legistar extraction paths emit \u2014 do both paths generate stable decision IDs, or does something like the LLM extraction slot different IDs for the same underlying decision? Expect the fix to live in either the extraction side (stable ID derivation) or the storage side (semantic dedup on title+meeting_id)."
+        "notes": "Filed 2026-04-07. The fix_decision_storage_dedup work shipped with synthetic-D (item_type + outcome + budget_amount as additional disambiguators) because real-D would have required threading a platform source ID through 3+ extractors, expanding the P0 scope significantly. Synthetic-D works in practice for current data but the LLM produces decisions from PDF text and has no view of platform-internal IDs \u2014 a real source ID would be ground-truth. Defer until either (a) we observe a synthetic-D collision in production, or (b) we onboard a city where this matters."
       },
       {
         "name": "fix_sf_county_parent",

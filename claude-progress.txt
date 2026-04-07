@@ -25490,3 +25490,125 @@ ON CONFLICT clause isn't matching semantic duplicates. Verification:
 `python3 scripts/verify_cross_county_phase_b.py` should stop showing the
 "4x Authorizing funding for affordable housing projects" pattern after
 the fix + a reindex.
+
+## Session 2026-04-07 — fix_decision_storage_dedup DONE
+
+**Item:** `fix_decision_storage_dedup` (federation_testbed, P0)
+**Status:** DONE — forward fix, regression tests, and production cleanup all
+shipped. launch.json marked done and demoted to P1.
+
+### Root cause
+Decision IDs were `decision:{jur}:{meeting_id}:{ordinal}` where ordinal
+came from the LLM's enumeration order. Two ways this caused duplicates:
+1. **Re-extraction**: LLM returns decisions in different orders across runs,
+   so the temporal-versioning UPDATE in `store_decisions()` couldn't match
+   prior versions and accumulated new logical rows.
+2. **Same-run LLM duplication** (not anticipated by handoff): the LLM
+   occasionally lists the same decision twice within ONE extraction run,
+   producing two ordinals (`:07` and `:09`) for the same logical decision.
+   Both stored as distinct rows with identical extracted_at timestamps.
+
+### Forward fix
+- New helper `compute_stable_decision_id()` in
+  `packages/civicos/src/civicos/storage/integrity.py:128`. Hashes
+  `(item_ref, normalized_title, item_type, outcome, budget_amount)` to a
+  12-char SHA-256 prefix. ID format unchanged in shape:
+  `decision:{jur}:{meeting_ref}:{12-char hex}`.
+- Wired into the extraction CLI at
+  `packages/civicos-extraction/src/civicos_extraction/cli/decisions.py:645`
+  with a graceful fallback for the empty-input edge case (logs warning,
+  uses ordinal so it doesn't crash).
+- Wired into the legacy fallback in
+  `packages/civicos/src/civicos/storage/postgres_backend.py:2614-2660`
+  so JSON imports / test fixtures get the same stable ID.
+- Did NOT touch SQLite backend — its `store_decisions()` has different
+  semantics (wipes all rows on each call) so it doesn't have the bug. Out
+  of scope.
+
+### Why synthetic-D, not real-D
+The agreed approach was hybrid Option B (outcome) + Option D (platform
+source ID). Discovered during investigation that
+`HighStakesDecision` has NO platform-source-ID field — `staff_report_url`
+is hardcoded `None` everywhere, `agenda_url` is meeting-level. Real-D
+would require threading a new field through the analyzer +
+Granicus/Legistar/BoardDocs clients, which is multi-session scope. Used
+synthetic-D from already-available fields (`item_type` + `outcome` +
+`budget_amount` as additional disambiguators) which is sufficient for
+current data. Real-D filed as P3 follow-up: `add_real_source_item_id`.
+
+### Tests
+- 21 new unit tests in `test_integrity.py` (TestComputeStableDecisionId
+  and TestHasStableDecisionIdInputs): idempotency, normalization (case,
+  whitespace), disambiguation (outcome / item_type / budget), float
+  precision rounding, namespace separation, edge cases, and the exact
+  reordering bug repro.
+- 4 new integration tests in
+  `packages/civicos/tests/test_integration_decision_dedup.py` against
+  real Postgres (DATABASE_URL): double-store keeps 1 open version,
+  triple-store keeps 1 open version (with accumulated history),
+  reordered batch is idempotent (the EXACT bug repro), genuinely
+  different outcomes create distinct decisions.
+- All 25 new tests PASS. Smoke tests (`test_civicos.py` +
+  `test_integrity.py`): 97/97 PASS.
+
+### Production cleanup (Option A — semantic dedup, preserve audit history)
+- New script: `scripts/cleanup_decision_dedup.py` with `--dry-run`
+  default and `--apply` flag. Uses the SAME `compute_stable_decision_id`
+  hash as the forward fix to guarantee zero false positives.
+- **Critical course-correction during the session**: my first dry-run used
+  a simpler `(jurisdiction_id, meeting_id, normalized_title)` dedup key
+  and reported 48 dupes across 10 jurisdictions, including the 4 Berkeley
+  affordable-housing rows the handoff flagged as the smoking gun. I
+  inspected those rows and discovered they are 4 LEGITIMATELY DISTINCT
+  decisions about 4 different housing projects (North Berkeley BART,
+  Ephesian Legacy Court, People's Park, Ashby Lofts) — they only share a
+  generic LLM-coalesced title. Same for SF's "5 identical AHSC" — all 5
+  are in different meetings or have different agenda_items. The handoff
+  hypothesis was MISDIAGNOSED.
+- Rewrote the script to use the same stable-ID hash as the dedup key,
+  guaranteeing the cleanup is exactly consistent with the forward fix.
+- Corrected dry-run found **8 real dupes across 3 jurisdictions**:
+  county-alameda 6, city-novato 1, city-san-francisco 1. Spot-checked 2
+  of them — both confirmed as same-run LLM duplications (same
+  extracted_at, two ordinals).
+- Applied: closed 8 rows (preserving audit history via valid_to).
+- Re-run dry-run: 0 remaining duplicates.
+- `scripts/verify_cross_county_phase_b.py`: ALL CHECKS PASS post-cleanup.
+  The 4 Berkeley housing rows still appear in results (correctly — they
+  are real distinct decisions).
+
+### Files changed
+- `packages/civicos/src/civicos/storage/integrity.py` — new helper
+- `packages/civicos/src/civicos/storage/postgres_backend.py` — legacy
+  fallback uses new helper, imports updated
+- `packages/civicos-extraction/src/civicos_extraction/cli/decisions.py`
+  — extraction-side stable ID, imports added
+- `packages/civicos/tests/test_integrity.py` — 21 new unit tests
+- `packages/civicos/tests/test_integration_decision_dedup.py` — NEW (4 tests)
+- `scripts/cleanup_decision_dedup.py` — NEW (dry-run + apply)
+- `launch.json` — fix_decision_storage_dedup → done/P1, new
+  add_real_source_item_id P3 follow-up filed
+
+### Launch.json state
+- `fix_decision_storage_dedup`: not_started/P0 → done/P1
+- New: `add_real_source_item_id` (federation_testbed, P3, not_started)
+- **0 P0 items pending after this session** — needs new P0 promoted
+  before `/nextsesh`.
+
+### Next P0 — needs user input
+launch.json has 1 P2 item (`token_purchase_ui`, deprioritized per April
+2026 roadmap pivot) and 8 P3 items. The user's MEMORY.md
+project_mass_ingest_april_2026.md flags two unfiled launch blockers from
+the broader strategic plan:
+1. **county-alameda ghost data** — 709 decisions (post-cleanup) but 0
+   transcripts/chunks/issues/officials. Either complete the ingest or
+   scope down with messaging.
+2. **city-tiburon empty** — registered but contains nothing. Untracked
+   files exist (data/jurisdictions/city-tiburon.yaml,
+   data/extraction/city-tiburon.json, data/sandbox_city-tiburon.sqlite)
+   showing onboarding was attempted.
+
+Recommend adding one of these as a new P0 item in launch.json before
+`/nextsesh`. county-alameda is the more strategic choice given it's
+already partially onboarded and central to the cross-county query
+narrative — but the user should make the call.

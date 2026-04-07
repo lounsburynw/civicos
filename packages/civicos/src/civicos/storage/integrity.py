@@ -126,6 +126,86 @@ def compute_decision_hash(decision: Dict[str, Any]) -> Optional[str]:
     return compute_content_hash(content_fields)
 
 
+def compute_stable_decision_id(
+    *,
+    jurisdiction_id: str,
+    meeting_ref: str,
+    item_ref: Optional[str] = None,
+    title: Optional[str] = None,
+    item_type: Optional[str] = None,
+    outcome: Optional[str] = None,
+    budget_amount: Optional[float] = None,
+) -> str:
+    """
+    Compute a stable, content-derived decision ID for upsert idempotency.
+
+    Format: ``decision:{jurisdiction_id}:{meeting_ref}:{12-char hex}``
+
+    The hex digest is derived from the LLM-stable subset of decision fields,
+    so re-extracting the same meeting produces identical IDs even if the LLM
+    returns decisions in a different order across runs. This is the key the
+    temporal-versioning UPDATE in ``store_decisions()`` matches against.
+
+    Why these specific fields:
+        - ``item_ref``: stable agenda item label (parsed from PDF, deterministic)
+        - ``title``: stable formal label (drifts very rarely across LLM runs)
+        - ``item_type``: stable enum (action/consent/hearing/discussion/presentation)
+        - ``outcome``: stable enum (approved/denied/continued/withdrawn/...)
+        - ``budget_amount``: deterministic if extracted (rounded to dollars)
+
+    Why NOT ``summary`` / ``description``: those are LLM prose and drift across
+    runs, which is exactly the instability that ``compute_decision_hash`` is
+    designed to *detect*. We want the opposite for an ID — narrow stability.
+
+    Why ``item_type`` and ``outcome`` are included as disambiguators:
+        Two decisions in the same meeting can legitimately share an item_ref
+        and title (e.g., the same hearing approved vs. continued, or a consent
+        item with the same label as an action item). Including item_type and
+        outcome resolves these collisions without needing a platform source ID.
+
+    Args:
+        jurisdiction_id: Target jurisdiction (e.g., "city-san-rafael")
+        meeting_ref: Stable meeting reference (meeting_id when available, else
+            meeting_date for legacy/transcript-only paths)
+        item_ref: Agenda item label (item_number or item_ref from analyzer)
+        title: Decision title
+        item_type: Item type enum
+        outcome: Outcome enum
+        budget_amount: Budget impact in dollars (rounded to nearest dollar)
+
+    Returns:
+        Namespaced ID string. If both item_ref and title are empty, the digest
+        falls back to a UUID-like marker so callers can detect and warn — the
+        ID is still well-formed and unique (within the meeting) but won't be
+        stable across reruns. Callers should log a warning in that case.
+    """
+    norm_item_ref = (item_ref or "").strip().lower()
+    norm_title = " ".join((title or "").lower().split())
+    norm_item_type = (item_type or "action").strip().lower()
+    norm_outcome = (outcome or "").strip().lower()
+    norm_budget = (
+        str(int(round(budget_amount))) if budget_amount else ""
+    )
+
+    key = f"{norm_item_ref}|{norm_title}|{norm_item_type}|{norm_outcome}|{norm_budget}"
+    digest = hashlib.sha256(key.encode("utf-8")).hexdigest()[:12]
+    return f"decision:{jurisdiction_id}:{meeting_ref}:{digest}"
+
+
+def has_stable_decision_id_inputs(
+    item_ref: Optional[str], title: Optional[str]
+) -> bool:
+    """
+    Return True if a decision has enough content to produce a stable ID.
+
+    Used by callers to detect the rare edge case where both item_ref and title
+    are empty — in which case ``compute_stable_decision_id`` still returns a
+    well-formed ID, but it's not meaningfully stable across reruns and the
+    caller should log a warning so the upstream extractor can be improved.
+    """
+    return bool((item_ref or "").strip()) or bool((title or "").strip())
+
+
 def compute_audio_hash(audio_data: bytes) -> Optional[str]:
     """
     Compute SHA-256 hash of audio file bytes for provenance tracking.

@@ -29,6 +29,11 @@ from enum import Enum
 from pathlib import Path
 from typing import List, Optional, Dict, Any
 
+from civicos.storage.integrity import (
+    compute_stable_decision_id,
+    has_stable_decision_id_inputs,
+)
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -639,10 +644,34 @@ def extract_decisions_from_meeting(
         decisions_data = []
         for i, decision in enumerate(high_stakes_decisions):
             decision_dict = decision.to_dict()
-            # Add required fields for storage
-            # Namespaced ID format: decision:{jurisdiction}:{meeting_id}:{ordinal}
-            # Ordinal is 1-based extraction position, zero-padded to 2 digits
-            decision_dict["id"] = f"decision:{jurisdiction_id}:{meeting_id}:{i + 1:02d}"
+            # Add required fields for storage.
+            #
+            # Stable ID format: decision:{jurisdiction}:{meeting_id}:{12-char hex}
+            # The hex is a SHA-256 prefix over LLM-stable fields (item_ref, title,
+            # item_type, outcome, budget). This makes IDs deterministic across
+            # re-extractions even when the LLM returns decisions in a different
+            # order — which is what the temporal-versioning UPDATE in
+            # store_decisions() needs to match against. The previous ordinal
+            # scheme was non-deterministic and caused duplicate accumulation;
+            # see launch.json:fix_decision_storage_dedup.
+            if not has_stable_decision_id_inputs(
+                decision.item_number or decision.item_ref, decision.title
+            ):
+                logger.warning(
+                    f"  Decision {i + 1} in meeting {meeting_id} has no item_ref "
+                    f"or title; falling back to ordinal-based ID (not stable across reruns)"
+                )
+                decision_dict["id"] = f"decision:{jurisdiction_id}:{meeting_id}:ord{i + 1:02d}"
+            else:
+                decision_dict["id"] = compute_stable_decision_id(
+                    jurisdiction_id=jurisdiction_id,
+                    meeting_ref=meeting_id,
+                    item_ref=decision.item_number or decision.item_ref,
+                    title=decision.title,
+                    item_type=getattr(decision, "item_type", "action"),
+                    outcome=decision.extracted_outcome,
+                    budget_amount=decision.budget_amount,
+                )
             decision_dict["meeting_date"] = meeting_date
             decision_dict["meeting_id"] = meeting_id
             decision_dict["agenda_item"] = decision.item_number or decision.item_ref
