@@ -2492,8 +2492,8 @@ def _embed_and_store_batch_inner(
 @app.function(
     image=civic_image,
     secrets=[modal.Secret.from_name("civic-db")],
-    memory=65536,  # 64GB per worker
-    timeout=900,
+    memory=16384,  # 16GB — sub-batched embedding doesn't need 64GB
+    timeout=1800,  # 30 min — sub-batching is slower than monolithic embed
     volumes={"/cache": model_cache},
 )
 def _embed_legislation_page(
@@ -2822,10 +2822,19 @@ def index_vectors(
             for wave_start in range(0, len(pages), max_concurrent):
                 wave = pages[wave_start:wave_start + max_concurrent]
                 logger.info(f"  Wave {wave_start // max_concurrent + 1}: pages {wave_start}-{wave_start + len(wave) - 1}")
-                wave_results = list(_embed_legislation_page.starmap([
-                    (state_code, offset, size, jurisdiction, ct, reindex)
-                    for offset, size in wave
-                ]))
+                wave_results = list(_embed_legislation_page.starmap(
+                    [
+                        (state_code, offset, size, jurisdiction, ct, reindex)
+                        for offset, size in wave
+                    ],
+                    return_exceptions=True,
+                ))
+                # Convert any exception objects to error dicts so the next wave still runs
+                for i, r in enumerate(wave_results):
+                    if isinstance(r, Exception):
+                        offset, size = wave[i]
+                        logger.warning(f"  Page offset={offset} raised: {r}")
+                        wave_results[i] = {"success": 0, "failed": size, "error": str(r)}
                 worker_results.extend(wave_results)
 
             failed_workers = [r for r in worker_results if r.get("error")]
