@@ -2522,93 +2522,143 @@ def _embed_legislation_page(
     import logging
     import os
     import hashlib
+    import time
 
     logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
     logger = logging.getLogger(__name__)
     page_label = f"bill_ids[{len(bill_ids)}]" if bill_ids else f"offset={offset}"
+    worker_start = time.time()
+
+    # Stage timers — reported in final log line to diagnose where time goes
+    timings = {}
+
+    def _stage(name):
+        """Context manager-like stage timer."""
+        class _Timer:
+            def __enter__(self_):
+                self_.t0 = time.time()
+                return self_
+            def __exit__(self_, *a):
+                timings[name] = timings.get(name, 0) + (time.time() - self_.t0)
+        return _Timer()
 
     try:
         os.environ["FASTEMBED_CACHE_PATH"] = "/cache/fastembed"
 
-        from civicos.storage import get_storage_backend
-        from civicos.storage.pgvector_backend import PgVectorBackend
-        from civicos._internal.legal.embeddings.chunker import (
-            expand_legislation_to_chunks,
-            expand_executive_orders_to_chunks,
-            expand_federal_rules_to_chunks,
-        )
+        with _stage("imports"):
+            from civicos.storage import get_storage_backend
+            from civicos.storage.pgvector_backend import PgVectorBackend
+            from civicos._internal.legal.embeddings.chunker import (
+                expand_legislation_to_chunks,
+                expand_executive_orders_to_chunks,
+                expand_federal_rules_to_chunks,
+            )
 
         database_url = os.environ.get("DATABASE_URL")
-        backend = get_storage_backend(database_url)
-        pgvector = PgVectorBackend(connection_string=database_url, provider_type="fastembed")
+
+        with _stage("backend_init"):
+            backend = get_storage_backend(database_url)
+
+        with _stage("pgvector_init_model_load"):
+            pgvector = PgVectorBackend(connection_string=database_url, provider_type="fastembed")
 
         # Fetch this worker's data
-        if corpus_type == "legislation":
-            if bill_ids:
-                # Chunk-count-aware paging mode: orchestrator picked specific bills
-                bills_dict = backend.get_legislation_batch(state=state_code, bill_ids=bill_ids)
-                raw = list(bills_dict.values())
+        with _stage("db_fetch"):
+            if corpus_type == "legislation":
+                if bill_ids:
+                    bills_dict = backend.get_legislation_batch(state=state_code, bill_ids=bill_ids)
+                    raw = list(bills_dict.values())
+                else:
+                    raw = backend.get_legislation(state=state_code, limit=page_size, offset=offset)
+            elif corpus_type == "executive_orders":
+                raw = backend.get_executive_orders(limit=page_size, offset=offset)
+            elif corpus_type == "federal_rules":
+                raw = backend.get_federal_rules(limit=page_size, offset=offset)
             else:
-                # Legacy ordinal paging
-                raw = backend.get_legislation(state=state_code, limit=page_size, offset=offset)
-            chunks = expand_legislation_to_chunks(raw)
-        elif corpus_type == "executive_orders":
-            raw = backend.get_executive_orders(limit=page_size, offset=offset)
-            chunks = expand_executive_orders_to_chunks(raw)
-        elif corpus_type == "federal_rules":
-            raw = backend.get_federal_rules(limit=page_size, offset=offset)
-            chunks = expand_federal_rules_to_chunks(raw)
-        else:
-            return {"success": 0, "failed": 0, "error": f"Unsupported corpus_type: {corpus_type}"}
+                return {"success": 0, "failed": 0, "error": f"Unsupported corpus_type: {corpus_type}"}
+
+        with _stage("chunker"):
+            if corpus_type == "legislation":
+                chunks = expand_legislation_to_chunks(raw)
+            elif corpus_type == "executive_orders":
+                chunks = expand_executive_orders_to_chunks(raw)
+            elif corpus_type == "federal_rules":
+                chunks = expand_federal_rules_to_chunks(raw)
 
         if not chunks:
+            logger.info(f"Page {page_label}: no chunks (empty corpus)")
             return {"success": 0, "failed": 0}
 
-        logger.info(f"Page {page_label}: {len(raw)} records → {len(chunks)} chunks")
+        # Log max text length — helps identify outlier bills
+        max_text = max((len(c.get("text") or c.get("content") or "") for c in chunks), default=0)
+        logger.info(
+            f"Page {page_label}: {len(raw)} records → {len(chunks)} chunks "
+            f"(max chunk text: {max_text} chars)"
+        )
 
         # Embed and store in sub-batches to limit peak memory.
-        # Processing all 3K+ chunks at once OOM'd 64GB workers.
         EMBED_BATCH = 256
         total_success = 0
         total_failed = 0
+        num_sub_batches = 0
 
         for batch_start in range(0, len(chunks), EMBED_BATCH):
             batch_chunks = chunks[batch_start:batch_start + EMBED_BATCH]
             texts = [c.get("text") or c.get("content") or "" for c in batch_chunks]
-            embeddings = pgvector.encode_texts(texts, batch_size=100)
 
-            records = []
-            for chunk, embedding in zip(batch_chunks, embeddings):
-                content = chunk.get("text") or chunk.get("content") or ""
-                chunk_id = chunk.get("id") or hashlib.sha256(
-                    f"{jurisdiction_id}:{corpus_type}:{content[:200]}".encode()
-                ).hexdigest()[:32]
+            with _stage("embed"):
+                embeddings = pgvector.encode_texts(texts, batch_size=100)
 
-                records.append({
-                    "id": chunk_id,
-                    "content": content,
-                    "embedding": embedding.tolist() if hasattr(embedding, 'tolist') else embedding,
-                    "meeting_id": chunk.get("meeting_id"),
-                    "meeting_title": chunk.get("meeting_title"),
-                    "meeting_datetime": chunk.get("meeting_datetime"),
-                    "metadata": chunk.get("metadata", {}),
-                })
+            with _stage("build_records"):
+                records = []
+                for chunk, embedding in zip(batch_chunks, embeddings):
+                    content = chunk.get("text") or chunk.get("content") or ""
+                    chunk_id = chunk.get("id") or hashlib.sha256(
+                        f"{jurisdiction_id}:{corpus_type}:{content[:200]}".encode()
+                    ).hexdigest()[:32]
 
-            result = pgvector.bulk_insert_embeddings(
-                records=records,
-                jurisdiction_id=jurisdiction_id,
-                corpus_type=corpus_type,
-                use_copy=reindex,
-            )
+                    records.append({
+                        "id": chunk_id,
+                        "content": content,
+                        "embedding": embedding.tolist() if hasattr(embedding, 'tolist') else embedding,
+                        "meeting_id": chunk.get("meeting_id"),
+                        "meeting_title": chunk.get("meeting_title"),
+                        "meeting_datetime": chunk.get("meeting_datetime"),
+                        "metadata": chunk.get("metadata", {}),
+                    })
+
+            with _stage("db_insert"):
+                result = pgvector.bulk_insert_embeddings(
+                    records=records,
+                    jurisdiction_id=jurisdiction_id,
+                    corpus_type=corpus_type,
+                    use_copy=reindex,
+                )
             total_success += result.get("success", 0)
             total_failed += result.get("failed", 0)
+            num_sub_batches += 1
 
-        logger.info(f"Page {page_label}: indexed {total_success} embeddings ({total_failed} failed)")
-        return {"success": total_success, "failed": total_failed}
+        wall = time.time() - worker_start
+        timing_str = " ".join(f"{k}={v:.1f}s" for k, v in sorted(timings.items()))
+        logger.info(
+            f"Page {page_label}: indexed {total_success} embeddings "
+            f"({total_failed} failed) in {wall:.1f}s | {num_sub_batches} sub-batches | {timing_str}"
+        )
+        return {"success": total_success, "failed": total_failed, "wall_seconds": wall, "timings": timings}
 
     except Exception as e:
-        logger.exception(f"Page {page_label} failed: {e}")
-        return {"success": 0, "failed": len(chunks) if 'chunks' in dir() else page_size, "error": str(e)}
+        wall = time.time() - worker_start
+        timing_str = " ".join(f"{k}={v:.1f}s" for k, v in sorted(timings.items()))
+        logger.exception(
+            f"Page {page_label} FAILED after {wall:.1f}s | {timing_str} | error: {e}"
+        )
+        return {
+            "success": 0,
+            "failed": len(chunks) if 'chunks' in dir() else page_size,
+            "error": str(e),
+            "wall_seconds": wall,
+            "timings": timings,
+        }
 
 
 def _embed_and_store_inline(
