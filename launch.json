@@ -302,6 +302,32 @@
         "status": "done",
         "test_file": "packages/civicos/tests/test_civicos.py",
         "depends_on": []
+      },
+      {
+        "name": "fairfax_cortemadera_video_discovery",
+        "description": "city-fairfax (99 meetings) and city-corte-madera (17 meetings) have 0 video URLs populated because their source platform (proudcity) doesn't publish video links on the agenda pages. The YouTube proxy fix does NOT unlock these cities. Need separate YouTube channel discovery: find the city's YouTube channel, map videos to meetings by date/title, populate the video_url field. Without this, transcription and 'what was said' queries return nothing for these two Marin cities.",
+        "status": "not_started",
+        "priority": 2,
+        "source": "mass ingest data-status audit 2026-04-07",
+        "files": [
+          "packages/civicos-extraction/src/civicos_extraction/clients/proudcity.py",
+          "data/extraction/city-fairfax.json",
+          "data/extraction/city-corte-madera.json"
+        ],
+        "test_file": null,
+        "notes": "Verified 2026-04-07 via get_meetings(): 0/99 fairfax meetings and 0/17 corte-madera meetings have video_url set. Compare: mill-valley 109/118 (Granicus), novato 16/19 (Granicus), san-rafael 31/106 (Granicus partial). This is a source-platform limitation, not a proxy issue. Possible approaches: (a) discover each city's YouTube channel URL and do date-matched video lookup, (b) check if proudcity embeds video via a platform-specific API we haven't hit yet, (c) ask the city clerks directly for the channel URLs. If unfixable pre-launch, mark these cities as 'no video coverage' in UI."
+      },
+      {
+        "name": "sf_audio_backfill",
+        "description": "city-san-francisco was onboarded 2026-04-06 but only has 6 transcripts against 40 meetings. Audio backfill pipeline hasn't caught up. Run audio download + Whisper transcription for the 34 meetings still missing transcripts before launch. Cost cap via document_mass_ingest_cost_ceiling.",
+        "status": "not_started",
+        "priority": 2,
+        "source": "mass ingest data-status audit 2026-04-07",
+        "files": [
+          "data/extraction/city-san-francisco.json"
+        ],
+        "test_file": null,
+        "notes": "SF meetings come from Legistar (Playwright + LLM fallback, per project_sf_onboarding memory). SFGovTV is NOT on YouTube, so audio source is whatever Legistar points at. Verify the source URLs resolve before kicking off transcription to avoid burning Whisper budget on dead links."
       }
     ]
   },
@@ -818,6 +844,18 @@
         "priority": 2,
         "description": "Add CivicPlus extraction client, wire universal adapter as detection fallback for custom sites, expand 311 provider discovery beyond SeeClickFix (FixItMarin, etc.)",
         "test_file": null
+      },
+      {
+        "name": "document_mass_ingest_cost_ceiling",
+        "description": "Write a cost ceiling document covering the mass-ingest scope (15 jurisdictions): per-service spend caps (proxy, OpenAI API, Modal compute, Whisper) with a hard kill-switch procedure. $50 proxy surprise on 2026-04-05 happened on a much smaller batch; scaling to 15 jurisdictions without written limits risks a much larger surprise. Include: daily/weekly spend thresholds per service, alerting (modal_usage_rollup is deployed), and a documented kill-switch (how to stop the pipeline mid-flight).",
+        "status": "not_started",
+        "priority": 2,
+        "source": "mass ingest risk register 2026-04-07 + feedback_cost_communication",
+        "files": [
+          "docs/internal/deployment.md"
+        ],
+        "test_file": null,
+        "notes": "Probably belongs in docs/internal/ as a standalone cost-ceiling.md, cross-linked from deployment.md. Should include a table of known unit costs (Whisper per hour of audio, OpenAI per 1M tokens, proxy per GB, Modal per GPU-hour) and estimated totals for each of the 15 mass-ingest jurisdictions. Blocks complete_alameda_ingest_or_scope and sf_audio_backfill (both need a written budget before running)."
       }
     ]
   },
@@ -1192,6 +1230,55 @@
           "data/jurisdictions/county-san-francisco.yaml"
         ],
         "notes": "Decide whether SF should be modeled as: (a) city with county-san-francisco parent (where county-san-francisco is a separate registry entry, possibly stub), or (b) special-case 'consolidated' jurisdiction type. Option (a) is simpler and consistent with the existing data model. Discovered during Phase B cross-county validation (2026-04-07)."
+      },
+      {
+        "name": "validate_mass_ingest_jurisdictions",
+        "description": "Run a per-jurisdiction launch-validation pass across all 15 mass-ingest jurisdictions (Marin 11 cities + county-marin + city-san-francisco + county-alameda + city-berkeley). For each: confirm storage+vector counts are non-zero where expected, run 3 canonical queries through the v2 API (housing, budget, recent meetings), and eyeball results for sanity. Produces a per-city pass/fail checklist and surfaces any silent-failure onboarding states.",
+        "status": "not_started",
+        "priority": 0,
+        "source": "mass ingest risk register 2026-04-07",
+        "files": [
+          "scripts/verify_cross_county_phase_b.py"
+        ],
+        "notes": "Promoted to P0 on 2026-04-07 after data-status audit of all 15 jurisdictions surfaced 2 concrete launch blockers (tiburon empty, alameda ghost) plus several quality gaps. This is the umbrella item that ranks and closes out the remaining per-jurisdiction issues before launch. Dedup bug (formerly P0) is done. The validation pass is cheap (~1 hour) but high-signal: it's the only thing that catches silent onboarding failures like tiburon, which has a YAML + extraction config but zero rows in every corpus table. Live counts captured at /tmp/mass_ingest_status.json from 2026-04-07 audit. Sub-items filed as fix_tiburon_empty, complete_alameda_ingest_or_scope, index_county_marin_decision_vectors."
+      },
+      {
+        "name": "fix_tiburon_empty",
+        "description": "city-tiburon has a YAML file (data/jurisdictions/city-tiburon.yaml) and extraction config (data/extraction/city-tiburon.json) but contains 0 meetings, 0 decisions, 0 chunks, 0 everything in the storage tables (as of 2026-04-07). Onboarding either never ran or failed silently. Either re-run /onboard city-tiburon with investigation into why it failed, or remove city-tiburon from the registry before launch so users don't land on a broken city page.",
+        "status": "not_started",
+        "priority": 1,
+        "source": "mass ingest data-status audit 2026-04-07",
+        "files": [
+          "data/jurisdictions/city-tiburon.yaml",
+          "data/extraction/city-tiburon.json"
+        ],
+        "test_file": null,
+        "notes": "Only 7 officials exist for tiburon (populated separately). All other corpus counts are 0. Unlike Ross (thin but non-empty: 19 meetings, 6 decisions, 52 chunks), tiburon has no data at all. Compare against successfully-onboarded neighbors (belvedere: 26 meetings, 26 decisions, 114 chunks)."
+      },
+      {
+        "name": "complete_alameda_ingest_or_scope",
+        "description": "county-alameda has 264 meetings and ~709 decisions (post-dedup-cleanup) but zero transcripts, chunks, issues, agenda_items, municipal_code, and elected_officials. Users can search for an Alameda decision but can't drill down to the meeting transcript, agenda packet, or officials who voted. It's metadata floating without context. Either complete the full ingest (transcripts, chunks, issues, officials) to match Marin cities, or explicitly scope down by disabling drill-down UI for alameda and labeling it 'decisions preview' in the extension.",
+        "status": "not_started",
+        "priority": 1,
+        "source": "mass ingest data-status audit 2026-04-07",
+        "files": [
+          "data/extraction/county-alameda.json",
+          "data/jurisdictions/county-alameda.yaml"
+        ],
+        "test_file": null,
+        "notes": "Meetings + decisions were re-extracted 2026-04-07 (commit f2e546b) but the rest of the pipeline (audio \u2192 transcripts, agenda packet PDFs \u2192 chunks, 311 issues, officials) never ran. Two paths: (A) run the full /onboard pipeline for county-alameda, estimated ~1-2 days compute + transcription cost (budget cap from document_mass_ingest_cost_ceiling item), or (B) ship with limited UX that returns decision metadata only and a clear 'drill-down unavailable for this jurisdiction' message. Decision depends on launch timeline and cost ceiling."
+      },
+      {
+        "name": "index_county_marin_decision_vectors",
+        "description": "county-marin has 105 decisions in the storage table but 0 decision vectors indexed. Semantic search on county-marin decisions returns nothing, which is bad because county-marin is the heaviest-content jurisdiction in the mass-ingest scope (49,505 chunks, 2,976 muni_code entries). Fix: run vector indexing for decisions corpus on county-marin via modal run scripts/modal_ingest.py.",
+        "status": "not_started",
+        "priority": 2,
+        "source": "mass ingest data-status audit 2026-04-07",
+        "files": [
+          "scripts/modal_ingest.py"
+        ],
+        "test_file": null,
+        "notes": "Run: modal run scripts/modal_ingest.py --jurisdiction county-marin --corpus decisions. Should be a 15-minute fix. Verify afterwards with c.vectors.count('county-marin', 'decisions')."
       }
     ]
   },

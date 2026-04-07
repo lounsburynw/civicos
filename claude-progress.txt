@@ -25612,3 +25612,108 @@ Recommend adding one of these as a new P0 item in launch.json before
 `/nextsesh`. county-alameda is the more strategic choice given it's
 already partially onboarded and central to the cross-county query
 narrative — but the user should make the call.
+
+================================================================
+2026-04-07 (audit session — parallel to dedup fix)
+================================================================
+
+### Session type
+Strategic audit requested by user after decision to mass-ingest
+all of Marin (11 cities + county) + SF + Alameda County + Berkeley.
+No code written. Workflow: (a) launch.json audit, (b) live data-status
+across all 15 jurisdictions, (c) risk register synthesis, (d) roadmap
+updates.
+
+### Findings (validated against PostgreSQL, 2026-04-07)
+
+**Validation tiers established:**
+- Launch-ready: san-rafael, mill-valley, san-anselmo, county-marin,
+  berkeley
+- Partial-ready: fairfax, sausalito, corte-madera, novato, belvedere,
+  larkspur, SF
+- Cosmetic: ross (6 decisions, thin)
+- Ghost: county-alameda (264 meetings, 709 decisions, zero
+  transcripts/chunks/issues/officials — decisions floating without
+  drill-down context)
+- Empty — DO NOT LIST: city-tiburon (0 everywhere despite YAML +
+  extraction config)
+
+**Additional concrete gaps surfaced:**
+- county-marin has 0 decision vectors despite 105 stored decisions
+  (vector indexing gap — ~15 min fix)
+- fairfax 0/99 video URLs, corte-madera 0/17 — proudcity source
+  platform doesn't publish video links, YouTube proxy fix does NOT
+  unlock these cities (needs separate channel discovery)
+- SF has only 6 transcripts against 40 meetings (audio backfill
+  pending since 2026-04-06 onboarding)
+- Municipal code missing for 13 of 15 jurisdictions
+- 311 missing for most Marin cities (will be unlocked by FixItMarin
+  transition — tracked elsewhere)
+- Elections data is stronger than API reports: 659 rows across Marin
+  (Ross 171, CM 112, SR 66, Fairfax 60, etc.) via direct DB query.
+  DataStatus undercounts — known per feedback_data_status_gaps.
+
+### Corrections to earlier analysis
+My initial strategic take included a title-based dedup analysis
+(SF 19%, Mill Valley 22%, Berkeley 11%, Alameda 9%). Per the
+parallel session's inspection and
+feedback_verify_handoff_diagnoses.md, same-title rows are
+usually legitimately distinct decisions (4 Berkeley housing projects
+at different sites, 5 SF AHSC items across different meetings).
+The real dedup scope was only 8 rows across 3 jurisdictions
+(alameda 6, novato 1, SF 1). Already fixed by parallel session via
+compute_stable_decision_id() + cleanup script. Memory
+project_mass_ingest_april_2026.md corrected.
+
+Also invalidated my earlier worry about refresh policies — they
+were marked P0 in stale MEMORY.md index but the work completed
+2026-04-06. MEMORY.md index corrected.
+
+### Roadmap updates (launch.json)
+7 new items added:
+
+**federation_testbed (+4):**
+- validate_mass_ingest_jurisdictions (P0, new) — umbrella
+  per-jurisdiction validation pass; surfaces tiburon + alameda +
+  anything else via 3 canonical queries through v2 API
+- fix_tiburon_empty (P1) — re-onboard or delist
+- complete_alameda_ingest_or_scope (P1) — finish pipeline or ship
+  as "decisions preview" with disabled drill-down
+- index_county_marin_decision_vectors (P2) — modal run invocation
+
+**turnkey_onboarding (+2):**
+- fairfax_cortemadera_video_discovery (P2) — proudcity has no
+  video URLs, needs YouTube channel discovery
+- sf_audio_backfill (P2) — 34 meetings missing transcripts
+
+**operator_readiness (+1):**
+- document_mass_ingest_cost_ceiling (P2) — written per-service
+  spend caps + kill-switch procedure; blocks
+  complete_alameda_ingest_or_scope and sf_audio_backfill
+
+### Next P0 — now set
+`validate_mass_ingest_jurisdictions` promoted to P0 (this session).
+Rationale: it's the umbrella that catches silent failures like tiburon
+and surfaces any jurisdictions that regressed since the dedup cleanup.
+Estimated ~1 hour of manual validation. Sub-items (tiburon, alameda,
+marin vectors) are filed as P1/P2 follow-ups so they can be picked up
+after the pass completes.
+
+Alternative P0 if user disagrees: fix_tiburon_empty (smallest
+concrete) or complete_alameda_ingest_or_scope (biggest concrete
+user-visible fix).
+
+### Files touched
+- launch.json (+7 items, all new, no edits to existing items)
+- memory/MEMORY.md (refresh policies line + mass-ingest index line)
+- memory/project_refresh_policies.md — already done, no change
+- memory/project_mass_ingest_april_2026.md (created earlier + corrected
+  dedup section after parallel session completed)
+- claude-progress.txt (this append)
+- /tmp/mass_ingest_status.json (live counts snapshot, not checked in)
+
+### Nothing implemented
+Zero code changes. Deliberately did not pick up any risk-register
+follow-ups because the user said they were working on the dedup P0 in
+the parallel session, and several of the cheap wins (tiburon, alameda,
+marin vectors) want a validation pass first anyway.
