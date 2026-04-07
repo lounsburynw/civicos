@@ -2660,8 +2660,10 @@ def _embed_legislation_page(
 
             with _stage("embed"):
                 # GPU embedding via fastembed-gpu — 50-100x faster than CPU.
-                # Returns a generator; materialize once to a list.
-                embeddings = list(gpu_model.embed(texts, batch_size=128))
+                # batch_size=32 keeps peak VRAM well under A10G's 24GB even
+                # when multiple workers contend for the same GPU pool. Earlier
+                # batch_size=128 caused intermittent CUBLAS_STATUS_ALLOC_FAILED.
+                embeddings = list(gpu_model.embed(texts, batch_size=32))
 
             with _stage("build_records"):
                 records = []
@@ -2994,9 +2996,11 @@ def index_vectors(
                 logger.info(f"  {total} {ct} records — {len(pages)} pages (ordinal pagination)")
 
             # Cap concurrent workers. Each worker opens 2 DB connections (Supabase
-            # pool ~60) and now uses an A10G GPU (Modal default account limit ~10
-            # concurrent GPUs). 8 is comfortably under both limits.
-            max_concurrent = 8
+            # pool ~60) and now uses an A10G GPU. Modal sometimes packs multiple
+            # workers onto the same physical A10G — when that happens, ONNX
+            # CUBLAS allocations can fight. 4 concurrent is conservative but
+            # still completes the full CA legislation corpus in ~10 min on GPU.
+            max_concurrent = 4
 
             worker_results = []
             for wave_start in range(0, len(pages), max_concurrent):
