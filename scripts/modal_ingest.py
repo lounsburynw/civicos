@@ -125,7 +125,7 @@ model_cache = modal.Volume.from_name("civic-model-cache", create_if_missing=True
 # at TextEmbedding init time (not auto-detected).
 civic_gpu_image = (
     modal.Image.from_registry(
-        "nvidia/cuda:12.4.0-cudnn-runtime-ubuntu22.04",
+        "nvidia/cuda:12.6.3-cudnn-runtime-ubuntu22.04",
         add_python="3.11",
     )
     .apt_install("libpq-dev", "gcc")
