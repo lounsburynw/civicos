@@ -4,15 +4,29 @@
   "jurisdiction_id": "county-alameda",
   "base_url": "https://alamedacounty.granicus.com",
   "archives": {
-    "board": "1"
+    "board_of_supervisors": "2",
+    "community_development": "3"
   },
   "metadata": {
-    "granicus_domain": "alamedacounty"
+    "granicus_domain": "alamedacounty",
+    "default_view_id": "2"
   },
+  "issue_source": "seeclickfix",
   "election_sources": {
     "ca_sos_results": {
       "county": "alameda",
-      "county_breakdown": true
+      "county_breakdown": true,
+      "districts": {
+        "us-rep": [
+          14
+        ],
+        "state-senate": [
+          5
+        ],
+        "state-assembly": [
+          16
+        ]
+      }
     }
   }
 }
