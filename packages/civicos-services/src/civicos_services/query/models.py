@@ -126,6 +126,21 @@ class SearchRequest(BaseModel):
         None,
         description="Additional jurisdiction IDs to include (cross-county, explicit comparisons)",
     )
+    per_jurisdiction_limit: Optional[int] = Field(
+        None,
+        ge=1,
+        le=50,
+        description=(
+            "Comparative cross-jurisdiction mode. When set, each jid in "
+            "jurisdiction_results is capped at this many results AND the flat "
+            "'results' list is built by taking up to N from each jid (then "
+            "globally re-sorted by relevance), guaranteeing every fanned-out "
+            "jurisdiction is visible. Default None preserves the global top-K "
+            "behavior where higher-weighted jids can crowd out lower-weighted "
+            "ones. Total flat results size is bounded by "
+            "per_jurisdiction_limit × num_jurisdictions."
+        ),
+    )
 
     @field_validator("snapshot_date")
     @classmethod

@@ -494,3 +494,183 @@ class TestRRFCalibration:
 
         print("=" * 90)
         # Always passes — this is for manual review
+
+
+# =========================================================================
+# Cross-county query (Phase B) — real Postgres validation
+# =========================================================================
+
+class TestCrossCountyIntegration:
+    """Validate cross-county query semantics against real PostgreSQL data.
+
+    These tests assume city-san-rafael (Marin), city-berkeley (Alameda), and
+    city-san-francisco (consolidated city-county) are all populated. Berkeley
+    and SF are in different parent counties from San Rafael and must therefore
+    be reachable only via explicit also_include — never via implicit fan-out
+    from include_siblings or include_parents.
+    """
+
+    BERKELEY = "city-berkeley"
+    SAN_FRANCISCO = "city-san-francisco"
+
+    def test_siblings_only_excludes_other_counties(self, civic):
+        """include_siblings=True must NOT pull jurisdictions from other counties."""
+        req = SearchRequest(
+            query="housing",
+            corpus=["decisions"],
+            include_siblings=True,
+            limit=20,
+        )
+        resp = _run(execute_search(req, civic, JURISDICTION))
+
+        assert resp.jurisdiction_results is not None
+        flat_jids = {r.jurisdiction for r in resp.results}
+        bucket_jids = set(resp.jurisdiction_results.keys())
+
+        # Marin sibling cities should appear in buckets
+        assert "city-san-rafael" in bucket_jids
+        # Cross-county jurisdictions must NOT appear via implicit sibling fan-out
+        assert self.BERKELEY not in bucket_jids, (
+            "Berkeley (Alameda) leaked into siblings-only query"
+        )
+        assert self.BERKELEY not in flat_jids
+        assert self.SAN_FRANCISCO not in bucket_jids, (
+            "SF (consolidated city-county) leaked into siblings-only query"
+        )
+        assert self.SAN_FRANCISCO not in flat_jids
+
+    def test_parents_only_excludes_other_counties(self, civic):
+        """include_parents=True must NOT pull jurisdictions from other counties."""
+        req = SearchRequest(
+            query="housing",
+            corpus=["decisions"],
+            include_parents=True,
+            limit=20,
+        )
+        resp = _run(execute_search(req, civic, JURISDICTION))
+
+        flat_jids = {r.jurisdiction for r in resp.results}
+        bucket_jids = set((resp.jurisdiction_results or {}).keys())
+
+        assert self.BERKELEY not in bucket_jids
+        assert self.BERKELEY not in flat_jids
+        assert self.SAN_FRANCISCO not in bucket_jids
+        assert self.SAN_FRANCISCO not in flat_jids
+
+    def test_also_include_berkeley_cross_county_weight(self, civic):
+        """Explicit also_include=Berkeley returns Berkeley results, all capped
+        at the cross_county tier weight of 0.5x raw cosine similarity."""
+        req = SearchRequest(
+            query="housing",
+            corpus=["decisions"],
+            also_include=[self.BERKELEY],
+            limit=30,
+        )
+        resp = _run(execute_search(req, civic, JURISDICTION))
+
+        assert resp.jurisdiction_results is not None
+        assert self.BERKELEY in resp.jurisdiction_results
+
+        berkeley_bucket = resp.jurisdiction_results[self.BERKELEY]
+        # Berkeley has 273 decisions; "housing" should return at least one match
+        assert len(berkeley_bucket) > 0, "Expected Berkeley housing decisions"
+        for r in berkeley_bucket:
+            assert r.jurisdiction == self.BERKELEY
+            assert r.relevance is not None
+            # cross_county weight = 0.5; raw cosine ∈ [0, 1]; boosted ≤ 0.5
+            assert r.relevance <= 0.5 + 1e-6, (
+                f"Berkeley result relevance {r.relevance} exceeds cross_county "
+                f"weight cap of 0.5"
+            )
+
+    def test_also_include_san_francisco_cross_county_weight(self, civic):
+        """Explicit also_include=SF returns SF results, all capped at 0.5x.
+
+        SF is a consolidated city-county; its registry entry lacks a
+        county-san-francisco parent, but the tier check still returns
+        cross_county because SR's parent county (Marin) has no overlap with
+        SF's empty county set.
+        """
+        req = SearchRequest(
+            query="housing",
+            corpus=["decisions"],
+            also_include=[self.SAN_FRANCISCO],
+            limit=30,
+        )
+        resp = _run(execute_search(req, civic, JURISDICTION))
+
+        assert resp.jurisdiction_results is not None
+        assert self.SAN_FRANCISCO in resp.jurisdiction_results
+
+        sf_bucket = resp.jurisdiction_results[self.SAN_FRANCISCO]
+        assert len(sf_bucket) > 0, "Expected SF housing decisions"
+        for r in sf_bucket:
+            assert r.jurisdiction == self.SAN_FRANCISCO
+            assert r.relevance is not None
+            assert r.relevance <= 0.5 + 1e-6, (
+                f"SF result relevance {r.relevance} exceeds cross_county cap"
+            )
+
+    def test_per_jurisdiction_limit_makes_all_cross_county_visible(self, civic):
+        """Comparative mode: per_jurisdiction_limit ensures every fanned-out
+        jid is visible in the flat results, even when one cross-county jid's
+        raw cosine narrowly beats another's.
+
+        Without per_jurisdiction_limit, Berkeley's marginally higher cosine
+        on 'housing' crowds SF out of the global top-K. With it, both jids
+        contribute up to N results to the flat view.
+        """
+        req = SearchRequest(
+            query="housing",
+            corpus=["decisions"],
+            also_include=[self.BERKELEY, self.SAN_FRANCISCO],
+            per_jurisdiction_limit=5,
+        )
+        resp = _run(execute_search(req, civic, JURISDICTION))
+
+        assert resp.jurisdiction_results is not None
+        # All three buckets present and capped
+        for jid in (JURISDICTION, self.BERKELEY, self.SAN_FRANCISCO):
+            assert jid in resp.jurisdiction_results, f"Missing bucket: {jid}"
+            assert len(resp.jurisdiction_results[jid]) <= 5
+
+        # Both cross-county jids appear in flat results
+        flat_jids = {r.jurisdiction for r in resp.results}
+        assert self.BERKELEY in flat_jids, (
+            "Berkeley should be visible in flat results under per_jurisdiction_limit"
+        )
+        assert self.SAN_FRANCISCO in flat_jids, (
+            "SF should be visible in flat results under per_jurisdiction_limit"
+        )
+        # All cross-county relevances still capped
+        for r in resp.results:
+            if r.jurisdiction in (self.BERKELEY, self.SAN_FRANCISCO):
+                assert r.relevance is not None and r.relevance <= 0.5 + 1e-6
+
+    def test_default_winner_take_all_can_hide_cross_county(self, civic):
+        """Without per_jurisdiction_limit, the global limit caps the flat
+        view and a higher-tier jid can crowd out lower-tier ones — but the
+        per-jid buckets retain everything for callers who need it.
+
+        This is a documentation test: it pins the current default behavior
+        so any future change to make per-jid floors implicit is intentional.
+        """
+        req = SearchRequest(
+            query="housing",
+            corpus=["decisions"],
+            also_include=[self.BERKELEY, self.SAN_FRANCISCO],
+            limit=10,  # Tight cap; SR's 1.0x results will dominate
+        )
+        resp = _run(execute_search(req, civic, JURISDICTION))
+
+        # Flat view bounded by request.limit
+        assert len(resp.results) <= 10
+
+        # All three jids still have populated buckets — no data lost
+        assert resp.jurisdiction_results is not None
+        for jid in (JURISDICTION, self.BERKELEY, self.SAN_FRANCISCO):
+            assert jid in resp.jurisdiction_results
+            # SR has 111 decisions; Berkeley 273; SF 188 — all should return ≥1
+            assert len(resp.jurisdiction_results[jid]) > 0, (
+                f"{jid} bucket empty even though storage has data"
+            )
