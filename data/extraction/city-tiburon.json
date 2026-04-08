@@ -1,0 +1,233 @@
+{
+  "source_id": "granicus-city-tiburon",
+  "source_type": "granicus",
+  "jurisdiction_id": "city-tiburon",
+  "base_url": "https://townoftiburon.granicus.com",
+  "archives": {
+    "heritage_arts_commission": "1",
+    "multiple_bodies": "2",
+    "design_review_board": "9",
+    "town_council": "8",
+    "planning_commission": "6",
+    "parks_open_space_and_trails_commission": "7",
+    "diversity_inclusion_task_force": "12",
+    "tiburon_peninsula_traffic_relief_jpa": "13"
+  },
+  "metadata": {
+    "granicus_domain": "townoftiburon",
+    "default_view_id": "1",
+    "column_map": {
+      "name": 0,
+      "date": 1,
+      "duration": 2,
+      "agenda": 3,
+      "video": 5
+    },
+    "column_map_provenance": {
+      "input": {
+        "view_id": "1",
+        "sample_html": "<table>\n<tr>\n<th class=\"Name listHeader\" scope=\"col\">Name</th>\n<th class=\"Date listHeader\" scope=\"col\">Date</th>\n<th class=\"Duration listHeader\" scope=\"col\">Duration</th>\n<th class=\"Agenda listHeader\" scope=\"col\">Agenda</th>\n<td class=\"Minutes listHeader\" scope=\"col\">\u00a0</td>\n<th class=\"Video listHeader\" scope=\"col\">Video</th>\n</tr>\n<tr class=\"listingRow\">\n<td class=\"listItem\" headers=\"Name\" id=\"Heritage-and-Arts-Commission-Meeting\" scope=\"row\">\r\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\tHeritage and Arts Commission Meeting\r\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t</td>\n<td class=\"listItem\" headers=\"Date Heritage-and-Arts-Commission-Meeting\">Dec 22, 2020</td>\n<td class=\"listItem\" headers=\"Duration Heritage-and-Arts-Commission-Meeting\">01h\u00a036m</td>\n<td class=\"listItem\">\n<a href=\"//townoftiburon.granicus.com/AgendaViewer.php?view_id=1&amp;clip_id=515\" target=\"_blank\">Agenda</a>\n</td>\n<td class=\"listItem\">\r\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\u00a0\r\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t</td>\n<td class=\"listItem\" headers=\"VideoLink Heritage-and-Arts-Commission-Meeting\">\n<a href=\"javascript:void(0);\" onclick=\"window.open('//townoftiburon.granicus.com/MediaPlayer.php?view_id=1&amp;clip_id=515','player','toolbar=no,directories=no,status=yes,scrollbars=yes,resizable=yes,menubar=no,width=800,height=600')\">Video</a>\n</td>\n</tr>\n<tr class=\"listingRow\">\n<td class=\"listItem\" headers=\"Name\" id=\"Heritage-and-Arts-Commission---Public-Arts-Selection-Panel-Joint-Special-Meeting\" scope=\"row\">\r\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\tHeritage and Arts Commission - Public Arts Selection Panel Joint Special Meeting\r\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t</td>\n<td class=\"listItem\" headers=\"Date Heritage-and-Arts-Commission---Public-Arts-Selection-Panel-Joint-Special-Meeting\">Dec  7, 2020</td>\n<td class=\"listItem\" headers=\"Duration Heritage-and-Arts-Commission---Public-Arts-Selection-Panel-Joint-Special-Meeting\">01h\u00a035m</td>\n<td class=\"listItem\">\n<a href=\"//townoftiburon.granicus.com/AgendaViewer.php?view_id=1&amp;clip_id=528\" target=\"_blank\">Agenda</a>\n</td>\n<td class=\"listItem\">\r\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\u00a0\r\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t</td>\n<td class=\"listItem\" headers=\"VideoLink Heritage-and-Arts-Commission---Public-Arts-Selection-Panel-Joint-Special-Meeting\">\n<a href=\"javascript:void(0);\" onclick=\"window.open('//townoftiburon.granicus.com/MediaPlayer.php?view_id=1&amp;clip_id=528','player','toolbar=no,directories=no,status=yes,scrollbars=yes,resizable=yes,menubar=no,width=800,height=600')\">Video</a>\n</td>\n</tr>\n<tr class=\"listingRow\">\n<td class=\"listItem\" headers=\"Name\" id=\"Heritage-and-Arts-Commission-Meeting\" scope=\"row\">\r\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\tHeritage and Arts Commission Meeting\r\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t</td>\n<td class=\"listItem\" headers=\"Date Heritage-and-Arts-Commission-Meeting\">Nov 24, 2020</td>\n<td class=\"listItem\" headers=\"Duration Heritage-and-Arts-Commission-Meeting\">01h\u00a047m</td>\n<td class=\"listItem\">\n<a href=\"//townoftiburon.granicus.com/AgendaViewer.php?view_id=1&amp;clip_id=518\" target=\"_blank\">Agenda</a>\n</td>\n<td class=\"listItem\">\r\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\u00a0\r\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t</td>\n<td class=\"listItem\" headers=\"VideoLink Heritage-and-Arts-Commission-Meeting\">\n<a href=\"javascript:void(0);\" onclick=\"window.open('//townoftiburon.granicus.com/MediaPlayer.php?view_id=1&amp;clip_id=518','player','toolbar=no,directories=no,status=yes,scrollbars=yes,resizable=yes,menubar=no,width=800,height=600')\">Video</a>\n</td>\n</tr>\n<tr class=\"listingRow\">\n<td class=\"listItem\" headers=\"Name\" id=\"Public-Art-Selection-Panel-Meeting\" scope=\"row\">\r\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\tPublic Art Selection Panel Meeting\r\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t</td>\n<td class=\"listItem\" headers=\"Date Public-Art-Selection-Panel-Meeting\">Nov  9, 2020</td>\n<td class=\"listItem\" headers=\"Duration Public-Art-Selection-Panel-Meeting\">00h\u00a000m</td>\n<td class=\"listItem\">\n<a href=\"//townoftiburon.granicus.com/AgendaViewer.php?view_id=1&amp;clip_id=526\" target=\"_blank\">Agenda</a>\n</td>\n<td class=\"listItem\">\r\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\u00a0\r\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t</td>\n<td class=\"listItem\" headers=\"VideoLink Public-Art-Selection-Panel-Meeting\">\n<a href=\"javascript:void(0);\" onclick=\"window.open('//townoftiburon.granicus.com/MediaPlayer.php?view_id=1&amp;clip_id=526','player','toolbar=no,directories=no,status=yes,scrollbars=yes,resizable=yes,menubar=no,width=800,height=600')\">Video</a>\n</td>\n</tr>\n<tr class=\"listingRow\">\n<td class=\"listItem\" headers=\"Name\" id=\"Heritage-and-Arts-Commission-Meeting\" scope=\"row\">\r\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\tHeritage and Arts Commission Meeting\r\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t</td>\n<td class=\"listItem\" headers=\"Date Heritage-and-Arts-Commission-Meeting\">Oct 27, 2020</td>\n<td class=\"listItem\" headers=\"Duration Heritage-and-Arts-Commission-Meeting\">02h\u00a015m</td>\n<td class=\"listItem\">\n<a href=\"//townoftiburon.granicus.com/AgendaViewer.php?view_id=1&amp;clip_id=483\" target=\"_blank\">Agenda</a>\n</td>\n<td class=\"listItem\">\r\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\u00a0\r\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t</td>\n<td class=\"listItem\" headers=\"VideoLink Heritage-and-Arts-Commission-Meeting\">\n<a href=\"javascript:void(0);\" onclick=\"window.open('//townoftiburon.granicus.com/MediaPlayer.php?view_id=1&amp;clip_id=483','player','toolbar=no,directories=no,status=yes,scrollbars=yes,resizable=yes,menubar=no,width=800,height=600')\">Video</a>\n</td>\n</tr>\n<tr class=\"listingRow\">\n<td class=\"listItem\" headers=\"Name\" id=\"Heritage-and-Arts-Commission---PASP-Joint-Special-Meeting\" scope=\"row\">\r\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\tHeritage and Arts Commission - PASP Joint Special Meeting\r\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t</td>\n<td class=\"listItem\" headers=\"Date Heritage-and-Arts-Commission---PASP-Joint-Special-Meeting\">Oct 12, 2020</td>\n<td class=\"listItem\" headers=\"Duration Heritage-and-Arts-Commission---PASP-Joint-Special-Meeting\">01h\u00a039m</td>\n<td class=\"listItem\">\n<a href=\"//townoftiburon.granicus.com/AgendaViewer.php?view_id=1&amp;clip_id=522\" target=\"_blank\">Agenda</a>\n</td>\n<td class=\"listItem\">\r\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\u00a0\r\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t</td>\n<td class=\"listItem\" headers=\"VideoLink Heritage-and-Arts-Commission---PASP-Joint-Special-Meeting\">\n<a href=\"javascript:void(0);\" onclick=\"window.open('//townoftiburon.granicus.com/MediaPlayer.php?view_id=1&amp;clip_id=522','player','toolbar=no,directories=no,status=yes,scrollbars=yes,resizable=yes,menubar=no,width=800,height=600')\">Video</a>\n</td>\n</tr>\n<tr class=\"listingRow\">\n<td class=\"listItem\" headers=\"Name\" id=\"PASP-Special-Meeting-\" scope=\"row\">\r\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\tPASP Special Meeting \r\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t</td>\n<td class=\"listItem\" headers=\"Date PASP-Special-Meeting-\">Sep 29, 2020</td>\n<td class=\"listItem\" headers=\"Duration PASP-Special-Meeting-\">01h\u00a002m</td>\n<td class=\"listItem\">\n<a href=\"//townoftiburon.granicus.com/AgendaViewer.php?view_id=1&amp;clip_id=462\" target=\"_blank\">Agenda</a>\n</td>\n<td class=\"listItem\">\r\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\u00a0\r\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t</td>\n<td class=\"listItem\" headers=\"VideoLink PASP-Special-Meeting-\">\n<a href=\"javascript:void(0);\" onclick=\"window.open('//townoftiburon.granicus.com/MediaPlayer.php?view_id=1&amp;clip_id=462','player','toolbar=no,directories=no,status=yes,scrollbars=yes,resizable=yes,menubar=no,width=800,height=600')\">Video</a>\n</td>\n</tr>\n</table>",
+        "num_columns": 6
+      },
+      "prompt_template": "generate_column_map/v1",
+      "raw_response": "```json\n{\"name\": 0, \"date\": 1, \"duration\": 2, \"agenda\": 3, \"video\": 5}\n```",
+      "parsed_map": {
+        "name": 0,
+        "date": 1,
+        "duration": 2,
+        "agenda": 3,
+        "video": 5
+      }
+    },
+    "body_name_provenance": {
+      "input": {
+        "1": {
+          "page_title": "Town of Tiburon - Default(Audio Only) - Heritage & Arts Only",
+          "h1": "",
+          "sample_titles": [
+            "Heritage & Arts Commission Regular Meeting",
+            "Heritage & Arts Commission Regular Meeting",
+            "Heritage & Arts Commission Regular Meeting",
+            "Heritage & Arts Commission Special Meeting",
+            "Heritage & Arts Commission Regular Meeting",
+            "Heritage & Arts Commission Regular Meeting",
+            "Heritage & Arts Commission Regular Meeting",
+            "Heritage & Arts Commission Special Meeting"
+          ],
+          "event_count": 119
+        },
+        "2": {
+          "page_title": "- Non-Sectioned View",
+          "h1": "",
+          "sample_titles": [
+            "Design Review Board meeting",
+            "Planning Commission Meeting",
+            "Heritage & Arts Commission Regular Meeting",
+            "Town Council/Parks, Open Space & Trails Commission JOINT Meeting and Town Council Regular Meeting",
+            "Parks, Open Space and Trails Commission Meeting",
+            "Emergency Preparedness Council (Disaster Advisory Council) Special Meeting",
+            "Design Review Board meeting",
+            "Town Council Regular Meeting"
+          ],
+          "event_count": 675
+        },
+        "3": {
+          "page_title": "Default Archive View - Granicus Content",
+          "h1": "",
+          "sample_titles": [
+            "Design Review Board TEST4",
+            "Design Review Board TEST4",
+            "Design Review Board TEST4",
+            "Design Review Board TEST4",
+            "Parks Open Space and Trails Commission test event - live broadcast",
+            "TEST Parks Open Space & Trails Commission Meeting",
+            "December 12, 2016 Town Council Special Meeting",
+            "test event - live broadcast"
+          ],
+          "event_count": 9
+        },
+        "5": {
+          "page_title": "Town of Tiburon - Default View(Audio Only)",
+          "h1": "",
+          "sample_titles": [
+            "Planning Commission Meeting - Cancelled",
+            "Town Council/Parks, Open Space & Trails Commission JOINT Meeting and Town Council Regular Meeting",
+            "Town Council Regular Meeting",
+            "Town Council Regular Meeting",
+            "Town Council Special Meeting",
+            "Town Council Regular Meeting",
+            "Town Council Regular Meeting",
+            "Design Review Board meeting"
+          ],
+          "event_count": 712
+        },
+        "6": {
+          "page_title": "Town of Tiburon - Default(Audio Only) - Planning Commission Only",
+          "h1": "",
+          "sample_titles": [
+            "Planning Commission Meeting - Cancelled",
+            "Planning Commission Meeting",
+            "Planning Commission Meeting",
+            "Planning Commission Special Meeting",
+            "Planning Commission Meeting",
+            "Planning Commission Meeting",
+            "Planning Commission Meeting",
+            "Planning Commission Meeting"
+          ],
+          "event_count": 95
+        },
+        "7": {
+          "page_title": "Town of Tiburon - Default(Audio Only) - POST Only",
+          "h1": "",
+          "sample_titles": [
+            "Parks, Open Space and Trails Commission Meeting",
+            "Parks, Open Space and Trails Commission Special Meeting",
+            "Parks, Open Space and Trails Commission Special Meeting",
+            "Parks, Open Space and Trails Commission Meeting - CANCELLED",
+            "Parks, Open Space and Trails Commission Special Meeting",
+            "Parks, Open Space and Trails Commission Regular Meeting",
+            "Parks, Open Space and Trails Commission Special Meeting",
+            "Parks, Open Space and Trails Commission Special Meeting"
+          ],
+          "event_count": 60
+        },
+        "8": {
+          "page_title": "Town of Tiburon - Default(Audio Only) - Town Council Only",
+          "h1": "",
+          "sample_titles": [
+            "Town Council/Parks, Open Space & Trails Commission JOINT Meeting and Town Council Regular Meeting",
+            "Town Council Regular Meeting",
+            "Town Council Regular Meeting",
+            "Town Council Special Meeting",
+            "Town Council Regular Meeting",
+            "Town Council Regular Meeting",
+            "Town Council Regular Meeting",
+            "Town Council Regular Meeting"
+          ],
+          "event_count": 217
+        },
+        "9": {
+          "page_title": "Town of Tiburon - Default(Audio Only) - Design Review Only",
+          "h1": "",
+          "sample_titles": [
+            "Design Review Board meeting",
+            "Design Review Board meeting",
+            "Design Review Board Special Meeting",
+            "Design Review Board Regular Meeting",
+            "Design Review Board Meeting",
+            "Design Review Board Meeting",
+            "Design Review Board Meeting",
+            "Design Review Board Meeting"
+          ],
+          "event_count": 172
+        },
+        "12": {
+          "page_title": "Town of Tiburon - Diversity Inclusion Task Force",
+          "h1": "",
+          "sample_titles": [
+            "Diversity Inclusion Task Force Special Meeting",
+            "Diversity Inclusion Task Force Special Meeting",
+            "Diversity Inclusion Task Force Special Meeting",
+            "Diversity Inclusion Task Force Special Meeting",
+            "Diversity Inclusion Task Force Special Meeting",
+            "Diversity Inclusion Task Force Special Meeting",
+            "Diversity Inclusion Task Force Special Meeting",
+            "Diversity Inclusion Task Force Special Meeting"
+          ],
+          "event_count": 44
+        },
+        "13": {
+          "page_title": "Town of Tiburon - Traffic Relief JPA",
+          "h1": "",
+          "sample_titles": [
+            "Tiburon Peninsula Traffic Relief JPA Special Meeting",
+            "Tiburon Peninsula Traffic Relief JPA Special Meeting",
+            "Tiburon Peninsula Traffic Relief JPA Special Meeting",
+            "Tiburon Peninsula Traffic Relief JPA Special Meeting",
+            "Tiburon Peninsula Traffic Relief JPA Special Meeting"
+          ],
+          "event_count": 5
+        }
+      },
+      "prompt_template": "generate_body_names/v1",
+      "raw_response": "```json\n{\n    \"1\": \"Heritage & Arts Commission\",\n    \"2\": \"Multiple Bodies\",\n    \"3\": \"Design Review Board\",\n    \"5\": \"Town Council\",\n    \"6\": \"Planning Commission\",\n    \"7\": \"Parks, Open Space and Trails Commission\",\n    \"8\": \"Town Council\",\n    \"9\": \"Design Review Board\",\n    \"12\": \"Diversity Inclusion Task Force\",\n    \"13\": \"Tiburon Peninsula Traffic Relief JPA\"\n}\n```",
+      "parsed_map": {
+        "1": "Heritage & Arts Commission",
+        "2": "Multiple Bodies",
+        "3": "Design Review Board",
+        "5": "Town Council",
+        "6": "Planning Commission",
+        "7": "Parks, Open Space and Trails Commission",
+        "8": "Town Council",
+        "9": "Design Review Board",
+        "12": "Diversity Inclusion Task Force",
+        "13": "Tiburon Peninsula Traffic Relief JPA"
+      }
+    }
+  },
+  "issue_source": "seeclickfix",
+  "election_sources": {
+    "civera_election_stats": {
+      "county_slug": "marin",
+      "graphql_url": "https://pastelections.marincounty.gov/api/graphql_pr",
+      "from_year": 2010,
+      "division_filter": "Tiburon"
+    },
+    "ca_sos_results": {
+      "county": "marin",
+      "county_breakdown": false,
+      "districts": {
+        "us-rep": [
+          2
+        ],
+        "state-senate": [
+          2
+        ],
+        "state-assembly": [
+          12
+        ]
+      }
+    }
+  },
+  "state": "CA"
+}
