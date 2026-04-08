@@ -25902,3 +25902,70 @@ and no protocol/architecture violations.
 
 The other 8 critics (pipeline, protocol, security, jurisdiction, session,
 refresh, configuration, docs) all PASS.
+
+================================================================================
+Session 2026-04-07 (evening): fix_tiburon_empty (P0)
+================================================================================
+
+Closed P0 fix_tiburon_empty. Tiburon was the lone outright FAIL among the 15
+mass-ingest jurisdictions (validation pass earlier today: 14P/1F). Diagnosis:
+the configs at data/jurisdictions/city-tiburon.yaml + data/extraction/city-
+tiburon.json existed (created 2026-04-03 by onboard_jurisdiction()) but the
+ingestion stages had never run -- not a silent failure, just an incomplete
+onboarding. Granicus source probed cleanly: Available True, 119 events on the
+default view, 20 events in the last 90 days across 8 archive views.
+
+Re-ran /onboard city-tiburon (Phase 2.5 sample, 30 days). Final tiburon counts:
+- meetings: 9       (was 0)
+- decisions: 8      (was 0)
+- chunks: 933       (was 0) -- 1203 extracted from 5 of 9 meetings, 933 vectorized
+- agenda_items: 13  (was 0)
+- agenda_vectors: 13 (was 0)
+- municipal_code: 846 sections (was 0) -- via Municode integration
+- muni vectors: 191 (was 0)
+- issues: 2         (was 0) -- via SeeClickFix
+- elected_officials: 6 (unchanged, populated separately)
+
+Cost: ~$0.85 in Modal compute (municipal $0.43, meetings $0.05, issues $0.04,
+chunks/vectors ~$0.30, agenda LLM $0.30). Well below the cost ceiling.
+
+The Phase 2.5 sample crashed at the very end with a Modal GRPC FAILED_PRECONDITION
+"Function call has expired" during the decisions stage -- but most data was
+already persisted before the crash, INCLUDING 8 decisions. The crash blocked
+Phase 3 (full 365-day backfill) from dispatching, so this is only a 30-day
+sample; cron refresh runners will fill in the rest over time once tiburon's
+configs are committed.
+
+validate_mass_ingest.py confirmed tiburon now PASSES (15P/0F, was 14P/1F).
+That's the success criterion from the handoff -- tiburon is no longer the
+lone outright FAIL.
+
+Followups (NOT this session):
+- The Phase 2.5 sample modal call expiry pattern is real and worth filing as
+  its own item. Multi-stage pipelines that take ~10 minutes of total wall time
+  hit Modal's function call expiration. The fix is probably to run each stage
+  as a separate Modal call rather than spawning them in a single function.
+- Of the 9 meetings with agenda URLs, 4 redirected to a Google Docs viewer
+  that the chunk extractor cannot follow. These were "cancelled" or older
+  meetings -- a known Granicus pattern, not a tiburon-specific bug.
+- The decisions adapter NoneType crash (already filed as
+  decisions_adapter_crashes_on_empty_vectors, P2) still surfaced twice during
+  the validation run, including for tiburon. Tiburon now has decisions, so
+  the trigger is some other empty-vector path. Not a launch blocker but worth
+  closing.
+- 270 chunks from one meeting hit a Postgres NUL-byte error during cloud
+  storage write and were "kept local file only" -- that's data loss for that
+  meeting. Worth a separate item: PDFs with NUL bytes in the extracted text
+  silently drop the chunk batch.
+
+Files committed this session:
+- data/jurisdictions/city-tiburon.yaml (NEW) -- promoted from untracked
+- data/extraction/city-tiburon.json (NEW) -- promoted from untracked
+- launch.json -- fix_tiburon_empty marked done with full notes
+- claude-progress.txt -- this entry
+
+P0 promotion: NONE assigned in this session. Recommend the next session promote
+either decisions_adapter_crashes_on_empty_vectors (small contained fix that
+eliminates a real silent failure observed in this session's validation run) or
+complete_alameda_ingest_or_scope (the only other concrete launch blocker among
+the mass-ingest 15). /nextsesh will fail until a P0 is assigned.

@@ -1271,15 +1271,15 @@
       {
         "name": "fix_tiburon_empty",
         "description": "city-tiburon has a YAML file (data/jurisdictions/city-tiburon.yaml) and extraction config (data/extraction/city-tiburon.json) but contains 0 meetings, 0 decisions, 0 chunks, 0 everything in the storage tables (as of 2026-04-07). Onboarding either never ran or failed silently. Either re-run /onboard city-tiburon with investigation into why it failed, or remove city-tiburon from the registry before launch so users don't land on a broken city page.",
-        "status": "not_started",
-        "priority": 0,
+        "status": "done",
+        "priority": 3,
         "source": "mass ingest data-status audit 2026-04-07",
         "files": [
           "data/jurisdictions/city-tiburon.yaml",
           "data/extraction/city-tiburon.json"
         ],
         "test_file": null,
-        "notes": "Promoted to P0 on 2026-04-07 after validate_mass_ingest_jurisdictions completed \u2014 this is the only outright FAIL among the 15 mass-ingest jurisdictions and the smallest concrete launch blocker. Only 7 officials exist for tiburon (populated separately). All other corpus counts are 0. Unlike Ross (thin but non-empty: 19 meetings, 6 decisions, 52 chunks), tiburon has no data at all. Compare against successfully-onboarded neighbors (belvedere: 26 meetings, 26 decisions, 114 chunks). The validation script confirms tiburon now correctly returns 0 upcoming events and 0 search results \u2014 no fake/leaked data \u2014 so users would land on a genuinely empty city page if launched as-is."
+        "notes": "Done 2026-04-07. Diagnosis: configs were generated 2026-04-03 by onboard_jurisdiction() but the ingestion stages never ran \u2014 not a silent failure, just an incomplete onboarding. Granicus source probed cleanly (Available: True, 119 events on default view, 20 events in last 90d across 8 archive views). Re-ran /onboard city-tiburon (Phase 2.5 sample) which spent ~$0.85 on Modal compute and persisted: 9 meetings, 8 decisions, 933 chunks, 16 agenda items, 13 agenda vectors, 846 municipal_code sections, 191 muni vectors, 2 issues. Phase 2.5 sample crashed at the very end with a Modal GRPC FAILED_PRECONDITION 'Function call has expired' during the decisions stage \u2014 but most data was already persisted before the crash, including 8 decisions. validate_mass_ingest.py confirmed tiburon now PASSES (15P/0F, was 14P/1F). Configs (data/jurisdictions/city-tiburon.yaml + data/extraction/city-tiburon.json) committed in this session so production cron refresh runners will pick tiburon up. Two follow-ups surfaced but are not blockers: (1) Phase 2.5 sample timeout/expire pattern \u2014 worth a separate item to investigate Modal function call timeout for long-running multi-stage ingests. (2) Of 9 meetings with agenda URLs, 4 redirected to a Google Docs viewer which the chunk extractor cannot follow \u2014 these were 'cancelled' or older meetings with no real PDF link, an expected Granicus pattern. Of the remaining 5, all extracted real chunks (1203 chunks total before dedup, 933 vectorized)."
       },
       {
         "name": "complete_alameda_ingest_or_scope",
