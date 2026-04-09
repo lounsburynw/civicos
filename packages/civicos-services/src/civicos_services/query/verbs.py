@@ -621,6 +621,93 @@ async def _execute_single_jurisdiction_search(
 
 # === civic.upcoming ===
 
+
+def _get_upcoming_meetings(storage, jurisdiction_id: str, days: int = 30):
+    """Query upcoming meetings directly from storage for a specific jurisdiction.
+
+    Returns a list of simple objects with .id, .title, .date, .body,
+    .agenda_items, .location — mirroring CivicOS.whats_next() output but
+    using the explicit jurisdiction_id instead of civic.jurisdiction.
+    """
+    from dataclasses import dataclass, field as dc_field
+    from datetime import datetime, timedelta, timezone
+
+    @dataclass
+    class _Meeting:
+        id: str
+        title: str
+        date: datetime
+        body: str
+        agenda_items: list = dc_field(default_factory=list)
+        location: str = None
+
+    now = datetime.now(timezone.utc)
+    cutoff = now + timedelta(days=days)
+    start_of_today = now.replace(hour=0, minute=0, second=0, microsecond=0)
+
+    try:
+        meetings_data = storage.get_meetings(
+            jurisdiction_id=jurisdiction_id,
+            since=start_of_today,
+            until=cutoff,
+        )
+    except Exception:
+        meetings_data = []
+
+    result = []
+    for m in meetings_data:
+        meeting_date = m.get("meeting_datetime") or m.get("date")
+        if isinstance(meeting_date, str):
+            try:
+                meeting_date = datetime.fromisoformat(meeting_date.replace('Z', '+00:00'))
+            except ValueError:
+                meeting_date = datetime.now(timezone.utc)
+        elif meeting_date is None:
+            meeting_date = datetime.now(timezone.utc)
+
+        if meeting_date.tzinfo is None:
+            meeting_date = meeting_date.replace(tzinfo=timezone.utc)
+
+        # Skip meetings outside the window
+        if meeting_date.hour == 0 and meeting_date.minute == 0:
+            if not (start_of_today.date() <= meeting_date.date() <= cutoff.date()):
+                continue
+        else:
+            if not (start_of_today <= meeting_date <= cutoff):
+                continue
+
+        meeting_id = m.get("id", "")
+        agenda_items = []
+        if meeting_id:
+            try:
+                agenda_items = storage.get_agenda_items(meeting_id=meeting_id)
+            except Exception:
+                pass
+        if not agenda_items:
+            agenda_items = m.get("agenda_items", [])
+            if not agenda_items:
+                full_data = m.get("full_data", {})
+                if isinstance(full_data, str):
+                    import json
+                    try:
+                        full_data = json.loads(full_data)
+                    except (json.JSONDecodeError, TypeError):
+                        full_data = {}
+                    agenda_items = full_data.get("agenda_items", [])
+
+        result.append(_Meeting(
+            id=meeting_id,
+            title=m.get("title", ""),
+            date=meeting_date,
+            body=m.get("meeting_type", ""),
+            agenda_items=agenda_items,
+            location=m.get("location"),
+        ))
+
+    result.sort(key=lambda x: x.date)
+    return result
+
+
 async def execute_upcoming(
     request: UpcomingRequest,
     civic,
@@ -634,11 +721,15 @@ async def execute_upcoming(
     corpus_times: Dict[str, int] = {}
     corpus_status: Dict[str, str] = {}
 
+    # Query meetings once for the correct jurisdiction (not civic.jurisdiction).
+    # This calls storage directly per the adapter-refactor direction, avoiding
+    # civic.whats_next() which is hardwired to civic.jurisdiction.
+    meetings = _get_upcoming_meetings(civic.storage, jid, request.days)
+
     for event_type in request.types:
         c_start = time.monotonic()
         try:
             if event_type == "meetings":
-                meetings = civic.whats_next(days=request.days)
                 for m in meetings:
                     actionable = bool(m.agenda_items)
                     if request.actionable_only and not actionable:
@@ -660,7 +751,6 @@ async def execute_upcoming(
 
             elif event_type == "hearings":
                 # Hearings are a subset of meetings with public hearing items
-                meetings = civic.whats_next(days=request.days)
                 for m in meetings:
                     hearing_items = [
                         a for a in m.agenda_items
@@ -679,7 +769,6 @@ async def execute_upcoming(
 
             elif event_type == "comment_periods":
                 # Local comment periods from upcoming meetings
-                meetings = civic.whats_next(days=request.days)
                 for m in meetings:
                     comment_items = [
                         a for a in m.agenda_items
