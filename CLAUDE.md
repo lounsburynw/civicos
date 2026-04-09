@@ -246,7 +246,7 @@ Historical docs from completed phases. Recoverable if needed.
 | `/launch` | Start dev servers (API, WebSocket) | No |
 | `/load_context` | Load context for work area | Yes (Explore) |
 | `/analyze-item [name]` | Deep analysis of item | Yes (3 parallel) |
-| `/test [mode]` | Run tests (smoke/targeted/full/profile) | No |
+| `/test [mode]` | Run tests (smoke/targeted/full/profile/mutation) | No |
 | `/critic [type]` | Run codebase critics on staged changes | No |
 | `/review [scope]` | Run pr-review-toolkit agents (code quality) | Yes (agents) |
 | `/visual-review [mode]` | Screenshot extension UX + review (review/diff/both) | No |
@@ -401,13 +401,15 @@ Use tiered testing: fast tests locally, full suite in CI.
 |------|-------|------|------|
 | **Smoke** | Local | ~75s | Session start (via `init.sh`) |
 | **Targeted** | Local | 1-3m | During development |
+| **Mutation** | Local/CI | 1-10m | After writing tests |
 | **Full** | CI (GitHub Actions) | ~10-15m | On push/PR (automatic) |
 
 ### Workflow
 
 1. **Session start**: `init.sh` runs smoke tests automatically
 2. **During work**: Run targeted tests for your work area
-3. **On push/PR**: GitHub Actions runs full suite (parallelized across 4 runners)
+3. **After writing tests**: Run `/test mutation <file>` to validate test quality
+4. **On push/PR**: GitHub Actions runs full suite + mutation testing (parallelized across 4 runners)
 
 ### Quick Reference
 
@@ -436,6 +438,7 @@ Full test suite runs automatically on GitHub Actions:
 - **Use smoke tests for quick validation** - 31 tests, ~75s
 - **Use targeted tests during dev** - each launch.json item has a `test_file` field
 - **Check CI status before merging** - full coverage runs there
+- **Validate tests with mutation testing** - after writing tests, run `/test mutation <file>` to check mutation score. Targets: security 90%+, query 80%+, storage 75%+, other 60%+. See `docs/internal/mutation-testing-workflow.md`
 - **Integration tests required for wiring/orchestration code** - when implementing code that connects multiple real components (cron orchestrators, API endpoints, provider dispatch), write integration tests that validate the full chain against real Postgres with mock external APIs. Unit tests with mocks alone are insufficient for orchestration code — they prove the right methods are called but not that the chain actually works. See `test_integration_cron_wiring.py` for the pattern.
 
 ## Storage Backends
