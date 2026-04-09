@@ -1246,7 +1246,7 @@
       {
         "name": "upcoming_verb_ignores_jurisdiction",
         "description": "execute_upcoming() at packages/civicos-services/src/civicos_services/query/verbs.py line ~640 calls civic.whats_next(days=...) which uses civic.jurisdiction (the CivicOS instance attribute set at construction) rather than the explicit jurisdiction parameter passed into the verb. Same pattern repeats for the hearings and comment_periods event types in the same function. Effect: cross-jurisdiction fan-out routes upcoming queries to the wrong jurisdiction whenever a single CivicOS instance is reused across multiple jurisdiction calls. Discovered during mass-ingest validation pass on 2026-04-07: a shared-instance validation script returned san-rafael's upcoming events for tiburon, county-marin, county-alameda, and city-belvedere queries (all reported the same 'Bicycle & Pedestrian Advisory Committee' top result).",
-        "status": "not_started",
+        "status": "done",
         "priority": 0,
         "source": "validate_mass_ingest_jurisdictions 2026-04-07",
         "files": [
@@ -1286,7 +1286,7 @@
         "name": "complete_alameda_ingest_or_scope",
         "description": "county-alameda has 264 meetings and ~709 decisions (post-dedup-cleanup) but zero transcripts, chunks, issues, agenda_items, municipal_code, and elected_officials. Users can search for an Alameda decision but can't drill down to the meeting transcript, agenda packet, or officials who voted. It's metadata floating without context. Either complete the full ingest (transcripts, chunks, issues, officials) to match Marin cities, or explicitly scope down by disabling drill-down UI for alameda and labeling it 'decisions preview' in the extension.",
         "status": "not_started",
-        "priority": 1,
+        "priority": 0,
         "source": "mass ingest data-status audit 2026-04-07",
         "files": [
           "data/extraction/county-alameda.json",

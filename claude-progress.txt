@@ -25996,3 +25996,33 @@ Verification:
 
 Next P0: upcoming_verb_ignores_jurisdiction (cross-jurisdiction routing bug in
 execute_upcoming — returns wrong jurisdiction's events when CivicOS instance is reused)
+
+## Session: Fix upcoming_verb_ignores_jurisdiction (P0) — 2026-04-09
+
+Problem: execute_upcoming() called civic.whats_next() which uses civic.jurisdiction
+(the CivicOS instance attribute) instead of the request's jid. Cross-jurisdiction
+fan-out returned the wrong jurisdiction's events — all jurisdictions got San Rafael's
+meetings.
+
+Fix: Replaced three civic.whats_next() calls with a single _get_upcoming_meetings()
+helper that calls civic.storage.get_meetings(jurisdiction_id=jid, ...) directly.
+This follows the adapter-refactor direction (v2 adapters bypass CivicOS methods).
+Also consolidates the triple query into one, filtering for meetings/hearings/
+comment_periods from the same result set.
+
+Changes:
+- packages/civicos-services/src/civicos_services/query/verbs.py: Added
+  _get_upcoming_meetings() helper that queries storage directly with the explicit
+  jurisdiction_id. Replaced three civic.whats_next() calls in execute_upcoming()
+  with a single shared meetings list from this helper.
+- packages/civicos/tests/test_upcoming_jurisdiction.py: New regression test with
+  3 cases: explicit jurisdiction override, request.jurisdiction takes precedence,
+  fallback to jurisdiction param when request.jurisdiction is None.
+
+Verification:
+- Regression tests: 3/3 passing
+- Previous P0 regression tests: 3/3 passing
+- Smoke tests: 20/20 passing
+
+Next P0: complete_alameda_ingest_or_scope (county-alameda has decisions but no
+transcripts, chunks, issues, or officials — metadata floating without context)
