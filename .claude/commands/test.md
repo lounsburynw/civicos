@@ -8,6 +8,7 @@ Run the appropriate test tier based on the argument.
 - `/test targeted` - Tests for current work item (1-5m)
 - `/test full` - Full test suite before commit (~14m)
 - `/test profile` - Full suite with timing info
+- `/test mutation [file]` - Mutation testing on a specific source file
 
 ## Instructions
 
@@ -102,6 +103,31 @@ source civicos-env/bin/activate && pytest packages/civicos/tests/ -q --durations
 ```
 
 Report the 20 slowest tests to help identify optimization opportunities.
+
+### mutation [file]
+Run mutation testing using mutmut. This validates that tests actually catch defects, not just execute code.
+
+**If a specific source file is given** (e.g., `/test mutation src/civicos/calendar.py`):
+1. Temporarily update `packages/civicos/pyproject.toml` to set `paths_to_mutate` to the given file
+2. Identify which test files import from this module using grep
+3. Temporarily update `tests_dir` to point at those test files
+4. Run mutmut from `packages/civicos/`:
+```bash
+cd packages/civicos && rm -rf mutants .mutmut-cache && civicos-env/bin/mutmut run
+```
+5. Show results with `civicos-env/bin/mutmut results`
+6. Restore pyproject.toml to its original state
+
+**If no file is given** (e.g., `/test mutation`):
+1. Check `git diff --name-only HEAD` for changed `.py` files in `packages/civicos/src/`
+2. If found, run mutation testing on each changed file (same steps as above)
+3. If no changed files, report "No changed source files to mutate"
+
+**Important notes:**
+- mutmut 3.x reads config from `[tool.mutmut]` in `pyproject.toml` — there is no CLI flag for paths
+- The `also_copy = ["src/"]` config is required so mutmut's temp directory has the full package
+- Always restore pyproject.toml after the run (even on failure)
+- Report: mutation score (killed/total), list of surviving mutants, and what they mean
 
 ## After Running
 
