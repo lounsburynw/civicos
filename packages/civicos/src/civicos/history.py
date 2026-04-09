@@ -1203,6 +1203,11 @@ def search_decisions(
 
     # Standard search: Basic keyword matching implementation
 
+    # state_manager is None when called from v2 adapters (they pass vector/storage backends instead).
+    # If both vector paths returned empty above, there's nothing to fall back to.
+    if state_manager is None:
+        return []
+
     # Get historical state
     city_state = state_manager.get_city_state(jurisdiction)
     if not city_state:

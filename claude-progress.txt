@@ -25969,3 +25969,30 @@ either decisions_adapter_crashes_on_empty_vectors (small contained fix that
 eliminates a real silent failure observed in this session's validation run) or
 complete_alameda_ingest_or_scope (the only other concrete launch blocker among
 the mass-ingest 15). /nextsesh will fail until a P0 is assigned.
+
+## Session — 2026-04-09: Fix decisions_adapter_crashes_on_empty_vectors (P0)
+
+**Item:** decisions_adapter_crashes_on_empty_vectors
+**Status:** DONE
+
+Fixed the NoneType crash in search_decisions() when called from DecisionsAdapter
+with state_manager=None and both vector search paths return empty results.
+
+Changes:
+- packages/civicos/src/civicos/history.py: Added defensive guard — if state_manager
+  is None and vector paths returned empty, return [] instead of falling through to
+  state_manager.get_city_state() which crashes with AttributeError.
+- packages/civicos-services/src/civicos_services/query/verbs.py: Added missing
+  logger.error() call in the cross-jurisdiction run_corpus exception handler (line ~585)
+  which was silently swallowing ALL exceptions with no logging.
+- packages/civicos/tests/test_search_decisions_none_state_manager.py: New regression
+  test with 3 cases covering state_manager=None with empty explicit vectors, empty
+  auto-detect, and unknown jurisdictions.
+
+Verification:
+- validate_mass_ingest.py: zero "Corpus decisions error" lines across all 15 jurisdictions
+- Smoke tests: 20/20 passing
+- Regression tests: 3/3 passing
+
+Next P0: upcoming_verb_ignores_jurisdiction (cross-jurisdiction routing bug in
+execute_upcoming — returns wrong jurisdiction's events when CivicOS instance is reused)

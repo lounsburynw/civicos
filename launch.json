@@ -1247,7 +1247,7 @@
         "name": "upcoming_verb_ignores_jurisdiction",
         "description": "execute_upcoming() at packages/civicos-services/src/civicos_services/query/verbs.py line ~640 calls civic.whats_next(days=...) which uses civic.jurisdiction (the CivicOS instance attribute set at construction) rather than the explicit jurisdiction parameter passed into the verb. Same pattern repeats for the hearings and comment_periods event types in the same function. Effect: cross-jurisdiction fan-out routes upcoming queries to the wrong jurisdiction whenever a single CivicOS instance is reused across multiple jurisdiction calls. Discovered during mass-ingest validation pass on 2026-04-07: a shared-instance validation script returned san-rafael's upcoming events for tiburon, county-marin, county-alameda, and city-belvedere queries (all reported the same 'Bicycle & Pedestrian Advisory Committee' top result).",
         "status": "not_started",
-        "priority": 2,
+        "priority": 0,
         "source": "validate_mass_ingest_jurisdictions 2026-04-07",
         "files": [
           "packages/civicos-services/src/civicos_services/query/verbs.py"
@@ -1258,15 +1258,16 @@
       {
         "name": "decisions_adapter_crashes_on_empty_vectors",
         "description": "DecisionsAdapter.search() at packages/civicos-services/src/civicos_services/query/adapters.py:57 calls civicos.history.search_decisions(state_manager=None, ...). When the explicit vector_backend returns no results AND _jurisdiction_has_embeddings(jurisdiction) is True for some other corpus but the per-corpus auto-detect ALSO returns empty for decisions, search_decisions falls through to line 1207 (`city_state = state_manager.get_city_state(jurisdiction)`) and crashes with `AttributeError: 'NoneType' object has no attribute 'get_city_state'`. The verbs layer catches it per-corpus and emits a `Corpus decisions error` log line at WARN, but does NOT propagate the error to the response \u2014 the user just sees fewer results with no indication anything failed. Reproduced on city-tiburon (no vectors at all) and county-marin (105 decisions but 0 decision vectors) during the mass-ingest validation pass. Re-confirmed firing twice on 2026-04-07 evening validation run AFTER tiburon ingest \u2014 the bug is still active even with tiburon now having 8 decisions, so the trigger is some empty-vector path other than tiburon.",
-        "status": "not_started",
+        "status": "done",
         "priority": 0,
         "source": "validate_mass_ingest_jurisdictions 2026-04-07",
         "files": [
           "packages/civicos-services/src/civicos_services/query/adapters.py",
-          "packages/civicos/src/civicos/history.py"
+          "packages/civicos/src/civicos/history.py",
+          "packages/civicos-services/src/civicos_services/query/verbs.py"
         ],
-        "test_file": null,
-        "notes": "Two reasonable fixes: (1) make search_decisions defensive \u2014 if state_manager is None and no vector results were found, return [] immediately instead of falling through to a None deref; (2) make DecisionsAdapter pass a real (non-None) state_manager OR explicitly opt out of the legacy keyword fallback path. Option (1) is the smaller fix and matches the existing 'graceful degradation' pattern elsewhere in history.py. Add a unit test that calls search_decisions(state_manager=None, jurisdiction='city-tiburon', query='housing', vector_backend=<empty backend>) and asserts it returns [] without raising. Also: the verbs.py per-corpus exception swallowing should at minimum log at ERROR (currently INFO/WARN) when the failure is an AttributeError vs an expected timeout/connection error \u2014 silent NoneType derefs in production are hard to triage."
+        "test_file": "packages/civicos/tests/test_search_decisions_none_state_manager.py",
+        "notes": "Fixed 2026-04-09. Added defensive guard in search_decisions(): if state_manager is None and both vector paths returned empty, return [] instead of crashing. Also added missing error logging in the cross-jurisdiction run_corpus exception handler in verbs.py (was silently swallowing all exceptions). Regression test covers state_manager=None with empty explicit vectors, empty auto-detect, and unknown jurisdictions. validate_mass_ingest.py now produces zero Corpus decisions errors across all 15 jurisdictions."
       },
       {
         "name": "fix_tiburon_empty",
