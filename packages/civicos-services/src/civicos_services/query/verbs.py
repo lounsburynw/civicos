@@ -584,6 +584,7 @@ async def _execute_single_jurisdiction_search(
             return cq.corpus, [], "timeout", elapsed
         except Exception as e:
             elapsed = int((time.monotonic() - c_start) * 1000)
+            logger.error(f"Corpus {cq.corpus} error for {jid}: {e}")
             return cq.corpus, [], "error", elapsed
 
     tasks = [run_corpus(cq) for cq in plan.corpus_queries]
