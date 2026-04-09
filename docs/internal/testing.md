@@ -47,8 +47,14 @@ mutmut show <id>  # Show specific mutant diff
 - Full workflow design: `docs/internal/mutation-testing-workflow.md`
 
 **Baseline (April 2026):**
-- `deadlines.py`: 65% (70/107 killed)
-- `calendar.py`: 86% (91/106 killed)
+
+| Module | Score | Killed/Total | Notes |
+|--------|-------|-------------|-------|
+| `calendar.py` | **96%** | 102/106 | 4 survivors are equivalent/trampoline limits |
+| `elections/cycles.py` | **66%** | 262/394 | Large module, many edge case code paths |
+| `elections/deadlines.py` | **65%** | 70/107 | Similar to cycles — election date logic |
+| `meetings/reconciliation.py` | new | — | 29 tests written, baseline pending |
+| `meetings/minutes.py` | new | — | 20 tests written, baseline pending |
 
 **Targets:** Security paths 90%+, query layer 80%+, storage 75%+, everything else 60%+.
 
