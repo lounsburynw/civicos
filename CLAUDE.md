@@ -344,6 +344,7 @@ LLM-based code review prompts in `.critics/` catch architectural issues before c
 | `refresh.critic.md` | Refresh/upsert integrity (accumulation, truncated fetch, whitespace drift) |
 | `configuration.critic.md` | Config-driven behavior (hardcoded providers, bypass of YAML policies, missing ingestion gates) |
 | `docs.critic.md` | Documentation accuracy (stale paths, orphaned docs, bloat) |
+| `mutation.critic.md` | Test quality (mock theater, existence-only assertions, weak tests) |
 
 **Usage:**
 ```bash
