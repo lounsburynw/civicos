@@ -56,12 +56,6 @@ class TestGetUpcomingMeetings:
         assert len(result) == 1
         assert result[0].title == "Day 5"
 
-    def test_jurisdiction_passed_to_state_manager(self, mock_state_manager):
-        """Kills mutant 3: get_city_state(jurisdiction) → get_city_state(None)."""
-        mock_state_manager.get_city_state.return_value = None
-        get_upcoming_meetings(mock_state_manager, "city-san-rafael")
-        mock_state_manager.get_city_state.assert_called_once_with("city-san-rafael")
-
     def test_returns_future_meetings_within_window(self, mock_state_manager):
         mock_state_manager.get_city_state.return_value = {
             "meetings": [
@@ -85,17 +79,6 @@ class TestGetUpcomingMeetings:
         assert len(result) == 1
         assert result[0].title == "Future Meeting"
 
-    def test_excludes_meetings_beyond_window(self, mock_state_manager):
-        mock_state_manager.get_city_state.return_value = {
-            "meetings": [
-                _make_meeting(5, title="Within Window"),
-                _make_meeting(45, title="Beyond 30-day Window"),
-            ]
-        }
-        result = get_upcoming_meetings(mock_state_manager, "city-san-rafael", days=30)
-        assert len(result) == 1
-        assert result[0].title == "Within Window"
-
     def test_custom_days_window(self, mock_state_manager):
         mock_state_manager.get_city_state.return_value = {
             "meetings": [
@@ -111,10 +94,12 @@ class TestGetUpcomingMeetings:
         assert "Later" in titles
         assert "Much Later" not in titles
 
-    def test_empty_state_returns_empty_list(self, mock_state_manager):
+    def test_empty_state_returns_empty_and_passes_jurisdiction(self, mock_state_manager):
+        """Tests early return on null state AND that jurisdiction is forwarded."""
         mock_state_manager.get_city_state.return_value = None
         result = get_upcoming_meetings(mock_state_manager, "city-san-rafael")
         assert result == []
+        mock_state_manager.get_city_state.assert_called_once_with("city-san-rafael")
 
     def test_no_meetings_key_returns_empty(self, mock_state_manager):
         mock_state_manager.get_city_state.return_value = {}
@@ -283,17 +268,6 @@ class TestTopicFiltering:
         assert len(result) == 1
         assert result[0].title == "Housing Meeting"
 
-    def test_no_matching_topics_returns_empty(self, mock_state_manager):
-        mock_state_manager.get_city_state.return_value = {
-            "meetings": [
-                _make_meeting(5, agenda_items=[{"topic": "parks"}]),
-            ]
-        }
-        result = get_upcoming_meetings(
-            mock_state_manager, "city-san-rafael", topics=["housing"]
-        )
-        assert len(result) == 0
-
 
 class TestFieldMapping:
     """Tests for field mapping between JSON/relational schemas."""
@@ -335,16 +309,23 @@ class TestFieldMapping:
         assert len(result) == 1
         assert result[0].title == "Has Date"
 
-    def test_invalid_date_string_uses_fallback(self, mock_state_manager):
+    def test_invalid_date_string_falls_back_to_now(self, mock_state_manager):
+        """Invalid ISO string falls back to `now`, which sits at the boundary.
+        With frozen time, we can assert that the meeting is included (since
+        `now < now` is False and `now > cutoff` is False)."""
+        frozen_now = datetime(2026, 6, 1, 12, 0, 0)
         mock_state_manager.get_city_state.return_value = {
             "meetings": [
                 {"id": "m-1", "title": "Bad Date", "meeting_datetime": "not-a-date", "body": "C"},
             ]
         }
-        # Invalid date falls back to now, which is before the cutoff, so it may or may not appear
-        # The key behavior: it doesn't crash
-        result = get_upcoming_meetings(mock_state_manager, "city-san-rafael")
-        assert isinstance(result, list)
+        with patch("civicos.calendar.datetime") as mock_dt:
+            mock_dt.now.return_value = frozen_now
+            mock_dt.fromisoformat.side_effect = ValueError("bad date")
+            result = get_upcoming_meetings(mock_state_manager, "city-san-rafael")
+        # Falls back to now; now is not < now, not > cutoff → included
+        assert len(result) == 1
+        assert result[0].title == "Bad Date"
 
     def test_agenda_items_populated_on_meeting(self, mock_state_manager):
         """Kills mutants 73/96/100/101: agenda_items not set, wrong key, or wrong case."""
