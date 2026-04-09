@@ -181,11 +181,147 @@ jobs:
           fi
           pytest packages/civicos/tests/test_integration_pgvector.py -v --override-ini="addopts="
 
+  # Mutation testing - validates test quality on changed files (PRs only)
+  mutation:
+    name: Mutation Testing
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: unit
+    if: github.event_name == 'pull_request'
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Need full history for diff against main
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          pip install psycopg2-binary
+          pip install -e packages/civicos-config
+          pip install -e packages/civicos[all]
+          pip install -r requirements.txt
+          pip install mutmut
+
+      - name: Identify changed source files
+        id: changed
+        run: |
+          FILES=$(git diff --name-only origin/main...HEAD \
+            | grep '^packages/civicos/src/civicos/' \
+            | grep '\.py$' \
+            | grep -v '__init__.py' \
+            | grep -v '__pycache__' \
+            || true)
+          if [ -z "$FILES" ]; then
+            echo "No source files changed in packages/civicos/"
+            echo "skip=true" >> $GITHUB_OUTPUT
+          else
+            echo "Changed files:"
+            echo "$FILES"
+            echo "skip=false" >> $GITHUB_OUTPUT
+            # Write files to temp for iteration
+            echo "$FILES" > /tmp/changed_files.txt
+          fi
+
+      - name: Run mutation tests on changed files
+        if: steps.changed.outputs.skip != 'true'
+        run: |
+          cd packages/civicos
+          TOTAL_KILLED=0
+          TOTAL_SURVIVED=0
+
+          while IFS= read -r file; do
+            # Convert to relative path from packages/civicos/
+            rel=$(echo "$file" | sed 's|packages/civicos/||')
+            echo "::group::Mutating $rel"
+
+            # Find test files that import from this module
+            MODULE=$(echo "$rel" | sed 's|src/||; s|/|.|g; s|\.py$||')
+            echo "Module: $MODULE"
+
+            # Update pyproject.toml for this specific file
+            python3 -c "
+          import sys
+          if sys.version_info >= (3, 11):
+              import tomllib
+          else:
+              import tomli as tomllib
+          import json
+
+          with open('pyproject.toml', 'r') as f:
+              content = f.read()
+
+          # Replace paths_to_mutate line
+          import re
+          content = re.sub(
+              r'paths_to_mutate = \[.*?\]',
+              f'paths_to_mutate = [\"$rel\"]',
+              content
+          )
+          with open('pyproject.toml', 'w') as f:
+              f.write(content)
+          "
+
+            # Clean previous run
+            rm -rf mutants .mutmut-cache
+
+            # Run mutmut (allow failure — we report, not gate)
+            mutmut run || true
+
+            # Parse results
+            RESULTS=$(mutmut results 2>/dev/null || echo "")
+            KILLED=$(echo "$RESULTS" | grep -c "killed" || echo 0)
+            SURVIVED=$(echo "$RESULTS" | grep -c "survived" || echo 0)
+            TOTAL=$((KILLED + SURVIVED))
+
+            if [ "$TOTAL" -gt 0 ]; then
+              SCORE=$((KILLED * 100 / TOTAL))
+              echo "  Score: $SCORE% ($KILLED killed, $SURVIVED survived out of $TOTAL)"
+              TOTAL_KILLED=$((TOTAL_KILLED + KILLED))
+              TOTAL_SURVIVED=$((TOTAL_SURVIVED + SURVIVED))
+            else
+              echo "  No mutants generated for $rel"
+            fi
+
+            # Show surviving mutants
+            if [ "$SURVIVED" -gt 0 ]; then
+              echo "  Surviving mutants:"
+              echo "$RESULTS" | grep "survived" | head -10
+            fi
+
+            echo "::endgroup::"
+          done < /tmp/changed_files.txt
+
+          # Overall summary
+          GRAND_TOTAL=$((TOTAL_KILLED + TOTAL_SURVIVED))
+          if [ "$GRAND_TOTAL" -gt 0 ]; then
+            OVERALL_SCORE=$((TOTAL_KILLED * 100 / GRAND_TOTAL))
+            echo ""
+            echo "=== Mutation Testing Summary ==="
+            echo "Overall score: $OVERALL_SCORE% ($TOTAL_KILLED killed, $TOTAL_SURVIVED survived)"
+            if [ "$OVERALL_SCORE" -lt 60 ]; then
+              echo "::warning::Mutation score $OVERALL_SCORE% is below 60% threshold"
+            fi
+          fi
+
+      - name: Restore pyproject.toml
+        if: always() && steps.changed.outputs.skip != 'true'
+        run: |
+          cd packages/civicos
+          git checkout pyproject.toml
+
   # Summary job - reports overall status
   summary:
     name: Test Summary
     runs-on: ubuntu-latest
-    needs: [smoke, unit, integration, pgvector]
+    needs: [smoke, unit, integration, pgvector, mutation]
     if: always()
 
     steps:
@@ -207,5 +343,9 @@ jobs:
           if [ "${{ needs.pgvector.result }}" == "failure" ]; then
             echo "PgVector integration tests failed"
             exit 1
+          fi
+          # mutation is reporting-only (not blocking) for now
+          if [ "${{ needs.mutation.result }}" == "failure" ]; then
+            echo "::warning::Mutation testing had issues (non-blocking)"
           fi
           echo "All tests passed!"

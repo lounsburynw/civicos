@@ -1,5 +1,9 @@
 # Byte-compiled / optimized / DLL files
 __pycache__/
+
+# Mutation testing (mutmut)
+.mutmut-cache/
+mutants/
 *.py[cod]
 *$py.class
 
