@@ -20,6 +20,7 @@ Critics are specialized prompts that review code changes against Civic's pattern
 | `refresh.critic.md` | Refresh/upsert integrity | Accumulation bugs, self-referential checks, truncated fetch, whitespace drift |
 | `configuration.critic.md` | Config-driven behavior | Hardcoded providers, bypass of YAML policies, missing ingestion gates |
 | `docs.critic.md` | Documentation accuracy | Stale paths, orphaned docs, dead links, bloat |
+| `mutation.critic.md` | Test quality/strength | Mock theater, existence-only assertions, no-assertion tests |
 
 ## Related Tools
 
