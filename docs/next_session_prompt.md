@@ -1,50 +1,46 @@
-# Recommended: Fix Decisions Adapter NoneType Crash (`decisions_adapter_crashes_on_empty_vectors`)
+# Recommended: Fix upcoming verb cross-jurisdiction routing (`upcoming_verb_ignores_jurisdiction`)
 
 **Priority:** P0
-**Area:** federation_testbed > decisions_adapter_crashes_on_empty_vectors
-**Date:** 2026-04-07
+**Area:** federation_testbed > upcoming_verb_ignores_jurisdiction
+**Date:** 2026-04-09
 
 > Recommended context from prior session. Review and decide whether to accept, modify, or `/start` for fresh prioritization.
 
 ## Context
 
-`fix_tiburon_empty` (the previous P0) is **done** as of 2026-04-07 evening (commit `fb989a99`). Re-ran `/onboard city-tiburon`, persisted 9 meetings / 8 decisions / 933 chunks / 846 muni sections / 13 agenda items / 2 issues, committed the previously-untracked configs. `validate_mass_ingest.py` now reports **15 PASS / 0 FAIL** (was 14P/1F).
+`decisions_adapter_crashes_on_empty_vectors` (the previous P0) is **done** as of 2026-04-09 (commit `8f01b1fb`). Added a defensive guard in `search_decisions()` and missing error logging in the cross-jurisdiction run_corpus handler. `validate_mass_ingest.py` now produces zero corpus errors across all 15 jurisdictions.
 
-While running that validation pass, the `Corpus decisions error: 'NoneType' object has no attribute 'get_city_state'` error fired **twice** — once during `city-tiburon` and once during `city-sausalito`. This is the silent failure already filed as `decisions_adapter_crashes_on_empty_vectors` (was P2). It's still active even after tiburon got 8 decisions, so the trigger is NOT "no decisions at all" — it's some other empty-vector path. Picked as the next P0 because it's small, contained, and eliminates a real silent failure that's been observed in production-shaped runs three times in the past 24 hours.
+This P0 is a **silent data correctness bug**: `execute_upcoming()` returns the wrong jurisdiction's events during cross-jurisdiction fan-out. When a single CivicOS instance is reused, all jurisdictions get San Rafael's meetings. Discovered during mass-ingest validation on 2026-04-07 — tiburon, county-marin, county-alameda, and city-belvedere all returned the same "Bicycle & Pedestrian Advisory Committee" result.
 
-## The smoking gun
+## The bug
 
-`packages/civicos-services/src/civicos_services/query/adapters.py:57` — `DecisionsAdapter.search()` calls `civicos.history.search_decisions(state_manager=None, ...)`. When the explicit `vector_backend` returns no results and the per-corpus auto-detect ALSO returns empty for decisions, `search_decisions` falls through to `packages/civicos/src/civicos/history.py:1207`:
+`packages/civicos-services/src/civicos_services/query/verbs.py:641` — `execute_upcoming()` calls `civic.whats_next(days=request.days)` three times (lines 641, 663, 682) for meetings, hearings, and comment_periods event types. `whats_next()` at `packages/civicos/src/civicos/civicos.py:682` queries `self._data_source.get_meetings(jurisdiction_id=self.jurisdiction, ...)` — using the CivicOS instance's jurisdiction, NOT the `jid` from the request.
 
-```python
-city_state = state_manager.get_city_state(jurisdiction)
-```
-
-`state_manager` is `None`. AttributeError. The verbs layer at `packages/civicos-services/src/civicos_services/query/verbs.py` catches it per-corpus and emits `Corpus decisions error: ...` at WARN, but does NOT propagate to the response — the user just sees fewer results with no indication anything failed.
-
-## Recommended Task
-
-Make `search_decisions` defensive so the `state_manager=None` path returns `[]` instead of crashing. Add a regression test. Also raise the per-corpus exception log level in `verbs.py` from WARN to ERROR for `AttributeError` (not for expected timeout/connection errors) so silent NoneType derefs are visible in production logs.
+The `jid` variable (line 632: `jid = request.jurisdiction or jurisdiction`) is correctly computed but only used for building `ref` strings in the response. The actual data query ignores it.
 
 ## Key Files
 
-- `packages/civicos-services/src/civicos_services/query/adapters.py:57` — `DecisionsAdapter.search()` is the caller passing `state_manager=None`
-- `packages/civicos/src/civicos/history.py:1207` — the `state_manager.get_city_state(jurisdiction)` deref that crashes
-- `packages/civicos-services/src/civicos_services/query/verbs.py` — per-corpus exception handler that swallows the error at WARN
-- `scripts/validate_mass_ingest.py` — **the regression repro**: every run of this script will currently hit the bug for 1+ jurisdictions. Use it to verify the fix.
-- `launch.json` lines 1258-1270 — `decisions_adapter_crashes_on_empty_vectors` full notes
-- Memory: `feedback_data_status_gaps.md` — DataStatus underreports patterns
-- Memory: `project_mass_ingest_april_2026.md` — context for which jurisdictions trigger this
+- `packages/civicos-services/src/civicos_services/query/verbs.py:624-745` — `execute_upcoming()` function, three calls to `civic.whats_next()` at lines 641, 663, 682
+- `packages/civicos/src/civicos/civicos.py:650-718` — `whats_next()` method, uses `self.jurisdiction` at line 682
+- `packages/civicos-services/src/civicos_services/query/verbs.py:530-600` — `_execute_single_jurisdiction_search()` is the search equivalent — worth checking how it handles jurisdiction correctly for comparison
+- `scripts/validate_mass_ingest.py` — validation script (currently confirms search works but doesn't validate upcoming)
+- `launch.json` lines 1247-1257 — item full notes
 
 ## Suggested Approach
 
-1. **Reproduce first**: `python3 scripts/validate_mass_ingest.py` and grep for `Corpus decisions error` in stderr. Confirm it still fires (it did this morning, twice).
-2. **Read `history.py:1207` in context** (a few hundred lines around it) to understand what `state_manager.get_city_state(jurisdiction)` was supposed to return and what the legacy keyword fallback does. The fix should be the smaller of:
-   - **Option A** (preferred per the launch.json notes): defensive guard at the entry point — if `state_manager is None` and the explicit vector path returned nothing, return `[]` immediately without falling through to the legacy keyword fallback.
-   - **Option B**: make `DecisionsAdapter` pass a real `state_manager` (requires more plumbing).
-3. **Write a unit test** at `packages/civicos/tests/test_history_search_decisions.py` (create if missing) that exercises `search_decisions(state_manager=None, jurisdiction='city-tiburon', query='housing', vector_backend=<empty backend>)` and asserts it returns `[]` without raising.
-4. **Bump verbs.py log level**: in the per-corpus exception swallowing logic, log at ERROR (with stack trace) when the exception type is `AttributeError` or `TypeError`; keep WARN for expected `TimeoutError`/`ConnectionError`.
-5. **Re-run validation**: `python3 scripts/validate_mass_ingest.py` should produce zero `Corpus decisions error` lines on stderr.
+**Preferred: Option A — call storage directly in `execute_upcoming`, bypass `whats_next()`.**
+
+The CLAUDE.md adapter-refactor guidance says "v2 adapters should call storage/vector backends directly instead of CivicOS methods." `execute_upcoming()` already receives `civic` but should query `civic.storage.get_meetings(jurisdiction_id=jid, since=..., until=...)` directly. This avoids modifying the CivicOS class API and follows the refactor direction.
+
+1. **Read `execute_upcoming` carefully** — understand the three event types (meetings, hearings, comment_periods) and how each uses `civic.whats_next()` results
+2. **Replace the three `civic.whats_next(days=request.days)` calls** with direct storage calls: `civic.storage.get_meetings(jurisdiction_id=jid, since=start_of_today, until=cutoff)`. Mirror the date window logic from `whats_next()` (lines 670-677 of civicos.py). Share the result across all three event types to avoid triple-querying.
+3. **Convert raw meeting dicts to Meeting objects** — copy the conversion logic from `whats_next()` (lines 696-718) or extract it into a helper. The current code expects `Meeting` objects with `.agenda_items`, `.id`, `.title`, `.date`, `.body`, `.location`.
+4. **Write a regression test** — construct one CivicOS instance for jurisdiction A, call `execute_upcoming(request, civic, jid_b)`, and verify results reflect jid_b's meetings, not jid_a's. Use real Postgres data if available.
+5. **Re-run validation** — extend `validate_mass_ingest.py` to test the upcoming verb per-jurisdiction (optional, but valuable).
+
+**Alternative: Option B — add `jurisdiction` kwarg to `whats_next()`.**
+
+Simpler change but goes against the adapter-refactor direction. Only if Option A proves too complex.
 
 ## Tests to Run
 
@@ -52,44 +48,33 @@ Make `search_decisions` defensive so the `state_manager=None` path returns `[]` 
 # Smoke
 source civicos-env/bin/activate && pytest packages/civicos/tests/test_civicos.py -q --override-ini="addopts="
 
-# Targeted: the new regression test (after creating it)
-pytest packages/civicos/tests/test_history_search_decisions.py -q --override-ini="addopts="
+# Targeted: new regression test (after creating it)
+pytest packages/civicos/tests/test_upcoming_jurisdiction.py -q --override-ini="addopts="
 
-# End-to-end repro / verification
-python3 scripts/validate_mass_ingest.py 2>&1 | grep -i "corpus decisions error" || echo "FIXED"
+# Previous P0 regression (should still pass)
+pytest packages/civicos/tests/test_search_decisions_none_state_manager.py -q --override-ini="addopts="
 ```
 
 ## Success Criteria
 
-- [ ] `validate_mass_ingest.py` produces zero `Corpus decisions error` lines on a full pass
-- [ ] New regression test in `packages/civicos/tests/` covers the `state_manager=None` + empty-vector path
-- [ ] `verbs.py` per-corpus exception logging escalates `AttributeError`/`TypeError` to ERROR with stack trace
-- [ ] `decisions_adapter_crashes_on_empty_vectors` marked done in launch.json
-- [ ] New P0 promoted before next `/nextsesh`. Reasonable candidates:
-  - `complete_alameda_ingest_or_scope` (P1, federation_testbed) — the only other concrete launch blocker among the mass-ingest 15
-  - `upcoming_verb_ignores_jurisdiction` (P2, federation_testbed) — small fix, real cross-jurisdiction routing bug
-  - File a new item for **modal Phase 2.5 sample timeout** (see Followups below)
+- [ ] `execute_upcoming(request, civic_san_rafael, "city-tiburon")` returns tiburon meetings, not san-rafael meetings
+- [ ] All three event types (meetings, hearings, comment_periods) use `jid` not `civic.jurisdiction`
+- [ ] Regression test covers the cross-jurisdiction case
+- [ ] `upcoming_verb_ignores_jurisdiction` marked done in launch.json
+- [ ] New P0 promoted. Candidates:
+  - `complete_alameda_ingest_or_scope` (P1, federation_testbed) — alameda has decisions but no transcripts/chunks
+  - `index_county_marin_decision_vectors` (P1-ish, federation_testbed) — 105 decisions but 0 decision vectors
 
 ## Caveats
 
-- **Don't fix the wrong layer.** The temptation is to fix `DecisionsAdapter` to pass a real `state_manager`. That's bigger and risks breaking other adapter paths. The smaller fix is at `history.search_decisions` — make it tolerate `state_manager=None` gracefully, which matches existing patterns elsewhere in `history.py`.
-- **The verbs.py log level bump is one line.** Don't refactor the whole exception handling while you're in there.
-- **Don't expand scope.** Other silent-failure patterns exist (the upcoming verb's missing jurisdiction filter, the Postgres NUL-byte chunk drop) but they're filed separately. Fix this one.
-
-## Followups Surfaced This Session (NOT this P0)
-
-These are real bugs but should NOT be conflated with this P0:
-
-1. **Modal Phase 2.5 sample function-call expiry** — the tiburon ingest crashed at the very end of the sample run with `GRPCError: FAILED_PRECONDITION: Function call has expired`. The pipeline persisted most data before the crash but Phase 3 (full 365-day backfill) never dispatched. Worth filing as a new item: multi-stage Modal pipelines that take ~10+ minutes wall-time hit Modal's function call expiration. Likely fix: spawn each stage as a separate Modal call rather than chaining inside one function.
-2. **Postgres NUL-byte chunk drop** — during tiburon chunk extraction, 270 chunks from one meeting hit `cloud storage failed: A string literal cannot contain NUL (0x00) characters` and were "kept local file only" — silent partial data loss. Worth filing.
-3. **Of 9 tiburon meetings**, 4 had agenda URLs that redirect to a Google Docs viewer the chunk extractor cannot follow (cancelled/older meetings). Known Granicus pattern, not actionable.
+- **Don't modify `CivicOS.whats_next()` unless Option A is infeasible.** The adapter-refactor direction is to bypass CivicOS methods from v2 adapters.
+- **The `comment_periods` branch also queries `civic.storage.get_open_comment_periods()` (line 699-702).** That's federal data, not jurisdiction-specific — leave it as-is.
+- **Three calls to `civic.whats_next()` can be consolidated into one storage query** — meetings/hearings/comment_periods all filter the same meeting list differently. Query once, filter three ways.
 
 ## Working Tree Notes
 
-- This session committed `fb989a99` ("Session: Close fix_tiburon_empty (P0) — tiburon non-empty, 15P/0F") with only `data/jurisdictions/city-tiburon.yaml`, `data/extraction/city-tiburon.json`, `launch.json`, and `claude-progress.txt`.
-- All other modified/untracked files in the working tree (sandbox sqlites, civicos-env binaries, ambient data file edits) are pre-existing and unrelated to this session. The previous handoff (now overwritten) noted the same.
-- `/tmp/mass_ingest_validation.json` is the latest validation report (15P/0F).
-- `/tmp/tiburon_onboard.log` is the modal ingest run log from this session — useful if you want to see exactly where the GRPC expiry hit.
+- This session committed `8f01b1fb` with history.py fix, verbs.py logging fix, new regression test, launch.json, and progress.
+- Untracked sandbox .sqlite files, civicos-env binaries, and data extraction files are pre-existing and unrelated.
 
 ## Open PRs
 
