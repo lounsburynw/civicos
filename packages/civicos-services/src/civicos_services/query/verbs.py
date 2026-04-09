@@ -661,9 +661,17 @@ def _get_upcoming_meetings(storage, jurisdiction_id: str, days: int = 30):
             try:
                 meeting_date = datetime.fromisoformat(meeting_date.replace('Z', '+00:00'))
             except ValueError:
-                meeting_date = datetime.now(timezone.utc)
+                logger.warning(
+                    "Skipping meeting %s: unparseable meeting_datetime %r",
+                    m.get("id", "?"), meeting_date,
+                )
+                continue
         elif meeting_date is None:
-            meeting_date = datetime.now(timezone.utc)
+            logger.warning(
+                "Skipping meeting %s: missing meeting_datetime",
+                m.get("id", "?"),
+            )
+            continue
 
         if meeting_date.tzinfo is None:
             meeting_date = meeting_date.replace(tzinfo=timezone.utc)
