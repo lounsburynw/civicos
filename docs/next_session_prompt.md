@@ -1,83 +1,65 @@
-# Recommended: Complete SF audio backfill (`sf_audio_backfill`)
+# Recommended: Fix SF county parent (`fix_sf_county_parent`)
 
 **Priority:** P0
-**Area:** turnkey_onboarding
-**Date:** 2026-04-09
+**Area:** federation_testbed
+**Date:** 2026-04-10
 
-> Recommended context from prior sessions. Review and decide whether to accept, modify, or `/start` for fresh prioritization.
+> Recommended context from prior session. Review and decide whether to accept, modify, or `/start` for fresh prioritization.
 
 ## Context
 
-This session completed two items:
-1. **county-marin decision vectors** — indexed 105 vectors, all 18 jurisdictions now have full decision vector coverage.
-2. **SF video URL discovery** — discovered Granicus video URLs for San Francisco: 6 → 46 out of 57 meetings (80% coverage). Mapped 7 Granicus ViewPublisher views to committee bodies.
+This session wrote the mass ingest cost ceiling document (`docs/internal/cost-ceiling.md`). The next logical work is fixing SF's missing county parent — it affects cross-jurisdiction query correctness for all SF queries.
 
-## What's Left: Transcription
+## Problem
 
-33 SF meetings now have video_url but no transcripts. The audio pipeline is verified:
-- Granicus MP3 resolution works (archive-video.granicus.com)
-- Local audio download tested: 328MB MP3 → 122MB opus → R2 upload
-- Estimated cost: ~$43 via AssemblyAI (~66 audio hours)
+`city-san-francisco` has `parent_jurisdictions: [state-california, country-united-states]` — it's missing a county parent. SF is a consolidated city-county, but the registry should list `county-san-francisco` for federation symmetry. Without it:
+
+1. **`resolve_relationship_tier()`** returns `"cross_county"` for SR→SF queries (line 177 of `jurisdictions.py`) because neither shares a county — this is technically wrong, they're both in the same state
+2. **Sibling detection** fails: `base_counties & target_counties` is empty (line 174) so SR and SF are never considered siblings even though they're both Bay Area cities
+3. **Tier weighting** uses `cross_county: 0.5` instead of what should be a closer relationship
 
 ## Key Files
 
-- `data/extraction/city-san-francisco.json` — updated with `granicus_view_map` (view→committee)
-- `data/jurisdictions/city-san-francisco.yaml` — updated `transcripts.source: granicus`
-- `scripts/modal_ingest.py` — `extract_transcripts()` handles Granicus URLs natively
+- `data/jurisdictions/city-san-francisco.yaml:22-24` — `parent_jurisdictions` missing county
+- `config/registry.json:300-306` — same data in registry format
+- `packages/civicos-services/src/civicos_services/query/jurisdictions.py:143-177` — `resolve_relationship_tier()` logic
+- `data/jurisdictions/county-san-francisco.yaml` — **DOES NOT EXIST** (needs to be created)
 
 ## Suggested Approach
 
-1. **Run transcription on Modal** (~$43, fits within $50 cost cap):
+1. **Create `data/jurisdictions/county-san-francisco.yaml`** — SF is unique as a consolidated city-county. The county config needs to exist even if it has no separate meetings (the city IS the county).
+
+2. **Update `city-san-francisco.yaml`** — add `county-san-francisco` to `parent_jurisdictions`:
+   ```yaml
+   parent_jurisdictions:
+     - county-san-francisco
+     - state-california
+     - country-united-states
+   ```
+
+3. **Update `config/registry.json`** — same change in the registry entry for `city-san-francisco`
+
+4. **Verify `resolve_relationship_tier()`** handles it correctly — after fix, SR→SF should return `"cross_county"` (they ARE in different counties: Marin vs SF) but for the right structural reason (both have county parents, those counties differ).
+
+5. **Test**: Run query tests to ensure cross-jurisdiction queries still work:
    ```bash
-   modal run scripts/modal_ingest.py --transcripts --jurisdiction city-san-francisco --transcripts-since 2026-01-01 --transcripts-cost-cap 50
+   pytest packages/civicos-services/tests/test_query_v2.py -q --override-ini="addopts=" -k "jurisdiction"
+   pytest packages/civicos-services/tests/test_integration_query_v2.py -q --override-ini="addopts=" -k "cross" 2>/dev/null
    ```
 
-2. **Verify** transcripts were created:
-   ```python
-   from dotenv import load_dotenv; load_dotenv()
-   from civicos import CivicOS
-   c = CivicOS('city-san-francisco')
-   print(f'Transcripts: {c.storage.get_transcript_count("city-san-francisco")}')
-   ```
+## Design Decision
 
-3. **Index transcript vectors**:
-   ```python
-   from civicos_extraction.cli.vectors import run_vector_indexing
-   run_vector_indexing('city-san-francisco', corpus_type='transcripts', provider_type='fastembed')
-   ```
+SF as consolidated city-county means `county-san-francisco` is a "virtual" jurisdiction — it has no separate meetings or data because the city government IS the county government. But the registry needs it for structural correctness. Pattern: create a minimal YAML config with `type: county`, no extraction config, pointing to `city-san-francisco` as the data source.
 
-4. **Mark done** in launch.json, promote new P0
-
-## Also Check: Alameda Transcription Status
-
-county-alameda has 257 meetings with video_url but 0 transcripts. A prior session kicked off Modal transcription but it didn't complete. Re-run if still 0:
-```bash
-modal run scripts/modal_ingest.py --transcripts --jurisdiction county-alameda --transcripts-since 2026-01-01 --transcripts-cost-cap 100
-```
-
-## Remaining Video URL Gaps
-
-12 SF meetings still lack video_url (mostly Land Use and Transportation Committee — Granicus view 45 only has 3 recent clips). These videos may not be posted yet. The Granicus view map is stored in the extraction config for future refresh cycles.
-
-## Granicus View Map (for reference)
-
-| View ID | Committee |
-|---------|-----------|
-| 10 | Board of Supervisors |
-| 7 | Budget and Finance Committee |
-| 11 | Government Audit and Oversight Committee |
-| 13 | Rules Committee |
-| 20 | Public Safety and Neighborhood Services Committee |
-| 21 | Budget and Appropriations Committee |
-| 45 | Land Use and Transportation Committee |
+Check how `county-marin` is structured for reference — it has its own meetings. `county-san-francisco` won't have separate meetings but needs to exist in the hierarchy.
 
 ## Success Criteria
 
-- [ ] 30+ SF transcripts created (from 33 meetings with video_url)
-- [ ] Transcript vectors indexed
-- [ ] `sf_audio_backfill` marked done in launch.json
+- [ ] `county-san-francisco.yaml` created with proper structure
+- [ ] `city-san-francisco.yaml` and `config/registry.json` updated with county parent
+- [ ] `resolve_relationship_tier()` returns correct tiers for SF queries
+- [ ] Query tests pass
 - [ ] New P0 promoted
-- [ ] (Optional) Check/re-run Alameda transcription
 
 ## Open PRs
 
