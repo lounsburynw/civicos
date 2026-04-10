@@ -136,3 +136,7 @@ The diagnostics module uses `CORPUS_REGISTRY` for authoritative schema mappings:
 | `/vector-coverage` | Detailed vector index coverage |
 | `/checkpoint` | Ingestion checkpoint status |
 | `/db-backup` | Database backup operations |
+
+## Investigating Gaps
+
+If data looks stale or empty, check `docs/internal/pipeline-health-log.md` for known issues (platform migrations, SSL failures, proxy exhaustion) before debugging from scratch.
