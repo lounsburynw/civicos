@@ -315,20 +315,20 @@
           "data/extraction/city-corte-madera.json"
         ],
         "test_file": null,
-        "notes": "Done 2026-04-09. Discovered YouTube videos via yt-dlp channel/playlist listing, matched to meetings by date, stored in videos table, backfilled video_url. Fairfax: 0→16 meetings with video_url (16 videos from channel UCd7bg-CGX5Wz_jEB9io5F7w). Corte Madera: 0→12 meetings with video_url (18 videos from playlist PLI6ZE_542R0QsX63B6k26oE2IPjHgZEVz). Added --channel and --backfill modes to youtube.py CLI for repeatable discovery. Remaining meetings without video are committee meetings not recorded on YouTube."
+        "notes": "Done 2026-04-09. Discovered YouTube videos via yt-dlp channel/playlist listing, matched to meetings by date, stored in videos table, backfilled video_url. Fairfax: 0\u219216 meetings with video_url (16 videos from channel UCd7bg-CGX5Wz_jEB9io5F7w). Corte Madera: 0\u219212 meetings with video_url (18 videos from playlist PLI6ZE_542R0QsX63B6k26oE2IPjHgZEVz). Added --channel and --backfill modes to youtube.py CLI for repeatable discovery. Remaining meetings without video are committee meetings not recorded on YouTube."
       },
       {
         "name": "sf_audio_backfill",
         "description": "city-san-francisco was onboarded 2026-04-06 but only has 6 transcripts against 57 meetings. Audio backfill: discover Granicus video URLs, download MP3 audio to R2, transcribe via AssemblyAI.",
-        "status": "not_started",
-        "priority": 0,
+        "status": "done",
+        "priority": 99,
         "source": "mass ingest data-status audit 2026-04-07",
         "files": [
           "data/extraction/city-san-francisco.json",
           "data/jurisdictions/city-san-francisco.yaml"
         ],
         "test_file": null,
-        "notes": "2026-04-09 progress: Video URLs discovered via Granicus ViewPublisher (6→46/57 meetings). View-to-committee map stored in extraction config: view 10=BoS, 7=B&F, 11=GovAudit, 13=Rules, 20=PubSafety, 21=B&A, 45=LandUse. MP3 resolution verified (archive-video.granicus.com). 33 meetings ready for transcription (~$43 estimated AssemblyAI cost, ~66 audio hours). 12 meetings still missing video_url (mostly Land Use, videos not yet posted to Granicus). Next: run modal transcription (audio download + AssemblyAI) with $50 cost cap."
+        "notes": "2026-04-09 progress: Video URLs discovered via Granicus ViewPublisher (6\u219246/57 meetings). View-to-committee map stored in extraction config: view 10=BoS, 7=B&F, 11=GovAudit, 13=Rules, 20=PubSafety, 21=B&A, 45=LandUse. MP3 resolution verified (archive-video.granicus.com). 33 meetings ready for transcription (~$43 estimated AssemblyAI cost, ~66 audio hours). 12 meetings still missing video_url (mostly Land Use, videos not yet posted to Granicus). Next: run modal transcription (audio download + AssemblyAI) with $50 cost cap."
       }
     ]
   },

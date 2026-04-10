@@ -26137,3 +26137,28 @@ Next P0: index_county_marin_decision_vectors (already set by parallel session)
 ### Next P0: sf_audio_backfill
 - Run Modal transcription: modal run scripts/modal_ingest.py --transcripts --jurisdiction city-san-francisco --transcripts-since 2026-01-01 --transcripts-cost-cap 50
 - Verify transcripts created, then index vectors
+
+### Session: 2026-04-10 — SF Audio Backfill (P0: sf_audio_backfill)
+
+**Completed:** city-san-francisco Granicus migration + audio backfill
+
+**Changes:**
+- Switched SF extraction config from playwright_llm to granicus (7 committee views)
+- Updated data/extraction/city-san-francisco.json: source_type, base_url, archives
+- Updated data/jurisdictions/city-san-francisco.yaml: meetings source config
+- Added title fallback in Granicus client: when table has no name column, use meeting_type as title
+
+**Results:**
+- 58 Granicus meetings extracted (Jan 2026+), all with video URLs
+- 60 audio files downloaded to R2 (43 min)
+- 33 new transcripts via AssemblyAI (39 total)
+- 12,487 transcript vectors indexed
+- Semantic search verified: what_was_said("housing") returns 8 results
+
+**Costs:**
+- Meeting extraction: $0.06
+- Transcription: $83.17 (higher than $50 estimate — long SF meetings)
+- Vector indexing: $3.60
+- Total: ~$87
+
+**Note:** Cost estimator underestimated — SF Board of Supervisors sessions run 3-4 hours, driving up per-meeting cost.

@@ -4,7 +4,7 @@
 # SF is a consolidated city-county — no separate county entity.
 #
 # NOTE: Legistar events API is broken for SF (server config error).
-# Meetings are extracted via Playwright+LLM on the Legistar web calendar.
+# Meetings are extracted from Granicus ViewPublisher (7 committee views).
 # Legislation is still accessible via the Legistar matters API (client: sfgov).
 
 # =============================================================================
@@ -51,11 +51,11 @@ governing_body:
 # =============================================================================
 
 data_sources:
-  # Meeting extraction (Playwright+LLM on Legistar web calendar)
-  # Legistar events API is broken for SF; matters API works for legislation.
+  # Meeting extraction from Granicus ViewPublisher (7 committee views).
+  # Legistar events API is broken for SF; matters API still works for legislation.
   meetings:
-    source_type: playwright_llm
-    base_url: https://sfgov.legistar.com/Calendar.aspx
+    source_type: granicus
+    base_url: https://sanfrancisco.granicus.com
 
   # Issue tracking (SeeClickFix / SF311)
   issues: seeclickfix
@@ -218,4 +218,4 @@ modal:
 
 metadata:
   created: "2026-04-06"
-  notes: "Legistar events API has server-side config error. Meetings via Playwright+LLM on web calendar. Legislation via Legistar matters API (client: sfgov)."
+  notes: "Legistar events API has server-side config error. Meetings via Granicus ViewPublisher (7 committee views). Legislation via Legistar matters API (client: sfgov)."
