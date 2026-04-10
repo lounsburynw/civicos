@@ -850,7 +850,7 @@
         "name": "document_mass_ingest_cost_ceiling",
         "description": "Write a cost ceiling document covering the mass-ingest scope (15 jurisdictions): per-service spend caps (proxy, OpenAI API, Modal compute, Whisper) with a hard kill-switch procedure. $50 proxy surprise on 2026-04-05 happened on a much smaller batch; scaling to 15 jurisdictions without written limits risks a much larger surprise. Include: daily/weekly spend thresholds per service, alerting (modal_usage_rollup is deployed), and a documented kill-switch (how to stop the pipeline mid-flight).",
         "status": "not_started",
-        "priority": 2,
+        "priority": 0,
         "source": "mass ingest risk register 2026-04-07 + feedback_cost_communication",
         "files": [
           "docs/internal/deployment.md"
