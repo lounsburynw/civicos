@@ -306,16 +306,16 @@
       {
         "name": "fairfax_cortemadera_video_discovery",
         "description": "city-fairfax (99 meetings) and city-corte-madera (17 meetings) have 0 video URLs populated because their source platform (proudcity) doesn't publish video links on the agenda pages. The YouTube proxy fix does NOT unlock these cities. Need separate YouTube channel discovery: find the city's YouTube channel, map videos to meetings by date/title, populate the video_url field. Without this, transcription and 'what was said' queries return nothing for these two Marin cities.",
-        "status": "not_started",
+        "status": "done",
         "priority": 2,
         "source": "mass ingest data-status audit 2026-04-07",
         "files": [
-          "packages/civicos-extraction/src/civicos_extraction/clients/proudcity.py",
+          "packages/civicos-extraction/src/civicos_extraction/cli/youtube.py",
           "data/extraction/city-fairfax.json",
           "data/extraction/city-corte-madera.json"
         ],
         "test_file": null,
-        "notes": "Verified 2026-04-07 via get_meetings(): 0/99 fairfax meetings and 0/17 corte-madera meetings have video_url set. Compare: mill-valley 109/118 (Granicus), novato 16/19 (Granicus), san-rafael 31/106 (Granicus partial). This is a source-platform limitation, not a proxy issue. Possible approaches: (a) discover each city's YouTube channel URL and do date-matched video lookup, (b) check if proudcity embeds video via a platform-specific API we haven't hit yet, (c) ask the city clerks directly for the channel URLs. If unfixable pre-launch, mark these cities as 'no video coverage' in UI."
+        "notes": "Done 2026-04-09. Discovered YouTube videos via yt-dlp channel/playlist listing, matched to meetings by date, stored in videos table, backfilled video_url. Fairfax: 0→16 meetings with video_url (16 videos from channel UCd7bg-CGX5Wz_jEB9io5F7w). Corte Madera: 0→12 meetings with video_url (18 videos from playlist PLI6ZE_542R0QsX63B6k26oE2IPjHgZEVz). Added --channel and --backfill modes to youtube.py CLI for repeatable discovery. Remaining meetings without video are committee meetings not recorded on YouTube."
       },
       {
         "name": "sf_audio_backfill",

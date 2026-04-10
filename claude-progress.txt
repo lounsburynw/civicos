@@ -26079,3 +26079,29 @@ Code fixes:
 Commit: f07d2978
 
 Next P0: index_county_marin_decision_vectors (P2 → P0)
+
+=== Session: 2026-04-09 (Video Discovery) ===
+Phase: Launch
+Item: fairfax_cortemadera_video_discovery (P2, turnkey_onboarding)
+
+Populated video_url for two Marin cities that had 0 video coverage:
+- city-fairfax: 0→16 meetings with video_url (out of 100)
+  - 447 videos on YouTube channel (UCd7bg-CGX5Wz_jEB9io5F7w)
+  - 16 matched to existing meetings by date
+  - Most unmatched: committee meetings not recorded, or meetings outside DB window
+- city-corte-madera: 0→12 meetings with video_url (out of 18 active)
+  - 217 videos in YouTube playlist (PLI6ZE_542R0QsX63B6k26oE2IPjHgZEVz)
+  - 18 stored, 12 matched to Town Council meetings
+  - 6 unmatched: Planning Commission, Climate Action, Parks & Rec (no videos)
+
+Code changes:
+- youtube.py: Added --channel mode (yt-dlp channel/playlist discovery + date matching)
+- youtube.py: Added --backfill mode (sync video_url from videos table to meetings)
+- New functions: discover_from_channel(), match_videos_to_meetings(), backfill_video_urls()
+- Saved city_corte_madera_videos.json
+
+Usage for future jurisdictions:
+  civic-extract youtube --jurisdiction city-X --channel        # Discover + store + backfill
+  civic-extract youtube --jurisdiction city-X --backfill       # Just backfill video_url
+
+Next P0: index_county_marin_decision_vectors (already set by parallel session)
