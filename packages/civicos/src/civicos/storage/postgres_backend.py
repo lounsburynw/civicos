@@ -4210,9 +4210,21 @@ class PostgresBackend:
                           AND valid_to IS NULL
                     """, (as_of.isoformat(), jurisdiction_id, provider, external_id))
 
+            # Deduplicate within batch — SeeClickFix pagination can return
+            # the same issue on overlapping pages. Keep last occurrence.
+            seen: Dict[tuple, int] = {}
+            for idx, issue in enumerate(issues):
+                key = (issue.get('provider'), issue.get('external_id'))
+                if key[0] and key[1]:
+                    seen[key] = idx
+            unique_indices = set(seen.values())
+
             # Insert new versions
             count = 0
-            for issue in issues:
+            for idx, issue in enumerate(issues):
+                key = (issue.get('provider'), issue.get('external_id'))
+                if key[0] and key[1] and idx not in unique_indices:
+                    continue  # Skip duplicate within batch
                 provider = issue.get('provider')
                 external_id = issue.get('external_id')
                 title = issue.get('title', '').strip()

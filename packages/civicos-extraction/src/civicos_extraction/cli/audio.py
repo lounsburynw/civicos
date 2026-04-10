@@ -303,19 +303,25 @@ def _resolve_granicus_player_url(player_url: str) -> Optional[str]:
     Returns the stream URL, or None if the clip has no video.
     """
     import re
-    import urllib.request
 
     try:
+        import httpx
+        r = httpx.get(player_url, follow_redirects=True, timeout=15,
+                      headers={"User-Agent": "Mozilla/5.0"})
+        html = r.text
+    except ImportError:
+        import urllib.request
         req = urllib.request.Request(player_url, headers={"User-Agent": "Mozilla/5.0"})
         with urllib.request.urlopen(req, timeout=15) as resp:
             html = resp.read().decode("utf-8", errors="replace")
-        match = re.search(r'video_url="([^"]+)"', html)
-        if match and match.group(1):
-            return match.group(1)
-        return None
     except Exception as e:
         logger.warning(f"  Failed to resolve Granicus URL: {e}")
         return None
+
+    match = re.search(r'video_url="([^"]+)"', html)
+    if match and match.group(1):
+        return match.group(1)
+    return None
 
 
 def _resolve_granicus_mp3_url(player_url: str) -> Optional[str]:
@@ -330,7 +336,6 @@ def _resolve_granicus_mp3_url(player_url: str) -> Optional[str]:
     Returns the MP3 URL, or None if no direct MP3 is available.
     """
     import re
-    import urllib.request
 
     # Convert player/clip URL to MediaPlayer URL if needed
     # player/clip/52067 → MediaPlayer.php?view_id=10&clip_id=52067
@@ -342,16 +347,23 @@ def _resolve_granicus_mp3_url(player_url: str) -> Optional[str]:
         media_url = player_url
 
     try:
+        import httpx
+        r = httpx.get(media_url, follow_redirects=True, timeout=15,
+                      headers={"User-Agent": "Mozilla/5.0"})
+        html = r.text
+    except ImportError:
+        import urllib.request
         req = urllib.request.Request(media_url, headers={"User-Agent": "Mozilla/5.0"})
         with urllib.request.urlopen(req, timeout=15) as resp:
             html = resp.read().decode("utf-8", errors="replace")
-        match = re.search(r'(https://archive-video\.granicus\.com/[^\s"\']+\.mp3)', html)
-        if match:
-            return match.group(1)
-        return None
     except Exception as e:
         logger.warning(f"  Failed to resolve Granicus MP3 URL: {e}")
         return None
+
+    match = re.search(r'(https://archive-video\.granicus\.com/[^\s"\']+\.mp3)', html)
+    if match:
+        return match.group(1)
+    return None
 
 
 def download_audio(
