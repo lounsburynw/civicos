@@ -18,6 +18,8 @@ import html
 import logging
 from typing import Dict, List, Optional, Any, Tuple
 from dataclasses import dataclass, asdict
+
+import requests
 from datetime import datetime, timedelta
 import re
 
@@ -276,7 +278,14 @@ class RetrospectiveAnalyzer(AgendaIntegrator):
 
             current_url = url
             for _ in range(5):  # max redirect hops
-                resp = self.session.get(current_url, allow_redirects=False, timeout=10)
+                try:
+                    resp = self.session.get(current_url, allow_redirects=False, timeout=10)
+                except requests.exceptions.SSLError as ssl_err:
+                    if 'granicus' in current_url.lower() or 's3.amazonaws.com' in str(ssl_err):
+                        logger.info("  SSL error on Granicus redirect, retrying with verify=False")
+                        resp = self.session.get(current_url, allow_redirects=False, timeout=10, verify=False)
+                    else:
+                        raise
 
                 if resp.status_code == 200:
                     # Landed on content — check if it's a PDF
@@ -327,8 +336,17 @@ class RetrospectiveAnalyzer(AgendaIntegrator):
             # Resolve Granicus MinutesViewer.php → actual PDF URL
             agenda_url = self._resolve_minutes_url(agenda_url)
 
-            response = self.session.get(agenda_url, timeout=20, stream=True)
-            response.raise_for_status()
+            try:
+                response = self.session.get(agenda_url, timeout=20, stream=True)
+                response.raise_for_status()
+            except requests.exceptions.SSLError as ssl_err:
+                # Handle Granicus S3 redirect SSL certificate mismatch
+                if 'granicus' in agenda_url.lower() or 's3.amazonaws.com' in str(ssl_err):
+                    logger.info("  SSL error on Granicus redirect, retrying with verify=False")
+                    response = self.session.get(agenda_url, timeout=20, stream=True, verify=False)
+                    response.raise_for_status()
+                else:
+                    raise
 
             # Check size
             content_length = response.headers.get('content-length')
@@ -427,8 +445,17 @@ class RetrospectiveAnalyzer(AgendaIntegrator):
     def _download_pdf_content(self, pdf_url: str) -> Optional[str]:
         """Download a PDF and extract its text content."""
         try:
-            response = self.session.get(pdf_url, timeout=30)
-            response.raise_for_status()
+            try:
+                response = self.session.get(pdf_url, timeout=30)
+                response.raise_for_status()
+            except requests.exceptions.SSLError as ssl_err:
+                # Handle Granicus S3 redirect SSL certificate mismatch
+                if 'granicus' in pdf_url.lower() or 's3.amazonaws.com' in str(ssl_err):
+                    logger.info("  SSL error on PDF download, retrying with verify=False")
+                    response = self.session.get(pdf_url, timeout=30, verify=False)
+                    response.raise_for_status()
+                else:
+                    raise
             return self._extract_pdf_text(response.content)
         except Exception as e:
             logger.warning(f"PDF download failed for {pdf_url}: {type(e).__name__}: {e}")

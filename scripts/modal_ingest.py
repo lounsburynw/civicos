@@ -149,7 +149,7 @@ civic_gpu_image = (
 civic_image = (
     modal.Image.debian_slim(python_version="3.11")
     # System dependencies for psycopg2 and audio processing
-    .apt_install("libpq-dev", "gcc", "ffmpeg", "nodejs")
+    .apt_install("libpq-dev", "gcc", "ffmpeg", "nodejs", "ca-certificates")
     # Python dependencies for all tasks
     .pip_install(
         "psycopg2-binary>=2.9.0",
@@ -171,6 +171,7 @@ civic_image = (
         "PyPDF2>=3.0.0",  # For agenda PDF text extraction (decision/agenda pipelines)
         "openpyxl>=3.0.0",  # For HUD allocation Excel parsing
         "fastapi>=0.100.0",  # Required by Modal for web endpoints
+        "certifi>=2024.2.2",  # Up-to-date CA certificates for SSL verification
     )
     # Environment variables (must come before add_local_* per Modal requirements)
     # CIVICOS_EXTRACTION_DIR: used by civicos_config.paths for EXTRACTION_DIR
@@ -5627,7 +5628,7 @@ def extract_decisions(
     auto_index: bool = False,
     since: str = "",
     until: str = "",
-    meeting_ids: list = None,
+    meeting_ids: str = "",
 ) -> dict:
     """Extract high-stakes decisions from meeting minutes using LLM.
 
@@ -5678,8 +5679,11 @@ def extract_decisions(
 
     backend = PostgresBackend(database_url)
 
-    if meeting_ids:
-        logger.info(f"[DECISIONS] Targeted extraction: jurisdiction={jurisdiction}, meeting_ids={meeting_ids}")
+    # Convert comma-separated meeting_ids string to list
+    meeting_ids_list = [m.strip() for m in meeting_ids.split(",") if m.strip()] if meeting_ids else None
+
+    if meeting_ids_list:
+        logger.info(f"[DECISIONS] Targeted extraction: jurisdiction={jurisdiction}, meeting_ids={meeting_ids_list}")
     else:
         logger.info(f"[DECISIONS] Starting extraction: jurisdiction={jurisdiction}, limit={limit}, since={since or 'all'}, until={until or 'all'}")
 
@@ -5693,7 +5697,7 @@ def extract_decisions(
         cloud=True,
         since=since or None,
         until=until or None,
-        meeting_ids=meeting_ids,
+        meeting_ids=meeting_ids_list,
     )
 
     # Summarize results
