@@ -22,21 +22,21 @@ data_sources:
     metadata:
       granicus_domain: alamedacounty
       default_view_id: '2'
-  issues: null
-  municipal_code: null
+  issues: seeclickfix
+  municipal_code: municode
 financial:
   state: CA
   county: null
 ingestion:
   meetings: true
   pdf_chunks: true
-  issues: false
-  municipal_code: false
+  issues: true
+  municipal_code: true
   agenda_items: true
   decisions: true
   legislation: true
-  transcription: false
-  diarization: false
+  transcription: true
+  diarization: true
   vector_indexing: true
 metadata:
   created: '2026-03-13'

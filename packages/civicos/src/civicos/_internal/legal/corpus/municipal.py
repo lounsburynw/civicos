@@ -193,6 +193,7 @@ class MunicipalCodeCorpus:
         "city-berkeley": {"state": "CA", "name": "Berkeley"},
         "city-oakland": {"state": "CA", "name": "Oakland"},
         "county-marin": {"state": "CA", "name": "Marin County", "product_name": "Municipal Code"},
+        "county-alameda": {"state": "CA", "name": "Alameda County", "product_name": "Code of Ordinances"},
     }
 
     def __init__(
