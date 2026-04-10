@@ -4,37 +4,40 @@
 **Area:** federation_testbed
 **Date:** 2026-04-09
 
-> Recommended context from prior session. Review and decide whether to accept, modify, or `/start` for fresh prioritization.
+> Recommended context from prior sessions. Review and decide whether to accept, modify, or `/start` for fresh prioritization.
 
 ## Context
 
-The previous session completed `complete_alameda_ingest_or_scope` (Path A: full ingest). county-alameda now has issues (1,498), municipal code (2,997 sections), and all vectors indexed. Transcription for 80 2026 meetings is running on Modal via AssemblyAI free tier.
+Two sessions ran on 2026-04-09:
+1. **Parallel session** completed `complete_alameda_ingest_or_scope` (full ingest — issues, municipal code, audio pipeline). Kicked off Modal transcription for 80 Alameda meetings via AssemblyAI free tier.
+2. **Main session** completed `fairfax_cortemadera_video_discovery` — populated video_url for Fairfax (0→16) and Corte Madera (0→12) via YouTube channel/playlist discovery. Added `--channel` and `--backfill` modes to youtube.py CLI.
 
-county-marin has 105 decisions in storage but **0 decision vectors indexed**. This means semantic search on county-marin decisions returns nothing — a gap given county-marin is the heaviest-content jurisdiction (49,505 chunks, 2,976 muni_code entries).
-
-## The Problem
-
-```
-county-marin decisions: 105 stored, 0 indexed
-```
-
-The fix is straightforward: run vector indexing for the decisions corpus on county-marin.
+county-marin has 105 decisions in storage but **0 decision vectors indexed**. Semantic search on county-marin decisions returns nothing — a gap given county-marin is the heaviest-content jurisdiction (49,505 chunks, 2,976 muni_code entries).
 
 ## Key Files
 
+- `scripts/modal_ingest.py` — Modal vector indexing orchestration
 - `packages/civicos-extraction/src/civicos_extraction/cli/vectors.py` — Vector indexing CLI
-- `scripts/modal_ingest.py` — Modal orchestration (for cloud indexing)
 - `data/jurisdictions/county-marin.yaml` — county-marin config
 
 ## Suggested Approach
 
-1. **Verify the gap**: `python3 -c "from dotenv import load_dotenv; load_dotenv('.env'); from civicos import CivicOS; c = CivicOS('county-marin'); print('Decisions:', c.storage.get_decision_count('county-marin')); print('Decision vectors:', c.vectors.count('county-marin', corpus_type='decisions'))"`
-
-2. **Run vector indexing** (either locally or on Modal):
+1. **Verify the gap**:
    ```bash
-   # Local (fastembed, CPU, ~5-10 min for 105 decisions):
-   python3 -c "
-   from dotenv import load_dotenv; load_dotenv('.env')
+   civicos-env/bin/python3 -c "
+   from dotenv import load_dotenv; load_dotenv()
+   from civicos import CivicOS
+   c = CivicOS('county-marin')
+   print('Decisions:', c.storage.get_decision_count('county-marin'))
+   print('Decision vectors:', c.vectors.count('county-marin', corpus_type='decisions'))
+   "
+   ```
+
+2. **Run vector indexing** (local or Modal):
+   ```bash
+   # Local (~5-10 min for 105 decisions):
+   civicos-env/bin/python3 -c "
+   from dotenv import load_dotenv; load_dotenv()
    from civicos_extraction.cli.vectors import run_vector_indexing
    run_vector_indexing('county-marin', corpus_type='decisions', provider_type='fastembed')
    "
@@ -43,51 +46,40 @@ The fix is straightforward: run vector indexing for the decisions corpus on coun
    modal run scripts/modal_ingest.py --vectors --jurisdiction county-marin
    ```
 
-3. **Verify**: Re-run the gap check from step 1
+3. **Verify** vectors were created, then check other jurisdictions for similar gaps via `/vector-coverage`
 
-4. **Check other jurisdictions** for similar gaps — run `/data-status` or `/vector-coverage` across federation testbed jurisdictions
+4. **Mark done** in launch.json, promote new P0
 
 ## Also Check: Alameda Transcription Status
 
-The previous session kicked off Modal transcription for county-alameda (80 2026 meetings). Check if it completed:
-
+The parallel session kicked off Modal transcription for county-alameda (80 meetings). Check completion:
 ```bash
-# Check transcript count
-python3 -c "
-from dotenv import load_dotenv; load_dotenv('.env')
+civicos-env/bin/python3 -c "
+from dotenv import load_dotenv; load_dotenv()
 from civicos import CivicOS
 c = CivicOS('county-alameda')
 print(f'Transcripts: {c.storage.get_transcript_count(\"county-alameda\")}')
 "
-
-# If still 0, check Modal logs:
-modal app logs civicos-ingest
 ```
 
-If transcription failed, the likely cause is the Granicus audio download step. The httpx resolver fix (commit `f07d2978`) should handle it, but Modal may have cached a stale image. Re-run with:
+If still 0, re-run:
 ```bash
 modal run scripts/modal_ingest.py --transcripts --jurisdiction county-alameda --transcripts-since 2026-01-01 --transcripts-cost-cap 100
 ```
 
-## Code Fixes from This Session
+## New YouTube Discovery Tool
 
-These are already committed (`f07d2978`) but worth knowing:
-- **store_issues() batch dedup** — SeeClickFix pagination overlap caused PK violations
-- **Alameda County Municode mapping** — product is "Code of Ordinances" not "Municipal Code"
-- **Granicus URL resolvers** — switched from urllib to httpx (SSL cert fix)
-
-## Tests to Run
-
+This session added reusable commands for future jurisdictions:
 ```bash
-# Smoke tests
-pytest packages/civicos/tests/test_civicos.py -q --override-ini="addopts="
+civic-extract youtube --jurisdiction city-X --channel     # Discover + store + backfill video_url
+civic-extract youtube --jurisdiction city-X --backfill    # Just sync video_url from videos table
 ```
+Works for any jurisdiction with `data_sources.transcripts.channel_id` or `playlist_id` in its YAML config.
 
 ## Success Criteria
 
-- [ ] county-marin decision vectors indexed (105 decisions → ~105 vectors)
+- [ ] county-marin decision vectors indexed (~105 vectors)
 - [ ] Verify county-alameda transcription completed (or re-run if failed)
-- [ ] Check for vector gaps in other federation testbed jurisdictions
 - [ ] `index_county_marin_decision_vectors` marked done in launch.json
 - [ ] New P0 promoted
 
