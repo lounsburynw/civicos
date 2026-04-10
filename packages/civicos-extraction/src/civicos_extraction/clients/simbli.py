@@ -1194,6 +1194,7 @@ def extract_simbli_meetings_to_storage(
         return 0
 
     mapped = [simbli_meeting_to_storage(m, jurisdiction_id) for m in meetings]
-    count = storage.store_meetings(jurisdiction_id, mapped)
+    result = storage.store_meetings(jurisdiction_id, mapped)
+    count = int(result)
     logger.info(f"Stored {count} meetings for {jurisdiction_id} from Simbli")
     return count

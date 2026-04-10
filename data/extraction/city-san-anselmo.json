@@ -1,35 +1,19 @@
 {
-  "source_id": "legistar-sananselmo-ca",
-  "source_type": "legistar",
+  "source_id": "granicus-city-san-anselmo",
+  "source_type": "granicus",
   "jurisdiction_id": "city-san-anselmo",
   "state": "CA",
-  "base_url": "https://webapi.legistar.com/v1/sananselmo-ca",
+  "base_url": "https://sananselmo-ca.granicus.com",
   "archives": {
-    "town_council": "138",
-    "planning_commission": "139",
-    "test": "184",
-    "economic_development_committee": "185",
-    "parks_and_recreation_commission": "187",
-    "open_space_committee": "188",
-    "financial_advisory_committee": "189",
-    "capital_programs_monitoring_committee": "190",
-    "tax_equity_board": "191",
-    "arts_commission": "192",
-    "flood_committee": "193",
-    "climate_action_committee": "194",
-    "library_parcel_tax_oversight_committee": "195",
-    "library_advisory_board": "196",
-    "historical_commission": "197",
-    "racial_equity_committee": "198",
-    "bicycle_and_pedestrian_advisory_committee": "199",
-    "housing_element_advisory_committee": "200",
-    "reimagine_creek_park_community_advisory_committee": "201",
-    "robson_harrington_community_steering_committee": "205",
-    "infrastructure_and_fiscal_monitoring_committee": "207"
+    "all_bodies": "8"
   },
   "metadata": {
-    "client_name": "sananselmo-ca",
-    "body_count": 21
+    "granicus_domain": "sananselmo-ca",
+    "default_view_id": "8",
+    "migrated_from": "legistar",
+    "legistar_client": "sananselmo-ca",
+    "legistar_deprecated": "2023-12",
+    "body_count": 18
   },
   "election_sources": {
     "ca_sos_results": {

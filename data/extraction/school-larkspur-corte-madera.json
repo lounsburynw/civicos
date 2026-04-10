@@ -1,16 +1,20 @@
 {
-  "source_id": "boarddocs-ca-lcmsd",
-  "source_type": "boarddocs",
+  "source_id": "simbli-school-larkspur-corte-madera",
+  "source_type": "simbli",
   "jurisdiction_id": "school-larkspur-corte-madera",
-  "base_url": "https://go.boarddocs.com/ca/lcmsd/Board.nsf",
+  "base_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36031975",
   "auto_discover": false,
   "archives": {},
   "metadata": {
-    "app_path": "ca/lcmsd",
-    "committee_id": "A4EP6J588C05",
-    "committee_name": "Board of Trustees",
+    "board_url": "https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36031975",
+    "simbli_district_id": "36031975",
     "district_name": "Larkspur-Corte Madera School District",
-    "created": "2026-03-26"
+    "district_website": "https://www.lcmschools.org",
+    "migrated_from": "boarddocs",
+    "boarddocs_app_path": "ca/lcmsd",
+    "boarddocs_deprecated": "2025-10",
+    "created": "2026-03-26",
+    "updated": "2026-04-09"
   },
   "election_sources": {
     "ca_sos_results": {

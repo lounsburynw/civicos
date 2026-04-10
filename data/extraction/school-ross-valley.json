@@ -1,16 +1,20 @@
 {
-  "source_id": "boarddocs-ca-rova",
-  "source_type": "boarddocs",
+  "source_id": "diligent-school-ross-valley",
+  "source_type": "diligent",
   "jurisdiction_id": "school-ross-valley",
-  "base_url": "https://go.boarddocs.com/ca/rova/Board.nsf",
+  "base_url": "https://ross-valley-schools.community.diligentoneplatform.com/Portal/",
   "auto_discover": false,
   "archives": {},
   "metadata": {
-    "app_path": "ca/rova",
-    "committee_id": "AB9A2R259AF0",
-    "committee_name": "Main Governing Board",
     "district_name": "Ross Valley School District",
-    "created": "2026-03-26"
+    "district_website": "https://www.rossvalleyschools.org",
+    "migrated_from": "boarddocs",
+    "boarddocs_app_path": "ca/rova",
+    "boarddocs_deprecated": "2025-11",
+    "created": "2026-03-26",
+    "updated": "2026-04-09",
+    "client_status": "no_client",
+    "notes": "Diligent Community platform — no extraction client exists yet. JS-rendered, likely needs Playwright."
   },
   "election_sources": {
     "ca_sos_results": {
