@@ -1,18 +1,22 @@
 {
-  "source_id": "playwright-llm-city-san-francisco",
-  "source_type": "playwright_llm",
+  "source_id": "granicus-city-san-francisco",
+  "source_type": "granicus",
   "jurisdiction_id": "city-san-francisco",
-  "base_url": "https://sfgov.legistar.com/Calendar.aspx",
-  "archives": {},
+  "base_url": "https://sanfrancisco.granicus.com",
+  "archives": {
+    "board_of_supervisors": "10",
+    "budget_and_finance_committee": "7",
+    "government_audit_and_oversight_committee": "11",
+    "rules_committee": "13",
+    "public_safety_and_neighborhood_services_committee": "20",
+    "budget_and_appropriations_committee": "21",
+    "land_use_and_transportation_committee": "45"
+  },
   "metadata": {
-    "extraction_mode": "playwright_llm",
-    "meeting_page_url": "https://sfgov.legistar.com/Calendar.aspx",
-    "initial_meeting_count": 6,
-    "legistar_client_name": "sfgov",
-    "legistar_body_count": 151,
-    "legistar_events_broken": true,
     "granicus_domain": "sanfrancisco",
-    "granicus_video_view_id": 10,
+    "default_view_id": "10",
+    "legistar_client_name": "sfgov",
+    "legistar_events_broken": true,
     "granicus_view_map": {
       "10": "Board of Supervisors",
       "7": "Budget and Finance Committee",

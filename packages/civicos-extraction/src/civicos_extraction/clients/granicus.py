@@ -589,6 +589,9 @@ HTML:
             parsed_date = datetime.fromisoformat(event["datetime"])
 
         title = event.get("title", "Unknown Meeting")
+        # Fall back to meeting_type when table has no name column (e.g., SF Granicus)
+        if title == "Unknown Meeting" and event.get("meeting_type"):
+            title = event["meeting_type"].replace("_", " ").title()
         view_id = event.get("view_id", "0")
         date_str = parsed_date.strftime("%Y%m%d") if parsed_date else "00000000"
         title_slug = re.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-")[:50]
