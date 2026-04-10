@@ -102,7 +102,7 @@ Health endpoints:
 
 ## Security
 
-- RLS enabled on Supabase via `scripts/sql/enable_rls.sql` — only service_role can access
+- **RLS**: Enabled on all Supabase tables via `scripts/sql/enable_rls.sql` — denies `anon`/`authenticated` access, `service_role` bypasses. The script dynamically discovers all `public.*` tables so it never goes stale. **Re-run after any migration that adds tables**, or use `/rls` to check and apply.
 - API key auth is optional, with usage logging
 - Rate limiting: global per-client, plus stricter limits on AI (30/min) and admin (10/min) endpoints
 
