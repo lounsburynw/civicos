@@ -302,6 +302,16 @@
       "display_name": "San Francisco",
       "modal_app_name": "civicos-san-francisco",
       "parent_jurisdictions": [
+        "county-san-francisco",
+        "state-california",
+        "country-united-states"
+      ]
+    },
+    "county-san-francisco": {
+      "domain": "san-francisco.civicosproject.org",
+      "display_name": "San Francisco County",
+      "modal_app_name": "civicos-san-francisco",
+      "parent_jurisdictions": [
         "state-california",
         "country-united-states"
       ]

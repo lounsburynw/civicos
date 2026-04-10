@@ -20,6 +20,7 @@ display_name: San Francisco
 # =============================================================================
 
 parent_jurisdictions:
+  - county-san-francisco
   - state-california
   - country-united-states
 

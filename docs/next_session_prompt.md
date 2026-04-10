@@ -1,4 +1,4 @@
-# Recommended: Fix SF county parent (`fix_sf_county_parent`)
+# Recommended: Add real source item ID (`add_real_source_item_id`)
 
 **Priority:** P0
 **Area:** federation_testbed
@@ -8,57 +8,40 @@
 
 ## Context
 
-This session wrote the mass ingest cost ceiling document (`docs/internal/cost-ceiling.md`). The next logical work is fixing SF's missing county parent — it affects cross-jurisdiction query correctness for all SF queries.
+This session fixed the SF county parent hierarchy issue. The next P0 is threading real source-platform item IDs through the extraction pipeline for more robust decision dedup.
 
 ## Problem
 
-`city-san-francisco` has `parent_jurisdictions: [state-california, country-united-states]` — it's missing a county parent. SF is a consolidated city-county, but the registry should list `county-san-francisco` for federation symmetry. Without it:
-
-1. **`resolve_relationship_tier()`** returns `"cross_county"` for SR→SF queries (line 177 of `jurisdictions.py`) because neither shares a county — this is technically wrong, they're both in the same state
-2. **Sibling detection** fails: `base_counties & target_counties` is empty (line 174) so SR and SF are never considered siblings even though they're both Bay Area cities
-3. **Tier weighting** uses `cross_county: 0.5` instead of what should be a closer relationship
+Decision IDs currently use a synthetic-D approach: `compute_stable_decision_id()` hashes fields like `item_ref`, `title`, `item_type`, `outcome`, `budget_amount`. This works in practice but is theoretically fragile — if two genuinely-distinct decisions in one meeting share all those fields, they'd collide. A real platform-native ID (Granicus clip ID, Legistar matter ID, BoardDocs item ID) would be ground-truth.
 
 ## Key Files
 
-- `data/jurisdictions/city-san-francisco.yaml:22-24` — `parent_jurisdictions` missing county
-- `config/registry.json:300-306` — same data in registry format
-- `packages/civicos-services/src/civicos_services/query/jurisdictions.py:143-177` — `resolve_relationship_tier()` logic
-- `data/jurisdictions/county-san-francisco.yaml` — **DOES NOT EXIST** (needs to be created)
+- `packages/civicos-extraction/src/civicos_extraction/processing/retrospective_analyzer.py` — `HighStakesDecision` dataclass, `compute_stable_decision_id()`
+- `packages/civicos-extraction/src/civicos_extraction/clients/granicus.py` — Granicus extraction client
+- `packages/civicos-extraction/src/civicos_extraction/clients/legistar.py` — Legistar extraction client
+- `packages/civicos/src/civicos/storage/integrity.py` — Storage-level dedup
 
 ## Suggested Approach
 
-1. **Create `data/jurisdictions/county-san-francisco.yaml`** — SF is unique as a consolidated city-county. The county config needs to exist even if it has no separate meetings (the city IS the county).
+1. **Add `source_item_id: Optional[str]` to `HighStakesDecision`** dataclass
+2. **Update Granicus client** to populate source_item_id from clip/event ID
+3. **Update Legistar client** to populate source_item_id from matter ID
+4. **Update `compute_stable_decision_id()`** to include source_item_id in hash when present
+5. **Test** with existing data — ensure no regressions in dedup behavior
 
-2. **Update `city-san-francisco.yaml`** — add `county-san-francisco` to `parent_jurisdictions`:
-   ```yaml
-   parent_jurisdictions:
-     - county-san-francisco
-     - state-california
-     - country-united-states
-   ```
+## Design Notes
 
-3. **Update `config/registry.json`** — same change in the registry entry for `city-san-francisco`
-
-4. **Verify `resolve_relationship_tier()`** handles it correctly — after fix, SR→SF should return `"cross_county"` (they ARE in different counties: Marin vs SF) but for the right structural reason (both have county parents, those counties differ).
-
-5. **Test**: Run query tests to ensure cross-jurisdiction queries still work:
-   ```bash
-   pytest packages/civicos-services/tests/test_query_v2.py -q --override-ini="addopts=" -k "jurisdiction"
-   pytest packages/civicos-services/tests/test_integration_query_v2.py -q --override-ini="addopts=" -k "cross" 2>/dev/null
-   ```
-
-## Design Decision
-
-SF as consolidated city-county means `county-san-francisco` is a "virtual" jurisdiction — it has no separate meetings or data because the city government IS the county government. But the registry needs it for structural correctness. Pattern: create a minimal YAML config with `type: county`, no extraction config, pointing to `city-san-francisco` as the data source.
-
-Check how `county-marin` is structured for reference — it has its own meetings. `county-san-francisco` won't have separate meetings but needs to exist in the hierarchy.
+- The source_item_id should be Optional — LLM-extracted decisions from PDF text won't have one
+- When present, it provides stronger uniqueness than synthetic fields
+- Backwards compatible: existing decisions without source_item_id keep their current hash
 
 ## Success Criteria
 
-- [ ] `county-san-francisco.yaml` created with proper structure
-- [ ] `city-san-francisco.yaml` and `config/registry.json` updated with county parent
-- [ ] `resolve_relationship_tier()` returns correct tiers for SF queries
-- [ ] Query tests pass
+- [ ] `source_item_id` field added to `HighStakesDecision`
+- [ ] Granicus client populates it
+- [ ] Legistar client populates it
+- [ ] Hash function uses it when present
+- [ ] Existing decision IDs unchanged when source_item_id is None
 - [ ] New P0 promoted
 
 ## Open PRs

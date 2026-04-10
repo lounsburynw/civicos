@@ -1,0 +1,78 @@
+# San Francisco County Configuration
+#
+# San Francisco is a consolidated city-county. The city government IS the
+# county government — there are no separate county meetings or data sources.
+# This entry exists for structural correctness in the jurisdiction hierarchy:
+# parent-chain queries, sibling detection, and tier weighting all assume
+# each city has a parent county.
+
+# =============================================================================
+# Identity
+# =============================================================================
+
+jurisdiction_id: county-san-francisco
+level: county
+display_name: San Francisco County
+
+# =============================================================================
+# Hierarchy
+# =============================================================================
+
+parent_jurisdictions:
+  - state-california
+  - country-united-states
+
+# =============================================================================
+# Contact Information
+# =============================================================================
+
+contact_info:
+  clerk_email: board.of.supervisors@sfgov.org
+  county_hall_address: "1 Dr Carlton B Goodlett Pl, San Francisco, CA 94102"
+  phone: "(415) 554-5184"
+  website: "https://sf.gov"
+
+# =============================================================================
+# Governing Body
+# =============================================================================
+
+governing_body:
+  name: San Francisco Board of Supervisors
+  members_title: Supervisors
+  meeting_schedule: "Tuesdays, 2:00 PM"
+  meeting_location: "Board of Supervisors Chambers, City Hall, Room 250"
+
+# =============================================================================
+# Ingestion Tiers
+# =============================================================================
+
+# All tiers disabled — city-san-francisco handles all data ingestion.
+# This is a structural-only entry for hierarchy correctness.
+ingestion:
+  meetings: false
+  pdf_chunks: false
+  issues: false
+  municipal_code: false
+  agenda_items: false
+  decisions: false
+  legislation: false
+  transcription: false
+  diarization: false
+  vector_indexing: false
+
+# =============================================================================
+# Financial Context
+# =============================================================================
+
+financial:
+  state: CA
+  county: San Francisco
+
+# =============================================================================
+# Metadata
+# =============================================================================
+
+metadata:
+  created: "2026-04-10"
+  notes: "Consolidated city-county. No separate county data — city-san-francisco is the sole data source. Entry exists for jurisdiction hierarchy correctness."
+  consolidated_with: city-san-francisco

@@ -1758,6 +1758,21 @@ class TestJurisdictionResolution:
         from civicos_services.query.jurisdictions import get_jurisdiction_tier
         assert get_jurisdiction_tier("city-san-rafael", "city-berkeley") == "cross_county"
 
+    def test_tier_sf_cross_county(self):
+        """SR→SF is cross_county: both have county parents but different counties."""
+        from civicos_services.query.jurisdictions import get_jurisdiction_tier
+        assert get_jurisdiction_tier("city-san-rafael", "city-san-francisco") == "cross_county"
+
+    def test_tier_sf_parent_county(self):
+        """SF lists county-san-francisco as parent."""
+        from civicos_services.query.jurisdictions import get_jurisdiction_tier
+        assert get_jurisdiction_tier("city-san-francisco", "county-san-francisco") == "parent_county"
+
+    def test_tier_sf_county_child(self):
+        """county-san-francisco → city-san-francisco is a child relationship."""
+        from civicos_services.query.jurisdictions import get_jurisdiction_tier
+        assert get_jurisdiction_tier("county-san-francisco", "city-san-francisco") == "child"
+
     def test_tier_weight_self(self):
         from civicos_services.query.jurisdictions import get_tier_weight
         assert get_tier_weight("city-san-rafael", "city-san-rafael") == 1.0
