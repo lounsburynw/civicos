@@ -246,7 +246,7 @@ class TestRunSeeclickfixRefreshDryRun:
         }
         MockClient.return_value = mock_client
 
-        run_seeclickfix_refresh(
+        result = run_seeclickfix_refresh(
             "city-san-rafael",
             dry_run=True,
             output_dir=str(tmp_path / "out"),
@@ -255,6 +255,7 @@ class TestRunSeeclickfixRefreshDryRun:
 
         call_kwargs = mock_client.get_issues.call_args[1]
         assert call_kwargs["place_url"] == "san-rafael"
+        assert result == {"dry_run": True, "status": "validated"}
 
     @patch("civicos_extraction.clients.seeclickfix.SeeClickFixClient")
     def test_dry_run_uses_explicit_place_url(self, MockClient, tmp_path):
@@ -265,7 +266,7 @@ class TestRunSeeclickfixRefreshDryRun:
         }
         MockClient.return_value = mock_client
 
-        run_seeclickfix_refresh(
+        result = run_seeclickfix_refresh(
             "city-san-rafael",
             place_url="custom-place",
             dry_run=True,
@@ -275,6 +276,7 @@ class TestRunSeeclickfixRefreshDryRun:
 
         call_kwargs = mock_client.get_issues.call_args[1]
         assert call_kwargs["place_url"] == "custom-place"
+        assert result == {"dry_run": True, "status": "validated"}
 
 
 class TestRunSeeclickfixRefreshFetch:
@@ -599,7 +601,7 @@ class TestRunSeeclickfixRefreshCheckpoint:
         cp_path = cp_dir / "seeclickfix_city-san-rafael.json"
         cp_path.write_text(json.dumps(cp_data))
 
-        run_seeclickfix_refresh(
+        result = run_seeclickfix_refresh(
             "city-san-rafael",
             max_pages=10,
             output_dir=str(tmp_path / "out"),
@@ -609,6 +611,8 @@ class TestRunSeeclickfixRefreshCheckpoint:
         # Should start from page 4 (last_page + 1)
         first_call_kwargs = mock_client.get_issues.call_args_list[0][1]
         assert first_call_kwargs["page"] == 4
+        assert result is not None
+        assert result["issues_fetched"] == 1
 
     @patch("civicos_extraction.clients.seeclickfix.SeeClickFixClient")
     def test_ignores_stale_checkpoint(self, MockClient, tmp_path):
@@ -633,7 +637,7 @@ class TestRunSeeclickfixRefreshCheckpoint:
         cp_path = cp_dir / "seeclickfix_city-san-rafael.json"
         cp_path.write_text(json.dumps(cp_data))
 
-        run_seeclickfix_refresh(
+        result = run_seeclickfix_refresh(
             "city-san-rafael",
             max_pages=10,
             output_dir=str(tmp_path / "out"),
@@ -643,6 +647,8 @@ class TestRunSeeclickfixRefreshCheckpoint:
         # Should start from page 1 (stale checkpoint ignored)
         first_call_kwargs = mock_client.get_issues.call_args_list[0][1]
         assert first_call_kwargs["page"] == 1
+        assert result is not None
+        assert result["issues_fetched"] == 1
 
     @patch("civicos_extraction.clients.seeclickfix.SeeClickFixClient")
     def test_saves_checkpoint_every_5_pages(self, MockClient, tmp_path):
@@ -714,7 +720,7 @@ class TestRunSeeclickfixRefreshStatusFilter:
         }
         MockClient.return_value = mock_client
 
-        run_seeclickfix_refresh(
+        result = run_seeclickfix_refresh(
             "city-san-rafael",
             status="closed",
             output_dir=str(tmp_path / "out"),
@@ -723,6 +729,8 @@ class TestRunSeeclickfixRefreshStatusFilter:
 
         call_kwargs = mock_client.get_issues.call_args[1]
         assert call_kwargs["status"] == "closed"
+        assert result is not None
+        assert result["issues_fetched"] == 1
 
     @patch("civicos_extraction.clients.seeclickfix.SeeClickFixClient")
     def test_none_status_passed_through(self, MockClient, tmp_path):
@@ -733,7 +741,7 @@ class TestRunSeeclickfixRefreshStatusFilter:
         }
         MockClient.return_value = mock_client
 
-        run_seeclickfix_refresh(
+        result = run_seeclickfix_refresh(
             "city-san-rafael",
             status=None,
             output_dir=str(tmp_path / "out"),
@@ -742,6 +750,8 @@ class TestRunSeeclickfixRefreshStatusFilter:
 
         call_kwargs = mock_client.get_issues.call_args[1]
         assert call_kwargs["status"] is None
+        assert result is not None
+        assert result["issues_fetched"] == 1
 
 
 # ---------------------------------------------------------------------------
@@ -823,8 +833,9 @@ class TestRunSeeclickfix:
             checkpoint_dir="/tmp/cp",
             dry_run=True,
         )
-        run_seeclickfix(args)
+        result = run_seeclickfix(args)
 
+        assert result == 0
         mock_refresh.assert_called_once_with(
             "city-mill-valley",
             place_url="mill-valley",

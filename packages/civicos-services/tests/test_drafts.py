@@ -467,9 +467,13 @@ class TestUpdateDraft:
         assert data["draft"]["content"] == "Revised comment."
 
     def test_passes_content_to_storage(self, client):
-        storage = _make_storage(get_draft=SAMPLE_DRAFT)
+        updated = {**SAMPLE_DRAFT, "content": "New text"}
+        storage = _make_storage(get_draft=SAMPLE_DRAFT, update_draft=updated)
         with patch("civicos_services.servers.routers.drafts.get_draft_storage", return_value=storage):
-            client.put("/drafts/d-1", json={"content": "New text"})
+            resp = client.put("/drafts/d-1", json={"content": "New text"})
+        assert resp.status_code == 200
+        assert resp.json()["success"] is True
+        assert resp.json()["draft"]["content"] == "New text"
         storage.update_draft.assert_called_once_with("d-1", content="New text")
 
     def test_not_found_returns_404(self, client):
@@ -558,9 +562,13 @@ class TestSubmitDraft:
         assert data["draft"]["submitted_at"] == "2026-03-02T09:00:00Z"
 
     def test_calls_mark_submitted_with_draft_id(self, client):
-        storage = _make_storage(get_draft=SAMPLE_DRAFT)
+        submitted = {**SAMPLE_DRAFT, "status": "submitted"}
+        storage = _make_storage(get_draft=SAMPLE_DRAFT, mark_submitted=submitted)
         with patch("civicos_services.servers.routers.drafts.get_draft_storage", return_value=storage):
-            client.post("/drafts/d-1/submit")
+            resp = client.post("/drafts/d-1/submit")
+        assert resp.status_code == 200
+        assert resp.json()["success"] is True
+        assert resp.json()["draft"]["status"] == "submitted"
         storage.mark_submitted.assert_called_once_with("d-1")
 
     def test_not_found_returns_404(self, client):

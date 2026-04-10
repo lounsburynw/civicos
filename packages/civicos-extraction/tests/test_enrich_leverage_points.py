@@ -539,6 +539,7 @@ class TestRunEnrichLeverage:
         args = self._make_args(stats=True)
         result = run_enrich_leverage(args)
         assert result == 0
+        mock_stats.assert_called_once_with("CA")
 
     def test_returns_1_when_anthropic_unavailable(self):
         args = self._make_args()
@@ -575,10 +576,11 @@ class TestRunEnrichLeverage:
         result = run_enrich_leverage(args)
         assert result == 0
 
+    @patch("civicos_extraction.cli.enrich_leverage_points.enrich_batch")
     @patch("civicos_extraction.cli.enrich_leverage_points.get_unenriched_bills")
     @patch("civicos_extraction.cli.enrich_leverage_points.ANTHROPIC_AVAILABLE", True)
     @patch("civicos_extraction.cli.enrich_leverage_points.os.getenv", return_value="set")
-    def test_dry_run_returns_0_without_enriching(self, mock_getenv, mock_get_bills):
+    def test_dry_run_returns_0_without_enriching(self, mock_getenv, mock_get_bills, mock_enrich):
         mock_get_bills.return_value = [
             {"bill_id": "b1", "bill_number": "AB 1", "bill_name": "Test Bill", "summary": "Test"},
             {"bill_id": "b2", "bill_number": "SB 2", "bill_name": "Another Bill", "summary": "Another"},
@@ -586,11 +588,13 @@ class TestRunEnrichLeverage:
         args = self._make_args(dry_run=True)
         result = run_enrich_leverage(args)
         assert result == 0
+        mock_enrich.assert_not_called()
 
+    @patch("civicos_extraction.cli.enrich_leverage_points.enrich_batch")
     @patch("civicos_extraction.cli.enrich_leverage_points.get_unenriched_bills")
     @patch("civicos_extraction.cli.enrich_leverage_points.ANTHROPIC_AVAILABLE", True)
     @patch("civicos_extraction.cli.enrich_leverage_points.os.getenv", return_value="set")
-    def test_dry_run_with_many_bills_shows_sample(self, mock_getenv, mock_get_bills):
+    def test_dry_run_with_many_bills_shows_sample(self, mock_getenv, mock_get_bills, mock_enrich):
         """Dry run with >5 bills covers the 'and N more' path."""
         mock_get_bills.return_value = [
             {"bill_id": f"b{i}", "bill_number": f"AB {i}", "bill_name": f"Bill {i} about policy", "summary": f"S{i}"}
@@ -599,6 +603,7 @@ class TestRunEnrichLeverage:
         args = self._make_args(dry_run=True)
         result = run_enrich_leverage(args)
         assert result == 0
+        mock_enrich.assert_not_called()
 
     @patch("civicos_extraction.cli.enrich_leverage_points.get_leverage_stats")
     @patch("civicos_extraction.cli.enrich_leverage_points.enrich_batch")
@@ -636,10 +641,13 @@ class TestRunEnrichLeverage:
         mock_enrich.return_value = []
         mock_stats.return_value = {"total": 1, "enriched": 0, "unenriched": 1, "candidates": 1}
 
-        args = self._make_args()
-        result = run_enrich_leverage(args)
+        with patch("civicos.storage.postgres_backend.PostgresBackend") as MockPB:
+            args = self._make_args()
+            result = run_enrich_leverage(args)
 
-        assert result == 0
+            assert result == 0
+            assert mock_enrich.call_count == 1
+            MockPB.assert_not_called()
 
     @patch("civicos_extraction.cli.enrich_leverage_points.get_leverage_stats")
     @patch("civicos_extraction.cli.enrich_leverage_points.enrich_batch")
@@ -718,6 +726,6 @@ class TestRunEnrichLeverage:
         """Stats mode should compute enriched percentage correctly."""
         mock_stats.return_value = {"total": 200, "enriched": 100, "unenriched": 100, "candidates": 80}
         args = self._make_args(stats=True)
-        # Just verify it doesn't crash and returns 0
         result = run_enrich_leverage(args)
         assert result == 0
+        mock_stats.assert_called_once_with("CA")

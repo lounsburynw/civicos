@@ -1004,10 +1004,22 @@ class TestFactoryFunctions:
         assert client._api_key == "test-key"
 
     def test_create_srcs_youtube_source(self):
-        with patch.object(
-            YouTubeBoardsSource, "from_jurisdiction"
-        ) as mock_from:
-            mock_from.return_value = MagicMock(spec=YouTubeBoardsSource)
+        with patch.object(ExtractionConfig, "from_jurisdiction") as mock_from_config:
+            mock_from_config.return_value = ExtractionConfig(
+                source_id="youtube-school-san-rafael",
+                source_type="youtube_boards",
+                jurisdiction_id="school-san-rafael",
+                base_url="https://www.youtube.com",
+                metadata={
+                    "youtube_playlist": "PLyH9MVpaxhEJFfW0jWIbd5wGVQYUEZDcH",
+                    "youtube_channel": "@srcscommunications5656",
+                    "meeting_types": ["school_board", "special_meeting", "workshop"],
+                },
+            )
             result = create_srcs_youtube_source(api_key="test-key")
 
-            mock_from.assert_called_once_with("school-san-rafael", api_key="test-key")
+        assert result.source_id == "youtube-school-san-rafael"
+        assert result.client._playlist_id == "PLyH9MVpaxhEJFfW0jWIbd5wGVQYUEZDcH"
+        assert result.client._jurisdiction_id == "school-san-rafael"
+        assert result.client._api_key == "test-key"
+        assert result.client._meeting_types == ["school_board", "special_meeting", "workshop"]

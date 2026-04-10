@@ -497,10 +497,12 @@ class TestMunicipalFundingPrograms:
         mfp = self._minimal_programs()
         assert mfp.income_limits is None
 
-    def test_last_updated_is_datetime(self):
-        """last_updated is auto-populated as a datetime."""
+    def test_last_updated_is_recent_datetime(self):
+        """last_updated auto-populates to approximately now."""
+        before = datetime.now()
         mfp = self._minimal_programs()
-        assert isinstance(mfp.last_updated, datetime)
+        after = datetime.now()
+        assert before <= mfp.last_updated <= after
 
     def test_explicit_last_updated(self):
         """Explicit last_updated overrides default_factory."""
@@ -604,11 +606,15 @@ class TestMunicipalFundingPrograms:
         assert data["last_updated"] == "2025-06-15T12:00:00"
 
     def test_json_serialization_tz_aware_datetime(self):
-        """Timezone-aware datetime serializes with tz info."""
+        """Timezone-aware datetime serializes with tz offset."""
         fixed_time = datetime(2025, 6, 15, 12, 0, 0, tzinfo=timezone.utc)
         mfp = self._minimal_programs(last_updated=fixed_time)
         data = mfp.model_dump(mode="json")
-        assert "2025-06-15" in data["last_updated"]
+        # Pydantic v2 serializes UTC as Z suffix
+        assert data["last_updated"] in (
+            "2025-06-15T12:00:00Z",
+            "2025-06-15T12:00:00+00:00",
+        )
 
     def test_default_factory_independence_programs(self):
         """Each instance gets independent programs dict."""

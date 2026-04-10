@@ -777,9 +777,30 @@ def test_create_san_rafael_client_with_explicit_key():
 # ==================== Throttle ====================
 
 
-def test_throttle_enforces_minimum_interval(client):
-    """Verify _throttle_request updates last_request_time."""
-    client.min_request_interval = 0.0
-    client.last_request_time = 0.0
-    client._throttle_request()
-    assert client.last_request_time > 0
+def test_throttle_sleeps_when_within_minimum_interval(client):
+    """Verify _throttle_request sleeps for the remaining interval when called too soon."""
+    client.min_request_interval = 1.0
+    client.last_request_time = 100.0
+
+    with patch("civicos_extraction.clients.fac.time.sleep") as mock_sleep:
+        with patch("civicos_extraction.clients.fac.time.time", side_effect=[100.3, 101.0]):
+            client._throttle_request()
+
+    # elapsed = 100.3 - 100.0 = 0.3s, need to sleep 1.0 - 0.3 = 0.7s
+    mock_sleep.assert_called_once()
+    sleep_duration = mock_sleep.call_args[0][0]
+    assert abs(sleep_duration - 0.7) < 0.01
+    assert client.last_request_time == 101.0
+
+
+def test_throttle_skips_sleep_when_interval_elapsed(client):
+    """Verify _throttle_request does not sleep when enough time has passed."""
+    client.min_request_interval = 0.5
+    client.last_request_time = 100.0
+
+    with patch("civicos_extraction.clients.fac.time.sleep") as mock_sleep:
+        with patch("civicos_extraction.clients.fac.time.time", side_effect=[101.0, 101.0]):
+            client._throttle_request()
+
+    mock_sleep.assert_not_called()
+    assert client.last_request_time == 101.0

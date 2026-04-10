@@ -763,12 +763,12 @@ class TestSend:
 
 class TestPreview:
     def test_preview_returns_all_sections(self, digest):
-        with patch.object(digest, "collect_data", return_value=_make_digest_data()):
+        with patch.object(digest, "collect_data", return_value=_make_digest_data(total_cost_usd=1.50)):
             preview = digest.preview()
 
-        assert "data" in preview
-        assert "plaintext" in preview
-        assert "html" in preview
+        assert preview["data"]["total_cost_usd"] == 1.50
+        assert "$1.5000" in preview["plaintext"]
+        assert "$1.5000" in preview["html"]
 
     def test_preview_data_matches_collect(self, digest):
         with patch.object(digest, "collect_data", return_value=_make_digest_data(total_cost_usd=4.20, date="2026-04-10")):

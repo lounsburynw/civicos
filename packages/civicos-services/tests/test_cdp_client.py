@@ -168,15 +168,12 @@ class TestNormalizeDatetime:
     def test_utc_z_suffix(self):
         client = _make_client()
         result = client._normalize_datetime("2025-06-15T10:00:00Z")
-        assert "2025-06-15" in result
-        assert "10:00:00" in result
-        assert "+00:00" in result
+        assert result == "2025-06-15T10:00:00+00:00"
 
     def test_explicit_offset_preserved(self):
         client = _make_client()
         result = client._normalize_datetime("2025-06-15T10:00:00-07:00")
-        assert "2025-06-15" in result
-        assert "-07:00" in result
+        assert result == "2025-06-15T10:00:00-07:00"
 
     def test_naive_datetime_gets_localized_when_pytz_available(self):
         """When pytz is importable, naive datetimes get jurisdiction tz applied."""
@@ -186,10 +183,8 @@ class TestNormalizeDatetime:
             pytest.skip("pytz not installed")
         client = _make_client(timezone="America/New_York")
         result = client._normalize_datetime("2025-06-15T10:00:00")
-        assert "2025-06-15" in result
-        assert "10:00:00" in result
-        # Eastern = -04:00 in summer
-        assert "-04:00" in result
+        # Eastern = -04:00 in summer (EDT)
+        assert result == "2025-06-15T10:00:00-04:00"
 
     def test_naive_datetime_returns_empty_when_pytz_missing(self):
         """Without pytz, naive datetimes can't be localized → returns ''."""
@@ -301,14 +296,13 @@ class TestExtractCommentDeadline:
         client = _make_client()
         event = _make_fake_event(event_datetime="2025-08-10T18:00:00Z")
         deadline = client._extract_comment_deadline(event)
-        assert "2025-08-09" in deadline
-        assert "18:00:00" in deadline
+        assert deadline == "2025-08-09T18:00:00+00:00"
 
     def test_string_without_z(self):
         client = _make_client()
         event = _make_fake_event(event_datetime="2025-08-10T18:00:00+00:00")
         deadline = client._extract_comment_deadline(event)
-        assert "2025-08-09" in deadline
+        assert deadline == "2025-08-09T18:00:00+00:00"
 
 
 # ---------------------------------------------------------------------------
@@ -625,14 +619,12 @@ class TestCreateCdpClient:
     def test_known_jurisdiction_returns_client(self):
         with patch("civicos_services.clients.cdp_client.CDP_AVAILABLE", False):
             client = create_cdp_client("oakland")
-        assert client is not None
         assert client.jurisdiction_name == "Oakland"
         assert client.jurisdiction_id == "city-oakland"
 
     def test_case_insensitive_lookup(self):
         with patch("civicos_services.clients.cdp_client.CDP_AVAILABLE", False):
             client = create_cdp_client("OAKLAND")
-        assert client is not None
         assert client.jurisdiction_name == "Oakland"
 
     def test_unknown_jurisdiction_returns_none(self):
@@ -642,7 +634,6 @@ class TestCreateCdpClient:
     def test_seattle_config(self):
         with patch("civicos_services.clients.cdp_client.CDP_AVAILABLE", False):
             client = create_cdp_client("seattle")
-        assert client is not None
         assert client.jurisdiction_id == "city-seattle"
         assert client.timezone == "America/Los_Angeles"
 
@@ -695,6 +686,8 @@ class TestThrottleRequest:
         with patch("civicos_services.clients.cdp_client.time.sleep") as mock_sleep:
             client._throttle_request()
             mock_sleep.assert_called_once_with(0.2)
+        # Verify last_request_time was updated after throttle
+        assert client.last_request_time > 0
 
 
 # ---------------------------------------------------------------------------

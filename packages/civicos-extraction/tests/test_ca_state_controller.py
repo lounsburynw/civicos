@@ -938,10 +938,12 @@ class TestHealth:
         assert any("boom" in e for e in status.errors)
 
     def test_check_duration_measured(self, client):
-        with patch.object(client, "_make_request", return_value=[{"id": 1}]):
+        with patch.object(client, "_make_request", return_value=[{"id": 1}]), \
+             patch("civicos_extraction.clients.ca_state_controller.time.time",
+                   side_effect=[100.0, 100.05]):
             status = client.health()
 
-        assert status.check_duration_ms >= 0.0
+        assert status.check_duration_ms == 50.0
 
 
 # ==================== validate ====================
@@ -1025,10 +1027,11 @@ class TestValidate:
             client,
             "_make_request",
             side_effect=[[{"id": 1}], [{"e": 1}]],
-        ):
+        ), patch("civicos_extraction.clients.ca_state_controller.time.time",
+                 side_effect=[200.0, 200.123]):
             result = client.validate()
 
-        assert result.check_duration_ms >= 0.0
+        assert result.check_duration_ms == 123.0
 
 
 # ==================== create_san_rafael_sco_client ====================

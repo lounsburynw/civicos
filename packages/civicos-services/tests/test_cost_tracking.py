@@ -9,6 +9,7 @@ To run:
     pytest packages/civicos-services/tests/test_cost_tracking.py -q --override-ini="addopts="
 """
 
+from datetime import datetime
 from unittest.mock import MagicMock, patch, call
 import pytest
 
@@ -101,6 +102,7 @@ class TestRegisterBlobCostHook:
             ct._register_blob_cost_hook()
             ct._register_blob_cost_hook()
         mock_hook.assert_called_once_with(ct.log_r2_cost)
+        assert ct._blob_hook_registered is True
 
     def test_swallows_import_error(self):
         with patch(
@@ -245,8 +247,11 @@ class TestLogLlmCost:
         log_llm_cost(model="gpt-4o-mini", usage={"total_tokens": 100})
 
         metadata = patch_storage.store_operating_cost.call_args[1]["metadata"]
-        assert "timestamp" in metadata
-        assert "T" in metadata["timestamp"]  # ISO format
+        ts = metadata["timestamp"]
+        # Verify it's a valid ISO 8601 UTC timestamp
+        parsed = datetime.fromisoformat(ts)
+        assert parsed.year >= 2025
+        assert parsed.tzinfo is not None  # timezone-aware
 
 
 # ---------------------------------------------------------------------------
@@ -709,7 +714,10 @@ class TestReconcileCosts:
         result = reconcile_costs(period_days=7)
 
         assert result["period_days"] == 7
-        assert "since" in result
+        # "since" should be a valid ISO timestamp string
+        since = result["since"]
+        parsed = datetime.fromisoformat(since)
+        assert parsed.year >= 2025
 
     def test_returns_error_on_exception(self, patch_storage):
         patch_storage.get_operating_cost_summary.side_effect = RuntimeError("DB down")

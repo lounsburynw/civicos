@@ -277,7 +277,7 @@ class TestNormalizeIssue:
         assert result["reporter"]["name"] == "Jane Doe"
         assert result["reporter"]["role"] == "Registered"
         assert result["reporter"]["civic_points"] == 150
-        assert "avatar" in result["reporter"]["avatar"]
+        assert result["reporter"]["avatar"] == "https://cdn.scf.com/avatar.jpg"
 
     def test_media_fields(self):
         client = _make_client()
@@ -303,7 +303,7 @@ class TestNormalizeIssue:
 
         assert result["html_url"] == "https://seeclickfix.com/issues/12345"
         assert result["api_url"] == "https://seeclickfix.com/api/v2/issues/12345"
-        assert "comments" in result["comment_url"]
+        assert result["comment_url"] == "https://seeclickfix.com/api/v2/issues/12345/comments"
 
     def test_metadata_fields(self):
         client = _make_client()
@@ -312,7 +312,7 @@ class TestNormalizeIssue:
 
         assert result["_seeclickfix_metadata"]["private_visibility"] is False
         assert result["_seeclickfix_metadata"]["show_blocked_issue_text"] is False
-        assert "close" in result["_seeclickfix_metadata"]["transitions"]
+        assert result["_seeclickfix_metadata"]["transitions"] == {"close": "https://..."}
 
     def test_missing_fields_use_defaults(self):
         """Empty raw issue should still produce valid normalized output."""
@@ -464,61 +464,68 @@ class TestGetIssues:
         client = _make_client()
         self._stub_make_request(client, [])
 
-        client.get_issues(lat=37.97, lng=-122.53, radius=2000)
+        result = client.get_issues(lat=37.97, lng=-122.53, radius=2000)
 
         call_params = client._make_request.call_args[0][1]
         assert call_params["lat"] == 37.97
         assert call_params["lng"] == -122.53
         assert call_params["zoom"] == 14  # 2000m → zoom 14
         assert "place_url" not in call_params
+        assert result["issues"] == []
+        assert result["metadata"]["has_more"] is False
 
     def test_place_url_takes_priority_over_lat_lng(self):
         """When both place_url and lat/lng provided, place_url wins."""
         client = _make_client()
         self._stub_make_request(client, [])
 
-        client.get_issues(place_url="san-rafael", lat=37.97, lng=-122.53)
+        result = client.get_issues(place_url="san-rafael", lat=37.97, lng=-122.53)
 
         call_params = client._make_request.call_args[0][1]
         assert call_params["place_url"] == "san-rafael"
         assert "lat" not in call_params
         assert "lng" not in call_params
+        assert result["issues"] == []
 
     def test_per_page_capped_at_100(self):
         client = _make_client()
         self._stub_make_request(client, [])
 
-        client.get_issues(place_url="test", per_page=200)
+        result = client.get_issues(place_url="test", per_page=200)
 
         call_params = client._make_request.call_args[0][1]
         assert call_params["per_page"] == 100
+        assert result["issues"] == []
 
     def test_status_param_passed(self):
         client = _make_client()
         self._stub_make_request(client, [])
 
-        client.get_issues(place_url="test", status="closed")
+        result = client.get_issues(place_url="test", status="closed")
 
         call_params = client._make_request.call_args[0][1]
         assert call_params["status"] == "closed"
+        assert result["issues"] == []
 
     def test_no_status_omits_param(self):
         client = _make_client()
         self._stub_make_request(client, [])
 
-        client.get_issues(place_url="test", status=None)
+        result = client.get_issues(place_url="test", status=None)
 
         call_params = client._make_request.call_args[0][1]
         assert "status" not in call_params
+        assert result["issues"] == []
 
     def test_request_types_joined(self):
         client = _make_client()
         self._stub_make_request(client, [])
 
-        client.get_issues(place_url="test", request_types=[42, 55, 100])
+        result = client.get_issues(place_url="test", request_types=[42, 55, 100])
 
         call_params = client._make_request.call_args[0][1]
         assert call_params["request_types"] == "42,55,100"
+        assert result["issues"] == []
 
     def test_api_failure_returns_error_metadata(self):
         client = _make_client()
@@ -706,7 +713,7 @@ class TestGetIssuesSummary:
         client = _make_client()
         self._stub_get_issues(client, [], [])
 
-        client.get_issues_summary(lat=37.97, lng=-122.53, radius=3000)
+        result = client.get_issues_summary(lat=37.97, lng=-122.53, radius=3000)
 
         # Both open and closed calls should have been made
         assert client.get_issues.call_count == 2
@@ -714,6 +721,9 @@ class TestGetIssuesSummary:
             assert call[1]["lat"] == 37.97
             assert call[1]["lng"] == -122.53
             assert call[1]["radius"] == 3000
+        # Verify summary output reflects empty inputs
+        assert result["total_open"] == 0
+        assert result["total_closed"] == 0
 
 
 # ---------------------------------------------------------------------------

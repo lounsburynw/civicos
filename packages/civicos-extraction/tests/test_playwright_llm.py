@@ -700,55 +700,63 @@ class TestPlaywrightLLMSource:
             source.normalize_event(event)
 
     def test_normalize_event_date_parsing_valid_iso(self, source):
-        """Test the date parsing logic inside normalize_event (before Meeting construction)."""
-        # We test the fromisoformat path by checking what normalize_event computes.
-        # Since normalize_event crashes at Meeting(), we test the inner logic directly.
+        """normalize_event parses valid ISO dates and passes them to Meeting."""
         event = {"title": "Council", "date": "2026-03-15T18:00:00"}
-        date_str = event.get("date", "")
-        parsed = datetime.fromisoformat(date_str)
-        assert parsed == datetime(2026, 3, 15, 18, 0, 0)
+        with patch("civicos_extraction.clients.base.Meeting") as MockMeeting:
+            MockMeeting.return_value = MagicMock()
+            source.normalize_event(event)
+        call_kwargs = MockMeeting.call_args[1]
+        assert call_kwargs["meeting_datetime"] == datetime(2026, 3, 15, 18, 0, 0)
 
     def test_normalize_event_date_parsing_invalid_falls_back(self, source):
-        """Invalid date string triggers fallback to epoch."""
-        date_str = "not-a-date"
-        try:
-            parsed = datetime.fromisoformat(date_str)
-        except (ValueError, TypeError):
-            parsed = datetime(1970, 1, 1)
-        assert parsed == datetime(1970, 1, 1)
+        """Invalid date string triggers fallback to epoch in normalize_event."""
+        event = {"title": "Council", "date": "not-a-date"}
+        with patch("civicos_extraction.clients.base.Meeting") as MockMeeting:
+            MockMeeting.return_value = MagicMock()
+            source.normalize_event(event)
+        call_kwargs = MockMeeting.call_args[1]
+        assert call_kwargs["meeting_datetime"] == datetime(1970, 1, 1)
 
     def test_normalize_event_date_parsing_empty_falls_back(self, source):
-        """Empty date string triggers fallback to epoch."""
-        date_str = ""
-        try:
-            parsed = datetime.fromisoformat(date_str)
-        except (ValueError, TypeError):
-            parsed = datetime(1970, 1, 1)
-        assert parsed == datetime(1970, 1, 1)
+        """Empty date string triggers fallback to epoch in normalize_event."""
+        event = {"title": "Council", "date": ""}
+        with patch("civicos_extraction.clients.base.Meeting") as MockMeeting:
+            MockMeeting.return_value = MagicMock()
+            source.normalize_event(event)
+        call_kwargs = MockMeeting.call_args[1]
+        assert call_kwargs["meeting_datetime"] == datetime(1970, 1, 1)
 
     def test_normalize_event_id_computation(self, source):
-        """Verify the SHA-256 ID computation logic used by normalize_event."""
-        title = "Council Meeting"
-        parsed_date = datetime.fromisoformat("2026-03-15T18:00:00")
-        id_source = f"city-ross:{title}:{parsed_date.isoformat()}"
-        meeting_id = hashlib.sha256(id_source.encode()).hexdigest()[:16]
+        """normalize_event computes a stable 16-char SHA-256 meeting ID."""
+        event = {"title": "Council Meeting", "date": "2026-03-15T18:00:00"}
+        with patch("civicos_extraction.clients.base.Meeting") as MockMeeting:
+            MockMeeting.return_value = MagicMock()
+            source.normalize_event(event)
+        meeting_id = MockMeeting.call_args[1]["meeting_id"]
         assert len(meeting_id) == 16
-        # Stable: same input → same ID
-        meeting_id2 = hashlib.sha256(id_source.encode()).hexdigest()[:16]
-        assert meeting_id == meeting_id2
+        # Deterministic: same input produces same ID
+        with patch("civicos_extraction.clients.base.Meeting") as MockMeeting2:
+            MockMeeting2.return_value = MagicMock()
+            source.normalize_event(event)
+        assert MockMeeting2.call_args[1]["meeting_id"] == meeting_id
 
     def test_normalize_event_different_titles_produce_different_ids(self, source):
         """Different titles produce different meeting IDs."""
-        date = datetime(2026, 3, 15, 18, 0, 0)
-        id1 = hashlib.sha256(f"city-ross:Council Meeting:{date.isoformat()}".encode()).hexdigest()[:16]
-        id2 = hashlib.sha256(f"city-ross:Planning Meeting:{date.isoformat()}".encode()).hexdigest()[:16]
+        with patch("civicos_extraction.clients.base.Meeting") as MockMeeting:
+            MockMeeting.return_value = MagicMock()
+            source.normalize_event({"title": "Council Meeting", "date": "2026-03-15T18:00:00"})
+            id1 = MockMeeting.call_args[1]["meeting_id"]
+            source.normalize_event({"title": "Planning Meeting", "date": "2026-03-15T18:00:00"})
+            id2 = MockMeeting.call_args[1]["meeting_id"]
         assert id1 != id2
 
     def test_normalize_event_default_title(self, source):
-        """Missing title defaults to 'Unknown Meeting'."""
+        """Missing title defaults to 'Unknown Meeting' in normalize_event."""
         event = {"date": "2026-01-01T10:00:00"}
-        title = event.get("title", "Unknown Meeting")
-        assert title == "Unknown Meeting"
+        with patch("civicos_extraction.clients.base.Meeting") as MockMeeting:
+            MockMeeting.return_value = MagicMock()
+            source.normalize_event(event)
+        assert MockMeeting.call_args[1]["title"] == "Unknown Meeting"
 
     def test_health_check_success(self, source):
         mock_meetings = [{"title": "M1"}, {"title": "M2"}]

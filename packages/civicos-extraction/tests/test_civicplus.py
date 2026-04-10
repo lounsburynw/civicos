@@ -377,12 +377,13 @@ class TestFetchArchive:
     def test_constructs_correct_url(self, client):
         mock_resp = _mock_response(SAMPLE_ARCHIVE_EMPTY)
         with patch.object(client.session, "get", return_value=mock_resp) as mock_get:
-            client._fetch_archive("49")
+            entries = client._fetch_archive("49")
             mock_get.assert_called_once_with(
                 "https://www.ci.larkspur.ca.us/Archive.aspx?AMID=49",
                 timeout=15,
                 allow_redirects=True,
             )
+            assert entries == []
 
 
 # ============================================================================
@@ -714,12 +715,13 @@ class TestValidate:
     def test_probes_first_archive_amid(self, client):
         mock_resp = _mock_response(SAMPLE_ARCHIVE_HTML)
         with patch.object(client.session, "get", return_value=mock_resp) as mock_get:
-            client.validate()
+            result = client.validate()
             mock_get.assert_called_once_with(
                 "https://www.ci.larkspur.ca.us/Archive.aspx?AMID=49",
                 timeout=10,
                 allow_redirects=True,
             )
+            assert result.is_valid is True
 
     def test_skips_probe_when_config_errors(self):
         c = CivicPlusClient(

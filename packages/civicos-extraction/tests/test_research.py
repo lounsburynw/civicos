@@ -519,9 +519,9 @@ class TestRunMunicipalFunding:
         captured = capsys.readouterr()
         assert "ETL cost recorded" not in captured.out
 
-    @patch.dict("os.environ", {"DATABASE_URL": ""}, clear=False)
+    @patch.dict("os.environ", {"DATABASE_URL": "postgres://test"}, clear=False)
     def test_jurisdiction_id_derivation(self, capsys):
-        """Municipality name converts to jurisdiction_id correctly."""
+        """Municipality name converts to jurisdiction_id correctly (multi-word slug)."""
         mock_provider = MagicMock()
         mock_provider.name = "mock"
 
@@ -535,20 +535,29 @@ class TestRunMunicipalFunding:
         mock_researcher_instance.research.return_value = mock_result
         mock_researcher_cls.return_value = mock_researcher_instance
 
+        mock_backend = MagicMock()
+        mock_backend.backend_type = "postgres"
+        mock_backend.store_etl_cost.return_value = 1
+
         with patch(
             "civicos_extraction.research.providers.get_provider",
             return_value=mock_provider,
         ), patch(
             "civicos_extraction.research.MunicipalFundingResearcher",
             mock_researcher_cls,
+        ), patch(
+            "civicos.storage.get_storage_backend",
+            return_value=mock_backend,
         ):
             # Use a multi-word municipality to verify slug generation
             args = _make_args(municipality="Mill Valley")
             exit_code = run_municipal_funding(args)
 
         assert exit_code == 0
-        captured = capsys.readouterr()
-        assert "Mill Valley" in captured.out
+        # Verify the jurisdiction_id was derived as "city-mill-valley"
+        mock_backend.store_etl_cost.assert_called_once()
+        call_kwargs = mock_backend.store_etl_cost.call_args.kwargs
+        assert call_kwargs["jurisdiction_id"] == "city-mill-valley"
 
 
 # ---------------------------------------------------------------------------

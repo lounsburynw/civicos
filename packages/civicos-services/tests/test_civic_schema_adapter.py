@@ -10,7 +10,6 @@ To run:
 """
 
 from datetime import datetime, timezone
-from unittest.mock import patch
 
 import pytest
 
@@ -482,14 +481,23 @@ class TestConvertToIsoDatetime:
         current_year = str(datetime.now().year)
         assert current_year in result
 
-    def test_empty_string_returns_timestamp(self, adapter):
+    def test_empty_string_returns_current_timestamp(self, adapter):
+        before = datetime.now(timezone.utc)
         result = adapter.convert_to_iso_datetime("")
-        # Should return a valid ISO timestamp (current time)
-        assert "T" in result
+        after = datetime.now(timezone.utc)
+        # Should return a valid ISO timestamp close to "now"
+        parsed = datetime.fromisoformat(result)
+        assert parsed.year == before.year
+        assert before.month == parsed.month
+        assert before.day == parsed.day
 
-    def test_unparseable_returns_timestamp(self, adapter):
+    def test_unparseable_returns_current_timestamp(self, adapter):
+        before = datetime.now(timezone.utc)
         result = adapter.convert_to_iso_datetime("not-a-date")
-        assert "T" in result
+        parsed = datetime.fromisoformat(result)
+        assert parsed.year == before.year
+        assert before.month == parsed.month
+        assert before.day == parsed.day
 
 
 # ---------------------------------------------------------------------------
@@ -737,8 +745,10 @@ class TestCreateHumanReadableTime:
     def test_unknown_jurisdiction_still_returns_string(self, adapter):
         adapter.current_jurisdiction_id = "city-nowhere"
         result = adapter.create_human_readable_time("2025-10-15T18:00:00Z")
-        assert result is not None
+        # Should still produce a human-readable string with the correct date
+        assert "Oct" in result
         assert "2025" in result
+        assert ":" in result  # Contains a time component
 
     def test_invalid_datetime_returns_none(self, adapter):
         result = adapter.create_human_readable_time("not-a-date")

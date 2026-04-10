@@ -205,7 +205,8 @@ class TestExtractVideoId:
             text='videoId: "vid1"',
         )
         mock_get.return_value.raise_for_status = MagicMock()
-        extract_video_id("https://example.com/meeting/8", timeout=42)
+        result = extract_video_id("https://example.com/meeting/8", timeout=42)
+        assert result == "vid1"
         mock_get.assert_called_once_with("https://example.com/meeting/8", timeout=42)
 
 
@@ -554,9 +555,10 @@ class TestDiscoverFromChannel:
         mock_run.return_value = MagicMock(
             returncode=0, stdout="", stderr=""
         )
-        discover_from_channel("city-test")
+        result = discover_from_channel("city-test")
         args = mock_run.call_args[0][0]
         assert "https://www.youtube.com/playlist?list=PLabc" in args
+        assert result == []
 
     @patch("civicos_extraction.cli.youtube._get_youtube_source")
     @patch("subprocess.run")
@@ -569,9 +571,10 @@ class TestDiscoverFromChannel:
         mock_run.return_value = MagicMock(
             returncode=0, stdout="", stderr=""
         )
-        discover_from_channel("city-test")
+        result = discover_from_channel("city-test")
         args = mock_run.call_args[0][0]
         assert "https://www.youtube.com/channel/UCxyz/videos" in args
+        assert result == []
 
 
 # ---------------------------------------------------------------------------

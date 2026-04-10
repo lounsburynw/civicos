@@ -841,7 +841,8 @@ class TestEnhanceEventWithAgenda:
         result = integrator.enhance_event_with_agenda(event)
         assert result["agenda_expansion"]["available"] is True
         assert result["agenda_expansion"]["parsed"] is False
-        assert "parse_failure_reason" in result["agenda_expansion"]
+        assert isinstance(result["agenda_expansion"]["parse_failure_reason"], str)
+        assert len(result["agenda_expansion"]["parse_failure_reason"]) > 0
 
 
 # ===========================================================================
@@ -854,25 +855,27 @@ class TestExtractPdfText:
         """When CONSENT CALENDAR is found, text starts near that section."""
         integrator = _make_integrator()
 
-        # Create a mock PdfReader
         mock_page = MagicMock()
         preamble = "A" * 2000
         body = "CONSENT CALENDAR\n1. Approve Minutes\n2. Budget Report"
         mock_page.extract_text.return_value = preamble + body
 
-        with patch("civicos_extraction.processing.agenda_integration.PdfReader", create=True) as MockPdfReader:
-            # pypdf import patch
-            with patch.dict("sys.modules", {"pypdf": MagicMock()}):
-                from unittest.mock import patch as p2
-                import importlib
-                # Simpler: just call and mock the internal import
-                mock_reader = MagicMock()
-                mock_reader.pages = [mock_page]
+        mock_reader = MagicMock()
+        mock_reader.pages = [mock_page]
 
-                with patch("builtins.__import__", side_effect=ImportError("no pypdf")):
-                    # Fall back to the ImportError path
-                    result = integrator._extract_pdf_text(b"fake pdf bytes")
-                    assert "PyPDF2 not available" in result
+        with patch("civicos_extraction.processing.agenda_integration.PdfReader",
+                    return_value=mock_reader, create=True):
+            # Patch the dynamic import inside _extract_pdf_text
+            import types
+            fake_pypdf = types.ModuleType("pypdf")
+            fake_pypdf.PdfReader = MagicMock(return_value=mock_reader)
+            with patch.dict("sys.modules", {"pypdf": fake_pypdf}):
+                result = integrator._extract_pdf_text(b"fake pdf bytes")
+                # Text should start near CONSENT CALENDAR, not at the preamble start
+                assert "CONSENT CALENDAR" in result
+                assert "Approve Minutes" in result
+                # Preamble should be mostly skipped (only ~500 chars before CONSENT kept)
+                assert result.count("A" * 500) <= 1
 
     def test_returns_fallback_message_when_no_pdf_library(self):
         """When neither pypdf nor PyPDF2 is available, returns fallback text."""
@@ -882,7 +885,8 @@ class TestExtractPdfText:
         # Patch both pypdf and PyPDF2 to be unavailable
         with patch.dict("sys.modules", {"pypdf": None, "PyPDF2": None}):
             result = integrator._extract_pdf_text(content)
-            assert "PyPDF2 not available" in result or "extraction failed" in result
+            assert "PyPDF2 not available" in result
+            assert str(len(content)) in result  # Includes content length
 
 
 # ===========================================================================

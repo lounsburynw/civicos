@@ -706,7 +706,7 @@ class TestEnhanceEventWithAgenda:
             result = integrator.enhance_event_with_agenda(event)
 
         assert result["agenda_expansion"]["parsed"] is False
-        assert "parse_failure_reason" in result["agenda_expansion"]
+        assert result["agenda_expansion"]["parse_failure_reason"] == "Agenda may be placeholder/not yet finalized"
 
     def test_original_event_not_mutated(self, integrator):
         event = {"source_url": "", "jurisdiction": {"id": "city-test"}, "title": "X"}

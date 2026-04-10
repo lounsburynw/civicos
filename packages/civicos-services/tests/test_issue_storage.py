@@ -531,10 +531,9 @@ class TestGetUserComplaints:
 
         results = issue_storage.get_user_complaints("user-A")
         for issue in results:
-            # Related complaints should only include user-B's issue
+            # Related complaints should only include user-B's issue, not own issues
             assert issue["id"] not in issue["related_complaints"]
-            if other_id in issue["related_complaints"]:
-                assert True  # user-B's issue IS in related
+            assert other_id in issue["related_complaints"]
 
 
 # ---------------------------------------------------------------------------
@@ -1139,6 +1138,15 @@ class TestUnreadTracking:
 
     def test_mark_thread_seen_updates_timestamp(self, community_storage, db_path):
         community_storage.create_follow("user-1", "issue", "iss-1")
+
+        # Set last_seen_at to a known past value so we can verify it gets updated
+        past = "2020-01-01 00:00:00"
+        with sqlite3.connect(db_path) as conn:
+            conn.execute(
+                "UPDATE follows SET last_seen_at = ? WHERE user_id = ? AND focal_type = ? AND focal_id = ?",
+                (past, "user-1", "issue", "iss-1"),
+            )
+
         community_storage.mark_thread_seen("user-1", "issue", "iss-1")
 
         with sqlite3.connect(db_path) as conn:
@@ -1147,7 +1155,7 @@ class TestUnreadTracking:
                 ("user-1", "issue", "iss-1"),
             ).fetchone()
 
-        assert row[0] is not None
+        assert row[0] > past
 
 
 # ---------------------------------------------------------------------------

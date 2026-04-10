@@ -438,7 +438,8 @@ class TestGetProviderForTask:
                 mock_inst = MagicMock()
                 mock_inst.name = "google"
                 MockCls.return_value = mock_inst
-                get_provider_for_task("long_document")
+                provider = get_provider_for_task("long_document")
+                assert provider.name == "google"
                 MockCls.assert_called_once_with(model="gemini-1.5-pro-latest")
 
     def test_uses_fallback_when_all_unavailable(self):
