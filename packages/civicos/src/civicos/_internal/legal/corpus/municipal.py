@@ -193,7 +193,6 @@ class MunicipalCodeCorpus:
         "city-berkeley": {"state": "CA", "name": "Berkeley"},
         "city-oakland": {"state": "CA", "name": "Oakland"},
         "county-marin": {"state": "CA", "name": "Marin County", "product_name": "Municipal Code"},
-        "county-alameda": {"state": "CA", "name": "Alameda County", "product_name": "Code of Ordinances"},
     }
 
     def __init__(
@@ -413,9 +412,10 @@ class MunicipalCodeCorpus:
         """
         jid = self.jurisdiction_id
 
-        # Try loading jurisdiction YAML for state info
+        # Try loading jurisdiction YAML for state, name, and product_name
         state = None
         yaml_name = None
+        yaml_product_name = None
         try:
             from civicos_config.paths import JURISDICTIONS_DIR
             yaml_path = JURISDICTIONS_DIR / f"{jid}.yaml"
@@ -426,6 +426,10 @@ class MunicipalCodeCorpus:
                 if data:
                     state = data.get("state") or data.get("financial", {}).get("state")
                     yaml_name = data.get("display_name")
+                    # Read product_name from data_sources.municipal_code if it's a dict
+                    mc_config = (data.get("data_sources") or {}).get("municipal_code")
+                    if isinstance(mc_config, dict):
+                        yaml_product_name = mc_config.get("product_name")
         except Exception:
             pass
 
@@ -446,8 +450,13 @@ class MunicipalCodeCorpus:
                 f"Either add it to JURISDICTION_MAP or create data/jurisdictions/{jid}.yaml with a 'state' field."
             )
 
-        # Counties often use "Municipal Code" instead of "Code of Ordinances"
-        product_name = "Municipal Code" if jid.startswith("county-") else "Code of Ordinances"
+        # YAML product_name takes precedence, then heuristic by jurisdiction level
+        if yaml_product_name:
+            product_name = yaml_product_name
+        elif jid.startswith("county-"):
+            product_name = "Municipal Code"
+        else:
+            product_name = "Code of Ordinances"
 
         import logging
         logging.getLogger(__name__).info(f"Inferred Municode lookup: {name}, {state} (product: {product_name})")
