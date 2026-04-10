@@ -184,6 +184,7 @@ class TestElectionCycle:
         assert cycle.next_general == date(2026, 11, 3)
         assert cycle.next_primary == date(2026, 6, 2)
         assert len(cycle.upcoming_generals) >= 3
+        assert cycle.office_type == "us_house"
 
     def test_us_senate_cycle(self):
         cycle = get_election_cycle(
@@ -191,10 +192,33 @@ class TestElectionCycle:
         )
         assert cycle.term_years == 6
         assert cycle.next_general == date(2028, 11, 7)
+        assert cycle.office_type == "us_senate"
 
     def test_state_senate_4yr(self):
         cycle = get_election_cycle("state_senate", district=2, as_of=date(2026, 3, 28))
         assert cycle.term_years == 4
+        assert cycle.office_type == "state_senate"
+
+    def test_state_governor_cycle(self):
+        cycle = get_election_cycle("state_governor", as_of=date(2026, 3, 28))
+        assert cycle.term_years == 4
+        assert cycle.next_general == date(2026, 11, 3)
+        assert cycle.office_type == "state_governor"
+
+    def test_state_assembly_cycle(self):
+        cycle = get_election_cycle("state_assembly", district=12, as_of=date(2026, 3, 28))
+        assert cycle.term_years == 2
+        assert cycle.next_general == date(2026, 11, 3)
+
+    def test_upcoming_generals_are_sorted(self):
+        cycle = get_election_cycle("us_house", district=2, as_of=date(2026, 3, 28))
+        generals = cycle.upcoming_generals
+        assert generals == sorted(generals)
+
+    def test_upcoming_generals_within_horizon(self):
+        cycle = get_election_cycle("us_house", district=2, as_of=date(2026, 3, 28))
+        for gen in cycle.upcoming_generals:
+            assert gen.year <= 2026 + 8  # default horizon_years=8
 
 
 # ========== Contest Determination ==========
@@ -215,6 +239,81 @@ class TestContestsForJurisdiction:
         assert "Treasurer" in titles
         assert "Lieutenant Governor" in titles
         assert len(contests) == 8
+
+    def test_contest_fields_for_house(self):
+        """Validate all fields on a US House contest dict."""
+        districts = {"us-rep": [2]}
+        contests = get_contests_for_jurisdiction(districts, 2026)
+        house = next(c for c in contests if "US House" in c["title"])
+        assert house["office_type"] == "us_house"
+        assert house["contest_type"] == "federal_house"
+        assert house["district"] == 2
+        assert house["title"] == "US House District 2"
+
+    def test_contest_fields_for_assembly(self):
+        """Validate all fields on a state assembly contest dict."""
+        districts = {"state-assembly": [12]}
+        contests = get_contests_for_jurisdiction(districts, 2026)
+        asm = next(c for c in contests if "Assembly" in c["title"])
+        assert asm["office_type"] == "state_assembly"
+        assert asm["contest_type"] == "state_legislature"
+        assert asm["district"] == 12
+
+    def test_contest_fields_for_state_senate(self):
+        """Validate all fields on a state senate contest dict."""
+        districts = {"state-senate": [2]}
+        contests = get_contests_for_jurisdiction(districts, 2026)
+        sen = next(c for c in contests if "State Senate" in c["title"])
+        assert sen["office_type"] == "state_senate"
+        assert sen["contest_type"] == "state_legislature"
+        assert sen["district"] == 2
+
+    def test_contest_fields_for_governor(self):
+        """Validate governor contest dict fields."""
+        districts = {}
+        contests = get_contests_for_jurisdiction(districts, 2026)
+        gov = next(c for c in contests if c["title"] == "Governor")
+        assert gov["office_type"] == "state_governor"
+        assert gov["contest_type"] == "state_governor"
+        assert gov["district"] is None
+
+    def test_contest_fields_for_statewide_executive(self):
+        """Non-Governor statewide offices get state_executive type."""
+        districts = {}
+        contests = get_contests_for_jurisdiction(districts, 2026)
+        ag = next(c for c in contests if c["title"] == "Attorney General")
+        assert ag["office_type"] == "state_executive"
+        assert ag["contest_type"] == "state_executive"
+        assert ag["district"] is None
+
+    def test_us_senate_contest_fields(self):
+        """Validate US Senate contest dict fields including senate_class."""
+        districts = {"us-rep": [2], "state-assembly": [12], "state-senate": [2]}
+        # 2028: Class 3 (Schiff) is up
+        contests = get_contests_for_jurisdiction(districts, 2028)
+        senate = [c for c in contests if c.get("office_type") == "us_senate"]
+        assert len(senate) >= 1
+        s = senate[0]
+        assert s["contest_type"] == "federal_senate"
+        assert s["district"] is None
+        assert "senate_class" in s
+        assert "US Senate" in s["title"]
+
+    def test_empty_districts_still_gets_statewide(self):
+        """Even with no districts, statewide offices appear in governor years."""
+        contests = get_contests_for_jurisdiction({}, 2026)
+        titles = [c["title"] for c in contests]
+        assert "Governor" in titles
+        assert len(contests) >= 5  # Governor + statewide offices
+
+    def test_missing_district_key_skipped(self):
+        """Keys not in the districts dict are skipped, not errored."""
+        districts = {"us-rep": [2]}  # no assembly or senate
+        contests = get_contests_for_jurisdiction(districts, 2026)
+        titles = [c["title"] for c in contests]
+        assert "US House District 2" in titles
+        assert not any("Assembly" in t for t in titles)
+        assert not any("State Senate" in t for t in titles)
 
     def test_odd_senate_district_not_in_2026(self):
         districts = {"us-rep": [2], "state-assembly": [12], "state-senate": [3]}

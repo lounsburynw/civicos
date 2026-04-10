@@ -51,7 +51,7 @@ mutmut show <id>  # Show specific mutant diff
 | Module | Score | Killed/Total | Notes |
 |--------|-------|-------------|-------|
 | `calendar.py` | **96%** | 102/106 | 4 survivors are equivalent/trampoline limits |
-| `elections/cycles.py` | **66%** | 262/394 | Large module, many edge case code paths |
+| `elections/cycles.py` | **77%** | 304/394 | Pushed from 66% via field-level contest assertions |
 | `elections/deadlines.py` | **65%** | 70/107 | Similar to cycles — election date logic |
 | `meetings/reconciliation.py` | new | — | 29 tests written, baseline pending |
 | `meetings/minutes.py` | new | — | 20 tests written, baseline pending |
