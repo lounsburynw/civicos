@@ -23,7 +23,9 @@ data_sources:
       granicus_domain: alamedacounty
       default_view_id: '2'
   issues: seeclickfix
-  municipal_code: municode
+  municipal_code:
+    provider: municode
+    product_name: Code of Ordinances
 financial:
   state: CA
   county: null
