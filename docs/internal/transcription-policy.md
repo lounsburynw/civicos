@@ -23,6 +23,23 @@ Transcription is the most expensive corpus per jurisdiction (~$1.60/meeting at A
 - **Window**: Beyond 12 months
 - **Rationale**: Civic information older than 12 months is rarely actionable. Users researching deep history can access archived meeting minutes directly.
 
+## Launch Backfill Scope
+
+**Backfill window: 2026-01-01 onward.** All transcription backfills for the mass ingest (15 jurisdictions) target meetings from January 2026 forward. Older meetings are covered by Tier 2 (agenda packets + decisions only).
+
+Rationale: CivicOS launched in 2026. Pre-launch meeting audio is available but transcribing it has diminishing returns — users care about what's happening now. The rolling Tier 1 window (6 months) naturally aligns with this for the first year of operation.
+
+| City | Meetings since Jan 2026 | Audio source | Status |
+|------|------------------------|--------------|--------|
+| city-larkspur | 35 | YouTube | Ready to backfill |
+| city-corte-madera | 42 | YouTube | Ready to backfill |
+| city-ross | 10 | YouTube (unverified channel) | Needs channel verification |
+| city-belvedere | 19 | None | Blocked — no audio source |
+
+**Estimated backfill cost (3 YouTube cities, 87 meetings):** $335-375 (AssemblyAI + proxy)
+
+After launch, the rolling 6-month Tier 1 window takes over and the backfill date becomes irrelevant.
+
 ## Cost Reference
 
 | Item | Unit Cost | Notes |
