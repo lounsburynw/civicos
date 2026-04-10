@@ -5942,7 +5942,7 @@ def estimate_audio_costs(jurisdictions: str = "") -> dict:
     GRANICUS_RAW_MB = 200  # avg audio-only HLS download per Granicus video
     MODAL_COST_PER_HR = 0.10  # $/hr per container
     ASSEMBLYAI_PER_HR = 0.65  # $/hr of audio
-    AVG_MEETING_HOURS = 2.5  # avg meeting duration
+    AVG_MEETING_HOURS = 4.0  # avg meeting duration (SF Board runs 4h+, committees 2-3h)
 
     estimates = {}
     total_proxy_gb = 0
@@ -6605,8 +6605,8 @@ def extract_transcripts(
         from civicos_extraction.cli.transcribe import run_transcription
 
         # Apply cost cap: estimate meetings to process, limit if needed
-        # Average meeting = 2.5 hrs * $0.65/hr = $1.625
-        max_meetings_by_cost = int(cost_cap_usd / 1.625) if cost_cap_usd > 0 else 0
+        # Average meeting = 4 hrs * $0.65/hr = $2.60
+        max_meetings_by_cost = int(cost_cap_usd / 2.60) if cost_cap_usd > 0 else 0
         effective_limit = limit if limit > 0 else max_meetings_by_cost
         if limit > 0:
             effective_limit = min(limit, max_meetings_by_cost) if max_meetings_by_cost > 0 else limit
