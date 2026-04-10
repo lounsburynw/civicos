@@ -134,7 +134,7 @@ class TestValidateAssemblyAIKey:
         result = _validate_assemblyai_key("valid-key")
         assert result["is_valid"] is True
         assert result["validation_method"] == "api_call"
-        assert result["response_time_ms"] >= 0
+        assert isinstance(result["response_time_ms"], int)
 
     @patch("civicos_services.servers.routers.admin.requests.get")
     def test_invalid_key_returns_false_with_401(self, mock_get):
@@ -594,6 +594,24 @@ class TestCreateAPIKey:
         assert resp.status_code == 500
         assert "Failed to create" in resp.json()["detail"]
 
+    @patch.dict("sys.modules", {
+        "civicos_services.core.api_keys": MagicMock(
+            get_api_key_store=MagicMock(return_value=MagicMock(
+                available=True,
+                create_key=MagicMock(return_value=("kid-1", "cvo_key_1"))
+            ))
+        )
+    })
+    def test_all_valid_tiers_accepted_by_endpoint(self, client):
+        """Verify the actual endpoint accepts all expected tiers."""
+        for tier in ("free", "journalist", "organization", "city", "api"):
+            resp = client.post("/admin/keys", json={
+                "name": "Test",
+                "email": "t@example.com",
+                "tier": tier,
+            })
+            assert resp.status_code == 200, f"Tier '{tier}' rejected with {resp.status_code}"
+
 
 class TestListAPIKeys:
     @patch.dict("sys.modules", {
@@ -916,13 +934,3 @@ class TestConstants:
 
     def test_api_key_cache_ttl_is_five_minutes(self):
         assert _API_KEY_CACHE_TTL_SECONDS == 300
-
-    def test_valid_tiers_include_all_expected(self):
-        """Verify the tier validation logic in create_api_key uses correct tiers."""
-        valid_tiers = ("free", "journalist", "organization", "city", "api")
-        assert "free" in valid_tiers
-        assert "journalist" in valid_tiers
-        assert "organization" in valid_tiers
-        assert "city" in valid_tiers
-        assert "api" in valid_tiers
-        assert len(valid_tiers) == 5

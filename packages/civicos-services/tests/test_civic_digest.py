@@ -955,24 +955,45 @@ class TestSendEmail:
 
 
 class TestExtractCivicDataRouting:
+    """Tests routing logic in _extract_civic_data.
+
+    These mock internal extraction methods (mock-the-subject) because the
+    downstream methods call OpenAI. The assertions verify correct routing
+    conditions and argument forwarding — wiring tests, not behavior tests.
+    """
+
     def test_routes_to_standard_when_no_agent_registry(self, digest):
         with patch.object(
             digest, "_extract_civic_data_standard", return_value={"items": []}
         ) as mock_std:
             with patch.object(
-                _civic_digest_mod, "AGENT_REGISTRY_AVAILABLE", False
-            ):
-                result = digest._extract_civic_data("source text", "https://x.gov")
-                mock_std.assert_called_once()
-                assert result == {"items": []}
+                digest, "_extract_civic_data_legistar"
+            ) as mock_legistar:
+                with patch.object(
+                    _civic_digest_mod, "AGENT_REGISTRY_AVAILABLE", False
+                ):
+                    result = digest._extract_civic_data(
+                        "source text", "https://x.gov"
+                    )
+                    # Standard route called with correct arguments
+                    mock_std.assert_called_once_with("source text", "https://x.gov")
+                    # Agent-specific routes NOT called
+                    mock_legistar.assert_not_called()
+                    assert result == {"items": []}
 
     def test_routes_to_standard_when_no_source_url(self, digest):
         with patch.object(
             digest, "_extract_civic_data_standard", return_value={"items": []}
         ) as mock_std:
-            result = digest._extract_civic_data("source text", "")
-            mock_std.assert_called_once()
-            assert result == {"items": []}
+            with patch.object(
+                digest, "_extract_civic_data_legistar"
+            ) as mock_legistar:
+                result = digest._extract_civic_data("source text", "")
+                # Standard route called with empty URL forwarded
+                mock_std.assert_called_once_with("source text", "")
+                # Agent-specific routes NOT called
+                mock_legistar.assert_not_called()
+                assert result == {"items": []}
 
 
 # ---------------------------------------------------------------------------
@@ -990,12 +1011,11 @@ class TestDetectJurisdiction:
         # Should resolve to the San Rafael jurisdiction
         assert result == "city-san-rafael"
 
-    def test_returns_string_for_unknown_domain(self, digest):
+    def test_returns_unknown_for_unrecognized_domain(self, digest):
         result = digest._detect_jurisdiction(
             "https://totally-unknown-city-xyz.gov/meetings"
         )
-        # Even for unknown URLs, should return a string (likely "unknown")
-        assert result == "unknown" or result.startswith("city-")
+        assert result == "unknown"
 
 
 # ---------------------------------------------------------------------------

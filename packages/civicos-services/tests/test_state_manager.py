@@ -809,9 +809,19 @@ class TestGetCurrentOperation:
         mgr.create_operation("op-1", "city-test", "fetch")
         mgr.create_operation("op-2", "city-test", "discover")
 
+        # Force distinct started_at so ORDER BY is deterministic
+        conn = sqlite3.connect(mgr.db_path)
+        conn.execute(
+            "UPDATE operations SET started_at = '2025-11-01T10:00:00' WHERE id = 'op-1'"
+        )
+        conn.execute(
+            "UPDATE operations SET started_at = '2025-11-01T11:00:00' WHERE id = 'op-2'"
+        )
+        conn.commit()
+        conn.close()
+
         current = mgr.get_current_operation("city-test")
-        # Both are pending; most recent by started_at should be returned
-        assert current["id"] in ("op-1", "op-2")
+        assert current["id"] == "op-2"  # op-2 has the later started_at
 
 
 class TestCleanupOldOperations:

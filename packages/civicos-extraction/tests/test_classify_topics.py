@@ -559,28 +559,22 @@ class TestRunClassifyTopics:
         ]
         mock_stats.return_value = {"housing": 1}
 
-        with patch("civicos_extraction.cli.classify_topics.PostgresBackend", create=True) as MockPB:
+        with patch(
+            "civicos.storage.postgres_backend.PostgresBackend",
+        ) as MockPB:
             mock_backend = MagicMock()
             mock_backend.update_legislation_topics.return_value = 1
-            # Patch the import inside run_classify_topics
-            with patch.dict("sys.modules", {
-                "civicos.storage.postgres_backend": MagicMock(PostgresBackend=lambda url: mock_backend),
-                "civicos.storage": MagicMock(),
-                "civicos": MagicMock(),
-            }):
-                with patch(
-                    "civicos_extraction.cli.classify_topics.PostgresBackend",
-                    create=True,
-                    return_value=mock_backend,
-                ):
-                    # Re-import to get the patched version
-                    import importlib
-                    import civicos_extraction.cli.classify_topics as mod
+            MockPB.return_value = mock_backend
 
-                    args = self._make_args()
-                    result = run_classify_topics(args)
+            args = self._make_args()
+            result = run_classify_topics(args)
 
         assert result == 0
+        # Verify the valid topic was passed through unchanged to the backend
+        update_call = mock_backend.update_legislation_topics.call_args
+        updates = update_call[0][1]
+        assert updates[0]["topic"] == "housing"
+        assert updates[0]["bill_id"] == "b1"
 
     @patch("civicos_extraction.cli.classify_topics.get_topic_stats")
     @patch("civicos_extraction.cli.classify_topics.classify_bills_batch")
@@ -716,16 +710,18 @@ class TestRunClassifyTopics:
 class TestTopicValidation:
     """Tests for the topic validation logic inside the classification loop."""
 
-    def test_all_defined_topics_are_valid(self):
-        """Every key in TOPIC_DEFINITIONS should be accepted as valid."""
-        valid_topics = set(TOPIC_DEFINITIONS.keys()) | {"other"}
+    def test_all_defined_topics_are_lowercase(self):
+        """Topic keys must be lowercase since validation lowercases LLM output before comparing."""
         for topic in TOPIC_DEFINITIONS:
-            assert topic in valid_topics
+            assert topic == topic.lower(), f"Topic '{topic}' must be lowercase"
+            assert topic.strip() == topic, f"Topic '{topic}' has whitespace"
+            assert len(topic) > 0, "Topic key must be non-empty"
 
-    def test_other_is_valid(self):
-        """The 'other' fallback should be valid."""
-        valid_topics = set(TOPIC_DEFINITIONS.keys()) | {"other"}
-        assert "other" in valid_topics
+    def test_other_not_in_definitions(self):
+        """'other' is the fallback category added separately in validation — must not be a defined topic."""
+        assert "other" not in TOPIC_DEFINITIONS, (
+            "'other' must not be in TOPIC_DEFINITIONS — it's the fallback for unrecognized topics"
+        )
 
     def test_invalid_topics_not_in_valid_set(self):
         """Random strings should not be in the valid topic set."""

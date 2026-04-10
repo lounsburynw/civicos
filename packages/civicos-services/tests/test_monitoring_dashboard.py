@@ -525,24 +525,66 @@ class TestSystemHealth:
 
 
 class TestJurisdictionHealth:
-    def test_healthy_when_all_conditions_met(self):
-        j = JurisdictionStatus("sr", "San Rafael", _now_iso(), 5, 0.5, 95.0, True)
-        assert j.is_healthy is True
+    """Test the is_healthy determination within _get_jurisdiction_statuses."""
 
-    def test_unhealthy_when_no_refresh(self):
-        j = JurisdictionStatus("sr", "San Rafael", None, 5, 0.5, 100.0, False)
-        assert j.is_healthy is False
-        assert j.last_refresh is None
+    @patch("civicos_services.monitoring.automated_civic_refresh.CITY_CONFIGS", FAKE_CITY_CONFIGS)
+    def test_healthy_when_all_conditions_met(self, tmp_path):
+        dashboard = _make_dashboard(tmp_path)
+        cost_entries = [
+            {"timestamp": _hours_ago_iso(1), "estimated_cost": 1.0, "city_id": "san-rafael"},
+        ]
+        _write_json(dashboard.cost_log_file, cost_entries)
 
-    def test_unhealthy_when_zero_opportunities(self):
-        j = JurisdictionStatus("sr", "San Rafael", _now_iso(), 0, 0.5, 100.0, False)
-        assert j.is_healthy is False
-        assert j.opportunities_count == 0
+        with patch.object(dashboard, "_get_latest_data_for_city", return_value=(_now_iso(), 5)):
+            statuses = dashboard._get_jurisdiction_statuses()
 
-    def test_unhealthy_when_low_success_rate(self):
-        j = JurisdictionStatus("sr", "San Rafael", _now_iso(), 5, 0.5, 70.0, False)
-        assert j.is_healthy is False
-        assert j.success_rate == 70.0
+        sr = next(s for s in statuses if s.id == "san-rafael")
+        assert sr.is_healthy is True
+        assert sr.last_refresh is not None
+        assert sr.opportunities_count == 5
+        assert sr.success_rate == 100.0
+
+    @patch("civicos_services.monitoring.automated_civic_refresh.CITY_CONFIGS", FAKE_CITY_CONFIGS)
+    def test_unhealthy_when_no_refresh(self, tmp_path):
+        dashboard = _make_dashboard(tmp_path)
+
+        with patch.object(dashboard, "_get_latest_data_for_city", return_value=(None, 0)):
+            statuses = dashboard._get_jurisdiction_statuses()
+
+        sr = next(s for s in statuses if s.id == "san-rafael")
+        assert sr.is_healthy is False
+        assert sr.last_refresh is None
+
+    @patch("civicos_services.monitoring.automated_civic_refresh.CITY_CONFIGS", FAKE_CITY_CONFIGS)
+    def test_unhealthy_when_zero_opportunities(self, tmp_path):
+        dashboard = _make_dashboard(tmp_path)
+
+        with patch.object(dashboard, "_get_latest_data_for_city", return_value=(_now_iso(), 0)):
+            statuses = dashboard._get_jurisdiction_statuses()
+
+        sr = next(s for s in statuses if s.id == "san-rafael")
+        assert sr.is_healthy is False
+        assert sr.opportunities_count == 0
+
+    @patch("civicos_services.monitoring.automated_civic_refresh.CITY_CONFIGS", FAKE_CITY_CONFIGS)
+    def test_unhealthy_when_low_success_rate(self, tmp_path):
+        dashboard = _make_dashboard(tmp_path)
+        cost_entries = [
+            {"timestamp": _hours_ago_iso(i), "estimated_cost": 1.0, "city_id": "san-rafael"}
+            for i in range(1, 5)
+        ]
+        failure_entries = [
+            {"timestamp": _hours_ago_iso(1), "context": "san-rafael timeout"},
+        ]
+        _write_json(dashboard.cost_log_file, cost_entries)
+        _write_json(dashboard.failure_log_file, failure_entries)
+
+        with patch.object(dashboard, "_get_latest_data_for_city", return_value=(_now_iso(), 5)):
+            statuses = dashboard._get_jurisdiction_statuses()
+
+        sr = next(s for s in statuses if s.id == "san-rafael")
+        assert sr.is_healthy is False
+        assert sr.success_rate == 75.0
 
 
 # ---------------------------------------------------------------------------

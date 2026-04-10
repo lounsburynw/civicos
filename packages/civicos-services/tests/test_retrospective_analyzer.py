@@ -895,8 +895,9 @@ class TestRetrospectiveAnalyzerInit:
                 mock_get_model.return_value = mock_provider
                 ra = RetrospectiveAnalyzer()
 
-        # Should call get_model with the default model name
         mock_get_model.assert_called_once_with("gemini-2.0-flash-exp")
+        assert ra._model_name == "gemini-2.0-flash-exp"
+        assert ra.provider is mock_provider
 
     def test_custom_model_overrides_default(self):
         with patch(
@@ -911,3 +912,5 @@ class TestRetrospectiveAnalyzerInit:
                 ra = RetrospectiveAnalyzer(model="custom-model")
 
         mock_get_model.assert_called_once_with("custom-model")
+        assert ra._model_name == "custom-model"
+        assert ra.provider is mock_provider

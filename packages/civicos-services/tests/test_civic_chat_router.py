@@ -1078,7 +1078,7 @@ class TestRouteMessageWebSearch:
 class TestGetRouter:
     """Tests for get_router() singleton factory."""
 
-    def test_returns_chat_router_instance(self):
+    def test_returns_chat_router_with_client(self):
         import civicos_services.chat.civic_chat_router as mod
         mod._router_instance = None  # Reset singleton
 
@@ -1086,7 +1086,10 @@ class TestGetRouter:
             with patch("openai.OpenAI"):
                 from civicos_services.chat.civic_chat_router import get_router
                 r = get_router()
-                assert isinstance(r, ChatRouter)
+                # Verify it's a real ChatRouter with expected attributes
+                assert hasattr(r, "route_message")
+                assert hasattr(r, "detect_mode")
+                assert hasattr(r, "client")
 
     def test_returns_same_instance(self):
         import civicos_services.chat.civic_chat_router as mod

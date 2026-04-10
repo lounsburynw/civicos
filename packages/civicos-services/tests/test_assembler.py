@@ -192,7 +192,8 @@ class TestLoadItem:
     def test_load_legislation_extracts_state_from_id(self):
         civic = _mock_civic()
         civic.storage.get_legislation_by_bill_id.return_value = {"bill_id": "ny-ab-42"}
-        load_item(civic, ItemType.legislation, "ny-ab-42")
+        result = load_item(civic, ItemType.legislation, "ny-ab-42")
+        assert result["bill_id"] == "ny-ab-42"
         civic.storage.get_legislation_by_bill_id.assert_called_once_with(
             state="NY", bill_id="ny-ab-42"
         )
@@ -200,7 +201,8 @@ class TestLoadItem:
     def test_load_legislation_defaults_to_ca_without_dash(self):
         civic = _mock_civic()
         civic.storage.get_legislation_by_bill_id.return_value = {"bill_id": "SB123"}
-        load_item(civic, ItemType.legislation, "SB123")
+        result = load_item(civic, ItemType.legislation, "SB123")
+        assert result["bill_id"] == "SB123"
         civic.storage.get_legislation_by_bill_id.assert_called_once_with(
             state="CA", bill_id="SB123"
         )
@@ -836,8 +838,10 @@ class TestAssembleFinancial:
                 meeting_id="m1", meeting_title="Council", project_type="zoning"
             )
         )
-        await assemble_financial(civic, item, ContextDepth.standard)
+        result = await assemble_financial(civic, item, ContextDepth.standard)
         civic.budget.assert_called_once_with(department="Community Development")
+        assert result.budget_items == []
+        assert result.total_relevant_budget == 0.0
 
 
 class TestAssembleTestimony:
@@ -927,16 +931,18 @@ class TestAssembleTestimony:
 
     @pytest.mark.asyncio
     async def test_speaker_resolution_uses_raw_speaker_when_long_enough(self):
+        """When speaker_name is None and role isn't council/staff/public, falls back to raw speaker."""
         civic = _mock_civic()
-        civic.what_was_said = MagicMock(return_value=[
+        civic.what_was_said = MagicMock(return_value=[])
+        civic.get_public_testimony = MagicMock(return_value=[
             _make_excerpt_ns("text", "Bob Smith", None, None),
         ])
-        civic.get_public_testimony = MagicMock(return_value=[])
         item = _make_context_item(title="Topic")
         result = await assemble_testimony(civic, item, ContextDepth.standard)
-        # speaker_role=None so not in any role bucket, but the object is created
-        # The excerpt should have speaker "Bob Smith" via raw fallback
-        # Note: this excerpt won't appear in staff/council/public buckets since role is None
+        # speaker_name=None, role=None → falls through to raw speaker "Bob Smith" (len > 1)
+        assert len(result.public_comments) == 1
+        assert result.public_comments[0].speaker == "Bob Smith"
+        assert result.public_comments[0].text == "text"
 
     @pytest.mark.asyncio
     async def test_empty_testimony_returns_empty_sections(self):
@@ -974,9 +980,12 @@ class TestAssembleTestimony:
         civic.what_was_said = MagicMock(return_value=[])
         civic.get_public_testimony = MagicMock(return_value=[])
         item = _make_context_item(title="Topic")
-        await assemble_testimony(civic, item, ContextDepth.minimal)
+        result = await assemble_testimony(civic, item, ContextDepth.minimal)
         civic.what_was_said.assert_called_once_with("Topic", 3)
         civic.get_public_testimony.assert_called_once_with("Topic", 3)
+        assert result.public_comments == []
+        assert result.staff_discussion == []
+        assert result.council_discussion == []
 
     @pytest.mark.asyncio
     async def test_standard_depth_uses_top_k_5(self):
@@ -984,9 +993,12 @@ class TestAssembleTestimony:
         civic.what_was_said = MagicMock(return_value=[])
         civic.get_public_testimony = MagicMock(return_value=[])
         item = _make_context_item(title="Topic")
-        await assemble_testimony(civic, item, ContextDepth.standard)
+        result = await assemble_testimony(civic, item, ContextDepth.standard)
         civic.what_was_said.assert_called_once_with("Topic", 5)
         civic.get_public_testimony.assert_called_once_with("Topic", 5)
+        assert result.public_comments == []
+        assert result.staff_discussion == []
+        assert result.council_discussion == []
 
 
 # ---------------------------------------------------------------------------

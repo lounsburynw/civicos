@@ -589,10 +589,10 @@ class TestFindMeetingsLocal:
             with self._patch_no_cloud():
                 result = find_meetings("city-test", str(input_dir), cloud=False)
 
-            if result is not None:
-                # checkpoint found — only meeting with agenda_url returned
-                assert len(result) == 1
-                assert result[0]["id"] == "m1"
+            # Checkpoint fallback must find the meeting with agenda_url
+            assert result is not None, "checkpoint fallback should have returned meetings"
+            assert len(result) == 1
+            assert result[0]["id"] == "m1"
         finally:
             # Clean up checkpoint file we created
             if checkpoint_file.exists():

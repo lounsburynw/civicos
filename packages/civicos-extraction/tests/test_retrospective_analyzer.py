@@ -830,14 +830,18 @@ class TestAnalyzeMeetingBatch:
         assert result["total_budget_amount"] == 500000.0
         assert result["decision_count"] == 2
 
-    def test_result_contains_timestamp(self):
+    def test_result_contains_valid_iso_timestamp(self):
         analyzer = _make_analyzer()
         analyzer.extract_high_stakes_decisions = MagicMock(return_value=[])
 
+        from datetime import datetime, timedelta
+        before = datetime.now()
         result = analyzer.analyze_meeting_batch([_make_event()])
-        assert "extraction_timestamp" in result
-        # Timestamp should be a valid ISO format string
-        assert "T" in result["extraction_timestamp"]
+        after = datetime.now()
+
+        # Timestamp must be parseable ISO format, not just contain "T"
+        ts = datetime.fromisoformat(result["extraction_timestamp"])
+        assert before - timedelta(seconds=1) <= ts <= after + timedelta(seconds=1)
 
     def test_decisions_serialized_as_dicts(self):
         analyzer = _make_analyzer()

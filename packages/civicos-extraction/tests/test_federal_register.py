@@ -641,7 +641,7 @@ class TestFetchRules:
 
         actual_params = client.session.get.call_args.kwargs.get("params", {})
         # The last agency_id wins due to dict key collision in the code
-        assert "conditions[agencies][]" in actual_params
+        assert actual_params["conditions[agencies][]"] == "EPA"
 
     @patch("civicos_extraction.clients.federal_register.time.sleep")
     def test_rules_pagination(self, mock_sleep, client):
@@ -742,19 +742,18 @@ class TestGetCurrentPresidentEOs:
 class TestGetRecentExecutiveOrders:
     @patch("civicos_extraction.clients.federal_register.FederalRegisterClient.fetch_executive_orders")
     def test_passes_computed_date(self, mock_fetch):
+        from datetime import datetime, timedelta
+
         mock_fetch.return_value = [{"document_number": "recent-1", "title": "Recent EO"}]
 
         results = get_recent_executive_orders(days_back=7)
 
         assert len(results) == 1
         assert results[0]["document_number"] == "recent-1"
-        # Verify since_date was passed
-        call_kwargs = mock_fetch.call_args.kwargs
-        since_date = call_kwargs.get("since_date") or mock_fetch.call_args[1].get("since_date")
-        # Date should be 7 days before today, but we just verify format
-        assert len(since_date) == 10  # YYYY-MM-DD
-        assert since_date[4] == "-"
-        assert since_date[7] == "-"
+        # Verify since_date is exactly 7 days before today
+        since_date = mock_fetch.call_args.kwargs.get("since_date")
+        expected = (datetime.now() - timedelta(days=7)).strftime("%Y-%m-%d")
+        assert since_date == expected
 
     @patch("civicos_extraction.clients.federal_register.FederalRegisterClient.fetch_executive_orders")
     def test_default_30_days(self, mock_fetch):

@@ -668,10 +668,20 @@ class TestFoundationROI:
         assert "30 days" in roi.reporting_period
         assert datetime.now().strftime("%Y-%m-%d") in roi.reporting_period
 
-    def test_returns_foundation_roi_metrics_dataclass(self, tracker):
+    def test_participation_increase_matches_completed_actions(self, tracker):
+        """civic_participation_increase mirrors civic_actions_completed with real data."""
+        for i in range(3):
+            tracker.track_civic_action(
+                _make_action(id=f"pi-{i}", completion_status="completed")
+            )
+        tracker.track_civic_action(
+            _make_action(id="pi-init", completion_status="initiated")
+        )
+
         roi = tracker.calculate_foundation_roi(30)
 
-        assert isinstance(roi, FoundationROIMetrics)
+        assert roi.civic_actions_completed == 3
+        assert roi.civic_participation_increase == 3
         assert roi.civic_participation_increase == roi.civic_actions_completed
 
 
@@ -712,22 +722,28 @@ class TestFoundationReport:
         assert "50.0%" in report  # discovery_to_initiation: 5/10
 
     def test_save_to_file_creates_report_file(self, tracker, tmp_path):
-        # Override the data dir so report goes to tmp
-        report_dir = str(tmp_path / "data")
-        os.makedirs(report_dir, exist_ok=True)
+        """Verify save_to_file=True writes report content to disk."""
+        import builtins
+
+        _real_open = builtins.open
+        captured = {}
+
+        def _redirect_open(path, mode="r", *a, **kw):
+            if "foundation_impact_report" in str(path):
+                redirect = os.path.join(str(tmp_path), os.path.basename(str(path)))
+                captured["dest"] = redirect
+                return _real_open(redirect, mode, *a, **kw)
+            return _real_open(path, mode, *a, **kw)
 
         with patch("civicos_services.storage.civic_participation_metrics.os.makedirs"):
-            with patch(
-                "builtins.open",
-                side_effect=lambda f, m="r": open(
-                    os.path.join(report_dir, os.path.basename(f)), m
-                )
-                if "foundation_impact_report" in str(f)
-                else open(f, m),
-            ):
-                # Just test that save_to_file=False does NOT attempt to write
-                report = tracker.generate_foundation_report(save_to_file=False)
-                assert "FOUNDATION IMPACT REPORT" in report
+            with patch("builtins.open", side_effect=_redirect_open):
+                report = tracker.generate_foundation_report(save_to_file=True)
+
+        assert "dest" in captured, "No report file was written"
+        with open(captured["dest"]) as f:
+            saved_content = f.read()
+        assert saved_content == report
+        assert "FOUNDATION ROI SUMMARY" in saved_content
 
     def test_no_file_written_when_save_disabled(self, tracker, tmp_path):
         report = tracker.generate_foundation_report(save_to_file=False)

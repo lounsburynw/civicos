@@ -796,7 +796,8 @@ class TestHealth:
         with patch.object(client.session, "head", return_value=mock_response):
             status = client.health()
 
-        assert status.check_duration_ms >= 0
+        assert isinstance(status.check_duration_ms, (int, float))
+        assert 0 <= status.check_duration_ms < 5000  # Mocked HTTP, should be fast
 
 
 # ==================== validate ====================
@@ -868,7 +869,8 @@ class TestValidate:
         with patch.object(client.session, "head", return_value=mock_response):
             result = client.validate()
 
-        assert result.check_duration_ms >= 0
+        assert isinstance(result.check_duration_ms, (int, float))
+        assert 0 <= result.check_duration_ms < 5000  # Mocked HTTP, should be fast
 
 
 # ==================== Storage Mappers ====================

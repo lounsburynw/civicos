@@ -576,7 +576,11 @@ class TestCreateKey:
 
     def test_commits_on_success(self):
         store, _, mock_conn = self._make_store()
-        store.create_key(name="Test", email="e")
+        result = store.create_key(name="Test", email="e")
+        assert result is not None
+        key_id, raw_key = result
+        assert key_id.startswith("cvk_")
+        assert raw_key.startswith("cvk_live_")
         mock_conn.commit.assert_called_once()
 
     def test_returns_none_when_no_db(self):
@@ -922,16 +926,19 @@ class TestLogUsage:
         assert insert_params[0] is None
 
     def test_log_usage_does_not_raise_on_db_error(self):
-        store, mock_cursor, _ = self._make_store()
+        store, mock_cursor, mock_conn = self._make_store()
         mock_cursor.execute.side_effect = Exception("DB error")
-        # Should not raise
+        # Should not raise — fire-and-forget method
         store.log_usage(key_id="cvk_abc", endpoint="/test")
+        # Should attempt rollback after error
+        mock_conn.rollback.assert_called_once()
 
     def test_log_usage_noop_without_db(self):
         store = ApiKeyStore(database_url=None)
         store._database_url = None
-        # Should not raise
         store.log_usage(key_id="cvk_abc", endpoint="/test")
+        # With no DB, no pool is created — confirms early return
+        assert store._pool is None
 
     def test_update_last_used_commits(self):
         store, mock_cursor, mock_conn = self._make_store()
@@ -944,8 +951,9 @@ class TestLogUsage:
     def test_update_last_used_noop_without_db(self):
         store = ApiKeyStore(database_url=None)
         store._database_url = None
-        # Should not raise
         store.update_last_used("cvk_abc")
+        # With no DB, no pool is created — confirms early return
+        assert store._pool is None
 
 
 # ---------------------------------------------------------------------------

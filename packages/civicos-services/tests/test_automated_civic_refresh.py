@@ -265,12 +265,12 @@ class TestProductionErrorHandler:
 # ---------------------------------------------------------------------------
 
 class TestProductionAlertManager:
-    def test_send_budget_alert_skips_when_unconfigured(self):
+    @patch.object(ProductionAlertManager, "_send_email")
+    def test_send_budget_alert_skips_when_unconfigured(self, mock_send):
         mgr = ProductionAlertManager()
         mgr.alert_recipients = [""]
         mgr.smtp_username = ""
 
-        # Should not raise, just print warning
         mgr.send_budget_alert({
             "budget_percentage": 95.0,
             "total_cost": 47.50,
@@ -278,12 +278,13 @@ class TestProductionAlertManager:
             "budget_status": "over_budget",
             "entries": [],
         })
-        # No exception = correct early return
+        mock_send.assert_not_called()
 
-    def test_send_failure_alert_skips_when_no_alert_needed(self):
+    @patch.object(ProductionAlertManager, "_send_email")
+    def test_send_failure_alert_skips_when_no_alert_needed(self, mock_send):
         mgr = ProductionAlertManager()
         mgr.send_failure_alert({"needs_alert": False})
-        # Should return immediately without attempting email
+        mock_send.assert_not_called()
 
     @patch("civicos_services.monitoring.automated_civic_refresh.smtplib.SMTP")
     def test_send_budget_alert_sends_email_when_configured(self, mock_smtp_cls):
@@ -321,7 +322,8 @@ class TestProductionAlertManager:
         assert "$48.00" in body
         assert "over_budget" in body
 
-    def test_send_daily_cost_alert_skips_when_unconfigured(self):
+    @patch.object(ProductionAlertManager, "_send_email")
+    def test_send_daily_cost_alert_skips_when_unconfigured(self, mock_send):
         mgr = ProductionAlertManager()
         mgr.alert_recipients = [""]
         mgr.smtp_username = ""
@@ -333,7 +335,7 @@ class TestProductionAlertManager:
             "budget_status": "over_limit",
             "entries": [],
         })
-        # No exception = correct early return
+        mock_send.assert_not_called()
 
     @patch("civicos_services.monitoring.automated_civic_refresh.smtplib.SMTP")
     def test_send_failure_alert_sends_email_with_failure_details(self, mock_smtp_cls):
