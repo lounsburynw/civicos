@@ -1,47 +1,59 @@
-# Recommended: Add real source item ID (`add_real_source_item_id`)
+# Recommended: MCP OAuth 2.0 Provider (`mcp_oauth_provider`)
 
 **Priority:** P0
-**Area:** federation_testbed
+**Area:** distribution
 **Date:** 2026-04-10
 
 > Recommended context from prior session. Review and decide whether to accept, modify, or `/start` for fresh prioritization.
 
 ## Context
 
-This session fixed the SF county parent hierarchy issue. The next P0 is threading real source-platform item IDs through the extraction pipeline for more robust decision dedup.
+After a month of ingestion work, CivicOS has 23 jurisdictions, 10 platform clients, and 40+ MCP tools deployed on Modal. The launch checklist is 95% complete (143/151). The strategic decision (see `docs/public/decisions/distribution_pivot.md`) is to prioritize distribution over billing -- get users first, then decide billing model based on real usage data.
+
+The MCP server is deployed and working but only accessible via manually-configured Bearer tokens. OAuth enables Claude.ai web + mobile users to connect via Settings > Connectors in 2 clicks.
 
 ## Problem
 
-Decision IDs currently use a synthetic-D approach: `compute_stable_decision_id()` hashes fields like `item_ref`, `title`, `item_type`, `outcome`, `budget_amount`. This works in practice but is theoretically fragile — if two genuinely-distinct decisions in one meeting share all those fields, they'd collide. A real platform-native ID (Granicus clip ID, Legistar matter ID, BoardDocs item ID) would be ground-truth.
+No OAuth provider on the MCP server. Users must:
+1. Buy an API key (Stripe not even wired yet)
+2. Copy the key into Claude Desktop config manually
+3. Only works in Claude Desktop, not Claude.ai web or mobile
 
 ## Key Files
 
-- `packages/civicos-extraction/src/civicos_extraction/processing/retrospective_analyzer.py` — `HighStakesDecision` dataclass, `compute_stable_decision_id()`
-- `packages/civicos-extraction/src/civicos_extraction/clients/granicus.py` — Granicus extraction client
-- `packages/civicos-extraction/src/civicos_extraction/clients/legistar.py` — Legistar extraction client
-- `packages/civicos/src/civicos/storage/integrity.py` — Storage-level dedup
+- `apps/civicos-mcp/modal_app.py` -- Modal deployment entry point (where OAuth endpoints need to live)
+- `apps/civicos-mcp/server.py` -- Container/FastAPI deployment (reference for routing patterns)
+- `apps/civicos-mcp/README.md:94-112` -- Existing OAuth plan and callback URL
+- `apps/civicos-mcp/api_key_middleware.py` -- Existing API key auth (Bearer tokens stay alongside OAuth)
+- `docs/internal/launch-readiness-spec.md:366-401` -- Auth strategy discussion
+- `docs/private/decisions/privacy_preserving_billing.md` -- Billing architecture (context, not blocking)
 
 ## Suggested Approach
 
-1. **Add `source_item_id: Optional[str]` to `HighStakesDecision`** dataclass
-2. **Update Granicus client** to populate source_item_id from clip/event ID
-3. **Update Legistar client** to populate source_item_id from matter ID
-4. **Update `compute_stable_decision_id()`** to include source_item_id in hash when present
-5. **Test** with existing data — ensure no regressions in dedup behavior
+1. **Research current MCP OAuth spec** -- The spec is evolving. Check `modelcontextprotocol.io` for the latest on OAuth 2.1 for remote MCP servers. Claude.ai expects OAuth callback at `https://claude.ai/api/mcp/auth_callback`.
+
+2. **Implement OAuth 2.0 provider on Modal** -- Add `/oauth/authorize`, `/oauth/token`, `/.well-known/oauth-authorization-server` endpoints to `modal_app.py`. The provider issues session tokens after OAuth flow.
+
+3. **Map OAuth sessions to access tier** -- OAuth-authenticated users get a "free" tier (generous rate limits, e.g. 50 queries/day). Existing Bearer token API keys continue to work at their configured tiers. No Stripe needed.
+
+4. **Deploy and test with Claude.ai** -- Add connector URL in Claude.ai Settings, verify OAuth flow end-to-end, confirm tools appear and work.
+
+5. **Update README** -- Document the connector setup for end users.
 
 ## Design Notes
 
-- The source_item_id should be Optional — LLM-extracted decisions from PDF text won't have one
-- When present, it provides stronger uniqueness than synthetic fields
-- Backwards compatible: existing decisions without source_item_id keep their current hash
+- Bearer token auth (existing) MUST continue working alongside OAuth. Don't break existing API key users.
+- OAuth tokens are session-based, not tied to Stripe. Free tier only.
+- Rate limiting for OAuth sessions can use the existing per-key rate limiting infrastructure with a synthetic "free-tier" key.
+- The MCP spec may have specific requirements for the OAuth flow -- research before implementing.
 
 ## Success Criteria
 
-- [ ] `source_item_id` field added to `HighStakesDecision`
-- [ ] Granicus client populates it
-- [ ] Legistar client populates it
-- [ ] Hash function uses it when present
-- [ ] Existing decision IDs unchanged when source_item_id is None
+- [ ] OAuth 2.0 endpoints added to Modal MCP deployment
+- [ ] Claude.ai web connector flow works end-to-end (authorize -> tools available)
+- [ ] Free-tier rate limiting applied to OAuth sessions
+- [ ] Existing Bearer token auth unaffected
+- [ ] README updated with connector setup instructions
 - [ ] New P0 promoted
 
 ## Open PRs
