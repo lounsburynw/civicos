@@ -26183,3 +26183,23 @@ Next P0: index_county_marin_decision_vectors (already set by parallel session)
 **Key finding:** 13 of 15 jurisdictions use Granicus (free audio), keeping proxy cost near $0. Total mass ingest estimated at $237, well under $500/week ceiling. County-alameda ($91) is the largest single jurisdiction.
 
 **Next P0:** fix_sf_county_parent — SF registry entry lacks county-san-francisco parent, needed for cross-jurisdiction queries.
+
+## Session — 2026-04-10 (fix SF county parent)
+
+**Item:** fix_sf_county_parent (P0, federation_testbed)
+
+**Changes:**
+- Created `data/jurisdictions/county-san-francisco.yaml` — virtual county entry for SF's consolidated city-county. All ingestion tiers disabled (city-san-francisco handles all data). Exists purely for hierarchy correctness.
+- Updated `data/jurisdictions/city-san-francisco.yaml` — added `county-san-francisco` to parent_jurisdictions (now: county-san-francisco, state-california, country-united-states)
+- Updated `config/registry.json` — added county-san-francisco entry (shares domain/modal_app with city-san-francisco) and updated city-san-francisco parent_jurisdictions
+- Added 3 tests to `test_query_v2.py`: test_tier_sf_cross_county, test_tier_sf_parent_county, test_tier_sf_county_child
+
+**Verified:**
+- SR → SF: `cross_county` (structurally correct — different county parents)
+- SF → county-sf: `parent_county`
+- county-sf → SF: `child`
+- SF siblings: empty (correct — no other cities in county-san-francisco)
+- SF parents: includes county-san-francisco in chain
+- All 45 jurisdiction tests passing
+
+**Next P0:** add_real_source_item_id — thread real source-platform item IDs through extraction pipeline for federation dedup.

@@ -1209,7 +1209,7 @@
         "name": "add_real_source_item_id",
         "description": "Thread a real source-platform item ID (Granicus / Legistar / BoardDocs internal ID) through the extraction dataclass and storage so the stable decision ID can be derived from a true platform-stable reference instead of the synthetic-D fields (item_type, outcome, budget_amount). Today's fix uses the synthetic-D from already-available HighStakesDecision fields, which is sufficient but theoretically less robust if two genuinely-distinct decisions in one meeting share all of (item_ref, title, item_type, outcome, budget). Adds source_item_id: Optional[str] to HighStakesDecision and updates Granicus/Legistar/BoardDocs clients to populate it where the platform exposes one. Hash function adds source_item_id to the key when present.",
         "status": "not_started",
-        "priority": 3,
+        "priority": 0,
         "source": "fix_decision_storage_dedup follow-up",
         "files": [
           "packages/civicos-extraction/src/civicos_extraction/processing/retrospective_analyzer.py",
@@ -1222,15 +1222,16 @@
       {
         "name": "fix_sf_county_parent",
         "description": "city-san-francisco's registry entry lacks county-san-francisco as a parent jurisdiction. Its parent_jurisdictions is just [state-california, country-united-states]. SF is a consolidated city-county, but the registry should still list county-san-francisco for federation symmetry \u2014 parent-chain queries, regional body resolution, and tier weighting all assume each city has a parent county. Cross-county tier resolution currently returns 'cross_county' for SR\u2192SF coincidentally (neither shares any county) but this is structurally wrong.",
-        "status": "not_started",
-        "priority": 0,
+        "status": "done",
+        "priority": 99,
         "source": "Phase B cross-county query validation finding",
         "files": [
           "config/registry.json",
           "data/jurisdictions/city-san-francisco.yaml",
           "data/jurisdictions/county-san-francisco.yaml"
         ],
-        "notes": "Decide whether SF should be modeled as: (a) city with county-san-francisco parent (where county-san-francisco is a separate registry entry, possibly stub), or (b) special-case 'consolidated' jurisdiction type. Option (a) is simpler and consistent with the existing data model. Discovered during Phase B cross-county validation (2026-04-07)."
+        "notes": "Created county-san-francisco.yaml (virtual county for consolidated city-county). Updated city-san-francisco.yaml and registry.json with county parent. Added 3 tier resolution tests. All passing.",
+        "completed_date": "2026-04-10"
       },
       {
         "name": "validate_mass_ingest_jurisdictions",
