@@ -258,6 +258,7 @@ Historical docs from completed phases. Recoverable if needed.
 | `/onboard [jurisdiction]` | Onboard a new city (full pipeline: meetings→audio→transcripts→decisions→vectors) | No |
 | `/ingest-audio [jurisdiction] [limit]` | Download YouTube audio locally, upload to R2 | No |
 | `/db-backup [action]` | PostgreSQL backup (selective/full) | No |
+| `/rls [target]` | Enable RLS on all Supabase tables (main/relay/both/status) | No |
 | `/vectors [action]` | Vector indexing on Modal GPU | No |
 | `/checkpoint [action]` | View/reset ingestion checkpoints | No |
 | `/ingest [source]` | Orchestrate data ingestion pipeline | No |
