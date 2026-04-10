@@ -58,6 +58,50 @@ mutmut show <id>  # Show specific mutant diff
 
 **Targets:** Security paths 90%+, query layer 80%+, storage 75%+, everything else 60%+.
 
+### Coverage Inventory (April 2026)
+
+71 source files, 52,538 lines in `packages/civicos/src/civicos/`.
+
+| Category | Files | Lines | % |
+|----------|-------|-------|---|
+| Mutation-tested | 5 | ~2,200 | 4% |
+| Has tests (not mutation-scored) | 32 | ~40,000 | 76% |
+| **Zero tests** | **34** | **~10,400** | **20%** |
+
+**Untested files (prioritized for test writing):**
+
+Pure-logic (highest ROI — no external deps needed):
+- `types.py` (516) — dataclasses, enums
+- `diagnostics.py` (482) — data status calculations
+- `config.py` (433) — configuration parsing
+- `funding/matcher.py` (428) — federal funding matching
+- `funding/reconciler.py` (400) — funding reconciliation
+- `legal/vector_relevance.py` (483) — relevance scoring
+- `cost.py` (137) — cost estimation
+- `issues/classify.py` (48) — issue classification
+- `speakers.py` (222) — speaker identification
+- `roster.py` (214) — elected officials
+- `registry.py` (205) — corpus registry
+- `storage/actionability.py` (153) — actionability scoring
+
+Infrastructure (external deps, harder to unit test):
+- `legal/embeddings/chunker.py` (813) — chunking strategy
+- `storage/blob.py` (706) — R2 blob operations
+- `embeddings/provider.py` (433) — embedding provider
+- `issues/providers/seeclickfix.py` (393) — SeeClickFix API
+- `legal/corpus/california.py` (359) — CA legislation
+- `meetings/pdf_parser.py` (349) — PDF parsing
+- `meetings/staff_report.py` (319) — staff report extraction
+- `legal/corpus/federal.py` (99) — federal bills
+
+Protocols/types (low ROI — mostly abstract interfaces):
+- `storage/protocols/*.py` (5 files, ~1,170) — protocol definitions
+- `storage/corpus_types.py` (484) — type definitions
+- `state/models.py` (175) — state models
+
+MCP/CLI (integration-heavy):
+- `legal/mcp.py` (324), `state/mcp.py` (275), `cli.py` (1,885)
+
 ## CI
 
 GitHub Actions runs the full suite on push to main and PRs:
