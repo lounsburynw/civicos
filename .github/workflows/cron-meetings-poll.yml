@@ -27,7 +27,7 @@ jobs:
   run:
     name: Meetings Poll
     runs-on: ubuntu-latest
-    timeout-minutes: 65  # Modal timeout (1h) + 5 min buffer
+    timeout-minutes: 100  # Modal timeout (1.5h) + 10 min buffer
 
     steps:
       - uses: actions/checkout@v4

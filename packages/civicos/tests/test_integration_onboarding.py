@@ -349,11 +349,12 @@ class TestCLIFlow:
         tmp_path, jid = temp_project
         modal_calls = []
 
-        def track_modal(jid, days_past, dry_run=False, stages="all"):
+        def track_modal(jid, days_past, dry_run=False, stages="all", detach=False):
             modal_calls.append({"jid": jid, "days": days_past})
             return 0
 
         with patch.object(onboard, "PROJECT_ROOT", tmp_path), \
+             patch.object(onboard, "_probe_meeting_source", return_value={"pass": True, "source_type": "legistar"}), \
              patch.object(onboard, "_run_modal_ingestion", side_effect=track_modal), \
              patch.object(onboard, "_get_data_counts", return_value={
                  "meetings": 10, "chunks": 520, "agenda_items": 30,
@@ -376,10 +377,11 @@ class TestCLIFlow:
         tmp_path, jid = temp_project
 
         # Sample ingestion succeeds but returns bad data
-        def mock_modal(jid, days_past, dry_run=False, stages="all"):
+        def mock_modal(jid, days_past, dry_run=False, stages="all", detach=False):
             return 0
 
         with patch.object(onboard, "PROJECT_ROOT", tmp_path), \
+             patch.object(onboard, "_probe_meeting_source", return_value={"pass": True, "source_type": "legistar"}), \
              patch.object(onboard, "_run_modal_ingestion", side_effect=mock_modal), \
              patch.object(onboard, "_get_data_counts", return_value={
                  "meetings": 5, "chunks": 50, "agenda_items": 0,
@@ -399,13 +401,14 @@ class TestCLIFlow:
 
         modal_calls = []
 
-        def track_modal(jid, days_past, dry_run=False, stages="all"):
+        def track_modal(jid, days_past, dry_run=False, stages="all", detach=False):
             modal_calls.append(days_past)
             return 0
 
         # First call (sample) returns bad data, but --force-continue overrides.
         # Second call (full) also returns bad data (final report).
         with patch.object(onboard, "PROJECT_ROOT", tmp_path), \
+             patch.object(onboard, "_probe_meeting_source", return_value={"pass": True, "source_type": "legistar"}), \
              patch.object(onboard, "_run_modal_ingestion", side_effect=track_modal), \
              patch.object(onboard, "_get_data_counts", return_value={
                  "meetings": 5, "chunks": 50, "agenda_items": 0,
@@ -430,6 +433,7 @@ class TestCLIFlow:
         tmp_path, jid = temp_project
 
         with patch.object(onboard, "PROJECT_ROOT", tmp_path), \
+             patch.object(onboard, "_probe_meeting_source", return_value={"pass": True, "source_type": "legistar"}), \
              patch.object(onboard, "_run_modal_ingestion", return_value=0), \
              patch.object(onboard, "_get_data_counts", return_value={
                  "meetings": 10, "chunks": 520, "agenda_items": 30,
@@ -448,6 +452,7 @@ class TestCLIFlow:
         tmp_path, jid = temp_project
 
         with patch.object(onboard, "PROJECT_ROOT", tmp_path), \
+             patch.object(onboard, "_probe_meeting_source", return_value={"pass": True, "source_type": "legistar"}), \
              patch.object(onboard, "_run_modal_ingestion", return_value=1), \
              patch.object(onboard, "_get_data_counts", return_value={
                  "meetings": 0, "chunks": 0, "agenda_items": 0,
@@ -469,11 +474,12 @@ class TestCLIFlow:
 
         modal_calls = []
 
-        def track_modal(jid, days_past, dry_run=False, stages="all"):
+        def track_modal(jid, days_past, dry_run=False, stages="all", detach=False):
             modal_calls.append(days_past)
             return 0
 
         with patch.object(onboard, "PROJECT_ROOT", tmp_path), \
+             patch.object(onboard, "_probe_meeting_source", return_value={"pass": True, "source_type": "legistar"}), \
              patch.object(onboard, "_run_modal_ingestion", side_effect=track_modal), \
              patch.object(onboard, "_get_data_counts", return_value={
                  "meetings": 10, "chunks": 520, "agenda_items": 30,
@@ -490,6 +496,60 @@ class TestCLIFlow:
         # First call is sample (14 days), second is full (365)
         assert modal_calls[0] == 14
         assert modal_calls[1] == 365
+
+    def test_probe_failure_blocks_ingestion(self, temp_project):
+        """Failed probe -> exit 1, no Modal ingestion runs."""
+        tmp_path, jid = temp_project
+
+        with patch.object(onboard, "PROJECT_ROOT", tmp_path), \
+             patch.object(onboard, "_probe_meeting_source", return_value={
+                 "pass": False, "source_type": "legistar",
+                 "error": "API unreachable", "remediation": "Check URL",
+             }), \
+             patch.object(onboard, "_run_modal_ingestion") as mock_modal, \
+             patch.object(onboard, "_get_data_counts", return_value={
+                 "meetings": 0, "chunks": 0, "agenda_items": 0,
+                 "decisions": 0, "municipal_code": 0,
+             }), \
+             patch.dict(os.environ, {"DATABASE_URL": "postgresql://fake"}), \
+             patch("dotenv.load_dotenv"):
+            code = self._run_main([
+                "--city", "Testville", "--state", "CA",
+            ])
+
+        assert code == 1
+        mock_modal.assert_not_called()
+
+    def test_probe_failure_with_force_continue_proceeds(self, temp_project):
+        """Failed probe + --force-continue -> probe bypassed, ingestion runs."""
+        tmp_path, jid = temp_project
+
+        modal_calls = []
+
+        def track_modal(jid, days_past, dry_run=False, stages="all", detach=False):
+            modal_calls.append(days_past)
+            return 0
+
+        with patch.object(onboard, "PROJECT_ROOT", tmp_path), \
+             patch.object(onboard, "_probe_meeting_source", return_value={
+                 "pass": False, "source_type": "legistar",
+                 "error": "API unreachable", "remediation": "Check URL",
+             }), \
+             patch.object(onboard, "_run_modal_ingestion", side_effect=track_modal), \
+             patch.object(onboard, "_get_data_counts", return_value={
+                 "meetings": 10, "chunks": 520, "agenda_items": 30,
+                 "decisions": 5, "municipal_code": 0,
+             }), \
+             patch.dict(os.environ, {"DATABASE_URL": "postgresql://fake"}), \
+             patch("dotenv.load_dotenv"):
+            code = self._run_main([
+                "--city", "Testville", "--state", "CA",
+                "--no-validate", "--force-continue",
+            ])
+
+        assert code == 0
+        assert len(modal_calls) == 1  # exactly one full ingestion (--no-validate skips sample)
+        assert modal_calls[0] == 365  # full backfill at default days_past
 
     def test_config_generation_called_when_no_configs(self, tmp_path):
         """When no extraction config exists, onboard_jurisdiction() is called."""
@@ -761,6 +821,7 @@ class TestCLIDeployFlag:
         tmp_path, jid = temp_project
 
         with patch.object(onboard, "PROJECT_ROOT", tmp_path), \
+             patch.object(onboard, "_probe_meeting_source", return_value={"pass": True, "source_type": "legistar"}), \
              patch.object(onboard, "_run_modal_ingestion", return_value=0), \
              patch.object(onboard, "_deploy_modal_api", return_value=0) as mock_deploy, \
              patch.object(onboard, "_verify_jurisdiction", return_value=True), \
@@ -783,6 +844,7 @@ class TestCLIDeployFlag:
         tmp_path, jid = temp_project
 
         with patch.object(onboard, "PROJECT_ROOT", tmp_path), \
+             patch.object(onboard, "_probe_meeting_source", return_value={"pass": True, "source_type": "legistar"}), \
              patch.object(onboard, "_run_modal_ingestion", return_value=0), \
              patch.object(onboard, "_deploy_modal_api") as mock_deploy, \
              patch.object(onboard, "_get_data_counts", return_value={
@@ -804,6 +866,7 @@ class TestCLIDeployFlag:
         tmp_path, jid = temp_project
 
         with patch.object(onboard, "PROJECT_ROOT", tmp_path), \
+             patch.object(onboard, "_probe_meeting_source", return_value={"pass": True, "source_type": "legistar"}), \
              patch.object(onboard, "_run_modal_ingestion", return_value=0), \
              patch.object(onboard, "_deploy_modal_api", return_value=0), \
              patch.object(onboard, "_verify_jurisdiction", return_value=True), \
@@ -964,11 +1027,12 @@ class TestConfigurableDefaults:
 
         modal_calls = []
 
-        def track_modal(jid, days_past, dry_run=False, stages="all"):
+        def track_modal(jid, days_past, dry_run=False, stages="all", detach=False):
             modal_calls.append(days_past)
             return 0
 
         with patch.object(onboard, "PROJECT_ROOT", tmp_path), \
+             patch.object(onboard, "_probe_meeting_source", return_value={"pass": True, "source_type": "legistar"}), \
              patch.object(onboard, "_run_modal_ingestion", side_effect=track_modal), \
              patch.object(onboard, "_get_data_counts", return_value={
                  "meetings": 10, "chunks": 520, "agenda_items": 30,
@@ -997,11 +1061,12 @@ class TestConfigurableDefaults:
 
         modal_calls = []
 
-        def track_modal(jid, days_past, dry_run=False, stages="all"):
+        def track_modal(jid, days_past, dry_run=False, stages="all", detach=False):
             modal_calls.append(days_past)
             return 0
 
         with patch.object(onboard, "PROJECT_ROOT", tmp_path), \
+             patch.object(onboard, "_probe_meeting_source", return_value={"pass": True, "source_type": "legistar"}), \
              patch.object(onboard, "_run_modal_ingestion", side_effect=track_modal), \
              patch.object(onboard, "_get_data_counts", return_value={
                  "meetings": 10, "chunks": 520, "agenda_items": 30,
@@ -1029,11 +1094,12 @@ class TestConfigurableDefaults:
 
         modal_calls = []
 
-        def track_modal(jid, days_past, dry_run=False, stages="all"):
+        def track_modal(jid, days_past, dry_run=False, stages="all", detach=False):
             modal_calls.append(days_past)
             return 0
 
         with patch.object(onboard, "PROJECT_ROOT", tmp_path), \
+             patch.object(onboard, "_probe_meeting_source", return_value={"pass": True, "source_type": "legistar"}), \
              patch.object(onboard, "_run_modal_ingestion", side_effect=track_modal), \
              patch.object(onboard, "_get_data_counts", return_value={
                  "meetings": 10, "chunks": 520, "agenda_items": 30,
@@ -1096,6 +1162,7 @@ class TestCostEstimatePrompt:
         tmp_path, jid = temp_project
 
         with patch.object(onboard, "PROJECT_ROOT", tmp_path), \
+             patch.object(onboard, "_probe_meeting_source", return_value={"pass": True, "source_type": "legistar"}), \
              patch.object(onboard, "_run_modal_ingestion", return_value=0), \
              patch.object(onboard, "_get_data_counts", return_value={
                  "meetings": 10, "chunks": 520, "agenda_items": 30,
@@ -1117,11 +1184,12 @@ class TestCostEstimatePrompt:
 
         modal_calls = []
 
-        def track_modal(jid, days_past, dry_run=False, stages="all"):
+        def track_modal(jid, days_past, dry_run=False, stages="all", detach=False):
             modal_calls.append(days_past)
             return 0
 
         with patch.object(onboard, "PROJECT_ROOT", tmp_path), \
+             patch.object(onboard, "_probe_meeting_source", return_value={"pass": True, "source_type": "legistar"}), \
              patch.object(onboard, "_run_modal_ingestion", side_effect=track_modal), \
              patch.object(onboard, "_get_data_counts", return_value={
                  "meetings": 10, "chunks": 520, "agenda_items": 30,
