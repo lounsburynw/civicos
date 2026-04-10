@@ -1,16 +1,20 @@
 {
-  "source_id": "boarddocs-ca-marinschools",
-  "source_type": "boarddocs",
+  "source_id": "diligent-school-marin-county-oe",
+  "source_type": "diligent",
   "jurisdiction_id": "school-marin-county-oe",
-  "base_url": "https://go.boarddocs.com/ca/marinschools/Board.nsf",
+  "base_url": "https://marinschools.community.diligentoneplatform.com/Portal/",
   "auto_discover": false,
   "archives": {},
   "metadata": {
-    "app_path": "ca/marinschools",
-    "committee_id": "A4EP6J588C05",
-    "committee_name": "Board of Education",
     "district_name": "Marin County Office of Education",
-    "created": "2026-03-26"
+    "district_website": "https://www.marinschools.org",
+    "migrated_from": "boarddocs",
+    "boarddocs_app_path": "ca/marinschools",
+    "boarddocs_deprecated": "2026-02",
+    "created": "2026-03-26",
+    "updated": "2026-04-09",
+    "client_status": "no_client",
+    "notes": "Diligent Community platform — no extraction client exists yet. JS-rendered, likely needs Playwright."
   },
   "election_sources": {
     "ca_sos_results": {
