@@ -2,7 +2,7 @@
   "version": "1.0",
   "phase": "launch",
   "last_updated": "2026-04-10",
-  "summary": "Launch readiness: election coverage lifecycle (active \u2014 CA depth, automation, ingestion strategy), multi-state portability (CA+TX done), election+school onboarding (done), representative lookup (done), turnkey onboarding (done), federation queries, billing, operator tooling, multi-scale participation (done)",
+  "summary": "Distribution pivot: MCP OAuth + free tier (P0) before billing. 143/151 items done (95%). Ingestion complete (23 jurisdictions, 10 platforms). Remaining: distribution (2), billing (3), token UI (1), operator dockerfile (1), federation refinements (3).",
   "category_order": [
     "multi_state_portability",
     "turnkey_onboarding",
@@ -15,6 +15,7 @@
     "billing_payments",
     "acceptance_policy",
     "token_issuance",
+    "distribution",
     "operator_readiness",
     "federation_testbed",
     "multi_scale_participation"
@@ -721,6 +722,36 @@
       }
     ]
   },
+  "distribution": {
+    "description": "Get CivicOS in front of users. OAuth for Claude.ai/mobile MCP connector, free tier, distribution channels.",
+    "items": [
+      {
+        "name": "mcp_oauth_provider",
+        "description": "Implement OAuth 2.0 provider on the Modal-deployed MCP server so Claude.ai web/mobile users can connect via Settings > Connectors without manually managing API keys. Includes token exchange, session management, and free-tier rate limiting for unauthenticated-but-OAuth'd users.",
+        "status": "not_started",
+        "priority": 0,
+        "files": [
+          "apps/civicos-mcp/modal_app.py",
+          "apps/civicos-mcp/server.py",
+          "apps/civicos-mcp/README.md"
+        ],
+        "test_file": null,
+        "notes": "Strategic pivot: after a month of ingestion/data work (23 jurisdictions, 10 platform clients, 40+ MCP tools), distribution is now the bottleneck. OAuth callback: https://claude.ai/api/mcp/auth_callback. See apps/civicos-mcp/README.md lines 94-112 for existing plan. launch-readiness-spec.md line 368 for auth strategy. Bearer tokens remain supported alongside OAuth."
+      },
+      {
+        "name": "free_tier_rate_limiting",
+        "description": "OAuth-authenticated users get generous free tier (e.g. 50 queries/day) without requiring API key purchase. Collect usage patterns to inform billing model.",
+        "status": "not_started",
+        "priority": 1,
+        "files": [
+          "apps/civicos-mcp/modal_app.py",
+          "apps/civicos-mcp/api_key_middleware.py"
+        ],
+        "test_file": null,
+        "notes": "Depends on mcp_oauth_provider. Free tier lets us launch without Stripe and collect real usage data to decide billing model."
+      }
+    ]
+  },
   "operator_readiness": {
     "description": "Tooling and documentation for external operators to run CivicOS instances",
     "items": [
@@ -1209,7 +1240,7 @@
         "name": "add_real_source_item_id",
         "description": "Thread a real source-platform item ID (Granicus / Legistar / BoardDocs internal ID) through the extraction dataclass and storage so the stable decision ID can be derived from a true platform-stable reference instead of the synthetic-D fields (item_type, outcome, budget_amount). Today's fix uses the synthetic-D from already-available HighStakesDecision fields, which is sufficient but theoretically less robust if two genuinely-distinct decisions in one meeting share all of (item_ref, title, item_type, outcome, budget). Adds source_item_id: Optional[str] to HighStakesDecision and updates Granicus/Legistar/BoardDocs clients to populate it where the platform exposes one. Hash function adds source_item_id to the key when present.",
         "status": "not_started",
-        "priority": 0,
+        "priority": 2,
         "source": "fix_decision_storage_dedup follow-up",
         "files": [
           "packages/civicos-extraction/src/civicos_extraction/processing/retrospective_analyzer.py",
