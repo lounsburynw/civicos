@@ -26162,3 +26162,24 @@ Next P0: index_county_marin_decision_vectors (already set by parallel session)
 - Total: ~$87
 
 **Note:** Cost estimator underestimated — SF Board of Supervisors sessions run 3-4 hours, driving up per-meeting cost.
+
+## Session — 2026-04-10 (cost ceiling doc)
+
+**Item:** document_mass_ingest_cost_ceiling (P0, operator_readiness)
+
+**Changes:**
+- Created `docs/internal/cost-ceiling.md` — comprehensive cost ceiling document for 15-jurisdiction mass ingest
+- Cross-linked from `docs/internal/deployment.md` (new "Cost Controls" section)
+- Updated `launch.json`: marked item done, promoted `fix_sf_county_parent` to P0
+
+**Document covers:**
+- Per-service spend caps (AssemblyAI $50/jurisdiction, proxy $20/day, Modal $30/day, aggregate $500/week)
+- Per-jurisdiction cost estimates (total ~$237 for 482 remaining untranscribed meetings)
+- Kill-switch procedure (stop Modal jobs, disable GH Actions crons, verify, post-incident review)
+- Monitoring setup (daily cost digest, usage logging, code-level controls)
+- Recommended execution order (5 batches: verify → small → medium → alameda → vectors)
+- Known gaps and incident log (2026-04-05 proxy surprise)
+
+**Key finding:** 13 of 15 jurisdictions use Granicus (free audio), keeping proxy cost near $0. Total mass ingest estimated at $237, well under $500/week ceiling. County-alameda ($91) is the largest single jurisdiction.
+
+**Next P0:** fix_sf_county_parent — SF registry entry lacks county-san-francisco parent, needed for cross-jurisdiction queries.

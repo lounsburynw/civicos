@@ -1,7 +1,7 @@
 {
   "version": "1.0",
   "phase": "launch",
-  "last_updated": "2026-04-07",
+  "last_updated": "2026-04-10",
   "summary": "Launch readiness: election coverage lifecycle (active \u2014 CA depth, automation, ingestion strategy), multi-state portability (CA+TX done), election+school onboarding (done), representative lookup (done), turnkey onboarding (done), federation queries, billing, operator tooling, multi-scale participation (done)",
   "category_order": [
     "multi_state_portability",
@@ -849,8 +849,8 @@
       {
         "name": "document_mass_ingest_cost_ceiling",
         "description": "Write a cost ceiling document covering the mass-ingest scope (15 jurisdictions): per-service spend caps (proxy, OpenAI API, Modal compute, Whisper) with a hard kill-switch procedure. $50 proxy surprise on 2026-04-05 happened on a much smaller batch; scaling to 15 jurisdictions without written limits risks a much larger surprise. Include: daily/weekly spend thresholds per service, alerting (modal_usage_rollup is deployed), and a documented kill-switch (how to stop the pipeline mid-flight).",
-        "status": "not_started",
-        "priority": 0,
+        "status": "done",
+        "priority": 99,
         "source": "mass ingest risk register 2026-04-07 + feedback_cost_communication",
         "files": [
           "docs/internal/deployment.md"
@@ -1223,7 +1223,7 @@
         "name": "fix_sf_county_parent",
         "description": "city-san-francisco's registry entry lacks county-san-francisco as a parent jurisdiction. Its parent_jurisdictions is just [state-california, country-united-states]. SF is a consolidated city-county, but the registry should still list county-san-francisco for federation symmetry \u2014 parent-chain queries, regional body resolution, and tier weighting all assume each city has a parent county. Cross-county tier resolution currently returns 'cross_county' for SR\u2192SF coincidentally (neither shares any county) but this is structurally wrong.",
         "status": "not_started",
-        "priority": 3,
+        "priority": 0,
         "source": "Phase B cross-county query validation finding",
         "files": [
           "config/registry.json",

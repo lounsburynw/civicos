@@ -77,6 +77,10 @@ The `simbli_image` includes `playwright` + `playwright-stealth` + Chromium for s
 
 **Local development:** `pip install playwright playwright-stealth && playwright install chromium`
 
+## Cost Controls
+
+See [cost-ceiling.md](cost-ceiling.md) for per-service spend caps, per-jurisdiction estimates, kill-switch procedures, and alerting setup for mass ingestion operations.
+
 ## Monitoring
 
 ```bash
