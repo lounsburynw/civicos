@@ -4218,6 +4218,9 @@ class PostgresBackend:
                 if key[0] and key[1]:
                     seen[key] = idx
             unique_indices = set(seen.values())
+            dupes_skipped = len(issues) - len(unique_indices) - (len(issues) - len(seen))
+            if dupes_skipped > 0:
+                logger.info(f"Dedup: skipping {dupes_skipped} duplicate issues in batch for {jurisdiction_id}")
 
             # Insert new versions
             count = 0
