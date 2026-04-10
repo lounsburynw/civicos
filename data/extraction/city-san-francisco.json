@@ -12,7 +12,16 @@
     "legistar_body_count": 151,
     "legistar_events_broken": true,
     "granicus_domain": "sanfrancisco",
-    "granicus_video_view_id": 10
+    "granicus_video_view_id": 10,
+    "granicus_view_map": {
+      "10": "Board of Supervisors",
+      "7": "Budget and Finance Committee",
+      "11": "Government Audit and Oversight Committee",
+      "13": "Rules Committee",
+      "20": "Public Safety and Neighborhood Services Committee",
+      "21": "Budget and Appropriations Committee",
+      "45": "Land Use and Transportation Committee"
+    }
   },
   "issue_source": "seeclickfix",
   "election_sources": {

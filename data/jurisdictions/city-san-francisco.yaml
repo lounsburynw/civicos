@@ -66,10 +66,11 @@ data_sources:
   # Municipal code
   municipal_code: municode
 
-  # Meeting transcripts — SFGovTV streams via cable/Granicus, not YouTube.
-  # Full meeting recordings are not available on YouTube.
+  # Meeting transcripts — SFGovTV streams via Granicus, not YouTube.
+  # Audio extracted from Granicus MP3 archives (archive-video.granicus.com).
   transcripts:
-    source: null
+    source: granicus
+    granicus_domain: sanfrancisco
 
 # =============================================================================
 # Financial Context
