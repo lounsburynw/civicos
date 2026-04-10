@@ -57,17 +57,19 @@ Orchestrate data ingestion pipeline with proper safeguards.
 
 Before running any ingestion:
 
-1. **Check checkpoint status**
+1. **Check pipeline health log** — `docs/internal/pipeline-health-log.md` for known issues (platform migrations, SSL failures, proxy exhaustion) that may affect this jurisdiction
+
+2. **Check checkpoint status**
    ```bash
    /checkpoint status {jurisdiction}
    ```
 
-2. **Backup critical data** (if modifying existing)
+3. **Backup critical data** (if modifying existing)
    ```bash
    /db-backup create --label pre-ingest
    ```
 
-3. **Verify storage space**
+4. **Verify storage space**
    ```bash
    /db-backup status
    ```

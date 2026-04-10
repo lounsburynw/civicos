@@ -298,15 +298,18 @@ python scripts/onboard.py --city "San Rafael City Schools" --state CA --level sc
 
 When onboarding a city, consider also onboarding its school districts. For Marin County, known BoardDocs districts:
 
-| District | BoardDocs Path | Jurisdiction ID |
-|----------|---------------|-----------------|
-| Ross Valley SD | `ca/rova` | `school-ross-valley` |
-| Marin County OE | `ca/marinschools` | `school-marin-county-oe` |
-| Larkspur-Corte Madera SD | `ca/lcmsd` | `school-larkspur-corte-madera` |
-| Sausalito Marin City SD | `ca/smcsd` | `school-sausalito-marin-city` |
-| College of Marin | `ca/marin` | `college-marin` |
+| District | Platform | ID/Path | Jurisdiction ID |
+|----------|----------|---------|-----------------|
+| Ross Valley SD | Diligent Community | `ross-valley-schools.community.diligentoneplatform.com` | `school-ross-valley` |
+| Marin County OE | Diligent Community | `marinschools.community.diligentoneplatform.com` | `school-marin-county-oe` |
+| Larkspur-Corte Madera SD | Simbli | S=36031975 | `school-larkspur-corte-madera` |
+| Sausalito Marin City SD | Simbli | S=36030450 | `school-sausalito-marin-city` |
+| College of Marin | BoardDocs | `ca/marin` | `college-marin` |
+
+**Platform migration is common for school districts.** Check the actual district website before onboarding — don't assume the extraction config is current. See `docs/internal/pipeline-health-log.md` for known migrations.
 
 For new areas, use WebSearch: `site:go.boarddocs.com "{county name}" OR "{city name}" school`
+Also try: `site:simbli.eboardsolutions.com "{district name}"` and `site:diligentoneplatform.com "{district name}"`
 
 ## Notes
 

@@ -221,6 +221,7 @@ Organized into public (ships with the repo) and internal (operations). Read only
 | `clarity-elections-research.md` | Clarity Elections coverage for non-Civera CA counties |
 | `headless-onboard-prompt.md` | Prompt template for batch onboarding via Claude Code headless mode |
 | `transcription-policy.md` | Tiered transcription model, cost reference, onboarding budgets, cost approval gates |
+| `pipeline-health-log.md` | Running log of pipeline issues, root causes, resolutions. Check before debugging data gaps |
 
 ### Private Docs (docs/private/ — gitignored)
 Financial, billing, and internal strategy docs.
