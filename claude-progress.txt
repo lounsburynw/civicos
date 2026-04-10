@@ -26026,3 +26026,29 @@ Verification:
 
 Next P0: complete_alameda_ingest_or_scope (county-alameda has decisions but no
 transcripts, chunks, issues, or officials — metadata floating without context)
+
+## Session: Mutation Testing Infrastructure + Test Quality Initiative — 2026-04-09
+
+Built mutation testing workflow from scratch. Inspired by talk on agentic AI
+testing: "proper testing is all you need" — tests must break when code mutates.
+
+Infrastructure delivered (7 commits):
+- docs/internal/mutation-testing-workflow.md — full design doc
+- .critics/mutation.critic.md — LLM critic for test anti-patterns
+- CI job in .github/workflows/tests.yml — PR-only, reporting-only
+- /test mutation slash command + scripts/run_mutation_baseline.sh
+- mutmut 3.x installed and configured
+
+Test results:
+- calendar.py: 0% → 96% (102/106 killed, 22 tests written)
+- elections/cycles.py: 66% → 77% (304/394 killed, 12 tests added)
+- elections/deadlines.py: 65% baseline (70/107 killed)
+- meetings/reconciliation.py: 0 → 29 tests written (zero coverage before)
+- meetings/minutes.py: 0 → 20 tests written (zero coverage before)
+
+Key finding: 34 of 71 source files (10,400 lines) have ZERO tests.
+Full inventory added to docs/internal/testing.md.
+
+Next session: P0 is still complete_alameda_ingest_or_scope (unchanged).
+Mutation testing continues as P1 parallel track — breadth over depth
+(write first tests for untested files before polishing scored modules).
