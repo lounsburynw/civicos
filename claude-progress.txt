@@ -26052,3 +26052,30 @@ Full inventory added to docs/internal/testing.md.
 Next session: P0 is still complete_alameda_ingest_or_scope (unchanged).
 Mutation testing continues as P1 parallel track — breadth over depth
 (write first tests for untested files before polishing scored modules).
+
+## Session: Complete Alameda County Ingest (2026-04-09)
+
+P0: complete_alameda_ingest_or_scope → DONE (Path A: full ingest)
+
+Chose Path A (full ingest) over Path B (scope down). All 3 new corpora feasible:
+- Issues: SeeClickFix free API, $0
+- Municipal Code: Municode free API, $0
+- Transcripts: Granicus free MP3, AssemblyAI free tier covers 2026 meetings
+
+Data ingested:
+- Issues: 1,498 from SeeClickFix → Postgres + 1,498 vector embeddings
+- Municipal Code: 2,997 sections from Municode → Postgres + 3,784 vector embeddings
+- Transcripts: Modal pipeline running for 80 meetings (2026 only, free tier)
+
+Code fixes:
+- store_issues() batch dedup — SeeClickFix pagination returns overlapping pages
+  with duplicate external_ids, causing unique constraint violations
+- Alameda County added to Municode JURISDICTION_MAP — uses "Code of Ordinances"
+  (not the county default "Municipal Code")
+- Granicus URL resolvers upgraded from urllib to httpx — fixes SSL cert failures
+  when resolving direct MP3 download URLs
+- yt-dlp installed in venv (was only available as system CLI)
+
+Commit: f07d2978
+
+Next P0: index_county_marin_decision_vectors (P2 → P0)

@@ -1285,7 +1285,7 @@
       {
         "name": "complete_alameda_ingest_or_scope",
         "description": "county-alameda has 264 meetings and ~709 decisions (post-dedup-cleanup) but zero transcripts, chunks, issues, agenda_items, municipal_code, and elected_officials. Users can search for an Alameda decision but can't drill down to the meeting transcript, agenda packet, or officials who voted. It's metadata floating without context. Either complete the full ingest (transcripts, chunks, issues, officials) to match Marin cities, or explicitly scope down by disabling drill-down UI for alameda and labeling it 'decisions preview' in the extension.",
-        "status": "not_started",
+        "status": "done",
         "priority": 0,
         "source": "mass ingest data-status audit 2026-04-07",
         "files": [
@@ -1293,13 +1293,13 @@
           "data/jurisdictions/county-alameda.yaml"
         ],
         "test_file": null,
-        "notes": "Meetings + decisions were re-extracted 2026-04-07 (commit f2e546b) but the rest of the pipeline (audio \u2192 transcripts, agenda packet PDFs \u2192 chunks, 311 issues, officials) never ran. Two paths: (A) run the full /onboard pipeline for county-alameda, estimated ~1-2 days compute + transcription cost (budget cap from document_mass_ingest_cost_ceiling item), or (B) ship with limited UX that returns decision metadata only and a clear 'drill-down unavailable for this jurisdiction' message. Decision depends on launch timeline and cost ceiling."
+        "notes": "Path A (full ingest) chosen. Issues: 1,498 (SeeClickFix). Municipal code: 2,997 sections (Municode). All vectors indexed (issues: 1,498, muni_code: 3,784). Transcripts: Modal pipeline running for 80 2026 meetings (free tier). Code fixes: batch dedup in store_issues, Alameda Municode product name, httpx Granicus resolver. Completed 2026-04-09."
       },
       {
         "name": "index_county_marin_decision_vectors",
         "description": "county-marin has 105 decisions in the storage table but 0 decision vectors indexed. Semantic search on county-marin decisions returns nothing, which is bad because county-marin is the heaviest-content jurisdiction in the mass-ingest scope (49,505 chunks, 2,976 muni_code entries). Fix: run vector indexing for decisions corpus on county-marin via modal run scripts/modal_ingest.py.",
         "status": "not_started",
-        "priority": 2,
+        "priority": 0,
         "source": "mass ingest data-status audit 2026-04-07",
         "files": [
           "scripts/modal_ingest.py"
