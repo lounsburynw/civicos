@@ -1,81 +1,96 @@
-# Recommended: Complete or scope down Alameda County data (`complete_alameda_ingest_or_scope`)
+# Recommended: Index county-marin decision vectors (`index_county_marin_decision_vectors`)
 
 **Priority:** P0
-**Area:** federation_testbed > complete_alameda_ingest_or_scope
+**Area:** federation_testbed
 **Date:** 2026-04-09
 
 > Recommended context from prior session. Review and decide whether to accept, modify, or `/start` for fresh prioritization.
 
 ## Context
 
-The previous session was a testing infrastructure session (mutation testing). The P0 (`complete_alameda_ingest_or_scope`) was not worked on — it carries forward unchanged.
+The previous session completed `complete_alameda_ingest_or_scope` (Path A: full ingest). county-alameda now has issues (1,498), municipal code (2,997 sections), and all vectors indexed. Transcription for 80 2026 meetings is running on Modal via AssemblyAI free tier.
 
-county-alameda has meetings (265) and decisions (709) with chunks (2,532) indexed, but **zero** transcripts, issues, municipal_code, elected_officials, and elections. Users can search Alameda decisions but can't drill down to transcripts, officials, or community issues.
+county-marin has 105 decisions in storage but **0 decision vectors indexed**. This means semantic search on county-marin decisions returns nothing — a gap given county-marin is the heaviest-content jurisdiction (49,505 chunks, 2,976 muni_code entries).
 
-## Decision: Two Paths
+## The Problem
 
-### Path A: Full ingest (higher value, higher cost)
-Enable transcription, issues, municipal code for county-alameda. Check video URL availability first.
+```
+county-marin decisions: 105 stored, 0 indexed
+```
 
-### Path B: Scope down (faster, lower risk)
-Ship with limited UX — decisions + chunks only, "drill-down unavailable" label.
-
-**Start with feasibility check:**
-1. Check video URLs: `python3 -c "from dotenv import load_dotenv; load_dotenv(); from civicos import CivicOS; c = CivicOS('county-alameda'); ms = c.storage.get_meetings('county-alameda', limit=10); print([m.get('video_url') for m in ms])"`
-2. If no video URLs → Path B is pragmatic
+The fix is straightforward: run vector indexing for the decisions corpus on county-marin.
 
 ## Key Files
-- `data/extraction/county-alameda.json` — Granicus source config
-- `data/jurisdictions/county-alameda.yaml` — Ingestion config (transcription: false)
-- `launch.json` — P0 item description
+
+- `packages/civicos-extraction/src/civicos_extraction/cli/vectors.py` — Vector indexing CLI
+- `scripts/modal_ingest.py` — Modal orchestration (for cloud indexing)
+- `data/jurisdictions/county-marin.yaml` — county-marin config
+
+## Suggested Approach
+
+1. **Verify the gap**: `python3 -c "from dotenv import load_dotenv; load_dotenv('.env'); from civicos import CivicOS; c = CivicOS('county-marin'); print('Decisions:', c.storage.get_decision_count('county-marin')); print('Decision vectors:', c.vectors.count('county-marin', corpus_type='decisions'))"`
+
+2. **Run vector indexing** (either locally or on Modal):
+   ```bash
+   # Local (fastembed, CPU, ~5-10 min for 105 decisions):
+   python3 -c "
+   from dotenv import load_dotenv; load_dotenv('.env')
+   from civicos_extraction.cli.vectors import run_vector_indexing
+   run_vector_indexing('county-marin', corpus_type='decisions', provider_type='fastembed')
+   "
+
+   # Or via Modal:
+   modal run scripts/modal_ingest.py --vectors --jurisdiction county-marin
+   ```
+
+3. **Verify**: Re-run the gap check from step 1
+
+4. **Check other jurisdictions** for similar gaps — run `/data-status` or `/vector-coverage` across federation testbed jurisdictions
+
+## Also Check: Alameda Transcription Status
+
+The previous session kicked off Modal transcription for county-alameda (80 2026 meetings). Check if it completed:
+
+```bash
+# Check transcript count
+python3 -c "
+from dotenv import load_dotenv; load_dotenv('.env')
+from civicos import CivicOS
+c = CivicOS('county-alameda')
+print(f'Transcripts: {c.storage.get_transcript_count(\"county-alameda\")}')
+"
+
+# If still 0, check Modal logs:
+modal app logs civicos-ingest
+```
+
+If transcription failed, the likely cause is the Granicus audio download step. The httpx resolver fix (commit `f07d2978`) should handle it, but Modal may have cached a stale image. Re-run with:
+```bash
+modal run scripts/modal_ingest.py --transcripts --jurisdiction county-alameda --transcripts-since 2026-01-01 --transcripts-cost-cap 100
+```
+
+## Code Fixes from This Session
+
+These are already committed (`f07d2978`) but worth knowing:
+- **store_issues() batch dedup** — SeeClickFix pagination overlap caused PK violations
+- **Alameda County Municode mapping** — product is "Code of Ordinances" not "Municipal Code"
+- **Granicus URL resolvers** — switched from urllib to httpx (SSL cert fix)
+
+## Tests to Run
+
+```bash
+# Smoke tests
+pytest packages/civicos/tests/test_civicos.py -q --override-ini="addopts="
+```
 
 ## Success Criteria
-- [ ] Decision made: Path A or Path B
-- [ ] Item marked done in launch.json
+
+- [ ] county-marin decision vectors indexed (105 decisions → ~105 vectors)
+- [ ] Verify county-alameda transcription completed (or re-run if failed)
+- [ ] Check for vector gaps in other federation testbed jurisdictions
+- [ ] `index_county_marin_decision_vectors` marked done in launch.json
 - [ ] New P0 promoted
 
----
-
-## Parallel Track: Mutation Testing Continuation
-
-The previous session built mutation testing infrastructure and identified 34 untested source files. This is P1 work that can run in parallel or be picked up when the P0 is done.
-
-### What was built (7 commits on main)
-- `docs/internal/mutation-testing-workflow.md` — full design doc
-- `.critics/mutation.critic.md` — LLM critic for test anti-patterns
-- CI job in `.github/workflows/tests.yml` — PR-only mutation reporting
-- `/test mutation [file]` slash command
-- `scripts/run_mutation_baseline.sh` — per-module baseline script
-- mutmut 3.x configured in `packages/civicos/pyproject.toml`
-
-### Current scores
-| Module | Score | Killed/Total |
-|--------|-------|-------------|
-| `calendar.py` | **96%** | 102/106 |
-| `elections/cycles.py` | **77%** | 304/394 |
-| `elections/deadlines.py` | **65%** | 70/107 |
-| `meetings/reconciliation.py` | — | 29 tests written |
-| `meetings/minutes.py` | — | 20 tests written |
-
-### The gap
-- 71 source files, 52,538 lines total
-- **34 files (10,400 lines) have zero tests**
-- Full inventory in `docs/internal/testing.md` under "Coverage Inventory"
-
-### Next testing steps (prioritized)
-1. **Breadth**: Write first tests for untested pure-logic files: `types.py` (516 lines), `diagnostics.py` (482), `config.py` (433), `funding/matcher.py` (428), `cost.py` (137), `issues/classify.py` (48)
-2. **Depth**: Push `cycles.py` 77% → 80%+ (need ~6 kills from `_resolve_us_senate`)
-3. **Baselines**: Run mutmut on `decision.py`, `reconciliation.py`, `minutes.py`
-
-### mutmut quirks to know
-- `also_copy = ["src/"]` required in pyproject.toml config
-- `--ignore=tests/test_deployment_rollback.py` needed (broken imports)
-- Trampoline doesn't detect default parameter mutations
-- Use `patch("module.datetime")` for boundary tests (datetime.now() drift)
-
-## Caveats
-- **Cost awareness**: See `memory/feedback_cost_communication.md` before expensive pipelines
-- **YouTube proxy expired**: `civic-youtube-proxy` Modal secret has 407 errors (blocks audio download)
-
 ## Open PRs
+
 None.
