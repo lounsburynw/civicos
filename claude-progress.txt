@@ -26105,3 +26105,35 @@ Usage for future jurisdictions:
   civic-extract youtube --jurisdiction city-X --backfill       # Just backfill video_url
 
 Next P0: index_county_marin_decision_vectors (already set by parallel session)
+
+## Session — 2026-04-09 (evening)
+
+### Completed: index_county_marin_decision_vectors (P0)
+- Indexed 105 decision vectors via local fastembed (nomic-embed-text-v1.5, 768d)
+- Verified: all 18 jurisdictions now have full decision vector coverage
+- Semantic search confirmed working (what_happened('housing') returns 10 results)
+- Marked done in launch.json
+
+### In Progress: sf_audio_backfill (promoted to P0)
+- Discovered Granicus video URLs for SF: 6 → 46/57 meetings (80% coverage)
+- Mapped 7 Granicus ViewPublisher views to SF committee bodies:
+  - View 10 → Board of Supervisors
+  - View 7 → Budget and Finance Committee
+  - View 11 → Government Audit and Oversight Committee
+  - View 13 → Rules Committee
+  - View 20 → Public Safety and Neighborhood Services Committee
+  - View 21 → Budget and Appropriations Committee
+  - View 45 → Land Use and Transportation Committee
+- Stored view map in data/extraction/city-san-francisco.json
+- Updated YAML config: transcripts.source = granicus
+- Verified Granicus MP3 resolution (archive-video.granicus.com/sanfrancisco/*.mp3)
+- Tested audio download pipeline: 328MB MP3 → 122MB opus, R2 upload verified
+- 12 meetings still without video_url (mostly Land Use — sparse Granicus coverage)
+- 33 meetings ready for transcription, estimated ~$43 via AssemblyAI
+
+### Also checked
+- county-alameda: 0 transcripts (257 meetings with video_url). Prior session's Modal transcription didn't complete.
+
+### Next P0: sf_audio_backfill
+- Run Modal transcription: modal run scripts/modal_ingest.py --transcripts --jurisdiction city-san-francisco --transcripts-since 2026-01-01 --transcripts-cost-cap 50
+- Verify transcripts created, then index vectors

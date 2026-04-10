@@ -1,87 +1,83 @@
-# Recommended: Index county-marin decision vectors (`index_county_marin_decision_vectors`)
+# Recommended: Complete SF audio backfill (`sf_audio_backfill`)
 
 **Priority:** P0
-**Area:** federation_testbed
+**Area:** turnkey_onboarding
 **Date:** 2026-04-09
 
 > Recommended context from prior sessions. Review and decide whether to accept, modify, or `/start` for fresh prioritization.
 
 ## Context
 
-Two sessions ran on 2026-04-09:
-1. **Parallel session** completed `complete_alameda_ingest_or_scope` (full ingest — issues, municipal code, audio pipeline). Kicked off Modal transcription for 80 Alameda meetings via AssemblyAI free tier.
-2. **Main session** completed `fairfax_cortemadera_video_discovery` — populated video_url for Fairfax (0→16) and Corte Madera (0→12) via YouTube channel/playlist discovery. Added `--channel` and `--backfill` modes to youtube.py CLI.
+This session completed two items:
+1. **county-marin decision vectors** — indexed 105 vectors, all 18 jurisdictions now have full decision vector coverage.
+2. **SF video URL discovery** — discovered Granicus video URLs for San Francisco: 6 → 46 out of 57 meetings (80% coverage). Mapped 7 Granicus ViewPublisher views to committee bodies.
 
-county-marin has 105 decisions in storage but **0 decision vectors indexed**. Semantic search on county-marin decisions returns nothing — a gap given county-marin is the heaviest-content jurisdiction (49,505 chunks, 2,976 muni_code entries).
+## What's Left: Transcription
+
+33 SF meetings now have video_url but no transcripts. The audio pipeline is verified:
+- Granicus MP3 resolution works (archive-video.granicus.com)
+- Local audio download tested: 328MB MP3 → 122MB opus → R2 upload
+- Estimated cost: ~$43 via AssemblyAI (~66 audio hours)
 
 ## Key Files
 
-- `scripts/modal_ingest.py` — Modal vector indexing orchestration
-- `packages/civicos-extraction/src/civicos_extraction/cli/vectors.py` — Vector indexing CLI
-- `data/jurisdictions/county-marin.yaml` — county-marin config
+- `data/extraction/city-san-francisco.json` — updated with `granicus_view_map` (view→committee)
+- `data/jurisdictions/city-san-francisco.yaml` — updated `transcripts.source: granicus`
+- `scripts/modal_ingest.py` — `extract_transcripts()` handles Granicus URLs natively
 
 ## Suggested Approach
 
-1. **Verify the gap**:
+1. **Run transcription on Modal** (~$43, fits within $50 cost cap):
    ```bash
-   civicos-env/bin/python3 -c "
+   modal run scripts/modal_ingest.py --transcripts --jurisdiction city-san-francisco --transcripts-since 2026-01-01 --transcripts-cost-cap 50
+   ```
+
+2. **Verify** transcripts were created:
+   ```python
    from dotenv import load_dotenv; load_dotenv()
    from civicos import CivicOS
-   c = CivicOS('county-marin')
-   print('Decisions:', c.storage.get_decision_count('county-marin'))
-   print('Decision vectors:', c.vectors.count('county-marin', corpus_type='decisions'))
-   "
+   c = CivicOS('city-san-francisco')
+   print(f'Transcripts: {c.storage.get_transcript_count("city-san-francisco")}')
    ```
 
-2. **Run vector indexing** (local or Modal):
-   ```bash
-   # Local (~5-10 min for 105 decisions):
-   civicos-env/bin/python3 -c "
-   from dotenv import load_dotenv; load_dotenv()
+3. **Index transcript vectors**:
+   ```python
    from civicos_extraction.cli.vectors import run_vector_indexing
-   run_vector_indexing('county-marin', corpus_type='decisions', provider_type='fastembed')
-   "
-
-   # Or via Modal:
-   modal run scripts/modal_ingest.py --vectors --jurisdiction county-marin
+   run_vector_indexing('city-san-francisco', corpus_type='transcripts', provider_type='fastembed')
    ```
-
-3. **Verify** vectors were created, then check other jurisdictions for similar gaps via `/vector-coverage`
 
 4. **Mark done** in launch.json, promote new P0
 
 ## Also Check: Alameda Transcription Status
 
-The parallel session kicked off Modal transcription for county-alameda (80 meetings). Check completion:
-```bash
-civicos-env/bin/python3 -c "
-from dotenv import load_dotenv; load_dotenv()
-from civicos import CivicOS
-c = CivicOS('county-alameda')
-print(f'Transcripts: {c.storage.get_transcript_count(\"county-alameda\")}')
-"
-```
-
-If still 0, re-run:
+county-alameda has 257 meetings with video_url but 0 transcripts. A prior session kicked off Modal transcription but it didn't complete. Re-run if still 0:
 ```bash
 modal run scripts/modal_ingest.py --transcripts --jurisdiction county-alameda --transcripts-since 2026-01-01 --transcripts-cost-cap 100
 ```
 
-## New YouTube Discovery Tool
+## Remaining Video URL Gaps
 
-This session added reusable commands for future jurisdictions:
-```bash
-civic-extract youtube --jurisdiction city-X --channel     # Discover + store + backfill video_url
-civic-extract youtube --jurisdiction city-X --backfill    # Just sync video_url from videos table
-```
-Works for any jurisdiction with `data_sources.transcripts.channel_id` or `playlist_id` in its YAML config.
+12 SF meetings still lack video_url (mostly Land Use and Transportation Committee — Granicus view 45 only has 3 recent clips). These videos may not be posted yet. The Granicus view map is stored in the extraction config for future refresh cycles.
+
+## Granicus View Map (for reference)
+
+| View ID | Committee |
+|---------|-----------|
+| 10 | Board of Supervisors |
+| 7 | Budget and Finance Committee |
+| 11 | Government Audit and Oversight Committee |
+| 13 | Rules Committee |
+| 20 | Public Safety and Neighborhood Services Committee |
+| 21 | Budget and Appropriations Committee |
+| 45 | Land Use and Transportation Committee |
 
 ## Success Criteria
 
-- [ ] county-marin decision vectors indexed (~105 vectors)
-- [ ] Verify county-alameda transcription completed (or re-run if failed)
-- [ ] `index_county_marin_decision_vectors` marked done in launch.json
+- [ ] 30+ SF transcripts created (from 33 meetings with video_url)
+- [ ] Transcript vectors indexed
+- [ ] `sf_audio_backfill` marked done in launch.json
 - [ ] New P0 promoted
+- [ ] (Optional) Check/re-run Alameda transcription
 
 ## Open PRs
 
