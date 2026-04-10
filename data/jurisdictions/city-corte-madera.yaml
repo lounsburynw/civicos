@@ -105,8 +105,8 @@ ingestion:
   agenda_items: true
   decisions: true
   legislation: true
-  transcription: false
-  diarization: false
+  transcription: true
+  diarization: true
   vector_indexing: true
 refresh:
   meetings:

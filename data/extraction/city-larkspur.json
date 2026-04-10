@@ -10,7 +10,9 @@
     "minutes_archives": {},
     "discovered_amids": [
       "49"
-    ]
+    ],
+    "youtube_playlist": "PLkVEI8fF85Tr3iAgahkDpWRLVysQoUzTP",
+    "youtube_channel": "UCn93I9hPfvEivHnwDo32XbA"
   },
   "election_sources": {
     "civera_election_stats": {
@@ -34,5 +36,6 @@
         ]
       }
     }
-  }
+  },
+  "state": "CA"
 }
