@@ -7498,7 +7498,7 @@ def scheduled_high_velocity_refresh():
         modal.Secret.from_name("civic-notify"),
     ],
     memory=4096,  # Higher memory for transcript extraction
-    timeout=3600,  # 1 hour (transcription can take time if triggered)
+    timeout=5400,  # 1.5 hours (15+ jurisdictions with downstream extraction)
     # Schedule moved to GitHub Actions: .github/workflows/cron-meetings-poll.yml
 )
 def scheduled_meetings_poll():
