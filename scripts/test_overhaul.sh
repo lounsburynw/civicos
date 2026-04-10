@@ -129,15 +129,25 @@ PROMPT
 }
 
 # ---------------------------------------------------------------------------
-# 3. Package configs
+# 3. Package configs (compatible with bash 3.2 / zsh)
 # ---------------------------------------------------------------------------
-declare -A PACKAGES
-PACKAGES=(
-    ["civicos"]="packages/civicos/src/civicos/_internal|packages/civicos/tests"
-    ["civicos-extraction"]="packages/civicos-extraction/src/civicos_extraction|packages/civicos-extraction/tests"
-    ["civicos-services"]="packages/civicos-services/src/civicos_services|packages/civicos-services/tests"
-    ["civicos-relay"]="packages/civicos-relay/src/civicos_relay|packages/civicos-relay/tests"
-)
+PKG_NAMES="civicos civicos-extraction civicos-services civicos-relay"
+pkg_src_dir() {
+    case "$1" in
+        civicos)            echo "packages/civicos/src/civicos/_internal" ;;
+        civicos-extraction) echo "packages/civicos-extraction/src/civicos_extraction" ;;
+        civicos-services)   echo "packages/civicos-services/src/civicos_services" ;;
+        civicos-relay)      echo "packages/civicos-relay/src/civicos_relay" ;;
+    esac
+}
+pkg_test_dir() {
+    case "$1" in
+        civicos)            echo "packages/civicos/tests" ;;
+        civicos-extraction) echo "packages/civicos-extraction/tests" ;;
+        civicos-services)   echo "packages/civicos-services/tests" ;;
+        civicos-relay)      echo "packages/civicos-relay/tests" ;;
+    esac
+}
 
 # ---------------------------------------------------------------------------
 # 4. Main loop
@@ -153,12 +163,13 @@ echo "Date: $DATE"
 echo "Output: $OUTDIR"
 echo ""
 
-for pkg_name in "${!PACKAGES[@]}"; do
+for pkg_name in $PKG_NAMES; do
     if [ "$TARGET_PKG" != "all" ] && [ "$TARGET_PKG" != "$pkg_name" ]; then
         continue
     fi
 
-    IFS='|' read -r src_dir test_dir <<< "${PACKAGES[$pkg_name]}"
+    src_dir=$(pkg_src_dir "$pkg_name")
+    test_dir=$(pkg_test_dir "$pkg_name")
 
     if [ ! -d "$src_dir" ]; then
         echo "⚠ Skipping $pkg_name — source dir not found: $src_dir"
@@ -177,7 +188,11 @@ for pkg_name in "${!PACKAGES[@]}"; do
         continue
     fi
 
-    echo "$queue" | while IFS='|' read -r filepath lines pkg; do
+    # Write queue to temp file to avoid subshell counter loss from pipes
+    queue_file="$OUTDIR/.queue_${pkg_name}"
+    echo "$queue" > "$queue_file"
+
+    while IFS='|' read -r filepath lines pkg; do
         TOTAL=$((TOTAL + 1))
         module_name=$(basename "$filepath" .py)
         # Derive test file path
@@ -200,6 +215,7 @@ for pkg_name in "${!PACKAGES[@]}"; do
 
         if claude -p "$(executor_prompt "$filepath" "$test_file" "$pkg_name")" \
             --output-format text \
+            --allowedTools "Edit,Write,Read,Bash,Glob,Grep" \
             > "$executor_log" 2>&1; then
             echo "       ✓ Executor done"
         else
@@ -221,6 +237,7 @@ for pkg_name in "${!PACKAGES[@]}"; do
 
         if claude -p "$(critic_prompt "$filepath" "$test_file")" \
             --output-format text \
+            --allowedTools "Edit,Write,Read,Bash,Glob,Grep" \
             > "$critic_log" 2>&1; then
             if head -5 "$critic_log" | grep -q "VERDICT: PASS"; then
                 echo "       ✓ Critic: PASS"
@@ -236,7 +253,8 @@ for pkg_name in "${!PACKAGES[@]}"; do
 
         # Brief pause to avoid rate limits
         sleep 2
-    done
+    done < "$queue_file"
+    rm -f "$queue_file"
 
     # --- OPTIONAL COMMIT per package ---
     if [ "$AUTOCOMMIT" = "true" ]; then
