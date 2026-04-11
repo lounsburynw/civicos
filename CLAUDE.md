@@ -203,7 +203,7 @@ Organized into public (ships with the repo) and internal (operations). Read only
 | `mcp/setup.md` | MCP server — connect Claude/ChatGPT, tool inventory |
 | `relay/overview.md` | Relay — attestation, trust model, federation, AI proxy |
 | `packages/*.md` | Per-package docs (civicos, services, relay, extraction, client, components) |
-| `decisions/` | Architecture Decision Records (vector storage, entity IDs, federation) |
+| `decisions/` | Architecture Decision Records (vector storage, entity IDs, federation, tool scope) |
 | `learning/` | Conceptual series — cryptography, Nostr, attestation, federation |
 | `essays/` | Long-form writing |
 | `onboarding-pr-workflow.md` | How to add a new city via PR (validation, CI, steps) |

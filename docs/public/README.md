@@ -129,5 +129,10 @@ For the full economic model — cost structures, revenue tiers, why previous civ
 - [Relay — attestation, trust, coordination](relay/overview.md)
 - [Nostr event schemas — build CivicOS clients in any language](relay/nostr-events.md)
 - [Federation — how relays and MCP servers peer across operators](relay/federation.md)
-- [Architecture decisions](decisions/vector_storage.md)
+- Architecture decisions:
+  - [Tool scope and the read/write federation boundary](decisions/tool_scope_and_federation.md) — how reads expand, how writes stay anchored
+  - [Unified civic query interface](decisions/query_interface.md) — the 5 verbs (v2 query layer)
+  - [Federation domain architecture](decisions/federation_domain_architecture.md) — Registry + BYOD, operator types
+  - [Entity ID namespace](decisions/entity_id_namespace.md) — jurisdiction-prefixed IDs
+  - [Vector storage](decisions/vector_storage.md), [universal adapter](decisions/universal_adapter.md), [data source federation](decisions/data_source_federation.md), [data integrity](decisions/data_integrity_infrastructure.md), [distribution pivot](decisions/distribution_pivot.md)
 - [Architecture deep dives](learning/README.md) — cryptographic foundations, Nostr, attestation
