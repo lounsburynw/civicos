@@ -490,89 +490,122 @@ class MCPServer:
 
         app.add_middleware(TrailingSlashMiddleware)
 
-        # Bearer auth middleware for MCP Streamable HTTP requests
-        # Extracts optional Bearer token and sets tier context for tool access control
-        # Supports both API keys (cvk_live_*) and OAuth tokens (cos_*)
+        # Bearer auth middleware for MCP Streamable HTTP requests.
+        #
+        # Returns 401 + RFC 6750 WWW-Authenticate on /mcp/* when:
+        #   (a) no Authorization header (forces Claude.ai to discover OAuth
+        #       via resource_metadata, otherwise the connector UI treats
+        #       OAuth as optional and shows manual fallback fields); or
+        #   (b) a recognizable-but-invalid cos_* OAuth token (stale/expired
+        #       — tells the client to re-run OAuth rather than silently
+        #       downgrading to the 'open' tier).
+        #
+        # Supports both API keys (cvk_live_*) and OAuth tokens (cos_*) as
+        # valid credentials. Non-/mcp/* paths (health, OAuth endpoints,
+        # REST API) are unaffected — they always proceed without auth.
+        #
+        # resource_metadata in the WWW-Authenticate challenge uses the
+        # static server_url from registry.json rather than the Host
+        # header, because Cloudflare Workers proxying via fetch() set
+        # Host to the Modal internal URL.
+        _oauth_challenge = (
+            'Bearer realm="mcp", '
+            'resource_metadata="{0}/.well-known/oauth-protected-resource"'
+        ).format(server_url)
+
+        async def _send_401(send: Send, *, error: str, description: str):
+            challenge = (
+                f'{_oauth_challenge}, error="{error}", '
+                f'error_description="{description}"'
+            )
+            body = (
+                f'{{"error":"{error}","error_description":"{description}"}}'
+            ).encode()
+            await send({
+                "type": "http.response.start",
+                "status": 401,
+                "headers": [
+                    (b"content-type", b"application/json"),
+                    (b"www-authenticate", challenge.encode()),
+                    (b"content-length", str(len(body)).encode()),
+                ],
+            })
+            await send({"type": "http.response.body", "body": body})
+
         class BearerAuthMiddleware:
             def __init__(self, app: ASGIApp):
                 self.app = app
             async def __call__(self, scope: Scope, receive: Receive, send: Send):
-                if scope["type"] == "http":
-                    headers = dict(scope.get("headers", []))
-                    auth = headers.get(b"authorization", b"").decode()
-                    if auth.startswith("Bearer "):
-                        raw_token = auth[7:].strip()
+                if scope["type"] != "http":
+                    await self.app(scope, receive, send)
+                    return
 
-                        # API key authentication (cvk_live_*)
-                        if raw_token.startswith("cvk_live_"):
-                            from civicos_services.core.api_keys import get_api_key_store, resolve_tier
-                            store = get_api_key_store()
-                            if store and store.available:
-                                key_info = store.validate_key(raw_token)
-                                if key_info:
-                                    tier_token = _mcp_request_tier.set(resolve_tier(key_info.tier))
-                                    key_token = _mcp_request_key_id.set(key_info.key_id)
-                                    try:
-                                        await self.app(scope, receive, send)
-                                    finally:
-                                        _mcp_request_tier.reset(tier_token)
-                                        _mcp_request_key_id.reset(key_token)
-                                    return
+                path = scope.get("path", "")
+                is_mcp_path = path.startswith("/mcp")
+                headers = dict(scope.get("headers", []))
+                auth = headers.get(b"authorization", b"").decode()
 
-                        # OAuth token authentication (cos_*)
-                        elif raw_token.startswith("cos_"):
-                            from oauth import verify_oauth_token
-                            token_info = verify_oauth_token(raw_token)
-                            if token_info:
-                                tier_token = _mcp_request_tier.set("free")
-                                key_token = _mcp_request_key_id.set(
-                                    f"oauth:{token_info['client_id']}"
-                                )
+                if auth.startswith("Bearer "):
+                    raw_token = auth[7:].strip()
+
+                    # API key authentication (cvk_live_*)
+                    if raw_token.startswith("cvk_live_"):
+                        from civicos_services.core.api_keys import get_api_key_store, resolve_tier
+                        store = get_api_key_store()
+                        if store and store.available:
+                            key_info = store.validate_key(raw_token)
+                            if key_info:
+                                tier_token = _mcp_request_tier.set(resolve_tier(key_info.tier))
+                                key_token = _mcp_request_key_id.set(key_info.key_id)
                                 try:
                                     await self.app(scope, receive, send)
                                 finally:
                                     _mcp_request_tier.reset(tier_token)
                                     _mcp_request_key_id.reset(key_token)
                                 return
+                        # Invalid API key — fall through. cvk_live_* keys
+                        # are used by Open WebUI and other non-MCP clients;
+                        # we don't 401 them here to preserve existing behavior.
 
-                            # Recognizable-but-invalid OAuth token on an MCP
-                            # path → return 401 with WWW-Authenticate so the
-                            # client re-runs the OAuth flow (per RFC 6750
-                            # Section 3). Without this, invalid/stale OAuth
-                            # tokens silently downgrade to the 'open' tier,
-                            # which is opaque to end users and prevents
-                            # automatic re-auth. Only applies to /mcp/*
-                            # paths; other paths (health, OAuth endpoints)
-                            # continue unaffected.
-                            #
-                            # The resource_metadata URL uses the static
-                            # server_url (from registry.json) rather than
-                            # the Host header, because Cloudflare Workers
-                            # proxying via fetch() set Host to the Modal
-                            # internal URL.
-                            path = scope.get("path", "")
-                            if path.startswith("/mcp"):
-                                challenge = (
-                                    'Bearer realm="mcp", '
-                                    'error="invalid_token", '
-                                    'error_description="OAuth access token is invalid or expired", '
-                                    f'resource_metadata="{server_url}/.well-known/oauth-protected-resource"'
-                                )
-                                body = b'{"error":"invalid_token","error_description":"OAuth access token is invalid or expired"}'
-                                await send({
-                                    "type": "http.response.start",
-                                    "status": 401,
-                                    "headers": [
-                                        (b"content-type", b"application/json"),
-                                        (b"www-authenticate", challenge.encode()),
-                                        (b"content-length", str(len(body)).encode()),
-                                    ],
-                                })
-                                await send({
-                                    "type": "http.response.body",
-                                    "body": body,
-                                })
-                                return
+                    # OAuth token authentication (cos_*)
+                    elif raw_token.startswith("cos_"):
+                        from oauth import verify_oauth_token
+                        token_info = verify_oauth_token(raw_token)
+                        if token_info:
+                            tier_token = _mcp_request_tier.set("free")
+                            key_token = _mcp_request_key_id.set(
+                                f"oauth:{token_info['client_id']}"
+                            )
+                            try:
+                                await self.app(scope, receive, send)
+                            finally:
+                                _mcp_request_tier.reset(tier_token)
+                                _mcp_request_key_id.reset(key_token)
+                            return
+
+                        # Invalid/stale OAuth token on /mcp/* → 401 to
+                        # trigger re-auth in the MCP client.
+                        if is_mcp_path:
+                            await _send_401(
+                                send,
+                                error="invalid_token",
+                                description="OAuth access token is invalid or expired",
+                            )
+                            return
+
+                # No Authorization header (or Bearer with unrecognized prefix).
+                # On /mcp/* paths, force the OAuth discovery flow by
+                # returning 401. Claude.ai's connector UI relies on this
+                # to find the protected-resource metadata and auto-run DCR.
+                # Non-MCP paths (health, REST API, OAuth endpoints) stay
+                # unauthenticated as before.
+                if is_mcp_path:
+                    await _send_401(
+                        send,
+                        error="unauthorized",
+                        description="Authentication required for MCP endpoint",
+                    )
+                    return
 
                 await self.app(scope, receive, send)
 

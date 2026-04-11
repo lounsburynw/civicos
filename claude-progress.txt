@@ -26348,3 +26348,40 @@ header → open tier → tier error) or return 401 (new behavior). The fix does
 NOT auto-recover them — user must disconnect + reconnect the MCP connector in
 their Claude.ai / Claude Code UI to get a fresh token that matches the new
 signing secret.
+
+## Session — 2026-04-10 (cont'd: 401 on unauthenticated /mcp/)
+
+**User reported:** Re-adding the MCP connector in Claude.ai shows "optional
+OAuth fields" in the form — a fallback for manual client_id/secret entry
+when DCR isn't auto-detected.
+
+**Root cause:** POST /mcp/ without auth was returning 200 (to let the 'open'
+tier have limited access). Claude.ai's connector UI needs 401 + WWW-Authenticate
+with a resource_metadata URL to automatically run DCR + OAuth. Since it saw
+200, it treated OAuth as optional and asked the user for credentials manually.
+
+**Fix (apps/civicos-mcp/modal_mcp.py):**
+- Refactored BearerAuthMiddleware with an _send_401() helper
+- Unauthenticated /mcp/* → 401 with error="unauthorized"
+- Invalid cos_* token on /mcp/* → 401 with error="invalid_token"
+- Invalid cvk_live_* API key on /mcp/* → falls through to the 401 path (with
+  error="unauthorized" since we don't separately validate api key format)
+- Non-MCP paths (health, /api/*, /authorize, /token, /register) unaffected
+- resource_metadata URL uses static server_url from registry.json
+
+**Behavior change:** The 'open' tier (unauthenticated access to get_started
+and a few other basic tools via /mcp/) no longer works. MCP clients must
+authenticate via OAuth or API key. Open WebUI users with valid cvk_live_* keys
+keep working. Open WebUI uses /api/tools/* anyway, not /mcp/, so it's
+unaffected. Stale/invalid cvk_live_* keys on /mcp/ now get 401 — arguably a
+fix since they previously silently downgraded to 'open'.
+
+**Verified end-to-end on production:**
+- POST /mcp/ without auth → 401 with resource_metadata="https://san-rafael.civicosproject.org/..."
+- Discovery chain: 401 → resource_metadata → auth_server_metadata → DCR → OAuth → token → MCP initialize → tools/call
+- get_upcoming_meetings returned real data ("Finance Subcommittee – April 14, 2026...")
+
+**User action (still required for existing connectors):** Stale tokens from
+before the stateless rewrite still can't be used. Remove + re-add the
+connector in Claude.ai. With this latest fix, the re-add should auto-run
+DCR and not show the optional manual fields.
