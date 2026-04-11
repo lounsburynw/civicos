@@ -142,6 +142,27 @@ This design enables:
 - **Portable handlers**: Same logic works across all deployment methods
 - **Easy extension**: Add tools once, available everywhere
 
+### Tool scope policy
+
+**Before adding a new tool, read
+[docs/public/decisions/tool_scope_and_federation.md](../../docs/public/decisions/tool_scope_and_federation.md).**
+Every tool must declare a scope policy that answers:
+
+- **Default scope** — what jurisdictions does it query if no scope
+  parameter is given? (primary only, primary + parents, primary +
+  siblings, or region)
+- **Expandable scope** — what optional widening does it accept?
+- **Maximum scope** — what ceiling refuses further expansion?
+
+The ADR contains the authoritative scope table for every currently
+bound tool. Read-side tools may expand vertically (parent jurisdictions)
+and horizontally (sibling jurisdictions / regions) automatically with
+results labeled by source. Write-side tools (`compose_public_comment`,
+`broadcast_voice`, `broadcast_initiative`, etc.) are **strictly scoped
+to the primary jurisdiction** of the server — they refuse
+cross-jurisdiction operation because they route to specific clerks,
+portals, and relays keyed to one authoritative operator.
+
 ## Distribution Strategy
 
 ### MCP Registry Listing
