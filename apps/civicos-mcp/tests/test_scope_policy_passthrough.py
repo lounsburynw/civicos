@@ -189,15 +189,55 @@ class TestResolveScopeToJurisdictions:
         result = resolve_scope_to_jurisdictions(Scope.STATE, "city-san-rafael")
         assert result == ["state-california"]
 
-    def test_region_raises_not_implemented(self):
-        with pytest.raises(NotImplementedError, match="region"):
-            resolve_scope_to_jurisdictions(Scope.REGION, "city-san-rafael")
+    def test_region_resolves_via_registry_config(self):
+        """Region config landed in step 3 (``region_config_concept``).
+        Resolving ``Scope.REGION`` on a primary that belongs to a
+        declared region must return the region's members. See
+        ``config/registry.json`` regions.marin."""
+        result = resolve_scope_to_jurisdictions(
+            Scope.REGION, "city-san-rafael"
+        )
+        # San Rafael is a Marin city, so the region expansion must
+        # include at least a few of its peers. The exact member
+        # list lives in registry.json; we assert on presence, not
+        # on count, so adding a new Marin city doesn't break this test.
+        assert "city-mill-valley" in result
+        assert "city-san-anselmo" in result
+        assert "city-san-rafael" in result  # primary is in its own region
+        # School districts share county-marin as a parent but are
+        # intentionally excluded from the Marin *cities* region.
+        assert not any(jid.startswith("school-") for jid in result), (
+            "Marin region should be municipalities only — school "
+            "districts share a county parent but are a different "
+            "kind of government and don't belong in the city region."
+        )
 
-    def test_primary_plus_region_raises_not_implemented(self):
-        with pytest.raises(NotImplementedError, match="region"):
-            resolve_scope_to_jurisdictions(
-                Scope.PRIMARY_PLUS_REGION, "city-san-rafael"
-            )
+    def test_primary_plus_region_includes_primary_and_region_members(self):
+        """``PRIMARY_PLUS_REGION`` must start with the primary and
+        then include the region's members, deduped."""
+        result = resolve_scope_to_jurisdictions(
+            Scope.PRIMARY_PLUS_REGION, "city-san-rafael"
+        )
+        assert result[0] == "city-san-rafael"
+        assert "city-mill-valley" in result
+        # Dedup: primary should appear exactly once even though it's
+        # also a member of the marin region.
+        assert result.count("city-san-rafael") == 1
+
+    def test_region_scope_for_primary_outside_any_region_degrades_to_primary(self):
+        """A primary that isn't a member of any declared region
+        should degrade gracefully to primary-only — the walker
+        must never leave a tool with zero jurisdictions to query."""
+        # city-asheville has no region declared in registry.json.
+        result = resolve_scope_to_jurisdictions(
+            Scope.REGION, "city-asheville"
+        )
+        assert result == ["city-asheville"]
+
+        result = resolve_scope_to_jurisdictions(
+            Scope.PRIMARY_PLUS_REGION, "city-asheville"
+        )
+        assert result == ["city-asheville"]
 
 
 # ---------------------------------------------------------------------------
@@ -268,15 +308,36 @@ class TestWalkScope:
         assert "state-california" not in labels
         assert labels  # non-empty
 
-    def test_region_scope_raises_through_walk(self):
+    def test_region_scope_walks_region_members(self):
+        """After ``region_config_concept`` shipped, walking a
+        ``REGION`` policy must fan the storage call out across the
+        region's members and stamp each row with its jurisdiction.
+        The old assertion (``raises NotImplementedError``) was the
+        pre-step-3 invariant; this is its replacement."""
         policy = ScopePolicy(
             default_scope=Scope.REGION,
             expandable_scope=None,
             max_scope=Scope.REGION,
             kind="read",
         )
-        with pytest.raises(NotImplementedError):
-            walk_scope(policy, "city-san-rafael", lambda _jid: [])
+
+        seen: list[str] = []
+
+        def _call(jid: str) -> list[dict]:
+            seen.append(jid)
+            return [{"id": f"row-{jid}"}]
+
+        rows = walk_scope(policy, "city-san-rafael", _call)
+
+        # The walker must have visited at least a couple of Marin
+        # cities (the exact list is defined in config/registry.json).
+        assert "city-mill-valley" in seen
+        assert "city-san-rafael" in seen
+
+        # Each returned row is stamped with its source jurisdiction.
+        labels = {row["jurisdiction"] for row in rows}
+        assert "city-mill-valley" in labels
+        assert "city-san-rafael" in labels
 
     def test_max_fanout_cap_is_below_total_registry_size(self):
         # Defense-in-depth: a misconfigured policy can't cause the

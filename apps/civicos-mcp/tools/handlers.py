@@ -167,8 +167,10 @@ def get_upcoming_meetings(
     resolved jurisdictions via ``civic.storage.get_meetings`` so
     sibling cities and parent jurisdictions appear alongside the
     primary — matching the default scope of ``PRIMARY_PLUS_SIBLINGS``.
-    Outside the MCP request path, it falls back to
-    ``civic.whats_next`` for backwards compatibility.
+    Callers may widen the walk by passing ``scope="primary_plus_region"``
+    in args, which consults the region config to expand to (for
+    example) every Marin city. Outside the MCP request path, it
+    falls back to ``civic.whats_next`` for backwards compatibility.
     """
     days = args.get("days", 30)
 
@@ -179,7 +181,7 @@ def get_upcoming_meetings(
 
         if policy is not None:
             from datetime import timezone
-            from tools.scope_walk import walk_scope
+            from tools.scope_walk import walk_scope, resolve_requested_scope
 
             now = datetime.now(timezone.utc)
             start_of_today = now.replace(hour=0, minute=0, second=0, microsecond=0)
@@ -198,7 +200,13 @@ def get_upcoming_meetings(
                     )
                     return []
 
-            rows = walk_scope(policy, jurisdiction, _storage_call)
+            effective_scope = resolve_requested_scope(policy, args)
+            rows = walk_scope(
+                policy,
+                jurisdiction,
+                _storage_call,
+                scope_override=effective_scope,
+            )
 
             if rows:
                 # Group by jurisdiction for a clean labeled output.
@@ -248,7 +256,11 @@ def find_similar_issues(
     With a scope policy active (default ``PRIMARY_PLUS_SIBLINGS``),
     the handler runs the vector search once per resolved
     jurisdiction and groups results under per-jurisdiction headings
-    so the AI caller can see which city had similar issues.
+    so the AI caller can see which city had similar issues. Callers
+    may widen the walk by passing ``scope="primary_plus_region"`` in
+    args, which consults the region config (see
+    ``config/registry.json``) to expand across every city in the
+    primary's region.
     """
     topic = args.get("topic", "")
     semantic = args.get("semantic", True)
@@ -271,11 +283,13 @@ def find_similar_issues(
         if policy is not None:
             from tools.scope_walk import (
                 resolve_scope_to_jurisdictions,
+                resolve_requested_scope,
                 MAX_SCOPE_FANOUT,
             )
 
+            effective_scope = resolve_requested_scope(policy, args)
             targets = resolve_scope_to_jurisdictions(
-                policy.default_scope, jurisdiction
+                effective_scope, jurisdiction
             )[:MAX_SCOPE_FANOUT]
             # Divide limit across targets so we don't return
             # MAX_SCOPE_FANOUT * limit rows on a wide sibling set.

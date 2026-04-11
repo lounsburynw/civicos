@@ -33,6 +33,12 @@ from typing import Optional
 
 _registry: Optional[dict] = None
 
+# Defensive cap on region-member recursion depth. A misconfigured
+# registry with deeply nested regions should not cause unbounded
+# expansion (the cycle detector catches true cycles; this catches
+# pathological tree depth before it becomes a performance issue).
+_MAX_REGION_RECURSION_DEPTH = 16
+
 # Search paths for registry.json, tried in order
 _SEARCH_PATHS = [
     "/app/registry.json",                    # Modal deployment
@@ -96,6 +102,150 @@ def reset_registry() -> None:
 def get_registry() -> dict:
     """Get the full registry dict."""
     return _load_registry()
+
+
+# ---------------------------------------------------------------------------
+# Regions
+#
+# A region is a named set of jurisdiction IDs declared under the
+# ``regions`` top-level key in ``config/registry.json``. Regions
+# exist to support scope walks like "what's happening across Marin
+# County cities" — a question the parent-chain and sibling walks
+# cannot answer cleanly because county-marin has non-municipal
+# children (school districts) that a user asking about "Marin" does
+# not mean.
+#
+# A region's ``members`` list may contain either:
+#   - concrete jurisdiction IDs (e.g. ``city-san-rafael``), or
+#   - names of other regions (e.g. ``marin`` inside ``bay-area``),
+#     which are expanded recursively at lookup time.
+#
+# There is no prefix convention to distinguish jurisdiction IDs from
+# region names — the resolver checks the ``regions`` dict first and
+# falls through to treating the member as a concrete jurisdiction.
+# Jurisdictions use prefixes like ``city-``, ``county-``, ``state-``,
+# and ``country-``; regions use short names, so collision is not a
+# practical concern for current data.
+# ---------------------------------------------------------------------------
+
+
+def get_regions() -> dict:
+    """Return the ``regions`` dict from registry.json, or ``{}``.
+
+    A missing ``regions`` key is not an error — older registries
+    predate the concept and should continue to work. Callers that
+    depend on a specific region being present should handle ``None``
+    from :func:`get_region`.
+    """
+    reg = _load_registry()
+    return reg.get("regions", {}) or {}
+
+
+def get_region(name: str) -> Optional[dict]:
+    """Return a single region's entry by name, or ``None``."""
+    return get_regions().get(name)
+
+
+def resolve_region_members(
+    name: str,
+    _seen: Optional[set] = None,
+    _depth: int = 0,
+) -> list:
+    """Expand a region to its concrete jurisdiction-ID members.
+
+    Recursive: if a member name matches another region, the other
+    region is expanded in-place and its members are spliced into
+    the result list (deduplicated, order preserved).
+
+    Args:
+        name: Region name to resolve (e.g. ``"marin"``).
+        _seen: Internal cycle-detection set. Callers should not
+            pass this — it's threaded through recursive calls so
+            ``A → B → A`` raises cleanly instead of stack-overflowing.
+        _depth: Internal recursion-depth counter. Guards against
+            pathological tree depth in case the cycle detector is
+            somehow bypassed.
+
+    Returns:
+        Deduplicated list of concrete jurisdiction IDs, in the
+        order they first appear during recursive expansion.
+
+    Raises:
+        ValueError: If the region name is unknown, if a cycle is
+            detected, or if recursion exceeds
+            ``_MAX_REGION_RECURSION_DEPTH``.
+    """
+    if _depth > _MAX_REGION_RECURSION_DEPTH:
+        raise ValueError(
+            f"Region expansion exceeded max depth "
+            f"{_MAX_REGION_RECURSION_DEPTH} at region '{name}' "
+            f"— check config/registry.json for pathological nesting"
+        )
+
+    if _seen is None:
+        _seen = set()
+    if name in _seen:
+        raise ValueError(
+            f"Region cycle detected: '{name}' appears twice in "
+            f"its own expansion chain (seen: {sorted(_seen)})"
+        )
+    _seen = _seen | {name}
+
+    region = get_region(name)
+    if region is None:
+        raise ValueError(f"Unknown region: '{name}'")
+
+    regions_index = get_regions()
+    out: list = []
+    seen_members: set = set()
+    for member in region.get("members", []) or []:
+        if member in regions_index:
+            # Recurse into nested region.
+            for nested in resolve_region_members(
+                member, _seen=_seen, _depth=_depth + 1
+            ):
+                if nested not in seen_members:
+                    seen_members.add(nested)
+                    out.append(nested)
+        else:
+            if member not in seen_members:
+                seen_members.add(member)
+                out.append(member)
+    return out
+
+
+def find_region_for_jurisdiction(jurisdiction: str) -> Optional[str]:
+    """Find the first region that contains ``jurisdiction`` (direct or nested).
+
+    Used by the MCP scope walker to answer "what region does this
+    server's primary jurisdiction belong to?" when resolving
+    ``Scope.REGION`` / ``Scope.PRIMARY_PLUS_REGION``.
+
+    Returns the region *name* (not the dict). If no region in the
+    registry contains the jurisdiction, returns ``None`` — the
+    scope walker will then degrade to primary-only behavior.
+
+    If multiple regions match, the first in iteration order wins.
+    This is deterministic because ``config/registry.json`` is a
+    dict literal preserving insertion order, but callers should
+    still avoid overlapping region definitions when possible.
+
+    Malformed regions (cycles, unknown nested names) are skipped
+    silently — a single bad region should not break lookup for the
+    others.
+    """
+    regions = get_regions()
+    for name in regions:
+        try:
+            if jurisdiction in resolve_region_members(name):
+                return name
+        except ValueError:
+            # Cycle or unknown nested region — skip this region
+            # and try the next one. The resolver still raises for
+            # direct callers; we only swallow the error here to
+            # protect the lookup path from one bad entry.
+            continue
+    return None
 
 
 def get_jurisdiction_url(jurisdiction: str) -> str:

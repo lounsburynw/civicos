@@ -317,6 +317,25 @@
       ]
     }
   },
+  "regions": {
+    "marin": {
+      "display_name": "Marin County Cities",
+      "description": "The 11 incorporated cities and towns of Marin County. Excludes school districts (which share county-marin as a parent but are not municipalities).",
+      "members": [
+        "city-san-rafael",
+        "city-mill-valley",
+        "city-san-anselmo",
+        "city-novato",
+        "city-sausalito",
+        "city-tiburon",
+        "city-corte-madera",
+        "city-larkspur",
+        "city-fairfax",
+        "city-belvedere",
+        "city-ross"
+      ]
+    }
+  },
   "relay": {
     "modal_app_name": "civicos-relay",
     "modal_origin": "https://civicos--civicos-relay-relayserver-relay-endpoint.modal.run",

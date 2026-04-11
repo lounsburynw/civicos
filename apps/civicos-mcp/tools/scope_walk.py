@@ -16,12 +16,13 @@ The goal is twofold:
    so the caller can tell which government level produced it
    ("San Rafael said X, Marin County said Y, California said Z").
 
-Region scopes (``PRIMARY_PLUS_REGION`` / ``REGION``) ship in step 3
-of the scope work sequence (``region_config_concept``). Until then,
-this module raises ``NotImplementedError`` if a tool's policy
-evaluates to one of them. The binding assertion in ``modal_mcp.py``
-does not prevent a policy from declaring a region default today
-(none currently do), so the guard here is defensive.
+Region scopes (``PRIMARY_PLUS_REGION`` / ``REGION``) resolve against
+the ``regions`` key in ``config/registry.json``. The server derives
+its own region by scanning for a region whose members list contains
+its primary jurisdiction — no env var, no redeploy. If the primary
+is not in any region, the walker degrades to primary-only behavior
+(safer than raising and taking the tool offline for
+not-yet-onboarded jurisdictions).
 """
 
 from __future__ import annotations
@@ -62,6 +63,46 @@ def _load_registry_entries() -> Dict[str, Dict[str, Any]]:
     return registry.get("jurisdictions", {}) or {}
 
 
+def _resolve_region_for_primary(primary_jurisdiction: str) -> List[str]:
+    """Look up the region containing ``primary_jurisdiction`` and return its members.
+
+    Returns an empty list if the primary is not a member of any
+    region, or if the registry can't be loaded. The calling path
+    treats an empty list as "no region defined for this primary"
+    and degrades to primary-only behavior.
+    """
+    try:
+        from civicos.registry import (
+            find_region_for_jurisdiction,
+            resolve_region_members,
+        )
+    except Exception:  # pragma: no cover - defensive
+        logger.warning("scope_walk: could not import region helpers")
+        return []
+
+    try:
+        region_name = find_region_for_jurisdiction(primary_jurisdiction)
+    except Exception as e:  # pragma: no cover - defensive
+        logger.warning("scope_walk: region lookup failed: %s", e)
+        return []
+
+    if region_name is None:
+        return []
+
+    try:
+        return resolve_region_members(region_name)
+    except ValueError as e:
+        # Cycle or malformed region. Log and degrade — the walker
+        # should never take a tool offline because one region entry
+        # is broken.
+        logger.warning(
+            "scope_walk: region '%s' failed to resolve: %s",
+            region_name,
+            e,
+        )
+        return []
+
+
 def resolve_scope_to_jurisdictions(
     scope: Scope,
     primary_jurisdiction: str,
@@ -75,15 +116,26 @@ def resolve_scope_to_jurisdictions(
     except ``STATE`` and ``FEDERAL``, which snap up to a specific
     level). The list is deduplicated in-order.
 
-    Raises:
-        NotImplementedError: For ``PRIMARY_PLUS_REGION`` / ``REGION``.
-            Region config lands in step 3 (``region_config_concept``).
+    Region scopes consult ``config/registry.json``'s ``regions``
+    top-level key via :func:`civicos.registry.find_region_for_jurisdiction`.
+    If the primary is not a member of any declared region, region
+    scopes degrade to primary-only behavior.
     """
-    if scope in (Scope.PRIMARY_PLUS_REGION, Scope.REGION):
-        raise NotImplementedError(
-            f"Scope {scope.value} requires region config "
-            "(ships in step 3: region_config_concept)"
-        )
+    if scope == Scope.REGION:
+        members = _resolve_region_for_primary(primary_jurisdiction)
+        if not members:
+            # No region declared for this primary. Degrade to
+            # primary-only — returning [] here would silently drop
+            # all results from a handler that expected at least
+            # the primary's data.
+            return [primary_jurisdiction]
+        return _dedupe(members)
+
+    if scope == Scope.PRIMARY_PLUS_REGION:
+        members = _resolve_region_for_primary(primary_jurisdiction)
+        if not members:
+            return [primary_jurisdiction]
+        return _dedupe([primary_jurisdiction, *members])
 
     entries = _load_registry_entries()
     entry = entries.get(primary_jurisdiction, {}) or {}
@@ -153,12 +205,69 @@ def _dedupe(items: List[str]) -> List[str]:
     return out
 
 
+def resolve_requested_scope(
+    policy: ScopePolicy,
+    args: Dict[str, Any],
+) -> Scope:
+    """Decide which scope a handler should walk for this request.
+
+    Honors an optional caller-supplied ``scope`` arg when (and only
+    when) the tool's policy declares an ``expandable_scope``. The
+    accepted values are narrow: the policy's ``default_scope`` or
+    its ``expandable_scope``. Any other value is treated as invalid
+    and the default is used — we'd rather silently clamp than
+    propagate a 500 to an AI caller that passed a typo.
+
+    Args:
+        policy: The tool's scope policy (from the contextvar).
+        args: The handler's incoming ``args`` dict. ``args["scope"]``
+            may be a string matching a ``Scope`` enum value.
+
+    Returns:
+        The scope to walk. Always one of ``policy.default_scope``
+        or ``policy.expandable_scope``.
+    """
+    if policy.expandable_scope is None:
+        return policy.default_scope
+
+    requested_raw = args.get("scope")
+    if not requested_raw:
+        return policy.default_scope
+
+    try:
+        requested = Scope(requested_raw)
+    except ValueError:
+        logger.info(
+            "scope_walk: unknown scope '%s' — falling back to default %s",
+            requested_raw,
+            policy.default_scope.value,
+        )
+        return policy.default_scope
+
+    # Only accept the specifically-offered expansion. A caller that
+    # asks for something outside {default, expandable} gets the
+    # default — the policy's ``max_scope`` is a ceiling for future
+    # wider offers, not a free-form upper bound.
+    if requested in (policy.default_scope, policy.expandable_scope):
+        return requested
+
+    logger.info(
+        "scope_walk: scope '%s' not offered by policy (default=%s, "
+        "expandable=%s) — falling back to default",
+        requested.value,
+        policy.default_scope.value,
+        policy.expandable_scope.value,
+    )
+    return policy.default_scope
+
+
 def walk_scope(
     policy: Optional[ScopePolicy],
     primary_jurisdiction: str,
     storage_call: Callable[[str], List[Dict[str, Any]]],
     *,
     label_key: str = "jurisdiction",
+    scope_override: Optional[Scope] = None,
 ) -> List[Dict[str, Any]]:
     """
     Fan a storage call out across the jurisdictions resolved from
@@ -180,16 +289,20 @@ def walk_scope(
             jurisdiction. Defaults to ``"jurisdiction"``. Existing
             values under this key are preserved (the walker does not
             overwrite them).
+        scope_override: Caller-selected scope (typically from
+            :func:`resolve_requested_scope` against a caller's
+            ``args["scope"]``). When provided, the walker uses this
+            instead of ``policy.default_scope``. ``None`` means use
+            the policy default.
 
     Returns:
         Deduplicated list of result dicts (order preserved).
         Each row has ``label_key`` set to its source jurisdiction.
-
-    Raises:
-        NotImplementedError: If the resolved scope requires region
-            config (see ``resolve_scope_to_jurisdictions``).
     """
-    scope = policy.default_scope if policy else Scope.PRIMARY
+    if scope_override is not None:
+        scope = scope_override
+    else:
+        scope = policy.default_scope if policy else Scope.PRIMARY
     targets = resolve_scope_to_jurisdictions(scope, primary_jurisdiction)
 
     if len(targets) > MAX_SCOPE_FANOUT:
