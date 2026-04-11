@@ -103,6 +103,8 @@ mcp_image = (
         "httpx>=0.24.0",
         "uvicorn>=0.30.0",
         "starlette>=0.38.0",
+        # Form parsing for OAuth endpoints (/authorize, /token)
+        "python-multipart>=0.0.6",
         # Crypto (BIP-340 Schnorr signature verification)
         "coincurve>=21.0.0",
         # Utils

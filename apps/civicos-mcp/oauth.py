@@ -22,7 +22,7 @@ import secrets
 import time
 
 from fastapi import APIRouter, Request
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 
 logger = logging.getLogger("civicos-mcp.oauth")
 
@@ -75,6 +75,31 @@ def _verify_pkce(code_verifier: str, code_challenge: str, method: str) -> bool:
         hashlib.sha256(code_verifier.encode()).digest()
     ).rstrip(b"=").decode()
     return digest == code_challenge
+
+
+def _html_redirect(url: str) -> HTMLResponse:
+    """Return a 200 HTML response that redirects the browser client-side.
+
+    We use 200+HTML+JS instead of a 302 redirect because the Cloudflare
+    Worker in front of *.civicosproject.org throws error 1101 ("Worker
+    threw exception") on 302 responses with external Location headers.
+    Browsers handle this identically to a server-side redirect, and the
+    MCP OAuth client (Claude.ai) also follows it since it's implemented
+    with a browser window (webbrowser.open()).
+    """
+    # Escape for use in attribute/JS contexts
+    import html as html_mod
+    safe_url_attr = html_mod.escape(url, quote=True)
+    safe_url_js = url.replace("\\", "\\\\").replace("'", "\\'").replace("\n", "")
+    body = (
+        "<!DOCTYPE html><html><head>"
+        f'<meta http-equiv="refresh" content="0; url={safe_url_attr}">'
+        "<title>Redirecting…</title></head><body>"
+        f'<p>Redirecting to <a href="{safe_url_attr}">{safe_url_attr}</a>…</p>'
+        f"<script>window.location.replace('{safe_url_js}');</script>"
+        "</body></html>"
+    )
+    return HTMLResponse(body, status_code=200)
 
 
 # ─────────── Token issuance ───────────
@@ -301,9 +326,8 @@ def create_oauth_router(server_url: str, display_name: str) -> APIRouter:
 
         if action != "allow":
             sep = "&" if "?" in redirect_uri else "?"
-            return RedirectResponse(
-                f"{redirect_uri}{sep}error=access_denied&state={state}",
-                status_code=302,
+            return _html_redirect(
+                f"{redirect_uri}{sep}error=access_denied&state={state}"
             )
 
         client_id = str(form.get("client_id", ""))
@@ -329,10 +353,7 @@ def create_oauth_router(server_url: str, display_name: str) -> APIRouter:
 
         sep = "&" if "?" in redirect_uri else "?"
         logger.info("OAuth authorization code issued for client %s", client_id)
-        return RedirectResponse(
-            f"{redirect_uri}{sep}code={code}&state={state}",
-            status_code=302,
-        )
+        return _html_redirect(f"{redirect_uri}{sep}code={code}&state={state}")
 
     # ── Token endpoint ──
 
