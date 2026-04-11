@@ -155,6 +155,14 @@ _mcp_request_tier: contextvars.ContextVar[str] = contextvars.ContextVar(
 _mcp_request_key_id: contextvars.ContextVar[str | None] = contextvars.ContextVar(
     "_mcp_request_key_id", default=None
 )
+# Resolved scope context for the in-flight tool call.
+# _wrap_handler sets this from the SCOPE_POLICIES table before dispatching
+# to the handler. Populated in this P0; consumed by the v2 API call path
+# in the next P0 (scope_policy_passthrough). Value is an ``ScopePolicy``
+# instance imported from tools.scope.
+_mcp_request_scope: contextvars.ContextVar = contextvars.ContextVar(
+    "_mcp_request_scope", default=None
+)
 
 @app.cls(
     image=mcp_image,
@@ -327,6 +335,22 @@ class MCPServer:
             "query_feedback": handlers.query_feedback,
         }
 
+        # Verify every tool in handler_map declares a scope policy BEFORE
+        # binding. This is a hard failure at startup: a tool that reaches
+        # _bind_handlers without a row in tools/scope.py is a correctness
+        # hole (the wrapper below will KeyError at call time). See
+        # docs/public/decisions/tool_scope_and_federation.md for the
+        # authoritative policy table.
+        from tools.scope import SCOPE_POLICIES
+        missing_scope = [name for name in handler_map if name not in SCOPE_POLICIES]
+        if missing_scope:
+            raise RuntimeError(
+                "Tools bound without a scope policy: "
+                f"{sorted(missing_scope)}. Add rows to "
+                "apps/civicos-mcp/tools/scope.py and the ADR at "
+                "docs/public/decisions/tool_scope_and_federation.md."
+            )
+
         # Only bind handlers for tools enabled at this jurisdiction level
         for name, handler_fn in handler_map.items():
             if name in enabled_tools:
@@ -362,6 +386,15 @@ class MCPServer:
                         "error": f"Tool '{tool_name}' requires '{required}' tier (current: '{tier}'). "
                                  f"Pass Authorization: Bearer <api-key> or register at POST /api/register"
                     })
+
+            # Publish the resolved scope policy on the request contextvar so
+            # downstream code (the v2 API call path, result formatting) can
+            # observe it without plumbing an explicit argument. The binding
+            # assertion above guarantees this lookup never raises for a bound
+            # tool. Passive in this P0; consumed in scope_policy_passthrough.
+            if tool_name:
+                from tools.scope import get_scope_policy
+                _mcp_request_scope.set(get_scope_policy(tool_name))
 
             result = handler_fn(
                 self.civic,
