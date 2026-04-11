@@ -782,9 +782,9 @@
       },
       {
         "name": "widen_remaining_handlers_through_scope_walk",
-        "description": "52 MCP handlers currently ignore their scope policy — scope_policy_passthrough only wired 5 (search_legislation, get_upcoming_meetings, find_similar_issues, search_regulatory_stack, get_started). Walk the remaining handlers in tools/handlers.py and wire the ones whose policy default is not PRIMARY through scope_walk. PRIMARY-only handlers need no code changes; document the audit.",
+        "description": "52 MCP handlers currently ignore their scope policy — scope_policy_passthrough only wired 5 (search_legislation, get_upcoming_meetings, find_similar_issues, search_regulatory_stack, get_started) and region_config_concept added caller-driven widening to get_upcoming_meetings and find_similar_issues. Walk the remaining handlers in tools/handlers.py and wire the ones whose policy default is not PRIMARY through scope_walk. PRIMARY-only handlers need no code changes; document the audit.",
         "status": "not_started",
-        "priority": 2,
+        "priority": 0,
         "files": [
           "apps/civicos-mcp/tools/handlers.py",
           "apps/civicos-mcp/tools/scope_walk.py"
@@ -795,16 +795,18 @@
       {
         "name": "region_config_concept",
         "description": "Introduce a 'regions' top-level key in config/registry.json. A region is a named set of jurisdiction IDs (can include other regions for nesting). The scope policy's 'region' expansion consults this config to resolve 'what cities are in marin?'. No new deployment — existing san-rafael server uses region=marin as its default-expand-to setting, and existing tools with region scope start returning cross-city results.",
-        "status": "not_started",
-        "priority": 0,
+        "status": "done",
+        "priority": 3,
         "files": [
           "config/registry.json",
-          "packages/civicos-config/src/civicos_config/jurisdiction.py",
-          "apps/civicos-mcp/tools/scope.py",
-          "apps/civicos-mcp/modal_mcp.py"
+          "packages/civicos/src/civicos/registry.py",
+          "apps/civicos-mcp/tools/scope_walk.py",
+          "apps/civicos-mcp/tools/handlers.py",
+          "apps/civicos-mcp/tests/test_region_config.py",
+          "apps/civicos-mcp/tests/test_scope_policy_passthrough.py"
         ],
         "test_file": "apps/civicos-mcp/tests/test_region_config.py",
-        "notes": "Depends on scope_policy_passthrough. Region concept: { 'regions': { 'marin': { 'display_name': 'Marin County', 'members': ['county-marin', 'city-san-rafael', 'city-mill-valley', ...] }, 'bay-area': { 'display_name': 'SF Bay Area', 'members': ['region-marin', 'county-san-francisco', 'county-alameda', ...] } } }. Nested regions resolve recursively. JurisdictionRegistry in civicos-config loads the region dict and provides resolve_region(name) -> list of jurisdiction IDs. Tool wrapper uses CIVICOS_REGION env var (new) to set the server's default region; scope policy's region expansion then iterates region members. Marin is the first region to define because it matches the live use case (Claude.ai user asking 'what about other Marin cities?'). Bay Area can be added but not deployed as a separate server yet. Expected session length: 2-4 hours."
+        "notes": "Shipped 2026-04-11. Region resolution lives in packages/civicos/src/civicos/registry.py (get_regions, resolve_region_members with cycle detection, find_region_for_jurisdiction). scope_walk.py consumes it for REGION / PRIMARY_PLUS_REGION; degrades to primary-only when the primary has no declared region. get_upcoming_meetings and find_similar_issues now honor args['scope'] via resolve_requested_scope — callers on city-san-rafael can pass {'scope': 'primary_plus_region'} to widen across the 11 Marin cities. School districts intentionally excluded from the marin region (different kind of government). Nested regions supported but not yet used — bay-area region is future work. Server's own region derived from primary membership, not an env var (no Modal redeploy needed). 26 new tests in test_region_config.py + 3 updated tests in test_scope_policy_passthrough.py. Pre-existing failure in test_no_duplicate_domains (city-san-francisco + county-san-francisco share a domain) is NOT a regression from this work."
       },
       {
         "name": "regional_server_deployment",

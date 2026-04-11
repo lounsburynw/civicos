@@ -26666,3 +26666,60 @@ expandable_scope is PRIMARY_PLUS_REGION.
 
 Details in docs/next_session_prompt.md.
 
+
+
+## Session: region_config_concept (2026-04-11)
+
+Shipped step 3 of 4 in the scope work sequence.
+
+### Changes
+- config/registry.json: new "regions" top-level key, marin region
+  with 11 members (all Marin cities, school districts excluded)
+- packages/civicos/src/civicos/registry.py: get_regions(),
+  resolve_region_members() with cycle detection + depth cap,
+  find_region_for_jurisdiction()
+- apps/civicos-mcp/tools/scope_walk.py: REGION / PRIMARY_PLUS_REGION
+  now resolve against the regions key; degrades to primary-only
+  when primary is not in any region. New resolve_requested_scope()
+  helper for caller-driven widening. walk_scope() gained a
+  scope_override kwarg.
+- apps/civicos-mcp/tools/handlers.py: get_upcoming_meetings and
+  find_similar_issues honor args["scope"] via
+  resolve_requested_scope. Write tools with expandable_scope=None
+  ignore the arg (security invariant, tested).
+- apps/civicos-mcp/tests/test_region_config.py: 26 new tests
+- apps/civicos-mcp/tests/test_scope_policy_passthrough.py: 3
+  NotImplementedError tests updated to assert real resolution
+
+### Test results
+- 249 passing across test_scope_policy.py,
+  test_scope_policy_passthrough.py, test_region_config.py,
+  test_mcp_tools.py (1.06s)
+- 20 passing in core civicos smoke tests
+
+### Critics
+10 of 11 passing. Session critic flagged P0 vacancy until
+widen_remaining_handlers_through_scope_walk was promoted to P0.
+Security critic raised 2 advisory warnings about broad except
+Exception in _resolve_region_for_primary — left as-is because
+defensive catch matches the module's existing pattern in
+_load_registry_entries.
+
+### Pre-existing failure (not a regression)
+test_no_duplicate_domains fails on clean main because
+city-san-francisco and county-san-francisco share
+san-francisco.civicosproject.org. Confirmed via stash+rerun.
+
+### launch.json
+- region_config_concept: status=done, priority=3
+- widen_remaining_handlers_through_scope_walk: promoted P2 → P0
+  (next session)
+
+### Next session
+P0 is widen_remaining_handlers_through_scope_walk — wire the
+remaining ~5-8 non-PRIMARY handlers through walk_scope and
+audit the rest. Most handlers default to PRIMARY and need no
+changes. Priority targets with non-PRIMARY defaults:
+get_funding_flow, get_intergovernmental_revenue,
+get_leverage_points (all PRIMARY_PLUS_PARENT); list_initiatives,
+list_relays (PRIMARY_PLUS_SIBLINGS).
