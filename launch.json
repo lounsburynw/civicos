@@ -728,15 +728,16 @@
       {
         "name": "mcp_oauth_provider",
         "description": "Implement OAuth 2.0 provider on the Modal-deployed MCP server so Claude.ai web/mobile users can connect via Settings > Connectors without manually managing API keys. Includes token exchange, session management, and free-tier rate limiting for unauthenticated-but-OAuth'd users.",
-        "status": "not_started",
-        "priority": 0,
+        "status": "done",
+        "priority": 2,
         "files": [
-          "apps/civicos-mcp/modal_app.py",
-          "apps/civicos-mcp/server.py",
+          "apps/civicos-mcp/oauth.py",
+          "apps/civicos-mcp/modal_mcp.py",
+          "apps/civicos-mcp/tests/test_oauth.py",
           "apps/civicos-mcp/README.md"
         ],
-        "test_file": null,
-        "notes": "Strategic pivot: after a month of ingestion/data work (23 jurisdictions, 10 platform clients, 40+ MCP tools), distribution is now the bottleneck. OAuth callback: https://claude.ai/api/mcp/auth_callback. See apps/civicos-mcp/README.md lines 94-112 for existing plan. launch-readiness-spec.md line 368 for auth strategy. Bearer tokens remain supported alongside OAuth."
+        "test_file": "apps/civicos-mcp/tests/test_oauth.py",
+        "notes": "DONE 2026-04-10: Created apps/civicos-mcp/oauth.py (OAuth 2.1 provider with PKCE, DCR, refresh tokens, in-memory stores). Extended BearerAuthMiddleware in modal_mcp.py to accept cos_* OAuth tokens (free tier) alongside cvk_live_* API keys. 30 tests in test_oauth.py covering metadata discovery, DCR, PKCE, full auth code flow, refresh, security checks. End-to-end integration test verified. Deploy with: modal deploy apps/civicos-mcp/modal_mcp.py. Claude.ai connector URL: https://san-rafael.civicosproject.org/mcp."
       },
       {
         "name": "free_tier_rate_limiting",
@@ -1339,6 +1340,20 @@
         ],
         "test_file": null,
         "notes": "Done 2026-04-09. Indexed 105 decision vectors via local fastembed (nomic-embed-text-v1.5, 768d). All 18 jurisdictions now have full decision vector coverage. Semantic search confirmed working (what_happened('housing') returns 10 results)."
+      },
+      {
+        "name": "implement_captions_transcription_mode",
+        "description": "Implement free YouTube auto-captions as an alternative transcription path to AssemblyAI. Currently onboard.py has TRANSCRIPT_CAPTIONS as a cost-estimate category and --captions-only flag, but extract_transcripts in modal_ingest.py only calls AssemblyAI \u2014 captions mode is unimplemented. Adding it enables filling transcript gaps across all jurisdictions at ~$0 instead of ~$570-820 at AssemblyAI rates. Implementation: (1) add caption extraction via youtube-transcript-api or yt-dlp --write-auto-subs, (2) convert VTT/SRT to transcript JSON schema, (3) branch in extract_transcripts when transcript_mode=captions, (4) tag processing_service='youtube_captions' for provenance. Tradeoffs: no speaker diarization, lower accuracy on crosstalk/noise, no word-level timestamps, dependent on YouTube auto-generation quality. Good for breadth coverage where AssemblyAI is prohibitive; AssemblyAI remains the choice for flagship cities and deep semantic search.",
+        "status": "not_started",
+        "priority": 1,
+        "source": "Transcript gap analysis 2026-04-10 \u2014 452 AssemblyAI transcripts exist, ~227 meetings still need coverage since Jan 2026, captions mode unblocks cheap breadth",
+        "files": [
+          "scripts/modal_ingest.py",
+          "packages/civicos-extraction/src/civicos_extraction/cli/transcribe.py",
+          "scripts/onboard.py"
+        ],
+        "test_file": null,
+        "notes": "processing_service field already exists in transcripts table (text). Current value always 'assemblyai'. captions mode would use 'youtube_captions'. Downstream queries (what_was_said, public testimony search) should work the same but without speaker labels. Consider: captions alone for cities with cost-prohibitive volume, AssemblyAI for critical/recent meetings."
       }
     ]
   },
