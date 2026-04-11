@@ -393,8 +393,9 @@ class MCPServer:
         from civicos.registry import get_jurisdiction_url
         server_url = get_jurisdiction_url(self.jurisdiction)
 
-        # No auth — public civic data served without authentication.
-        # Avoids OAuth/Cloudflare bot-protection conflicts (anthropics/claude-ai-mcp#5).
+        # MCP tools are public (no auth required for basic access).
+        # OAuth provides optional free-tier auth for Claude.ai Connectors.
+        # API keys (cvk_live_*) provide tiered access for registered users.
         mcp = create_fastmcp_server(self.registry, self.jurisdiction_config)
         mcp_app = mcp.http_app(path="/", transport="streamable-http", stateless_http=True)
 
@@ -489,6 +490,7 @@ class MCPServer:
 
         # Bearer auth middleware for MCP Streamable HTTP requests
         # Extracts optional Bearer token and sets tier context for tool access control
+        # Supports both API keys (cvk_live_*) and OAuth tokens (cos_*)
         class BearerAuthMiddleware:
             def __init__(self, app: ASGIApp):
                 self.app = app
@@ -496,21 +498,41 @@ class MCPServer:
                 if scope["type"] == "http":
                     headers = dict(scope.get("headers", []))
                     auth = headers.get(b"authorization", b"").decode()
-                    if auth.startswith("Bearer ") and auth[7:].strip().startswith("cvk_live_"):
-                        raw_key = auth[7:].strip()
-                        from civicos_services.core.api_keys import get_api_key_store, resolve_tier
-                        store = get_api_key_store()
-                        if store and store.available:
-                            key_info = store.validate_key(raw_key)
-                            if key_info:
-                                tier_token = _mcp_request_tier.set(resolve_tier(key_info.tier))
-                                key_token = _mcp_request_key_id.set(key_info.key_id)
+                    if auth.startswith("Bearer "):
+                        raw_token = auth[7:].strip()
+
+                        # API key authentication (cvk_live_*)
+                        if raw_token.startswith("cvk_live_"):
+                            from civicos_services.core.api_keys import get_api_key_store, resolve_tier
+                            store = get_api_key_store()
+                            if store and store.available:
+                                key_info = store.validate_key(raw_token)
+                                if key_info:
+                                    tier_token = _mcp_request_tier.set(resolve_tier(key_info.tier))
+                                    key_token = _mcp_request_key_id.set(key_info.key_id)
+                                    try:
+                                        await self.app(scope, receive, send)
+                                    finally:
+                                        _mcp_request_tier.reset(tier_token)
+                                        _mcp_request_key_id.reset(key_token)
+                                    return
+
+                        # OAuth token authentication (cos_*)
+                        elif raw_token.startswith("cos_"):
+                            from oauth import verify_oauth_token
+                            token_info = verify_oauth_token(raw_token)
+                            if token_info:
+                                tier_token = _mcp_request_tier.set("free")
+                                key_token = _mcp_request_key_id.set(
+                                    f"oauth:{token_info['client_id']}"
+                                )
                                 try:
                                     await self.app(scope, receive, send)
                                 finally:
                                     _mcp_request_tier.reset(tier_token)
                                     _mcp_request_key_id.reset(key_token)
                                 return
+
                 await self.app(scope, receive, send)
 
         app.add_middleware(BearerAuthMiddleware)
@@ -528,6 +550,14 @@ class MCPServer:
         # Middleware chain (outermost→innermost):
         #   UsageLogging → CORS → BearerAuth → TrailingSlash → route handler
         app.add_middleware(UsageLoggingMiddleware)
+
+        # Mount OAuth router (/.well-known/*, /authorize, /token, /register)
+        from oauth import create_oauth_router
+        oauth_router = create_oauth_router(
+            server_url=server_url,
+            display_name=self.jurisdiction_config.display_name,
+        )
+        app.include_router(oauth_router)
 
         # Mount REST API router
         from rest_api import create_rest_router, create_keys_router, create_register_router
@@ -582,7 +612,7 @@ class MCPServer:
             "platform": "modal",
             "tools_count": len(bound_tools),
             "tools": bound_tools,
-            "auth": "optional_api_key",
+            "auth": "oauth2_or_api_key",
             "endpoints": {
                 "mcp": "/mcp/",
                 "health": "GET /health",
@@ -590,6 +620,10 @@ class MCPServer:
                 "create_key": "POST /api/keys/",
                 "register": "POST /api/register",
                 "openapi_spec": "/openapi.json",
+                "oauth_metadata": "GET /.well-known/oauth-authorization-server",
+                "oauth_authorize": "GET /authorize",
+                "oauth_token": "POST /token",
+                "oauth_register": "POST /register",
             }
         }
 

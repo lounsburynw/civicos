@@ -16,8 +16,8 @@ Production MCP (Model Context Protocol) server exposing the full CivicOS API for
 | Platform | Method | Status |
 |----------|--------|--------|
 | Claude Desktop | Local MCP (stdio) | Working |
-| Claude.ai web | Remote MCP (OAuth) | Ready to deploy |
-| Claude Mobile | Remote MCP (same) | Ready to deploy |
+| Claude.ai web | Remote MCP (OAuth 2.1) | Working |
+| Claude Mobile | Remote MCP (OAuth 2.1) | Working |
 | ChatGPT | Custom GPT + Actions | Planned |
 
 ## Quick Start
@@ -93,21 +93,30 @@ docker run -p 8080:8080 \
 
 ### Remote (Claude.ai Web + Mobile)
 
-Deploy the MCP server remotely to enable Claude.ai web and mobile access.
+The deployed MCP server supports OAuth 2.1 for Claude.ai Connectors.
 
-**Requirements**:
-1. Host publicly (Modal, Docker, or container platform)
-2. Implement OAuth 2.0 authentication
-3. Support SSE or Streamable HTTP transport
-4. Configure Claude.ai connector URL
-
-**OAuth callback**: `https://claude.ai/api/mcp/auth_callback`
-
-**User setup** (after deployment):
+**Connect in 2 steps**:
 1. Open Claude.ai > Settings > Connectors
-2. Add connector URL
-3. Authorize via OAuth
+2. Add connector URL: `https://san-rafael.civicosproject.org/mcp`
+3. Click "Allow" on the CivicOS consent page
 4. Tools appear in Claude conversations
+
+**How it works**:
+- Claude.ai discovers OAuth metadata via `/.well-known/oauth-protected-resource`
+- Dynamic Client Registration creates a session automatically
+- PKCE-protected authorization code flow with no password required
+- Free tier: public civic data with rate limiting (60 req/min)
+- Existing API keys (`cvk_live_*`) continue to work alongside OAuth
+
+**OAuth endpoints** (auto-provisioned on all deployed servers):
+- `GET /.well-known/oauth-authorization-server` — Discovery metadata
+- `GET /.well-known/oauth-protected-resource` — Resource metadata
+- `POST /register` — Dynamic Client Registration
+- `GET /authorize` — Consent page
+- `POST /token` — Token exchange (authorization_code, refresh_token)
+
+**Other jurisdictions**: Replace `san-rafael` with any deployed jurisdiction
+(e.g., `california.civicosproject.org/mcp`, `federal.civicosproject.org/mcp`).
 
 See [Building Custom Connectors](https://support.claude.com/en/articles/11503834-building-custom-connectors-via-remote-mcp-servers) for details.
 
