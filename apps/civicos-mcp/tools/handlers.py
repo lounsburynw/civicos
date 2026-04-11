@@ -20,6 +20,14 @@ import os
 import random
 import re
 
+# Request-scoped scope policy, set by modal_mcp.py's _wrap_handler
+# before dispatch. Lives in tools.scope to avoid a cycle between
+# handlers.py and modal_mcp.py. May be None when handlers are
+# invoked outside the MCP request path (direct calls, unit tests) —
+# every consumer must tolerate a None value and fall back to
+# primary-only behavior.
+from tools.scope import _mcp_request_scope  # noqa: E402
+
 
 # Type alias for CivicOS client (to avoid import dependency)
 CivicClient = Any
@@ -153,13 +161,65 @@ def get_upcoming_meetings(
     logger: Logger,
     args: dict,
 ) -> str:
-    """Get upcoming city council meetings."""
+    """Get upcoming city council meetings.
+
+    When a scope policy is active, the handler fans out across
+    resolved jurisdictions via ``civic.storage.get_meetings`` so
+    sibling cities and parent jurisdictions appear alongside the
+    primary — matching the default scope of ``PRIMARY_PLUS_SIBLINGS``.
+    Outside the MCP request path, it falls back to
+    ``civic.whats_next`` for backwards compatibility.
+    """
     days = args.get("days", 30)
 
     try:
-        meetings = civic.whats_next(days=days)
+        policy = _mcp_request_scope.get()
 
         result_parts = [f"# Upcoming Meetings (next {days} days)", ""]
+
+        if policy is not None:
+            from datetime import timezone
+            from tools.scope_walk import walk_scope
+
+            now = datetime.now(timezone.utc)
+            start_of_today = now.replace(hour=0, minute=0, second=0, microsecond=0)
+            cutoff = now + timedelta(days=days)
+
+            def _storage_call(jid: str) -> list[dict]:
+                try:
+                    return civic.storage.get_meetings(
+                        jurisdiction_id=jid,
+                        since=start_of_today,
+                        until=cutoff,
+                    ) or []
+                except Exception as inner_e:
+                    logger.warning(
+                        f"get_meetings failed for {jid}: {inner_e}"
+                    )
+                    return []
+
+            rows = walk_scope(policy, jurisdiction, _storage_call)
+
+            if rows:
+                # Group by jurisdiction for a clean labeled output.
+                by_jid: dict[str, list[dict]] = {}
+                for row in rows:
+                    by_jid.setdefault(row.get("jurisdiction", jurisdiction), []).append(row)
+
+                for jid, meetings in by_jid.items():
+                    result_parts.append(f"## {jid}")
+                    for m in meetings:
+                        title = m.get("title") or m.get("meeting_name") or "Untitled"
+                        when = m.get("meeting_datetime") or m.get("date") or "TBD"
+                        result_parts.append(f"- **{title}** - {when}")
+                    result_parts.append("")
+            else:
+                result_parts.append("No upcoming meetings found.")
+
+            return "\n".join(result_parts)
+
+        # Legacy path (contextvar not set).
+        meetings = civic.whats_next(days=days)
 
         if meetings:
             for m in meetings:
@@ -183,7 +243,13 @@ def find_similar_issues(
     logger: Logger,
     args: dict,
 ) -> str:
-    """Find community issues related to a topic."""
+    """Find community issues related to a topic.
+
+    With a scope policy active (default ``PRIMARY_PLUS_SIBLINGS``),
+    the handler runs the vector search once per resolved
+    jurisdiction and groups results under per-jurisdiction headings
+    so the AI caller can see which city had similar issues.
+    """
     topic = args.get("topic", "")
     semantic = args.get("semantic", True)
     limit = args.get("limit", 20)
@@ -196,25 +262,78 @@ def find_similar_issues(
     try:
         result_parts = [f"# Community Issues: {topic}", ""]
 
-        if semantic and civic.vectors is not None:
-            results = civic.vectors.search(
-                topic,
-                jurisdiction,
-                'issues',
-                top_k=limit,
+        if not (semantic and civic.vectors is not None):
+            result_parts.append("Semantic search unavailable.")
+            return "\n".join(result_parts)
+
+        policy = _mcp_request_scope.get()
+
+        if policy is not None:
+            from tools.scope_walk import (
+                resolve_scope_to_jurisdictions,
+                MAX_SCOPE_FANOUT,
             )
-            result_parts.append(f"**Related issues found:** {len(results)}")
+
+            targets = resolve_scope_to_jurisdictions(
+                policy.default_scope, jurisdiction
+            )[:MAX_SCOPE_FANOUT]
+            # Divide limit across targets so we don't return
+            # MAX_SCOPE_FANOUT * limit rows on a wide sibling set.
+            per_jid_limit = max(3, limit // max(len(targets), 1))
+
+            sections: list[tuple[str, list]] = []
+            total = 0
+            for jid in targets:
+                try:
+                    hits = civic.vectors.search(
+                        topic, jid, 'issues', top_k=per_jid_limit,
+                    ) or []
+                except Exception as inner_e:
+                    logger.warning(
+                        f"vectors.search failed for {jid}: {inner_e}"
+                    )
+                    hits = []
+                if hits:
+                    sections.append((jid, hits))
+                    total += len(hits)
+
+            result_parts.append(f"**Related issues found:** {total}")
             result_parts.append("")
 
-            for r in results:
-                content = r.content[:200] if r.content else "No description"
-                score = r.score if hasattr(r, 'score') else None
-                if score:
-                    result_parts.append(f"- **[{score:.0%} match]** {content}...")
-                else:
-                    result_parts.append(f"- {content}...")
-        else:
-            result_parts.append("Semantic search unavailable.")
+            if not sections:
+                result_parts.append("No similar issues found.")
+                return "\n".join(result_parts)
+
+            for jid, hits in sections:
+                result_parts.append(f"## {jid}")
+                for r in hits:
+                    content = r.content[:200] if r.content else "No description"
+                    score = r.score if hasattr(r, 'score') else None
+                    if score:
+                        result_parts.append(f"- **[{score:.0%} match]** {content}...")
+                    else:
+                        result_parts.append(f"- {content}...")
+                result_parts.append("")
+
+            return "\n".join(result_parts)
+
+        # Legacy path.
+        results = civic.vectors.search(
+            topic,
+            jurisdiction,
+            'issues',
+            top_k=limit,
+        )
+        result_parts.append(f"**Related issues found:** {len(results)}")
+        result_parts.append("")
+
+        for r in results:
+            content = r.content[:200] if r.content else "No description"
+            score = r.score if hasattr(r, 'score') else None
+            if score:
+                result_parts.append(f"- **[{score:.0%} match]** {content}...")
+            else:
+                result_parts.append(f"- {content}...")
 
         return "\n".join(result_parts)
 
@@ -230,7 +349,14 @@ def search_regulatory_stack(
     logger: Logger,
     args: dict,
 ) -> str:
-    """Search regulatory stack for a topic."""
+    """Search regulatory stack for a topic.
+
+    ``civic.what_applies`` already walks the vertical stack
+    (federal → state → local), so this handler consumes the scope
+    policy to label each section header with the jurisdiction ID
+    the AI caller should cite. The underlying data does not change;
+    only the presentation becomes jurisdiction-aware.
+    """
     topic = args.get("topic", "")
 
     is_valid, sanitized, error = validate_input({"topic": topic})
@@ -241,10 +367,40 @@ def search_regulatory_stack(
     try:
         stack = civic.what_applies(topic)
 
+        # Resolve the scope to learn which jurisdictions correspond
+        # to each stack tier. For a city primary with
+        # PRIMARY_PLUS_ALL_PARENTS, this yields
+        # [city, county, state, country] — one per tier. We map
+        # tiers to IDs by prefix so callers see concrete labels.
+        policy = _mcp_request_scope.get()
+        tier_jid: dict[str, str] = {}
+        if policy is not None:
+            from tools.scope_walk import resolve_scope_to_jurisdictions
+
+            try:
+                resolved = resolve_scope_to_jurisdictions(
+                    policy.default_scope, jurisdiction
+                )
+            except NotImplementedError:
+                resolved = [jurisdiction]
+            for jid in resolved:
+                if jid.startswith("country-") and "federal" not in tier_jid:
+                    tier_jid["federal"] = jid
+                elif jid.startswith("state-") and "state" not in tier_jid:
+                    tier_jid["state"] = jid
+                elif jid.startswith("county-") and "county" not in tier_jid:
+                    tier_jid["county"] = jid
+                elif jid.startswith("city-") and "local" not in tier_jid:
+                    tier_jid["local"] = jid
+
+        def _section_header(tier: str, fallback: str) -> str:
+            label = tier_jid.get(tier)
+            return f"## {fallback} ({label})" if label else f"## {fallback}"
+
         result_parts = [f"# Regulatory Stack: {stack.topic}", ""]
 
         # Federal
-        result_parts.append("## Federal")
+        result_parts.append(_section_header("federal", "Federal"))
         if stack.federal:
             for item in stack.federal[:5]:
                 if isinstance(item, dict):
@@ -256,7 +412,7 @@ def search_regulatory_stack(
         result_parts.append("")
 
         # State
-        result_parts.append("## State")
+        result_parts.append(_section_header("state", "State"))
         if stack.state:
             for item in stack.state[:5]:
                 if isinstance(item, dict):
@@ -270,7 +426,7 @@ def search_regulatory_stack(
         result_parts.append("")
 
         # Local
-        result_parts.append("## Local")
+        result_parts.append(_section_header("local", "Local"))
         if stack.local:
             for item in stack.local[:5]:
                 if isinstance(item, dict):
@@ -1140,7 +1296,14 @@ def get_started(
     logger: Logger,
     args: dict,
 ) -> str:
-    """Get overview of local government activity."""
+    """Get overview of local government activity.
+
+    When a scope policy is active (default
+    ``PRIMARY_PLUS_ALL_PARENTS``), the welcome message adds a
+    "Governance stack" section listing the resolved parent
+    jurisdictions so the AI caller knows which levels of government
+    it can query on behalf of the user.
+    """
     pulse = city_pulse(civic, jurisdiction, validate_input, logger, {})
 
     result_parts = [f"# Welcome to {jurisdiction.replace('city-', '').title()}", ""]
@@ -1160,6 +1323,28 @@ def get_started(
         for d in decisions[:3]:
             result_parts.append(f"- {d['title']} ({d['outcome']})")
         result_parts.append("")
+
+    # Governance stack from scope policy.
+    policy = _mcp_request_scope.get()
+    if policy is not None:
+        from tools.scope_walk import resolve_scope_to_jurisdictions
+
+        try:
+            resolved = resolve_scope_to_jurisdictions(
+                policy.default_scope, jurisdiction
+            )
+        except NotImplementedError:
+            resolved = [jurisdiction]
+        parents = [j for j in resolved if j != jurisdiction]
+        if parents:
+            result_parts.append("## Governance Stack")
+            result_parts.append(
+                "Decisions affecting you are made at multiple levels:"
+            )
+            result_parts.append(f"- **{jurisdiction}** (primary)")
+            for parent in parents:
+                result_parts.append(f"- {parent}")
+            result_parts.append("")
 
     result_parts.append("## What Can I Help With?")
     result_parts.append("- Search past council decisions")
@@ -2478,7 +2663,13 @@ def get_intergovernmental_revenue(
 
 
 def _default_legislation_states(jurisdiction: str) -> list[str]:
-    """Return default state codes to search based on server jurisdiction level."""
+    """Return default state codes to search based on server jurisdiction level.
+
+    Fallback for callers that invoke ``search_legislation`` without a
+    scope policy set on the contextvar (direct tests, non-MCP entry
+    points). The scope-policy path in ``search_legislation`` uses
+    ``_jurisdiction_to_state_code`` instead.
+    """
     if jurisdiction.startswith("country-"):
         return ["US"]
     elif jurisdiction.startswith("state-"):
@@ -2488,6 +2679,24 @@ def _default_legislation_states(jurisdiction: str) -> list[str]:
         return ["CA", "US"]
 
 
+# Jurisdiction ID → USPS state code for the ``legislation`` table.
+# City- and county-level jurisdictions intentionally map to None:
+# they do not hold legislation rows, so ``walk_scope`` short-circuits
+# them. Extend this map as new states onboard.
+_LEGISLATION_STATE_CODE: dict[str, str] = {
+    "country-united-states": "US",
+    "state-california": "CA",
+}
+
+
+def _jurisdiction_to_state_code(jurisdiction_id: str) -> str | None:
+    """Return the USPS state code holding legislation rows for this
+    jurisdiction, or ``None`` if the jurisdiction is below the level
+    at which legislation is stored.
+    """
+    return _LEGISLATION_STATE_CODE.get(jurisdiction_id)
+
+
 def search_legislation(
     civic: CivicClient,
     jurisdiction: str,
@@ -2495,7 +2704,15 @@ def search_legislation(
     logger: Logger,
     args: dict,
 ) -> str:
-    """Search legislation by topic, state, and status."""
+    """Search legislation by topic, state, and status.
+
+    When a scope policy is active on ``_mcp_request_scope``, the
+    handler walks the vertical parent chain via ``scope_walk`` and
+    labels each returned bill with the source jurisdiction. Outside
+    the MCP request path (direct calls, unit tests), the legacy
+    ``_default_legislation_states`` fallback is used so existing
+    behavior is preserved.
+    """
     query = args.get("query", "")
     state = args.get("state")
     status = args.get("status")
@@ -2507,44 +2724,77 @@ def search_legislation(
     query = sanitized.get("query", query)
 
     try:
-        results = []
-
-        # Determine which states to search
-        states_to_search = [state.upper()] if state else _default_legislation_states(jurisdiction)
-
-        # First: try topic-column filter (works when topics are tagged)
-        for s in states_to_search:
+        # Inner helper: fetch bills for a single state code. Mirrors
+        # the legacy two-pass logic (topic-column filter, then
+        # keyword search across bill_name/summary/keywords) but
+        # bounded to one state so walk_scope can fan it out per
+        # jurisdiction. Bills returned here are later stamped with
+        # the source jurisdiction by ``walk_scope``.
+        def _fetch_bills_for_state(state_code: str) -> list[dict]:
             bills = civic.storage.get_legislation(
-                state=s,
+                state=state_code,
                 topic=query,
                 status=status,
                 limit=limit,
             )
-            results.extend(bills)
+            if len(bills) >= limit or not query:
+                return list(bills)
 
-        # Second: keyword search across bill_name, summary, keywords
-        # This catches bills where the topic column isn't set
-        if len(results) < limit and query:
             query_lower = query.lower()
-            for s in states_to_search:
-                # Fetch a broader set to search through
-                fetch_limit = max(200, limit * 20)
-                all_bills = civic.storage.get_legislation(
-                    state=s,
-                    status=status,
-                    limit=fetch_limit,
+            fetch_limit = max(200, limit * 20)
+            all_bills = civic.storage.get_legislation(
+                state=state_code,
+                status=status,
+                limit=fetch_limit,
+            )
+            seen_ids = {b.get("bill_id") for b in bills}
+            for bill in all_bills:
+                if bill.get("bill_id") in seen_ids:
+                    continue
+                name = (bill.get("bill_name") or "").lower()
+                summary = (bill.get("summary") or "").lower()
+                keywords = bill.get("keywords") or []
+                keyword_str = (
+                    " ".join(keywords).lower()
+                    if isinstance(keywords, list)
+                    else str(keywords).lower()
                 )
-                seen_ids = {b.get("bill_id") for b in results}
-                for bill in all_bills:
-                    if bill.get("bill_id") in seen_ids:
-                        continue
-                    name = (bill.get("bill_name") or "").lower()
-                    summary = (bill.get("summary") or "").lower()
-                    keywords = bill.get("keywords") or []
-                    keyword_str = " ".join(keywords).lower() if isinstance(keywords, list) else str(keywords).lower()
-                    if query_lower in name or query_lower in summary or query_lower in keyword_str:
-                        results.append(bill)
-                        seen_ids.add(bill.get("bill_id"))
+                if (
+                    query_lower in name
+                    or query_lower in summary
+                    or query_lower in keyword_str
+                ):
+                    bills.append(bill)
+                    seen_ids.add(bill.get("bill_id"))
+            return list(bills)
+
+        # Scope-policy path: walk the resolved jurisdictions and
+        # stamp each bill with its source jurisdiction. The contextvar
+        # defaults to None, so direct callers (tests, non-MCP entry
+        # points) naturally fall through to the legacy path.
+        policy = _mcp_request_scope.get()
+
+        if policy is not None and state is None:
+            # Explicit ``state`` arg overrides scope walking so callers
+            # can still ask for a single state directly.
+            from tools.scope_walk import walk_scope
+
+            def _storage_call(jid: str) -> list[dict]:
+                state_code = _jurisdiction_to_state_code(jid)
+                if state_code is None:
+                    return []
+                return _fetch_bills_for_state(state_code)
+
+            results = walk_scope(policy, jurisdiction, _storage_call)
+        else:
+            # Legacy path: caller specified a state, or no policy is
+            # active (direct call / unit test).
+            states_to_search = (
+                [state.upper()] if state else _default_legislation_states(jurisdiction)
+            )
+            results = []
+            for s in states_to_search:
+                results.extend(_fetch_bills_for_state(s))
 
         # Deduplicate by bill_id and limit
         seen = set()
@@ -2567,8 +2817,14 @@ def search_legislation(
             name = bill.get("bill_name", "Untitled")
             bill_status = bill.get("status", "Unknown")
             leverage = bill.get("leverage_point", "")
+            # Jurisdiction label stamped by walk_scope (may be absent
+            # on the legacy path, in which case we omit the tag).
+            source_jurisdiction = bill.get("jurisdiction", "")
 
-            result_parts.append(f"## {bill_num} ({state_code})")
+            header = f"## {bill_num} ({state_code})"
+            if source_jurisdiction:
+                header = f"{header} — {source_jurisdiction}"
+            result_parts.append(header)
             result_parts.append(f"**{name}**")
             result_parts.append(f"- Status: {bill_status}")
 

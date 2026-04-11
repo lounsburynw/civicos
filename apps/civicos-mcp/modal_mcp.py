@@ -155,14 +155,13 @@ _mcp_request_tier: contextvars.ContextVar[str] = contextvars.ContextVar(
 _mcp_request_key_id: contextvars.ContextVar[str | None] = contextvars.ContextVar(
     "_mcp_request_key_id", default=None
 )
-# Resolved scope context for the in-flight tool call.
-# _wrap_handler sets this from the SCOPE_POLICIES table before dispatching
-# to the handler. Populated in this P0; consumed by the v2 API call path
-# in the next P0 (scope_policy_passthrough). Value is an ``ScopePolicy``
-# instance imported from tools.scope.
-_mcp_request_scope: contextvars.ContextVar = contextvars.ContextVar(
-    "_mcp_request_scope", default=None
-)
+# Resolved scope context for the in-flight tool call. Declared in
+# tools/scope.py so that both the producer (this module's
+# _wrap_handler) and the consumers (tools/handlers.py) can share a
+# single binding without importing each other. Re-exported here for
+# backwards compatibility with any external caller that imported it
+# from modal_mcp before the move.
+from tools.scope import _mcp_request_scope  # noqa: E402
 
 @app.cls(
     image=mcp_image,

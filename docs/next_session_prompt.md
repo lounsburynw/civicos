@@ -1,4 +1,4 @@
-# Recommended: Scope policy table (`scope_policy_table`)
+# Recommended: Region config concept (`region_config_concept`)
 
 **Priority:** P0
 **Area:** distribution
@@ -8,81 +8,148 @@
 
 ## Context
 
-The previous session shipped MCP OAuth (stateless HMAC tokens, 401-on-unauth discovery) and Claude.ai can now connect via `https://san-rafael.civicosproject.org/mcp` in 2 clicks. Immediately after, a real user query surfaced the next problem: the connector is San Rafael–scoped, so asking "what about other Marin cities?" returned nothing useful even though the CivicOS DB already has data for them.
+Prior session shipped `scope_policy_passthrough` (step 2 of 4 in the scope work sequence). Commits:
+- `51cda249` + `b74f9db8` — scope_policy_table (step 1, earlier session)
+- **(this session)** — scope_policy_passthrough: built `tools/scope_walk.py`, wired 5 handlers, 20 new tests, all 222 relevant tests green.
 
-A design discussion produced a committed ADR (**`docs/public/decisions/tool_scope_and_federation.md`**) with a single load-bearing claim: **scope lives on tools, not deployments**. Reads expand vertically (city→state→federal) and horizontally (siblings/regions) with labeled results; writes stay strictly anchored to the server's primary jurisdiction. Federation is a data-plane concern handled separately.
+**What step 2 actually shipped:**
+- `apps/civicos-mcp/tools/scope_walk.py` — `resolve_scope_to_jurisdictions(scope, primary)` maps `Scope` enum → list of jurisdiction IDs via `registry.json` `parent_jurisdictions`. `walk_scope(policy, primary, storage_call)` fans a closure out across resolved jurisdictions and stamps each returned row with a `jurisdiction` label.
+- `_mcp_request_scope` contextvar **moved** from `modal_mcp.py` into `tools/scope.py` — the producer (modal_mcp's `_wrap_handler`) and the new consumers (`tools/handlers.py`) share one binding without importing each other.
+- 5 handlers wired: `search_legislation`, `get_upcoming_meetings`, `find_similar_issues`, `search_regulatory_stack`, `get_started`. Each reads the contextvar via `_mcp_request_scope.get()` and either calls `walk_scope` (real fan-out) or `resolve_scope_to_jurisdictions` (shallow labeling).
+- `search_legislation` ships with an in-file `_LEGISLATION_STATE_CODE` map: `{country-united-states → US, state-california → CA}`. City/county jurisdictions return `None` and are skipped during the fan-out.
+- `tools/scope_walk.py::resolve_scope_to_jurisdictions` **raises `NotImplementedError`** for `REGION` and `PRIMARY_PLUS_REGION`. That's your entry point for step 3.
 
-This P0 is the first of four sequenced items (scope_policy_table → scope_policy_passthrough → region_config_concept → regional_server_deployment). Step 1 is small, contained, and unblocks everything downstream.
+**Headline proof test** (passing):
+```python
+def test_vertical_expansion_labels_state_and_federal(...):
+    _mcp_request_scope.set(SCOPE_POLICIES["search_legislation"])
+    output = handlers.search_legislation(civic, "city-san-rafael", ...)
+    assert "SB-100 (CA) — state-california" in output
+    assert "H.R.1 (US) — country-united-states" in output
+```
+
+## ⚠️ Architectural finding carried forward
+
+The prior-prior handoff assumed MCP handlers called `civicos_services.query` (v2). They do **not** — handlers make 25 direct `civic.storage.*` calls. Step 2 chose Option C (hybrid): keep handlers on direct storage calls, wire scope via a thin helper (`scope_walk`). This decision stays in force for steps 3+. Don't assume v2 integration until a separate refactor item lands.
 
 ## Recommended Task
 
-Build `apps/civicos-mcp/tools/scope.py` as the authoritative per-tool scope policy dict. Thread it into `_bind_handlers` in `modal_mcp.py` with an assertion that refuses to bind any tool without a scope entry. Not yet wiring the policies into actual v2 API calls — that's the next P0 (`scope_policy_passthrough`).
+`region_config_concept` introduces the `regions` top-level key in `config/registry.json` and teaches `resolve_scope_to_jurisdictions` what `REGION` / `PRIMARY_PLUS_REGION` mean. This is the natural next step because:
+
+1. `scope_walk` already raises `NotImplementedError` for those two scopes — a test exists that guards the raise. Flipping them on is a concrete, bounded change.
+2. The sibling-walking path in `scope_walk` currently includes school districts sharing `county-marin` (19 siblings total for `city-san-rafael`). A region concept lets us tighten this to "cities in Marin" (11 members) without breaking the school-district sibling behavior elsewhere.
+3. Two handlers have `PRIMARY_PLUS_REGION` as their `expandable_scope` (`get_upcoming_meetings`, `find_similar_issues`). Currently they can't expand to region — users who ask "what about other Marin cities?" hit `NotImplementedError`. Fixing this unlocks a real Claude.ai use case.
+
+### Suggested plan
+
+1. **Design the region schema** in `config/registry.json`:
+   ```json
+   "regions": {
+     "marin": {
+       "display_name": "Marin County",
+       "members": ["county-marin", "city-san-rafael", "city-mill-valley", "city-san-anselmo", ...]
+     },
+     "bay-area": {
+       "display_name": "SF Bay Area",
+       "members": ["region-marin", "county-san-francisco", "county-alameda", ...]
+     }
+   }
+   ```
+   Nested regions (region listing other regions as members) should resolve recursively. Decide up front whether to prevent cycles or just cap recursion depth.
+
+2. **Add region loading to the registry API.** Options:
+   - (a) Extend `civicos.registry.get_registry()` callers to read the new top-level key. Cheapest.
+   - (b) Add `get_region(name)` / `resolve_region_members(name)` to `civicos_config.JurisdictionRegistry`. Cleaner long-term but crosses a package boundary.
+   I'd start with (a) and promote to (b) when a second caller appears.
+
+3. **Teach `scope_walk`** about regions. Replace the two `NotImplementedError` branches with real resolution:
+   ```python
+   if scope == Scope.PRIMARY_PLUS_REGION:
+       region_name = _region_for(primary_jurisdiction)  # contextual lookup
+       return _dedupe([primary_jurisdiction, *_resolve_region_members(region_name)])
+   if scope == Scope.REGION:
+       region_name = _region_for(primary_jurisdiction)
+       return _resolve_region_members(region_name)
+   ```
+   The question of **how a server knows its own region** is open. Two choices:
+   - `CIVICOS_REGION` env var set per deployment (new).
+   - Derive from the primary jurisdiction's county parent (e.g. `county-marin` → region `marin` if such a region exists).
+   Either works for San Rafael. Pick the one that doesn't require a Modal secret redeploy.
+
+4. **Wire the two `expandable_scope: PRIMARY_PLUS_REGION` handlers** (`get_upcoming_meetings`, `find_similar_issues`) to accept a `scope` argument from `args` and widen past their default when the caller asks for it. This is where the scope-widening UX becomes real for AI callers.
+
+5. **Test:**
+   - Unit: `test_resolve_region_members_expands_marin` — walking `Scope.REGION` on `city-san-rafael` returns the 11-ish Marin members.
+   - Unit: `test_nested_region_bay_area_includes_marin_cities` — resolving `bay-area` recursively expands `region-marin`.
+   - Integration: call `get_upcoming_meetings` with `{"scope": "primary_plus_region"}` on san-rafael and assert the result set contains sections for at least 3 Marin cities.
+   - Guardrail: `test_region_cycle_detection` — region A lists region B which lists region A, must raise or cap.
 
 ## Key Files
 
-- **`docs/public/decisions/tool_scope_and_federation.md`** — *authoritative reference*. Contains the full scope policy table for every currently-bound tool (read-side, write-side, admin). Every row in `scope.py` must match this table exactly. If you want to change a policy, update the ADR and code together.
-- `apps/civicos-mcp/tools/registry.py` — existing tool registry (`ToolRegistry`, `TOOL_DEFINITIONS`). `scope.py` lives next to this.
-- `apps/civicos-mcp/modal_mcp.py:241-336` — `_bind_handlers` method. Add the assertion here that every bound tool has a scope entry.
-- `apps/civicos-mcp/modal_mcp.py:337-374` — `_wrap_handler`. Consider adding a `_mcp_request_scope` contextvar similar to `_mcp_request_tier` so tool handlers can read the resolved scope at call time.
-- `apps/civicos-mcp/tests/test_mcp_tools.py` — follow this pattern for `test_scope_policy.py`.
-
-## Suggested Approach
-
-1. **Create `apps/civicos-mcp/tools/scope.py`** with:
-   - A `ScopePolicy` dataclass: `default_scope`, `expandable_scope`, `max_scope`, `kind` ("read" | "write" | "admin"), plus an optional `notes` field.
-   - A `Scope` enum or literal type: `PRIMARY`, `PRIMARY_PLUS_PARENTS`, `PRIMARY_PLUS_SIBLINGS`, `PRIMARY_PLUS_REGION`, `FEDERAL`, `ALL_PARENTS`, `STATE`.
-   - A `SCOPE_POLICIES: dict[str, ScopePolicy]` matching the ADR's table row-for-row. Every currently-bound tool name gets an entry.
-   - A `get_scope_policy(tool_name: str) -> ScopePolicy` helper that raises `KeyError` with a clear message if the tool isn't in the table.
-
-2. **Add a binding-time assertion** in `modal_mcp.py::_bind_handlers`: before binding each handler, call `get_scope_policy(name)` — if it raises, log an error and skip (or raise on unknown tools, configurable). This ensures new tools can't ship without a scope entry.
-
-3. **Write `apps/civicos-mcp/tests/test_scope_policy.py`** that:
-   - Validates every name in `handler_map` (from `modal_mcp.py`) has a `SCOPE_POLICIES` entry.
-   - Asserts write-side tools have `default_scope == PRIMARY` and `kind == "write"`.
-   - Asserts federal-only tools (`search_executive_orders`, etc.) have `default_scope == FEDERAL`.
-   - Loads every entry and checks invariants (max_scope is at least as broad as default_scope).
-   - Uses the ADR table as the source of truth — if the ADR changes, the test guides the code update.
-
-4. **Add a `_mcp_request_scope` contextvar** in `modal_mcp.py` (parallel to `_mcp_request_tier`) that `_wrap_handler` sets based on the resolved scope. This is passive in this P0 — the context is populated but nothing reads it yet. Step 2 (`scope_policy_passthrough`) will make it load-bearing.
-
-5. **Do NOT change tool handler behavior in this session.** No v2 API changes, no result labeling, no actual cross-jurisdiction queries. That's all step 2. This P0 is *just* the policy table and the plumbing to make it consulted.
+- `apps/civicos-mcp/tools/scope_walk.py:105-112` — the two `NotImplementedError` branches to replace. Start here.
+- `apps/civicos-mcp/tools/scope.py:49-53` — Scope.REGION and Scope.PRIMARY_PLUS_REGION docstrings. Update to reference the registry's `regions` key.
+- `apps/civicos-mcp/tools/scope.py:113-120` — `get_upcoming_meetings` policy: `expandable_scope=PRIMARY_PLUS_REGION`. This is the handler whose expansion currently 500s.
+- `apps/civicos-mcp/tools/scope.py:310-316` — `find_similar_issues` policy: same story.
+- `apps/civicos-mcp/tools/handlers.py:169-230` — `get_upcoming_meetings` handler. Already reads the contextvar. Add `args.get("scope")` override handling.
+- `apps/civicos-mcp/tools/handlers.py:232-330` — `find_similar_issues`. Same pattern.
+- `config/registry.json` — where the region schema lands. Start with just `marin` to keep the PR small.
+- `packages/civicos/src/civicos/registry.py:96` — `get_registry()` is the public loader. Add region helpers here or in `civicos-config`.
+- `packages/civicos-services/src/civicos_services/query/jurisdictions.py` — existing sibling resolver. Useful reference for how a nested lookup handles fan-out caps.
 
 ## Tests to Run
 
 ```bash
-civicos-env/bin/python3 -m pytest apps/civicos-mcp/tests/test_scope_policy.py -v --override-ini="addopts="
-civicos-env/bin/python3 -m pytest apps/civicos-mcp/tests/test_oauth.py --override-ini="addopts="
+civicos-env/bin/python3 -m pytest apps/civicos-mcp/tests/test_scope_policy_passthrough.py -v --override-ini="addopts="
+civicos-env/bin/python3 -m pytest apps/civicos-mcp/tests/test_scope_policy.py --override-ini="addopts="
 civicos-env/bin/python3 -m pytest apps/civicos-mcp/tests/test_mcp_tools.py --override-ini="addopts="
+# New file:
+civicos-env/bin/python3 -m pytest apps/civicos-mcp/tests/test_region_config.py -v --override-ini="addopts="
 ```
 
 ## Success Criteria
 
-- [ ] `apps/civicos-mcp/tools/scope.py` exists with `SCOPE_POLICIES` dict matching the ADR table
-- [ ] Every tool bound in `_bind_handlers` has an entry (assertion enforced at bind time)
-- [ ] `test_scope_policy.py` validates coverage and invariants
-- [ ] Read/write/admin classification is correct for all ~45 tools
-- [ ] Existing OAuth + MCP tool tests still pass (no regressions)
-- [ ] Adding a new tool without a scope entry fails loudly (assertion)
-- [ ] ADR and code are in sync (if you change policy, change both)
-- [ ] `scope_policy_passthrough` promoted to new P0 when this lands
+- [ ] `config/registry.json` has a `regions` key with at least one concrete region (Marin) defined.
+- [ ] `scope_walk.resolve_scope_to_jurisdictions` no longer raises for `REGION` / `PRIMARY_PLUS_REGION`.
+- [ ] The two existing `test_region_raises_not_implemented` and `test_primary_plus_region_raises_not_implemented` tests in `test_scope_policy_passthrough.py` get **updated** (not deleted — the invariant is now "resolves correctly", not "raises").
+- [ ] New integration test proves a user on city-san-rafael can ask for upcoming meetings across Marin and see labeled sections for ≥3 cities.
+- [ ] `get_upcoming_meetings` and `find_similar_issues` accept `{"scope": "primary_plus_region"}` in args and widen.
+- [ ] All 222+ existing tests still pass.
+- [ ] Region cycle detection test in place.
 
-## Non-goals for this session
+## Non-goals
 
-- Actually passing `include_parents` / `include_siblings` to v2 API calls (that's step 2)
-- Defining regions in `registry.json` (that's step 3)
-- Deploying regional MCP servers (that's step 4)
-- Changing tool result formatting (deferred)
-- Implementing the contextvar consumer — just set it, step 2 reads it
+- Regional server deployment (step 4: `regional_server_deployment`)
+- Refactoring handlers to v2 query functions
+- Widening the remaining 52 handlers through scope_walk (see `widen_remaining_handlers_through_scope_walk` — now P2)
+- Fixing pre-existing `python-multipart` test failures
 
 ## Open PRs
 
-None from parallel sessions.
+None.
+
+## Pre-existing test failures (NOT regressions)
+
+6 tests in `apps/civicos-mcp/tests/test_coordination_tools.py` and `test_initiative_tools.py` fail on main without any of this session's changes:
+- `TestBroadcastVoiceHandler::test_tool_definition_exists` (required-fields schema drift)
+- `TestBroadcastVoiceHandler::test_invalid_stance_rejected`
+- `TestBroadcastVoiceHandler::test_handler_returns_error_without_relay`
+- `TestToolRegistry::test_registry_has_38_tools`
+- `TestToolRegistry::test_tool_registry_class_works`
+- `TestListInitiativesHandler::test_connection_error_handled`
+
+Confirmed pre-existing via stash-and-rerun. Separate cleanup item.
+
+## Follow-up items added this session
+
+- **`widen_remaining_handlers_through_scope_walk`** (P2, distribution) — walk the 52 remaining handlers, wire the non-PRIMARY defaults through `scope_walk`. Most are PRIMARY-only and need no changes; ~5-8 need wiring.
 
 ## Recent state
 
-Last three commits on `main`:
+Last commits (this session's will be on top after `/commit`):
+- `b74f9db8` Tighten test_handler_map_parses sanity check
+- `51cda249` Add scope policy table and binding-time enforcement
+- `1068424d` Fix depth pipeline subshell bug + first mutation/audit results
+- `0eec6729` Prepare next session handoff: scope_policy_table (P0)
 - `1c986f04` Add scope work sequence (P0→P3) to launch.json, demote rate limiting
-- `e495ec61` Add ADR: Tool scope and the read/write federation boundary
-- `74db43f4` Return 401 on unauthenticated /mcp/ to enable Claude.ai OAuth discovery
 
-Production MCP at `https://san-rafael.civicosproject.org/mcp` is stable and Claude.ai-connected — scope work won't touch it until step 2.
+Production MCP at `https://san-rafael.civicosproject.org/mcp` stable. `_mcp_request_scope` contextvar is now **load-bearing** on 5 handlers — the remaining 52 stay PRIMARY-only until `widen_remaining_handlers_through_scope_walk` ships.

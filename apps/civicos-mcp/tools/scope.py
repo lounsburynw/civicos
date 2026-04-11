@@ -10,18 +10,25 @@ The policy table mirrors the scope table in
 ``docs/public/decisions/tool_scope_and_federation.md`` row-for-row.
 If a policy changes, update the ADR and this file together.
 
-This module only declares policy. The consumer that threads scope into
-v2 query calls (``include_parents`` / ``include_siblings``) ships in
-the ``scope_policy_passthrough`` step. For now, the wrapper sets a
-request-scoped context var so downstream code can observe the resolved
-scope without acting on it.
+Runtime integration: ``modal_mcp.py::_wrap_handler`` resolves each
+tool call's policy from ``SCOPE_POLICIES`` and publishes it on the
+``_mcp_request_scope`` contextvar declared at the bottom of this
+file. Tool handlers read that contextvar and call
+``tools.scope_walk.walk_scope`` (or
+``resolve_scope_to_jurisdictions`` for shallower integrations) to
+fan storage queries across the resolved jurisdictions and return
+results labeled by source jurisdiction. The contextvar lives here —
+alongside the policy types — so that producer (modal_mcp.py) and
+consumers (tools/handlers.py) share one binding without importing
+each other.
 """
 
 from __future__ import annotations
 
+import contextvars
 from dataclasses import dataclass
 from enum import Enum
-from typing import Literal
+from typing import Literal, Optional
 
 
 class Scope(Enum):
@@ -567,3 +574,23 @@ def get_scope_policy(tool_name: str) -> ScopePolicy:
             f"and a matching row in docs/public/decisions/tool_scope_and_federation.md "
             f"before binding this tool."
         ) from exc
+
+
+# ---------------------------------------------------------------------------
+# Request-scoped context
+# ---------------------------------------------------------------------------
+
+# Contextvar holding the resolved ScopePolicy for the in-flight tool
+# call. ``modal_mcp.py::_wrap_handler`` sets this from SCOPE_POLICIES
+# before dispatching to the handler; tool handlers read it via
+# ``_mcp_request_scope.get()`` to decide whether to walk parents/
+# siblings. Default is ``None`` so handlers degrade to primary-only
+# behavior when invoked outside the MCP request path (direct calls,
+# unit tests).
+#
+# This lives here — alongside the policy types — so that both
+# modal_mcp.py (the producer) and tools/handlers.py (the consumers)
+# can import it without creating a cycle between them.
+_mcp_request_scope: contextvars.ContextVar[Optional[ScopePolicy]] = (
+    contextvars.ContextVar("_mcp_request_scope", default=None)
+)
