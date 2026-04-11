@@ -93,10 +93,26 @@ class TestScopePolicyCoverage:
     """Every bound tool must declare a scope policy."""
 
     def test_handler_map_parses(self):
-        """Sanity check that the parser finds handler_map at all."""
+        """
+        Sanity check that the parser finds handler_map and pulls the
+        right keys out of it. Pins a handful of load-bearing tools from
+        different sections of the map so a parser regression that silently
+        drops dict keys (or grabs the wrong dict) gets caught here rather
+        than cascading into the coverage test.
+        """
         names = _handler_map_tool_names()
-        assert len(names) > 40, (
-            f"handler_map parse returned suspiciously few tools: {len(names)}"
+        expected_samples = {
+            "search_legislation",       # cross-level read
+            "get_upcoming_meetings",    # horizontal-expanding read
+            "compose_public_comment",   # strict-primary write
+            "broadcast_voice",          # relay write
+            "admin_data_status",        # admin
+            "get_issue_trends",         # late-added read (ADR-backfilled)
+        }
+        missing = expected_samples - names
+        assert not missing, (
+            f"handler_map parse is missing expected tools: {sorted(missing)}. "
+            "Either the parser is broken or handler_map has drifted."
         )
 
     def test_every_bound_tool_has_policy(self):
