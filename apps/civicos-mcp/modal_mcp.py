@@ -535,6 +535,45 @@ class MCPServer:
                                     _mcp_request_key_id.reset(key_token)
                                 return
 
+                            # Recognizable-but-invalid OAuth token on an MCP
+                            # path → return 401 with WWW-Authenticate so the
+                            # client re-runs the OAuth flow (per RFC 6750
+                            # Section 3). Without this, invalid/stale OAuth
+                            # tokens silently downgrade to the 'open' tier,
+                            # which is opaque to end users and prevents
+                            # automatic re-auth. Only applies to /mcp/*
+                            # paths; other paths (health, OAuth endpoints)
+                            # continue unaffected.
+                            #
+                            # The resource_metadata URL uses the static
+                            # server_url (from registry.json) rather than
+                            # the Host header, because Cloudflare Workers
+                            # proxying via fetch() set Host to the Modal
+                            # internal URL.
+                            path = scope.get("path", "")
+                            if path.startswith("/mcp"):
+                                challenge = (
+                                    'Bearer realm="mcp", '
+                                    'error="invalid_token", '
+                                    'error_description="OAuth access token is invalid or expired", '
+                                    f'resource_metadata="{server_url}/.well-known/oauth-protected-resource"'
+                                )
+                                body = b'{"error":"invalid_token","error_description":"OAuth access token is invalid or expired"}'
+                                await send({
+                                    "type": "http.response.start",
+                                    "status": 401,
+                                    "headers": [
+                                        (b"content-type", b"application/json"),
+                                        (b"www-authenticate", challenge.encode()),
+                                        (b"content-length", str(len(body)).encode()),
+                                    ],
+                                })
+                                await send({
+                                    "type": "http.response.body",
+                                    "body": body,
+                                })
+                                return
+
                 await self.app(scope, receive, send)
 
         app.add_middleware(BearerAuthMiddleware)

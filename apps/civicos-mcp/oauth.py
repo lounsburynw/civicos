@@ -13,11 +13,28 @@ Flow:
 6. User clicks Allow → auth code issued → redirect to Claude callback
 7. Claude exchanges code at /token → gets access_token + refresh_token
 8. Claude includes Bearer <token> on all MCP requests → free tier
+
+## Stateless tokens
+
+Access tokens, refresh tokens, and authorization codes are all HMAC-signed
+self-contained strings. Any container serving the MCP server can verify
+them without shared state. This is required because Modal spins up
+multiple containers: if we stored tokens in a per-container dict, a token
+issued by container A would be unknown to container B, and MCP tool calls
+would fail with 'open tier' errors even for OAuth-authenticated clients.
+
+The signing secret is derived from DATABASE_URL (stable across all
+containers of the same deployment) unless CIVICOS_OAUTH_SECRET is set
+explicitly. If neither is available, we fall back to a random per-container
+secret and log a warning (tokens won't work across restarts — local dev).
 """
 
 import base64
 import hashlib
+import hmac
+import json
 import logging
+import os
 import secrets
 import time
 
@@ -26,43 +43,161 @@ from fastapi.responses import HTMLResponse, JSONResponse
 
 logger = logging.getLogger("civicos-mcp.oauth")
 
-# ─────────── In-memory stores ───────────
-# Reset on container restart → users re-authenticate (acceptable for free tier)
-
-_clients: dict[str, dict] = {}
-_auth_codes: dict[str, dict] = {}
-_access_tokens: dict[str, dict] = {}
-_refresh_tokens: dict[str, dict] = {}
+# ─────────── TTLs ───────────
 
 TOKEN_TTL = 7 * 24 * 3600  # 7 days
 REFRESH_TTL = 30 * 24 * 3600  # 30 days
 CODE_TTL = 300  # 5 minutes
 
+# ─────────── Client registration store (in-memory, cosmetic only) ───────────
+# Used to show the client_name on the consent page. Non-security-critical:
+# the auth code signature encodes the client_id and redirect_uri, so the
+# OAuth flow works even if the container doesn't have the registration.
 
-# ─────────── Token verification (called by BearerAuthMiddleware) ───────────
+_clients: dict[str, dict] = {}
+
+# Lazy-initialized signing secret (see _get_signing_secret)
+_signing_secret_cache: bytes | None = None
+
+
+# ─────────── Signing secret ───────────
+
+def _get_signing_secret() -> bytes:
+    """Get the HMAC signing secret for OAuth tokens.
+
+    Priority:
+    1. CIVICOS_OAUTH_SECRET env var (explicit override)
+    2. Derived from DATABASE_URL (stable across all containers of a deployment)
+    3. Random per-container (WARNING: tokens won't work across containers or restarts)
+    """
+    global _signing_secret_cache
+    if _signing_secret_cache is not None:
+        return _signing_secret_cache
+
+    explicit = os.getenv("CIVICOS_OAUTH_SECRET")
+    if explicit:
+        _signing_secret_cache = hashlib.sha256(explicit.encode()).digest()
+        return _signing_secret_cache
+
+    db_url = os.getenv("DATABASE_URL", "")
+    if db_url:
+        # Derive a stable 32-byte key from DATABASE_URL.
+        # Fixed salt namespaces the derivation so the DB URL itself is not
+        # the key material directly.
+        _signing_secret_cache = hashlib.sha256(
+            b"civicos-oauth-v1:" + db_url.encode()
+        ).digest()
+        return _signing_secret_cache
+
+    logger.warning(
+        "No CIVICOS_OAUTH_SECRET or DATABASE_URL available — using random "
+        "signing key. OAuth tokens won't survive container restarts."
+    )
+    _signing_secret_cache = secrets.token_bytes(32)
+    return _signing_secret_cache
+
+
+# ─────────── Base64url helpers ───────────
+
+def _b64encode(data: bytes) -> str:
+    return base64.urlsafe_b64encode(data).rstrip(b"=").decode()
+
+
+def _b64decode(s: str) -> bytes:
+    # Add padding back for decode
+    pad = "=" * (-len(s) % 4)
+    return base64.urlsafe_b64decode(s + pad)
+
+
+# ─────────── Signed-token primitives ───────────
+
+def _sign_payload(payload: dict) -> str:
+    """Create a signed token string: <b64(payload_json)>.<b64(hmac_sig)>"""
+    payload_bytes = json.dumps(payload, separators=(",", ":"), sort_keys=True).encode()
+    payload_b64 = _b64encode(payload_bytes)
+    sig = hmac.new(
+        _get_signing_secret(), payload_b64.encode(), hashlib.sha256
+    ).digest()
+    return f"{payload_b64}.{_b64encode(sig)}"
+
+
+def _verify_signed(token_body: str) -> dict | None:
+    """Verify a signed token string and return the payload dict, or None.
+
+    Does NOT check expiry — callers should check the 'exp' field themselves.
+    """
+    try:
+        payload_b64, sig_b64 = token_body.split(".", 1)
+    except ValueError:
+        return None
+
+    expected_sig = hmac.new(
+        _get_signing_secret(), payload_b64.encode(), hashlib.sha256
+    ).digest()
+    try:
+        provided_sig = _b64decode(sig_b64)
+    except (ValueError, Exception):
+        return None
+
+    if not hmac.compare_digest(expected_sig, provided_sig):
+        return None
+
+    try:
+        return json.loads(_b64decode(payload_b64))
+    except (ValueError, json.JSONDecodeError):
+        return None
+
+
+# ─────────── Public: token verification (called by BearerAuthMiddleware) ───────────
 
 def verify_oauth_token(token: str) -> dict | None:
-    """Check if a token is a valid OAuth access token. Returns token info or None."""
-    _prune_expired()
-    info = _access_tokens.get(token)
-    if not info:
+    """Verify an OAuth access token. Returns token info dict or None.
+
+    Token format: cos_<payload_b64>.<sig_b64>
+    Payload: {"sub": client_id, "typ": "at", "iat": ..., "exp": ..., "scope": "mcp"}
+    """
+    if not token.startswith("cos_"):
         return None
-    if time.time() > info["expires_at"]:
-        del _access_tokens[token]
+    payload = _verify_signed(token[4:])
+    if payload is None:
         return None
-    return info
+    if payload.get("typ") != "at":
+        return None
+    if time.time() > payload.get("exp", 0):
+        return None
+    return {
+        "client_id": payload.get("sub"),
+        "issued_at": payload.get("iat"),
+        "expires_at": payload.get("exp"),
+    }
 
 
-def _prune_expired():
-    """Remove expired tokens and codes. Called periodically."""
-    now = time.time()
-    for code in [k for k, v in _auth_codes.items() if now > v["expires_at"]]:
-        del _auth_codes[code]
-    for token in [k for k, v in _access_tokens.items() if now > v["expires_at"]]:
-        del _access_tokens[token]
-    for token in [k for k, v in _refresh_tokens.items()
-                  if now - v["issued_at"] > REFRESH_TTL]:
-        del _refresh_tokens[token]
+def _verify_refresh_token(token: str) -> dict | None:
+    """Verify a refresh token. Returns payload dict or None."""
+    if not token.startswith("cosr_"):
+        return None
+    payload = _verify_signed(token[5:])
+    if payload is None:
+        return None
+    if payload.get("typ") != "rt":
+        return None
+    if time.time() > payload.get("exp", 0):
+        return None
+    return payload
+
+
+def _verify_auth_code(code: str) -> dict | None:
+    """Verify a signed authorization code. Returns payload dict or None."""
+    if not code.startswith("cosc_"):
+        return None
+    payload = _verify_signed(code[5:])
+    if payload is None:
+        return None
+    if payload.get("typ") != "ac":
+        return None
+    if time.time() > payload.get("exp", 0):
+        return None
+    return payload
 
 
 # ─────────── PKCE helpers ───────────
@@ -87,7 +222,6 @@ def _html_redirect(url: str) -> HTMLResponse:
     MCP OAuth client (Claude.ai) also follows it since it's implemented
     with a browser window (webbrowser.open()).
     """
-    # Escape for use in attribute/JS contexts
     import html as html_mod
     safe_url_attr = html_mod.escape(url, quote=True)
     safe_url_js = url.replace("\\", "\\\\").replace("'", "\\'").replace("\n", "")
@@ -105,29 +239,63 @@ def _html_redirect(url: str) -> HTMLResponse:
 # ─────────── Token issuance ───────────
 
 def _issue_tokens(client_id: str) -> dict:
-    """Issue a new access token and refresh token."""
-    access_token = f"cos_{secrets.token_urlsafe(32)}"
-    refresh_token = f"cosr_{secrets.token_urlsafe(32)}"
-    now = time.time()
+    """Issue a new stateless access token and refresh token."""
+    now = int(time.time())
 
-    _access_tokens[access_token] = {
-        "client_id": client_id,
-        "issued_at": now,
-        "expires_at": now + TOKEN_TTL,
+    access_payload = {
+        "sub": client_id,
+        "typ": "at",
+        "iat": now,
+        "exp": now + TOKEN_TTL,
+        "scope": "mcp",
     }
-    _refresh_tokens[refresh_token] = {
-        "client_id": client_id,
-        "issued_at": now,
-        "access_token": access_token,
+    refresh_payload = {
+        "sub": client_id,
+        "typ": "rt",
+        "iat": now,
+        "exp": now + REFRESH_TTL,
+        "scope": "mcp",
     }
 
     return {
-        "access_token": access_token,
+        "access_token": f"cos_{_sign_payload(access_payload)}",
         "token_type": "bearer",
         "expires_in": TOKEN_TTL,
-        "refresh_token": refresh_token,
+        "refresh_token": f"cosr_{_sign_payload(refresh_payload)}",
         "scope": "mcp",
     }
+
+
+def _issue_auth_code(
+    client_id: str,
+    redirect_uri: str,
+    code_challenge: str,
+    code_challenge_method: str,
+) -> str:
+    """Issue a stateless authorization code.
+
+    The code is signed and encodes everything needed for exchange:
+    client_id, redirect_uri, PKCE challenge + method, expiry. A nonce is
+    added so the same (client_id, challenge) pair generates different
+    codes each time.
+
+    Note on single-use: stateless codes cannot be marked as "consumed"
+    without shared storage. We rely on the short TTL (5 minutes), HTTPS
+    transport, and PKCE verifier binding to mitigate replay risk. The
+    OAuth client (Claude.ai) exchanges codes within seconds of issue.
+    """
+    now = int(time.time())
+    payload = {
+        "sub": client_id,
+        "typ": "ac",
+        "iat": now,
+        "exp": now + CODE_TTL,
+        "ru": redirect_uri,
+        "cc": code_challenge,
+        "ccm": code_challenge_method,
+        "nonce": secrets.token_urlsafe(8),
+    }
+    return f"cosc_{_sign_payload(payload)}"
 
 
 # ─────────── Consent page HTML ───────────
@@ -291,8 +459,14 @@ def create_oauth_router(server_url: str, display_name: str) -> APIRouter:
             ),
             "registered_at": time.time(),
         }
+        # Cached locally for cosmetic consent-page lookup only.
+        # The OAuth flow doesn't depend on this; auth codes and tokens are
+        # stateless and don't need the registration to verify.
         _clients[client_id] = registration
-        logger.info("OAuth client registered: %s (%s)", client_id, registration["client_name"])
+        logger.info(
+            "OAuth client registered: %s (%s)",
+            client_id, registration["client_name"],
+        )
         return JSONResponse(registration, status_code=201)
 
     # ── Authorization endpoint ──
@@ -334,22 +508,32 @@ def create_oauth_router(server_url: str, display_name: str) -> APIRouter:
         code_challenge = str(form.get("code_challenge", ""))
         code_challenge_method = str(form.get("code_challenge_method", "S256"))
 
-        # Validate redirect_uri against client registration
-        client = _clients.get(client_id)
-        if client and redirect_uri not in client.get("redirect_uris", []):
+        if not client_id or not code_challenge:
             return JSONResponse(
-                {"error": "invalid_request", "error_description": "redirect_uri mismatch"},
+                {"error": "invalid_request",
+                 "error_description": "client_id and code_challenge required"},
                 status_code=400,
             )
 
-        code = secrets.token_urlsafe(32)
-        _auth_codes[code] = {
-            "challenge": code_challenge,
-            "method": code_challenge_method,
-            "redirect_uri": redirect_uri,
-            "client_id": client_id,
-            "expires_at": time.time() + CODE_TTL,
-        }
+        # If the client was registered on this container, validate its
+        # redirect_uri allow-list. If not registered (multi-container or
+        # cold start), skip — we cannot distinguish "unregistered" from
+        # "registered on another container" without shared storage. The
+        # PKCE verifier still protects code exchange.
+        client = _clients.get(client_id)
+        if client and redirect_uri not in client.get("redirect_uris", []):
+            return JSONResponse(
+                {"error": "invalid_request",
+                 "error_description": "redirect_uri mismatch"},
+                status_code=400,
+            )
+
+        code = _issue_auth_code(
+            client_id=client_id,
+            redirect_uri=redirect_uri,
+            code_challenge=code_challenge,
+            code_challenge_method=code_challenge_method,
+        )
 
         sep = "&" if "?" in redirect_uri else "?"
         logger.info("OAuth authorization code issued for client %s", client_id)
@@ -368,36 +552,30 @@ def create_oauth_router(server_url: str, display_name: str) -> APIRouter:
             code_verifier = str(form.get("code_verifier", ""))
             client_id = str(form.get("client_id", ""))
 
-            entry = _auth_codes.pop(code, None)
-            if not entry or time.time() > entry["expires_at"]:
+            payload = _verify_auth_code(code)
+            if payload is None:
                 return JSONResponse({"error": "invalid_grant"}, status_code=400)
 
-            # Validate client_id matches
-            if entry.get("client_id") and entry["client_id"] != client_id:
+            # Validate client_id matches the one the code was issued for
+            if payload.get("sub") != client_id:
                 return JSONResponse({"error": "invalid_grant"}, status_code=400)
 
             # Verify PKCE
-            if entry["challenge"]:
-                if not _verify_pkce(code_verifier, entry["challenge"], entry["method"]):
-                    return JSONResponse({"error": "invalid_grant"}, status_code=400)
+            challenge = payload.get("cc", "")
+            method = payload.get("ccm", "S256")
+            if challenge and not _verify_pkce(code_verifier, challenge, method):
+                return JSONResponse({"error": "invalid_grant"}, status_code=400)
 
             logger.info("OAuth token issued for client %s", client_id)
             return JSONResponse(_issue_tokens(client_id))
 
         if grant_type == "refresh_token":
             refresh = str(form.get("refresh_token", ""))
-            entry = _refresh_tokens.pop(refresh, None)
-            if not entry:
-                return JSONResponse({"error": "invalid_grant"}, status_code=400)
-            if time.time() - entry["issued_at"] > REFRESH_TTL:
+            payload = _verify_refresh_token(refresh)
+            if payload is None:
                 return JSONResponse({"error": "invalid_grant"}, status_code=400)
 
-            # Revoke the old access token
-            old_access = entry.get("access_token")
-            if old_access and old_access in _access_tokens:
-                del _access_tokens[old_access]
-
-            client_id = entry.get("client_id", "")
+            client_id = payload.get("sub", "")
             logger.info("OAuth token refreshed for client %s", client_id)
             return JSONResponse(_issue_tokens(client_id))
 
