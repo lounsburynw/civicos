@@ -26294,3 +26294,57 @@ through to the FastMCP streamable-http handler with "free" tier context.
 https://san-rafael.civicosproject.org/mcp, confirm the real Claude.ai
 OAuth flow works. The Cloudflare Worker error was a gotcha — if Claude.ai
 hits another unexpected path through the Worker, we'll find it then.
+
+## Session — 2026-04-10 (cont'd: stateless OAuth + 401 on invalid token)
+
+**User reported via Claude.ai UI:** Tool calls returning "Tool 'get_upcoming_meetings'
+requires 'free' tier (current: 'open')" even though OAuth flow succeeded. Reproduced
+from this Claude Code session's MCP connector.
+
+**Root cause:** In-memory OAuth token storage is incompatible with Modal's multi-
+container deployment. Token issued in container A → stored in container A's
+`_access_tokens` dict. Subsequent MCP calls routed to container B → token unknown
+→ fall through to `open` tier → tool wrapper rejects.
+
+**Fix 1: Stateless HMAC-signed tokens (apps/civicos-mcp/oauth.py rewrite)**
+- Access tokens, refresh tokens, and auth codes are now HMAC-SHA256 signed
+  payloads: `<prefix>_<b64(json_payload)>.<b64(signature)>`
+- Signing secret derived from DATABASE_URL (stable across all containers of a
+  deployment) via SHA-256 with namespace salt. Override with CIVICOS_OAUTH_SECRET
+  env var if needed.
+- Payload includes typ field ("at"/"rt"/"ac") to prevent cross-type forgery
+- Removed _access_tokens, _refresh_tokens, _auth_codes in-memory dicts
+- Kept _clients dict for cosmetic consent-page client_name display; OAuth flow
+  no longer depends on it (redirect_uri validation gracefully skipped if client
+  not cached)
+- Auth codes are no longer single-use-enforced (impossible without shared
+  storage); PKCE verifier binding + 5-min TTL are the mitigations. Documented
+  in _issue_auth_code docstring.
+
+**Fix 2: 401 on invalid OAuth tokens (apps/civicos-mcp/modal_mcp.py)**
+- BearerAuthMiddleware now returns 401 + RFC 6750 WWW-Authenticate challenge
+  for recognizable-but-invalid cos_* tokens on /mcp/* paths
+- Without this, stale/invalid OAuth tokens silently downgraded to the "open"
+  tier, making failures opaque to end users and preventing MCP clients from
+  re-running the OAuth flow
+- Uses static server_url (from registry.json) in resource_metadata because
+  Cloudflare Workers proxying via fetch() set Host to the Modal internal URL
+- Only applies to /mcp/* paths — health and OAuth endpoints unaffected
+- cvk_live_* API key path unchanged (existing behavior)
+
+**Tests: 34/34 passing** (added 4: tampered token, wrong type, stateless-verify,
+stateless auth codes). Most important: test_tokens_verify_without_shared_state
+proves tokens verify after clearing all in-memory state.
+
+**Production verified end-to-end:**
+- 10 parallel tool calls with same OAuth token → 10/10 OK (no tier errors)
+- Same token still works 30s later → OK
+- Invalid cos_* token → 401 with correct WWW-Authenticate and Cloudflare URL
+- Unauthenticated request → 200 at open tier (unchanged)
+
+**User action required:** Existing Claude.ai / Claude Code connectors hold stale
+OAuth tokens from before the fix. These either fail silently (drop the Auth
+header → open tier → tier error) or return 401 (new behavior). The fix does
+NOT auto-recover them — user must disconnect + reconnect the MCP connector in
+their Claude.ai / Claude Code UI to get a fresh token that matches the new
+signing secret.

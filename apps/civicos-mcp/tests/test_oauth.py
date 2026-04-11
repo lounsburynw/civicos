@@ -16,32 +16,27 @@ import pytest
 sys.path.insert(0, "apps/civicos-mcp")
 
 from oauth import (
-    _access_tokens,
-    _auth_codes,
     _clients,
-    _refresh_tokens,
     _verify_pkce,
+    _verify_signed,
+    _sign_payload,
     create_oauth_router,
     verify_oauth_token,
     _issue_tokens,
-    _prune_expired,
+    _issue_auth_code,
+    _verify_auth_code,
+    _verify_refresh_token,
     TOKEN_TTL,
     CODE_TTL,
 )
 
 
 @pytest.fixture(autouse=True)
-def clean_stores():
-    """Clear all in-memory stores between tests."""
+def clean_client_cache():
+    """Clear the (non-critical) client registration cache between tests."""
     _clients.clear()
-    _auth_codes.clear()
-    _access_tokens.clear()
-    _refresh_tokens.clear()
     yield
     _clients.clear()
-    _auth_codes.clear()
-    _access_tokens.clear()
-    _refresh_tokens.clear()
 
 
 # ─────────── PKCE verification ───────────
@@ -93,13 +88,39 @@ class TestTokens:
         assert verify_oauth_token("cos_nonexistent") is None
 
     def test_verify_expired_token(self):
+        # Build an expired signed access token directly
+        now = int(time.time())
+        payload = {
+            "sub": "test-client",
+            "typ": "at",
+            "iat": now - TOKEN_TTL - 100,
+            "exp": now - 1,  # already expired
+            "scope": "mcp",
+        }
+        expired_token = f"cos_{_sign_payload(payload)}"
+        assert verify_oauth_token(expired_token) is None
+
+    def test_verify_tampered_token(self):
+        """Tokens with a tampered payload or signature must not verify."""
         result = _issue_tokens("test-client")
         token = result["access_token"]
-        # Manually expire the token
-        _access_tokens[token]["expires_at"] = time.time() - 1
+        # Flip a character in the signature portion
+        body = token[4:]  # strip cos_
+        payload_b64, sig_b64 = body.split(".", 1)
+        tampered = f"cos_{payload_b64}.{sig_b64[:-3]}xxx"
+        assert verify_oauth_token(tampered) is None
+
+    def test_verify_token_wrong_type(self):
+        """A signed token with typ != 'at' must not verify as access token."""
+        now = int(time.time())
+        payload = {
+            "sub": "test-client",
+            "typ": "rt",  # refresh token, not access
+            "iat": now,
+            "exp": now + 3600,
+        }
+        token = f"cos_{_sign_payload(payload)}"
         assert verify_oauth_token(token) is None
-        # Token should be cleaned up
-        assert token not in _access_tokens
 
     def test_multiple_tokens_independent(self):
         r1 = _issue_tokens("client-a")
@@ -107,40 +128,76 @@ class TestTokens:
         assert verify_oauth_token(r1["access_token"])["client_id"] == "client-a"
         assert verify_oauth_token(r2["access_token"])["client_id"] == "client-b"
 
+    def test_tokens_verify_without_shared_state(self):
+        """Critical: stateless tokens must verify even after clearing any cache.
 
-# ─────────── Pruning ───────────
+        This is the property we need for multi-container Modal deployments.
+        If this test passes, a token issued by container A will still verify
+        on container B as long as they share the same signing secret.
+        """
+        result = _issue_tokens("test-client")
+        token = result["access_token"]
+        # Simulate a fresh container: wipe the only mutable state we keep
+        _clients.clear()
+        # Token still verifies
+        info = verify_oauth_token(token)
+        assert info is not None
+        assert info["client_id"] == "test-client"
 
-class TestPruning:
-    def test_prune_expired_codes(self):
-        _auth_codes["old_code"] = {
-            "challenge": "x",
-            "method": "S256",
-            "redirect_uri": "https://example.com",
-            "client_id": "test",
-            "expires_at": time.time() - 1,
+
+# ─────────── Stateless auth codes ───────────
+
+class TestAuthCodes:
+    def test_issue_and_verify(self):
+        code = _issue_auth_code(
+            client_id="test-client",
+            redirect_uri="https://example.com/cb",
+            code_challenge="abc",
+            code_challenge_method="S256",
+        )
+        assert code.startswith("cosc_")
+        payload = _verify_auth_code(code)
+        assert payload is not None
+        assert payload["sub"] == "test-client"
+        assert payload["ru"] == "https://example.com/cb"
+        assert payload["cc"] == "abc"
+        assert payload["ccm"] == "S256"
+
+    def test_expired_code_rejected(self):
+        now = int(time.time())
+        payload = {
+            "sub": "test",
+            "typ": "ac",
+            "iat": now - CODE_TTL - 100,
+            "exp": now - 1,
+            "ru": "https://example.com",
+            "cc": "x", "ccm": "S256",
+            "nonce": "abc",
         }
-        _prune_expired()
-        assert "old_code" not in _auth_codes
+        expired = f"cosc_{_sign_payload(payload)}"
+        assert _verify_auth_code(expired) is None
 
-    def test_prune_keeps_valid_codes(self):
-        _auth_codes["valid_code"] = {
-            "challenge": "x",
-            "method": "S256",
-            "redirect_uri": "https://example.com",
-            "client_id": "test",
-            "expires_at": time.time() + 300,
-        }
-        _prune_expired()
-        assert "valid_code" in _auth_codes
+    def test_tampered_code_rejected(self):
+        code = _issue_auth_code("test", "https://example.com", "x", "S256")
+        tampered = code[:-3] + "xxx"
+        assert _verify_auth_code(tampered) is None
 
-    def test_prune_expired_tokens(self):
-        _access_tokens["old_token"] = {
-            "client_id": "test",
-            "issued_at": time.time() - TOKEN_TTL - 1,
-            "expires_at": time.time() - 1,
-        }
-        _prune_expired()
-        assert "old_token" not in _access_tokens
+
+# ─────────── Stateless refresh tokens ───────────
+
+class TestRefreshTokens:
+    def test_refresh_token_verifies(self):
+        result = _issue_tokens("test-client")
+        payload = _verify_refresh_token(result["refresh_token"])
+        assert payload is not None
+        assert payload["sub"] == "test-client"
+        assert payload["typ"] == "rt"
+
+    def test_refresh_token_wrong_type(self):
+        """An access token must not verify as a refresh token."""
+        result = _issue_tokens("test-client")
+        # Access token is cos_*, not cosr_* — won't match
+        assert _verify_refresh_token(result["access_token"]) is None
 
 
 # ─────────── FastAPI router integration tests ───────────
@@ -385,36 +442,39 @@ class TestOAuthRouter:
         assert r.json()["error"] == "invalid_grant"
 
     def test_token_exchange_expired_code(self, client):
-        reg = client.post("/register", json={
-            "client_name": "Claude",
-            "redirect_uris": ["https://claude.ai/api/mcp/auth_callback"],
-        })
-        client_id = reg.json()["client_id"]
+        """An expired auth code is rejected at the /token endpoint."""
         verifier, challenge = self._make_pkce()
-
-        r = client.post("/authorize", data={
-            "action": "allow",
-            "state": "s",
-            "redirect_uri": "https://claude.ai/api/mcp/auth_callback",
-            "client_id": client_id,
-            "code_challenge": challenge,
-            "code_challenge_method": "S256",
-        }, follow_redirects=False)
-        code = self._extract_redirect_url(r).split("code=")[1].split("&")[0]
-
-        # Expire the code
-        _auth_codes[code]["expires_at"] = time.time() - 1
+        # Directly craft an expired signed code (simulating time passing)
+        now = int(time.time())
+        payload = {
+            "sub": "test-client-xyz",
+            "typ": "ac",
+            "iat": now - CODE_TTL - 100,
+            "exp": now - 1,
+            "ru": "https://claude.ai/api/mcp/auth_callback",
+            "cc": challenge,
+            "ccm": "S256",
+            "nonce": "abc",
+        }
+        expired_code = f"cosc_{_sign_payload(payload)}"
 
         r = client.post("/token", data={
             "grant_type": "authorization_code",
-            "code": code,
-            "client_id": client_id,
+            "code": expired_code,
+            "client_id": "test-client-xyz",
             "code_verifier": verifier,
         })
         assert r.status_code == 400
+        assert r.json()["error"] == "invalid_grant"
 
-    def test_code_single_use(self, client):
-        """Authorization codes can only be used once."""
+    def test_code_requires_correct_verifier(self, client):
+        """Stateless codes are not enforced single-use, but PKCE verifier binding
+        prevents token exchange without the verifier that matches the challenge.
+
+        This is the primary protection against replay since codes can't be
+        marked as consumed without shared storage (see oauth._issue_auth_code
+        docstring for rationale).
+        """
         reg = client.post("/register", json={
             "client_name": "Claude",
             "redirect_uris": ["https://claude.ai/api/mcp/auth_callback"],
@@ -432,7 +492,7 @@ class TestOAuthRouter:
         }, follow_redirects=False)
         code = self._extract_redirect_url(r).split("code=")[1].split("&")[0]
 
-        # First use succeeds
+        # With correct verifier → succeeds
         r = client.post("/token", data={
             "grant_type": "authorization_code",
             "code": code,
@@ -441,12 +501,12 @@ class TestOAuthRouter:
         })
         assert r.status_code == 200
 
-        # Second use fails (code was consumed)
+        # Same code + wrong verifier → rejected by PKCE check
         r = client.post("/token", data={
             "grant_type": "authorization_code",
             "code": code,
             "client_id": client_id,
-            "code_verifier": verifier,
+            "code_verifier": "wrong_" + verifier,
         })
         assert r.status_code == 400
 
@@ -481,7 +541,6 @@ class TestOAuthRouter:
     def test_refresh_token_flow(self, client):
         # Get initial tokens
         result = _issue_tokens("test-client")
-        old_access = result["access_token"]
         refresh = result["refresh_token"]
 
         r = client.post("/token", data={
@@ -491,21 +550,9 @@ class TestOAuthRouter:
         assert r.status_code == 200
         data = r.json()
         assert data["access_token"].startswith("cos_")
-        assert data["access_token"] != old_access  # New token issued
-
-        # Old access token should be revoked
-        assert verify_oauth_token(old_access) is None
-        # New token should work
+        # New token verifies
         assert verify_oauth_token(data["access_token"]) is not None
-
-    def test_refresh_token_single_use(self):
-        result = _issue_tokens("test-client")
-        refresh = result["refresh_token"]
-        # Consume the refresh token
-        assert refresh in _refresh_tokens
-        del _refresh_tokens[refresh]
-        # Can't reuse
-        assert refresh not in _refresh_tokens
+        assert verify_oauth_token(data["access_token"])["client_id"] == "test-client"
 
     def test_invalid_refresh_token(self, client):
         r = client.post("/token", data={
