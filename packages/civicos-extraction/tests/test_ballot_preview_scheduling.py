@@ -136,4 +136,7 @@ class TestCustomWindowDays:
         at_boundary = (date.today() + timedelta(days=45)).isoformat()
         past_boundary = (date.today() + timedelta(days=46)).isoformat()
         assert ballot_preview_skip_reason(at_boundary, window_days=45) is None
-        assert ballot_preview_skip_reason(past_boundary, window_days=45) is not None
+        past_reason = ballot_preview_skip_reason(past_boundary, window_days=45)
+        assert past_reason is not None
+        assert "too early" in past_reason
+        assert "46 days away" in past_reason

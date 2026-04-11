@@ -54,25 +54,31 @@ class TestModelsRequireCreatedAt:
 
     def test_voice_accepts_created_at(self):
         """Voice model accepts valid created_at."""
+        now = int(time.time())
         v = Voice(
             entity="test:entity",
             stance=Stance.SUPPORT,
             public_key="a" * 64,
             signature="b" * 128,
-            created_at=int(time.time()),
+            created_at=now,
         )
-        assert v.created_at > 0
+        assert v.created_at == now
+        assert v.entity == "test:entity"
+        assert v.stance == Stance.SUPPORT
 
     def test_action_accepts_created_at(self):
         """Action model accepts valid created_at."""
+        now = int(time.time())
         a = Action(
             action_id="action:test",
             action_type=ActionType.COMMITMENT,
             public_key="a" * 64,
             signature="b" * 128,
-            created_at=int(time.time()),
+            created_at=now,
         )
-        assert a.created_at > 0
+        assert a.created_at == now
+        assert a.action_id == "action:test"
+        assert a.action_type == ActionType.COMMITMENT
 
 
 class TestRequestSchemasRequireCreatedAt:
@@ -140,8 +146,8 @@ class TestClockSkewValidation:
     def test_check_created_at_valid(self):
         """Current timestamp passes clock skew check."""
         from civicos_relay.server.coordination import _check_created_at
-        # Should not raise
-        _check_created_at(int(time.time()))
+        # Returns None on success; any raise would fail the test
+        assert _check_created_at(int(time.time())) is None
 
     def test_check_created_at_future(self):
         """Timestamp 10 minutes in the future fails."""
@@ -163,9 +169,9 @@ class TestClockSkewValidation:
         """Timestamp 4 minutes off passes (within 5-minute tolerance)."""
         from civicos_relay.server.coordination import _check_created_at
         # 4 minutes in the past — should pass
-        _check_created_at(int(time.time()) - 240)
+        assert _check_created_at(int(time.time()) - 240) is None
         # 4 minutes in the future — should pass
-        _check_created_at(int(time.time()) + 240)
+        assert _check_created_at(int(time.time()) + 240) is None
 
 
 class TestActionServiceVerifyIncludesCreatedAt:
@@ -279,6 +285,10 @@ class TestVoiceSignatureStillWorks:
         kp = KeyPair.generate()
         voice = sign_voice(kp, "decision:test:item-1", Stance.SUPPORT)
 
-        assert voice.created_at is not None
-        assert voice.created_at > 0
+        # created_at must be a recent epoch timestamp (> Jan 2024),
+        # not 0 or a far-past default value
+        assert voice.created_at > 1_700_000_000
+        assert voice.entity == "decision:test:item-1"
+        assert voice.stance == Stance.SUPPORT
+        assert voice.public_key == kp.public_key_hex
         assert verify_voice(voice) is True

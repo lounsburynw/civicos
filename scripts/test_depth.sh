@@ -123,7 +123,10 @@ run_mutate() {
     local total=0
     local completed=0
 
-    echo "$MUTATION_TARGETS" | grep -v '^$' | while IFS='|' read -r source test_dir target label; do
+    local queue_file="$OUTDIR/.mutate_queue"
+    echo "$MUTATION_TARGETS" | grep -v '^$' > "$queue_file"
+
+    while IFS='|' read -r source test_dir target label; do
         total=$((total + 1))
 
         if [ ! -f "$source" ]; then
@@ -146,7 +149,8 @@ run_mutate() {
         fi
 
         sleep 2
-    done
+    done < "$queue_file"
+    rm -f "$queue_file"
 
     echo ""
     echo "  Mutation baselines complete: $completed modules"
@@ -185,7 +189,10 @@ run_audit() {
         echo "--- $pkg ---"
 
         # Get test files that existed before the overhaul script
-        find "$test_dir" -name 'test_*.py' ! -newer scripts/test_overhaul.sh -print | sort | while read -r test_file; do
+        local audit_queue="$OUTDIR/.audit_queue_${pkg}"
+        find "$test_dir" -name 'test_*.py' ! -newer scripts/test_overhaul.sh -print | sort > "$audit_queue"
+
+        while read -r test_file; do
             total=$((total + 1))
             pkg_src=$(pkg_src_for "$test_file")
             safe_name=$(echo "$test_file" | tr '/' '_')
@@ -209,7 +216,8 @@ run_audit() {
             fi
 
             sleep 2
-        done
+        done < "$audit_queue"
+        rm -f "$audit_queue"
     done
 
     echo ""
