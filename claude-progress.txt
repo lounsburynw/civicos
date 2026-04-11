@@ -26203,3 +26203,48 @@ Next P0: index_county_marin_decision_vectors (already set by parallel session)
 - All 45 jurisdiction tests passing
 
 **Next P0:** add_real_source_item_id — thread real source-platform item IDs through extraction pipeline for federation dedup.
+
+## Session — 2026-04-10 (mcp_oauth_provider)
+
+**Item:** mcp_oauth_provider (P0, distribution)
+
+**Changes:**
+- Created `apps/civicos-mcp/oauth.py` — OAuth 2.1 provider (~370 lines):
+  - In-memory stores for clients, auth codes, access tokens, refresh tokens
+  - PKCE S256 verification
+  - `/.well-known/oauth-authorization-server` (RFC 8414)
+  - `/.well-known/oauth-protected-resource` (RFC 9728)
+  - `/.well-known/openid-configuration` (OIDC fallback)
+  - `POST /register` — Dynamic Client Registration (RFC 7591)
+  - `GET /authorize` — Branded consent page (no password required for free tier)
+  - `POST /authorize` — Issues auth code after user clicks Allow
+  - `POST /token` — authorization_code + refresh_token grant types
+  - `verify_oauth_token(token)` helper for middleware
+- Modified `apps/civicos-mcp/modal_mcp.py`:
+  - Extended BearerAuthMiddleware to accept OAuth tokens (`cos_*`) alongside API keys (`cvk_live_*`)
+  - OAuth-authenticated users get "free" tier (60 req/min)
+  - Mount OAuth router in FastAPI app
+  - Updated health endpoint to advertise OAuth endpoints
+- Created `apps/civicos-mcp/tests/test_oauth.py` — 30 tests covering:
+  - PKCE verification (4 tests)
+  - Token issuance, validation, expiry (5 tests)
+  - Pruning (3 tests)
+  - FastAPI router integration: metadata, DCR, authorize GET/POST, token exchange, refresh, security (18 tests)
+- Updated `apps/civicos-mcp/README.md` with Claude.ai Connector setup instructions
+- Updated `launch.json` — mcp_oauth_provider: done
+
+**Tests:** 30/30 OAuth tests pass. End-to-end integration test verified full flow:
+metadata discovery → DCR → PKCE authorize → code exchange → token validation → refresh.
+
+**Design decisions:**
+- In-memory token store (Modal container restart = re-auth, acceptable for free tier)
+- No password on consent page (public data, just Allow/Deny)
+- Tokens prefixed `cos_` / `cosr_` to distinguish from API keys
+- Existing Bearer auth (`cvk_live_*`) unaffected
+- PKCE S256 required (no plain)
+
+**Not deployed yet.** Local tests pass but Modal deployment + Claude.ai connector test is the next step
+(intentionally gated on user approval — production change).
+
+**Next P0:** TBD — once deployed and verified with Claude.ai, the next distribution item is
+`mcp_free_tier_rate_limiting` (ensure the free tier actually limits correctly per-OAuth-session).

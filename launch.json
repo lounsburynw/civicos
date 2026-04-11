@@ -743,13 +743,14 @@
         "name": "free_tier_rate_limiting",
         "description": "OAuth-authenticated users get generous free tier (e.g. 50 queries/day) without requiring API key purchase. Collect usage patterns to inform billing model.",
         "status": "not_started",
-        "priority": 1,
+        "priority": 0,
         "files": [
-          "apps/civicos-mcp/modal_app.py",
+          "apps/civicos-mcp/modal_mcp.py",
+          "apps/civicos-mcp/oauth.py",
           "apps/civicos-mcp/api_key_middleware.py"
         ],
-        "test_file": null,
-        "notes": "Depends on mcp_oauth_provider. Free tier lets us launch without Stripe and collect real usage data to decide billing model."
+        "test_file": "apps/civicos-mcp/tests/test_oauth.py",
+        "notes": "Promoted to P0 on 2026-04-10 after mcp_oauth_provider completion. OAuth sessions already get 'free' tier context in BearerAuthMiddleware (modal_mcp.py), but the per-OAuth-session rate limit needs to be enforced via api_key_middleware's SlidingWindowRateLimiter. Currently all OAuth users share the IP-based rate limit, not a per-session limit. Also needs daily quota tracking (e.g. 50 queries/day) for OAuth sessions, distinct from per-minute rate limits used for paid tiers."
       }
     ]
   },
