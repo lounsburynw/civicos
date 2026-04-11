@@ -26248,3 +26248,49 @@ metadata discovery → DCR → PKCE authorize → code exchange → token valida
 
 **Next P0:** TBD — once deployed and verified with Claude.ai, the next distribution item is
 `mcp_free_tier_rate_limiting` (ensure the free tier actually limits correctly per-OAuth-session).
+
+## Session — 2026-04-10 (cont'd: OAuth production deploy + fixes)
+
+**Deployed to production Modal workspace (civicos, not lounsburynw).** The
+registry.json config specifies modal_workspace=civicos; my initial deploy
+went to the lounsburynw workspace which was unreachable via Cloudflare.
+After switching profiles (modal profile activate civicos), the production
+deploy hit v43 (previous production v42 was from 2026-03-05, 35 days stale).
+
+**Two production-only bugs found and fixed:**
+
+1. **Missing python-multipart in Modal image.** fastapi[standard] doesn't
+   reliably install python-multipart, and POST /authorize needs it to
+   parse form data from the consent page submission. Added explicit
+   python-multipart>=0.0.6 to mcp_image pip_install.
+
+2. **Cloudflare Worker throws error 1101 on 302 responses with external
+   Location.** There's a Cloudflare Worker in front of
+   *.civicosproject.org (not in this repo) that crashes with "Worker
+   threw exception" when /authorize returns a 302 with an external
+   Location header (claude.ai or anything outside civicosproject.org).
+   POST /register (JSON 201) works fine, POST /authorize (302) does not.
+   WORKAROUND: oauth._html_redirect() now returns a 200 HTML response
+   with meta refresh + window.location.replace() JavaScript. Browsers
+   handle this identically to a server-side 302. Tests updated to
+   extract the redirect URL from the HTML body instead of the Location
+   header.
+
+**Verified end-to-end against production san-rafael.civicosproject.org:**
+- All metadata endpoints return correct JSON
+- DCR returns civic_* client_id
+- Consent page (GET /authorize) renders with jurisdiction branding
+- POST /authorize with PKCE returns 200 HTML redirect
+- POST /token exchanges code for cos_* access token
+- **MCP /mcp/ initialize with OAuth Bearer token returns 200** (SSE
+  stream with protocolVersion + capabilities)
+- Refresh token rotation works
+
+The end-to-end MCP call is the critical moment — it proves
+BearerAuthMiddleware.cos_* branch is working and the request flows
+through to the FastMCP streamable-http handler with "free" tier context.
+
+**Next:** Open Claude.ai > Settings > Connectors, add
+https://san-rafael.civicosproject.org/mcp, confirm the real Claude.ai
+OAuth flow works. The Cloudflare Worker error was a gotcha — if Claude.ai
+hits another unexpected path through the Worker, we'll find it then.

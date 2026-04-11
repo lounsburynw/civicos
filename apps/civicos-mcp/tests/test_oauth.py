@@ -168,6 +168,20 @@ class TestOAuthRouter:
         ).rstrip(b"=").decode()
         return verifier, challenge
 
+    def _extract_redirect_url(self, response):
+        """Extract the redirect URL from a 200 HTML-redirect response.
+
+        The authorize POST returns 200 HTML with JS/meta redirect rather
+        than a 302 (see oauth._html_redirect docstring for why).
+        """
+        import re
+        # Prefer the meta refresh URL (most reliable to parse)
+        m = re.search(r'content="0; url=([^"]+)"', response.text)
+        if m:
+            import html as html_mod
+            return html_mod.unescape(m.group(1))
+        return None
+
     # ── Metadata discovery ──
 
     def test_protected_resource_metadata(self, client):
@@ -255,9 +269,11 @@ class TestOAuthRouter:
             "code_challenge": "test_challenge",
             "code_challenge_method": "S256",
         }, follow_redirects=False)
-        assert r.status_code == 302
-        assert "error=access_denied" in r.headers["location"]
-        assert "state=test_state" in r.headers["location"]
+        assert r.status_code == 200
+        url = self._extract_redirect_url(r)
+        assert url is not None
+        assert "error=access_denied" in url
+        assert "state=test_state" in url
 
     def test_authorize_allow_issues_code(self, client):
         reg = client.post("/register", json={
@@ -275,10 +291,11 @@ class TestOAuthRouter:
             "code_challenge": challenge,
             "code_challenge_method": "S256",
         }, follow_redirects=False)
-        assert r.status_code == 302
-        location = r.headers["location"]
-        assert "code=" in location
-        assert "state=test_state" in location
+        assert r.status_code == 200
+        url = self._extract_redirect_url(r)
+        assert url is not None
+        assert "code=" in url
+        assert "state=test_state" in url
 
     def test_authorize_rejects_wrong_redirect_uri(self, client):
         reg = client.post("/register", json={
@@ -319,9 +336,8 @@ class TestOAuthRouter:
             "code_challenge": challenge,
             "code_challenge_method": "S256",
         }, follow_redirects=False)
-        # Extract code from redirect URL
-        location = r.headers["location"]
-        code = location.split("code=")[1].split("&")[0]
+        # Extract code from HTML redirect
+        code = self._extract_redirect_url(r).split("code=")[1].split("&")[0]
 
         # 3. Exchange code for token
         r = client.post("/token", data={
@@ -356,7 +372,7 @@ class TestOAuthRouter:
             "code_challenge": challenge,
             "code_challenge_method": "S256",
         }, follow_redirects=False)
-        code = r.headers["location"].split("code=")[1].split("&")[0]
+        code = self._extract_redirect_url(r).split("code=")[1].split("&")[0]
 
         # Wrong verifier
         r = client.post("/token", data={
@@ -384,7 +400,7 @@ class TestOAuthRouter:
             "code_challenge": challenge,
             "code_challenge_method": "S256",
         }, follow_redirects=False)
-        code = r.headers["location"].split("code=")[1].split("&")[0]
+        code = self._extract_redirect_url(r).split("code=")[1].split("&")[0]
 
         # Expire the code
         _auth_codes[code]["expires_at"] = time.time() - 1
@@ -414,7 +430,7 @@ class TestOAuthRouter:
             "code_challenge": challenge,
             "code_challenge_method": "S256",
         }, follow_redirects=False)
-        code = r.headers["location"].split("code=")[1].split("&")[0]
+        code = self._extract_redirect_url(r).split("code=")[1].split("&")[0]
 
         # First use succeeds
         r = client.post("/token", data={
@@ -450,7 +466,7 @@ class TestOAuthRouter:
             "code_challenge": challenge,
             "code_challenge_method": "S256",
         }, follow_redirects=False)
-        code = r.headers["location"].split("code=")[1].split("&")[0]
+        code = self._extract_redirect_url(r).split("code=")[1].split("&")[0]
 
         r = client.post("/token", data={
             "grant_type": "authorization_code",
