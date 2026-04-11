@@ -212,6 +212,8 @@ added to the server must declare its scope row before it's bound.
 | `get_intergovernmental_revenue` | primary + direct parent | — | state | Revenue flows from parents |
 | `query_issue_data` | primary | — | primary | 311 is scoped to the responding jurisdiction |
 | `get_issue_analytics` | primary | — | primary | Analytics don't aggregate meaningfully across jurisdictions |
+| `get_issue_trends` | primary | — | primary | Trend timeseries tied to one 311 system |
+| `geo_search_issues` | primary | — | primary | Geographic search bounded to one jurisdiction |
 | `get_issue_resolution_stats` | primary | — | primary | Resolution is by local crews |
 | `detect_trends` | primary | — | primary | Trend detection is jurisdiction-specific |
 | `get_issue_sample` | primary | — | primary | Sampling from one jurisdiction |

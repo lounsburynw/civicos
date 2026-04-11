@@ -755,8 +755,8 @@
       {
         "name": "scope_policy_table",
         "description": "Build apps/civicos-mcp/tools/scope.py — the authoritative tool-to-scope-policy dict that the tool wrapper consults to decide vertical/horizontal scope expansion per call. Every currently-bound tool gets a row with default_scope, expandable_scope, max_scope fields. Read-side tools (search_*, get_upcoming_meetings, etc.) get expansion policies; write-side tools (compose_public_comment, broadcast_voice, broadcast_initiative, etc.) are marked strict-primary with refusal semantics. Thread the policy into _wrap_handler in modal_mcp.py so it's actually consulted at call time (for now, the policy just sets request-scoped context — step 2 wires it into the v2 API calls).",
-        "status": "not_started",
-        "priority": 0,
+        "status": "done",
+        "priority": 3,
         "files": [
           "apps/civicos-mcp/tools/scope.py",
           "apps/civicos-mcp/modal_mcp.py",
@@ -764,13 +764,13 @@
           "docs/public/decisions/tool_scope_and_federation.md"
         ],
         "test_file": "apps/civicos-mcp/tests/test_scope_policy.py",
-        "notes": "P0 for next session (2026-04-11). Authoritative reference is docs/public/decisions/tool_scope_and_federation.md — the ADR contains the full scope table for every bound tool (read-side, write-side, admin). Work is: (1) create tools/scope.py with a SCOPE_POLICIES dict matching the ADR's table, typed with a ScopePolicy dataclass; (2) add a get_scope_policy(tool_name) helper; (3) write test_scope_policy.py that validates every bound tool has a row and that the read/write semantics are consistent; (4) add a module-level assertion in _bind_handlers (modal_mcp.py) that refuses to bind a tool that doesn't have a scope entry. Expected session length: 2-4 hours. Not yet wiring into v2 API calls — that's step 2 (scope_policy_passthrough). Reason to do as P0: small, contained, unblocks everything downstream, and forces a concrete commitment to the ADR's claims."
+        "notes": "DONE 2026-04-11. Shipped: (1) apps/civicos-mcp/tools/scope.py with Scope enum (8 values, distinct string codes + breadth map for invariant comparisons), ScopePolicy dataclass, SCOPE_POLICIES dict covering all 57 bound tools (37 read / 14 write / 6 admin), get_scope_policy() helper. (2) ADR updated to add get_issue_trends and geo_search_issues rows (previously missed). (3) modal_mcp.py: _mcp_request_scope contextvar added alongside _mcp_request_tier, binding-time assertion in _bind_handlers raises RuntimeError if any handler_map entry lacks a SCOPE_POLICIES row, _wrap_handler now sets the contextvar before dispatching so downstream code can observe resolved scope passively. (4) test_scope_policy.py has 183 tests covering coverage (handler_map ↔ SCOPE_POLICIES via AST parse), invariants (max >= default, expandable between default and max), classification rules (write-side primary/federal only except list_* sibling-exempt, admin primary-only, federal-read anchored to FEDERAL), and ADR spot-checks. All 183 pass. Caught one real bug during implementation: initial Enum with duplicate int values silently aliased PRIMARY_PLUS_SIBLINGS to PRIMARY_PLUS_PARENT — fixed to use distinct string values with separate breadth map. OAuth tests (11 failures) are pre-existing and unrelated (missing python-multipart dep). Non-goals deferred as planned: v2 API passthrough (next P0), region config, regional deployment."
       },
       {
         "name": "scope_policy_passthrough",
         "description": "Wire the scope policy table into the actual v2 API calls. Tool handlers that call civicos_services.query functions (civic_search, civic_upcoming, civic_context) pass include_parents / include_siblings / include_region flags derived from the scope policy. Results include jurisdiction-labeled entries so AI callers can tell apart which jurisdiction each decision/meeting/bill came from.",
         "status": "not_started",
-        "priority": 1,
+        "priority": 0,
         "files": [
           "apps/civicos-mcp/tools/handlers.py",
           "apps/civicos-mcp/tools/scope.py",

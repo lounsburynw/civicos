@@ -26419,3 +26419,125 @@ works fine, not blocking anything. Will bubble back up once scope work lands.
 ADR at docs/public/decisions/tool_scope_and_federation.md. Next session should
 `/load_context scope_policy_table` then spend most of the session on the
 scope.py module + tests + the modal_mcp.py assertion.
+
+================================================================================
+# 2026-04-11 — Session: scope_policy_table (P0) DONE
+
+Shipped the first step of the four-step scope work sequence. Distribution P0
+scope_policy_table is now done; scope_policy_passthrough promoted to P0.
+
+## What shipped
+
+1. **apps/civicos-mcp/tools/scope.py** (new, ~470 lines)
+   - `Scope` enum: PRIMARY, PRIMARY_PLUS_PARENT, PRIMARY_PLUS_SIBLINGS,
+     PRIMARY_PLUS_ALL_PARENTS, PRIMARY_PLUS_REGION, REGION, STATE, FEDERAL.
+     String values (not int) so duplicates can't silently alias.
+   - `_SCOPE_BREADTH` map + `scope_breadth()` helper for rank comparisons
+     in the invariant tests (horizontal and vertical axes are orthogonal,
+     so this is a partial-order linearisation, not a true lattice).
+   - `ScopePolicy` frozen dataclass: default_scope, expandable_scope,
+     max_scope, kind (Literal["read","write","admin"]), notes.
+   - `SCOPE_POLICIES: dict[str, ScopePolicy]` — 57 rows covering every
+     tool in modal_mcp.py handler_map:
+       * 37 read-side tools
+       * 14 write-side tools (12 strictly primary, 2 sibling-exempt
+         list_initiatives/list_relays, 2 federal-only draft/prepare_federal_comment)
+       *  6 admin tools
+   - `get_scope_policy(tool_name)` helper with a clear KeyError message
+     pointing at both scope.py and the ADR.
+
+2. **ADR updated** (docs/public/decisions/tool_scope_and_federation.md)
+   - Added two missing rows to the read-side table: `get_issue_trends`
+     and `geo_search_issues`. Both primary-only, matching the pattern
+     for the other 311/issue tools. These were bound in handler_map but
+     omitted from the original ADR table — caught by the coverage test.
+
+3. **modal_mcp.py threaded**
+   - `_mcp_request_scope` contextvar added alongside `_mcp_request_tier`
+     (lines ~158–165). Default None. Passively populated in this P0;
+     consumer ships in scope_policy_passthrough.
+   - Binding-time assertion in `_bind_handlers` (before the bind loop):
+     any tool in handler_map missing from SCOPE_POLICIES raises
+     RuntimeError at server startup with a clear fix hint.
+   - `_wrap_handler` sets `_mcp_request_scope` from `get_scope_policy()`
+     after the tier check and before dispatching to the handler. Nothing
+     reads it yet — step 2 will.
+
+4. **apps/civicos-mcp/tests/test_scope_policy.py** (new, ~280 lines)
+   - Coverage: parses handler_map out of modal_mcp.py via AST (avoids
+     importing the Modal runtime), asserts bound ⊆ SCOPE_POLICIES and
+     no orphans.
+   - Invariants: parametrised over all 57 rows — kind is recognised,
+     max_scope ≥ default_scope by breadth rank, expandable sits between
+     default and max when non-null.
+   - Classification: write-side tools are primary/federal only except
+     list_* sibling-exempts; admin tools cap at PRIMARY and cannot
+     declare expandable; federal-only read tools anchor at FEDERAL.
+   - ADR spot checks: 4 load-bearing rows pinned so silent ADR drift
+     blows up loudly (get_upcoming_meetings horizontal, search_legislation
+     vertical, compose_public_comment strict, list_initiatives read-in-disguise).
+   - Result: **183 passed in 0.11s**.
+
+## Bugs caught during implementation
+
+1. **Enum alias bug in scope.py**: my first draft used `class Scope(Enum)`
+   with int values and intentional duplicates (PRIMARY_PLUS_PARENT=2,
+   PRIMARY_PLUS_SIBLINGS=2, etc.) to encode breadth. Python's Enum
+   silently aliased the second definition to the first, so
+   `Scope.PRIMARY_PLUS_SIBLINGS is Scope.PRIMARY_PLUS_PARENT` evaluated
+   True — every sibling-tool row would have loaded as a parent-tool
+   row. Caught before running tests by asking "is this an alias?". Fix:
+   use distinct string values and a separate `_SCOPE_BREADTH` dict for
+   the rank. This is also why the policy notes explicitly describe the
+   breadth map as a linearisation, not a lattice — the axes are
+   genuinely orthogonal and the rank is only used for invariant sanity
+   checks, not for runtime decisions.
+
+2. **ADR coverage gap**: handler_map has 57 tools, the ADR table had
+   only 55. `get_issue_trends` and `geo_search_issues` were bound but
+   never scoped in the decision record. Updated the ADR in the same
+   commit as the code so they stay in sync.
+
+## Test status
+
+- `test_scope_policy.py`: 183/183 pass.
+- `test_mcp_tools.py`: 19/19 pass (unchanged).
+- `test_oauth.py`: 11 failures, confirmed pre-existing via `git stash`
+  + rerun. All fail with `python-multipart library must be installed`
+  — environment/dependency issue unrelated to this work. Flagging here
+  so it doesn't get mistaken for a regression; worth installing the
+  dep in a separate session.
+
+## Files touched
+
+- apps/civicos-mcp/tools/scope.py (new)
+- apps/civicos-mcp/modal_mcp.py (contextvar + assertion + setter)
+- apps/civicos-mcp/tests/test_scope_policy.py (new)
+- docs/public/decisions/tool_scope_and_federation.md (2 rows added)
+- launch.json (scope_policy_table done, scope_policy_passthrough → P0)
+
+## Next P0: scope_policy_passthrough
+
+Now that the policy table exists and is asserted at bind time, the
+next step is to *consult* it. That means updating the tool handlers in
+apps/civicos-mcp/tools/handlers.py that call v2 query functions so
+they pass include_parents / include_siblings / (eventually)
+include_region flags derived from the policy. The v2 query layer
+already supports include_parents and include_siblings, so this is
+mostly plumbing. The proof-of-vertical-expansion test the handoff
+suggests: call search_legislation on city-san-rafael and assert the
+result set contains items labeled state-california and
+country-united-states.
+
+Two things to think about before starting step 2:
+
+1. The contextvar is set passively right now. The consumer in the
+   handlers will need to either read `_mcp_request_scope.get()` or take
+   the policy as an explicit parameter. Contextvar is nicer because it
+   doesn't change the handler signature, but it means handlers implicitly
+   depend on whether _wrap_handler ran first. Worth deciding consciously.
+
+2. Result labeling. The v2 query layer returns jurisdiction-labeled
+   results already (each item has a `jurisdiction` field), but the
+   current formatters may drop or collapse it. Step 2 should verify
+   the labels survive all the way to the MCP response payload.
