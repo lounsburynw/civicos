@@ -26385,3 +26385,37 @@ fix since they previously silently downgraded to 'open'.
 before the stateless rewrite still can't be used. Remove + re-add the
 connector in Claude.ai. With this latest fix, the re-add should auto-run
 DCR and not show the optional manual fields.
+
+## Session — 2026-04-11 (cont'd: scope ADR + next-session sequence)
+
+**Scope architecture ADR authored** (docs/public/decisions/tool_scope_and_federation.md):
+disentangles three scope axes (vertical city→federal, horizontal sibling/region,
+ownership/federation), commits to "scope lives on tools not deployments", and
+establishes the read/write split (reads expand freely with labeled results,
+writes stay anchored to authoritative operator). Includes an authoritative
+per-tool scope policy table for every currently-bound tool. Referenced from
+CLAUDE.md, docs/public/README.md (now a proper ADR index), and
+apps/civicos-mcp/README.md (Architecture section) so future sessions find it.
+
+**Four launch items added to distribution category for sequential execution:**
+
+- scope_policy_table (P0) — create apps/civicos-mcp/tools/scope.py as
+  authoritative dict-of-tool-to-scope-policy. Thread into _bind_handlers
+  with an assertion that refuses to bind unscoped tools. 2-4 hours.
+- scope_policy_passthrough (P1) — wire the scope policy into v2 API calls
+  (include_parents/include_siblings flags) and add jurisdiction labeling to
+  result formatting. 2-4 hours.
+- region_config_concept (P2) — introduce 'regions' in config/registry.json
+  with nested region support. JurisdictionRegistry.resolve_region(). Marin
+  is the first region to define. 2-4 hours.
+- regional_server_deployment (P3) — deploy marin.civicosproject.org/mcp or
+  bay-area.civicosproject.org/mcp as operational boundaries. Not urgent;
+  per-city servers become regionally capable after steps 1-3.
+
+**free_tier_rate_limiting demoted** from P0 to P2. No abuse observed, OAuth
+works fine, not blocking anything. Will bubble back up once scope work lands.
+
+**Next P0:** scope_policy_table. Authoritative reference for the work is the
+ADR at docs/public/decisions/tool_scope_and_federation.md. Next session should
+`/load_context scope_policy_table` then spend most of the session on the
+scope.py module + tests + the modal_mcp.py assertion.

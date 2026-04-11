@@ -743,14 +743,68 @@
         "name": "free_tier_rate_limiting",
         "description": "OAuth-authenticated users get generous free tier (e.g. 50 queries/day) without requiring API key purchase. Collect usage patterns to inform billing model.",
         "status": "not_started",
-        "priority": 0,
+        "priority": 2,
         "files": [
           "apps/civicos-mcp/modal_mcp.py",
           "apps/civicos-mcp/oauth.py",
           "apps/civicos-mcp/api_key_middleware.py"
         ],
         "test_file": "apps/civicos-mcp/tests/test_oauth.py",
-        "notes": "Promoted to P0 on 2026-04-10 after mcp_oauth_provider completion. OAuth sessions already get 'free' tier context in BearerAuthMiddleware (modal_mcp.py), but the per-OAuth-session rate limit needs to be enforced via api_key_middleware's SlidingWindowRateLimiter. Currently all OAuth users share the IP-based rate limit, not a per-session limit. Also needs daily quota tracking (e.g. 50 queries/day) for OAuth sessions, distinct from per-minute rate limits used for paid tiers."
+        "notes": "Demoted from P0 to P2 on 2026-04-11. OAuth sessions already get 'free' tier context in BearerAuthMiddleware but per-OAuth-session rate limit is not enforced (they share IP-based rate limit). Not urgent — no abuse observed yet, OAuth works fine, this is a hardening item. Will bubble up as a priority once scope work lands and usage grows. Needs per-session sliding window + daily quota (e.g. 50 queries/day) distinct from per-minute tier limits."
+      },
+      {
+        "name": "scope_policy_table",
+        "description": "Build apps/civicos-mcp/tools/scope.py — the authoritative tool-to-scope-policy dict that the tool wrapper consults to decide vertical/horizontal scope expansion per call. Every currently-bound tool gets a row with default_scope, expandable_scope, max_scope fields. Read-side tools (search_*, get_upcoming_meetings, etc.) get expansion policies; write-side tools (compose_public_comment, broadcast_voice, broadcast_initiative, etc.) are marked strict-primary with refusal semantics. Thread the policy into _wrap_handler in modal_mcp.py so it's actually consulted at call time (for now, the policy just sets request-scoped context — step 2 wires it into the v2 API calls).",
+        "status": "not_started",
+        "priority": 0,
+        "files": [
+          "apps/civicos-mcp/tools/scope.py",
+          "apps/civicos-mcp/modal_mcp.py",
+          "apps/civicos-mcp/tools/registry.py",
+          "docs/public/decisions/tool_scope_and_federation.md"
+        ],
+        "test_file": "apps/civicos-mcp/tests/test_scope_policy.py",
+        "notes": "P0 for next session (2026-04-11). Authoritative reference is docs/public/decisions/tool_scope_and_federation.md — the ADR contains the full scope table for every bound tool (read-side, write-side, admin). Work is: (1) create tools/scope.py with a SCOPE_POLICIES dict matching the ADR's table, typed with a ScopePolicy dataclass; (2) add a get_scope_policy(tool_name) helper; (3) write test_scope_policy.py that validates every bound tool has a row and that the read/write semantics are consistent; (4) add a module-level assertion in _bind_handlers (modal_mcp.py) that refuses to bind a tool that doesn't have a scope entry. Expected session length: 2-4 hours. Not yet wiring into v2 API calls — that's step 2 (scope_policy_passthrough). Reason to do as P0: small, contained, unblocks everything downstream, and forces a concrete commitment to the ADR's claims."
+      },
+      {
+        "name": "scope_policy_passthrough",
+        "description": "Wire the scope policy table into the actual v2 API calls. Tool handlers that call civicos_services.query functions (civic_search, civic_upcoming, civic_context) pass include_parents / include_siblings / include_region flags derived from the scope policy. Results include jurisdiction-labeled entries so AI callers can tell apart which jurisdiction each decision/meeting/bill came from.",
+        "status": "not_started",
+        "priority": 1,
+        "files": [
+          "apps/civicos-mcp/tools/handlers.py",
+          "apps/civicos-mcp/tools/scope.py",
+          "packages/civicos-services/src/civicos_services/query/"
+        ],
+        "test_file": "apps/civicos-mcp/tests/test_scope_policy_passthrough.py",
+        "notes": "Depends on scope_policy_table. Once the scope.py module exists, the tool handlers that wrap v2 queries need to consult it and pass the appropriate include_parents/include_siblings flags to the v2 API. The v2 API already supports these flags; this item is just plumbing. Also adds jurisdiction labeling to result formatting so a search_legislation result set that spans local+county+state+federal is clearly attributed. Test: make a search_legislation call on city-san-rafael, assert results include items from state-california and country-united-states (proof of vertical expansion). Expected session length: 2-4 hours."
+      },
+      {
+        "name": "region_config_concept",
+        "description": "Introduce a 'regions' top-level key in config/registry.json. A region is a named set of jurisdiction IDs (can include other regions for nesting). The scope policy's 'region' expansion consults this config to resolve 'what cities are in marin?'. No new deployment — existing san-rafael server uses region=marin as its default-expand-to setting, and existing tools with region scope start returning cross-city results.",
+        "status": "not_started",
+        "priority": 2,
+        "files": [
+          "config/registry.json",
+          "packages/civicos-config/src/civicos_config/jurisdiction.py",
+          "apps/civicos-mcp/tools/scope.py",
+          "apps/civicos-mcp/modal_mcp.py"
+        ],
+        "test_file": "apps/civicos-mcp/tests/test_region_config.py",
+        "notes": "Depends on scope_policy_passthrough. Region concept: { 'regions': { 'marin': { 'display_name': 'Marin County', 'members': ['county-marin', 'city-san-rafael', 'city-mill-valley', ...] }, 'bay-area': { 'display_name': 'SF Bay Area', 'members': ['region-marin', 'county-san-francisco', 'county-alameda', ...] } } }. Nested regions resolve recursively. JurisdictionRegistry in civicos-config loads the region dict and provides resolve_region(name) -> list of jurisdiction IDs. Tool wrapper uses CIVICOS_REGION env var (new) to set the server's default region; scope policy's region expansion then iterates region members. Marin is the first region to define because it matches the live use case (Claude.ai user asking 'what about other Marin cities?'). Bay Area can be added but not deployed as a separate server yet. Expected session length: 2-4 hours."
+      },
+      {
+        "name": "regional_server_deployment",
+        "description": "Deploy bay-area.civicosproject.org/mcp (or marin.civicosproject.org/mcp) as an operational boundary separate from the per-city servers. It's literally the same codebase with CIVICOS_JURISDICTION and CIVICOS_REGION env vars pointing at the region, and a different Modal app name / Cloudflare subdomain. Users install ONE connector for regional coverage instead of N per-city connectors.",
+        "status": "not_started",
+        "priority": 3,
+        "files": [
+          "apps/civicos-mcp/modal_mcp.py",
+          "config/registry.json",
+          ".github/workflows/"
+        ],
+        "test_file": null,
+        "notes": "Depends on region_config_concept. Once regions are a first-class concept in the registry, deploying a new regional server is just a matter of (1) registering the new Modal app name in registry.json, (2) setting CIVICOS_REGION in a new Modal secret, (3) running modal deploy with CIVICOS_JURISDICTION set to a 'primary' jurisdiction in the region (likely county-marin or similar — needed for the open-tier fallback and for writes). May want to introduce a 'regional facade' jurisdiction type that explicitly has no writes — writes get refused with 'please use the connector for {city} to take this action'. Cloudflare DNS + Worker routing setup required (same pattern as existing subdomains). Not a blocker for shipping scope work — the per-city servers become regionally-capable after steps 1-3, so this is only needed for the clean 'one connector per region' UX."
       }
     ]
   },
