@@ -768,22 +768,35 @@
       },
       {
         "name": "scope_policy_passthrough",
-        "description": "Wire the scope policy table into the actual v2 API calls. Tool handlers that call civicos_services.query functions (civic_search, civic_upcoming, civic_context) pass include_parents / include_siblings / include_region flags derived from the scope policy. Results include jurisdiction-labeled entries so AI callers can tell apart which jurisdiction each decision/meeting/bill came from.",
-        "status": "not_started",
-        "priority": 0,
+        "description": "Wire the scope policy table into the actual tool handlers. MCP tool handlers that walk parents/siblings resolve the ScopePolicy via tools/scope_walk.walk_scope() and return jurisdiction-labeled results so AI callers can tell which jurisdiction each item came from.",
+        "status": "done",
+        "priority": 3,
         "files": [
           "apps/civicos-mcp/tools/handlers.py",
           "apps/civicos-mcp/tools/scope.py",
-          "packages/civicos-services/src/civicos_services/query/"
+          "apps/civicos-mcp/tools/scope_walk.py",
+          "apps/civicos-mcp/modal_mcp.py"
         ],
         "test_file": "apps/civicos-mcp/tests/test_scope_policy_passthrough.py",
-        "notes": "Depends on scope_policy_table. Once the scope.py module exists, the tool handlers that wrap v2 queries need to consult it and pass the appropriate include_parents/include_siblings flags to the v2 API. The v2 API already supports these flags; this item is just plumbing. Also adds jurisdiction labeling to result formatting so a search_legislation result set that spans local+county+state+federal is clearly attributed. Test: make a search_legislation call on city-san-rafael, assert results include items from state-california and country-united-states (proof of vertical expansion). Expected session length: 2-4 hours."
+        "notes": "DONE 2026-04-11. Architectural finding: MCP handlers do NOT call v2 query — they make 25 direct civic.storage.* calls. Original handoff assumption was wrong. Chose Option C (hybrid): built tools/scope_walk.py as the scope-resolution helper, wired 5 handlers (search_legislation, get_upcoming_meetings, find_similar_issues, search_regulatory_stack, get_started). scope_walk resolves a Scope enum to a list of jurisdictions via registry.json parent_jurisdictions (using the public civicos.registry.get_registry() API), fans a storage_call closure across them, and stamps each returned row with a jurisdiction label. _mcp_request_scope contextvar moved from modal_mcp.py into tools/scope.py to break the import cycle between the producer and consumers. 20 new tests including the headline test_vertical_expansion_labels_state_and_federal that proves search_legislation on san-rafael returns items labeled state-california AND country-united-states, with structural assertions that labels are attached to the right bill headers. All 222 relevant tests green (183 scope_policy + 19 mcp_tools + 20 passthrough). REGION / PRIMARY_PLUS_REGION raise NotImplementedError until region_config_concept lands. See widen_remaining_handlers_through_scope_walk for the 52-handler follow-up."
+      },
+      {
+        "name": "widen_remaining_handlers_through_scope_walk",
+        "description": "52 MCP handlers currently ignore their scope policy — scope_policy_passthrough only wired 5 (search_legislation, get_upcoming_meetings, find_similar_issues, search_regulatory_stack, get_started). Walk the remaining handlers in tools/handlers.py and wire the ones whose policy default is not PRIMARY through scope_walk. PRIMARY-only handlers need no code changes; document the audit.",
+        "status": "not_started",
+        "priority": 2,
+        "files": [
+          "apps/civicos-mcp/tools/handlers.py",
+          "apps/civicos-mcp/tools/scope_walk.py"
+        ],
+        "test_file": "apps/civicos-mcp/tests/test_scope_policy_passthrough.py",
+        "notes": "Follow-up from scope_policy_passthrough. Most handlers default to PRIMARY and need no changes. The ones that matter are those with default_scope != PRIMARY: get_funding_flow (PRIMARY_PLUS_PARENT), get_intergovernmental_revenue (PRIMARY_PLUS_PARENT), get_leverage_points (PRIMARY_PLUS_PARENT), list_initiatives (PRIMARY_PLUS_SIBLINGS), list_relays (PRIMARY_PLUS_SIBLINGS), plus any federal-default handlers that don't already fetch from the federal tables. Walk the SCOPE_POLICIES table, filter to non-PRIMARY defaults, wire each through walk_scope the same way search_legislation was wired. Ship PRIMARY-only handlers as a short audit section in the PR description rather than code touches. Expected session length: 2-3 hours."
       },
       {
         "name": "region_config_concept",
         "description": "Introduce a 'regions' top-level key in config/registry.json. A region is a named set of jurisdiction IDs (can include other regions for nesting). The scope policy's 'region' expansion consults this config to resolve 'what cities are in marin?'. No new deployment — existing san-rafael server uses region=marin as its default-expand-to setting, and existing tools with region scope start returning cross-city results.",
         "status": "not_started",
-        "priority": 2,
+        "priority": 0,
         "files": [
           "config/registry.json",
           "packages/civicos-config/src/civicos_config/jurisdiction.py",

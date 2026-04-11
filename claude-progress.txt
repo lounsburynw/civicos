@@ -26541,3 +26541,128 @@ Two things to think about before starting step 2:
    results already (each item has a `jurisdiction` field), but the
    current formatters may drop or collapse it. Step 2 should verify
    the labels survive all the way to the MCP response payload.
+
+========================================================================
+Session: scope_policy_passthrough (2026-04-11)
+========================================================================
+
+Shipped step 2 of 4 in the scope work sequence. The scope policy
+table is now load-bearing on 5 MCP tool handlers.
+
+## What shipped
+
+- apps/civicos-mcp/tools/scope_walk.py (new, 229 lines)
+  - resolve_scope_to_jurisdictions(scope, primary) → list[str] via
+    registry.json parent_jurisdictions
+  - walk_scope(policy, primary, storage_call) → labeled list[dict]
+  - MAX_SCOPE_FANOUT = 25
+  - Raises NotImplementedError for REGION / PRIMARY_PLUS_REGION
+  - Uses civicos.registry.get_registry() (public API, not _load_registry)
+
+- apps/civicos-mcp/tools/scope.py
+  - _mcp_request_scope contextvar moved here from modal_mcp.py.
+    Breaks the import cycle between producer (modal_mcp) and
+    consumers (handlers). Both import from tools.scope now.
+  - Module docstring rewritten to document the active integration
+    (was stale — said scope was "observed without acting on it").
+
+- apps/civicos-mcp/modal_mcp.py
+  - _mcp_request_scope declaration replaced with a re-export from
+    tools.scope for backwards compatibility with any external caller
+    that imported it from modal_mcp.
+
+- apps/civicos-mcp/tools/handlers.py (5 handlers wired)
+  1. search_legislation — fans out via walk_scope across jurisdictions
+     mapped to USPS state codes via _LEGISLATION_STATE_CODE.
+     Labels bill headers with "## <bill_num> (<state>) — <jurisdiction>".
+     Legacy _default_legislation_states path preserved for direct
+     (non-MCP) callers when contextvar is None.
+  2. get_upcoming_meetings — swapped civic.whats_next() for
+     civic.storage.get_meetings(jurisdiction_id, since, until)
+     on the walk path so per-jurisdiction queries are possible.
+     Groups results by jurisdiction in per-section "## <jid>" headers.
+  3. find_similar_issues — runs civic.vectors.search(topic, jid, 'issues')
+     per-jurisdiction and emits labeled sections. Divides limit
+     across targets (per_jid_limit = max(3, limit//len(targets))).
+  4. search_regulatory_stack — resolves the scope to learn tier→jid
+     mapping and labels section headers (## Federal (country-united-states)).
+     Underlying civic.what_applies() call is unchanged (already walks).
+  5. get_started — appends a "## Governance Stack" section listing
+     the primary + resolved parent jurisdictions.
+
+- apps/civicos-mcp/tests/test_scope_policy_passthrough.py (new, 20 tests)
+  - TestResolveScopeToJurisdictions (8 tests) — pure registry lookups
+  - TestWalkScope (6 tests) — fan-out semantics, label stamping,
+    failure isolation, region-raises
+  - TestSearchLegislationPassthrough (3 tests) — the headline
+    vertical-expansion proof with structural assertions:
+      assert "SB-100 (CA) — state-california" in output
+      assert "H.R.1 (US) — country-united-states" in output
+    Plus explicit-state override test and legacy-path fallback test
+    (which asserts the ABSENCE of jurisdiction labels to prove it's
+    on the non-scope path).
+  - TestUpcomingMeetingsPassthrough (1 test) — structural section
+    pairing: San Rafael Council must appear under ## city-san-rafael
+    and Mill Valley Council under ## city-mill-valley, NOT swapped.
+  - TestFindSimilarIssuesPassthrough (1 test)
+  - TestGetStartedPassthrough (1 test)
+
+## Critical architectural finding
+
+The prior handoff assumed MCP handlers called civicos_services.query
+(the v2 API). They DO NOT — there are 25 direct civic.storage.*
+calls across handlers.py and ZERO imports from civicos_services.query.
+The v2 query layer (which already supports include_parents /
+include_siblings) is mounted on the HTTP surface for external callers
+but is not consumed by the MCP tool handlers.
+
+Chose Option C (hybrid): keep handlers on direct storage, wire
+scope via the scope_walk helper. Ship 5 handlers as the P0; leave
+the other 52 for a P2 follow-up. The v2 refactor decision stays
+open for a future session.
+
+## Critics addressed
+
+- architecture (critical): scope_walk.py was importing civicos.registry._load_registry (private). Switched to public get_registry(). Fixed.
+- docs (warning): scope.py module docstring said the contextvar was observed "without acting on it". Rewritten to describe the active integration through scope_walk.
+- mutation (warning): strengthened tests:
+    * test_vertical_expansion now asserts label presence on individual bill headers ("SB-100 (CA) — state-california") not just substring presence anywhere
+    * test_no_scope_falls_back asserts ABSENCE of labels to prove legacy path
+    * test_siblings_are_labeled parses sections and verifies pairing (SR meeting under SR section, MV under MV)
+- jurisdiction (pass/info): hardcoded _LEGISLATION_STATE_CODE map noted as operational concern; safe because unmapped states skip cleanly.
+- security (warning, mostly informational): exception swallowing in walk_scope is intentional per handoff (one failing jurisdiction shouldn't poison the whole walk). Documented in code comment.
+- session (pass): single P0 assigned after this session.
+
+## Test results
+
+- 20/20 new passthrough tests passing
+- 183/183 existing scope_policy tests passing (no regression from
+  moving the contextvar)
+- 19/19 mcp_tools tests passing
+- Total regression sweep: 222/222 passing
+
+6 pre-existing failures in test_coordination_tools.py /
+test_initiative_tools.py confirmed unrelated — stash-and-rerun shows
+they fail on main without any of my changes. Schema drift in tool
+registry + relay-connection test flakiness. Documented in the
+handoff as pre-existing.
+
+## launch.json updates
+
+- scope_policy_passthrough: status=done, priority=3
+- widen_remaining_handlers_through_scope_walk: NEW, P2
+  (52 handlers still ignore their policy; ~5-8 need wiring,
+  the rest are PRIMARY-only and audit-only)
+- region_config_concept: promoted P2 → P0 (next session)
+
+## Next session handoff
+
+P0: region_config_concept — wire the REGION / PRIMARY_PLUS_REGION
+scopes that currently raise NotImplementedError in scope_walk.
+Starts by adding a "regions" key to config/registry.json (Marin
+first), then replacing the two NotImplementedError branches with
+real resolution, then wiring the two handlers whose policy
+expandable_scope is PRIMARY_PLUS_REGION.
+
+Details in docs/next_session_prompt.md.
+
