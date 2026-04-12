@@ -648,3 +648,45 @@ class TestRegionRegistryEntry:
         """get_jurisdiction_url returns the Cloudflare domain."""
         url = civicos_registry.get_jurisdiction_url("region-marin")
         assert url == "https://marin.civicosproject.org"
+
+
+class TestDeploymentConfigFromRegistry:
+    """Deployment config (secrets, min_containers) is registry-driven."""
+
+    def test_default_modal_secret_is_civicos_env(self):
+        """Jurisdictions without modal_secret in registry get civicos-env."""
+        config = civicos_registry.get_deployment_config("city-berkeley")
+        assert config["modal_secret"] == "civicos-env"
+
+    def test_federal_has_own_secret(self):
+        config = civicos_registry.get_deployment_config("country-united-states")
+        assert config["modal_secret"] == "civicos-federal-env"
+
+    def test_state_has_own_secret(self):
+        config = civicos_registry.get_deployment_config("state-california")
+        assert config["modal_secret"] == "civicos-california-env"
+
+    def test_county_marin_has_own_secret(self):
+        config = civicos_registry.get_deployment_config("county-marin")
+        assert config["modal_secret"] == "civicos-marin-county-env"
+
+    def test_region_marin_uses_default_secret(self):
+        config = civicos_registry.get_deployment_config("region-marin")
+        assert config["modal_secret"] == "civicos-env"
+
+    def test_default_min_containers_is_zero(self):
+        config = civicos_registry.get_deployment_config("city-berkeley")
+        assert config["min_containers"] == 0
+
+    def test_san_rafael_stays_warm(self):
+        config = civicos_registry.get_deployment_config("city-san-rafael")
+        assert config["min_containers"] == 1
+
+    def test_region_marin_stays_warm(self):
+        config = civicos_registry.get_deployment_config("region-marin")
+        assert config["min_containers"] == 1
+
+    def test_unknown_jurisdiction_gets_defaults(self):
+        config = civicos_registry.get_deployment_config("city-nonexistent")
+        assert config["modal_secret"] == "civicos-env"
+        assert config["min_containers"] == 0

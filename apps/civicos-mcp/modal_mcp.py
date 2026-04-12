@@ -44,7 +44,7 @@ import modal
 JURISDICTION = os.getenv("CIVICOS_JURISDICTION", "city-san-rafael")
 
 # URL and app name resolution uses civicos.registry (loaded from config/registry.json)
-from civicos.registry import get_modal_app_name as get_app_name
+from civicos.registry import get_modal_app_name as get_app_name, get_deployment_config
 
 def get_secrets(jurisdiction: str) -> list[str]:
     """Get list of Modal secret names for this jurisdiction.
@@ -52,35 +52,34 @@ def get_secrets(jurisdiction: str) -> list[str]:
     Order matters: Modal merges env vars left-to-right, so later secrets
     override earlier ones for the same key.  The primary jurisdiction secret
     is loaded LAST so its DATABASE_URL always wins.
+
+    Secret selection is config-driven: ``modal_secret`` in each
+    jurisdiction's ``config/registry.json`` entry overrides the default
+    ``civicos-env``. Geocoding secrets are added for any jurisdiction
+    below state level (cities, counties, regions, schools).
     """
+    config = get_deployment_config(jurisdiction)
     secrets = []
 
     # Shared secrets first (lower precedence)
     secrets.append("civicos-attestation")  # CIVICOS_ATTESTATION_PRIVATE_KEY
     secrets.append("civicos-platform")  # PLATFORM_DATABASE_URL
 
-    # City and region servers may need additional secrets for geocoding
-    if jurisdiction.startswith("city-") or jurisdiction.startswith("region-"):
+    # Geocoding secret for jurisdictions with geographic data.
+    # Federal and state levels don't need address geocoding;
+    # everything else (city, county, region, school) does.
+    if not jurisdiction.startswith(("country-", "state-")):
         secrets.append("civic-google")  # GOOGLE_MAPS_API_KEY for geocoding
 
-    # Primary secret LAST so its DATABASE_URL takes precedence
-    if jurisdiction == "country-united-states":
-        secrets.append("civicos-federal-env")
-    elif jurisdiction == "state-california":
-        secrets.append("civicos-california-env")
-    elif jurisdiction == "county-marin":
-        secrets.append("civicos-marin-county-env")
-    else:
-        # Default: use civicos-env (shared secret for cities and regions)
-        secrets.append("civicos-env")
+    # Primary secret LAST so its DATABASE_URL takes precedence.
+    # Reads modal_secret from registry entry (default: civicos-env).
+    secrets.append(config["modal_secret"])
 
     return secrets
 
 def get_min_containers(jurisdiction: str) -> int:
-    """Primary deployments stay warm, reference implementations don't."""
-    if jurisdiction in ("city-san-rafael", "region-marin"):
-        return 1  # Primary deployments - keep warm
-    return 0  # Reference implementations - cold start OK
+    """Containers to keep warm — reads min_containers from registry (default: 0)."""
+    return get_deployment_config(jurisdiction)["min_containers"]
 
 APP_NAME = get_app_name(JURISDICTION)
 SECRETS = get_secrets(JURISDICTION)
