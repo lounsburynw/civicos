@@ -1553,21 +1553,10 @@ class CivicOS:
             federal_expenditures(): Audited federal spending from FAC (Single Audit)
         """
         from civicos_extraction.clients.ca_state_controller import CAStateControllerClient
-
-        # Map jurisdiction to entity name
-        entity_name_map = {
-            "san-rafael": "San Rafael",
-            "city-san-rafael": "San Rafael",
-            # Add other jurisdictions as needed
-        }
+        from civicos.jurisdiction import JurisdictionRegistry
 
         jid = jurisdiction_id or self.jurisdiction
-
-        entity_name = entity_name_map.get(jid)
-        if not entity_name:
-            # Try extracting from jurisdiction ID (e.g., "city-san-rafael" -> "San Rafael")
-            parts = jid.replace("city-", "").replace("-", " ").title()
-            entity_name = parts
+        entity_name = JurisdictionRegistry.get_display_name(jid, default="") or jid.replace("city-", "").replace("county-", "").replace("-", " ").title()
 
         # Default to most recent year
         if fiscal_year is None:
