@@ -1,45 +1,52 @@
-# Recommended: Free Tier Rate Limiting (`free_tier_rate_limiting`)
+# Recommended: Add Real Source Item ID (`add_real_source_item_id`)
 
 **Priority:** P0
-**Area:** distribution
+**Area:** federation_testbed
 **Date:** 2026-04-11
 
 > Recommended context from prior session. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
 
 ## Context
 
-Prior session completed `implement_captions_transcription_mode` (commits `c41b23d3`, `e1e001e0`). YouTube auto-captions now work as a free transcription alternative to AssemblyAI. The distribution pivot (see memory) prioritizes getting users onto the platform. OAuth is already deployed and working (`mcp_oauth_provider` is done), but OAuth sessions have no per-session rate limiting — they fall through to global IP-based limits. This item adds per-session quotas so the free tier is well-defined and usage patterns can be collected before billing decisions.
+Prior session completed `free_tier_rate_limiting` (commit `63bda209`). OAuth sessions now have per-session rate limiting (50/day + 10/min burst). The launch checklist is nearly complete — only 6 items remain (all P2-P3 except this P0). This item strengthens decision ID stability by threading real platform source IDs through the extraction pipeline, replacing the current "synthetic-D" approach that derives IDs from LLM-extracted fields.
 
 ## Recommended Task
 
-Implement per-OAuth-session rate limiting for the MCP server free tier. OAuth-authenticated users should get a generous daily quota (e.g., 50 queries/day) tracked per session, distinct from the per-minute IP-based limits that already exist.
+Add `source_item_id: Optional[str]` to `HighStakesDecision` dataclass and thread real platform-internal IDs (Granicus event item ID, Legistar MatterId, BoardDocs item ID) through to `compute_stable_decision_id()`. When present, the hash function should include `source_item_id` in the key, providing ground-truth dedup instead of relying on synthetic fields (item_type, outcome, budget_amount).
 
 ## Key Files
 
-- `apps/civicos-mcp/modal_mcp.py:571-648` — `BearerAuthMiddleware` handles auth. Line 611-614 sets `_mcp_request_tier` to `"free"` for OAuth tokens but does NOT call rate limiter
-- `apps/civicos-mcp/api_key_middleware.py:26-59` — `SlidingWindowRateLimiter` (in-memory sliding window). Per-key limits already work for API keys
-- `apps/civicos-mcp/api_key_middleware.py:140-180` — Rate limit check for API keys, uses `f"key:{key_info.key_id}"` as limiter key
-- `apps/civicos-mcp/oauth.py` — OAuth provider, stateless `cos_*` tokens (HMAC-signed, 7-day TTL)
-- `apps/civicos-mcp/api_keys.py:23-30` — Tier rate limit constants (open=30/min, free=60/min)
-- `apps/civicos-mcp/tests/test_oauth.py` — Existing OAuth tests
+- `packages/civicos-extraction/src/civicos_extraction/processing/retrospective_analyzer.py:37-77` — `HighStakesDecision` dataclass. Add `source_item_id: Optional[str] = None` field here.
+- `packages/civicos/src/civicos/storage/integrity.py:129-159` — `compute_stable_decision_id()`. Add `source_item_id` parameter; include in hash when present.
+- `packages/civicos-extraction/src/civicos_extraction/clients/granicus.py` — Granicus client. Events have internal IDs; thread through to decisions.
+- `packages/civicos-extraction/src/civicos_extraction/clients/legistar.py:399-408` — Legistar client already uses `EventId` for meeting IDs. Items have `MatterId` available from the API.
+- `packages/civicos-extraction/src/civicos_extraction/cli/decisions.py` — CLI entry point that calls retrospective_analyzer; passes results to storage.
+- `packages/civicos/src/civicos/storage/postgres_backend.py` — `store_decisions()` calls `compute_stable_decision_id()`.
+- `packages/civicos/tests/test_integrity.py` — Existing tests for `compute_stable_decision_id()`.
+- `packages/civicos/tests/test_integration_decision_dedup.py` — Integration tests for dedup behavior.
 
 ## Suggested Approach
 
-1. **Add daily quota tracking** — Extend `SlidingWindowRateLimiter` or add a `DailyQuotaLimiter` that tracks per-session daily counts. Key: `f"oauth:{session_id}"` (extract from `cos_*` token). In-memory dict with daily reset is fine for now (Modal containers restart frequently).
+1. **Add field to dataclass** — `source_item_id: Optional[str] = None` on `HighStakesDecision`. Both copies (civicos-extraction and civicos-services) must be updated.
 
-2. **Wire into MCP request path** — The rate limiter currently only gates REST API paths, not MCP tool calls. Add rate limit check in `BearerAuthMiddleware` or in `_wrap_handler` (the tool call wrapper in `modal_mcp.py`) for OAuth-authenticated requests.
+2. **Update hash function** — In `compute_stable_decision_id()`, add `source_item_id: Optional[str] = None` parameter. When non-None, include it in the hash key. This means decisions with a source ID get a stronger key, while existing decisions without one continue using synthetic-D.
 
-3. **Define free tier limits** — Something like 50 queries/day + 10 req/min burst. The exact numbers aren't critical — the goal is collecting usage patterns, not blocking users. Log when limits are approached.
+3. **Thread through Granicus client** — Granicus events API returns items with internal IDs. Parse these and populate `source_item_id` when available.
 
-4. **Return proper rate limit response** — MCP protocol should return an error result when rate limited, not silently drop. Include retry-after hint.
+4. **Thread through Legistar client** — Legistar items have `MatterId`. The client already parses `EventId` for meetings (line 399). Do the same for agenda items.
 
-5. **Usage logging** — Log per-session query counts for billing model analysis. This is the primary value — understanding usage patterns.
+5. **Thread through storage** — `store_decisions()` in postgres_backend.py calls `compute_stable_decision_id()`. Pass `source_item_id` through.
+
+6. **Test** — Update `test_integrity.py` with cases for: source_item_id present (stronger key), source_item_id absent (backwards compatible), same decision with/without source_item_id (should produce different IDs — this is expected, not a bug).
 
 ## Tests to Run
 
 ```bash
-# Existing OAuth tests
-civicos-env/bin/python3 -m pytest apps/civicos-mcp/tests/test_oauth.py -v --override-ini="addopts="
+# Integrity tests (direct target)
+civicos-env/bin/python3 -m pytest packages/civicos/tests/test_integrity.py -v --override-ini="addopts="
+
+# Decision dedup integration
+civicos-env/bin/python3 -m pytest packages/civicos/tests/test_integration_decision_dedup.py -v --override-ini="addopts="
 
 # Smoke tests
 civicos-env/bin/python3 -m pytest packages/civicos/tests/test_civicos.py -q --override-ini="addopts="
@@ -47,12 +54,12 @@ civicos-env/bin/python3 -m pytest packages/civicos/tests/test_civicos.py -q --ov
 
 ## Success Criteria
 
-- [ ] OAuth sessions have per-session daily quota (e.g., 50/day)
-- [ ] Rate limit enforced in MCP tool call path, not just REST
-- [ ] Proper error returned when rate limited (not silent drop)
-- [ ] Usage counts logged per session for billing analysis
-- [ ] Existing API key rate limiting unchanged
-- [ ] OAuth tests updated to cover rate limiting
+- [ ] `HighStakesDecision` has `source_item_id: Optional[str] = None` field
+- [ ] `compute_stable_decision_id()` accepts and uses `source_item_id` when present
+- [ ] Granicus client populates `source_item_id` from platform event item IDs
+- [ ] Legistar client populates `source_item_id` from `MatterId`
+- [ ] Backwards compatible: existing decisions without source_item_id still produce same IDs
+- [ ] Tests cover both with/without source_item_id paths
 - [ ] A new P0 assigned before session end
 
 ## Pre-existing test failures (NOT regressions)
@@ -68,7 +75,6 @@ None.
 
 ## Not in scope
 
-- Stripe billing integration (deferred per distribution pivot)
-- Token purchase UI (parked)
-- Persistent rate limit storage (in-memory is fine for now)
-- Admin dashboard for usage metrics (future item)
+- BoardDocs client (no existing client in codebase — only add if Granicus/Legistar are straightforward)
+- Migrating existing decisions to use source_item_id (that's a separate data migration)
+- CivicClerk client (lower priority platform)
