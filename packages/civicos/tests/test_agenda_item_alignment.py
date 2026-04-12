@@ -378,17 +378,15 @@ class TestChunkerWithAgendaItems:
         chunker = TranscriptChunker(max_chunk_size=500)
         chunks = chunker.chunk(utterances, detect_agenda_items=True)
 
-        # First chunk(s) before "item 4" should have no agenda_item
-        # Later chunks should have agenda_item = "4"
-        found_no_item = False
+        # Chunks covering utterances that mention item 4 should detect it
         found_item_4 = False
         for chunk in chunks:
-            if "agenda_item" not in chunk.metadata:
-                found_no_item = True
-            elif chunk.metadata["agenda_item"] == "4":
+            if chunk.metadata.get("agenda_item") == "4":
+                found_item_4 = True
+            elif "agenda_items" in chunk.metadata and "4" in chunk.metadata["agenda_items"]:
                 found_item_4 = True
 
-        assert found_no_item or found_item_4  # At least one condition should be true
+        assert found_item_4, "Agenda item 4 should be detected in chunk metadata"
 
     def test_chunk_spanning_transition(self):
         """Test chunk that might span item transition gets agenda_items list."""
@@ -405,9 +403,10 @@ class TestChunkerWithAgendaItems:
         chunker = TranscriptChunker(max_chunk_size=500)
         chunks = chunker.chunk(utterances, detect_agenda_items=True)
 
-        # This single utterance mentions both items, but detection should find
-        # the first match (item 5) as the span starts there
+        # This single utterance mentions both items, but detection finds
+        # the first match (item 5) due to break-on-first-match in aligner
         assert len(chunks) == 1
+        assert chunks[0].metadata.get("agenda_item") == "5"
 
 
 class TestNormalization:
