@@ -438,6 +438,39 @@ class LegistarClient(BaseExtractor):
         else:
             return "other"
 
+    def get_event_items(self, event_id: int) -> List[Dict[str, Any]]:
+        """
+        Get agenda items for a specific event from the Legistar API.
+
+        Returns normalized items with agenda_number and matter_id for
+        matching LLM-extracted decisions back to platform-internal IDs.
+
+        Args:
+            event_id: Legistar EventId
+
+        Returns:
+            List of dicts with keys: event_item_id, agenda_number, title,
+            matter_id, matter_file
+        """
+        items = self._make_request(f"events/{event_id}/EventItems")
+        if not items or not isinstance(items, list):
+            return []
+
+        normalized = []
+        for item in items:
+            matter_id = item.get("EventItemMatterId")
+            agenda_number = (item.get("EventItemAgendaNumber") or "").strip()
+            title = (item.get("EventItemTitle") or "").strip()
+            if agenda_number or title:
+                normalized.append({
+                    "event_item_id": item.get("EventItemId"),
+                    "agenda_number": agenda_number,
+                    "title": title,
+                    "matter_id": matter_id,
+                    "matter_file": (item.get("EventItemMatterFile") or "").strip(),
+                })
+        return normalized
+
     def get_bodies(self) -> List[Dict[str, Any]]:
         """Get list of meeting bodies (councils, commissions, etc.)."""
         bodies = self._make_request("bodies")

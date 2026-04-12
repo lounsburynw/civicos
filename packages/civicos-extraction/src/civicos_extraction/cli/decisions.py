@@ -480,6 +480,89 @@ def decisions_exist_in_cloud(jurisdiction_id: str, meeting_id: str) -> bool:
     return False
 
 
+def _enrich_source_item_ids(
+    decisions: List[Any],
+    meeting: Dict[str, Any],
+) -> None:
+    """
+    Populate source_item_id on LLM-extracted decisions by matching against
+    platform-internal agenda items.
+
+    Currently supports Legistar (MatterId). For Granicus and other platforms
+    where item-level IDs are not available, this is a no-op.
+
+    Matching uses normalized agenda item numbers (e.g., "5.A" matches "5.a").
+    """
+    source_platform = meeting.get("source_platform", "")
+    if source_platform != "legistar":
+        return
+
+    # Extract Legistar client_name and event_id from meeting data
+    raw_data = meeting.get("raw_data") or {}
+    event_id = raw_data.get("EventId")
+    source_url = meeting.get("source_url") or meeting.get("agenda_url") or ""
+
+    if not event_id:
+        # Try to parse from meeting_id: meeting:{jur}:legistar:{event_id}
+        meeting_id = meeting.get("id", "")
+        parts = meeting_id.split(":")
+        if len(parts) >= 4 and parts[2] == "legistar":
+            try:
+                event_id = int(parts[3])
+            except (ValueError, IndexError):
+                pass
+
+    if not event_id:
+        return
+
+    # Parse client_name from source_url: https://{client}.legistar.com/...
+    client_name = None
+    if "legistar.com" in source_url:
+        try:
+            from urllib.parse import urlparse
+            host = urlparse(source_url).hostname or ""
+            client_name = host.split(".")[0]
+        except Exception:
+            pass
+
+    if not client_name:
+        return
+
+    try:
+        from civicos_extraction.clients.legistar import LegistarClient
+        client = LegistarClient(client_name)
+        event_items = client.get_event_items(event_id)
+    except Exception as e:
+        logger.debug(f"  Legistar event items fetch failed: {e}")
+        return
+
+    if not event_items:
+        return
+
+    # Build lookup: normalized agenda_number → str(matter_id)
+    item_lookup: Dict[str, str] = {}
+    for item in event_items:
+        agenda_num = (item.get("agenda_number") or "").strip().lower()
+        matter_id = item.get("matter_id")
+        if agenda_num and matter_id:
+            item_lookup[agenda_num] = str(matter_id)
+
+    if not item_lookup:
+        return
+
+    matched = 0
+    for decision in decisions:
+        item_num = (getattr(decision, "item_number", None) or
+                    getattr(decision, "item_ref", None) or "")
+        norm_num = item_num.strip().lower()
+        if norm_num in item_lookup:
+            decision.source_item_id = item_lookup[norm_num]
+            matched += 1
+
+    if matched:
+        logger.info(f"  Matched {matched}/{len(decisions)} decisions to Legistar MatterIds")
+
+
 def extract_decisions_from_meeting(
     meeting: Dict[str, Any],
     output_dir: str,
@@ -640,6 +723,9 @@ def extract_decisions_from_meeting(
                 decisions_count=0,
             )
 
+        # Populate source_item_id from platform-internal IDs when available
+        _enrich_source_item_ids(high_stakes_decisions, meeting)
+
         # Convert to storage format
         decisions_data = []
         for i, decision in enumerate(high_stakes_decisions):
@@ -671,6 +757,7 @@ def extract_decisions_from_meeting(
                     item_type=getattr(decision, "item_type", "action"),
                     outcome=decision.extracted_outcome,
                     budget_amount=decision.budget_amount,
+                    source_item_id=getattr(decision, "source_item_id", None),
                 )
             decision_dict["meeting_date"] = meeting_date
             decision_dict["meeting_id"] = meeting_id

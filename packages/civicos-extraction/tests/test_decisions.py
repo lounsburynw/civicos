@@ -1084,3 +1084,198 @@ class TestBuildMeetingToVideoMap:
             result = build_meeting_to_video_map("city-test")
 
         assert result == {}
+
+
+# ---------------------------------------------------------------------------
+# _enrich_source_item_ids — Legistar MatterId matching
+# ---------------------------------------------------------------------------
+
+
+class TestEnrichSourceItemIds:
+    """Tests for post-extraction matching of LLM decisions to platform IDs."""
+
+    def _make_decision(self, item_number="5.A", item_ref="Item 5.A", source_item_id=None):
+        """Create a mock HighStakesDecision with the fields enrichment reads."""
+        from types import SimpleNamespace
+        return SimpleNamespace(
+            item_number=item_number,
+            item_ref=item_ref,
+            source_item_id=source_item_id,
+        )
+
+    def test_non_legistar_meeting_is_noop(self):
+        from civicos_extraction.cli.decisions import _enrich_source_item_ids
+
+        decision = self._make_decision()
+        meeting = {"source_platform": "granicus"}
+        _enrich_source_item_ids([decision], meeting)
+        assert decision.source_item_id is None
+
+    def test_missing_source_platform_is_noop(self):
+        from civicos_extraction.cli.decisions import _enrich_source_item_ids
+
+        decision = self._make_decision()
+        _enrich_source_item_ids([decision], {})
+        assert decision.source_item_id is None
+
+    def test_legistar_match_by_item_number(self):
+        from civicos_extraction.cli.decisions import _enrich_source_item_ids
+
+        decision = self._make_decision(item_number="5.A")
+        meeting = {
+            "source_platform": "legistar",
+            "raw_data": {"EventId": 999},
+            "source_url": "https://testcity.legistar.com/MeetingDetail.aspx?ID=999",
+        }
+
+        mock_items = [
+            {"event_item_id": 1, "agenda_number": "5.A", "title": "Housing",
+             "matter_id": 42, "matter_file": "RES-2026-001"},
+            {"event_item_id": 2, "agenda_number": "6.B", "title": "Budget",
+             "matter_id": 43, "matter_file": "ORD-2026-002"},
+        ]
+
+        with patch(
+            "civicos_extraction.clients.legistar.LegistarClient"
+        ) as MockClient:
+            MockClient.return_value.get_event_items.return_value = mock_items
+            _enrich_source_item_ids([decision], meeting)
+
+        assert decision.source_item_id == "42"
+
+    def test_legistar_match_is_case_insensitive(self):
+        from civicos_extraction.cli.decisions import _enrich_source_item_ids
+
+        decision = self._make_decision(item_number="5.a")
+        meeting = {
+            "source_platform": "legistar",
+            "raw_data": {"EventId": 999},
+            "source_url": "https://testcity.legistar.com/MeetingDetail.aspx?ID=999",
+        }
+
+        mock_items = [
+            {"event_item_id": 1, "agenda_number": "5.A", "title": "Housing",
+             "matter_id": 42, "matter_file": ""},
+        ]
+
+        with patch(
+            "civicos_extraction.clients.legistar.LegistarClient"
+        ) as MockClient:
+            MockClient.return_value.get_event_items.return_value = mock_items
+            _enrich_source_item_ids([decision], meeting)
+
+        assert decision.source_item_id == "42"
+
+    def test_legistar_no_match_leaves_none(self):
+        from civicos_extraction.cli.decisions import _enrich_source_item_ids
+
+        decision = self._make_decision(item_number="99.Z")
+        meeting = {
+            "source_platform": "legistar",
+            "raw_data": {"EventId": 999},
+            "source_url": "https://testcity.legistar.com/MeetingDetail.aspx?ID=999",
+        }
+
+        mock_items = [
+            {"event_item_id": 1, "agenda_number": "5.A", "title": "Housing",
+             "matter_id": 42, "matter_file": ""},
+        ]
+
+        with patch(
+            "civicos_extraction.clients.legistar.LegistarClient"
+        ) as MockClient:
+            MockClient.return_value.get_event_items.return_value = mock_items
+            _enrich_source_item_ids([decision], meeting)
+
+        assert decision.source_item_id is None
+
+    def test_legistar_fallback_to_item_ref_when_no_item_number(self):
+        from civicos_extraction.cli.decisions import _enrich_source_item_ids
+
+        decision = self._make_decision(item_number=None, item_ref="5.A")
+        meeting = {
+            "source_platform": "legistar",
+            "raw_data": {"EventId": 999},
+            "source_url": "https://testcity.legistar.com/MeetingDetail.aspx?ID=999",
+        }
+
+        mock_items = [
+            {"event_item_id": 1, "agenda_number": "5.A", "title": "Housing",
+             "matter_id": 42, "matter_file": ""},
+        ]
+
+        with patch(
+            "civicos_extraction.clients.legistar.LegistarClient"
+        ) as MockClient:
+            MockClient.return_value.get_event_items.return_value = mock_items
+            _enrich_source_item_ids([decision], meeting)
+
+        assert decision.source_item_id == "42"
+
+    def test_legistar_event_id_parsed_from_meeting_id(self):
+        """When raw_data has no EventId, parse from meeting:{jur}:legistar:{id} format."""
+        from civicos_extraction.cli.decisions import _enrich_source_item_ids
+
+        decision = self._make_decision(item_number="5.A")
+        meeting = {
+            "id": "meeting:city-test:legistar:999",
+            "source_platform": "legistar",
+            "raw_data": {},
+            "source_url": "https://testcity.legistar.com/MeetingDetail.aspx?ID=999",
+        }
+
+        mock_items = [
+            {"event_item_id": 1, "agenda_number": "5.A", "title": "Housing",
+             "matter_id": 42, "matter_file": ""},
+        ]
+
+        with patch(
+            "civicos_extraction.clients.legistar.LegistarClient"
+        ) as MockClient:
+            MockClient.return_value.get_event_items.return_value = mock_items
+            _enrich_source_item_ids([decision], meeting)
+
+        assert decision.source_item_id == "42"
+
+    def test_legistar_api_error_is_graceful(self):
+        """API failure doesn't crash — just leaves source_item_id as None."""
+        from civicos_extraction.cli.decisions import _enrich_source_item_ids
+
+        decision = self._make_decision(item_number="5.A")
+        meeting = {
+            "source_platform": "legistar",
+            "raw_data": {"EventId": 999},
+            "source_url": "https://testcity.legistar.com/MeetingDetail.aspx?ID=999",
+        }
+
+        with patch(
+            "civicos_extraction.clients.legistar.LegistarClient"
+        ) as MockClient:
+            MockClient.return_value.get_event_items.side_effect = RuntimeError("network error")
+            _enrich_source_item_ids([decision], meeting)
+
+        assert decision.source_item_id is None
+
+    def test_legistar_items_without_matter_id_skipped(self):
+        """Event items with no MatterId are excluded from the lookup."""
+        from civicos_extraction.cli.decisions import _enrich_source_item_ids
+
+        decision = self._make_decision(item_number="5.A")
+        meeting = {
+            "source_platform": "legistar",
+            "raw_data": {"EventId": 999},
+            "source_url": "https://testcity.legistar.com/MeetingDetail.aspx?ID=999",
+        }
+
+        mock_items = [
+            {"event_item_id": 1, "agenda_number": "5.A", "title": "Housing",
+             "matter_id": None, "matter_file": ""},
+        ]
+
+        with patch(
+            "civicos_extraction.clients.legistar.LegistarClient"
+        ) as MockClient:
+            MockClient.return_value.get_event_items.return_value = mock_items
+            _enrich_source_item_ids([decision], meeting)
+
+        assert decision.source_item_id is None

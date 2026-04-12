@@ -58,6 +58,7 @@ class HighStakesDecision:
     staff_report_url: Optional[str]
 
     # Source metadata (multi-document tracking - NEW)
+    source_item_id: Optional[str] = None  # Platform-internal item ID (Legistar MatterId, etc.)
     full_agenda_packet_url: Optional[str] = None  # Full agenda packet PDF
     minutes_url: Optional[str] = None  # Meeting minutes PDF
 

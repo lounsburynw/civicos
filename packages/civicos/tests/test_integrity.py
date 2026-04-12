@@ -610,6 +610,66 @@ class TestComputeStableDecisionId:
         # And A != B (they're distinct decisions)
         assert run1_ids[0] != run1_ids[1]
 
+    def test_source_item_id_changes_hash(self):
+        """Providing source_item_id produces a different hash than without."""
+        id_without = compute_stable_decision_id(**_decision_kwargs())
+        id_with = compute_stable_decision_id(
+            **_decision_kwargs(source_item_id="legistar-matter-42")
+        )
+        assert id_without != id_with
+
+    def test_source_item_id_idempotent(self):
+        """Same source_item_id produces same hash across calls."""
+        id1 = compute_stable_decision_id(
+            **_decision_kwargs(source_item_id="legistar-matter-42")
+        )
+        id2 = compute_stable_decision_id(
+            **_decision_kwargs(source_item_id="legistar-matter-42")
+        )
+        assert id1 == id2
+
+    def test_source_item_id_none_matches_absent(self):
+        """None source_item_id produces same hash as no source_item_id (backwards compat)."""
+        id_absent = compute_stable_decision_id(**_decision_kwargs())
+        id_none = compute_stable_decision_id(**_decision_kwargs(source_item_id=None))
+        assert id_absent == id_none
+
+    def test_source_item_id_empty_matches_absent(self):
+        """Empty string source_item_id produces same hash as absent."""
+        id_absent = compute_stable_decision_id(**_decision_kwargs())
+        id_empty = compute_stable_decision_id(**_decision_kwargs(source_item_id=""))
+        assert id_absent == id_empty
+
+    def test_source_item_id_whitespace_stripped(self):
+        """Whitespace around source_item_id is stripped."""
+        id1 = compute_stable_decision_id(
+            **_decision_kwargs(source_item_id="42")
+        )
+        id2 = compute_stable_decision_id(
+            **_decision_kwargs(source_item_id="  42  ")
+        )
+        assert id1 == id2
+
+    def test_different_source_item_ids_disambiguate(self):
+        """Two different source_item_ids with otherwise identical fields produce different IDs."""
+        id1 = compute_stable_decision_id(
+            **_decision_kwargs(source_item_id="matter-100")
+        )
+        id2 = compute_stable_decision_id(
+            **_decision_kwargs(source_item_id="matter-200")
+        )
+        assert id1 != id2
+
+    def test_source_item_id_still_includes_namespace(self):
+        """ID with source_item_id still has the correct namespaced format."""
+        decision_id = compute_stable_decision_id(
+            **_decision_kwargs(source_item_id="legistar-42")
+        )
+        assert decision_id.startswith("decision:city-test:meeting-123:")
+        suffix = decision_id.rsplit(":", 1)[1]
+        assert len(suffix) == 12
+        assert all(c in "0123456789abcdef" for c in suffix)
+
 
 class TestHasStableDecisionIdInputs:
     """Tests for the precondition check used by callers to detect the empty edge case."""
