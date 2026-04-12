@@ -3,6 +3,7 @@ Tests for MCP OAuth 2.1 provider.
 
 Tests the complete OAuth flow: metadata discovery, dynamic client registration,
 authorization with PKCE, token exchange, refresh tokens, and token validation.
+Also tests per-session rate limiting for the OAuth free tier.
 """
 
 import base64
@@ -10,6 +11,7 @@ import hashlib
 import secrets
 import sys
 import time
+from unittest.mock import patch
 
 import pytest
 
@@ -570,3 +572,172 @@ class TestOAuthRouter:
         })
         assert r.status_code == 400
         assert r.json()["error"] == "unsupported_grant_type"
+
+
+# ─────────── OAuth free tier rate limiting ───────────
+
+from api_key_middleware import (
+    DailyQuotaLimiter,
+    SlidingWindowRateLimiter,
+    check_oauth_rate_limit,
+    OAUTH_DAILY_QUOTA,
+    OAUTH_PER_MINUTE,
+    _rate_limiter,
+    _daily_limiter,
+)
+
+
+class TestDailyQuotaLimiter:
+    """Unit tests for the DailyQuotaLimiter class."""
+
+    def test_allows_within_quota(self):
+        limiter = DailyQuotaLimiter()
+        allowed, remaining = limiter.check("test-key", 5)
+        assert allowed is True
+        assert remaining == 4
+
+    def test_counts_down_remaining(self):
+        limiter = DailyQuotaLimiter()
+        for i in range(4):
+            limiter.check("test-key", 5)
+        allowed, remaining = limiter.check("test-key", 5)
+        assert allowed is True
+        assert remaining == 0
+
+    def test_blocks_at_quota(self):
+        limiter = DailyQuotaLimiter()
+        for _ in range(5):
+            limiter.check("test-key", 5)
+        allowed, remaining = limiter.check("test-key", 5)
+        assert allowed is False
+        assert remaining == 0
+
+    def test_isolates_keys(self):
+        limiter = DailyQuotaLimiter()
+        for _ in range(5):
+            limiter.check("key-a", 5)
+        # key-a is exhausted
+        assert limiter.check("key-a", 5)[0] is False
+        # key-b is unaffected
+        assert limiter.check("key-b", 5)[0] is True
+
+    def test_resets_on_new_day(self):
+        limiter = DailyQuotaLimiter()
+        # Exhaust quota
+        for _ in range(3):
+            limiter.check("test-key", 3)
+        assert limiter.check("test-key", 3)[0] is False
+
+        # Simulate day change by injecting a stale date
+        limiter._counts["test-key"] = ("2020-01-01", 999)
+        allowed, remaining = limiter.check("test-key", 3)
+        assert allowed is True
+        assert remaining == 2  # fresh day: 1 used, 2 remaining
+
+    def test_get_count_current_day(self):
+        limiter = DailyQuotaLimiter()
+        assert limiter.get_count("test-key") == 0
+        limiter.check("test-key", 10)
+        limiter.check("test-key", 10)
+        assert limiter.get_count("test-key") == 2
+
+    def test_get_count_stale_day(self):
+        limiter = DailyQuotaLimiter()
+        limiter._counts["test-key"] = ("2020-01-01", 42)
+        assert limiter.get_count("test-key") == 0
+
+
+class TestOAuthRateLimit:
+    """Integration tests for check_oauth_rate_limit combining burst + daily limits."""
+
+    @pytest.fixture(autouse=True)
+    def reset_limiters(self):
+        """Clear rate limiter state between tests."""
+        _rate_limiter._requests.clear()
+        _daily_limiter._counts.clear()
+        yield
+        _rate_limiter._requests.clear()
+        _daily_limiter._counts.clear()
+
+    def test_allows_normal_request(self):
+        result = check_oauth_rate_limit("oauth:civic_test123")
+        assert result["allowed"] is True
+        assert result["error"] is None
+        assert result["remaining_daily"] == OAUTH_DAILY_QUOTA - 1
+        assert result["retry_after"] is None
+
+    def test_per_minute_burst_limit(self):
+        key = "oauth:civic_burst"
+        # Use up the per-minute allowance
+        for _ in range(OAUTH_PER_MINUTE):
+            result = check_oauth_rate_limit(key)
+            assert result["allowed"] is True
+
+        # Next request should be blocked by burst limit
+        result = check_oauth_rate_limit(key)
+        assert result["allowed"] is False
+        assert result["error"] == "rate_limit_exceeded"
+        assert result["retry_after"] == 60
+
+    def test_daily_quota_enforcement(self):
+        key = "oauth:civic_daily"
+        # Pre-fill the per-minute limiter won't block us — we need to
+        # space out calls or use a fresh limiter window each time.
+        # Instead, directly fill the daily quota via the limiter.
+        for i in range(OAUTH_DAILY_QUOTA):
+            _daily_limiter.check(key, OAUTH_DAILY_QUOTA)
+
+        # Per-minute is fine, but daily is exhausted
+        result = check_oauth_rate_limit(key)
+        # The per-minute check passes, but daily blocks
+        assert result["allowed"] is False
+        assert result["error"] == "daily_quota_exceeded"
+        assert result["remaining_daily"] == 0
+        assert result["retry_after"] is not None
+        assert result["retry_after"] > 0
+        assert result["retry_after"] <= 86400
+
+    def test_session_isolation(self):
+        """Different OAuth sessions have independent quotas."""
+        key_a = "oauth:civic_alice"
+        key_b = "oauth:civic_bob"
+
+        # Exhaust alice's per-minute
+        for _ in range(OAUTH_PER_MINUTE):
+            check_oauth_rate_limit(key_a)
+
+        # Alice is blocked
+        assert check_oauth_rate_limit(key_a)["allowed"] is False
+
+        # Bob is unaffected
+        result = check_oauth_rate_limit(key_b)
+        assert result["allowed"] is True
+
+    def test_error_response_format(self):
+        """Rate limit errors include all required fields with correct values."""
+        key = "oauth:civic_format"
+        for _ in range(OAUTH_PER_MINUTE):
+            check_oauth_rate_limit(key)
+
+        result = check_oauth_rate_limit(key)
+        assert result["allowed"] is False
+        assert result["error"] == "rate_limit_exceeded"
+        assert 0 <= result["remaining_daily"] <= OAUTH_DAILY_QUOTA
+        assert result["remaining_minute"] == 0
+        assert result["retry_after"] == 60
+
+    def test_daily_quota_approaching_logs_warning(self):
+        """When session approaches 80% of daily quota, a warning is logged."""
+        key = "oauth:civic_warn"
+        # Fill to 80% threshold (OAUTH_DAILY_QUOTA * 0.8)
+        threshold = OAUTH_DAILY_QUOTA - int(OAUTH_DAILY_QUOTA * 0.2)
+        for _ in range(threshold):
+            _daily_limiter.check(key, OAUTH_DAILY_QUOTA)
+
+        # Next request crosses the 80% line — should log
+        with patch("api_key_middleware.logger") as mock_logger:
+            result = check_oauth_rate_limit(key)
+            assert result["allowed"] is True
+            mock_logger.info.assert_called_once()
+            log_msg = mock_logger.info.call_args[0][0]
+            assert "approaching daily quota" in log_msg

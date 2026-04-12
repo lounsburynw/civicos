@@ -390,6 +390,31 @@ class MCPServer:
                                  f"Pass Authorization: Bearer <api-key> or register at POST /api/register"
                     })
 
+            # Per-session rate limiting for OAuth free tier
+            key_id = _mcp_request_key_id.get(None)
+            if key_id and key_id.startswith("oauth:"):
+                from api_key_middleware import (
+                    check_oauth_rate_limit, OAUTH_DAILY_QUOTA, OAUTH_PER_MINUTE,
+                )
+                rl = check_oauth_rate_limit(key_id)
+                if not rl["allowed"]:
+                    if rl["error"] == "daily_quota_exceeded":
+                        msg = (
+                            f"Daily query limit reached ({OAUTH_DAILY_QUOTA}/day). "
+                            f"Resets at midnight UTC. "
+                            f"For higher limits, register for an API key at POST /api/register."
+                        )
+                    else:
+                        msg = (
+                            f"Too many requests ({OAUTH_PER_MINUTE}/min). "
+                            f"Please wait before retrying."
+                        )
+                    return json.dumps({
+                        "error": rl["error"],
+                        "message": msg,
+                        "retry_after": rl["retry_after"],
+                    })
+
             # Publish the resolved scope policy on the request contextvar so
             # downstream code (the v2 API call path, result formatting) can
             # observe it without plumbing an explicit argument. The binding

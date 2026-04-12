@@ -11,6 +11,7 @@ Provides optional API key authentication with rate limiting:
 import logging
 import time
 from collections import defaultdict
+from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import Depends, HTTPException, Request
@@ -21,6 +22,10 @@ logger = logging.getLogger(__name__)
 
 # Default public rate limit (requests per minute)
 PUBLIC_RATE_LIMIT = 60
+
+# OAuth free tier limits
+OAUTH_DAILY_QUOTA = 50          # queries per UTC day per session
+OAUTH_PER_MINUTE = 10           # burst limit per minute per session
 
 
 class SlidingWindowRateLimiter:
@@ -59,8 +64,40 @@ class SlidingWindowRateLimiter:
         return True, limit - count - cost
 
 
+class DailyQuotaLimiter:
+    """In-memory daily quota tracker.
+
+    Tracks request counts per key per UTC day. Resets automatically at day boundary.
+    Suitable for single-container deployments (Modal containers restart frequently).
+    """
+
+    def __init__(self):
+        self._counts: dict[str, tuple[str, int]] = {}  # key -> (date_str, count)
+
+    def check(self, key: str, limit: int) -> tuple[bool, int]:
+        """Check if request is within daily quota. Returns (allowed, remaining)."""
+        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+
+        date_str, count = self._counts.get(key, (today, 0))
+        if date_str != today:
+            count = 0
+
+        if count >= limit:
+            return False, 0
+
+        self._counts[key] = (today, count + 1)
+        return True, limit - count - 1
+
+    def get_count(self, key: str) -> int:
+        """Return current day's count for a key (for logging/diagnostics)."""
+        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        date_str, count = self._counts.get(key, (today, 0))
+        return count if date_str == today else 0
+
+
 # Module-level singletons
 _rate_limiter = SlidingWindowRateLimiter()
+_daily_limiter = DailyQuotaLimiter()
 _api_key_store: Optional[ApiKeyStore] = None
 _store_initialized = False
 
@@ -183,3 +220,62 @@ async def require_api_key_or_rate_limit(request: Request) -> Optional[ApiKeyInfo
     request.state.auth_tier = "open"
     request.state.api_key_info = None
     return None
+
+
+def check_oauth_rate_limit(key_id: str) -> dict:
+    """Check per-minute burst and daily quota for an OAuth session.
+
+    Args:
+        key_id: The OAuth key identifier (e.g., "oauth:civic_abc123").
+
+    Returns:
+        dict with keys:
+            allowed (bool): Whether the request should proceed.
+            error (str|None): Error type if blocked ("daily_quota_exceeded" or "rate_limit_exceeded").
+            remaining_daily (int): Remaining daily quota.
+            remaining_minute (int): Remaining per-minute allowance.
+            retry_after (int|None): Seconds to wait before retrying, if blocked.
+    """
+    # Per-minute burst check
+    minute_allowed, remaining_minute = _rate_limiter.check(
+        f"mcp:{key_id}", OAUTH_PER_MINUTE
+    )
+    if not minute_allowed:
+        return {
+            "allowed": False,
+            "error": "rate_limit_exceeded",
+            "remaining_daily": _daily_limiter.get_count(key_id),
+            "remaining_minute": 0,
+            "retry_after": 60,
+        }
+
+    # Daily quota check
+    daily_allowed, remaining_daily = _daily_limiter.check(key_id, OAUTH_DAILY_QUOTA)
+
+    # Log when approaching daily quota (80% threshold)
+    if daily_allowed and remaining_daily <= int(OAUTH_DAILY_QUOTA * 0.2):
+        logger.info(
+            "OAuth session %s approaching daily quota: %d/%d used",
+            key_id, OAUTH_DAILY_QUOTA - remaining_daily, OAUTH_DAILY_QUOTA,
+        )
+
+    if not daily_allowed:
+        # Seconds until midnight UTC
+        now = datetime.now(timezone.utc)
+        midnight = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        seconds_until_reset = int((midnight.timestamp() + 86400) - now.timestamp())
+        return {
+            "allowed": False,
+            "error": "daily_quota_exceeded",
+            "remaining_daily": 0,
+            "remaining_minute": remaining_minute,
+            "retry_after": seconds_until_reset,
+        }
+
+    return {
+        "allowed": True,
+        "error": None,
+        "remaining_daily": remaining_daily,
+        "remaining_minute": remaining_minute,
+        "retry_after": None,
+    }
