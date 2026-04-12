@@ -612,3 +612,296 @@ class TestPagination:
         assert len(page2) == 2
         assert page1[0]["id"] != page2[0]["id"]
 
+
+# ========== Store/Get Methods — Mutation Kill Targets ==========
+
+
+class TestStoreDecisions:
+    """Tests for store_decisions + get_decisions + get_decision_count."""
+
+    @pytest.fixture
+    def sample_decisions(self):
+        return [
+            {
+                "id": "dec-001",
+                "title": "Approve Housing Element",
+                "meeting_date": "2025-12-01",
+                "agenda_item": "item-6a",
+                "outcome": "approved",
+                "vote_summary": "5-0",
+                "topic": "housing",
+            },
+            {
+                "id": "dec-002",
+                "title": "Deny Variance Request",
+                "meeting_date": "2025-12-01",
+                "agenda_item": "item-7b",
+                "outcome": "denied",
+                "vote_summary": "3-2",
+                "topic": "zoning",
+            },
+        ]
+
+    def test_store_returns_count(self, backend, sample_decisions):
+        count = backend.store_decisions("city-test", sample_decisions)
+        assert count == 2
+
+    def test_store_and_retrieve(self, backend, sample_decisions):
+        backend.store_decisions("city-test", sample_decisions)
+        results = backend.get_decisions("city-test")
+        assert len(results) == 2
+        titles = [d["title"] for d in results]
+        assert "Approve Housing Element" in titles
+        assert "Deny Variance Request" in titles
+
+    def test_decision_fields_preserved(self, backend, sample_decisions):
+        backend.store_decisions("city-test", sample_decisions)
+        results = backend.get_decisions("city-test")
+        # ID is auto-generated as decision:{jurisdiction}:{date}:{item}
+        dec = next(d for d in results if d["agenda_item"] == "item-6a")
+        assert dec["outcome"] == "approved"
+        assert dec["title"] == "Approve Housing Element"
+        assert dec["meeting_date"] == "2025-12-01"
+
+    def test_get_decision_count(self, backend, sample_decisions):
+        assert backend.get_decision_count("city-test") == 0
+        backend.store_decisions("city-test", sample_decisions)
+        assert backend.get_decision_count("city-test") == 2
+
+    def test_upsert_updates_existing(self, backend, sample_decisions):
+        backend.store_decisions("city-test", sample_decisions)
+        # Re-store with updated title — same meeting_date + agenda_item = same auto-ID
+        updated = [{"title": "Updated Title", "meeting_date": "2025-12-01",
+                     "agenda_item": "item-6a", "outcome": "approved"}]
+        backend.store_decisions("city-test", updated)
+        results = backend.get_decisions("city-test")
+        dec = next(d for d in results if d["agenda_item"] == "item-6a")
+        assert dec["title"] == "Updated Title"
+
+    def test_jurisdiction_isolation(self, backend, sample_decisions):
+        backend.store_decisions("city-a", sample_decisions)
+        backend.store_decisions("city-b", [sample_decisions[0]])
+        assert len(backend.get_decisions("city-a")) == 2
+        assert len(backend.get_decisions("city-b")) == 1
+        assert backend.get_decision_count("city-a") == 2
+
+    def test_empty_list_stores_nothing(self, backend):
+        count = backend.store_decisions("city-test", [])
+        assert count == 0
+        assert backend.get_decision_count("city-test") == 0
+
+
+class TestStoreIssues:
+    """Tests for store_issues + get_issues + get_issue_count."""
+
+    @pytest.fixture
+    def sample_issues(self):
+        return [
+            {
+                "id": "issue-001",
+                "title": "Pothole on 4th Street",
+                "issue_type": "Pothole",
+                "address": "123 4th St",
+                "status": "open",
+                "provider": "seeclickfix",
+                "external_id": "scf-12345",
+                "created_at": "2025-11-15T10:00:00",
+            },
+            {
+                "id": "issue-002",
+                "title": "Graffiti on bridge",
+                "issue_type": "Graffiti",
+                "address": "Main St Bridge",
+                "status": "closed",
+                "provider": "seeclickfix",
+                "external_id": "scf-12346",
+                "created_at": "2025-11-10T09:00:00",
+            },
+        ]
+
+    def test_store_returns_count(self, backend, sample_issues):
+        count = backend.store_issues("city-test", sample_issues)
+        assert count == 2
+
+    def test_store_and_retrieve(self, backend, sample_issues):
+        backend.store_issues("city-test", sample_issues)
+        results = backend.get_issues("city-test")
+        assert len(results) == 2
+
+    def test_issue_fields_preserved(self, backend, sample_issues):
+        backend.store_issues("city-test", sample_issues)
+        results = backend.get_issues("city-test")
+        pothole = next(i for i in results if i.get("title") == "Pothole on 4th Street"
+                       or i.get("id") == "issue-001")
+        assert pothole["issue_type"] == "Pothole"
+        assert pothole["status"] == "open"
+
+    def test_get_issue_count(self, backend, sample_issues):
+        assert backend.get_issue_count("city-test") == 0
+        backend.store_issues("city-test", sample_issues)
+        assert backend.get_issue_count("city-test") == 2
+
+    def test_jurisdiction_isolation(self, backend, sample_issues):
+        backend.store_issues("city-a", sample_issues)
+        backend.store_issues("city-b", [sample_issues[0]])
+        assert backend.get_issue_count("city-a") == 2
+        assert backend.get_issue_count("city-b") == 1
+
+    def test_upsert_by_external_id(self, backend, sample_issues):
+        backend.store_issues("city-test", sample_issues)
+        updated = [{
+            "id": "issue-001-updated",
+            "title": "Pothole FIXED",
+            "status": "closed",
+            "provider": "seeclickfix",
+            "external_id": "scf-12345",
+        }]
+        backend.store_issues("city-test", updated)
+        # Count should not increase — upsert on external_id
+        assert backend.get_issue_count("city-test") == 2
+
+
+class TestStoreAgendaItems:
+    """Tests for store_agenda_items + get_agenda_items + get_agenda_item_count."""
+
+    @pytest.fixture
+    def sample_items(self):
+        return [
+            {
+                "id": "ai-001",
+                "item_number": "6.a",
+                "title": "Housing Element Update",
+                "description": "Review and approve housing element amendments",
+                "project_type": "housing",
+            },
+            {
+                "id": "ai-002",
+                "item_number": "7.b",
+                "title": "Budget Amendment",
+                "description": "FY26 mid-year budget adjustment",
+                "project_type": "budget",
+            },
+        ]
+
+    def test_store_returns_count(self, backend, sample_items):
+        # First need a meeting to attach items to
+        backend.store_meetings("city-test", [{
+            "id": "mtg-001", "title": "Council", "meeting_datetime": "2025-12-01",
+            "source_platform": "test",
+        }])
+        count = backend.store_agenda_items("mtg-001", sample_items)
+        assert count == 2
+
+    def test_store_and_retrieve(self, backend, sample_items):
+        backend.store_meetings("city-test", [{
+            "id": "mtg-001", "title": "Council", "meeting_datetime": "2025-12-01",
+            "source_platform": "test",
+        }])
+        backend.store_agenda_items("mtg-001", sample_items)
+        results = backend.get_agenda_items("mtg-001")
+        assert len(results) == 2
+
+    def test_item_fields_preserved(self, backend, sample_items):
+        backend.store_meetings("city-test", [{
+            "id": "mtg-001", "title": "Council", "meeting_datetime": "2025-12-01",
+            "source_platform": "test",
+        }])
+        backend.store_agenda_items("mtg-001", sample_items)
+        results = backend.get_agenda_items("mtg-001")
+        housing = next(i for i in results if i.get("id") == "ai-001")
+        assert housing["title"] == "Housing Element Update"
+        assert housing["item_number"] == "6.a"
+        assert housing["project_type"] == "housing"
+
+    def test_get_agenda_item_count(self, backend, sample_items):
+        backend.store_meetings("city-test", [{
+            "id": "mtg-001", "title": "Council", "meeting_datetime": "2025-12-01",
+            "source_platform": "test",
+        }])
+        backend.store_agenda_items("mtg-001", sample_items)
+        assert backend.get_agenda_item_count("city-test") == 2
+
+
+class TestStoreChunks:
+    """Tests for store_chunks + get_chunks + get_chunk_count."""
+
+    @pytest.fixture
+    def sample_chunks(self):
+        return [
+            {
+                "meeting_id": "mtg-001",
+                "agenda_item": "6.a",
+                "agenda_title": "Housing Element",
+                "text": "The city council discussed the housing element update.",
+                "page_start": 5,
+                "page_end": 8,
+                "chunk_index": 0,
+                "total_chunks": 2,
+                "source_file": "packet.pdf",
+                "source_type": "agenda_packet",
+            },
+            {
+                "meeting_id": "mtg-001",
+                "agenda_item": "7.b",
+                "agenda_title": "Budget",
+                "text": "Budget allocation for infrastructure improvements.",
+                "page_start": 12,
+                "page_end": 15,
+                "chunk_index": 0,
+                "total_chunks": 1,
+                "source_file": "packet.pdf",
+                "source_type": "agenda_packet",
+            },
+        ]
+
+    def test_store_returns_count(self, backend, sample_chunks):
+        count = backend.store_chunks("city-test", sample_chunks)
+        assert count == 2
+
+    def test_store_and_retrieve(self, backend, sample_chunks):
+        backend.store_chunks("city-test", sample_chunks)
+        results = backend.get_chunks("city-test")
+        assert len(results) == 2
+
+    def test_chunk_text_preserved(self, backend, sample_chunks):
+        backend.store_chunks("city-test", sample_chunks)
+        results = backend.get_chunks("city-test")
+        texts = [c["text"] for c in results]
+        assert any("housing element" in t for t in texts)
+        assert any("infrastructure" in t for t in texts)
+
+    def test_chunk_metadata_preserved(self, backend, sample_chunks):
+        backend.store_chunks("city-test", sample_chunks)
+        results = backend.get_chunks("city-test")
+        chunk = next(c for c in results if "housing" in c["text"])
+        assert chunk["agenda_item"] == "6.a"
+        assert chunk["agenda_title"] == "Housing Element"
+        assert chunk["page_start"] == 5
+
+    def test_get_chunk_count(self, backend, sample_chunks):
+        assert backend.get_chunk_count("city-test") == 0
+        backend.store_chunks("city-test", sample_chunks)
+        assert backend.get_chunk_count("city-test") == 2
+
+    def test_jurisdiction_isolation(self, backend, sample_chunks):
+        backend.store_chunks("city-a", sample_chunks)
+        backend.store_chunks("city-b", [sample_chunks[0]])
+        assert backend.get_chunk_count("city-a") == 2
+        assert backend.get_chunk_count("city-b") == 1
+
+
+class TestStubMethods:
+    """Verify stub methods return 0 (Postgres-only features)."""
+
+    def test_store_municipal_code_is_stub(self, backend):
+        result = backend.store_municipal_code("city-test", [{"id": "mc-1"}])
+        assert result == 0
+
+    def test_store_videos_is_stub(self, backend):
+        result = backend.store_videos("city-test", [{"id": "v-1"}])
+        assert result == 0
+
+    def test_store_transcripts_is_stub(self, backend):
+        result = backend.store_transcripts("city-test", [{"id": "t-1"}])
+        assert result == 0
+
