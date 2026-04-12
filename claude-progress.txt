@@ -26848,3 +26848,58 @@ This is the deployment-side work to stand up
 `bay-area.civicosproject.org/mcp` (or `marin.civicosproject.org/mcp`)
 as the same codebase with a different primary jurisdiction and
 region. See launch.json/distribution for the full description.
+
+## Session — 2026-04-11 — implement_captions_transcription_mode (P0)
+
+### What was done
+
+Implemented YouTube auto-captions as a free alternative transcription
+path to AssemblyAI. This enables filling transcript gaps across all
+jurisdictions at $0 instead of ~$570-820 for AssemblyAI.
+
+Changes:
+1. `packages/civicos-extraction/src/civicos_extraction/cli/transcribe.py`:
+   - Added `extract_captions()` function using `youtube-transcript-api`
+   - Fetches captions, converts to transcript schema, stores to Postgres
+   - Sets processing_service='youtube_captions', cost_usd=0, speakers_count=0
+   - Handles unavailable captions gracefully, respects limit, dry_run
+
+2. `scripts/modal_ingest.py`:
+   - Added `transcript_mode` param to `extract_transcripts()` (default "assemblyai")
+   - When transcript_mode="captions", skips audio download + AssemblyAI entirely
+   - Added `--transcript-mode` CLI flag to `main()` entrypoint
+   - Relaxed ASSEMBLYAI_API_KEY requirement for captions mode
+   - Wired through to extract_transcripts.remote() call
+
+3. `scripts/onboard.py`:
+   - Added `transcript_mode` param to `_run_modal_ingestion()`
+   - Computed transcript_mode earlier (before validation gate)
+   - Passes transcript_mode to both sample and full ingestion calls
+   - Removed duplicate transcript mode computation
+
+4. `packages/civicos-extraction/tests/test_transcribe.py`:
+   - 6 new tests in TestExtractCaptions class
+   - Tests: basic extraction, skip existing, handle unavailable,
+     dry run, duration estimation, limit
+
+### Usage
+
+```bash
+# Free captions for a jurisdiction
+modal run scripts/modal_ingest.py --transcripts --transcript-mode captions --jurisdiction city-fairfax
+
+# Via onboard.py
+python scripts/onboard.py city-fairfax --captions-only
+
+# Default (AssemblyAI) unchanged
+modal run scripts/modal_ingest.py --transcripts --jurisdiction city-san-rafael
+```
+
+### Tests
+
+- 17/17 test_transcribe.py tests pass (11 existing + 6 new)
+- No regressions in extraction test suite
+
+### launch.json
+
+- implement_captions_transcription_mode: done (was P0)

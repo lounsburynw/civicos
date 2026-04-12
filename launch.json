@@ -743,7 +743,7 @@
         "name": "free_tier_rate_limiting",
         "description": "OAuth-authenticated users get generous free tier (e.g. 50 queries/day) without requiring API key purchase. Collect usage patterns to inform billing model.",
         "status": "not_started",
-        "priority": 2,
+        "priority": 0,
         "files": [
           "apps/civicos-mcp/modal_mcp.py",
           "apps/civicos-mcp/oauth.py",
@@ -1428,16 +1428,17 @@
         "name": "implement_captions_transcription_mode",
         "_p0_note": "Promoted P1 → P0 on 2026-04-11 after regional_server_deployment completed.",
         "description": "Implement free YouTube auto-captions as an alternative transcription path to AssemblyAI. Currently onboard.py has TRANSCRIPT_CAPTIONS as a cost-estimate category and --captions-only flag, but extract_transcripts in modal_ingest.py only calls AssemblyAI \u2014 captions mode is unimplemented. Adding it enables filling transcript gaps across all jurisdictions at ~$0 instead of ~$570-820 at AssemblyAI rates. Implementation: (1) add caption extraction via youtube-transcript-api or yt-dlp --write-auto-subs, (2) convert VTT/SRT to transcript JSON schema, (3) branch in extract_transcripts when transcript_mode=captions, (4) tag processing_service='youtube_captions' for provenance. Tradeoffs: no speaker diarization, lower accuracy on crosstalk/noise, no word-level timestamps, dependent on YouTube auto-generation quality. Good for breadth coverage where AssemblyAI is prohibitive; AssemblyAI remains the choice for flagship cities and deep semantic search.",
-        "status": "not_started",
+        "status": "done",
         "priority": 0,
         "source": "Transcript gap analysis 2026-04-10 \u2014 452 AssemblyAI transcripts exist, ~227 meetings still need coverage since Jan 2026, captions mode unblocks cheap breadth",
         "files": [
           "scripts/modal_ingest.py",
           "packages/civicos-extraction/src/civicos_extraction/cli/transcribe.py",
-          "scripts/onboard.py"
+          "scripts/onboard.py",
+          "packages/civicos-extraction/tests/test_transcribe.py"
         ],
-        "test_file": null,
-        "notes": "processing_service field already exists in transcripts table (text). Current value always 'assemblyai'. captions mode would use 'youtube_captions'. Downstream queries (what_was_said, public testimony search) should work the same but without speaker labels. Consider: captions alone for cities with cost-prohibitive volume, AssemblyAI for critical/recent meetings."
+        "test_file": "packages/civicos-extraction/tests/test_transcribe.py",
+        "notes": "Done 2026-04-11. Added extract_captions() in transcribe.py using youtube-transcript-api. Branches in modal_ingest.py extract_transcripts() via transcript_mode param. Wired through onboard.py --captions-only flag and modal CLI --transcript-mode flag. processing_service='youtube_captions', cost_usd=0. 6 new tests (17 total in test_transcribe.py). Usage: modal run scripts/modal_ingest.py --transcripts --transcript-mode captions --jurisdiction city-fairfax"
       }
     ]
   },

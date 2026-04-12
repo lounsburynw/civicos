@@ -952,6 +952,152 @@ def store_transcript_to_cloud(
     return False
 
 
+def extract_captions(
+    jurisdiction_id: str,
+    limit: int = 0,
+    dry_run: bool = False,
+    since_days: Optional[int] = None,
+    meeting_type: Optional[str] = None,
+) -> List[TranscribeResult]:
+    """Extract YouTube auto-captions as free transcripts.
+
+    Fetches auto-generated captions from YouTube videos via youtube-transcript-api,
+    converts them to the transcript table schema, and stores them in Postgres.
+    No audio download or AssemblyAI costs — captions are free.
+
+    Tradeoffs vs AssemblyAI:
+        - No speaker diarization (speakers_count=0)
+        - Lower accuracy on crosstalk/technical terms
+        - No word-level timestamps
+        - Dependent on YouTube auto-generation availability
+
+    Args:
+        jurisdiction_id: Target jurisdiction (e.g., "city-fairfax")
+        limit: Maximum videos to process (0 = no limit)
+        dry_run: If True, show what would be processed without extracting
+        since_days: Only process videos discovered within this many days
+        meeting_type: Filter by meeting type (e.g., "planning_commission")
+
+    Returns:
+        List of TranscribeResult for each video processed
+    """
+    try:
+        from youtube_transcript_api import YouTubeTranscriptApi
+    except ImportError:
+        logger.error("youtube-transcript-api not installed: pip install youtube-transcript-api")
+        return []
+
+    from civicos.storage import get_storage_backend
+
+    backend = get_storage_backend()
+    if backend.backend_type != "postgres":
+        logger.error("Caption extraction requires PostgreSQL backend")
+        return []
+
+    # Get videos with YouTube URLs
+    videos = backend.get_videos(jurisdiction_id, meeting_type=meeting_type, since_days=since_days)
+    if not videos:
+        logger.info(f"No videos found for {jurisdiction_id}")
+        return []
+
+    # Filter to videos that don't already have transcripts
+    videos_to_process = []
+    for video in videos:
+        video_id = video.get("id") or video.get("video_id")
+        if not video_id:
+            continue
+        if transcript_exists_in_cloud(video_id):
+            continue
+        videos_to_process.append(video)
+
+    if limit > 0:
+        videos_to_process = videos_to_process[:limit]
+
+    logger.info(f"[CAPTIONS] {len(videos_to_process)} videos to process "
+                f"(of {len(videos)} total, rest already transcribed)")
+
+    if dry_run:
+        for i, video in enumerate(videos_to_process, 1):
+            video_id = video.get("id") or video.get("video_id")
+            title = video.get("title", "")
+            logger.info(f"  [{i}/{len(videos_to_process)}] {video_id} — {title}")
+        logger.info(f"Would process {len(videos_to_process)} videos (cost: $0.00)")
+        return []
+
+    if not videos_to_process:
+        logger.info("[CAPTIONS] All videos already have transcripts")
+        return []
+
+    api = YouTubeTranscriptApi()
+    results = []
+
+    for i, video in enumerate(videos_to_process, 1):
+        video_id = video.get("id") or video.get("video_id")
+        title = video.get("title", "")
+        logger.info(f"[CAPTIONS] [{i}/{len(videos_to_process)}] Fetching captions for {video_id} — {title}")
+
+        try:
+            fetched = api.fetch(video_id)
+
+            # Build full text from caption snippets
+            text = " ".join(snippet.text for snippet in fetched.snippets)
+            text = text.strip()
+
+            if not text:
+                logger.warning(f"  Empty captions for {video_id}")
+                results.append(TranscribeResult(video_id=video_id, status="error", error="empty captions"))
+                continue
+
+            word_count = len(text.split())
+
+            # Estimate duration from last caption timestamp
+            duration_seconds = None
+            if fetched.snippets:
+                last = fetched.snippets[-1]
+                duration_seconds = int(last.start + (last.duration or 0))
+
+            # Build transcript dict matching store_transcripts schema
+            transcript_data = {
+                "video_id": video_id,
+                "text": text,
+                "utterances": [],  # No speaker diarization
+                "word_count": word_count,
+                "speakers_count": 0,
+                "utterances_count": 0,
+                "processing_service": "youtube_captions",
+                "cost_usd": 0.0,
+                "audio_duration_minutes": (duration_seconds / 60.0) if duration_seconds else None,
+                "processed_at": datetime.now().isoformat(),
+                "extraction_version": "captions-v1",
+            }
+
+            # Store to Postgres
+            count = backend.store_transcripts(jurisdiction_id, [transcript_data])
+            if count > 0:
+                logger.info(f"  Stored caption transcript: {word_count} words, ~{duration_seconds or 0}s")
+                results.append(TranscribeResult(
+                    video_id=video_id,
+                    status="success",
+                    speakers_count=0,
+                    utterances_count=0,
+                    duration_minutes=(duration_seconds / 60.0) if duration_seconds else None,
+                    cost_usd=0.0,
+                ))
+            else:
+                logger.warning(f"  Failed to store transcript for {video_id}")
+                results.append(TranscribeResult(video_id=video_id, status="error", error="store failed"))
+
+        except Exception as e:
+            logger.warning(f"  Captions unavailable for {video_id}: {e}")
+            results.append(TranscribeResult(video_id=video_id, status="error", error=str(e)))
+
+    success_count = sum(1 for r in results if r.status == "success")
+    error_count = sum(1 for r in results if r.status == "error")
+    logger.info(f"[CAPTIONS] Done: {success_count} extracted, {error_count} failed, cost: $0.00")
+
+    return results
+
+
 def transcribe_batch(
     audio_files: List,
     jurisdiction_id: str,
