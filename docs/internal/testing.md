@@ -120,45 +120,41 @@ The critic caught and fixed anti-patterns in 55% of executor outputs, validating
 #### Config/signer packages: Zero coverage
 civicos-config (2K lines), civicos-signer (1.5K lines).
 
-#### Pre-existing tests: Unaudited quality
-~160 test files that existed before the overhaul haven't been checked against the mutation critic. The original audit estimated 74% were theater (mock-heavy, trivial assertions).
+#### Pre-existing tests: Audited (April 12)
+128 pre-existing test files audited against mutation critic. 106 fixed (83%), 22 already clean. Anti-pattern fixes committed in `c183bf87`.
 
-## Next Phase: Depth
+## Completed Phases
 
-The overhaul achieved **breadth** (most files have tests). The next phase focuses on **depth** (mutation baselines on priority targets) and **quality** (auditing pre-existing tests).
+### Phase 1 (partial): Mutation baselines
 
-### Phase 1: Mutation baselines on triage priorities
+| Priority | Modules | Target | Score | Status |
+|----------|---------|--------|-------|--------|
+| P1: Security | `relay/voice/crypto.py` | 90%+ | — | `test_crypto_mutation.py` written (1549 lines), baseline pending |
+| P2: Query | `services/query/verbs.py`, `services/query/adapters/` | 80%+ | — | **TODO** |
+| P3: Storage | `civicos/storage/postgres.py`, `civicos/storage/sqlite.py` | 75%+ | — | **TODO** |
+| P4: Elections | `cycles.py` | 80%+ | **81.5%** | Done (`00a66f0a`) |
+| P4: Elections | `deadlines.py` | 80%+ | 65% | **TODO** |
 
-Run mutmut against the modules identified in `mutation-testing-workflow.md`:
+**Lesson learned:** Mutation baselines don't work well in headless mode — mutmut runs too long for a single agent session. Run interactively with `/test mutation <file>`.
 
-| Priority | Modules | Target | Est. Time |
-|----------|---------|--------|-----------|
-| P1: Security | `relay/voice/crypto.py`, `relay/acceptance/`, `services/middleware.py` | 90%+ | 2-3 hrs |
-| P2: Query | `services/query/verbs.py`, `services/query/adapters/` | 80%+ | 2-3 hrs |
-| P3: Storage | `civicos/storage/postgres.py`, `civicos/storage/sqlite.py` | 75%+ | 3-4 hrs |
-| P4: Elections | Push `cycles.py` 77%→80%, `deadlines.py` 65%→80% | 80%+ | 1-2 hrs |
+### Phase 2 (done): Audit pre-existing tests
 
-**Headless-compatible.** Each module can be baselined via:
-```bash
-claude -p "Run /test mutation on {module}. If score < {target}, improve tests until it meets the target. Report final score."
-```
+128 files audited, 106 fixed. Committed `c183bf87`. The 74% theater estimate was validated (actual: 83%).
 
-### Phase 2: Audit pre-existing tests
+## Next Phase: Depth (remaining)
 
-Run the mutation critic against all pre-existing test files. Fix theater tests in-place.
+### Remaining mutation baselines (interactive)
 
-```bash
-claude -p "Read .critics/mutation.critic.md. Audit {test_file} against all 7 checks. Fix any anti-patterns in-place. Report VERDICT."
-```
+| Priority | Module | Target | Action |
+|----------|--------|--------|--------|
+| P1: Security | `relay/voice/crypto.py` | 90%+ | Run mutmut, analyze survivors, kill mutants |
+| P1: Security | `relay/acceptance/` | 90%+ | Write targeted tests |
+| P1: Security | `services/middleware.py` | 90%+ | Write targeted tests |
+| P2: Query | `services/query/verbs.py` | 80%+ | Run mutmut, analyze, improve |
+| P3: Storage | `civicos/storage/postgres.py` | 75%+ | Needs dedicated tests first |
+| P4: Elections | `deadlines.py` | 80%+ | Push from 65%, same pattern as cycles.py |
 
-**Headless-compatible.** Can batch via:
-```bash
-for f in packages/civicos/tests/test_*.py; do
-  claude -p "..." --allowedTools "Edit,Write,Read,Bash,Glob,Grep"
-done
-```
-
-### Phase 3: CI enforcement
+### CI enforcement
 
 | Step | Action | Status |
 |------|--------|--------|
@@ -166,7 +162,7 @@ done
 | Soft gate | Warn below 50% | **TODO** |
 | Hard gate | Block below 70% | **TODO** (after P1-P3 baselines pass) |
 
-### Phase 4: Frontend tests
+### Frontend tests
 
 Requires setting up test infrastructure (vitest for Svelte/TS). Lowest priority — backend correctness matters more at launch.
 
