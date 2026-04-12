@@ -228,12 +228,14 @@ class TestDefaultElectionProvider:
     def test_pa_source_key(self):
         provider = DefaultElectionProvider("PA")
         result = provider.detect_election_sources("city-philadelphia", "philadelphia")
-        assert "pa_sos_results" in result
+        assert result["pa_sos_results"]["county"] == "philadelphia"
+        assert result["pa_sos_results"]["county_breakdown"] is True
 
     def test_il_source_key(self):
         provider = DefaultElectionProvider("IL")
         result = provider.detect_election_sources("city-chicago", "cook")
-        assert "il_sos_results" in result
+        assert result["il_sos_results"]["county"] == "cook"
+        assert result["il_sos_results"]["county_breakdown"] is True
 
     def test_empty_county(self):
         provider = DefaultElectionProvider("TX")
@@ -301,8 +303,9 @@ class TestDispatcherIntegration:
     def test_ca_dispatches_to_provider(self):
         from civicos_extraction.onboard import detect_election_sources
         result = detect_election_sources("city-san-rafael", "CA", "Marin")
-        assert "ca_sos_results" in result
-        assert "civera_election_stats" in result
+        assert result["ca_sos_results"]["county"] == "marin"
+        assert result["civera_election_stats"]["county_slug"] == "marin"
+        assert result["civera_election_stats"]["division_filter"] == "San Rafael"
 
     def test_tx_dispatches_to_provider(self):
         from civicos_extraction.onboard import detect_election_sources

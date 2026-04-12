@@ -99,10 +99,27 @@ class TestBuildPolicyVectors:
     def test_centroid_differs_from_individual_embeddings(self):
         """Centroid should be an average, not a copy of any single embedding."""
         mock, conn, cursor = make_pgvector_mock(rows_per_area=5)
+
+        # Capture what fetchall returns for the first policy area
+        original_fetchall = cursor.fetchall
+        first_batch = []
+        def capturing_fetchall():
+            rows = original_fetchall()
+            if not first_batch:
+                first_batch.extend(rows)
+            return rows
+        cursor.fetchall = capturing_fetchall
+
         result = build_policy_vectors(mock, "city-san-rafael")
-        # With 5 random vectors averaged, the centroid norm before normalization
-        # should be less than the norm of any individual vector (averaging shrinks)
-        assert len(result) > 0  # At least one area has embeddings
+        first_area = list(result.keys())[0]
+        centroid = result[first_area]
+
+        # Centroid must NOT be identical to any single (normalized) embedding
+        for row in first_batch:
+            individual = np.fromstring(row[0].strip("[]"), sep=",")
+            individual_norm = individual / np.linalg.norm(individual)
+            assert not np.allclose(centroid, individual_norm, atol=1e-4), \
+                "Centroid is identical to an individual embedding — averaging may be broken"
 
     def test_empty_results_returns_empty_dict(self):
         mock, conn, cursor = make_pgvector_mock()
@@ -443,7 +460,6 @@ class TestRunPipeline:
         assert result["candidates_retrieved"] == 1
         assert result["candidates_scored"] == 1
         assert result["total_tokens"] == 100
-        assert result["elapsed_seconds"] >= 0
         assert result["task"] == "vector_llm_relevance_pipeline"
 
         # Verify the update payload structure

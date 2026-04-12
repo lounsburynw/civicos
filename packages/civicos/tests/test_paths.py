@@ -323,21 +323,28 @@ class TestBackwardsCompatibility:
         """Module functions should return strings, not Path objects."""
         with patch.dict(os.environ, {"CIVICOS_DATA_ROOT": "/test"}):
             reset_resolver()
-            assert isinstance(get_state_db_path(), str)
-            assert isinstance(get_vectors_dir(), str)
-            assert isinstance(get_bundled_path("test"), str)
-            assert isinstance(get_user_path("test"), str)
+            state_db = get_state_db_path()
+            assert isinstance(state_db, str)
+            assert state_db == "/test/civic_state.db"
+
+            vectors = get_vectors_dir()
+            assert isinstance(vectors, str)
+            assert vectors == "/test/pilot/vectors"
+
+            bundled = get_bundled_path("test")
+            assert isinstance(bundled, str)
+            assert bundled == "/test/test"
+
+            user = get_user_path("test")
+            assert isinstance(user, str)
+            assert user == "/test/test"
 
     def test_path_separator_consistency(self):
         """Paths should use forward slashes for consistency."""
         with patch.dict(os.environ, {"CIVICOS_DATA_ROOT": "/test"}):
             reset_resolver()
             path = get_vectors_dir("city-san-rafael")
-            # On all platforms, pathlib normalizes, but str conversion is OS-dependent
-            # Just verify the path components are correct
-            assert "pilot" in path
-            assert "vectors" in path
-            assert "city-san-rafael" in path
+            assert path == "/test/pilot/vectors/city-san-rafael"
 
 
 class TestEmbeddingModelConfiguration:

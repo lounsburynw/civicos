@@ -132,6 +132,7 @@ class TestLookupSchoolDistrict:
         """CA should be converted to 'california' for lookup."""
         result = lookup_school_district("Novato", "CA", districts=sample_districts)
         assert result is not None
+        assert result["jurisdiction_id"] == "school-novato"
 
     def test_searches_all_counties_without_county_arg(self, sample_districts):
         """Without county filter, should search all counties in state."""
@@ -182,13 +183,14 @@ class TestRealSchoolDistrictsJson:
         data = load_school_districts()
         for d in data["california"]["marin"]:
             if d["platform"] == "simbli":
-                assert d["board_url"], f"{d['name']} missing board_url"
+                assert d["board_url"].startswith("http"), f"{d['name']} has invalid board_url: {d['board_url']}"
 
     def test_boarddocs_districts_have_app_path(self):
         data = load_school_districts()
         for d in data["california"]["marin"]:
             if d["platform"] == "boarddocs":
                 assert "boarddocs_app_path" in d, f"{d['name']} missing boarddocs_app_path"
+                assert "/" in d["boarddocs_app_path"], f"{d['name']} boarddocs_app_path should be a path like 'ca/rova': {d['boarddocs_app_path']}"
 
     def test_onboarded_districts_in_lookup_table(self):
         """School districts with extraction configs should appear in lookup table."""

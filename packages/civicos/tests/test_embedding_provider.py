@@ -317,40 +317,28 @@ class TestProviderInterface:
             provider = OpenAIProvider()
             assert isinstance(provider, EmbeddingProvider)
 
-    def test_interface_methods_exist(self):
-        """Both providers have required interface methods."""
-        local = SentenceTransformerProvider()
-
-        # Check methods exist
-        assert hasattr(local, 'encode')
-        assert hasattr(local, 'embedding_dimension')
-        assert hasattr(local, 'model_name')
-        assert callable(local.encode)
-
-    def test_encode_returns_numpy_array(self):
-        """encode() returns numpy array for both providers."""
+    def test_encode_returns_correct_shape(self):
+        """encode() returns numpy array with correct shape for both providers."""
         local = SentenceTransformerProvider()
         result = local.encode("test")
         assert isinstance(result, np.ndarray)
+        assert result.shape == (1, 768)
+        assert np.all(np.isfinite(result))
 
-    def test_embedding_dimension_is_int(self):
-        """embedding_dimension is an integer for both providers."""
+    def test_providers_have_correct_dimensions(self):
+        """Each provider reports its specific embedding dimension."""
         local = SentenceTransformerProvider()
-        assert isinstance(local.embedding_dimension, int)
-        assert local.embedding_dimension > 0
+        assert local.embedding_dimension == 768
 
         with patch.dict(os.environ, {"OPENAI_API_KEY": "test-key"}):
-            openai = OpenAIProvider()
-            assert isinstance(openai.embedding_dimension, int)
-            assert openai.embedding_dimension > 0
+            openai_prov = OpenAIProvider()
+            assert openai_prov.embedding_dimension == 1536
 
-    def test_model_name_is_string(self):
-        """model_name is a string for both providers."""
+    def test_providers_have_correct_model_names(self):
+        """Each provider reports its specific model name."""
         local = SentenceTransformerProvider()
-        assert isinstance(local.model_name, str)
-        assert len(local.model_name) > 0
+        assert local.model_name == "nomic-ai/nomic-embed-text-v1.5"
 
         with patch.dict(os.environ, {"OPENAI_API_KEY": "test-key"}):
-            openai = OpenAIProvider()
-            assert isinstance(openai.model_name, str)
-            assert len(openai.model_name) > 0
+            openai_prov = OpenAIProvider()
+            assert openai_prov.model_name == "text-embedding-3-small"

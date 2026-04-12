@@ -374,8 +374,9 @@ class TestSMTPAuthentication:
             mock_server = MagicMock()
             mock_smtp.return_value.__enter__.return_value = mock_server
 
-            delivery.deliver(sample_event, sample_subscription)
+            result = delivery.deliver(sample_event, sample_subscription)
 
+            assert result is True
             mock_server.starttls.assert_called_once()
 
     def test_login_with_credentials(self, sample_event, sample_subscription):
@@ -394,8 +395,9 @@ class TestSMTPAuthentication:
             mock_server = MagicMock()
             mock_smtp.return_value.__enter__.return_value = mock_server
 
-            delivery.deliver(sample_event, sample_subscription)
+            result = delivery.deliver(sample_event, sample_subscription)
 
+            assert result is True
             mock_server.login.assert_called_once_with("user", "pass")
 
     def test_no_login_without_credentials(self, email_delivery, sample_event, sample_subscription):
@@ -404,6 +406,7 @@ class TestSMTPAuthentication:
             mock_server = MagicMock()
             mock_smtp.return_value.__enter__.return_value = mock_server
 
-            email_delivery.deliver(sample_event, sample_subscription)
+            result = email_delivery.deliver(sample_event, sample_subscription)
 
+            assert result is True
             mock_server.login.assert_not_called()

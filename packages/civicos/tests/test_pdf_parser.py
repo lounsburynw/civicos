@@ -332,17 +332,23 @@ class TestParseToChunks:
 class TestAgendaItemPattern:
 
     def test_matches_standard_format(self):
-        assert AgendaPacketParser.AGENDA_ITEM_PATTERN.search("Agenda Item No. 6")
+        m = AgendaPacketParser.AGENDA_ITEM_PATTERN.search("Agenda Item No. 6")
+        assert m is not None
+        assert m.group(1) == "6"
 
     def test_matches_with_colon(self):
-        assert AgendaPacketParser.AGENDA_ITEM_PATTERN.search("Agenda Item No: 6")
+        m = AgendaPacketParser.AGENDA_ITEM_PATTERN.search("Agenda Item No: 6")
+        assert m is not None
+        assert m.group(1) == "6"
 
     def test_matches_with_letter_suffix(self):
         m = AgendaPacketParser.AGENDA_ITEM_PATTERN.search("Agenda Item No. 6a")
         assert m.group(1) == "6a"
 
     def test_matches_case_insensitive(self):
-        assert AgendaPacketParser.AGENDA_ITEM_PATTERN.search("AGENDA ITEM NO. 6")
+        m = AgendaPacketParser.AGENDA_ITEM_PATTERN.search("AGENDA ITEM NO. 6")
+        assert m is not None
+        assert m.group(1) == "6"
 
     def test_no_match_random_text(self):
         assert AgendaPacketParser.AGENDA_ITEM_PATTERN.search("Budget discussion") is None

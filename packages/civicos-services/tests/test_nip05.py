@@ -110,7 +110,7 @@ class TestNIP05Endpoint:
 
         assert response.status_code == 200
         assert response.headers.get("Access-Control-Allow-Origin") == "*"
-        assert "Cache-Control" in response.headers
+        assert response.headers.get("Cache-Control") == "max-age=3600"
 
     def test_nip05_default_relay_url(self, client):
         """Uses default relay URL when not configured."""

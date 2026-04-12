@@ -92,11 +92,11 @@ class TestCivicIntegration:
         # Verify it's a list (even if empty)
         assert isinstance(meetings, list)
 
-        # If there are meetings, verify structure
+        # If there are meetings, verify they have meaningful content
         for m in meetings:
-            assert m.id is not None
-            assert m.title is not None
-            assert m.date is not None
+            assert len(m.id) > 0, "Meeting ID should be non-empty"
+            assert len(m.title) > 5, "Meeting title should be descriptive"
+            assert m.date.year >= 2020, "Meeting date should be recent"
 
 
 class TestCivicQueryChaining:
@@ -115,9 +115,12 @@ class TestCivicQueryChaining:
         # 2. Check past decisions
         decisions = civic.what_happened("housing")
 
-        # Both should work together
+        # Both should work together and return data
         assert context.topic == "housing"
-        assert isinstance(decisions, list)
+        # Verify decisions are properly typed (may be empty in SQLite)
+        for d in decisions:
+            assert len(d.title) > 0, "Decision title should be non-empty"
+            assert d.date.year >= 2020, "Decision date should be recent"
 
     def test_multi_topic_research(self, civic):
         """Test researching multiple topics."""
@@ -142,8 +145,9 @@ class TestCivicStateManager:
         return CivicOS("city-san-rafael", db_path=DB_PATH)
 
     def test_state_manager_initialized(self, civic):
-        """Verify StateManager is properly initialized."""
-        assert civic._state is not None
+        """Verify StateManager is properly initialized with San Rafael data."""
+        state = civic._state.get_city_state("city-san-rafael")
+        assert state["jurisdiction_id"] == "city-san-rafael"
 
     def test_can_query_issue_stats(self, civic):
         """Test that issue data is accessible."""
@@ -189,10 +193,9 @@ class TestWhatsNextWithRealData:
         assert state is not None
         assert "meetings" in state
 
-        # San Rafael should have at least some historical meeting data
-        # (even if not in future window)
+        # San Rafael should have historical meeting data
         all_meetings = state.get("meetings", [])
-        assert len(all_meetings) >= 0  # May have meetings in database
+        assert len(all_meetings) > 0, "San Rafael should have historical meeting data"
 
     def test_whats_next_meeting_structure_when_data_exists(self, civic):
         """
@@ -203,22 +206,20 @@ class TestWhatsNextWithRealData:
         """
         state = civic._state.get_city_state("city-san-rafael")
         all_meetings = state.get("meetings", [])
+        assert len(all_meetings) > 0, "requires_real_data: San Rafael should have meetings"
 
-        if len(all_meetings) > 0:
-            # Verify raw meeting data structure
-            sample = all_meetings[0]
+        sample = all_meetings[0]
 
-            # Required fields from StateManager
-            assert "id" in sample
-            assert "title" in sample
-            assert "meeting_datetime" in sample or sample.get("full_data", {}).get("meeting_datetime")
+        # Verify meeting has expected fields with values
+        assert len(sample.get("id", "")) > 0, "Meeting ID should be non-empty"
+        assert len(sample.get("title", "")) > 0, "Meeting title should be non-empty"
+        assert "meeting_datetime" in sample or sample.get("full_data", {}).get("meeting_datetime")
 
-            # Meeting should have proper metadata
-            assert "jurisdiction_id" in sample
-            assert sample["jurisdiction_id"] == "city-san-rafael"
+        # Meeting should reference correct jurisdiction
+        assert sample["jurisdiction_id"] == "city-san-rafael"
 
-            # Should have source info for real data
-            assert "source_platform" in sample
+        # Should have source info for real data
+        assert len(sample.get("source_platform", "")) > 0, "Source platform should be non-empty"
 
     def test_whats_next_extracts_agenda_items(self, civic):
         """
@@ -239,25 +240,26 @@ class TestWhatsNextWithRealData:
             if isinstance(full_data, str):
                 try:
                     full_data = json.loads(full_data)
-                except:
+                except (json.JSONDecodeError, TypeError):
                     continue
 
             if full_data and full_data.get("agenda_items"):
                 meeting_with_agenda = m
                 break
 
-        if meeting_with_agenda:
-            full_data = meeting_with_agenda.get("full_data", {})
-            if isinstance(full_data, str):
-                full_data = json.loads(full_data)
+        assert meeting_with_agenda is not None, \
+            "requires_real_data: at least one meeting should have agenda items"
 
-            agenda_items = full_data.get("agenda_items", [])
+        full_data = meeting_with_agenda.get("full_data", {})
+        if isinstance(full_data, str):
+            full_data = json.loads(full_data)
 
-            # Verify agenda item structure
-            assert len(agenda_items) > 0
-            for item in agenda_items:
-                assert "id" in item or "item_number" in item
-                assert "title" in item
+        agenda_items = full_data.get("agenda_items", [])
+        assert len(agenda_items) > 0
+
+        for item in agenda_items:
+            assert "id" in item or "item_number" in item
+            assert len(item.get("title", "")) > 0, "Agenda item title should be non-empty"
 
     def test_whats_next_date_filtering(self, civic):
         """
@@ -296,26 +298,20 @@ class TestWhatsNextWithRealData:
         """
         state = civic._state.get_city_state("city-san-rafael")
         all_meetings = state.get("meetings", [])
+        assert len(all_meetings) > 0, "requires_real_data: San Rafael should have meetings"
 
-        if len(all_meetings) > 0:
-            sample = all_meetings[0]
+        sample = all_meetings[0]
 
-            # Real data should have quality indicators
-            title = sample.get("title", "")
-            assert len(title) > 5, "Title should be descriptive"
+        # Real data should have quality indicators
+        title = sample.get("title", "")
+        assert len(title) > 5, "Title should be descriptive"
 
-            # Should reference San Rafael-specific bodies
-            meeting_type = sample.get("meeting_type", "")
-            valid_types = ["city_council", "planning_commission", "board",
-                          "committee", "commission", "hearing"]
-            # At least have some type information
-            assert meeting_type or sample.get("full_data")
-
-            # Should have location for in-person meetings
-            location = sample.get("location", "")
-            if location:
-                # San Rafael meetings should reference local venues
-                assert len(location) > 10
+        # Should reference San Rafael-specific bodies
+        meeting_type = sample.get("meeting_type", "")
+        valid_types = ["city_council", "planning_commission", "board",
+                      "committee", "commission", "hearing"]
+        assert meeting_type in valid_types, \
+            f"Meeting type '{meeting_type}' not in expected types: {valid_types}"
 
 
 @pytest.mark.requires_real_data
@@ -952,21 +948,16 @@ class TestWhatHappenedWithRealData:
         assert len(decisions) > 0, "Should have Merrydale decisions"
 
         for decision in decisions:
-            # Verify it's a Decision object
             assert isinstance(decision, Decision)
-
-            # Required fields
-            assert hasattr(decision, 'id')
-            assert hasattr(decision, 'title')
-            assert hasattr(decision, 'date')
-            assert hasattr(decision, 'outcome')
-            assert hasattr(decision, 'body')
-            assert hasattr(decision, 'votes')
-
-            # Type checks
-            assert isinstance(decision.id, str)
-            assert isinstance(decision.title, str)
-            assert isinstance(decision.body, str)
+            # Verify fields have meaningful content, not just existence
+            assert len(decision.id) > 0, "Decision ID should be non-empty"
+            assert len(decision.title) > 5, "Decision title should be descriptive"
+            assert decision.date.year >= 2020, "Decision date should be recent"
+            assert decision.outcome in [
+                "passed", "failed", "continued", "modified",
+                "unknown", "approved", "received", "adopted",
+            ], f"Unexpected outcome: {decision.outcome}"
+            assert isinstance(decision.body, str), "Decision body should be a string"
 
     def test_what_happened_decision_includes_outcome(self, civic_with_shelter_scenario):
         """

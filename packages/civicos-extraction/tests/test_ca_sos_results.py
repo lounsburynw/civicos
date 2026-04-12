@@ -239,6 +239,8 @@ class TestCASOSResultsClient:
         client = CASOSResultsClient()
         result = client.get_district_race("us-rep", 2)
         mock_get.assert_called_once_with("/returns/us-rep/district/2")
+        assert result["raceTitle"] == SAMPLE_CANDIDATE_RACE["raceTitle"]
+        assert len(result["candidates"]) == 2
 
     @patch.object(CASOSResultsClient, "_get")
     def test_get_ballot_measures(self, mock_get):
@@ -251,8 +253,10 @@ class TestCASOSResultsClient:
     def test_get_ballot_measure_single(self, mock_get):
         mock_get.return_value = {"Number": "50", "Name": "Test"}
         client = CASOSResultsClient()
-        client.get_ballot_measure(50)
+        result = client.get_ballot_measure(50)
         mock_get.assert_called_once_with("/returns/ballot-measures/prop/50")
+        assert result["Number"] == "50"
+        assert result["Name"] == "Test"
 
     @patch.object(CASOSResultsClient, "_get")
     def test_get_county_breakdown(self, mock_get):
@@ -266,15 +270,18 @@ class TestCASOSResultsClient:
     def test_get_county_breakdown_statewide(self, mock_get):
         mock_get.return_value = SAMPLE_COUNTY_BREAKDOWN
         client = CASOSResultsClient()
-        client.get_county_breakdown("president", "marin")
+        result = client.get_county_breakdown("president", "marin")
         mock_get.assert_called_once_with("/returns/president/county/marin")
+        assert len(result) == 2
+        assert result[0]["raceTitle"].endswith("Marin Results")
 
     @patch.object(CASOSResultsClient, "_get")
     def test_get_ballot_measures_county(self, mock_get):
         mock_get.return_value = {}
         client = CASOSResultsClient()
-        client.get_ballot_measures_county("marin")
+        result = client.get_ballot_measures_county("marin")
         mock_get.assert_called_once_with("/returns/ballot-measures/county/marin")
+        assert result == {}
 
     @patch.object(CASOSResultsClient, "_get")
     def test_get_reporting_status(self, mock_get):
@@ -288,8 +295,10 @@ class TestCASOSResultsClient:
     def test_get_reporting_status_typed(self, mock_get):
         mock_get.return_value = SAMPLE_STATUS
         client = CASOSResultsClient()
-        client.get_reporting_status("general")
+        result = client.get_reporting_status("general")
         mock_get.assert_called_once_with("/returns/status/general")
+        assert "marin" in result
+        assert result["marin"]["countyName"] == "Marin"
 
     @patch.object(CASOSResultsClient, "_get")
     def test_health_success(self, mock_get):
@@ -575,18 +584,19 @@ class TestCASOSResultsIntegration:
         client = CASOSResultsClient()
         try:
             result = client.get_ballot_measures()
-            measures = result.get("ballot-measures", [])
-            if measures:
-                m = measures[0]
-                assert "Name" in m
-                assert "Number" in m
-                assert "yesVotes" in m
-                assert "noVotes" in m
-                # Verify vote parsing works on real data
-                yes_votes = _parse_votes(m["yesVotes"])
-                assert yes_votes is None or isinstance(yes_votes, int)
-        except Exception:
+        except (OSError, ConnectionError, TimeoutError):
             pytest.skip("No ballot measure data currently loaded in CA SOS API")
+        measures = result.get("ballot-measures", [])
+        if measures:
+            m = measures[0]
+            assert "Name" in m
+            assert "Number" in m
+            assert "yesVotes" in m
+            assert "noVotes" in m
+            # Verify vote parsing produces a positive integer on real data
+            yes_votes = _parse_votes(m["yesVotes"])
+            assert isinstance(yes_votes, int)
+            assert yes_votes > 0
 
     @pytest.mark.integration
     @pytest.mark.slow
@@ -597,11 +607,12 @@ class TestCASOSResultsIntegration:
         for slug in STATEWIDE_RACES:
             try:
                 result = client.get_statewide_race(slug)
-                assert "raceTitle" in result
-                assert "candidates" in result
-                found = True
-                break
-            except Exception:
+            except (OSError, ConnectionError, TimeoutError):
                 continue
+            assert "raceTitle" in result
+            assert "candidates" in result
+            assert len(result["candidates"]) > 0
+            found = True
+            break
         if not found:
             pytest.skip("No statewide race data currently loaded in CA SOS API")

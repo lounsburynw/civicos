@@ -165,7 +165,7 @@ class TestEnrich:
         self.mock_context_builder.build.return_value = {}
 
         result = self.enricher.enrich({"title": "Test"})
-        assert len(result["state_legislation_refs"]) <= 2
+        assert len(result["state_legislation_refs"]) == 2
 
 
 # ---------- create_semantic_enricher ----------
@@ -185,6 +185,7 @@ class TestFactory:
         ):
             enricher = create_semantic_enricher(persist_directory="/tmp/test")
             assert isinstance(enricher, SemanticEnricher)
+            assert enricher.top_k == 5  # default top_k
 
 
 # ---------- Import guard ----------

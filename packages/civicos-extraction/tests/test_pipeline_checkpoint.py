@@ -176,7 +176,11 @@ class TestCheckpointPersistence:
         path = str(tmp_path / "nested" / "dirs" / "checkpoint.json")
 
         save_checkpoint(checkpoint, path)
-        assert Path(path).exists()
+
+        # Verify saved content is loadable and correct (not just that file exists)
+        loaded = load_checkpoint(path)
+        assert loaded.jurisdiction_id == "city-test"
+        assert loaded.last_meeting_id == "meeting-001"
 
 
 class TestPipelineResume:
@@ -449,5 +453,8 @@ class TestPipelineValidation:
 
         assert result.success
         validation = result.stages["store"].metadata["validation"]
-        assert "validation_time_ms" in validation
-        assert validation["validation_time_ms"] >= 0
+        assert isinstance(validation["validation_time_ms"], (int, float))
+        assert validation["validation_time_ms"] < 5000  # Validation of 1 meeting under 5s
+        # Verify validation also recorded correct counts
+        assert validation["total"] == 1
+        assert validation["valid"] == 1

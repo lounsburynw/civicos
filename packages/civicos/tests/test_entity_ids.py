@@ -103,12 +103,16 @@ class TestEntityIdFormats:
         )
         assert issue.id == "issue:city-san-rafael:seeclickfix:12345678"
 
-    def test_decision_extractor_namespaced_id(self):
-        """DecisionExtractor should generate namespaced decision IDs."""
+    def test_decision_extractor_stores_jurisdiction(self):
+        """DecisionExtractor stores jurisdiction_id for use in ID generation."""
         from civicos._internal.meetings.decision import DecisionExtractor
 
         extractor = DecisionExtractor(jurisdiction_id="city-san-rafael")
         assert extractor.jurisdiction_id == "city-san-rafael"
+        # Verify non-default jurisdiction is stored correctly
+        extractor2 = DecisionExtractor(jurisdiction_id="city-berkeley")
+        assert extractor2.jurisdiction_id == "city-berkeley"
+        assert extractor2.jurisdiction_id != extractor.jurisdiction_id
 
 
 class TestBackwardsCompatibility:
@@ -133,44 +137,28 @@ class TestBackwardsCompatibility:
 class TestJurisdictionFormats:
     """Test jurisdiction ID formats in namespaced IDs."""
 
-    def test_city_jurisdiction(self):
-        """City jurisdictions use 'city-' prefix."""
+    def test_city_jurisdiction_matches_pattern(self):
+        """City jurisdictions with 'city-' prefix match meeting namespace pattern."""
         entity_id = "meeting:city-san-rafael:legistar:123"
-        assert "city-san-rafael" in entity_id
+        assert is_namespaced(entity_id, "meeting")
+        assert entity_id.split(":")[1] == "city-san-rafael"
 
-    def test_county_jurisdiction(self):
-        """County jurisdictions use 'county-' prefix."""
+    def test_county_jurisdiction_matches_pattern(self):
+        """County jurisdictions with 'county-' prefix match meeting namespace pattern."""
         entity_id = "meeting:county-marin:legistar:456"
-        assert "county-marin" in entity_id
+        assert is_namespaced(entity_id, "meeting")
+        assert entity_id.split(":")[1] == "county-marin"
 
-    def test_state_jurisdiction(self):
-        """State jurisdictions use 'state-' prefix."""
+    def test_state_jurisdiction_matches_bill_pattern(self):
+        """State jurisdictions with 'state-' prefix match bill namespace pattern."""
         bill_id = "bill:state-california:sb-1234"
-        assert "state-california" in bill_id
+        assert is_namespaced(bill_id, "bill")
+        assert bill_id.split(":")[1] == "state-california"
 
-    def test_federal_jurisdiction(self):
-        """Federal uses 'federal' without prefix."""
+    def test_federal_jurisdiction_matches_bill_pattern(self):
+        """Federal jurisdiction matches bill namespace pattern."""
         bill_id = "bill:federal:hr-5678"
-        assert "federal" in bill_id
+        assert is_namespaced(bill_id, "bill")
+        assert bill_id.split(":")[1] == "federal"
 
 
-@pytest.mark.skipif(
-    True,  # Skip by default - requires database
-    reason="Integration test - requires database connection"
-)
-class TestIntegrationNewRecords:
-    """Integration tests verifying new records get namespaced IDs."""
-
-    def test_new_meeting_gets_namespaced_id(self):
-        """New meetings ingested should have namespaced IDs."""
-        # This would require setting up a test database
-        # and ingesting a meeting through the extraction pipeline
-        pass
-
-    def test_new_decision_gets_namespaced_id(self):
-        """New decisions stored should have namespaced IDs."""
-        pass
-
-    def test_new_issue_gets_namespaced_id(self):
-        """New issues stored should have namespaced IDs."""
-        pass

@@ -1172,6 +1172,8 @@ class TestSourceFactory:
         )
         source = create_source(config)
         assert source is not None
+        assert source.source_type == "granicus"
+        assert source.source_id == "granicus-city-test"
 
     def test_unsupported_type_raises(self):
         """Factory raises ValueError for unsupported source_type."""
@@ -1619,6 +1621,8 @@ class TestDiscoverEScribeInstance:
         result = discover_escribe_instance("National City", state="CA")
 
         assert result is not None
+        assert result["instance_name"] == "cityofnationalcity"
+        assert "escribemeetings.com" in result["url"]
 
 
 class TestEScribeClient:

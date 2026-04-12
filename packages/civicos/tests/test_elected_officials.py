@@ -128,6 +128,7 @@ class TestExtractWinners:
         }
         winners = _extract_winners(contest)
         assert len(winners) == 1
+        assert winners[0]["name"] == "Rep. Smith"
 
 
 class TestContestToSeat:

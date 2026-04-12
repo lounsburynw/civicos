@@ -107,8 +107,8 @@ class TestComputeTranscriptHash:
             ]
         }
         hash_result = compute_transcript_hash(transcript)
-        assert hash_result is not None
         assert len(hash_result) == 64
+        assert all(c in "0123456789abcdef" for c in hash_result)
 
     def test_transcript_hash_consistency(self):
         """Same transcript always produces same hash."""
@@ -152,8 +152,8 @@ class TestComputeChunkHash:
         """Chunk text produces valid hash."""
         text = "This is extracted PDF content about city planning."
         hash_result = compute_chunk_hash(text)
-        assert hash_result is not None
         assert len(hash_result) == 64
+        assert all(c in "0123456789abcdef" for c in hash_result)
 
     def test_chunk_hash_consistency(self):
         """Same text always produces same hash."""
@@ -197,8 +197,8 @@ class TestComputeDecisionHash:
             "topics": ["zoning", "housing"],
         }
         hash_result = compute_decision_hash(decision)
-        assert hash_result is not None
         assert len(hash_result) == 64
+        assert all(c in "0123456789abcdef" for c in hash_result)
 
     def test_decision_hash_consistency(self):
         """Same decision always produces same hash."""
@@ -315,8 +315,8 @@ class TestComputeAudioHash:
         # Simulate ~1MB audio file
         audio_data = b"AUDIO_FRAME" * 100000
         hash_result = compute_audio_hash(audio_data)
-        assert hash_result is not None
         assert len(hash_result) == 64
+        assert all(c in "0123456789abcdef" for c in hash_result)
 
     def test_audio_hash_empty_returns_none(self):
         """Empty bytes returns None."""
@@ -392,8 +392,8 @@ class TestComputePdfHash:
         # Simulate ~1MB PDF file
         pdf_data = b"%PDF-1.4\n" + (b"PDF_PAGE_DATA" * 100000)
         hash_result = compute_pdf_hash(pdf_data)
-        assert hash_result is not None
         assert len(hash_result) == 64
+        assert all(c in "0123456789abcdef" for c in hash_result)
 
     def test_pdf_hash_empty_returns_none(self):
         """Empty bytes returns None."""

@@ -78,7 +78,6 @@ class TestVectorStoreWithLocalProvider:
         """VectorStore uses FastEmbed provider by default."""
         store = VectorStore(persist_directory=temp_store_dir)
 
-        assert store.provider is not None
         assert isinstance(store.provider, FastEmbedProvider)
         assert store.provider.embedding_dimension == 768
 
@@ -175,9 +174,12 @@ class TestVectorStoreWithOpenAIProvider:
 
         added = store.add_documents(documents)
         assert added == 2
+        assert store.count() == 2
 
         results = store.search("test", top_k=2)
         assert len(results) == 2
+        result_ids = {r.document_id for r in results}
+        assert result_ids == {"doc1", "doc2"}
 
 
 class TestDimensionValidation:
@@ -219,8 +221,9 @@ class TestDimensionValidation:
         # Note: ChromaDB stores metadata on collection creation, so this tests
         # that we handle the case where no documents exist yet
         store2 = VectorStore(persist_directory=temp_store_dir, provider=mock_openai_provider)
-        # The validation should pass because there are no embeddings yet
-        # (though metadata may differ)
+        assert store2.provider is mock_openai_provider
+        assert store2.provider.embedding_dimension == 1536
+        assert store2.count() == 0
 
 
 class TestVectorStoreIntegration:
@@ -282,8 +285,8 @@ class TestVectorStoreIntegration:
             f"Expected at least 2 housing docs in top 3, got: {result_ids}"
         )
 
-    def test_score_range(self, temp_store_dir, local_provider):
-        """Search scores are in expected range [0, 1]."""
+    def test_score_range_and_ordering(self, temp_store_dir, local_provider):
+        """Search scores are in [0, 1] and relevant docs score higher."""
         store = VectorStore(persist_directory=temp_store_dir, provider=local_provider)
 
         documents = [
@@ -297,6 +300,13 @@ class TestVectorStoreIntegration:
 
         for result in results:
             assert 0.0 <= result.score <= 1.0, f"Score {result.score} out of range"
+
+        # Relevant document should score higher than irrelevant one
+        scores_by_id = {r.document_id: r.score for r in results}
+        assert scores_by_id["doc1"] > scores_by_id["doc2"], (
+            f"Housing doc ({scores_by_id['doc1']:.3f}) should score higher "
+            f"than weather doc ({scores_by_id['doc2']:.3f})"
+        )
 
 
 class TestLegalSearchIntegration:

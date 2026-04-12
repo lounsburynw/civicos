@@ -328,8 +328,8 @@ class TestChunkMetadataSync:
 
         # Verify metadata matches speaker info
         for chunk in e_chunks:
-            if "speaker_role" in chunk.metadata:
-                assert chunk.metadata["speaker_role"] == speaker_info["E"].role
+            assert "speaker_role" in chunk.metadata, f"Chunk {chunk.chunk_index} missing speaker_role metadata"
+            assert chunk.metadata["speaker_role"] == speaker_info["E"].role
 
     def test_chunk_speaker_name_metadata(self):
         """Chunk metadata includes speaker name when detected."""
@@ -358,8 +358,8 @@ class TestChunkMetadataSync:
         assert len(e_chunks) > 0
 
         for chunk in e_chunks:
-            if "speaker_name" in chunk.metadata:
-                assert chunk.metadata["speaker_name"] == "Bushy"
+            assert "speaker_name" in chunk.metadata, f"Chunk {chunk.chunk_index} missing speaker_name metadata"
+            assert chunk.metadata["speaker_name"] == "Bushy"
 
 
 class TestDiarizationQualityChecks:
@@ -552,7 +552,10 @@ class TestDiarizationQualityChecks:
         for chunk in chunks:
             if chunk.speaker != "multiple":
                 info = speaker_info.get(chunk.speaker)
-                if info and "speaker_role" in chunk.metadata:
+                if info:
+                    assert "speaker_role" in chunk.metadata, (
+                        f"Chunk {chunk.chunk_index} missing speaker_role for speaker {chunk.speaker}"
+                    )
                     assert chunk.metadata["speaker_role"] == info.role, (
                         f"Chunk {chunk.chunk_index} has inconsistent role for speaker {chunk.speaker}"
                     )
@@ -621,9 +624,13 @@ class TestEdgeCases:
 
         result = detector.detect_roles(utterances)
 
-        # Should handle gracefully
-        assert "A" in result
-        assert "B" in result
+        # Both speakers detected with correct IDs; no distinguishing features
+        assert len(result) == 2
+        assert result["A"].speaker_id == "A"
+        assert result["B"].speaker_id == "B"
+        # Minimal text without context cues should not be misidentified as council/staff
+        assert result["A"].role in ("public", "unknown")
+        assert result["B"].role in ("public", "unknown")
 
     def test_speaker_appears_once(self):
         """Speaker who appears only once still gets consistent info."""

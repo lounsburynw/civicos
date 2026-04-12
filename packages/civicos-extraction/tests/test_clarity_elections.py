@@ -454,22 +454,29 @@ class TestParseSummaryContests:
         ]
         contests = parse_summary_contests(summary)
         assert len(contests) == 3
+        assert contests[0]["CT"] == "Mayor"
+        assert contests[1]["CT"] == "Council"
+        assert contests[2]["CT"] == "Measure A"
 
     def test_flat_format(self):
         """Direct array of contest objects."""
         summary = [{"CT": "Mayor"}, {"CT": "Council"}]
         contests = parse_summary_contests(summary)
         assert len(contests) == 2
+        assert contests[0]["CT"] == "Mayor"
+        assert contests[1]["CT"] == "Council"
 
     def test_object_with_contests_key(self):
         summary = {"Contests": [{"CT": "Mayor"}]}
         contests = parse_summary_contests(summary)
         assert len(contests) == 1
+        assert contests[0]["CT"] == "Mayor"
 
     def test_object_with_c_key(self):
         summary = {"C": [{"CT": "Mayor"}]}
         contests = parse_summary_contests(summary)
         assert len(contests) == 1
+        assert contests[0]["CT"] == "Mayor"
 
     def test_empty_returns_empty(self):
         assert parse_summary_contests([]) == []
@@ -481,6 +488,7 @@ class TestParseSummaryContests:
         summary = [{"N": "Board Member"}]
         contests = parse_summary_contests(summary)
         assert len(contests) == 1
+        assert contests[0]["N"] == "Board Member"
 
     def test_parallel_array_format(self):
         """Live Clarity ENR uses parallel arrays: C (string), CH, V, PCT."""

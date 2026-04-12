@@ -13,24 +13,33 @@ class TestMeetingSchema:
     """Test the JSON schema definition."""
 
     def test_schema_has_required_fields(self):
-        """Schema should define required fields."""
+        """Schema should define exactly the expected required fields."""
         assert "required" in MEETING_SCHEMA
-        required = MEETING_SCHEMA["required"]
-        assert "id" in required
-        assert "title" in required
-        assert "meeting_datetime" in required
-        assert "jurisdiction_id" in required
+        assert set(MEETING_SCHEMA["required"]) == {
+            "id", "title", "meeting_datetime", "jurisdiction_id"
+        }
 
     def test_schema_has_property_definitions(self):
-        """Schema should define all Meeting properties."""
+        """Schema should define all Meeting properties with correct types."""
         properties = MEETING_SCHEMA["properties"]
         expected_props = [
             "id", "title", "meeting_datetime", "jurisdiction_id",
             "meeting_type", "status", "location", "virtual_url",
             "agenda_url", "minutes_url", "video_url", "source_platform", "source_url"
         ]
-        for prop in expected_props:
-            assert prop in properties, f"Missing property: {prop}"
+        assert set(expected_props) <= set(properties.keys()), (
+            f"Missing properties: {set(expected_props) - set(properties.keys())}"
+        )
+        # Required string fields enforce minLength
+        assert properties["id"]["type"] == "string"
+        assert properties["id"]["minLength"] == 1
+        assert properties["title"]["type"] == "string"
+        assert properties["title"]["minLength"] == 1
+        assert properties["jurisdiction_id"]["type"] == "string"
+        assert properties["jurisdiction_id"]["minLength"] == 1
+        # Optional fields accept null
+        assert properties["meeting_type"]["type"] == ["string", "null"]
+        assert properties["location"]["type"] == ["string", "null"]
 
 
 class TestMeetingValidator:

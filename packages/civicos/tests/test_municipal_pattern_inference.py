@@ -19,19 +19,21 @@ class TestTitlePatternInference:
         corpus._title_pattern = re.compile(MunicipalCodeCorpus.DEFAULT_TITLE_PATTERN)
         return corpus
 
-    def test_standard_title_pattern_not_needed(self):
-        """Standard 'Title N - NAME' pattern should match directly."""
+    def test_standard_title_pattern_still_inferred(self):
+        """Standard 'Title N - NAME' headings still match an alternative pattern."""
         corpus = self._make_corpus()
         headings = [
             "Title 1 - GENERAL PROVISIONS",
             "Title 2 - ADMINISTRATION",
             "Title 3 - FINANCE AND TAXATION",
         ]
-        # These match the default, so _infer should not be called
-        # But if called, it should still return a valid pattern
         result = corpus._infer_title_pattern(headings)
-        # May or may not return something, but shouldn't crash
-        assert result is None or isinstance(result, re.Pattern)
+        # All 3 headings match the case-insensitive TITLE pattern
+        assert result is not None
+        m = result.match("Title 1 - GENERAL PROVISIONS")
+        assert m is not None
+        assert m.group(1) == "1"
+        assert m.group(2) == "GENERAL PROVISIONS"
 
     def test_roman_numeral_chapters(self):
         """Alameda-style 'CHAPTER I - NAME' should match."""
@@ -93,6 +95,8 @@ class TestTitlePatternInference:
         assert result is not None
         m = result.match("CHAPTER I — GENERAL")
         assert m is not None
+        assert m.group(1) == "I"
+        assert m.group(2) == "GENERAL"
 
     def test_en_dash_separator(self):
         """Patterns should work with en-dash (–) separators."""
@@ -105,6 +109,10 @@ class TestTitlePatternInference:
         ]
         result = corpus._infer_title_pattern(headings)
         assert result is not None
+        m = result.match("CHAPTER III – FINANCE")
+        assert m is not None
+        assert m.group(1) == "III"
+        assert m.group(2) == "FINANCE"
 
     def test_empty_headings(self):
         """Empty headings list should return None."""
@@ -121,9 +129,7 @@ class TestTitlePatternInference:
             "Yet Another",
         ]
         result = corpus._infer_title_pattern(headings)
-        # Without LLM, should return None (LLM import may fail in test)
-        # This is acceptable - it means the city needs manual config
-        assert result is None or isinstance(result, re.Pattern)
+        assert result is None
 
     def test_minimum_match_threshold(self):
         """Pattern must match at least 3 headings to be accepted."""
@@ -154,6 +160,10 @@ class TestTitlePatternInference:
         ]
         result = corpus._infer_title_pattern(headings)
         assert result is not None
+        m = result.match("CHAPTER II - ADMIN")
+        assert m is not None
+        assert m.group(1) == "II"
+        assert m.group(2) == "ADMIN"
 
     def test_division_pattern(self):
         """'Division N - NAME' pattern should match."""
@@ -212,6 +222,10 @@ class TestTitlePatternInference:
         ]
         result = corpus._infer_title_pattern(headings)
         assert result is not None
+        m = result.match("TITLE 3 - ANIMAL REGULATION")
+        assert m is not None
+        assert m.group(1) == "3"
+        assert m.group(2) == "ANIMAL REGULATION"
 
 
 class TestSectionPatternInference:
@@ -287,6 +301,10 @@ class TestSectionPatternInference:
         ]
         result = corpus._infer_section_pattern(headings)
         assert result is not None
+        m = result.match("1-2 — DEFINITIONS")
+        assert m is not None
+        assert m.group(1) == "1-2"
+        assert m.group(2) == "DEFINITIONS"
 
 
 class TestYieldSectionsFromDocs:

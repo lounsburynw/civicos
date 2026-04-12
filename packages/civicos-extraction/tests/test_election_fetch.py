@@ -78,9 +78,9 @@ class TestFetchElectionsForJurisdiction:
 
         mock_civera.assert_called_once()
         mock_ca_sos.assert_called_once()
-        assert "civera_election_stats" in result
-        assert "ca_sos_results" in result
-        assert "elected_officials" in result
+        assert result["civera_election_stats"]["status"] == "completed"
+        assert result["ca_sos_results"]["status"] == "completed"
+        assert result["elected_officials"]["status"] == "skipped"
 
     @patch("civicos_extraction.election_fetch._fetch_officials")
     @patch(_PG_BACKEND)
@@ -106,7 +106,8 @@ class TestFetchElectionsForJurisdiction:
         sources = {"civera_election_stats": {"county_slug": "marin"}}
         with patch.dict(_FETCH_HANDLERS, {"civera_election_stats": mock_handler}):
             result = fetch_elections_for_jurisdiction("city-test", sources, database_url="postgresql://test")
-        assert "elapsed_seconds" in result
+        assert isinstance(result["elapsed_seconds"], (int, float))
+        assert result["elapsed_seconds"] >= 0
 
 
 class TestFetchCivera:
@@ -118,7 +119,8 @@ class TestFetchCivera:
 
         mock_backend = MagicMock()
         result = _fetch_civera("city-unknown", True, mock_backend)
-        assert result["status"] in ("skipped", "failed")
+        assert result["status"] == "skipped"
+        assert "CIVERA_INSTANCES" in result["reason"]
 
 
 class TestFetchClarity:
@@ -197,13 +199,16 @@ class TestCheckPartialFetch:
 
     def test_graceful_on_backend_error(self):
         """Should not raise if backend.get_election_count fails."""
+        import logging
         from civicos_extraction.election_fetch import _check_partial_fetch
 
         mock_backend = MagicMock()
         mock_backend.get_election_count.side_effect = Exception("db error")
 
-        # Should not raise
-        _check_partial_fetch("city-test", "test_source", mock_backend, 0, 0)
+        with patch.object(logging.getLogger("civicos_extraction.election_fetch"), "warning") as mock_warn:
+            result = _check_partial_fetch("city-test", "test_source", mock_backend, 0, 0)
+            assert result is None  # Returns early without raising
+            mock_warn.assert_not_called()  # Exits before any warning logic
 
 
 class TestFetchOfficials:

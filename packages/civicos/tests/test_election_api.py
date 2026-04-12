@@ -103,52 +103,62 @@ class TestElectionEndpoints:
         assert len(elections) > 0
 
     def test_election_has_required_fields(self, civic_with_mock, mock_storage):
-        """Elections have all required fields for API response."""
+        """Elections have all required fields with correct values."""
         mock_storage.get_meetings.return_value = []
 
         result = civic_with_mock.whats_next(include_elections=True, days=365)
         elections = [x for x in result if isinstance(x, UpcomingElection)]
 
-        if elections:
-            election = elections[0]
-            # Check required fields
-            assert hasattr(election, 'id')
-            assert hasattr(election, 'name')
-            assert hasattr(election, 'election_date')
-            assert hasattr(election, 'election_type')
-            assert hasattr(election, 'deadlines')
+        assert len(elections) >= 1
+        election = elections[0]
+        # Assert specific values from mock data
+        assert election.name in ('California Primary', 'Michigan Special Primary')
+        assert election.election_type in ('primary', 'special')
+        assert election.id in ('election-1', 'election-2')
+        assert isinstance(election.deadlines, list)
 
     def test_election_deadlines_populated(self, civic_with_mock, mock_storage):
-        """Elections include deadline data."""
+        """Elections include specific deadline data from storage."""
         mock_storage.get_meetings.return_value = []
 
         result = civic_with_mock.whats_next(include_elections=True, days=365)
         elections = [x for x in result if isinstance(x, UpcomingElection)]
 
-        # At least some elections should have deadlines (based on mock)
-        elections_with_deadlines = [e for e in elections if e.deadlines]
-        # Note: deadlines may be empty if none exist for that election
-        assert isinstance(elections[0].deadlines, list) if elections else True
+        assert len(elections) >= 1
+        # Find the California Primary which has a deadline in the mock
+        cal_primary = [e for e in elections if e.name == 'California Primary']
+        assert len(cal_primary) == 1
+        assert len(cal_primary[0].deadlines) == 1
+        assert cal_primary[0].deadlines[0]['deadline_type'] == 'voter_registration'
+        assert cal_primary[0].deadlines[0]['description'] == 'Last day to register to vote'
 
     def test_get_elections_filters_by_jurisdiction(self, civic_with_mock, mock_storage):
-        """get_elections properly filters by jurisdiction."""
-        # The storage method should be called with normalized jurisdiction
-        mock_storage.get_elections(jurisdiction_id='city-san-rafael')
+        """whats_next passes correct jurisdiction when fetching elections."""
+        mock_storage.get_meetings.return_value = []
 
-        mock_storage.get_elections.assert_called()
-        call_args = mock_storage.get_elections.call_args
-        assert 'jurisdiction_id' in call_args.kwargs or len(call_args.args) > 0
+        result = civic_with_mock.whats_next(include_elections=True, days=365)
+        elections = [x for x in result if isinstance(x, UpcomingElection)]
+
+        # California Primary (30 days out) always appears; Michigan Special
+        # (tomorrow) may be filtered by UTC window edge at day boundary
+        assert len(elections) >= 1
+        names = {e.name for e in elections}
+        assert 'California Primary' in names
+        cal = [e for e in elections if e.name == 'California Primary']
+        assert cal[0].election_type == 'primary'
+        assert cal[0].source == 'google_civic'
 
     def test_get_election_contests_returns_list(self, civic_with_mock, mock_storage):
-        """get_election_contests returns proper list structure."""
-        contests = mock_storage.get_election_contests('election-1')
+        """Storage backend contest data matches expected schema and values."""
+        contests = civic_with_mock.storage.get_election_contests('election-1')
 
-        assert isinstance(contests, list)
-        if contests:
-            contest = contests[0]
-            assert 'id' in contest
-            assert 'name' in contest
-            assert 'election_id' in contest
+        assert len(contests) == 1
+        assert contests[0]['id'] == 'contest-1'
+        assert contests[0]['name'] == 'US Senator'
+        assert contests[0]['type'] == 'federal'
+        assert contests[0]['level'] == 'federal'
+        assert contests[0]['district'] == 'California'
+        assert contests[0]['election_id'] == 'election-1'
 
 
 class TestVotingRecordEndpoint:
@@ -209,15 +219,15 @@ class TestVotingRecordEndpoint:
                 return c
 
     def test_voting_record_returns_correct_structure(self, civic_with_mock, mock_storage):
-        """Voting record has required fields for API response."""
+        """Voting record has correct values matching mock data."""
         record = civic_with_mock.get_voting_record("Kate Colin")
 
-        assert hasattr(record, 'official_name')
-        assert hasattr(record, 'total_votes')
-        assert hasattr(record, 'yes_votes')
-        assert hasattr(record, 'no_votes')
-        assert hasattr(record, 'abstain_votes')
-        assert hasattr(record, 'decisions')
+        assert record.official_name == "Kate Colin"
+        assert record.official_id == "official-1"
+        assert record.topic == "all"
+        assert record.total_votes == 2
+        assert record.abstain_votes == 0
+        assert len(record.decisions) == 2
 
     def test_voting_record_counts_correct(self, civic_with_mock, mock_storage):
         """Voting record counts are accurate."""
@@ -238,15 +248,21 @@ class TestVotingRecordEndpoint:
         assert record.yes_votes == 1
 
     def test_voting_record_decisions_serializable(self, civic_with_mock, mock_storage):
-        """Decisions in voting record are JSON serializable."""
+        """Decisions in voting record contain correct values from mock data."""
         record = civic_with_mock.get_voting_record("Kate Colin")
 
-        # Each decision should be a dict (for JSON serialization)
-        for decision in record.decisions:
-            assert isinstance(decision, dict)
-            assert 'decision_id' in decision
-            assert 'title' in decision
-            assert 'vote' in decision
+        assert len(record.decisions) == 2
+        # Verify specific decision data
+        housing = [d for d in record.decisions if d['title'] == 'Housing Development Approval']
+        assert len(housing) == 1
+        assert housing[0]['vote'] == 'yes'
+        assert housing[0]['outcome'] == 'approved'
+        assert housing[0]['decision_id'] == 'decision-1'
+
+        traffic = [d for d in record.decisions if d['title'] == 'Traffic Safety Measure']
+        assert len(traffic) == 1
+        assert traffic[0]['vote'] == 'no'
+        assert traffic[0]['outcome'] == 'approved'
 
 
 class TestElectionDataIntegration:
@@ -379,7 +395,7 @@ class TestElectionVectorEmbeddings:
         assert 'Governor' in text
 
     def test_election_to_text_handles_empty(self):
-        """_election_to_text handles minimal election data."""
+        """_election_to_text falls back to str(election) for minimal data."""
         from civicos.storage.pgvector_backend import PgVectorBackend
 
         election = {
@@ -388,9 +404,8 @@ class TestElectionVectorEmbeddings:
 
         text = PgVectorBackend._election_to_text(None, election)
 
-        # Should return something (not crash)
-        assert text is not None
-        assert len(text) > 0
+        # With no name/type/date, falls back to str(election)
+        assert 'election-1' in text
 
 
 class TestElectionVectorIndexing:

@@ -229,16 +229,14 @@ class TestCompatRouterIntegration:
         return storage
 
     def test_create_compat_router(self, mock_storage):
-        """Can create compatibility router."""
+        """Creates router with exactly the expected legacy endpoints."""
         from civicos_relay.nostr.compat import create_compat_router
 
         router = create_compat_router(mock_storage)
 
-        # Check routes exist
-        routes = [r.path for r in router.routes]
-        assert "/voice" in routes
-        assert "/voice/counts/{entity:path}" in routes
-        assert "/voice/{entity:path}" in routes
+        # Verify exact route set — catches missing or unexpected routes
+        routes = {r.path for r in router.routes}
+        assert routes == {"/voice", "/voice/counts/{entity:path}", "/voice/{entity:path}"}
 
     @pytest.mark.asyncio
     async def test_voice_counts_endpoint(self, mock_storage):

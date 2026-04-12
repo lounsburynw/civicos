@@ -32,7 +32,7 @@ class TestEventSyncEndpointsUnit:
         """Create FastAPI test client with mocked storage."""
         from fastapi.testclient import TestClient
         from civicos_services.servers.api import create_app
-        from civicos_services.servers.routers import coordination
+        from civicos_relay.server import coordination
 
         app = create_app()
 
@@ -58,7 +58,8 @@ class TestEventSyncEndpointsUnit:
         assert data["events"] == []
         assert data["cursor"] is None
         assert data["relay_id"] == "relay.test.org/events"
-        assert data["relay_signature"]  # Has signature
+        assert isinstance(data["relay_signature"], str)
+        assert len(data["relay_signature"]) >= 64  # Hex-encoded ECDSA signature
 
     def test_export_events_with_data(self, client, mock_storage):
         """Export returns events with signed response."""
@@ -82,7 +83,8 @@ class TestEventSyncEndpointsUnit:
         assert data["events"][0]["type"] == "decision_made"
         assert data["events"][0]["jurisdiction"] == "city-san-rafael"
         assert data["events"][0]["entity"] == "city-san-rafael:decision:2026-001"
-        assert data["relay_signature"]
+        assert isinstance(data["relay_signature"], str)
+        assert len(data["relay_signature"]) >= 64  # Hex-encoded ECDSA signature
 
     def test_export_with_namespace_filter(self, client, mock_storage):
         """Export filters by namespace prefix."""
@@ -281,7 +283,7 @@ class TestTwoRelayEventSync:
         """Event emitted on relay A can be synced to relay B via API."""
         from fastapi.testclient import TestClient
         from civicos_services.servers.api import create_app
-        from civicos_services.servers.routers import coordination
+        from civicos_relay.server import coordination
         from civicos_relay.storage.memory import InMemoryStorage
         from civicos_relay.identity import RelayIdentity
         from civicos_relay.relay.models import Event, EventType
@@ -353,7 +355,7 @@ class TestTwoRelayEventSync:
         """Events can sync bidirectionally between relays."""
         from fastapi.testclient import TestClient
         from civicos_services.servers.api import create_app
-        from civicos_services.servers.routers import coordination
+        from civicos_relay.server import coordination
         from civicos_relay.storage.memory import InMemoryStorage
         from civicos_relay.identity import RelayIdentity
         from civicos_relay.relay.models import Event, EventType
@@ -397,7 +399,7 @@ class TestTwoRelayEventSync:
             coordination._storage_instances["sync"] = storage_b.sync
             coordination._storage_instances["identity"] = identity_b
             client_b = TestClient(app)
-            client_b.post(
+            import_ab = client_b.post(
                 "/api/coordination/sync/events",
                 json={
                     "events": export_a["events"],
@@ -405,6 +407,8 @@ class TestTwoRelayEventSync:
                     "signature": export_a["relay_signature"],
                 }
             )
+            assert import_ab.status_code == 200
+            assert import_ab.json()["accepted"] == 1
 
             # Sync B -> A
             export_b = client_b.get("/api/coordination/sync/events").json()
@@ -413,7 +417,7 @@ class TestTwoRelayEventSync:
             coordination._storage_instances["sync"] = storage_a.sync
             coordination._storage_instances["identity"] = identity_a
             client_a = TestClient(app)
-            client_a.post(
+            import_ba = client_a.post(
                 "/api/coordination/sync/events",
                 json={
                     "events": export_b["events"],
@@ -421,6 +425,8 @@ class TestTwoRelayEventSync:
                     "signature": export_b["relay_signature"],
                 }
             )
+            assert import_ba.status_code == 200
+            assert import_ba.json()["accepted"] >= 1
 
             # Both relays should now have both events
             events_a = client_a.get("/api/coordination/sync/events").json()["events"]
@@ -431,6 +437,14 @@ class TestTwoRelayEventSync:
 
             assert len(events_a) == 2
             assert len(events_b) == 2
+
+            # Verify both relays have the specific events from each side
+            entities_a = {e["entity"] for e in events_a}
+            entities_b = {e["entity"] for e in events_b}
+            assert "city-san-rafael:decision:from-a" in entities_a
+            assert "city-san-rafael:agenda:from-b" in entities_a
+            assert "city-san-rafael:decision:from-a" in entities_b
+            assert "city-san-rafael:agenda:from-b" in entities_b
 
         finally:
             coordination._storage_instances.clear()

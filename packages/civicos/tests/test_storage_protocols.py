@@ -2189,31 +2189,41 @@ class TestPgVectorBackend:
         """PgVectorBackend uses default embedding model and dimension."""
         from civicos.storage import PgVectorBackend
 
+        # Verify class-level defaults directly (not affected by env var)
+        assert PgVectorBackend.DEFAULT_MODEL == "nomic-ai/nomic-embed-text-v1.5"
+        assert PgVectorBackend.DEFAULT_DIMENSION == 768
+
         backend = PgVectorBackend(
             connection_string="postgresql://localhost/test"
         )
 
         assert backend.backend_type == "pgvector"
-        # Default model (may be overridden by CIVICOS_EMBEDDING_MODEL env var)
-        assert backend.embedding_model is not None
-        assert len(backend.embedding_model) > 0
-        # Default dimension for nomic-embed-text-v1.5
         assert backend.embedding_dimension == 768
 
     def test_pgvector_backend_has_implemented_methods(self):
         """PgVectorBackend has all required methods implemented."""
         from civicos.storage import PgVectorBackend
+        import inspect
 
         backend = PgVectorBackend(
             connection_string="postgresql://localhost/test"
         )
 
-        # Verify methods exist and are callable
+        assert backend.backend_type == "pgvector"
+
+        # Verify methods exist, are callable, and have correct signatures
         assert callable(backend.validate)
         assert callable(backend.index_from_storage)
         assert callable(backend.search)
         assert callable(backend.get_stats)
         assert callable(backend.delete_index)
+
+        # Verify key parameter names to catch signature drift
+        search_params = list(inspect.signature(backend.search).parameters.keys())
+        assert "query" in search_params
+        assert "jurisdiction_id" in search_params
+        assert "corpus_type" in search_params
+        assert "top_k" in search_params
 
     def test_pgvector_backend_validate_without_connection(self):
         """PgVectorBackend.validate returns error when cannot connect."""
@@ -2223,18 +2233,20 @@ class TestPgVectorBackend:
             connection_string="postgresql://localhost:5432/nonexistent_db"
         )
 
-        # Should not raise, but return validation result with errors
+        # Should not raise, but return validation result indicating failure
         result = backend.validate()
-        assert result.connected is False or len(result.errors) > 0
+        assert not result.is_valid
+        assert not result.connected
+        assert len(result.errors) > 0
 
     def test_pgvector_backend_is_importable(self):
         """PgVectorBackend can be imported from civicos.storage."""
         from civicos.storage import PgVectorBackend
 
-        # Verify it's the correct class
-        assert hasattr(PgVectorBackend, 'embedding_model')
-        assert hasattr(PgVectorBackend, 'embedding_dimension')
-        assert hasattr(PgVectorBackend, 'backend_type')
+        # Verify class-level constants exist with expected values
+        assert PgVectorBackend.DEFAULT_MODEL == "nomic-ai/nomic-embed-text-v1.5"
+        assert PgVectorBackend.DEFAULT_DIMENSION == 768
+        assert PgVectorBackend.TABLE_NAME == "vector_embeddings"
 
     def test_municipal_code_to_text_uses_full_text_field(self):
         """Verify _municipal_code_to_text uses 'full_text' not 'content'.
@@ -2282,10 +2294,13 @@ class TestGetStorageBackend:
     """Tests for get_storage_backend factory function."""
 
     def test_factory_is_importable(self):
-        """get_storage_backend can be imported from civicos.storage."""
-        from civicos.storage import get_storage_backend
+        """get_storage_backend can be imported and returns a backend."""
+        from civicos.storage import StorageBackend, get_storage_backend
 
-        assert callable(get_storage_backend)
+        # Factory should return a valid StorageBackend
+        backend = get_storage_backend("sqlite:///:memory:")
+        assert isinstance(backend, StorageBackend)
+        assert backend.backend_type == "sqlite"
 
     def test_returns_sqlite_by_default(self, monkeypatch):
         """Returns SQLiteBackend when no DATABASE_URL is set."""
@@ -2363,10 +2378,11 @@ class TestPostgresBackendStructure:
     """Tests for PostgresBackend class structure (without real connection)."""
 
     def test_postgres_backend_is_importable(self):
-        """PostgresBackend can be imported from civicos.storage."""
+        """PostgresBackend can be imported and has correct type."""
         from civicos.storage import PostgresBackend
 
-        assert PostgresBackend is not None
+        backend = PostgresBackend("postgresql://localhost/test")
+        assert backend.backend_type == "postgres"
 
     def test_postgres_backend_has_required_methods(self):
         """PostgresBackend has all StorageBackend methods."""
@@ -2706,10 +2722,16 @@ class TestR2Backend:
     """Tests for R2Backend class structure (without real connection)."""
 
     def test_r2_backend_is_importable(self):
-        """R2Backend can be imported from civicos.storage."""
+        """R2Backend can be imported and has factory methods with correct signatures."""
         from civicos.storage import R2Backend
+        import inspect
 
-        assert R2Backend is not None
+        # Verify from_url factory accepts expected parameters
+        from_url_params = list(inspect.signature(R2Backend.from_url).parameters.keys())
+        assert "url" in from_url_params
+
+        # Verify from_env is a classmethod (no required params beyond cls)
+        assert isinstance(inspect.getattr_static(R2Backend, "from_env"), classmethod)
 
     def test_r2_backend_has_required_methods(self):
         """R2Backend has all BlobStorage methods."""
@@ -2757,10 +2779,14 @@ class TestGetBlobStorage:
     """Tests for get_blob_storage factory function."""
 
     def test_factory_is_importable(self):
-        """get_blob_storage can be imported from civicos.storage."""
-        from civicos.storage import get_blob_storage
+        """get_blob_storage can be imported and returns a backend."""
+        from civicos.storage import BlobStorage, LocalBlobBackend, get_blob_storage
 
-        assert callable(get_blob_storage)
+        # Factory should return a valid BlobStorage (defaults to local)
+        backend = get_blob_storage("/tmp/test_blob_importable")
+        assert isinstance(backend, BlobStorage)
+        assert isinstance(backend, LocalBlobBackend)
+        assert backend.backend_type == "local"
 
     def test_returns_local_by_default(self, monkeypatch):
         """Returns LocalBlobBackend when no BLOB_STORAGE_URL is set."""

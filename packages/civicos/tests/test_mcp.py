@@ -34,8 +34,7 @@ class TestMCPAvailability:
     def test_mcp_available_flag(self):
         """MCP_AVAILABLE flag is set correctly."""
         from civicos.mcp import MCP_AVAILABLE
-        # Should be True if mcp package is installed
-        assert isinstance(MCP_AVAILABLE, bool)
+        assert MCP_AVAILABLE is True
 
     def test_mcp_is_installed(self):
         """MCP package should be installed in civic environment."""
@@ -57,46 +56,49 @@ class TestCivicServerCreation:
             assert server.db_path == db_path
 
     def test_civic_server_has_mcp(self):
-        """CivicServer has an MCP server instance."""
+        """CivicServer has a FastMCP server instance named 'civic'."""
         from civicos.mcp import CivicServer
         with tempfile.TemporaryDirectory() as tmpdir:
             db_path = os.path.join(tmpdir, "test.db")
             server = CivicServer(db_path=db_path)
             assert server._mcp is not None
+            assert server._mcp.name == "civic"
 
     def test_create_mcp_server_factory(self):
-        """create_mcp_server factory creates CivicServer."""
+        """create_mcp_server factory creates CivicServer with correct config."""
         from civicos.mcp import create_mcp_server, CivicServer
         with tempfile.TemporaryDirectory() as tmpdir:
             db_path = os.path.join(tmpdir, "test.db")
             server = create_mcp_server(db_path=db_path)
             assert isinstance(server, CivicServer)
+            assert server.db_path == db_path
 
 
 class TestMCPQueryTools:
     """Test MCP query tool registration."""
 
     def test_mcp_has_tools(self):
-        """MCP server has registered tools."""
+        """MCP server has all three query tools registered."""
         from civicos.mcp import CivicServer
         with tempfile.TemporaryDirectory() as tmpdir:
             db_path = os.path.join(tmpdir, "test.db")
             server = CivicServer(db_path=db_path)
-            # FastMCP stores tools internally
-            assert server._mcp is not None
+            tool_names = set(server._mcp._tool_manager._tools.keys())
+            assert len(tool_names) >= 3
+            assert "what_applies" in tool_names
+            assert "what_happened" in tool_names
+            assert "whats_next" in tool_names
 
     def test_query_tools_registered(self):
-        """Query tools are registered with MCP server."""
+        """All three query tools are registered under the 'civic' MCP server."""
         from civicos.mcp import CivicServer
         with tempfile.TemporaryDirectory() as tmpdir:
             db_path = os.path.join(tmpdir, "test.db")
             server = CivicServer(db_path=db_path)
-            # Access internal tool list
-            # FastMCP uses _tool_manager or _tools internally
             mcp = server._mcp
-            # The mcp object should exist and be configured
-            assert mcp is not None
             assert mcp.name == "civic"
+            tool_names = set(mcp._tool_manager._tools.keys())
+            assert {"what_applies", "what_happened", "whats_next"}.issubset(tool_names)
 
 
 class TestMCPToolExecution:
@@ -127,7 +129,7 @@ class TestMCPToolExecution:
             assert result.topic == "housing"
 
     def test_whats_next_tool_via_civic(self):
-        """whats_next tool can be called via Civic."""
+        """whats_next returns meetings with expected structure."""
         from civicos.mcp import CivicServer
         with tempfile.TemporaryDirectory() as tmpdir:
             db_path = os.path.join(tmpdir, "test.db")
@@ -135,6 +137,11 @@ class TestMCPToolExecution:
             civic = server._get_civic()
             result = civic.whats_next()
             assert isinstance(result, list)
+            for meeting in result:
+                assert hasattr(meeting, "id")
+                assert hasattr(meeting, "title")
+                assert hasattr(meeting, "date")
+                assert meeting.id.startswith("meeting:")
 
 
 class TestMCPServerRun:
@@ -154,10 +161,12 @@ class TestModuleLevelAPI:
     """Test module-level API for convenience."""
 
     def test_get_server_returns_instance(self):
-        """get_server returns CivicServer instance."""
+        """get_server returns a fully configured CivicServer."""
         from civicos.mcp import get_server, CivicServer
         server = get_server()
         assert isinstance(server, CivicServer)
+        assert server.db_path == "data/civic_state.db"
+        assert server.jurisdiction_id == "city-san-rafael"
 
     def test_get_server_singleton_pattern(self):
         """get_server returns same instance on multiple calls."""

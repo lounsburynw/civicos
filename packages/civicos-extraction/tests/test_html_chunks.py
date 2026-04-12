@@ -95,14 +95,20 @@ class TestSplitTextIntoChunks:
         assert "Paragraph 19" in combined
 
     def test_overlap_between_chunks(self):
-        paragraphs = [f"Para{i} " + "a" * 200 for i in range(10)]
+        # Use paragraphs short enough for the overlap mechanism to capture them
+        paragraphs = [f"Para-{i} " + "x" * 40 for i in range(20)]
         text = "\n".join(paragraphs)
-        chunks = _split_text_into_chunks(text, max_chars=500, overlap=200)
+        chunks = _split_text_into_chunks(text, max_chars=200, overlap=100)
 
-        if len(chunks) > 1:
-            # Last paragraph of chunk N should appear in chunk N+1
-            # (overlap mechanism)
-            assert len(chunks[1]) > 0
+        assert len(chunks) > 1
+        # Verify overlap: trailing paragraphs from chunk N appear in chunk N+1
+        for i in range(len(chunks) - 1):
+            current_paras = chunks[i].split("\n")
+            next_paras = chunks[i + 1].split("\n")
+            last_para = current_paras[-1]
+            assert last_para in next_paras, (
+                f"Overlap missing: last para of chunk {i} not found in chunk {i+1}"
+            )
 
 
 class TestExtractChunksFromHtmlAgenda:

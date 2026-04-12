@@ -329,8 +329,9 @@ class TestProudCitySource:
     def test_proudcity_source_has_client(self):
         """Test ProudCitySource exposes underlying client."""
         source = ProudCitySource.from_jurisdiction("city-san-rafael")
-        assert source.client is not None
         assert isinstance(source.client, ProudCityClient)
+        assert source.client.jurisdiction_id == "city-san-rafael"
+        assert source.client.platform_name == "proudcity"
 
     def test_proudcity_source_archives_from_config(self):
         """Test ProudCitySource uses archives from config."""
@@ -474,11 +475,11 @@ class TestValidateMethods:
         assert "archives is empty and auto_discover is not enabled" in result.errors
 
     def test_proudcity_source_validate_timing(self):
-        """Test ValidationResult includes timing info."""
+        """Test ValidationResult includes timing info and passes for valid config."""
         source = ProudCitySource.from_jurisdiction("city-san-rafael")
         result = source.validate()
-        # Should have timing info regardless of success/failure
-        assert result.check_duration_ms >= 0
+        assert result.config_valid is True
+        assert result.check_duration_ms > 0
 
 
 class TestPipeline:
@@ -509,34 +510,27 @@ class TestPipeline:
         assert Pipeline.STAGES == ["discover", "ingest", "store", "index"]
 
     def test_pipeline_status_method(self):
-        """Test Pipeline.status() returns dashboard-consumable dict."""
-        from civicos_extraction.pipeline import Pipeline
+        """Test Pipeline.status() returns dashboard-consumable dict with correct initial values."""
+        from civicos_extraction.pipeline import Pipeline, StageState
 
         source = ProudCitySource.from_jurisdiction("city-san-rafael")
         pipeline = Pipeline(source, "city-san-rafael")
 
         status = pipeline.status()
 
-        # Required keys
-        assert "jurisdiction_id" in status
-        assert "source_id" in status
-        assert "is_running" in status
-        assert "stages" in status
+        # Verify values, not just key existence
+        assert status["jurisdiction_id"] == "city-san-rafael"
+        assert status["source_id"] == "proudcity-city-san-rafael"
+        assert status["is_running"] is False
+        assert len(status["stages"]) == 4
 
-        # All four stages present
-        assert "discover" in status["stages"]
-        assert "ingest" in status["stages"]
-        assert "store" in status["stages"]
-        assert "index" in status["stages"]
-
-        # Each stage has required fields
+        # Each stage should be pending with zeroed counters
         for stage_name in ["discover", "ingest", "store", "index"]:
             stage = status["stages"][stage_name]
-            assert "state" in stage
-            assert "items_found" in stage
-            assert "items_processed" in stage
-            assert "duration_ms" in stage
-            assert "errors" in stage
+            assert stage["state"] == StageState.PENDING.value
+            assert stage["items_found"] == 0
+            assert stage["items_processed"] == 0
+            assert stage["errors"] == []
 
     def test_stage_status_to_dict(self):
         """Test StageStatus.to_dict() serialization."""
@@ -1420,7 +1414,7 @@ class TestElectedOfficialsExtraction:
         assert officials[1]["name"] == "Maribeth Bushey"
 
     def test_extract_elected_officials_level_filtering(self):
-        """Test extraction respects level filtering."""
+        """Test extraction respects level filtering and returns zero for empty results."""
         from unittest.mock import Mock
         from civicos_extraction.clients.representatives import (
             RepresentativesClient,
@@ -1431,7 +1425,7 @@ class TestElectedOfficialsExtraction:
         mock_client.get_representatives.return_value = []
         mock_storage = Mock()
 
-        extract_elected_officials_to_storage(
+        count = extract_elected_officials_to_storage(
             mock_client,
             mock_storage,
             "san-rafael",
@@ -1439,12 +1433,15 @@ class TestElectedOfficialsExtraction:
             include_state=True,
             include_local=True,
         )
-        # Check that get_representatives was called with correct filters
+        # Verify correct filters were passed
         mock_client.get_representatives.assert_called_once_with(
             include_federal=False,
             include_state=True,
             include_local=True,
         )
+        # Verify outcome: no reps → zero stored, storage not called
+        assert count == 0
+        mock_storage.store_elected_officials.assert_not_called()
 
 
 class TestMarinRegistrarClient:

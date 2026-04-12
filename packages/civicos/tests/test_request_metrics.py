@@ -164,7 +164,7 @@ class TestRequestMetricsManager:
     """Tests for RequestMetricsManager class."""
 
     def test_get_request_metrics_returns_dict(self, tmp_path):
-        """Test that get_request_metrics returns a serializable dict."""
+        """Test that get_request_metrics returns a serializable dict with correct zero values."""
         from civicos_services.monitoring.request_metrics import RequestMetricsManager
 
         manager = RequestMetricsManager(
@@ -175,10 +175,13 @@ class TestRequestMetricsManager:
         metrics = manager.get_request_metrics()
 
         assert isinstance(metrics, dict)
-        assert "total_requests" in metrics
-        assert "requests_per_minute" in metrics
-        assert "window_minutes" in metrics
         assert metrics["window_minutes"] == 5
+        assert metrics["total_requests"] == 0
+        assert metrics["requests_per_minute"] == 0.0
+        assert metrics["success_count"] == 0
+        assert metrics["server_error_count"] == 0
+        assert metrics["top_endpoints"] == []
+        assert metrics["requests_by_method"] == {}
 
     def test_get_request_count(self, tmp_path):
         """Test get_request_count convenience method."""
@@ -238,20 +241,22 @@ class TestHealthEndpointIntegration:
     """Tests for request metrics integration with /health endpoint."""
 
     def test_check_request_metrics_returns_expected_structure(self, tmp_path):
-        """Test _check_request_metrics returns proper health check structure."""
+        """Test _check_request_metrics returns proper health check values for empty log."""
         # This tests the integration pattern without running the full server
         from civicos_services.monitoring.request_metrics import RequestMetricsManager
 
         manager = RequestMetricsManager(log_file=str(tmp_path / "test.log"))
         metrics = manager.get_request_metrics()
 
-        # Verify all expected fields are present
-        assert "total_requests" in metrics
-        assert "requests_per_minute" in metrics
-        assert "success_count" in metrics
-        assert "client_error_count" in metrics
-        assert "server_error_count" in metrics
-        assert "response_time_p50" in metrics
-        assert "response_time_p95" in metrics
-        assert "top_endpoints" in metrics
-        assert "requests_by_method" in metrics
+        # Empty log should produce deterministic zero/null values
+        assert metrics["total_requests"] == 0
+        assert metrics["requests_per_minute"] == 0.0
+        assert metrics["success_count"] == 0
+        assert metrics["client_error_count"] == 0
+        assert metrics["server_error_count"] == 0
+        assert metrics["redirect_count"] == 0
+        assert metrics["response_time_p50"] is None
+        assert metrics["response_time_p95"] is None
+        assert metrics["response_time_avg"] is None
+        assert metrics["top_endpoints"] == []
+        assert metrics["requests_by_method"] == {}

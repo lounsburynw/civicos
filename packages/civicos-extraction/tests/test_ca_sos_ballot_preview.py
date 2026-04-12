@@ -338,7 +338,7 @@ class TestRaceConfigs:
     def test_district_races_have_pattern(self):
         for slug in ["congress", "state-senate", "assembly"]:
             config = RACE_CONFIGS[slug]
-            assert "district_pattern" in config
+            assert r"(\d+)" in config["district_pattern"], f"{slug} pattern missing district capture group"
             assert not config.get("statewide", False)
 
     def test_statewide_races_marked(self):
@@ -347,9 +347,12 @@ class TestRaceConfigs:
             assert config.get("statewide") is True
 
     def test_all_have_contest_type(self):
+        valid_contest_types = {"federal_house", "state_legislature", "state_governor", "state_executive"}
         for slug, config in RACE_CONFIGS.items():
-            assert "contest_type" in config, f"{slug} missing contest_type"
-            assert "title_template" in config, f"{slug} missing title_template"
+            assert config["contest_type"] in valid_contest_types, (
+                f"{slug} has unexpected contest_type: {config['contest_type']}"
+            )
+            assert len(config["title_template"]) > 0, f"{slug} has empty title_template"
 
 
 # ==================== Slugify ====================

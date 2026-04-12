@@ -178,62 +178,6 @@ class TestJsonParsingDefaults:
         assert result == {"key": "value"}, "Valid JSON should be parsed"
 
 
-class TestCodebaseAuditDocumentation:
-    """Meta-tests to document known patterns and exceptions."""
-
-    def test_documented_field_variations(self):
-        """Document the known field naming variations in the codebase.
-
-        This test serves as documentation for the known variations:
-
-        Meeting Date Fields:
-        - 'meeting_datetime': Primary field (relational storage)
-        - 'date': Legacy fallback (from full_data JSON)
-
-        Agenda Item Topic Fields:
-        - 'project_type': Primary field (relational storage)
-        - 'topic': Legacy fallback (from full_data JSON)
-        - Title keywords: Last resort inference
-
-        Issue Type Fields:
-        - 'issue_type': Direct field
-        - 'category': Alternative field
-        - 'request_type.title': Nested SeeClickFix structure
-        """
-        # This test just passes - it exists for documentation
-        documented_variations = {
-            "meeting_date": ["meeting_datetime", "date"],
-            "agenda_topic": ["project_type", "topic"],
-            "issue_type": ["issue_type", "category", "request_type.title"],
-        }
-
-        # All variations are intentional and documented
-        assert len(documented_variations) == 3
-
-    def test_json_extraction_audit_summary(self):
-        """Document the Session 180 JSON extraction audit findings.
-
-        Audit Summary:
-        - Fixed 9 bare except handlers in manager.py
-        - Fixed 2 bare except handlers in history.py
-        - All bare except: replaced with except (json.JSONDecodeError, TypeError):
-        - All JSON parse failures now return empty {} instead of silent pass
-
-        Known Acceptable Patterns:
-        - Mixed .get() then bracket access is OK when .get() check precedes it
-        - Field fallback chains (project_type -> topic -> title keywords)
-        - Nested full_data handling for legacy data compatibility
-        """
-        # This test just passes - it exists for documentation
-        audit_fixes = {
-            "manager.py bare excepts fixed": 9,
-            "history.py bare excepts fixed": 2,
-            "total_bare_excepts_remaining": 0,
-        }
-
-        assert audit_fixes["total_bare_excepts_remaining"] == 0
-
-
 class TestStorageRetrievalSymmetry:
     """Tests verifying that StateManager update/create methods store data
     that can be symmetrically retrieved via get/query methods.
