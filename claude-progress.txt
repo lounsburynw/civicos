@@ -26959,3 +26959,25 @@ Thread real platform source IDs through the extraction pipeline for ground-truth
 ### launch.json
 - add_real_source_item_id: done (was P0)
 - cross_jurisdiction_civic_api_methods: promoted to P0
+
+## Session — 2026-04-12 — cross_jurisdiction_civic_api_methods (P0)
+
+### Completed
+- Added `jurisdiction_id: Optional[str] = None` kwarg to `CivicOS.funding_flow()` — threads through 4 storage calls (budget_items, funding_links, federal_awards, passthroughs)
+- Added `jurisdiction_id: Optional[str] = None` kwarg to `CivicOS.intergovernmental_revenue()` — threads through entity_name lookup and CAStateControllerClient construction
+- Wired `get_funding_flow` handler through `walk_scope` — follows get_upcoming_meetings pattern, fans out to parent jurisdictions per PRIMARY_PLUS_PARENT default scope
+- Wired `get_intergovernmental_revenue` handler through `walk_scope` — same pattern, fans out per PRIMARY_PLUS_PARENT default scope
+- Removed both TODO(cross_jurisdiction_civic_api_methods) markers from handlers.py
+- Updated handler docstrings (removed "aspirational" language, documented active scope behavior)
+- Added 4 tests to test_scope_policy_passthrough.py: vertical expansion + legacy fallback for both handlers
+- Updated ADR (tool_scope_and_federation.md): removed "wiring blocked" notes from scope table and blocked section
+- Marked item done in launch.json, promoted token_purchase_ui to P0
+
+### Test results
+- 215/215 scope policy tests pass (including 4 new)
+- 18/18 smoke tests pass
+- All existing tests pass (no regressions)
+
+### launch.json
+- cross_jurisdiction_civic_api_methods: done (was P0)
+- token_purchase_ui: promoted to P0 (was P2; note: deprioritized per roadmap pivot memo, next session has discretion)

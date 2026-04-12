@@ -697,7 +697,7 @@
         "name": "token_purchase_ui",
         "description": "Token purchase flow in extension: Stripe checkout -> blinded tokens, and (future) Lightning -> blinded tokens.",
         "status": "not_started",
-        "priority": 2,
+        "priority": 0,
         "source": "docs/internal/relay-acceptance-policy-spec.md (Phase 4)",
         "files": [
           "apps/civicos-extension/src/"
@@ -824,15 +824,15 @@
       {
         "name": "cross_jurisdiction_civic_api_methods",
         "description": "Refactor the core civic.funding_flow() and civic.intergovernmental_revenue() methods to accept a jurisdiction parameter so the MCP handlers get_funding_flow and get_intergovernmental_revenue can fan out across the resolved scope via walk_scope. Both methods currently return data only for whichever jurisdiction the CivicOS instance was constructed with; this blocks the PRIMARY_PLUS_PARENT default declared for both handlers. Scope: add jurisdiction kwarg to CivicOS.funding_flow and CivicOS.intergovernmental_revenue (default None = primary), thread it through to the underlying storage calls, and then remove the TODO markers in handlers.py and wire both through walk_scope the way search_legislation is wired. See widen_remaining_handlers_through_scope_walk notes for the full rationale.",
-        "status": "not_started",
-        "priority": 0,
+        "status": "done",
+        "priority": 2,
         "files": [
           "packages/civicos/src/civicos/civicos.py",
           "apps/civicos-mcp/tools/handlers.py",
           "docs/public/decisions/tool_scope_and_federation.md"
         ],
         "test_file": "apps/civicos-mcp/tests/test_scope_policy_passthrough.py",
-        "notes": "Added 2026-04-11 during widen_remaining_handlers_through_scope_walk. Both methods live in packages/civicos/src/civicos/civicos.py and do not accept a jurisdiction kwarg. Refactor is straightforward but touches the core API surface. Non-blocking for scope work sequence \u2014 the two handlers stay primary-only until this lands; declared scope is aspirational and documented as such in the ADR."
+        "notes": "Done 2026-04-12. Added jurisdiction_id kwarg to funding_flow() and intergovernmental_revenue(), wired both handlers through walk_scope, removed TODO markers, updated ADR."
       }
     ]
   },

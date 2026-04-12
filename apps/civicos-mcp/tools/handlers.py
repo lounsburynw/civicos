@@ -2559,29 +2559,83 @@ def get_funding_flow(
 ) -> str:
     """Trace intergovernmental funding flow.
 
-    Scope policy note: declared as ``PRIMARY_PLUS_PARENT`` (expandable
-    to ``PRIMARY_PLUS_ALL_PARENTS``) in the ADR, but the actual
-    behavior is primary-only. The core ``civic.funding_flow()`` method
-    does not accept a jurisdiction parameter — it returns flows for
-    whichever jurisdiction the ``CivicOS`` instance was constructed
-    with. Widening this handler through ``scope_walk`` is blocked on
-    the ``cross_jurisdiction_civic_api_methods`` work item (P3).
-    Until that lands, the declared scope is aspirational.
+    When a scope policy is active, the handler fans out across
+    resolved jurisdictions via ``walk_scope`` so parent jurisdictions
+    (county, state) appear alongside the primary — matching the
+    default scope of ``PRIMARY_PLUS_PARENT``.  Callers may widen to
+    ``primary_plus_all_parents`` via the ``scope`` arg.
     """
     program = args.get("program")
     cfda_number = args.get("cfda_number")
 
     try:
-        # TODO(cross_jurisdiction_civic_api_methods): fan out across
-        # resolved parents once ``civic.funding_flow()`` accepts a
-        # jurisdiction kwarg. See scope_walk docs + ADR.
-        flows = civic.funding_flow(program=program, cfda_number=cfda_number)
+        policy = _mcp_request_scope.get()
 
         result_parts = [
             "# Intergovernmental Funding Flow",
             f"**Program:** {program or 'All'}" if program else "",
             "",
         ]
+
+        if policy is not None:
+            from tools.scope_walk import walk_scope, resolve_requested_scope
+
+            def _storage_call(jid: str) -> list[dict]:
+                try:
+                    flows = civic.funding_flow(
+                        program=program,
+                        cfda_number=cfda_number,
+                        jurisdiction_id=jid,
+                    )
+                    return [
+                        {
+                            "jurisdiction": jid,
+                            "budget_description": f.budget_description,
+                            "department": f.department,
+                            "budget_dollars": f.budget_dollars,
+                            "federal_program_name": f.federal_program_name,
+                        }
+                        for f in flows
+                    ]
+                except Exception as inner_e:
+                    logger.warning(f"funding_flow failed for {jid}: {inner_e}")
+                    return []
+
+            effective_scope = resolve_requested_scope(policy, args)
+            rows = walk_scope(
+                policy,
+                jurisdiction,
+                _storage_call,
+                scope_override=effective_scope,
+            )
+
+            if not rows:
+                result_parts.append("No funding flows found matching criteria.")
+                result_parts.append("Use search_budget() for budget data.")
+                return "\n".join(result_parts)
+
+            total = sum(r.get("budget_dollars", 0) for r in rows)
+            result_parts.append(f"**Total Linked Budget:** ${total:,.0f}")
+            result_parts.append("")
+
+            by_jid: dict[str, list[dict]] = {}
+            for row in rows:
+                by_jid.setdefault(row.get("jurisdiction", jurisdiction), []).append(row)
+
+            for jid, jid_rows in by_jid.items():
+                result_parts.append(f"## {jid}")
+                for r in jid_rows[:10]:
+                    result_parts.append(f"### {r.get('budget_description', 'Unknown')}")
+                    result_parts.append(f"- **Department:** {r.get('department') or 'N/A'}")
+                    result_parts.append(f"- **Budget:** ${r.get('budget_dollars', 0):,.0f}")
+                    if r.get("federal_program_name"):
+                        result_parts.append(f"- **Federal Source:** {r['federal_program_name']}")
+                    result_parts.append("")
+
+            return "\n".join(result_parts)
+
+        # Legacy path (contextvar not set).
+        flows = civic.funding_flow(program=program, cfda_number=cfda_number)
 
         if not flows:
             result_parts.append("No funding flows found matching criteria.")
@@ -2651,22 +2705,88 @@ def get_intergovernmental_revenue(
 ) -> str:
     """Get intergovernmental revenue from CA State Controller.
 
-    Scope policy note: declared as ``PRIMARY_PLUS_PARENT`` (max
-    ``STATE``) in the ADR, but the actual behavior is primary-only.
-    The core ``civic.intergovernmental_revenue()`` method does not
-    accept a jurisdiction parameter — it returns revenue for
-    whichever jurisdiction the ``CivicOS`` instance was constructed
-    with. Widening this handler through ``scope_walk`` is blocked on
-    the ``cross_jurisdiction_civic_api_methods`` work item (P3).
-    Until that lands, the declared scope is aspirational.
+    When a scope policy is active, the handler fans out across
+    resolved jurisdictions via ``walk_scope`` so parent jurisdictions
+    appear alongside the primary — matching the default scope of
+    ``PRIMARY_PLUS_PARENT``.
     """
     fiscal_year = args.get("fiscal_year")
     source = args.get("source")
 
     try:
-        # TODO(cross_jurisdiction_civic_api_methods): fan out across
-        # resolved parents once ``civic.intergovernmental_revenue()``
-        # accepts a jurisdiction kwarg. See scope_walk docs + ADR.
+        policy = _mcp_request_scope.get()
+
+        if policy is not None:
+            from tools.scope_walk import walk_scope, resolve_requested_scope
+
+            def _storage_call(jid: str) -> list[dict]:
+                try:
+                    rev = civic.intergovernmental_revenue(
+                        fiscal_year=fiscal_year,
+                        source=source,
+                        jurisdiction_id=jid,
+                    )
+                    return [
+                        {
+                            "jurisdiction": jid,
+                            "entity_name": rev.entity_name,
+                            "fiscal_year": rev.fiscal_year,
+                            "total_dollars": rev.total_dollars,
+                            "federal_total_dollars": rev.federal_total_dollars,
+                            "state_total_dollars": rev.state_total_dollars,
+                            "county_total_dollars": rev.county_total_dollars,
+                            "undetermined_total_dollars": rev.undetermined_total_dollars,
+                            "details": rev.details,
+                        }
+                    ]
+                except Exception as inner_e:
+                    logger.warning(
+                        f"intergovernmental_revenue failed for {jid}: {inner_e}"
+                    )
+                    return []
+
+            effective_scope = resolve_requested_scope(policy, args)
+            rows = walk_scope(
+                policy,
+                jurisdiction,
+                _storage_call,
+                scope_override=effective_scope,
+            )
+
+            result_parts = ["# Intergovernmental Revenue", ""]
+
+            if not rows:
+                result_parts.append("No intergovernmental revenue data found.")
+                return "\n".join(result_parts)
+
+            for row in rows:
+                jid = row.get("jurisdiction", jurisdiction)
+                result_parts.append(f"## {row.get('entity_name', jid)}")
+                result_parts.append(f"**Jurisdiction:** {jid}")
+                result_parts.append(f"**Fiscal Year:** {row.get('fiscal_year', 'N/A')}")
+                result_parts.append(f"**Total Revenue:** ${row.get('total_dollars', 0):,.0f}")
+                result_parts.append("")
+                result_parts.append("### By Source")
+                result_parts.append(f"- **Federal:** ${row.get('federal_total_dollars', 0):,.0f}")
+                result_parts.append(f"- **State:** ${row.get('state_total_dollars', 0):,.0f}")
+                result_parts.append(f"- **County:** ${row.get('county_total_dollars', 0):,.0f}")
+
+                if row.get("undetermined_total_dollars", 0) > 0:
+                    result_parts.append(f"- **Undetermined:** ${row['undetermined_total_dollars']:,.0f}")
+
+                details = row.get("details", [])
+                if details:
+                    result_parts.extend(["", "### Top Line Items"])
+                    for detail in details[:10]:
+                        desc = detail.line_description or detail.category or "Unknown"
+                        result_parts.append(
+                            f"- {desc}: ${detail.amount_dollars:,.0f} ({detail.source})"
+                        )
+                result_parts.append("")
+
+            return "\n".join(result_parts)
+
+        # Legacy path (contextvar not set).
         revenue = civic.intergovernmental_revenue(fiscal_year=fiscal_year, source=source)
 
         result_parts = [
@@ -2684,7 +2804,6 @@ def get_intergovernmental_revenue(
         if revenue.undetermined_total_dollars > 0:
             result_parts.append(f"- **Undetermined:** ${revenue.undetermined_total_dollars:,.0f}")
 
-        # Show top details if available
         if revenue.details:
             result_parts.extend(["", "## Top Line Items"])
             for detail in revenue.details[:10]:
