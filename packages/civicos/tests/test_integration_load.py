@@ -729,8 +729,10 @@ class TestIndexEffectiveness:
             print(f"\nQuery: COUNT current meetings (valid_to IS NULL)")
             print(f"Plan: {plan}")
 
-            # With partial index, should use idx_meetings_current
-            # Note: SQLite may choose a covering index scan which is still efficient
+            # Should use idx_meetings_current or a covering index scan
+            uses_index = any("idx_meetings_current" in line or "COVERING INDEX" in line
+                             or "INDEX" in line for line in plan)
+            self.assert_no_table_scan(plan, "meetings", "COUNT current meetings")
 
     def test_agenda_items_meeting_index(self):
         """

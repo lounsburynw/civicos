@@ -33,6 +33,9 @@ class TestElectionConfigLoading:
             "state-california not found in active jurisdictions. "
             f"Found: {sorted(jurisdictions.keys())}"
         )
+        config = jurisdictions["state-california"]
+        assert config["jurisdiction_id"] == "state-california"
+        assert config["source_type"] == "ca_sos"
 
     def test_state_california_has_ca_sos(self):
         """state-california has ca_sos_results as its election source."""
@@ -40,6 +43,8 @@ class TestElectionConfigLoading:
         config = jurisdictions["state-california"]
         election_sources = config.get("election_sources", {})
         assert "ca_sos_results" in election_sources
+        # Statewide config uses bare True (no county-specific districts)
+        assert election_sources["ca_sos_results"] is True
 
     def test_san_rafael_has_ca_sos(self):
         """city-san-rafael now includes ca_sos_results with districts."""

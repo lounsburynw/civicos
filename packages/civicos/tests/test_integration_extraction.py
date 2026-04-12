@@ -280,6 +280,12 @@ class TestAgendaItemsPresent:
         assert pdf_urls.get('minutes_url'), (
             f"Past meeting {test_meeting['title']} should have minutes PDF"
         )
+        assert pdf_urls['minutes_url'].endswith('.pdf'), (
+            f"Minutes URL should be a PDF: {pdf_urls['minutes_url']}"
+        )
+        assert pdf_urls['minutes_url'].startswith('http'), (
+            f"Minutes URL should be a full URL: {pdf_urls['minutes_url']}"
+        )
 
 
 class TestHistoricalDataDepth:

@@ -183,7 +183,7 @@ class TestElectionCycle:
         assert cycle.term_years == 2
         assert cycle.next_general == date(2026, 11, 3)
         assert cycle.next_primary == date(2026, 6, 2)
-        assert len(cycle.upcoming_generals) >= 3
+        assert len(cycle.upcoming_generals) == 5  # 2026,2028,2030,2032,2034
         assert cycle.office_type == "us_house"
 
     def test_us_senate_cycle(self):
@@ -292,11 +292,11 @@ class TestContestsForJurisdiction:
         # 2028: Class 3 (Schiff) is up
         contests = get_contests_for_jurisdiction(districts, 2028)
         senate = [c for c in contests if c.get("office_type") == "us_senate"]
-        assert len(senate) >= 1
+        assert len(senate) == 1  # Only Class 3 (Schiff) is up in 2028
         s = senate[0]
         assert s["contest_type"] == "federal_senate"
         assert s["district"] is None
-        assert "senate_class" in s
+        assert s["senate_class"] == "class_3"
         assert "US Senate" in s["title"]
 
     def test_empty_districts_still_gets_statewide(self):
@@ -304,7 +304,7 @@ class TestContestsForJurisdiction:
         contests = get_contests_for_jurisdiction({}, 2026)
         titles = [c["title"] for c in contests]
         assert "Governor" in titles
-        assert len(contests) >= 5  # Governor + statewide offices
+        assert len(contests) == 5  # Governor + 4 statewide executives
 
     def test_missing_district_key_skipped(self):
         """Keys not in the districts dict are skipped, not errored."""
@@ -680,3 +680,144 @@ class TestMultiStateDeadlines:
         eday = next(d for d in deadlines if d.deadline_type == "election_day")
         assert "6:00 AM" in eday.description  # NY opens at 6 AM
         assert "9:00 PM" in eday.description  # NY closes at 9 PM
+
+
+# ========== Mutation Kill Targets ==========
+# Tests targeting surviving mutants from mutmut baseline (77% → 80%)
+
+
+class TestDefaultStateParameter:
+    """Kill mutants that change state='CA' default to 'XXCAXX' or 'ca'."""
+
+    def test_us_house_uses_ca_default(self):
+        # No state= arg — should use CA default and return a valid CA election date
+        result = get_next_election_date("us_house", district=2, as_of=date(2026, 3, 28))
+        assert result == date(2026, 11, 3)  # CA general election
+
+    def test_state_governor_default_is_ca(self):
+        # Governor with default state should return CA governor cycle (2026 base)
+        result = get_next_election_date("state_governor", as_of=date(2025, 1, 1))
+        assert result == date(2026, 11, 3)  # CA governor 2026
+
+    def test_state_assembly_default_is_ca(self):
+        result = get_next_election_date("state_assembly", district=12, as_of=date(2025, 1, 1))
+        assert result == date(2026, 11, 3)
+
+
+class TestElectionDayBoundary:
+    """Kill mutants that change `< as_of` to `<= as_of` (boundary condition)."""
+
+    def test_us_house_on_election_day_returns_that_day(self):
+        # as_of = election day itself — should still return THIS election, not skip to next
+        election_day = date(2026, 11, 3)
+        result = get_next_election_date("us_house", district=2, as_of=election_day)
+        assert result == election_day  # Not 2028
+
+    def test_us_house_day_after_election_returns_next(self):
+        day_after = date(2026, 11, 4)
+        result = get_next_election_date("us_house", district=2, as_of=day_after)
+        assert result == date(2028, 11, 7)
+
+    def test_governor_on_election_day_returns_that_day(self):
+        election_day = date(2026, 11, 3)
+        result = get_next_election_date("state_governor", as_of=election_day)
+        assert result == election_day
+
+    def test_governor_day_after_returns_next_cycle(self):
+        day_after = date(2026, 11, 4)
+        result = get_next_election_date("state_governor", as_of=day_after)
+        assert result == date(2030, 11, 5)
+
+    def test_assembly_on_election_day(self):
+        election_day = date(2026, 11, 3)
+        result = get_next_election_date("state_assembly", district=12, as_of=election_day)
+        assert result == election_day
+
+    def test_senate_on_election_day(self):
+        election_day = date(2028, 11, 7)
+        result = get_next_election_date(
+            "us_senate", senate_class="class_3", as_of=election_day
+        )
+        assert result == election_day
+
+
+class TestGovernorFallbackPath:
+    """Kill mutants that replace gen = general_election_date(...) with None."""
+
+    def test_governor_after_election_returns_valid_date(self):
+        # After 2026 election, next governor race is 2030
+        result = get_next_election_date("state_governor", as_of=date(2027, 6, 15))
+        assert result == date(2030, 11, 5)
+        assert isinstance(result, date)  # Not None
+
+    def test_executive_after_election_returns_valid_date(self):
+        result = get_next_election_date("state_executive", as_of=date(2027, 6, 15))
+        assert result == date(2030, 11, 5)
+        assert isinstance(result, date)
+
+
+class TestPrimaryDateBoundary:
+    """Kill mutants in get_next_primary_date and state_primary_date."""
+
+    def test_ca_primary_default_state(self):
+        from civicos._internal.elections.cycles import get_next_primary_date
+        result = get_next_primary_date("us_house", district=2, as_of=date(2026, 1, 1))
+        assert result == date(2026, 6, 2)  # CA primary
+
+    def test_primary_on_primary_day(self):
+        from civicos._internal.elections.cycles import get_next_primary_date
+        result = get_next_primary_date("us_house", district=2, as_of=date(2026, 6, 2))
+        assert result == date(2026, 6, 2)  # Should return today's primary
+
+    def test_primary_day_after_returns_none_within_cycle(self):
+        from civicos._internal.elections.cycles import get_next_primary_date
+        # After the primary passes in the same cycle, returns None (no more primaries this cycle)
+        result = get_next_primary_date("us_house", district=2, as_of=date(2026, 6, 3))
+        assert result is None
+
+
+class TestElectionCycleBoundary:
+    """Kill mutants in get_election_cycle."""
+
+    def test_cycle_on_election_day(self):
+        from civicos._internal.elections.cycles import get_election_cycle
+        cycle = get_election_cycle("us_house", as_of=date(2026, 11, 3))
+        assert cycle.next_general == date(2026, 11, 3)
+
+    def test_cycle_day_after_election(self):
+        from civicos._internal.elections.cycles import get_election_cycle
+        cycle = get_election_cycle("us_house", as_of=date(2026, 11, 4))
+        assert cycle.next_general == date(2028, 11, 7)
+
+    def test_cycle_default_state_is_ca(self):
+        from civicos._internal.elections.cycles import get_election_cycle
+        cycle = get_election_cycle("state_governor", as_of=date(2025, 6, 1))
+        # CA governor base year is 2026 — should reflect CA cycle
+        assert cycle.next_general == date(2026, 11, 3)
+
+    def test_cycle_includes_primary(self):
+        from civicos._internal.elections.cycles import get_election_cycle
+        cycle = get_election_cycle("us_house", as_of=date(2026, 1, 1))
+        assert cycle.next_primary == date(2026, 6, 2)
+
+
+class TestContestsBoundaryAndDefaults:
+    """Kill mutants in get_contests_for_jurisdiction."""
+
+    def test_contests_default_state_is_ca(self):
+        from civicos._internal.elections.cycles import get_contests_for_jurisdiction
+        districts = {"us-rep": [2], "state-assembly": [12], "state-senate": [2]}
+        contests = get_contests_for_jurisdiction(districts, 2026, as_of=date(2026, 1, 1))
+        # Should include CA-specific offices (governor in 2026 cycle)
+        office_types = [c["office_type"] for c in contests]
+        assert "state_governor" in office_types
+        assert "us_house" in office_types
+
+    def test_contests_include_house_with_correct_fields(self):
+        from civicos._internal.elections.cycles import get_contests_for_jurisdiction
+        districts = {"us-rep": [2]}
+        contests = get_contests_for_jurisdiction(districts, 2026, as_of=date(2026, 6, 1))
+        house = next(c for c in contests if c["office_type"] == "us_house")
+        assert house["district"] == 2
+        assert house["contest_type"] == "federal_house"
+        assert house["title"] == "US House District 2"

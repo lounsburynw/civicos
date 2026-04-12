@@ -218,8 +218,11 @@ class TestScraper404:
 
             result = client.get_meeting_pdfs("https://www.cityofsanrafael.org/meetings/nonexistent/")
 
-            assert result['agenda_packet_url'] is None
-            assert result['minutes_url'] is None
+            assert result == {
+                'agenda_packet_url': None,
+                'minutes_url': None,
+                'individual_items': []
+            }, "Should return empty PDF structure on 404"
 
     def test_scraper_500_error(self, client):
         """
@@ -339,7 +342,7 @@ class TestHtmlStructureChange:
                 'city_council'
             )
 
-            assert isinstance(meetings, list), "Should return list even with malformed HTML"
+            assert meetings == [], "Should return empty list with malformed HTML"
 
     def test_html_structure_change_pdf_section_missing(self, client):
         """
@@ -361,8 +364,11 @@ class TestHtmlStructureChange:
 
             result = client.get_meeting_pdfs("https://www.cityofsanrafael.org/meetings/city-council-jan-6-2025/")
 
-            assert result['agenda_packet_url'] is None, "Should return None when PDFs not found"
-            assert result['minutes_url'] is None
+            assert result == {
+                'agenda_packet_url': None,
+                'minutes_url': None,
+                'individual_items': []
+            }, "Should return empty PDF structure when PDFs not found"
 
 
 class TestConnectionErrors:
@@ -437,6 +443,8 @@ class TestRetryBehavior:
             result = client._make_request("https://www.cityofsanrafael.org/")
 
             assert result is not None, "Should succeed on third retry"
+            assert result.status_code == 200, "Response should be 200 OK"
+            assert result.content == b'<html><body>Success</body></html>', "Response content should match"
             assert call_count[0] == 3, "Should have tried 3 times"
 
     def test_all_retries_exhausted(self, client):
@@ -712,9 +720,8 @@ class TestLegistarErrorResponses:
             # The client catches all exceptions in _make_request
             result = client._make_request("events")
 
-            # Current implementation doesn't specifically handle JSON errors
-            # It will retry and eventually return None
-            assert result is None or result == [], "Should handle malformed JSON gracefully"
+            # ValueError from json() is caught by except Exception, retries, then returns None
+            assert result is None, "Should return None after retrying malformed JSON responses"
 
 
 class TestCachedDataFallback:
@@ -1295,8 +1302,8 @@ class TestPartialExtraction:
 
         # Verify data is still intact after any potential issues
         state_after = sm.get_city_state("city-san-rafael")
-        assert len(state_after.get("meetings", [])) >= 1
-        assert state_after["meetings"][0]["title"] is not None
+        assert len(state_after.get("meetings", [])) == 1
+        assert state_after["meetings"][0]["title"] == "Original Meeting"
 
     def test_concurrent_partial_extractions(self, temp_db):
         """
@@ -1689,12 +1696,13 @@ class TestErrorLogging:
         records = caplog.records
         assert len(records) >= 1
 
-        # The extra fields should be present in the record
+        # The extra fields should be present with correct values
         record = records[0]
-        # Check the __dict__ for extra fields (they may not be direct attributes)
         record_dict = record.__dict__
-        assert 'jurisdiction_id' in record_dict or hasattr(record, 'jurisdiction_id')
-        assert 'platform' in record_dict or hasattr(record, 'platform')
+        assert record_dict.get('jurisdiction_id') == 'city-san-rafael', \
+            f"Expected jurisdiction_id='city-san-rafael', got {record_dict.get('jurisdiction_id')}"
+        assert record_dict.get('platform') == 'proudcity', \
+            f"Expected platform='proudcity', got {record_dict.get('platform')}"
 
     def test_get_events_logs_archive_failures(self, client, caplog):
         """
