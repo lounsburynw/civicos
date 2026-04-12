@@ -1,70 +1,72 @@
-# Recommended: Cross-Jurisdiction Civic API Methods (`cross_jurisdiction_civic_api_methods`)
+# Recommended: Token Purchase UI (`token_purchase_ui`)
 
 **Priority:** P0
-**Area:** distribution
+**Area:** token_issuance
 **Date:** 2026-04-12
 
 > Recommended context from prior session. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
 
+**Note:** This item was deprioritized per the April 2026 roadmap pivot (OAuth + free tier before billing). Only 4 items remain in launch.json (this P0 + 3 P3s). The next session has full discretion to pick a different item or re-prioritize.
+
 ## Context
 
-Prior session completed `add_real_source_item_id` (commit `05f760c8`). The launch checklist now has only 5 items remaining (all P2-P3 except this P0). This item unblocks cross-jurisdiction financial queries by adding a `jurisdiction_id` parameter to two CivicOS methods that currently only return data for their construction-time jurisdiction.
+Prior session completed `cross_jurisdiction_civic_api_methods` (commit `cbba504a`) — wired `funding_flow` and `intergovernmental_revenue` through `walk_scope` for cross-jurisdiction queries. The launch checklist now has 4 items remaining. The token purchase UI is the Stripe checkout -> blinded tokens flow in the extension. Backend infrastructure is ~95% ready; the missing piece is the purchase UI and Stripe-to-issuer bridge.
 
-## Recommended Task
+## What's Already Built
 
-Refactor `CivicOS.funding_flow()` and `CivicOS.intergovernmental_revenue()` to accept an optional `jurisdiction_id` parameter, then wire both MCP handlers through `walk_scope` so they can fan out across the resolved scope (parent jurisdictions like county/state).
+- **Token issuer service**: `packages/civicos-relay/src/civicos_relay/server/token_issuer.py:49-222` — Schnorr blind signature protocol, nonce sessions, Wagner attack mitigation
+- **Token HTTP endpoints**: `packages/civicos-relay/src/civicos_relay/server/app.py:258-291` — `/coordination/tokens/info`, `/tokens/session`, `/tokens/sign`
+- **Acceptance policy**: `packages/civicos-relay/src/civicos_relay/server/acceptance.py:373-411` — Tier 2 payment proof verification with atomic double-spend check
+- **Client token wallet**: `apps/civicos-extension/src/lib/token-wallet.ts:1-137` — `requestTokens()`, `getAvailableToken()`, `storeTokens()` in Chrome storage
+- **Client blind crypto**: `apps/civicos-extension/src/lib/blind.ts` — full Schnorr blind signature (noble-curves)
+- **SidePanel auto-attach**: `apps/civicos-extension/src/side-panel/SidePanel.svelte:812-823` — auto-attaches payment proof to `castVoice()`
+- **Stripe billing (API subs)**: `packages/civicos-services/core/stripe_billing.py:1-212` — Stripe checkout + webhooks, but NOT connected to token issuance
 
-## Key Files
+## What's Missing
 
-- `packages/civicos/src/civicos/civicos.py:1153-1180` — `funding_flow()` method. Add `jurisdiction_id: Optional[str] = None` kwarg, thread to storage calls.
-- `packages/civicos/src/civicos/civicos.py:1509-1535` — `intergovernmental_revenue()` method. Same refactor.
-- `apps/civicos-mcp/tools/handlers.py:2553-2578` — `get_funding_flow()` handler. Has TODO marker at line 2575. Replace direct `civic.funding_flow()` call with `walk_scope` pattern.
-- `apps/civicos-mcp/tools/handlers.py:2645-2670` — `get_intergovernmental_revenue()` handler. Has TODO marker at line 2667. Same walk_scope wiring.
-- `apps/civicos-mcp/tools/handlers.py:190-209` — `get_upcoming_meetings()` — **reference pattern** for how walk_scope is already wired. Copy this pattern.
-- `apps/civicos-mcp/tools/scope_walk.py` — `walk_scope()` and `resolve_requested_scope()` functions.
-- `apps/civicos-mcp/tests/test_scope_policy_passthrough.py` — Existing scope policy tests (1008 lines). Add tests for the two new handlers.
-- `docs/public/decisions/tool_scope_and_federation.md` — ADR documenting scope policies. Update to reflect these handlers are now wired.
+1. **Stripe-to-issuer bridge**: No endpoint connects Stripe payment to token issuance
+2. **Extension purchase UI**: No "Buy tokens" button, amount selector, or progress flow
+3. **Token balance display**: No visible token count in extension UI
+4. **Token pricing model**: Unresolved (flat per-token? bundles?)
+
+## Architectural Decisions Needed
+
+1. **Stripe flow**: Stripe webhook triggers token issuance (async) vs. redirect-based (sync)?
+2. **Token pricing**: Flat rate ($0.01/token), bundles (50/$0.40), or per-jurisdiction?
+3. **Bridge endpoint**: On relay (`/coordination/tokens/checkout`) or separate service?
+4. **Identity**: Email-only (current Stripe) vs. anonymous vs. extension-linked?
 
 ## Suggested Approach
 
-1. **Add jurisdiction_id kwarg to CivicOS methods** — In `civicos.py`, add `jurisdiction_id: Optional[str] = None` to both `funding_flow()` and `intergovernmental_revenue()`. When provided, use it instead of `self.jurisdiction_id` for storage queries. Default `None` = use self (backwards compatible).
-
-2. **Wire handlers through walk_scope** — In `handlers.py`, follow the `get_upcoming_meetings` pattern (lines 190-209):
-   ```python
-   def _storage_call(jid: str) -> list:
-       return civic.funding_flow(jurisdiction_id=jid, program=program, ...)
-   
-   results = walk_scope(policy, jurisdiction, _storage_call)
-   ```
-
-3. **Remove TODO markers** — Delete the `TODO(cross_jurisdiction_civic_api_methods)` comments at lines 2575 and 2667.
-
-4. **Update scope policy docstrings** — Remove "aspirational" language from handler docstrings (lines 2562-2568 and 2654-2661).
-
-5. **Add tests** — Add test cases to `test_scope_policy_passthrough.py` verifying that both handlers respect scope policy and fan out correctly.
-
-6. **Update ADR** — In `tool_scope_and_federation.md`, mark these two handlers as wired (no longer primary-only).
+1. **Design the Stripe->token bridge** — Add a `/coordination/tokens/checkout` endpoint that creates a Stripe checkout session and stores the mapping to the requesting client
+2. **Add Stripe webhook handler on relay** — On `checkout.session.completed`, issue N blinded tokens to the client's pending session
+3. **Build extension purchase UI** — "Buy tokens" button in SidePanel, amount selector, redirect to Stripe, poll for completion
+4. **Add token balance display** — Show current token count in extension sidebar
+5. **Test end-to-end** — Stripe test mode -> webhook -> token issuance -> extension wallet
 
 ## Tests to Run
 
 ```bash
-# Scope policy tests (direct target)
-civicos-env/bin/python3 -m pytest apps/civicos-mcp/tests/test_scope_policy_passthrough.py -v --override-ini="addopts="
+# Token issuer tests
+civicos-env/bin/python3 -m pytest packages/civicos-relay/tests/test_token_issuer.py -v --override-ini="addopts="
 
-# Smoke tests
-civicos-env/bin/python3 -m pytest packages/civicos/tests/test_civicos.py -q --override-ini="addopts="
+# Acceptance policy tests
+civicos-env/bin/python3 -m pytest packages/civicos-relay/tests/test_acceptance_policy.py -v --override-ini="addopts="
+
+# Stripe billing tests
+civicos-env/bin/python3 -m pytest packages/civicos-services/tests/test_stripe_billing.py -v --override-ini="addopts="
+
+# Extension build
+cd apps/civicos-extension && npm run build
 ```
 
 ## Success Criteria
 
-- [ ] `CivicOS.funding_flow()` accepts `jurisdiction_id` kwarg
-- [ ] `CivicOS.intergovernmental_revenue()` accepts `jurisdiction_id` kwarg
-- [ ] `get_funding_flow` handler wired through `walk_scope`
-- [ ] `get_intergovernmental_revenue` handler wired through `walk_scope`
-- [ ] TODO markers removed from handlers.py
-- [ ] Handler docstrings updated (no longer "aspirational")
-- [ ] Tests verify scope fan-out for both handlers
-- [ ] ADR updated to reflect wired status
+- [ ] Stripe checkout session created from extension UI
+- [ ] Stripe webhook triggers token issuance on relay
+- [ ] Extension receives and stores blinded tokens after payment
+- [ ] Token balance visible in extension UI
+- [ ] End-to-end flow works in Stripe test mode
 - [ ] A new P0 assigned before session end
 
 ## Pre-existing test failures (NOT regressions)
