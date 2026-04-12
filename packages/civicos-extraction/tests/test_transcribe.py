@@ -258,7 +258,9 @@ class TestExtractCaptions:
         assert stored["utterances"] == []
         assert "Good evening everyone." in stored["text"]
         assert "Let us begin the meeting." in stored["text"]
-        assert stored["word_count"] > 0
+        expected_text = "Good evening everyone. Let us begin the meeting. First item on the agenda."
+        assert stored["word_count"] == len(expected_text.split())
+        assert stored["extraction_version"] == "captions-v1"
 
     @patch("civicos_extraction.cli.transcribe.transcript_exists_in_cloud")
     @patch("civicos.storage.get_storage_backend")
@@ -289,6 +291,8 @@ class TestExtractCaptions:
         assert len(results) == 1
         assert results[0].video_id == "new1"
         assert results[0].status == "success"
+        # Verify only the new video was fetched (existing one skipped)
+        assert mock_api.fetch.call_count == 1
 
     @patch("civicos_extraction.cli.transcribe.transcript_exists_in_cloud")
     @patch("civicos.storage.get_storage_backend")
@@ -315,6 +319,8 @@ class TestExtractCaptions:
         assert results[0].status == "error"
         assert results[0].video_id == "nocaps"
         assert "No transcripts available" in results[0].error
+        # Verify no transcript was stored for failed videos
+        mock_backend.store_transcripts.assert_not_called()
 
     @patch("civicos_extraction.cli.transcribe.transcript_exists_in_cloud")
     @patch("civicos.storage.get_storage_backend")
@@ -393,3 +399,7 @@ class TestExtractCaptions:
 
         assert len(results) == 3
         assert mock_api.fetch.call_count == 3
+        assert mock_backend.store_transcripts.call_count == 3
+        # Verify first 3 videos were processed in order
+        assert results[0].video_id == "vid0"
+        assert results[2].video_id == "vid2"

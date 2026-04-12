@@ -6527,6 +6527,9 @@ def extract_transcripts(
         since_days_filter = 180
         logger.info(f"[TRANSCRIPTS] No date filter specified — defaulting to Tier 1 window: since {since_date}")
 
+    if transcript_mode not in ("assemblyai", "captions"):
+        raise ValueError(f"Unsupported transcript_mode '{transcript_mode}' for {jurisdiction}. Use 'assemblyai' or 'captions'.")
+
     logger.info(f"[TRANSCRIPTS] Starting extraction: jurisdiction={jurisdiction}, mode={transcript_mode}, limit={limit}, batch={batch}, meeting_type={meeting_type_filter}, since_days={since_days_filter}, cost_cap=${cost_cap_usd:.0f}")
 
     # ---- CAPTIONS MODE: Skip audio download, fetch YouTube captions directly ----
