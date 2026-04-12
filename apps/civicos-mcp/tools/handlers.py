@@ -2557,11 +2557,24 @@ def get_funding_flow(
     logger: Logger,
     args: dict,
 ) -> str:
-    """Trace intergovernmental funding flow."""
+    """Trace intergovernmental funding flow.
+
+    Scope policy note: declared as ``PRIMARY_PLUS_PARENT`` (expandable
+    to ``PRIMARY_PLUS_ALL_PARENTS``) in the ADR, but the actual
+    behavior is primary-only. The core ``civic.funding_flow()`` method
+    does not accept a jurisdiction parameter — it returns flows for
+    whichever jurisdiction the ``CivicOS`` instance was constructed
+    with. Widening this handler through ``scope_walk`` is blocked on
+    the ``cross_jurisdiction_civic_api_methods`` work item (P3).
+    Until that lands, the declared scope is aspirational.
+    """
     program = args.get("program")
     cfda_number = args.get("cfda_number")
 
     try:
+        # TODO(cross_jurisdiction_civic_api_methods): fan out across
+        # resolved parents once ``civic.funding_flow()`` accepts a
+        # jurisdiction kwarg. See scope_walk docs + ADR.
         flows = civic.funding_flow(program=program, cfda_number=cfda_number)
 
         result_parts = [
@@ -2636,11 +2649,24 @@ def get_intergovernmental_revenue(
     logger: Logger,
     args: dict,
 ) -> str:
-    """Get intergovernmental revenue from CA State Controller."""
+    """Get intergovernmental revenue from CA State Controller.
+
+    Scope policy note: declared as ``PRIMARY_PLUS_PARENT`` (max
+    ``STATE``) in the ADR, but the actual behavior is primary-only.
+    The core ``civic.intergovernmental_revenue()`` method does not
+    accept a jurisdiction parameter — it returns revenue for
+    whichever jurisdiction the ``CivicOS`` instance was constructed
+    with. Widening this handler through ``scope_walk`` is blocked on
+    the ``cross_jurisdiction_civic_api_methods`` work item (P3).
+    Until that lands, the declared scope is aspirational.
+    """
     fiscal_year = args.get("fiscal_year")
     source = args.get("source")
 
     try:
+        # TODO(cross_jurisdiction_civic_api_methods): fan out across
+        # resolved parents once ``civic.intergovernmental_revenue()``
+        # accepts a jurisdiction kwarg. See scope_walk docs + ADR.
         revenue = civic.intergovernmental_revenue(fiscal_year=fiscal_year, source=source)
 
         result_parts = [
@@ -2936,41 +2962,98 @@ def get_leverage_points(
     logger: Logger,
     args: dict,
 ) -> str:
-    """Find legislation with citizen action opportunities."""
+    """Find legislation with citizen action opportunities.
+
+    When a scope policy is active on ``_mcp_request_scope``, the
+    handler walks the vertical parent chain via ``scope_walk`` and
+    labels each returned bill with the source jurisdiction — mirroring
+    ``search_legislation``. Outside the MCP request path (direct
+    calls, unit tests), the legacy ``_default_legislation_states``
+    fallback runs so existing behavior is preserved.
+    """
     topic = args.get("topic")
     state = args.get("state")
     limit = min(args.get("limit", 10), 50)
 
     try:
-        states_to_search = [state.upper()] if state else _default_legislation_states(jurisdiction)
-        results = []
-
-        for s in states_to_search:
+        # Inner helper: two-pass leverage-bill fetch bounded to one
+        # state. Mirrors the legacy topic-first/keyword-fallback logic
+        # but scoped to a single state so ``walk_scope`` can fan it
+        # out per jurisdiction. Bills returned here are later stamped
+        # with the source jurisdiction by ``walk_scope``.
+        def _fetch_leverage_bills_for_state(state_code: str) -> list[dict]:
+            found: list[dict] = []
             bills = civic.storage.get_legislation(
-                state=s,
+                state=state_code,
                 topic=topic if topic else None,
                 limit=200,  # Fetch more to filter
             )
             for bill in bills:
                 if bill.get("leverage_point"):
-                    results.append(bill)
+                    found.append(bill)
 
-        # If topic filter was too restrictive, also search by keyword
-        if len(results) < limit and topic:
-            topic_lower = topic.lower()
-            for s in states_to_search:
-                all_bills = civic.storage.get_legislation(state=s, limit=500)
+            # If the topic filter was too restrictive, also search by
+            # keyword across bill_name / summary / leverage_point text.
+            if len(found) < limit and topic:
+                topic_lower = topic.lower()
+                all_bills = civic.storage.get_legislation(
+                    state=state_code, limit=500,
+                )
+                seen_ids = {b.get("bill_id") for b in found}
                 for bill in all_bills:
                     if not bill.get("leverage_point"):
                         continue
                     name = (bill.get("bill_name") or "").lower()
                     summary = (bill.get("summary") or "").lower()
                     leverage = (bill.get("leverage_point") or "").lower()
-                    if topic_lower in name or topic_lower in summary or topic_lower in leverage:
-                        if bill.get("bill_id") not in {b.get("bill_id") for b in results}:
-                            results.append(bill)
+                    if (
+                        topic_lower in name
+                        or topic_lower in summary
+                        or topic_lower in leverage
+                    ):
+                        bid = bill.get("bill_id")
+                        if bid not in seen_ids:
+                            found.append(bill)
+                            seen_ids.add(bid)
+            return found
 
-        results = results[:limit]
+        # Scope-policy path: walk resolved jurisdictions and stamp each
+        # bill with its source jurisdiction. Explicit ``state`` arg
+        # overrides scope walking so callers can still ask for one
+        # state directly.
+        policy = _mcp_request_scope.get()
+
+        if policy is not None and state is None:
+            from tools.scope_walk import walk_scope
+
+            def _storage_call(jid: str) -> list[dict]:
+                state_code = _jurisdiction_to_state_code(jid)
+                if state_code is None:
+                    return []
+                return _fetch_leverage_bills_for_state(state_code)
+
+            results = walk_scope(policy, jurisdiction, _storage_call)
+        else:
+            # Legacy path: explicit state arg or no policy on contextvar.
+            states_to_search = (
+                [state.upper()] if state else _default_legislation_states(jurisdiction)
+            )
+            results = []
+            for s in states_to_search:
+                results.extend(_fetch_leverage_bills_for_state(s))
+
+        # Deduplicate by bill_id — walk_scope may return duplicates if
+        # the same bill is stored against multiple jurisdictions in
+        # the walk, and the legacy path produces duplicates when
+        # _default_legislation_states returns multiple states.
+        seen: set = set()
+        unique: list[dict] = []
+        for bill in results:
+            bid = bill.get("bill_id")
+            if bid not in seen:
+                seen.add(bid)
+                unique.append(bill)
+        results = unique[:limit]
 
         if not results:
             topic_msg = f" for '{topic}'" if topic else ""
@@ -2987,8 +3070,14 @@ def get_leverage_points(
             state_code = bill.get("state", "")
             name = bill.get("bill_name", "")
             leverage = bill.get("leverage_point", "")
+            # Jurisdiction label stamped by walk_scope (absent on the
+            # legacy path, in which case we omit the tag).
+            source_jurisdiction = bill.get("jurisdiction", "")
 
-            result_parts.append(f"## {bill_num} ({state_code})")
+            header = f"## {bill_num} ({state_code})"
+            if source_jurisdiction:
+                header = f"{header} — {source_jurisdiction}"
+            result_parts.append(header)
             result_parts.append(f"**{name}**")
             result_parts.append(f"- Status: {bill.get('status', 'Unknown')}")
             result_parts.append(f"- **What you can do:** {leverage}")
@@ -4333,7 +4422,19 @@ def list_initiatives(
     """
     List initiatives from a relay node.
 
-    Query community-created initiatives for a jurisdiction.
+    Query community-created initiatives for a jurisdiction. When a
+    scope policy is active (default ``PRIMARY_PLUS_SIBLINGS``), the
+    handler walks the resolved siblings via ``scope_walk`` and groups
+    initiatives under per-jurisdiction section headers so callers can
+    see which sibling produced each entry. Outside the MCP request
+    path the handler falls back to a single-jurisdiction query so
+    direct callers and unit tests keep their legacy behavior.
+
+    Federation note: every sibling is queried against the same relay
+    URL (``args["relay_url"]`` or the default). The relay's path-
+    parameterized endpoint ``/coordination/initiatives/{jurisdiction}``
+    is expected to hold data for the whole region; per-jurisdiction
+    relay routing (different relays per city) is not yet implemented.
     """
     topic = args.get("topic")
     status = args.get("status")
@@ -4348,25 +4449,143 @@ def list_initiatives(
 
     import httpx
 
+    # Build query params once — used by every per-jurisdiction call.
+    params: dict = {}
+    if topic:
+        params["topic"] = topic
+    if status:
+        params["status"] = status
+    if limit:
+        params["limit"] = min(int(limit), 100)
+
+    def _fetch_initiatives_for_jurisdiction(jid: str) -> list[dict]:
+        """Query the relay for a single jurisdiction's initiatives.
+
+        Returns an empty list on any error (connect failure, non-200,
+        malformed JSON) so ``walk_scope`` can keep walking the other
+        siblings — one unreachable relay must not poison the whole
+        response. Errors are logged per-jurisdiction for observability.
+        """
+        url = f"{relay_url}/coordination/initiatives/{jid}"
+        try:
+            with httpx.Client(timeout=10.0) as client:
+                response = client.get(url, params=params)
+                if response.status_code != 200:
+                    logger.warning(
+                        f"list_initiatives: relay returned "
+                        f"{response.status_code} for {jid}"
+                    )
+                    return []
+                data = response.json()
+            if not isinstance(data, list):
+                return []
+            return data
+        except httpx.ConnectError as ce:
+            logger.warning(
+                f"list_initiatives: relay unreachable for {jid}: {ce}"
+            )
+            return []
+        except Exception as inner_e:
+            logger.warning(
+                f"list_initiatives: relay call failed for {jid}: {inner_e}"
+            )
+            return []
+
+    def _render_initiative_section(jid: str, initiatives: list[dict]) -> list[str]:
+        """Render one jurisdiction's initiatives as a markdown section."""
+        section: list[str] = [f"## {jid}", ""]
+        for i in initiatives:
+            voice_count = i.get("voice_count", 0)
+            status_badge = f"[{i.get('status', 'active').upper()}]"
+            description = i.get("description", "") or ""
+            truncated = description[:200] + ("..." if len(description) > 200 else "")
+            section.extend([
+                f"### {i.get('title', 'Untitled')} {status_badge}",
+                f"**ID:** `{i.get('id', 'N/A')}`",
+                f"**Topic:** {i.get('topic', 'N/A')}",
+                f"**Voices:** {voice_count}",
+                f"**Creator:** {(i.get('public_key') or 'N/A')[:16]}...",
+                f"**Created:** {i.get('timestamp', 'N/A')}",
+                "",
+                truncated,
+                "",
+            ])
+        return section
+
     try:
-        # Build query params
-        params = {}
-        if topic:
-            params["topic"] = topic
-        if status:
-            params["status"] = status
-        if limit:
-            params["limit"] = min(int(limit), 100)
+        policy = _mcp_request_scope.get()
 
-        url = f"{relay_url}/coordination/initiatives/{jurisdiction}"
+        if policy is not None:
+            # Scope-policy path: fan the relay call out across the
+            # resolved siblings and label each section with its
+            # source jurisdiction.
+            from tools.scope_walk import walk_scope
 
-        with httpx.Client(timeout=10.0) as client:
-            response = client.get(url, params=params)
+            rows = walk_scope(
+                policy,
+                jurisdiction,
+                _fetch_initiatives_for_jurisdiction,
+            )
 
-            if response.status_code != 200:
-                return f"Error querying relay: {response.text}"
+            # Group by the label walk_scope stamped on each row.
+            by_jid: dict[str, list[dict]] = {}
+            for row in rows:
+                by_jid.setdefault(
+                    row.get("jurisdiction", jurisdiction), []
+                ).append(row)
 
-            initiatives = response.json()
+            if not by_jid:
+                result_parts = [
+                    "# No Initiatives Found",
+                    "",
+                    f"**Primary jurisdiction:** {jurisdiction}",
+                    f"**Relay:** {relay_url}",
+                ]
+                if topic:
+                    result_parts.append(f"**Topic filter:** {topic}")
+                if status:
+                    result_parts.append(f"**Status filter:** {status}")
+                result_parts.extend([
+                    "",
+                    "No initiatives match your query across the "
+                    "primary and its siblings.",
+                    "",
+                    "_Use `prepare_initiative` to create a new initiative._",
+                ])
+                return "\n".join(result_parts)
+
+            total = sum(len(v) for v in by_jid.values())
+            result_parts = [
+                f"# Initiatives in {jurisdiction} (and siblings)",
+                "",
+                f"**Relay:** {relay_url}",
+            ]
+            if topic:
+                result_parts.append(f"**Topic filter:** {topic}")
+            if status:
+                result_parts.append(f"**Status filter:** {status}")
+            result_parts.extend([
+                f"**Found:** {total} initiative(s) across "
+                f"{len(by_jid)} jurisdiction(s)",
+                "",
+            ])
+
+            for jid, initiatives in by_jid.items():
+                result_parts.extend(_render_initiative_section(jid, initiatives))
+
+            result_parts.extend([
+                "---",
+                "_Voice on an initiative using `prepare_voice` with the "
+                "initiative ID as the entity._",
+                "_Create your own initiative using `prepare_initiative`._",
+            ])
+
+            return "\n".join(result_parts)
+
+        # Legacy path: no scope on contextvar (direct call or unit
+        # test). Query the primary jurisdiction only, preserving the
+        # pre-scope output shape so existing callers don't break.
+        initiatives = _fetch_initiatives_for_jurisdiction(jurisdiction)
 
         if not initiatives:
             result_parts = [
@@ -4409,7 +4628,7 @@ def list_initiatives(
                 f"**ID:** `{i.get('id', 'N/A')}`",
                 f"**Topic:** {i.get('topic', 'N/A')}",
                 f"**Voices:** {voice_count}",
-                f"**Creator:** {i.get('public_key', 'N/A')[:16]}...",
+                f"**Creator:** {(i.get('public_key') or 'N/A')[:16]}...",
                 f"**Created:** {i.get('timestamp', 'N/A')}",
                 "",
                 i.get("description", "")[:200] + ("..." if len(i.get("description", "")) > 200 else ""),
@@ -4424,8 +4643,6 @@ def list_initiatives(
 
         return "\n".join(result_parts)
 
-    except httpx.ConnectError:
-        return f"Unable to connect to relay at {relay_url}. The relay may be offline."
     except Exception as e:
         logger.error(f"Error listing initiatives: {e}")
         return f"Error listing initiatives: {str(e)}"

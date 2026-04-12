@@ -573,3 +573,436 @@ class TestGetStartedPassthrough:
         assert "county-marin" in output
         assert "state-california" in output
         assert "country-united-states" in output
+
+
+# ---------------------------------------------------------------------------
+# get_leverage_points — vertical expansion for citizen-action bills
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def leverage_civic() -> SimpleNamespace:
+    """Civic stub wired for get_leverage_points vertical-expansion tests.
+
+    Each state has a leverage bill and a non-leverage bill so the
+    handler's filter-for-leverage logic can be observed. Scope walking
+    must pick up the leverage bills from both CA and US and stamp each
+    with the source jurisdiction.
+    """
+    bills_by_state = {
+        "CA": [
+            {
+                "bill_id": "ca-sb22",
+                "bill_number": "SB-22",
+                "bill_name": "California Tenant Protection",
+                "state": "CA",
+                "status": "In Committee",
+                "topic": "housing",
+                "summary": "Eviction moratorium extension.",
+                "leverage_point": "Testify at your state senator's town hall",
+                "keywords": ["housing"],
+            },
+            {
+                "bill_id": "ca-sb99",
+                "bill_number": "SB-99",
+                "bill_name": "Procedural Reform",
+                "state": "CA",
+                "status": "Introduced",
+                "topic": "other",
+                "summary": "Admin reform, no community angle.",
+                "leverage_point": None,  # must be filtered out
+                "keywords": [],
+            },
+        ],
+        "US": [
+            {
+                "bill_id": "us-hr42",
+                "bill_number": "H.R.42",
+                "bill_name": "Federal Housing Assistance Act",
+                "state": "US",
+                "status": "In Committee",
+                "topic": "housing",
+                "summary": "Federal housing subsidy expansion.",
+                "leverage_point": "Contact your representative before the committee vote",
+                "keywords": ["housing"],
+            }
+        ],
+    }
+    return SimpleNamespace(storage=_MockStorage(bills_by_state), vectors=None)
+
+
+class TestGetLeveragePointsPassthrough:
+    def test_vertical_expansion_labels_state_and_federal(
+        self, leverage_civic, logger, reset_scope_contextvar
+    ):
+        """With the scope policy active, a city caller must see
+        leverage bills from both CA and the US, each labeled with
+        the source jurisdiction in its header — matching the promise
+        of search_legislation."""
+        _mcp_request_scope.set(SCOPE_POLICIES["get_leverage_points"])
+
+        output = handlers.get_leverage_points(
+            leverage_civic,
+            "city-san-rafael",
+            _noop_validate,
+            logger,
+            {"topic": "housing"},
+        )
+
+        # Both state and federal leverage bills present.
+        assert "SB-22" in output
+        assert "H.R.42" in output
+
+        # Structural assertion: jurisdiction label attached to the
+        # bill header line. A mutation that moved the label into a
+        # summary section would still show both strings elsewhere
+        # but fail this pair of assertions.
+        assert "SB-22 (CA) — state-california" in output, (
+            "state-california label must be stamped on the SB-22 "
+            "header by walk_scope, not floating elsewhere."
+        )
+        assert "H.R.42 (US) — country-united-states" in output, (
+            "country-united-states label must be stamped on the "
+            "H.R.42 header."
+        )
+
+        # The non-leverage bill must not appear — the handler's
+        # filter-for-leverage logic is preserved through the walk.
+        assert "SB-99" not in output
+        assert "Procedural Reform" not in output
+
+    def test_explicit_state_arg_overrides_scope_walk(
+        self, leverage_civic, logger, reset_scope_contextvar
+    ):
+        """An explicit ``state`` arg bypasses scope walking — the
+        caller asked for one state, give them one state. Federal
+        bill must be absent from the output."""
+        _mcp_request_scope.set(SCOPE_POLICIES["get_leverage_points"])
+
+        output = handlers.get_leverage_points(
+            leverage_civic,
+            "city-san-rafael",
+            _noop_validate,
+            logger,
+            {"topic": "housing", "state": "CA"},
+        )
+
+        assert "SB-22" in output
+        assert "H.R.42" not in output, (
+            "Explicit state=CA must not return federal bills."
+        )
+
+    def test_no_scope_falls_back_to_default_states(
+        self, leverage_civic, logger, reset_scope_contextvar
+    ):
+        """Direct callers (no scope on contextvar) still see the
+        legacy ``_default_legislation_states`` behavior: for a city
+        primary that's ``["CA", "US"]``. The legacy path does NOT
+        stamp jurisdiction labels — absence of labels proves the
+        fallback path ran, not walk_scope."""
+        output = handlers.get_leverage_points(
+            leverage_civic,
+            "city-san-rafael",
+            _noop_validate,
+            logger,
+            {"topic": "housing"},
+        )
+
+        # Both bills still render via the legacy CA+US fetch.
+        assert "SB-22" in output
+        assert "H.R.42" in output
+
+        # Critical: no jurisdiction labels stamped. If these appear,
+        # the handler is on the scope-policy path instead of the
+        # fallback — a regression that would mask scope-policy bugs
+        # in tests that don't set the contextvar.
+        assert "state-california" not in output, (
+            "Legacy path must not stamp state-california."
+        )
+        assert "country-united-states" not in output, (
+            "Legacy path must not stamp country-united-states."
+        )
+
+
+# ---------------------------------------------------------------------------
+# list_initiatives — per-jurisdiction relay fan-out
+# ---------------------------------------------------------------------------
+
+
+class TestListInitiativesPassthrough:
+    def test_siblings_are_queried_and_labeled(
+        self, logger, reset_scope_contextvar, monkeypatch
+    ):
+        """With the PRIMARY_PLUS_SIBLINGS policy active, the handler
+        must fan the relay call out across the resolved sibling
+        cities, group the results under per-jurisdiction section
+        headers, and include each sibling's initiatives under its
+        own header. The mock relay returns different initiatives per
+        jurisdiction so a mutation that swapped jurisdictions would
+        fail the structural pairing check."""
+        # Per-jurisdiction canned responses from the "relay".
+        responses_by_jid: dict[str, list[dict]] = {
+            "city-san-rafael": [
+                {
+                    "id": "init:san-rafael:001",
+                    "title": "San Rafael crosswalk",
+                    "topic": "traffic safety",
+                    "status": "active",
+                    "voice_count": 3,
+                    "public_key": "aaaa" * 16,
+                    "timestamp": "2026-04-01T00:00:00Z",
+                    "description": "Crosswalk on 4th street",
+                }
+            ],
+            "city-mill-valley": [
+                {
+                    "id": "init:mill-valley:001",
+                    "title": "Mill Valley bike lane",
+                    "topic": "transportation",
+                    "status": "active",
+                    "voice_count": 7,
+                    "public_key": "bbbb" * 16,
+                    "timestamp": "2026-04-02T00:00:00Z",
+                    "description": "Protected bike lane on Miller Ave",
+                }
+            ],
+        }
+
+        # Track which jurisdictions the relay was asked about so we
+        # can assert the walker actually fanned out — seeing both
+        # initiatives in the output would be consistent with a
+        # mocked-at-a-higher-level shortcut, but inspecting the
+        # jids visited is the stricter structural proof.
+        queried_jids: list[str] = []
+
+        class _FakeResponse:
+            def __init__(self, data: list[dict]) -> None:
+                self._data = data
+                self.status_code = 200
+                self.text = ""
+
+            def json(self) -> list[dict]:
+                return self._data
+
+        class _FakeClient:
+            def __init__(self, *args, **kwargs) -> None:
+                pass
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *exc) -> None:
+                return None
+
+            def get(self, url: str, params=None) -> _FakeResponse:
+                # URL format: {relay}/coordination/initiatives/{jid}
+                jid = url.rstrip("/").rsplit("/", 1)[-1]
+                queried_jids.append(jid)
+                return _FakeResponse(responses_by_jid.get(jid, []))
+
+        # Patch httpx.Client for this test.
+        import httpx
+        monkeypatch.setattr(httpx, "Client", _FakeClient)
+
+        civic = SimpleNamespace(storage=None, vectors=None)
+        _mcp_request_scope.set(SCOPE_POLICIES["list_initiatives"])
+
+        output = handlers.list_initiatives(
+            civic,
+            "city-san-rafael",
+            _noop_validate,
+            logger,
+            {},
+        )
+
+        # Walker must have visited BOTH the primary and at least one
+        # sibling. The exact sibling set comes from registry.json, so
+        # we assert presence rather than exact membership.
+        assert "city-san-rafael" in queried_jids
+        assert "city-mill-valley" in queried_jids, (
+            f"Walker should fan out to siblings; queried={queried_jids}"
+        )
+
+        # Both initiatives render.
+        assert "San Rafael crosswalk" in output
+        assert "Mill Valley bike lane" in output
+
+        # Section headers stamped by walk_scope — prove the
+        # per-jurisdiction grouping is intact.
+        assert "## city-san-rafael" in output
+        assert "## city-mill-valley" in output
+
+        # Structural pairing: San Rafael's initiative must sit
+        # under San Rafael's section, Mill Valley's under Mill
+        # Valley's. A mutation that swapped fan-out targets would
+        # show both strings but fail this pairing.
+        sr_idx = output.index("## city-san-rafael")
+        mv_idx = output.index("## city-mill-valley")
+        if sr_idx < mv_idx:
+            sr_section = output[sr_idx:mv_idx]
+            mv_section = output[mv_idx:]
+        else:
+            mv_section = output[mv_idx:sr_idx]
+            sr_section = output[sr_idx:]
+
+        assert "San Rafael crosswalk" in sr_section
+        assert "Mill Valley bike lane" in mv_section
+        assert "Mill Valley bike lane" not in sr_section
+        assert "San Rafael crosswalk" not in mv_section
+
+    def test_unreachable_sibling_does_not_poison_walk(
+        self, logger, reset_scope_contextvar, monkeypatch
+    ):
+        """If one sibling's relay call fails (connect error / 500),
+        the other siblings' results must still render. This is the
+        ``_fetch_initiatives_for_jurisdiction`` contract: swallow
+        per-jurisdiction errors and return an empty list so
+        ``walk_scope`` can keep walking."""
+        import httpx
+
+        class _FakeResponse:
+            def __init__(self, data: list[dict], status: int = 200) -> None:
+                self._data = data
+                self.status_code = status
+                self.text = "simulated"
+
+            def json(self) -> list[dict]:
+                return self._data
+
+        class _FakeClient:
+            def __init__(self, *args, **kwargs) -> None:
+                pass
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *exc) -> None:
+                return None
+
+            def get(self, url: str, params=None):
+                jid = url.rstrip("/").rsplit("/", 1)[-1]
+                if jid == "city-san-rafael":
+                    return _FakeResponse([
+                        {
+                            "id": "init:san-rafael:alive",
+                            "title": "Still alive initiative",
+                            "topic": "t",
+                            "status": "active",
+                            "voice_count": 1,
+                            "public_key": "c" * 64,
+                            "timestamp": "2026-04-01T00:00:00Z",
+                            "description": "x",
+                        }
+                    ])
+                if jid == "city-mill-valley":
+                    raise httpx.ConnectError("simulated outage")
+                return _FakeResponse([])
+
+        monkeypatch.setattr(httpx, "Client", _FakeClient)
+
+        civic = SimpleNamespace(storage=None, vectors=None)
+        _mcp_request_scope.set(SCOPE_POLICIES["list_initiatives"])
+
+        output = handlers.list_initiatives(
+            civic,
+            "city-san-rafael",
+            _noop_validate,
+            logger,
+            {},
+        )
+
+        # The surviving initiative must render.
+        assert "Still alive initiative" in output
+        # The handler must not propagate the ConnectError as the
+        # top-level response — a transient sibling failure must not
+        # take the whole tool offline.
+        assert "simulated outage" not in output
+        assert "Error listing initiatives" not in output
+
+    def test_no_scope_falls_back_to_single_jurisdiction_query(
+        self, logger, reset_scope_contextvar, monkeypatch
+    ):
+        """Direct callers (no scope on contextvar) see the legacy
+        single-jurisdiction output shape. The response header is
+        ``# Initiatives in {jurisdiction}`` — not the multi-section
+        ``(and siblings)`` variant — which proves the legacy path
+        ran instead of walk_scope."""
+        import httpx
+
+        queried_jids: list[str] = []
+
+        class _FakeResponse:
+            def __init__(self, data: list[dict]) -> None:
+                self._data = data
+                self.status_code = 200
+                self.text = ""
+
+            def json(self) -> list[dict]:
+                return self._data
+
+        class _FakeClient:
+            def __init__(self, *args, **kwargs) -> None:
+                pass
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *exc) -> None:
+                return None
+
+            def get(self, url: str, params=None) -> _FakeResponse:
+                jid = url.rstrip("/").rsplit("/", 1)[-1]
+                queried_jids.append(jid)
+                return _FakeResponse([
+                    {
+                        "id": "init:001",
+                        "title": "Legacy initiative",
+                        "topic": "t",
+                        "status": "active",
+                        "voice_count": 0,
+                        "public_key": "a" * 64,
+                        "timestamp": "2026-04-01T00:00:00Z",
+                        "description": "x",
+                    }
+                ])
+
+        monkeypatch.setattr(httpx, "Client", _FakeClient)
+
+        civic = SimpleNamespace(storage=None, vectors=None)
+        # No contextvar set → policy is None → legacy path.
+
+        output = handlers.list_initiatives(
+            civic,
+            "city-san-rafael",
+            _noop_validate,
+            logger,
+            {},
+        )
+
+        # Only the primary was queried — no sibling fan-out.
+        assert queried_jids == ["city-san-rafael"]
+
+        # Output is the legacy shape ("# Initiatives in {jid}", not
+        # "(and siblings)"), so the walker code path was NOT taken.
+        assert "# Initiatives in city-san-rafael" in output
+        assert "(and siblings)" not in output
+        assert "Legacy initiative" in output
+
+
+# ---------------------------------------------------------------------------
+# list_relays — policy demoted to PRIMARY; fan-out is a no-op
+# ---------------------------------------------------------------------------
+
+
+class TestListRelaysScope:
+    def test_policy_is_primary_only(self):
+        """list_relays returns a jurisdiction-agnostic static list
+        (KNOWN_RELAYS), so its scope policy must declare PRIMARY,
+        not PRIMARY_PLUS_SIBLINGS. This assertion exists to catch
+        a regression where someone 're-expands' the policy without
+        actually implementing sibling fan-out — a silent no-op
+        that would mislead callers about the tool's real reach."""
+        policy = SCOPE_POLICIES["list_relays"]
+        assert policy.default_scope == Scope.PRIMARY
+        assert policy.max_scope == Scope.PRIMARY
+        assert policy.expandable_scope is None

@@ -26723,3 +26723,97 @@ changes. Priority targets with non-PRIMARY defaults:
 get_funding_flow, get_intergovernmental_revenue,
 get_leverage_points (all PRIMARY_PLUS_PARENT); list_initiatives,
 list_relays (PRIMARY_PLUS_SIBLINGS).
+
+================================================================
+## Session: widen_remaining_handlers_through_scope_walk (DONE)
+## Date: 2026-04-11
+================================================================
+
+Step 4 of the 4-step scope work sequence (step 5 is deployment).
+
+### Shipped
+
+1. **`get_leverage_points`** wired through walk_scope via the same
+   closure pattern as `search_legislation`. Inner helper
+   `_fetch_leverage_bills_for_state` mirrors the legacy two-pass
+   topic/keyword logic; `_storage_call(jid)` maps jurisdiction →
+   state code → per-state fetch. Jurisdiction label stamped on
+   each bill header (`## {bill_num} ({state}) — {jurisdiction}`).
+
+2. **Scope policy widened** for `get_leverage_points`:
+   `PRIMARY_PLUS_PARENT/max STATE` → `PRIMARY_PLUS_ALL_PARENTS/max
+   FEDERAL`. Rationale: legacy `_default_legislation_states` returns
+   `["CA", "US"]` for city callers, so the narrower scope would
+   degenerate to empty (cities/counties don't hold legislation
+   rows). Widening matches `search_legislation` and preserves
+   behavior.
+
+3. **`list_initiatives`** wired through walk_scope with per-
+   jurisdiction HTTP calls against the same relay URL. Output
+   groups by jurisdiction when the scope policy is active and
+   falls back to the legacy single-jurisdiction layout when the
+   contextvar is None. `_fetch_initiatives_for_jurisdiction`
+   catches connect errors per-jurisdiction so one unreachable
+   sibling doesn't poison the whole list.
+
+4. **`list_relays` demoted** from `PRIMARY_PLUS_SIBLINGS` to
+   `PRIMARY`. The handler returns a static `KNOWN_RELAYS` list
+   regardless of jurisdiction — sibling fan-out was already a
+   no-op. `WRITE_SIBLING_EXEMPT` in test_scope_policy.py updated
+   to drop `list_relays` from the exemption set.
+
+5. **`get_funding_flow` and `get_intergovernmental_revenue`
+   documented as blocked**. Both call core CivicOS methods that
+   don't accept a jurisdiction kwarg, so widening them requires
+   a core API refactor. Added docstring notes, TODO markers, and
+   ADR row annotations. New launch.json item
+   `cross_jurisdiction_civic_api_methods` added at P3.
+
+6. **10 federal-default handlers audited**. All confirmed to use
+   federal-only data sources (`get_legislation_by_bill_id`,
+   `get_congressional_votes`, `search_executive_orders`, etc.) —
+   no walk_scope wiring needed, as declared in the policy.
+
+7. **7 new tests** in test_scope_policy_passthrough.py:
+   TestGetLeveragePointsPassthrough (vertical expansion, explicit
+   state override, legacy fallback), TestListInitiativesPassthrough
+   (sibling fan-out + structural pairing, unreachable-sibling
+   resilience, legacy fallback), TestListRelaysScope (policy
+   demotion regression check). 28 passthrough tests total, all
+   passing. 256 scope-related tests pass (scope_policy +
+   passthrough + region_config + mcp_tools).
+
+8. **ADR updated** with a new "Implementation status" subsection
+   listing which handlers are wired, which are no-ops by design,
+   and which are blocked on the core API refactor. The per-tool
+   table rows for `get_leverage_points`, `list_relays`,
+   `get_funding_flow`, `get_intergovernmental_revenue` were all
+   updated.
+
+### Pre-existing test failures (NOT regressions)
+
+- test_coordination_tools.py: 5 failures (broadcast_voice schema
+  drift, registry 38-count drift). Match the step 2 handoff's
+  pre-existing list.
+- test_initiative_tools.py::test_connection_error_handled: the
+  production relay is reachable, so the test's "expect connection
+  error" premise is broken. Verified unchanged between my branch
+  and clean main.
+
+Clean main had 8 failures; my branch has 6. The 2 differences are
+transient network flakes in `test_get_voice_counts` /
+`test_subscribe_to_topic` that depend on real-time relay reachability.
+
+### launch.json
+
+- widen_remaining_handlers_through_scope_walk: done, P3
+- cross_jurisdiction_civic_api_methods: NEW, P3 (blocked work)
+- regional_server_deployment: promoted P3 → P0 (next session)
+
+### Next session
+
+P0 is `regional_server_deployment` — step 5 of the scope sequence.
+This is the deployment-side work to stand up
+`bay-area.civicosproject.org/mcp` (or `marin.civicosproject.org/mcp`)
+as the same codebase with a different primary jurisdiction and
+region. See launch.json/distribution for the full description.
