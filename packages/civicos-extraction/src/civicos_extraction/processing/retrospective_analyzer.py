@@ -71,6 +71,7 @@ class HighStakesDecision:
     item_number: Optional[str] = None  # Formal agenda number if one exists, null otherwise
     item_type: str = "action"  # action, consent, presentation, hearing, discussion
     extracted_outcome: Optional[str] = None  # LLM-classified outcome
+    source_item_id: Optional[str] = None  # Platform-internal item ID (Legistar MatterId, etc.)
     full_agenda_packet_url: Optional[str] = None  # Full agenda packet PDF
     minutes_url: Optional[str] = None  # Meeting minutes PDF
     testimony_count: Optional[int] = None  # Number of public speakers

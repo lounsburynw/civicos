@@ -825,7 +825,7 @@
         "name": "cross_jurisdiction_civic_api_methods",
         "description": "Refactor the core civic.funding_flow() and civic.intergovernmental_revenue() methods to accept a jurisdiction parameter so the MCP handlers get_funding_flow and get_intergovernmental_revenue can fan out across the resolved scope via walk_scope. Both methods currently return data only for whichever jurisdiction the CivicOS instance was constructed with; this blocks the PRIMARY_PLUS_PARENT default declared for both handlers. Scope: add jurisdiction kwarg to CivicOS.funding_flow and CivicOS.intergovernmental_revenue (default None = primary), thread it through to the underlying storage calls, and then remove the TODO markers in handlers.py and wire both through walk_scope the way search_legislation is wired. See widen_remaining_handlers_through_scope_walk notes for the full rationale.",
         "status": "not_started",
-        "priority": 3,
+        "priority": 0,
         "files": [
           "packages/civicos/src/civicos/civicos.py",
           "apps/civicos-mcp/tools/handlers.py",
@@ -1323,8 +1323,8 @@
       {
         "name": "add_real_source_item_id",
         "description": "Thread a real source-platform item ID (Granicus / Legistar / BoardDocs internal ID) through the extraction dataclass and storage so the stable decision ID can be derived from a true platform-stable reference instead of the synthetic-D fields (item_type, outcome, budget_amount). Today's fix uses the synthetic-D from already-available HighStakesDecision fields, which is sufficient but theoretically less robust if two genuinely-distinct decisions in one meeting share all of (item_ref, title, item_type, outcome, budget). Adds source_item_id: Optional[str] to HighStakesDecision and updates Granicus/Legistar/BoardDocs clients to populate it where the platform exposes one. Hash function adds source_item_id to the key when present.",
-        "status": "not_started",
-        "priority": 0,
+        "status": "done",
+        "priority": 3,
         "source": "fix_decision_storage_dedup follow-up",
         "files": [
           "packages/civicos-extraction/src/civicos_extraction/processing/retrospective_analyzer.py",

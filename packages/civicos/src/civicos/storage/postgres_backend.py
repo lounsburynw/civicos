@@ -2649,6 +2649,7 @@ class PostgresBackend:
                             item_type=decision.get('item_type', 'action'),
                             outcome=decision.get('outcome'),
                             budget_amount=budget,
+                            source_item_id=decision.get('source_item_id'),
                         )
 
                 # Close previous version of this specific decision only

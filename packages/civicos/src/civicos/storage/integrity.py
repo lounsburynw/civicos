@@ -135,6 +135,7 @@ def compute_stable_decision_id(
     item_type: Optional[str] = None,
     outcome: Optional[str] = None,
     budget_amount: Optional[float] = None,
+    source_item_id: Optional[str] = None,
 ) -> str:
     """
     Compute a stable, content-derived decision ID for upsert idempotency.
@@ -146,7 +147,14 @@ def compute_stable_decision_id(
     returns decisions in a different order across runs. This is the key the
     temporal-versioning UPDATE in ``store_decisions()`` matches against.
 
+    When ``source_item_id`` is provided (a platform-internal ID like Legistar
+    MatterId), it is included in the hash key for ground-truth dedup. This is
+    stronger than the synthetic fields alone, since the platform ID is
+    deterministic across extractions. When absent, the hash falls back to the
+    synthetic fields for backwards compatibility.
+
     Why these specific fields:
+        - ``source_item_id``: platform-internal ID (strongest signal when available)
         - ``item_ref``: stable agenda item label (parsed from PDF, deterministic)
         - ``title``: stable formal label (drifts very rarely across LLM runs)
         - ``item_type``: stable enum (action/consent/hearing/discussion/presentation)
@@ -172,6 +180,8 @@ def compute_stable_decision_id(
         item_type: Item type enum
         outcome: Outcome enum
         budget_amount: Budget impact in dollars (rounded to nearest dollar)
+        source_item_id: Platform-internal item ID (Legistar MatterId, etc.)
+            When present, included in the hash for ground-truth dedup.
 
     Returns:
         Namespaced ID string. If both item_ref and title are empty, the digest
@@ -186,8 +196,11 @@ def compute_stable_decision_id(
     norm_budget = (
         str(int(round(budget_amount))) if budget_amount else ""
     )
+    norm_source_id = (source_item_id or "").strip()
 
     key = f"{norm_item_ref}|{norm_title}|{norm_item_type}|{norm_outcome}|{norm_budget}"
+    if norm_source_id:
+        key = f"{norm_source_id}|{key}"
     digest = hashlib.sha256(key.encode("utf-8")).hexdigest()[:12]
     return f"decision:{jurisdiction_id}:{meeting_ref}:{digest}"
 

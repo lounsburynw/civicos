@@ -26929,3 +26929,33 @@ modal run scripts/modal_ingest.py --transcripts --jurisdiction city-san-rafael
 ### launch.json
 - free_tier_rate_limiting: done (was P0)
 - add_real_source_item_id: promoted to P0
+
+## Session: add_real_source_item_id (2026-04-12)
+
+### Completed: add_real_source_item_id (P0 → done)
+
+Thread real platform source IDs through the extraction pipeline for ground-truth decision dedup.
+
+### Changes made
+- Added `source_item_id: Optional[str] = None` to HighStakesDecision (both copies: civicos-extraction and civicos-services)
+- Added `source_item_id` parameter to `compute_stable_decision_id()` — prepended to hash key when present, backwards-compatible when absent
+- Threaded source_item_id through decisions.py CLI and store_decisions() in postgres_backend.py
+- Added `get_event_items(event_id)` to extraction LegistarClient — fetches EventItems from Legistar API
+- Added `_enrich_source_item_ids()` in decisions.py — post-extraction matching of LLM decisions to Legistar MatterIds by agenda item number
+- 7 new tests in test_integrity.py for source_item_id hash behavior
+- 9 new tests in test_decisions.py for enrichment matching (case-insensitive, fallback, error handling, etc.)
+
+### Test results
+- 84/84 integrity tests pass (including 7 new)
+- 82/82 decisions tests pass (including 9 new)
+- 4/4 decision dedup integration tests pass (backwards compatibility)
+- 18/18 smoke tests pass
+
+### Platform coverage
+- Legistar: Full (MatterId via EventItems API, matched by agenda_number)
+- Granicus: No-op (no item-level IDs in HTML scraping)
+- BoardDocs: Not yet (no extraction client in codebase)
+
+### launch.json
+- add_real_source_item_id: done (was P0)
+- cross_jurisdiction_civic_api_methods: promoted to P0
