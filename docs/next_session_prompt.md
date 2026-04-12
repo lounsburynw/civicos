@@ -1,52 +1,55 @@
-# Recommended: Add Real Source Item ID (`add_real_source_item_id`)
+# Recommended: Cross-Jurisdiction Civic API Methods (`cross_jurisdiction_civic_api_methods`)
 
 **Priority:** P0
-**Area:** federation_testbed
-**Date:** 2026-04-11
+**Area:** distribution
+**Date:** 2026-04-12
 
 > Recommended context from prior session. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
 
 ## Context
 
-Prior session completed `free_tier_rate_limiting` (commit `63bda209`). OAuth sessions now have per-session rate limiting (50/day + 10/min burst). The launch checklist is nearly complete — only 6 items remain (all P2-P3 except this P0). This item strengthens decision ID stability by threading real platform source IDs through the extraction pipeline, replacing the current "synthetic-D" approach that derives IDs from LLM-extracted fields.
+Prior session completed `add_real_source_item_id` (commit `05f760c8`). The launch checklist now has only 5 items remaining (all P2-P3 except this P0). This item unblocks cross-jurisdiction financial queries by adding a `jurisdiction_id` parameter to two CivicOS methods that currently only return data for their construction-time jurisdiction.
 
 ## Recommended Task
 
-Add `source_item_id: Optional[str]` to `HighStakesDecision` dataclass and thread real platform-internal IDs (Granicus event item ID, Legistar MatterId, BoardDocs item ID) through to `compute_stable_decision_id()`. When present, the hash function should include `source_item_id` in the key, providing ground-truth dedup instead of relying on synthetic fields (item_type, outcome, budget_amount).
+Refactor `CivicOS.funding_flow()` and `CivicOS.intergovernmental_revenue()` to accept an optional `jurisdiction_id` parameter, then wire both MCP handlers through `walk_scope` so they can fan out across the resolved scope (parent jurisdictions like county/state).
 
 ## Key Files
 
-- `packages/civicos-extraction/src/civicos_extraction/processing/retrospective_analyzer.py:37-77` — `HighStakesDecision` dataclass. Add `source_item_id: Optional[str] = None` field here.
-- `packages/civicos/src/civicos/storage/integrity.py:129-159` — `compute_stable_decision_id()`. Add `source_item_id` parameter; include in hash when present.
-- `packages/civicos-extraction/src/civicos_extraction/clients/granicus.py` — Granicus client. Events have internal IDs; thread through to decisions.
-- `packages/civicos-extraction/src/civicos_extraction/clients/legistar.py:399-408` — Legistar client already uses `EventId` for meeting IDs. Items have `MatterId` available from the API.
-- `packages/civicos-extraction/src/civicos_extraction/cli/decisions.py` — CLI entry point that calls retrospective_analyzer; passes results to storage.
-- `packages/civicos/src/civicos/storage/postgres_backend.py` — `store_decisions()` calls `compute_stable_decision_id()`.
-- `packages/civicos/tests/test_integrity.py` — Existing tests for `compute_stable_decision_id()`.
-- `packages/civicos/tests/test_integration_decision_dedup.py` — Integration tests for dedup behavior.
+- `packages/civicos/src/civicos/civicos.py:1153-1180` — `funding_flow()` method. Add `jurisdiction_id: Optional[str] = None` kwarg, thread to storage calls.
+- `packages/civicos/src/civicos/civicos.py:1509-1535` — `intergovernmental_revenue()` method. Same refactor.
+- `apps/civicos-mcp/tools/handlers.py:2553-2578` — `get_funding_flow()` handler. Has TODO marker at line 2575. Replace direct `civic.funding_flow()` call with `walk_scope` pattern.
+- `apps/civicos-mcp/tools/handlers.py:2645-2670` — `get_intergovernmental_revenue()` handler. Has TODO marker at line 2667. Same walk_scope wiring.
+- `apps/civicos-mcp/tools/handlers.py:190-209` — `get_upcoming_meetings()` — **reference pattern** for how walk_scope is already wired. Copy this pattern.
+- `apps/civicos-mcp/tools/scope_walk.py` — `walk_scope()` and `resolve_requested_scope()` functions.
+- `apps/civicos-mcp/tests/test_scope_policy_passthrough.py` — Existing scope policy tests (1008 lines). Add tests for the two new handlers.
+- `docs/public/decisions/tool_scope_and_federation.md` — ADR documenting scope policies. Update to reflect these handlers are now wired.
 
 ## Suggested Approach
 
-1. **Add field to dataclass** — `source_item_id: Optional[str] = None` on `HighStakesDecision`. Both copies (civicos-extraction and civicos-services) must be updated.
+1. **Add jurisdiction_id kwarg to CivicOS methods** — In `civicos.py`, add `jurisdiction_id: Optional[str] = None` to both `funding_flow()` and `intergovernmental_revenue()`. When provided, use it instead of `self.jurisdiction_id` for storage queries. Default `None` = use self (backwards compatible).
 
-2. **Update hash function** — In `compute_stable_decision_id()`, add `source_item_id: Optional[str] = None` parameter. When non-None, include it in the hash key. This means decisions with a source ID get a stronger key, while existing decisions without one continue using synthetic-D.
+2. **Wire handlers through walk_scope** — In `handlers.py`, follow the `get_upcoming_meetings` pattern (lines 190-209):
+   ```python
+   def _storage_call(jid: str) -> list:
+       return civic.funding_flow(jurisdiction_id=jid, program=program, ...)
+   
+   results = walk_scope(policy, jurisdiction, _storage_call)
+   ```
 
-3. **Thread through Granicus client** — Granicus events API returns items with internal IDs. Parse these and populate `source_item_id` when available.
+3. **Remove TODO markers** — Delete the `TODO(cross_jurisdiction_civic_api_methods)` comments at lines 2575 and 2667.
 
-4. **Thread through Legistar client** — Legistar items have `MatterId`. The client already parses `EventId` for meetings (line 399). Do the same for agenda items.
+4. **Update scope policy docstrings** — Remove "aspirational" language from handler docstrings (lines 2562-2568 and 2654-2661).
 
-5. **Thread through storage** — `store_decisions()` in postgres_backend.py calls `compute_stable_decision_id()`. Pass `source_item_id` through.
+5. **Add tests** — Add test cases to `test_scope_policy_passthrough.py` verifying that both handlers respect scope policy and fan out correctly.
 
-6. **Test** — Update `test_integrity.py` with cases for: source_item_id present (stronger key), source_item_id absent (backwards compatible), same decision with/without source_item_id (should produce different IDs — this is expected, not a bug).
+6. **Update ADR** — In `tool_scope_and_federation.md`, mark these two handlers as wired (no longer primary-only).
 
 ## Tests to Run
 
 ```bash
-# Integrity tests (direct target)
-civicos-env/bin/python3 -m pytest packages/civicos/tests/test_integrity.py -v --override-ini="addopts="
-
-# Decision dedup integration
-civicos-env/bin/python3 -m pytest packages/civicos/tests/test_integration_decision_dedup.py -v --override-ini="addopts="
+# Scope policy tests (direct target)
+civicos-env/bin/python3 -m pytest apps/civicos-mcp/tests/test_scope_policy_passthrough.py -v --override-ini="addopts="
 
 # Smoke tests
 civicos-env/bin/python3 -m pytest packages/civicos/tests/test_civicos.py -q --override-ini="addopts="
@@ -54,12 +57,14 @@ civicos-env/bin/python3 -m pytest packages/civicos/tests/test_civicos.py -q --ov
 
 ## Success Criteria
 
-- [ ] `HighStakesDecision` has `source_item_id: Optional[str] = None` field
-- [ ] `compute_stable_decision_id()` accepts and uses `source_item_id` when present
-- [ ] Granicus client populates `source_item_id` from platform event item IDs
-- [ ] Legistar client populates `source_item_id` from `MatterId`
-- [ ] Backwards compatible: existing decisions without source_item_id still produce same IDs
-- [ ] Tests cover both with/without source_item_id paths
+- [ ] `CivicOS.funding_flow()` accepts `jurisdiction_id` kwarg
+- [ ] `CivicOS.intergovernmental_revenue()` accepts `jurisdiction_id` kwarg
+- [ ] `get_funding_flow` handler wired through `walk_scope`
+- [ ] `get_intergovernmental_revenue` handler wired through `walk_scope`
+- [ ] TODO markers removed from handlers.py
+- [ ] Handler docstrings updated (no longer "aspirational")
+- [ ] Tests verify scope fan-out for both handlers
+- [ ] ADR updated to reflect wired status
 - [ ] A new P0 assigned before session end
 
 ## Pre-existing test failures (NOT regressions)
@@ -72,9 +77,3 @@ These are separate cleanup items — 6 pre-existing failures total, stable acros
 ## Open PRs
 
 None.
-
-## Not in scope
-
-- BoardDocs client (no existing client in codebase — only add if Granicus/Legistar are straightforward)
-- Migrating existing decisions to use source_item_id (that's a separate data migration)
-- CivicClerk client (lower priority platform)
