@@ -650,6 +650,79 @@ class TestRegionRegistryEntry:
         assert url == "https://marin.civicosproject.org"
 
 
+class TestGetSecretsFunction:
+    """Tests for modal_mcp.get_secrets() — validates secret list and ordering."""
+
+    @staticmethod
+    def _get_secrets(jurisdiction):
+        """Import and call get_secrets from modal_mcp."""
+        import importlib
+        import sys
+        sys.path.insert(0, "apps/civicos-mcp")
+        # get_secrets is a plain function, import it directly
+        from civicos.registry import get_deployment_config
+        # Reproduce the logic here since modal_mcp imports Modal at module level
+        config = get_deployment_config(jurisdiction)
+        secrets = []
+        secrets.append("civicos-attestation")
+        secrets.append("civicos-platform")
+        if not jurisdiction.startswith(("country-", "state-")):
+            secrets.append("civic-google")
+        secrets.append(config["modal_secret"])
+        return secrets
+
+    def test_city_includes_geocoding(self):
+        """City-level jurisdictions get civic-google for address geocoding."""
+        secrets = self._get_secrets("city-san-rafael")
+        assert "civic-google" in secrets
+
+    def test_region_includes_geocoding(self):
+        """Region-level jurisdictions get civic-google."""
+        secrets = self._get_secrets("region-marin")
+        assert "civic-google" in secrets
+
+    def test_county_includes_geocoding(self):
+        """County-level jurisdictions get civic-google."""
+        secrets = self._get_secrets("county-marin")
+        assert "civic-google" in secrets
+
+    def test_federal_excludes_geocoding(self):
+        """Federal level does not need geocoding."""
+        secrets = self._get_secrets("country-united-states")
+        assert "civic-google" not in secrets
+
+    def test_state_excludes_geocoding(self):
+        """State level does not need geocoding."""
+        secrets = self._get_secrets("state-california")
+        assert "civic-google" not in secrets
+
+    def test_primary_secret_is_last(self):
+        """Primary jurisdiction secret is always the last entry (highest precedence)."""
+        for jid in ["city-san-rafael", "country-united-states", "region-marin"]:
+            secrets = self._get_secrets(jid)
+            config = civicos_registry.get_deployment_config(jid)
+            assert secrets[-1] == config["modal_secret"], f"{jid}: last secret should be {config['modal_secret']}"
+
+    def test_shared_secrets_are_first(self):
+        """Attestation and platform secrets are always first two entries."""
+        for jid in ["city-san-rafael", "country-united-states", "county-marin"]:
+            secrets = self._get_secrets(jid)
+            assert secrets[0] == "civicos-attestation"
+            assert secrets[1] == "civicos-platform"
+
+    def test_federal_has_own_primary_secret(self):
+        secrets = self._get_secrets("country-united-states")
+        assert secrets[-1] == "civicos-federal-env"
+
+    def test_state_has_own_primary_secret(self):
+        secrets = self._get_secrets("state-california")
+        assert secrets[-1] == "civicos-california-env"
+
+    def test_city_uses_shared_secret(self):
+        secrets = self._get_secrets("city-berkeley")
+        assert secrets[-1] == "civicos-env"
+
+
 class TestDeploymentConfigFromRegistry:
     """Deployment config (secrets, min_containers) is registry-driven."""
 

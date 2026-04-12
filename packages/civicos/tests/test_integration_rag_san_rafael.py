@@ -421,7 +421,8 @@ class TestStaffReportExtractor:
         from civicos._internal.meetings import StaffReportExtractor, StaffReportMetadata
 
         extractor = StaffReportExtractor()
-        assert extractor is not None
+        assert "agenda_item" in extractor.PATTERNS
+        assert "department" in extractor.PATTERNS
 
     def test_extractor_from_chunks(self):
         """Validate extractor can process chunks from file."""
@@ -587,7 +588,8 @@ class TestOrdinanceExtractor:
         from civicos._internal.meetings.ordinance import OrdinanceExtractor, OrdinanceMetadata
 
         extractor = OrdinanceExtractor()
-        assert extractor is not None
+        assert "ordinance_start" in extractor.PATTERNS
+        assert "whereas" in extractor.PATTERNS
 
     def test_find_ordinances(self):
         """Validate extractor can find ordinances in chunks."""
@@ -814,8 +816,12 @@ class TestMinutesExtractor:
     def test_extractor_imports(self):
         """Validate MinutesExtractor can be imported."""
         from civicos._internal.meetings import MinutesExtractor, MeetingMinutes
-        assert MinutesExtractor is not None
-        assert MeetingMinutes is not None
+        assert "meeting_date" in MinutesExtractor.PATTERNS
+        assert "meeting_type" in MinutesExtractor.PATTERNS
+        import dataclasses
+        field_names = {f.name for f in dataclasses.fields(MeetingMinutes)}
+        assert "meeting_date" in field_names
+        assert "items" in field_names
 
     def test_extractor_creates_instance(self):
         """Validate MinutesExtractor can be instantiated."""
@@ -823,7 +829,8 @@ class TestMinutesExtractor:
         from civicos._internal.meetings import MinutesExtractor
 
         extractor = MinutesExtractor()
-        assert extractor is not None
+        assert "meeting_date" in extractor.PATTERNS
+        assert callable(extractor.extract)
 
     def test_extractor_extract_method(self):
         """Validate extract() returns MeetingMinutes object."""
@@ -1046,15 +1053,20 @@ class TestDecisionExtractor:
     def test_extractor_imports(self):
         """Validate DecisionExtractor can be imported."""
         from civicos._internal.meetings import DecisionExtractor, Decision
-        assert DecisionExtractor is not None
-        assert Decision is not None
+        extractor = DecisionExtractor()
+        assert extractor.jurisdiction_id == "city-san-rafael"
+        import dataclasses
+        field_names = {f.name for f in dataclasses.fields(Decision)}
+        assert "decision_id" in field_names
+        assert "outcome" in field_names
 
     def test_extractor_creates_instance(self):
         """Validate DecisionExtractor can be instantiated."""
         from civicos._internal.meetings import DecisionExtractor
 
         extractor = DecisionExtractor()
-        assert extractor is not None
+        assert extractor.jurisdiction_id == "city-san-rafael"
+        assert len(extractor.topic_keywords) > 0
 
     def test_extractor_extract_from_corpus(self):
         """Validate extract_from_corpus returns Decision objects."""
@@ -1140,10 +1152,13 @@ class TestEmbeddingGeneration:
             build_merrydale_index,
             search_merrydale,
         )
-        assert MerrydaleEmbeddings is not None
-        assert SearchResult is not None
-        assert build_merrydale_index is not None
-        assert search_merrydale is not None
+        assert callable(MerrydaleEmbeddings)
+        import dataclasses
+        sr_fields = {f.name for f in dataclasses.fields(SearchResult)}
+        assert "score" in sr_fields
+        assert "text" in sr_fields
+        assert callable(build_merrydale_index)
+        assert callable(search_merrydale)
 
     def test_embedder_instantiation(self):
         """Validate MerrydaleEmbeddings can be instantiated."""
@@ -1312,10 +1327,10 @@ class TestSearchDecisions:
         results = self.embedder.search_decisions("shelter", top_k=1)
 
         result = results[0]
-        assert hasattr(result, "document_id")
-        assert hasattr(result, "text")
-        assert hasattr(result, "score")
-        assert hasattr(result, "metadata")
+        assert result.document_id, "document_id should be non-empty"
+        assert result.text, "text should be non-empty"
+        assert result.score > 0, "score should be positive for a matching query"
+        assert "agenda_item" in result.metadata, "metadata should include agenda_item"
 
     def test_search_homeless_shelter_returns_item_6a(self):
         """Validate 'homeless shelter' query returns Item 6.a first."""
@@ -1700,13 +1715,14 @@ class TestWhatHappenedSanRafael:
         c = CivicOS("san-rafael")
         decisions = c.what_happened("merrydale")
 
+        assert len(decisions) >= 1, "Should return at least one Merrydale decision"
         for d in decisions:
-            assert hasattr(d, "id"), "Decision should have id"
-            assert hasattr(d, "title"), "Decision should have title"
-            assert hasattr(d, "date"), "Decision should have date"
-            assert hasattr(d, "outcome"), "Decision should have outcome"
-            assert hasattr(d, "body"), "Decision should have body"
+            assert d.id, "Decision id should be non-empty"
+            assert d.title, "Decision title should be non-empty"
             assert isinstance(d.date, datetime), "date should be datetime"
+            assert d.outcome in ("approved", "denied", "continued", "withdrawn"), \
+                f"Unexpected outcome: {d.outcome}"
+            assert d.body, "Decision body should be non-empty"
 
     def test_what_happened_merrydale_homeless_shelter(self):
         """Validate 'merrydale homeless shelter' returns relevant decisions first."""
@@ -1797,8 +1813,12 @@ class TestWhatHappenedSanRafael:
 
         # This should use keyword search, not embedding search
         # It may return no results (since there's no housing data in state)
-        # The key is that it doesn't error
         assert isinstance(decisions, list)
+        # Any returned decisions should be well-formed
+        for d in decisions:
+            assert d.id, "Decision should have non-empty id"
+            assert d.title, "Decision should have non-empty title"
+            assert d.date is not None, "Decision should have a date"
 
 
 @pytest.mark.requires_real_data
@@ -1936,6 +1956,10 @@ class TestWhatWasSaidTranscripts:
         # Empty-ish query should still return something (embedding search is fuzzy)
         excerpts = c.what_was_said("the")
         assert isinstance(excerpts, list)
+        # Any returned excerpts should have non-empty text
+        for e in excerpts:
+            assert e.text, "Excerpt should have non-empty text"
+            assert e.speaker, "Excerpt should have a speaker"
 
     def test_what_was_said_no_transcripts(self):
         """Validate what_was_said() returns empty list when no transcripts indexed."""
@@ -2194,7 +2218,7 @@ class TestPublicTestimonyRetrieval:
         excerpts = c.get_public_testimony("quantum physics supercollider")
 
         # Should return empty list, not error
-        assert isinstance(excerpts, list)
+        assert excerpts == [], f"Irrelevant query should return empty list, got {len(excerpts)} results"
 
     def test_get_public_testimony_unknown_jurisdiction(self):
         """Validate get_public_testimony() returns empty list for unknown jurisdiction."""
@@ -2615,23 +2639,30 @@ class TestWhatHappenedSemantic:
 
         # Should return decisions (semantic search casts a wider net)
         assert isinstance(decisions, list), "Should return a list"
-        # May or may not find results depending on corpus content
-        # The key is no errors and proper response type
+        # Any returned decisions should be well-formed
+        for d in decisions:
+            assert d.id, "Decision should have non-empty id"
+            assert d.title, "Decision should have non-empty title"
+            assert d.date is not None, "Decision should have a date"
 
     def test_semantic_multiple_results_sorted(self):
         """
         Validate multiple results are returned in relevance order.
         """
         from civicos import CivicOS
+        from datetime import datetime
 
         c = CivicOS("san-rafael")
         decisions = c.what_happened("neighborhood concerns")
 
         if len(decisions) > 1:
-            # Results should be sorted (this validates the sort in history.py:159)
-            # Since all are from same meeting date, order is by semantic score
-            # We verify the list is non-empty and properly structured
-            assert all(hasattr(d, "date") for d in decisions)
+            # Results should be sorted by date descending (validates sort in history.py)
+            for d in decisions:
+                assert isinstance(d.date, datetime), f"date should be datetime, got {type(d.date)}"
+            dates = [d.date for d in decisions]
+            for i in range(len(dates) - 1):
+                assert dates[i] >= dates[i + 1], \
+                    f"Decisions not sorted: {dates[i]} < {dates[i + 1]}"
 
     def test_semantic_vs_keyword_comparison(self):
         """
@@ -3475,11 +3506,13 @@ class TestWhatHappenedFullContext:
         results = c.what_happened_full_context("shelter")
 
         assert isinstance(results, list)
+        assert len(results) >= 1, "Shelter query should return at least one result"
         for r in results:
             assert isinstance(r, DecisionWithContext)
-            assert hasattr(r, "decision")
-            assert hasattr(r, "transcript_links")
-            assert hasattr(r, "link_confidence")
+            assert r.decision.id, "Decision should have non-empty id"
+            assert r.decision.title, "Decision should have non-empty title"
+            assert 0.0 <= r.link_confidence <= 1.0, \
+                f"link_confidence should be in [0, 1], got {r.link_confidence}"
 
     def test_what_happened_full_context_limits_respected(self):
         """Validate that top_k parameter limits decision count."""
@@ -3516,16 +3549,20 @@ class TestWhatHappenedFullContext:
         results = c.what_happened_full_context("council", top_k=3)
 
         for r in results:
-            # has_transcript should be bool
-            assert isinstance(r.has_transcript, bool)
+            # has_transcript should reflect presence of transcript_links
+            assert r.has_transcript == (len(r.transcript_links) > 0), \
+                "has_transcript should match transcript_links presence"
 
-            # Properties should return lists (possibly empty)
-            assert isinstance(r.public_comments, list)
-            assert isinstance(r.staff_discussion, list)
-            assert isinstance(r.council_discussion, list)
+            # Sub-lists should be subsets of transcript_links
+            assert len(r.public_comments) <= len(r.transcript_links)
+            assert len(r.staff_discussion) <= len(r.transcript_links)
+            assert len(r.council_discussion) <= len(r.transcript_links)
 
-            # link_type should be a string
-            assert isinstance(r.link_type, str)
+            # link_type should be a known confidence level
+            assert r.link_type in ("high_confidence", "medium_confidence", "low_confidence", "none", ""), \
+                f"Unexpected link_type: {r.link_type}"
+            assert 0.0 <= r.link_confidence <= 1.0, \
+                f"link_confidence out of range: {r.link_confidence}"
 
 
 # Path to state legislation files (new structure: data/legislation/state/{state}/)

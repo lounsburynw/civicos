@@ -17,6 +17,12 @@ from datetime import datetime, timedelta, timezone
 pytestmark = pytest.mark.integration
 
 
+@pytest.fixture(autouse=True)
+def isolate_from_postgres(monkeypatch):
+    """Ensure tests use temp SQLite, not Postgres from DATABASE_URL."""
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+
+
 class TestDiscoverySequence:
     """Test MCP discovery sequences (browse_then_filter, research_workflow)."""
 
@@ -180,7 +186,7 @@ class TestDiscoverySequence:
 
             # Meeting has location info
             mtg = meetings[0]
-            assert mtg.location is not None
+            assert mtg.location == "Canal Community Center"
 
             # Filter by topic
             context = civic.what_applies("development")
@@ -434,9 +440,9 @@ class TestPartialWorkflow:
             assert context.topic == "very_obscure_topic_xyz"
             # Returns empty context but doesn't fail
 
-            # Step 3: what_happened (succeeds)
+            # Step 3: what_happened (succeeds, empty because no decisions stored)
             history = civic.what_happened("housing")
-            assert isinstance(history, list)
+            assert history == []
 
     def test_workflow_survives_prepare_failure(self):
         """
@@ -473,9 +479,9 @@ class TestPartialWorkflow:
             civic = server._get_civic()
             civic.jurisdiction = "san-rafael"
 
-            # Step 1: what_happened
+            # Step 1: what_happened (empty because no decisions stored)
             history = civic.what_happened("zoning")
-            assert isinstance(history, list)
+            assert history == []
 
             # Step 2: what_applies
             context = civic.what_applies("zoning")
