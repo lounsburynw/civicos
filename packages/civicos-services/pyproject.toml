@@ -20,3 +20,9 @@ where = ["src"]
 
 [tool.setuptools.package-data]
 civicos_services = ["py.typed"]
+
+[tool.mutmut]
+paths_to_mutate = ["src/civicos_services/"]
+tests_dir = ["tests/"]
+also_copy = ["src/civicos_services"]
+pytest_add_cli_args = ["-x", "-q", "--tb=short", "--override-ini=addopts=", "-k", "not Integration and not RateLimiter and not CorpusSchemas and not Pagination"]
