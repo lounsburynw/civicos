@@ -167,6 +167,9 @@ TOOL_LEVELS = {
     "county": (FEDERAL_TOOLS | STATE_TOOLS | COUNTY_TOOLS | LEGISLATION_TOOLS | CROSS_LEVEL_TOOLS | ADMIN_TOOLS) - RELAY_WRITE_TOOLS,
     "city": (FEDERAL_TOOLS | STATE_TOOLS | CITY_TOOLS | LEGISLATION_TOOLS | CROSS_LEVEL_TOOLS | COORDINATION_TOOLS | ADMIN_TOOLS) - RELAY_WRITE_TOOLS,
 }
+# Regions get the same tool set as cities — the scope walker handles
+# fan-out across member jurisdictions.
+TOOL_LEVELS["region"] = TOOL_LEVELS["city"]
 
 
 def get_tools_for_level(level: str) -> frozenset[str]:
@@ -238,7 +241,7 @@ def _find_config_file(jurisdiction_id: str) -> Optional[Path]:
         return config_file
 
     # Try without prefix (e.g., "city-san-rafael" -> "san-rafael.yaml")
-    for prefix in ["city-", "county-", "state-", "country-"]:
+    for prefix in ["city-", "region-", "county-", "state-", "country-"]:
         if jurisdiction_id.startswith(prefix):
             short_name = jurisdiction_id[len(prefix):]
             config_file = jurisdictions_dir / f"{short_name}.yaml"
@@ -296,10 +299,21 @@ def load_jurisdiction_config(jurisdiction_id: str) -> JurisdictionConfig:
         meeting_location=body_data.get("meeting_location", ""),
     )
 
+    # If the config file belongs to a different jurisdiction (e.g.
+    # region-marin matched marin.yaml which is county-marin's config),
+    # use the requested jurisdiction's ID and inferred level.
+    file_jurisdiction = data.get("jurisdiction_id", jurisdiction_id)
+    if file_jurisdiction != jurisdiction_id:
+        level = _infer_level(jurisdiction_id)
+        display = _format_display_name(jurisdiction_id)
+    else:
+        level = data.get("level", _infer_level(jurisdiction_id))
+        display = data.get("display_name", _format_display_name(jurisdiction_id))
+
     return JurisdictionConfig(
-        jurisdiction_id=data.get("jurisdiction_id", jurisdiction_id),
-        level=data.get("level", _infer_level(jurisdiction_id)),
-        display_name=data.get("display_name", _format_display_name(jurisdiction_id)),
+        jurisdiction_id=jurisdiction_id,
+        level=level,
+        display_name=display,
         parent_jurisdictions=data.get("parent_jurisdictions", []),
         contact_info=contact_info,
         governing_body=governing_body,
@@ -313,6 +327,8 @@ def _infer_level(jurisdiction_id: str) -> str:
     """Infer jurisdiction level from ID prefix."""
     if jurisdiction_id.startswith("city-"):
         return "city"
+    elif jurisdiction_id.startswith("region-"):
+        return "region"
     elif jurisdiction_id.startswith("county-"):
         return "county"
     elif jurisdiction_id.startswith("state-"):
@@ -326,7 +342,7 @@ def _infer_level(jurisdiction_id: str) -> str:
 def _format_display_name(jurisdiction_id: str) -> str:
     """Format jurisdiction ID as display name."""
     # Remove prefix and title-case
-    for prefix in ["city-", "county-", "state-", "country-"]:
+    for prefix in ["city-", "region-", "county-", "state-", "country-"]:
         if jurisdiction_id.startswith(prefix):
             return jurisdiction_id[len(prefix):].replace("-", " ").title()
     return jurisdiction_id.replace("-", " ").title()

@@ -225,6 +225,11 @@ def find_region_for_jurisdiction(jurisdiction: str) -> Optional[str]:
     registry contains the jurisdiction, returns ``None`` — the
     scope walker will then degrade to primary-only behavior.
 
+    A ``region-*`` jurisdiction IS its own region: ``region-marin``
+    maps directly to the ``"marin"`` region. This enables regional
+    servers to resolve their own membership without being listed as
+    a member of the region they represent.
+
     If multiple regions match, the first in iteration order wins.
     This is deterministic because ``config/registry.json`` is a
     dict literal preserving insertion order, but callers should
@@ -234,6 +239,13 @@ def find_region_for_jurisdiction(jurisdiction: str) -> Optional[str]:
     silently — a single bad region should not break lookup for the
     others.
     """
+    # A region-level primary IS the region it represents.
+    if jurisdiction.startswith("region-"):
+        region_name = jurisdiction[len("region-"):]
+        regions = get_regions()
+        if region_name in regions:
+            return region_name
+
     regions = get_regions()
     for name in regions:
         try:

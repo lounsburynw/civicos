@@ -13,7 +13,6 @@ from civicos.civicos import (
     RegulatoryStack,
     Decision,
     DecisionWithContext,
-    TranscriptLink,
     Meeting,
     UpcomingElection,
     BudgetItem,
@@ -30,10 +29,11 @@ class TestCivicInstantiation:
         # Jurisdiction is normalized to canonical format
         assert c.jurisdiction == "city-san-rafael"
 
-    def test_civic_has_state_manager(self):
-        """CivicOS instance has StateManager."""
+    def test_civic_has_storage_backend(self):
+        """CivicOS instance has a recognized storage backend."""
         c = CivicOS("san-rafael-ca")
-        assert c._state is not None
+        backend_type = type(c.storage).__name__
+        assert backend_type in ("PostgresBackend", "SQLiteBackend")
 
     def test_civic_custom_db_path(self):
         """Can specify custom database path."""
@@ -53,23 +53,35 @@ class TestQueryMethods:
         # Jurisdiction is normalized to canonical format
         assert result.jurisdiction == "city-san-rafael"
 
-    def test_what_happened_returns_list(self):
-        """what_happened() returns list of decisions."""
+    def test_what_happened_returns_decisions(self):
+        """what_happened() returns list of Decision objects with required fields."""
         c = CivicOS("san-rafael-ca")
         result = c.what_happened("bike lanes")
         assert isinstance(result, list)
+        for item in result:
+            assert isinstance(item, Decision)
+            assert item.title  # Non-empty
+            assert item.outcome  # Non-empty
 
     def test_whats_next_returns_meetings(self):
-        """whats_next() returns list of meetings."""
+        """whats_next() returns list of Meeting objects with required fields."""
         c = CivicOS("san-rafael-ca")
         result = c.whats_next()
         assert isinstance(result, list)
+        for item in result:
+            assert isinstance(item, Meeting)
+            assert item.id
+            assert item.title
 
     def test_whats_next_with_topics(self):
-        """whats_next() accepts topic filter."""
+        """whats_next() topic filter returns subset of all meetings."""
         c = CivicOS("san-rafael-ca")
-        result = c.whats_next(topics=["transportation"])
-        assert isinstance(result, list)
+        all_meetings = c.whats_next()
+        filtered = c.whats_next(topics=["transportation"])
+        assert isinstance(filtered, list)
+        assert len(filtered) <= len(all_meetings)
+        for item in filtered:
+            assert isinstance(item, Meeting)
 
     def test_whats_next_with_elections(self):
         """whats_next(include_elections=True) includes elections."""
@@ -82,16 +94,15 @@ class TestQueryMethods:
             assert isinstance(item, (Meeting, UpcomingElection))
 
     def test_whats_next_election_structure(self):
-        """UpcomingElection objects have required fields."""
+        """UpcomingElection objects have correctly typed, non-empty fields."""
         c = CivicOS("san-rafael-ca")
         result = c.whats_next(include_elections=True, days=365)
         elections = [x for x in result if isinstance(x, UpcomingElection)]
         for election in elections:
-            assert hasattr(election, 'id')
-            assert hasattr(election, 'name')
-            assert hasattr(election, 'election_date')
-            assert hasattr(election, 'election_type')
-            assert hasattr(election, 'deadlines')
+            assert isinstance(election.id, str) and election.id
+            assert isinstance(election.name, str) and election.name
+            assert election.election_date is not None
+            assert isinstance(election.election_type, str) and election.election_type
             assert isinstance(election.deadlines, list)
 
     def test_whats_next_backward_compatible(self):
@@ -103,12 +114,14 @@ class TestQueryMethods:
             assert isinstance(item, Meeting)
 
     def test_what_happened_full_context_returns_list(self):
-        """what_happened_full_context() returns list of DecisionWithContext."""
+        """what_happened_full_context() returns list of DecisionWithContext with decision+links."""
         c = CivicOS("san-rafael-ca")
         result = c.what_happened_full_context("bike lanes")
         assert isinstance(result, list)
-        # Each item should be DecisionWithContext if results exist
-        # (may be empty list if no matching decisions)
+        for item in result:
+            assert isinstance(item, DecisionWithContext)
+            assert isinstance(item.decision, Decision)
+            assert isinstance(item.transcript_links, list)
 
     def test_what_happened_full_context_structure(self):
         """what_happened_full_context() returns properly structured results."""
@@ -118,20 +131,15 @@ class TestQueryMethods:
         # Verify we don't get more than requested
         assert len(result) <= 2
 
-    def test_decision_with_context_types_exist(self):
-        """DecisionWithContext and TranscriptLink can be imported from civicos.civicos."""
-        # This verifies the types are properly exported
-        assert DecisionWithContext is not None
-        assert TranscriptLink is not None
-
     def test_budget_returns_list(self):
-        """budget() returns list of BudgetItem."""
+        """budget() returns list of BudgetItem with valid fields."""
         c = CivicOS("san-rafael-ca")
         result = c.budget()
         assert isinstance(result, list)
-        # If results exist, verify type
-        if result:
-            assert isinstance(result[0], BudgetItem)
+        for item in result:
+            assert isinstance(item, BudgetItem)
+            assert item.id  # Non-empty ID
+            assert item.budgeted_dollars >= 0  # Valid dollar amount
 
     def test_budget_with_department_filter(self):
         """budget() accepts department filter."""
@@ -152,18 +160,14 @@ class TestQueryMethods:
             assert item.budgeted_dollars >= 1_000_000
 
     def test_budget_summary_returns_list(self):
-        """budget_summary() returns list of BudgetSummary."""
+        """budget_summary() returns list of BudgetSummary with valid fields."""
         c = CivicOS("san-rafael-ca")
         result = c.budget_summary()
         assert isinstance(result, list)
-        # If results exist, verify type
-        if result:
-            assert isinstance(result[0], BudgetSummary)
-
-    def test_budget_item_and_summary_types_exist(self):
-        """BudgetItem and BudgetSummary can be imported from civicos.civicos."""
-        assert BudgetItem is not None
-        assert BudgetSummary is not None
+        for item in result:
+            assert isinstance(item, BudgetSummary)
+            assert item.budgeted_dollars >= 0  # Valid dollar total
+            assert item.item_count >= 1  # At least 1 item per group
 
 
 class TestDataclasses:

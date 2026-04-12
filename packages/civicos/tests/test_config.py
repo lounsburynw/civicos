@@ -379,10 +379,9 @@ class TestLoadConfig:
             {"CIVICOS_JURISDICTION": "city-berkeley"},
             clear=True,
         ):
-            # Ensure no default files exist
             config = load_config(path="/nonexistent/path.yaml")
-            # Should fall back to env
-            # (Note: this will use env vars since path doesn't exist)
+            assert config.jurisdiction_id == "city-berkeley"
+            assert config.federation_enabled is False
 
     def test_load_config_explicit_path(self):
         """load_config uses explicit path when provided."""
