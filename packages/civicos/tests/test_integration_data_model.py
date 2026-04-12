@@ -320,11 +320,20 @@ class TestWhatsNextUsesRelational:
 
         assert len(meetings) == 2
 
-        # Each meeting should have agenda_items
+        # Each meeting should have exactly 2 agenda items (as seeded)
         for meeting in meetings:
-            assert hasattr(meeting, 'agenda_items') or 'agenda_items' in meeting.__dict__
-            # The Meeting dataclass has agenda_items as a field
-            assert len(meeting.agenda_items) > 0
+            assert len(meeting.agenda_items) == 2
+
+        # Verify specific agenda item content from seeded data
+        planning = next(m for m in meetings if "Planning" in m.title)
+        planning_titles = {item.get("title", "") for item in planning.agenda_items}
+        assert "Zoning Amendment" in planning_titles
+        assert "Park Renovation" in planning_titles
+
+        council = next(m for m in meetings if "Council" in m.title)
+        council_titles = {item.get("title", "") for item in council.agenda_items}
+        assert "Housing Trust Fund" in council_titles
+        assert "Road Repairs" in council_titles
 
     def test_whats_next_filters_by_topic(self, civic_with_meetings):
         """
