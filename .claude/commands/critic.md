@@ -15,6 +15,7 @@ Run LLM-based code review on staged changes to catch architectural issues.
 - `/critic refresh` - Run only refresh critic
 - `/critic configuration` - Run only configuration critic
 - `/critic docs` - Run only docs critic
+- `/critic mutation` - Run only mutation critic
 
 ## Steps
 
@@ -72,6 +73,7 @@ Respond with JSON only:
 - Agent: "Run refresh critic" → reads `.critics/refresh.critic.md`
 - Agent: "Run configuration critic" → reads `.critics/configuration.critic.md`
 - Agent: "Run docs critic" → reads `.critics/docs.critic.md`
+- Agent: "Run mutation critic" → reads `.critics/mutation.critic.md`
 
 Use `model: "haiku"` for fast, cost-effective critic runs.
 
@@ -92,7 +94,10 @@ Collect JSON responses from all agents. Format as summary table:
 | Security | ✅ PASS | - | - |
 | Jurisdiction | ✅ PASS | - | - |
 | Data | ✅ PASS | - | - |
+| Refresh | ✅ PASS | - | - |
+| Configuration | ✅ PASS | - | - |
 | Docs | ✅ PASS | - | - |
+| Mutation | ✅ PASS | - | - |
 | Session | ❌ FAIL | critical | No P0 set |
 
 ## Issues Found
@@ -102,8 +107,8 @@ Collect JSON responses from all agents. Format as summary table:
 
 ## Summary
 
-Critics run: 8
-Passed: 7
+Critics run: 11
+Passed: 10
 Warnings: 0
 Failed: 1
 
