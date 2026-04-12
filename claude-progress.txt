@@ -26903,3 +26903,29 @@ modal run scripts/modal_ingest.py --transcripts --jurisdiction city-san-rafael
 ### launch.json
 
 - implement_captions_transcription_mode: done (was P0)
+
+## Session — 2026-04-11: Free Tier Rate Limiting (P0)
+
+### What was done
+- Implemented per-OAuth-session rate limiting for the MCP free tier
+- Added `DailyQuotaLimiter` class in `api_key_middleware.py` — in-memory daily quota tracker per UTC day
+- OAuth free tier limits: 50 queries/day + 10 req/min burst per session
+- Wired rate limit check into `_wrap_handler` (modal_mcp.py) — executes after tier access check, before tool dispatch
+- Rate limit errors return proper JSON with error type, message, and retry_after hint
+- Approaching-quota warning logged at 80% threshold for billing model analysis
+- 17 new tests added (47 total in test_oauth.py): DailyQuotaLimiter unit tests + integration tests
+
+### Key files modified
+- `apps/civicos-mcp/api_key_middleware.py` — DailyQuotaLimiter, check_oauth_rate_limit(), constants
+- `apps/civicos-mcp/modal_mcp.py` — Rate limit check in _wrap_handler for OAuth sessions
+- `apps/civicos-mcp/tests/test_oauth.py` — TestDailyQuotaLimiter + TestOAuthRateLimit classes
+
+### Design decisions
+- In-memory state (not DB-backed) — appropriate for Modal single-container; containers restart frequently
+- Per-minute uses existing SlidingWindowRateLimiter with "mcp:{key_id}" key prefix (separate from REST API keys)
+- Daily quota uses new DailyQuotaLimiter with UTC day boundary reset
+- Constants tunable: OAUTH_DAILY_QUOTA=50, OAUTH_PER_MINUTE=10
+
+### launch.json
+- free_tier_rate_limiting: done (was P0)
+- add_real_source_item_id: promoted to P0

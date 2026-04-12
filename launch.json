@@ -742,15 +742,15 @@
       {
         "name": "free_tier_rate_limiting",
         "description": "OAuth-authenticated users get generous free tier (e.g. 50 queries/day) without requiring API key purchase. Collect usage patterns to inform billing model.",
-        "status": "not_started",
-        "priority": 0,
+        "status": "done",
+        "priority": 2,
         "files": [
           "apps/civicos-mcp/modal_mcp.py",
           "apps/civicos-mcp/oauth.py",
           "apps/civicos-mcp/api_key_middleware.py"
         ],
         "test_file": "apps/civicos-mcp/tests/test_oauth.py",
-        "notes": "Demoted from P0 to P2 on 2026-04-11. OAuth sessions already get 'free' tier context in BearerAuthMiddleware but per-OAuth-session rate limit is not enforced (they share IP-based rate limit). Not urgent \u2014 no abuse observed yet, OAuth works fine, this is a hardening item. Will bubble up as a priority once scope work lands and usage grows. Needs per-session sliding window + daily quota (e.g. 50 queries/day) distinct from per-minute tier limits."
+        "notes": "Done 2026-04-11. DailyQuotaLimiter + per-minute burst (10/min) + daily quota (50/day) per OAuth session. Enforced in _wrap_handler for MCP tool calls. 17 new tests (47 total in test_oauth.py). Usage already logged via UsageLoggingMiddleware. In-memory state (appropriate for Modal single-container)."
       },
       {
         "name": "scope_policy_table",
@@ -1324,7 +1324,7 @@
         "name": "add_real_source_item_id",
         "description": "Thread a real source-platform item ID (Granicus / Legistar / BoardDocs internal ID) through the extraction dataclass and storage so the stable decision ID can be derived from a true platform-stable reference instead of the synthetic-D fields (item_type, outcome, budget_amount). Today's fix uses the synthetic-D from already-available HighStakesDecision fields, which is sufficient but theoretically less robust if two genuinely-distinct decisions in one meeting share all of (item_ref, title, item_type, outcome, budget). Adds source_item_id: Optional[str] to HighStakesDecision and updates Granicus/Legistar/BoardDocs clients to populate it where the platform exposes one. Hash function adds source_item_id to the key when present.",
         "status": "not_started",
-        "priority": 2,
+        "priority": 0,
         "source": "fix_decision_storage_dedup follow-up",
         "files": [
           "packages/civicos-extraction/src/civicos_extraction/processing/retrospective_analyzer.py",
