@@ -124,9 +124,9 @@ class TestVoiceEndpoints:
         data = response.json()
         assert data["entity"] == entity
         assert data["support"] >= 1
-        assert "oppose" in data
-        assert "watching" in data
-        assert "total" in data
+        assert data["oppose"] == 0  # No oppose voices cast for this entity
+        assert data["watching"] == 0  # No watching voices cast for this entity
+        assert data["total"] >= 1
 
     def test_list_voices(self, client, keypair):
         """Can list voices for an entity."""
@@ -389,7 +389,7 @@ class TestActionEndpoints:
         data = response.json()
         assert data["action_id"] == action_id
         assert data["commitments"] >= 1
-        assert "completions" in data
+        assert data["completions"] == 0  # No completions for this action yet
 
     def test_get_action_counts_with_target(self, client, keypair):
         """Can get action counts with target parameter."""

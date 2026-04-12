@@ -336,8 +336,11 @@ class TestThreadOperations:
         assert ws.thread_sessions[sid] == "thread_abc"
         assert (sid, "thread_thread_abc") in enter_room_calls
 
-        # user_joined event sent
-        assert any(m["event"] == "user_joined" for m in messages_sent)
+        # user_joined event sent with correct payload
+        join_events = [m for m in messages_sent if m["event"] == "user_joined"]
+        assert len(join_events) == 1
+        assert join_events[0]["data"]["user_id"] == "authorized_user"
+        assert join_events[0]["room"] == "thread_thread_abc"
 
     def test_join_thread_unauthorized(self):
         """
@@ -388,7 +391,7 @@ class TestThreadOperations:
         leave_room_calls = []
 
         ws.sio.emit = lambda event, data, room=None, skip_sid=None, **kwargs: \
-            messages_sent.append({"event": event})
+            messages_sent.append({"event": event, "data": data, "room": room, "skip_sid": skip_sid})
         ws.sio.leave_room = lambda sid, room: leave_room_calls.append((sid, room))
 
         result = ws.leave_thread(sid, {"thread_id": "thread_to_leave"})
@@ -396,7 +399,12 @@ class TestThreadOperations:
         assert result["success"] is True
         assert sid not in ws.thread_sessions
         assert (sid, "thread_thread_to_leave") in leave_room_calls
-        assert any(m["event"] == "user_left" for m in messages_sent)
+        # user_left event sent with correct payload
+        left_events = [m for m in messages_sent if m["event"] == "user_left"]
+        assert len(left_events) == 1
+        assert left_events[0]["data"]["user_id"] == "leaving_user"
+        assert left_events[0]["room"] == "thread_thread_to_leave"
+        assert left_events[0]["skip_sid"] == sid
 
 
 class TestMessaging:

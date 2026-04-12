@@ -107,6 +107,18 @@ STRESS_TEST_CASES = [
 ]
 
 # Titles that are intentionally ambiguous or tricky
+# Titles the keyword classifier is known to misclassify (LLM handles these).
+# If a keyword improvement makes one of these pass, remove it from the set.
+KEYWORD_KNOWN_MISSES = {
+    "United States Senate",
+    "State Representative District 45",
+    "State House of Representatives District 70",
+    "Proposition 1: School Facilities Bond",
+    "Alderman, Ward 7",
+    "Board of Education Trustee",
+    "Lieutenant Governor",
+}
+
 EDGE_CASES = [
     # "State" in "United States" shouldn't trigger state-level
     ("United States Senator", False, "federal_senate"),
@@ -139,9 +151,10 @@ class TestKeywordFallback:
                              ids=[t[0][:50] for t in STRESS_TEST_CASES])
     def test_keyword_classification(self, title, is_bm, expected):
         result = _classify_contest_type_keywords(title, is_bm)
-        # Keywords won't get everything right — track what it misses
-        if result != expected:
-            pytest.skip(f"Keyword miss: got {result} (expected {expected})")
+        assert result in VALID_CONTEST_TYPES, f"Got invalid type '{result}' for '{title}'"
+        if title in KEYWORD_KNOWN_MISSES:
+            pytest.skip(f"Known keyword miss: got {result} (expected {expected})")
+        assert result == expected, f"Keyword classified '{title}' as {result}, expected {expected}"
 
 
 class TestLLMClassification:

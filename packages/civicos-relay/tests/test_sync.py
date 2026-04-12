@@ -30,8 +30,7 @@ class TestSyncProtocol:
         message = SyncProtocol.event_message(
             "relay.test.org", "agenda_published", "meeting:123", ts
         )
-        assert b"civicos:event:v1" in message
-        assert b"relay.test.org" in message
+        assert message == b"civicos:event:v1:relay.test.org:agenda_published:meeting:123:2026-02-03T10:00:00"
 
     def test_sync_message_format(self):
         """Sync message has correct format."""
@@ -59,7 +58,12 @@ class TestSyncService:
 
         assert len(response.voices) == 1
         assert response.relay_id == "relay.test.org/test"
-        assert response.relay_signature  # Has signature
+        # Verify the signature is cryptographically valid, not just truthy
+        data_hash = hashlib.sha256(
+            b"".join(v.signature.encode() for v in response.voices)
+        ).hexdigest()[:16]
+        message = SyncProtocol.sync_message(response.relay_id, data_hash, response.cursor or "end")
+        assert RelayIdentity.verify(message, response.relay_signature, identity.public_key_hex)
 
     def test_import_voices(self):
         """Can import voices from peer."""

@@ -73,6 +73,14 @@ class TestPostgresVoiceStorage:
         retrieved = storage.get_voices_for_entity(entity)
         assert len(retrieved) >= 3  # May have other test data
 
+        # Verify content: our 3 voices should be present with correct stances
+        retrieved_by_key = {v.public_key: v for v in retrieved}
+        assert retrieved_by_key[keys[0].public_key_hex].stance == Stance.SUPPORT
+        assert retrieved_by_key[keys[1].public_key_hex].stance == Stance.OPPOSE
+        assert retrieved_by_key[keys[2].public_key_hex].stance == Stance.WATCHING
+        for key in keys:
+            assert retrieved_by_key[key.public_key_hex].entity == entity
+
         # Clean up
         for key in keys:
             storage.revoke_voice(key.public_key_hex, entity)
@@ -160,6 +168,15 @@ class TestPostgresSubscriptionStorage:
 
         retrieved = storage.get_subscriptions_for_jurisdiction(jurisdiction)
         assert len(retrieved) >= 2
+
+        # Verify content: our subscriptions should be present with correct data
+        retrieved_by_id = {s.id: s for s in retrieved}
+        for i in range(2):
+            sub_id = f"test-sub-jur-{i}"
+            assert sub_id in retrieved_by_id, f"Subscription {sub_id} not found"
+            assert retrieved_by_id[sub_id].jurisdiction == jurisdiction
+            assert retrieved_by_id[sub_id].match.topics == ["housing"]
+            assert retrieved_by_id[sub_id].delivery.method == DeliveryMethod.EMAIL
 
         # Clean up
         for sub in subs:

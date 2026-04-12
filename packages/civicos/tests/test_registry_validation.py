@@ -105,7 +105,9 @@ class TestYamlValidation:
         result = ValidationResult()
         out = validate_yaml_file(path, result, set())
         assert result.ok, result.summary()
-        assert out is not None
+        assert out["jurisdiction_id"] == "city-testville"
+        assert out["level"] == "city"
+        assert out["display_name"] == "Testville"
 
     def test_missing_jurisdiction_id(self, tmp_path):
         data = {"level": "city", "display_name": "Test"}
@@ -278,9 +280,9 @@ class TestValidateRegistryScript:
         # JSON block starts at first '{' in output
         json_start = result.stdout.index("{")
         output = json.loads(result.stdout[json_start:])
-        assert "ok" in output
-        assert "errors" in output
-        assert "warnings" in output
+        assert isinstance(output["ok"], bool)
+        assert isinstance(output["errors"], list)
+        assert isinstance(output["warnings"], list)
 
     def test_script_yaml_only(self):
         """--yaml-only should skip registry.json validation."""

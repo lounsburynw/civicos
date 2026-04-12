@@ -20,8 +20,8 @@ class TestKeyPair:
     def test_generate_keypair(self):
         """Can generate a new keypair."""
         kp = KeyPair.generate()
-        assert kp.private_key_hex
-        assert kp.public_key_hex
+        assert len(kp.private_key_hex) == 64  # 32-byte key = 64 hex chars
+        assert len(kp.public_key_hex) == 64
 
     def test_public_key_hex(self):
         """Public key is a 32-byte x-only secp256k1 key (64 hex chars)."""
@@ -48,7 +48,7 @@ class TestVoiceSigning:
         assert voice.entity == "agenda:2026-02-03:item-6a"
         assert voice.stance == Stance.SUPPORT
         assert voice.public_key == kp.public_key_hex
-        assert len(voice.signature) > 0
+        assert len(voice.signature) == 128  # 64-byte Schnorr sig = 128 hex chars
 
     def test_verify_voice_valid(self):
         """Valid voice signature verifies."""

@@ -986,6 +986,7 @@ class TestRefreshCorpus:
         ):
             result = runner.refresh_corpus(provider)
 
+        assert result.status == "skipped"
         # should_refresh should have called get_refresh_metadata with source_name
         runner.storage.get_refresh_metadata.assert_any_call(
             "city-test", "meetings", "proudcity"
@@ -1023,6 +1024,8 @@ class TestRefreshCorpus:
 
         result = runner.refresh_corpus(provider, reindex_vectors=False)
 
+        assert result.status == "updated"
+        assert result.vectors_reindexed == 0
         runner.vectors.index_from_storage.assert_not_called()
 
     def test_vector_failure_does_not_fail_result(self):

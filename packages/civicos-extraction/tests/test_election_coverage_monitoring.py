@@ -259,47 +259,61 @@ class TestCoverageBackendCalls:
             "city-alpha": {"election_sources": {"civera_election_stats": True}},
         }
 
-        check_election_coverage(backend, jurisdictions, logger)
+        report = check_election_coverage(backend, jurisdictions, logger)
 
         backend.get_elections.assert_called_once_with("city-alpha", include_past=True)
+        assert report["jurisdictions_checked"] == 1
+        assert report["details"]["city-alpha"]["elections"] == 0
 
     def test_officials_queried_with_current_only_false(self, logger):
         """get_elected_officials called with current_only=False for full count."""
-        backend = _make_backend()
+        backend = _make_backend(
+            officials_by_jid={"city-alpha": [{"id": "o1"}, {"id": "o2"}]},
+        )
         jurisdictions = {
             "city-alpha": {"election_sources": {"civera_election_stats": True}},
         }
 
-        check_election_coverage(backend, jurisdictions, logger)
+        report = check_election_coverage(backend, jurisdictions, logger)
 
         backend.get_elected_officials.assert_called_once_with(
             "city-alpha", current_only=False
         )
+        assert report["details"]["city-alpha"]["officials"] == 2
 
     def test_contests_queried_per_election(self, logger):
         """get_election_contests called once per election."""
         backend = _make_backend(
             elections_by_jid={"city-alpha": [{"id": "e1"}, {"id": "e2"}, {"id": "e3"}]},
+            contests_by_eid={"e1": [{"id": "c1"}], "e3": [{"id": "c2"}]},
         )
         jurisdictions = {
             "city-alpha": {"election_sources": {"civera_election_stats": True}},
         }
 
-        check_election_coverage(backend, jurisdictions, logger)
+        report = check_election_coverage(backend, jurisdictions, logger)
 
         assert backend.get_election_contests.call_count == 3
+        assert report["details"]["city-alpha"]["elections"] == 3
+        assert report["details"]["city-alpha"]["contests"] == 2
 
     def test_election_without_id_skipped(self, logger):
         """Elections missing 'id' field don't trigger contest/deadline queries."""
         backend = _make_backend(
             elections_by_jid={"city-alpha": [{"id": "e1"}, {"name": "no-id"}]},
+            contests_by_eid={"e1": [{"id": "c1"}]},
+            deadlines_by_eid={"e1": [{"id": "d1"}]},
         )
         jurisdictions = {
             "city-alpha": {"election_sources": {"civera_election_stats": True}},
         }
 
-        check_election_coverage(backend, jurisdictions, logger)
+        report = check_election_coverage(backend, jurisdictions, logger)
 
         # Only e1 should be queried, not the one missing id
         assert backend.get_election_contests.call_count == 1
         assert backend.get_election_deadlines.call_count == 1
+        # Both elections counted, but only e1 contributed contests/deadlines
+        assert report["details"]["city-alpha"]["elections"] == 2
+        assert report["details"]["city-alpha"]["contests"] == 1
+        assert report["details"]["city-alpha"]["deadlines"] == 1

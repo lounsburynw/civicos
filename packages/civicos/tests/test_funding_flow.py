@@ -154,46 +154,41 @@ class TestFundingFlowMethod:
     """Tests for Civic.funding_flow() method."""
 
     def test_funding_flow_returns_list(self):
-        """funding_flow() returns list of FundingFlow."""
+        """funding_flow() returns empty list when no funding links exist."""
         c = CivicOS("san-rafael-ca")
         result = c.funding_flow()
-        assert isinstance(result, list)
-        # All items should be FundingFlow
-        for item in result:
-            assert isinstance(item, FundingFlow)
+        assert result == []
 
     def test_funding_flow_empty_when_no_links(self):
         """funding_flow() returns empty list when no funding links exist."""
         c = CivicOS("san-rafael-ca")
         result = c.funding_flow()
-        # Currently empty since we haven't populated federal_awards
-        # This is expected - the code works with partial data
-        assert isinstance(result, list)
+        # No funding links populated — method should return empty, not None or error
+        assert result == []
 
     def test_funding_flow_with_cfda_filter(self):
-        """funding_flow() accepts cfda_number filter."""
+        """funding_flow() with cfda_number filter returns empty when no links."""
         c = CivicOS("san-rafael-ca")
         result = c.funding_flow(cfda_number="14.218")
-        assert isinstance(result, list)
+        assert result == []
 
     def test_funding_flow_with_program_filter(self):
-        """funding_flow() accepts program name filter."""
+        """funding_flow() with program filter returns empty when no links."""
         c = CivicOS("san-rafael-ca")
         result = c.funding_flow(program="CDBG")
-        assert isinstance(result, list)
+        assert result == []
 
     def test_funding_flow_with_budget_item_filter(self):
-        """funding_flow() accepts budget_item_id filter."""
+        """funding_flow() with budget_item_id filter returns empty when no links."""
         c = CivicOS("san-rafael-ca")
         result = c.funding_flow(budget_item_id="budget-001")
-        assert isinstance(result, list)
+        assert result == []
 
     def test_funding_flow_with_confidence_threshold(self):
-        """funding_flow() respects min_confidence threshold."""
+        """funding_flow() with high confidence threshold returns empty when no links."""
         c = CivicOS("san-rafael-ca")
-        # High threshold should filter out low-confidence matches
         result = c.funding_flow(min_confidence=0.9)
-        assert isinstance(result, list)
+        assert result == []
 
 
 class TestFundingFlowImpactMethod:
@@ -217,17 +212,20 @@ class TestFundingFlowImpactMethod:
         assert result.total_impact_dollars == pytest.approx(expected_impact)
 
     def test_funding_flow_impact_with_different_cuts(self):
-        """funding_flow_impact() handles different cut percentages."""
+        """funding_flow_impact() stores cut percentages and computes zero impact when no links."""
         c = CivicOS("san-rafael-ca")
-        # 10% cut
         impact_10 = c.funding_flow_impact(program="HOME", cut_percentage=0.10)
-        # 50% cut
         impact_50 = c.funding_flow_impact(program="HOME", cut_percentage=0.50)
-        # 50% should be 5x the impact of 10%
-        if impact_10.total_current_dollars > 0:
-            assert impact_50.total_impact_dollars == pytest.approx(
-                impact_10.total_impact_dollars * 5
-            )
+        # Cut percentages should be stored correctly
+        assert impact_10.cut_percentage == 0.10
+        assert impact_50.cut_percentage == 0.50
+        # With no funding links, both should report zero impact
+        assert impact_10.total_current_dollars == 0.0
+        assert impact_50.total_current_dollars == 0.0
+        assert impact_10.total_impact_dollars == 0.0
+        assert impact_50.total_impact_dollars == 0.0
+        assert impact_10.affected_items == []
+        assert impact_50.affected_items == []
 
 
 class TestFundingFlowWithMockedData:

@@ -248,7 +248,10 @@ class TestSeedCityState:
         row = cursor.fetchone()
         assert row is not None
         assert row["jurisdiction_name"] == "San Rafael, CA"
-        assert row["data_sources"] is not None
+        data_sources = json.loads(row["data_sources"])
+        assert "proudcity" in data_sources
+        assert "seeclickfix" in data_sources
+        assert len(data_sources) == 4
 
     def test_seed_city_state_updates_existing(self, test_db):
         """Seeding updates an existing entry."""
@@ -498,12 +501,13 @@ class TestGenerateReport:
 
         report = generate_report(test_db)
 
-        assert "timestamp" in report
         assert report["jurisdiction_id"] == JURISDICTION_ID
-        assert "tables" in report
-        assert "city_states" in report["tables"]
-        assert "meetings" in report["tables"]
-        assert "issues" in report["tables"]
+        assert "T" in report["timestamp"]  # ISO format datetime
+        tables = report["tables"]
+        assert tables["city_states"]["count"] == 1
+        assert tables["city_states"]["jurisdiction_name"] == "San Rafael, CA"
+        assert "meetings" in tables
+        assert "issues" in tables
 
     def test_generate_report_counts(self, test_db, sample_meetings_file, sample_issues_file, monkeypatch):
         """Report includes correct counts."""

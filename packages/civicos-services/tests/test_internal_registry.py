@@ -38,21 +38,22 @@ class TestInternalRegistryUnit:
         assert "city-san-rafael" in server_ids
 
     def test_internal_servers_structure(self, client):
-        """Test server response has correct structure."""
+        """Test server response has correct structure and values."""
         response = client.get("/api/mcp/internal/servers")
         assert response.status_code == 200
 
         data = response.json()
+        valid_levels = {"federal", "state", "county", "city", "school"}
         for server in data["servers"]:
-            assert "jurisdiction_id" in server
-            assert "level" in server
-            assert "display_name" in server
-            assert "mcp_endpoint" in server
-            assert "health_endpoint" in server
+            # Verify fields have meaningful values, not just existence
+            assert server["jurisdiction_id"].count("-") >= 1  # e.g., "city-san-rafael"
+            assert server["level"] in valid_levels
+            assert len(server["display_name"]) > 0
 
-            # Verify URL structure
+            # Verify URL structure includes domain and correct suffixes
             assert server["mcp_endpoint"].endswith("/mcp")
             assert server["health_endpoint"].endswith("/health")
+            assert "civicosproject.org" in server["mcp_endpoint"]
 
     def test_internal_server_levels_sorted(self, client):
         """Test servers are sorted by level (federal, state, county, city)."""
@@ -96,7 +97,9 @@ class TestInternalRegistryUnit:
 
                 data = response.json()
                 assert data["jurisdiction_id"] == jid
-                assert "health" in data
+                assert data["health"]["status"] == "healthy"
+                assert data["health"]["tools_count"] == 30
+                assert data["health"]["response_time_ms"] == 150
 
     def test_internal_server_not_found(self, client):
         """Test 404 for unknown jurisdiction."""
@@ -153,13 +156,21 @@ class TestHealthAggregation:
             assert response.status_code == 200
 
             data = response.json()
-            assert "total_servers" in data
-            assert "healthy" in data
-            assert "unhealthy" in data
-            assert "unknown" in data
-            assert "total_tools" in data
-            assert "servers" in data
-            assert "updated" in data
+            # All servers should be healthy (mock returns healthy for all)
+            assert data["total_servers"] > 0
+            assert data["healthy"] == data["total_servers"]
+            assert data["unhealthy"] == 0
+            assert data["unknown"] == 0
+            assert data["healthy"] + data["unhealthy"] + data["unknown"] == data["total_servers"]
+            # Each mock returns tools_count=30
+            assert data["total_tools"] == data["total_servers"] * 30
+            assert len(data["servers"]) == data["total_servers"]
+            assert data["updated"]  # Non-empty timestamp
+            # Each server should report healthy with mock values
+            for jid, health in data["servers"].items():
+                assert health["status"] == "healthy"
+                assert health["tools_count"] == 30
+                assert health["response_time_ms"] == 150
 
 
 class TestToolsIntrospection:
@@ -213,12 +224,28 @@ class TestToolsIntrospection:
             assert response.status_code == 200
 
             data = response.json()
-            assert "total_tools" in data
-            assert "tools" in data
-            assert "updated" in data
+            assert data["total_tools"] > 0
+            assert data["total_tools"] == len(data["tools"])
+            assert data["updated"]  # Non-empty timestamp
 
-            # Each tool should have structure
+            # Build lookup for verifying mock-provided tool data
+            tool_by_name = {t["name"]: t for t in data["tools"]}
+
+            # Verify specific tools injected by mock
+            assert "search_meetings" in tool_by_name
+            assert "get_budget" in tool_by_name
+            assert "search_legislation" in tool_by_name
+
+            # Verify jurisdiction mapping matches mock side_effect
+            sr_tool = tool_by_name["search_meetings"]
+            assert any("san-rafael" in jid for jid in sr_tool["available_at"])
+            assert "city" in sr_tool["levels"]
+
+            ca_tool = tool_by_name["search_legislation"]
+            assert any("california" in jid for jid in ca_tool["available_at"])
+            assert "state" in ca_tool["levels"]
+
+            # Each tool should have non-empty availability
             for tool in data["tools"]:
-                assert "name" in tool
-                assert "available_at" in tool
-                assert "levels" in tool
+                assert len(tool["name"]) > 0
+                assert len(tool["available_at"]) > 0

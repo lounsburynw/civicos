@@ -143,8 +143,15 @@ class TestSearchIntegration:
         req = SearchRequest(query="shelter", corpus=["testimony"], limit=5)
         resp = _run(execute_search(req, civic, JURISDICTION))
 
-        # Testimony may or may not have results for this query
-        assert resp.meta.corpus_status.get("testimony") in ("ok", "empty")
+        status = resp.meta.corpus_status.get("testimony")
+        assert status in ("ok", "empty"), f"Unexpected testimony status: {status}"
+        # If corpus returned results, validate structure
+        if status == "ok":
+            assert len(resp.results) > 0, "Status 'ok' but no results returned"
+            for r in resp.results:
+                assert r.type == "testimony"
+                assert r.title  # Non-empty title
+                assert r.ref.startswith("testimony:")
 
 
 # =========================================================================
@@ -179,10 +186,11 @@ class TestAggregateTrendIntegration:
         resp = _run(execute_search(req, civic, JURISDICTION))
 
         assert resp.trends is not None
-        # Trends should have time buckets
-        if resp.trends:
-            assert resp.trends[0].period  # e.g., "2025-11"
-            assert resp.trends[0].count > 0
+        # San Rafael has housing decisions — trends must be non-empty
+        assert len(resp.trends) > 0, "Expected trend buckets for housing decisions"
+        assert resp.trends[0].period  # e.g., "2025-11"
+        assert resp.trends[0].count > 0
+        assert resp.trends[0].corpus == "decisions"
 
 
 # =========================================================================
@@ -308,6 +316,19 @@ class TestConceptLookupIntegration:
 
         assert resp.context is not None
         assert resp.context.get("concept") == "zoning"
+        # Response must include found status (True or False)
+        assert "found" in resp.context, "Response missing 'found' field"
+        if resp.context["found"]:
+            # If found, must have non-empty sections with structure
+            sections = resp.context.get("sections", [])
+            assert len(sections) > 0, "found=True but no sections returned"
+            for section in sections:
+                assert "title" in section
+                assert "ref" in section
+        else:
+            # NOTE: zoning SHOULD be found in San Rafael's 16k+ code sections.
+            # found=False here indicates a concept lookup bug (see logs).
+            assert "error" in resp.context, "found=False but no error field"
 
     def test_concept_not_found(self, civic):
         req = ContextRequest(concept="xylophone manufacturing regulations")
@@ -393,11 +414,27 @@ class TestRRFCalibration:
         )
         resp = _run(execute_search(req, civic, JURISDICTION))
 
-        # Log for manual inspection regardless
-        print(f"\n  Shelter results ({len(resp.results)}):")
-        print(f"  Status: {resp.meta.corpus_status}")
-        for r in resp.results[:5]:
-            print(f"    [{r.type}] {r.title[:60]}  rel={r.relevance}")
+        # Both corpora must be searched
+        assert len(resp.meta.corpora_searched) == 2
+        for corpus in ["decisions", "testimony"]:
+            assert corpus in resp.meta.corpus_status
+
+        # No error statuses
+        statuses = resp.meta.corpus_status
+        for corpus, status in statuses.items():
+            assert status in ("ok", "empty", "timeout"), (
+                f"Corpus {corpus} has unexpected status: {status}"
+            )
+
+        # At least one corpus must return actual results
+        ok_corpora = [c for c, s in statuses.items() if s == "ok"]
+        assert len(ok_corpora) >= 1, (
+            f"Expected at least one corpus with results, got: {statuses}"
+        )
+        if resp.results:
+            for r in resp.results:
+                assert r.type in ("decision", "testimony")
+                assert r.title
 
     def test_budget_not_buried(self, civic):
         """Budget results shouldn't be buried by larger corpora."""
@@ -466,16 +503,17 @@ class TestRRFCalibration:
 
     def test_calibration_report(self, civic):
         """
-        Run 5 real queries and report corpus distribution.
+        Run 5 real queries and validate corpus distribution.
 
-        This is a diagnostic test — it always passes but prints
-        a calibration report for manual review.
+        Prints a calibration report and asserts that each query completes
+        successfully with valid result structure.
         """
         queries = ["housing", "public safety", "shelter", "budget", "transportation"]
         print("\n\n=== RRF CALIBRATION REPORT (k=60) ===")
         print(f"{'Query':<20} {'Corpus Distribution':<50} {'Top Type'}")
         print("-" * 90)
 
+        queries_with_results = 0
         for query in queries:
             req = SearchRequest(
                 query=query,
@@ -483,6 +521,21 @@ class TestRRFCalibration:
                 limit=10,
             )
             resp = _run(execute_search(req, civic, JURISDICTION))
+
+            # Each query must search all requested corpora
+            assert len(resp.meta.corpora_searched) == 3, (
+                f"Query '{query}' only searched {resp.meta.corpora_searched}"
+            )
+
+            # Results must have valid types and relevance scores
+            for r in resp.results:
+                assert r.type in ("decision", "testimony", "issue"), (
+                    f"Unexpected result type '{r.type}' for query '{query}'"
+                )
+                assert 0.0 <= (r.relevance or 0) <= 1.0
+
+            if resp.results:
+                queries_with_results += 1
 
             type_counts = {}
             for r in resp.results:
@@ -493,7 +546,11 @@ class TestRRFCalibration:
             print(f"  {query:<18} {dist:<48} {top_type}")
 
         print("=" * 90)
-        # Always passes — this is for manual review
+
+        # At least 3 of 5 queries should return results against real data
+        assert queries_with_results >= 3, (
+            f"Only {queries_with_results}/5 queries returned results"
+        )
 
 
 # =========================================================================

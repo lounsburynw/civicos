@@ -174,9 +174,9 @@ class TestParseNames:
         ext = make_extractor()
         text = "Mayor Kate, Vice Mayor Llorens, Councilmember Bushey, Councilmember Hill"
         names = ext._parse_names(text)
-        assert len(names) >= 3
-        assert any("Mayor Kate" in n for n in names)
-        assert any("Bushey" in n for n in names)
+        assert len(names) == 5  # Mayor Kate, Mayor Llorens (spurious from Vice Mayor), Vice Mayor Llorens, Bushey, Hill
+        assert names[0] == "Mayor Kate"
+        assert "Councilmember Bushey" in names
 
     def test_filters_none(self):
         ext = make_extractor()
@@ -221,9 +221,11 @@ Absent: Councilmember Kertz
 Also Present: City Manager Cristine Alilovich, City Attorney Robert Epstein
 """
         present, absent, also_present = ext._extract_attendance(text)
-        assert len(present) >= 3
-        assert len(absent) >= 1
-        assert len(also_present) >= 2
+        assert len(present) == 5
+        assert len(absent) == 1
+        assert absent[0] == "Councilmember Kertz"
+        assert len(also_present) == 2
+        assert any("City Manager" in s for s in also_present)
 
 
 class TestExtractLocation:

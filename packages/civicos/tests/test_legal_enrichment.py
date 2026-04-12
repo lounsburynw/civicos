@@ -73,7 +73,7 @@ class TestEnrichOpportunity:
 
         with patch("civicos._internal.legal.enrichment.SEMANTIC_AVAILABLE", True), \
              patch("civicos._internal.legal.enrichment.SemanticEnricher", return_value=mock_enricher) as mock_cls:
-            enrich_opportunity(
+            result = enrich_opportunity(
                 {"title": "Test"},
                 mode="semantic",
                 persist_directory="/custom/path",
@@ -84,6 +84,8 @@ class TestEnrichOpportunity:
         mock_cls.assert_called_once_with(persist_directory="/custom/path", top_k=10)
         # Verify enrich was called with the opportunity
         mock_enricher.enrich.assert_called_once_with({"title": "Test"})
+        # Verify the return value reflects enricher output (None = no match)
+        assert result is None
 
     def test_semantic_mode_returns_none_when_no_match(self):
         mock_enricher = MagicMock()
@@ -172,7 +174,7 @@ class TestEnrichOpportunitiesBatch:
         assert result[0]["title"] == "A"
         assert result[0]["project_type"] == "housing"
         assert result[0]["custom"] == 42
-        assert "legislative_context" in result[0]
+        assert result[0]["legislative_context"] == {"refs": ["AB-1"]}
 
     def test_semantic_batch_does_not_mutate_input(self):
         original = {"title": "Test", "extra": "value"}
@@ -188,5 +190,5 @@ class TestEnrichOpportunitiesBatch:
 
         # Original dict should not be modified
         assert "legislative_context" not in original
-        # But result should have it
-        assert "legislative_context" in result[0]
+        # Result should have the enrichment context with expected value
+        assert result[0]["legislative_context"] == {"refs": ["AB-1"]}

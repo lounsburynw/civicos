@@ -69,6 +69,7 @@ class TestValidationReport:
 
 class TestSourceFactory:
     def test_granicus_source(self):
+        from civicos_extraction.clients.granicus import GranicusSource
         config = _load_config("test", config={
             "source_id": "granicus-test",
             "source_type": "granicus",
@@ -77,9 +78,11 @@ class TestSourceFactory:
             "metadata": {"granicus_domain": "test", "default_view_id": "1"},
         })
         source = _create_source_from_config(config)
-        assert source is not None
+        assert isinstance(source, GranicusSource)
+        assert source.config.jurisdiction_id == "city-test"
 
     def test_legistar_source(self):
+        from civicos_extraction.clients.legistar import LegistarClient
         config = _load_config("test", config={
             "source_id": "legistar-test",
             "source_type": "legistar",
@@ -88,9 +91,11 @@ class TestSourceFactory:
             "metadata": {"client_name": "test"},
         })
         source = _create_source_from_config(config)
-        assert source is not None
+        assert isinstance(source, LegistarClient)
+        assert source.jurisdiction_id == "city-test"
 
     def test_civicclerk_source(self):
+        from civicos_extraction.clients.civicclerk import CivicClerkClient
         config = _load_config("test", config={
             "source_id": "civicclerk-test",
             "source_type": "civicclerk",
@@ -99,7 +104,8 @@ class TestSourceFactory:
             "metadata": {"subdomain": "test"},
         })
         source = _create_source_from_config(config)
-        assert source is not None
+        assert isinstance(source, CivicClerkClient)
+        assert source.jurisdiction_id == "city-test"
 
     def test_unsupported_source(self):
         config = _load_config("test", config={

@@ -143,12 +143,13 @@ class TestDetectElectionSources:
     def test_state_case_insensitive(self):
         """State comparison should be case-insensitive."""
         result = detect_election_sources("city-sacramento", "ca", "Sacramento")
-        assert "ca_sos_results" in result
+        assert result["ca_sos_results"]["county"] == "sacramento"
 
     def test_county_case_insensitive(self):
         """County comparison for Marin should be case-insensitive."""
         result = detect_election_sources("city-novato", "CA", "MARIN")
-        assert "civera_election_stats" in result
+        assert result["civera_election_stats"]["county_slug"] == "marin"
+        assert result["civera_election_stats"]["division_filter"] == "Novato"
 
     def test_school_district_marin(self):
         """School district in Marin gets CA SOS + Civera with correct division."""
@@ -482,7 +483,8 @@ class TestValidateCiveraDivisionFilter:
         """Failed validation still includes the source (with warning logged)."""
         with patch("civicos_extraction.onboard._validate_civera_division_filter", return_value=False):
             result = detect_election_sources("city-fake-town", "CA", "Marin")
-        assert "civera_election_stats" in result
+        assert result["civera_election_stats"]["county_slug"] == "marin"
+        assert result["civera_election_stats"]["division_filter"] == "Fake Town"
 
 
 # --- School district detection via CDE data ---

@@ -45,6 +45,7 @@ class TestBallotResponseShape:
         data = ballot_response.data
         assert "elections" in data
         assert isinstance(data["elections"], list)
+        assert len(data["elections"]) > 0, "San Rafael should have at least one future election"
 
     def test_has_total_elections(self, ballot_response):
         data = ballot_response.data
@@ -59,25 +60,30 @@ class TestBallotResponseShape:
 
     def test_has_meta(self, ballot_response):
         assert ballot_response.meta is not None
+        assert isinstance(ballot_response.meta.query_time_ms, (int, float))
         assert ballot_response.meta.query_time_ms >= 0
+        assert ballot_response.meta.query_time_ms < 30000, "Query should complete in < 30s"
 
 
 class TestElectionStructure:
     """Each election entry has required fields."""
 
     def test_election_fields(self, ballot_response):
+        valid_types = {"primary", "general", "special", "runoff", "recall", "municipal"}
         elections = ballot_response.data["elections"]
         assert len(elections) > 0
         for e in elections:
-            assert "election_id" in e
-            assert "name" in e
-            assert "date" in e
-            assert "type" in e
-            assert "days_until" in e
-            assert "contests" in e
-            assert "total_contests" in e
-            assert "deadlines" in e
-            assert "next_deadline" in e or e["next_deadline"] is None
+            assert isinstance(e["election_id"], str) and len(e["election_id"]) > 0
+            assert isinstance(e["name"], str) and len(e["name"]) > 0
+            # date is ISO format string or None
+            if e["date"] is not None:
+                assert len(e["date"]) == 10, f"Expected ISO date, got {e['date']}"
+                assert e["date"][4] == "-" and e["date"][7] == "-"
+            assert e["type"] in valid_types, f"Unexpected election type: {e['type']}"
+            assert isinstance(e["days_until"], (int, type(None)))
+            assert isinstance(e["contests"], list)
+            assert isinstance(e["total_contests"], int) and e["total_contests"] >= 0
+            assert isinstance(e["deadlines"], list)
 
     def test_elections_sorted_by_date(self, ballot_response):
         dates = [e["date"] for e in ballot_response.data["elections"] if e["date"]]
@@ -116,11 +122,17 @@ class TestContestGrouping:
         primary = self._primary(ballot_response)
         for group in primary["contests"]:
             for race in group["races"]:
-                assert "id" in race
-                assert "title" in race
-                assert "contest_type" in race
-                assert "candidates" in race
+                assert isinstance(race["id"], str) and len(race["id"]) > 0
+                assert isinstance(race["title"], str) and len(race["title"]) > 0
+                assert isinstance(race["contest_type"], str) and len(race["contest_type"]) > 0
                 assert isinstance(race["candidates"], list)
+                # contest_type should map to a known level
+                assert race["contest_type"] in (
+                    "federal_president", "federal_senate", "federal_house",
+                    "state_governor", "state_executive", "state_legislature",
+                    "state_proposition", "local_mayor", "local_council",
+                    "local_school_board", "local_measure", "judicial", "other",
+                )
 
 
 class TestCandidateExtraction:
@@ -134,9 +146,9 @@ class TestCandidateExtraction:
                     if race["candidates"]:
                         # Found at least one race with candidates
                         cand = race["candidates"][0]
-                        assert "name" in cand
-                        assert "party" in cand
-                        assert "incumbent" in cand
+                        assert isinstance(cand["name"], str) and len(cand["name"]) > 0
+                        assert isinstance(cand["party"], (str, type(None)))
+                        assert isinstance(cand["incumbent"], bool)
                         return
         pytest.skip("No candidates found in any race")
 
@@ -168,10 +180,10 @@ class TestBallotMeasureContent:
             pytest.skip("No ballot measure contest found in data")
         assert "ballot_measure" in race
         bm = race["ballot_measure"]
-        assert "title" in bm
-        assert "passed" in bm
-        assert "yes_votes" in bm
-        assert "no_votes" in bm
+        assert isinstance(bm["title"], (str, type(None)))
+        assert isinstance(bm["passed"], (bool, type(None)))
+        assert isinstance(bm["yes_votes"], (int, float, type(None)))
+        assert isinstance(bm["no_votes"], (int, float, type(None)))
 
     def test_measure_has_content_fields(self, ballot_response):
         """Ballot measure should have content fields (even if empty)."""
@@ -180,12 +192,12 @@ class TestBallotMeasureContent:
             pytest.skip("No ballot measure contest found in data")
         bm = race["ballot_measure"]
         # These fields exist in the schema, may be None/empty for unenriched data
-        assert "description" in bm
-        assert "measure_type" in bm
-        assert "arguments_for" in bm
+        assert isinstance(bm["description"], (str, type(None)))
+        assert isinstance(bm["measure_type"], (str, type(None)))
         assert isinstance(bm["arguments_for"], list)
-        assert "arguments_against" in bm
+        assert all(isinstance(a, str) for a in bm["arguments_for"])
         assert isinstance(bm["arguments_against"], list)
+        assert all(isinstance(a, str) for a in bm["arguments_against"])
 
 
 class TestDeadlines:
@@ -200,10 +212,11 @@ class TestDeadlines:
     def test_deadline_fields(self, ballot_response):
         e = self._election_with_deadlines(ballot_response)
         for d in e["deadlines"]:
-            assert "type" in d
-            assert "date" in d
-            assert "description" in d
-            assert "passed" in d
+            assert isinstance(d["type"], (str, type(None)))
+            # date is ISO string or None
+            if d["date"] is not None:
+                assert isinstance(d["date"], str) and len(d["date"]) == 10
+            assert isinstance(d["description"], (str, type(None)))
             assert isinstance(d["passed"], bool)
 
     def test_next_deadline_is_future(self, ballot_response):

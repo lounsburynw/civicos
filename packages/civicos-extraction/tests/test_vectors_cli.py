@@ -56,7 +56,7 @@ class TestIncrementalIndexingSafety:
         )
         mock_pgvector.index_from_storage.return_value = 5  # Indexed 5 new
 
-        run_vector_indexing(
+        results = run_vector_indexing(
             jurisdiction_id="city-test",
             corpus_type="decisions",
             reindex=False,  # Incremental mode
@@ -70,6 +70,11 @@ class TestIncrementalIndexingSafety:
         call_kwargs = mock_pgvector.index_from_storage.call_args.kwargs
         assert call_kwargs.get("use_copy") is False or "use_copy" not in call_kwargs, \
             "Incremental mode should use upsert (use_copy=False)"
+
+        # Should return success with correct indexed count
+        assert len(results) == 1
+        assert results[0].status == "success"
+        assert results[0].documents_indexed == 5
 
     @pytest.mark.unit
     @patch.dict("os.environ", {"DATABASE_URL": "postgres://test"})
@@ -192,7 +197,7 @@ class TestIncrementalIndexingSafety:
         mock_pgvector.delete_index.return_value = 10
         mock_pgvector.index_from_storage.return_value = 10
 
-        run_vector_indexing(
+        results = run_vector_indexing(
             jurisdiction_id="city-test",
             corpus_type="decisions",
             reindex=True,
@@ -203,6 +208,11 @@ class TestIncrementalIndexingSafety:
         call_kwargs = mock_pgvector.index_from_storage.call_args.kwargs
         assert call_kwargs.get("use_copy") is True, \
             "Reindex mode should use COPY (use_copy=True) for speed"
+
+        # Should return success with correct indexed count
+        assert len(results) == 1
+        assert results[0].status == "success"
+        assert results[0].documents_indexed == 10
 
     @pytest.mark.unit
     @patch.dict("os.environ", {"DATABASE_URL": "postgres://test"})

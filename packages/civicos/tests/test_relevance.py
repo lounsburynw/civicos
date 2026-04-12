@@ -59,11 +59,11 @@ class TestCFRPattern:
 
 class TestBuildJurisdictionConfig:
 
-    def test_returns_required_keys(self):
+    def test_returns_required_keys_with_valid_values(self):
         config = build_jurisdiction_config("city-san-rafael")
-        assert "jurisdiction_id" in config
-        assert "active_topics" in config
-        assert "geo_terms" in config
+        assert config["jurisdiction_id"] == "city-san-rafael"
+        assert len(config["active_topics"]) >= 10
+        assert len(config["geo_terms"]) >= 5
 
     def test_jurisdiction_id_passthrough(self):
         config = build_jurisdiction_config("city-berkeley")
@@ -319,7 +319,10 @@ class TestScoreFederalRule:
         }
         score, reasons = score_federal_rule(rule)
         assert score > 0.5
-        assert len(reasons) > 0
+        # All three signal types should fire
+        assert any("agency_topic:" in r for r in reasons)
+        assert any("geo:" in r for r in reasons)
+        assert any("cfr:" in r for r in reasons)
 
     def test_irrelevant_rule(self):
         """Rule with no local connection should score low."""

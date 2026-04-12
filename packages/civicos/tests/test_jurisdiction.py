@@ -83,6 +83,7 @@ class TestJurisdictionRegistry:
         """Get all registered jurisdiction IDs."""
         ids = JurisdictionRegistry.all_jurisdiction_ids()
         assert isinstance(ids, list)
+        assert len(ids) >= 40  # 29 hardcoded + auto-loaded from config files
         assert "city-san-rafael" in ids
         assert "city-berkeley" in ids
 
@@ -131,6 +132,7 @@ class TestCityConfigsBackwardCompat:
     def test_city_configs_is_dict(self):
         """CITY_CONFIGS is a dict for backward compatibility."""
         assert isinstance(CITY_CONFIGS, dict)
+        assert len(CITY_CONFIGS) >= 29  # At least the 29 hardcoded entries
 
     def test_city_configs_has_expected_keys(self):
         """CITY_CONFIGS has expected city keys."""

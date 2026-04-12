@@ -295,15 +295,14 @@ class TestIntegrationWithAcceptancePolicy:
         )
         assert result1.accepted
 
-        # Second use (double-spend) — should not get paid tier
+        # Second use (double-spend) — token invalid, falls through to rate limit
         result2 = policy.check(
             event_type="voice",
             public_key="user_pubkey_hex",
             payment_proof=proof,
         )
-        # Either rejected entirely or accepted at free tier, not paid
-        if result2.accepted:
-            assert result2.tier != "paid"
+        assert result2.accepted
+        assert result2.tier == "rate_limited"
 
     def test_unknown_issuer_rejected_by_policy(self):
         """Token from unknown issuer doesn't get paid tier."""
@@ -324,9 +323,9 @@ class TestIntegrationWithAcceptancePolicy:
             public_key="user_pubkey_hex",
             payment_proof=token.to_dict(),
         )
-        # Should not be accepted as paid (unknown issuer)
-        if result.accepted:
-            assert result.tier != "paid"
+        # Unknown issuer token invalid, falls through to rate limit
+        assert result.accepted
+        assert result.tier == "rate_limited"
 
     def test_batch_issue_all_spendable(self, issuer):
         """Issue a batch of tokens and spend them all — each accepted once."""
@@ -361,15 +360,15 @@ class TestIntegrationWithAcceptancePolicy:
             assert result.accepted
             assert result.tier == "paid"
 
-        # Re-spending any token fails
+        # Re-spending any token — token invalid, falls through to rate limit
         for token in tokens:
             result = policy.check(
                 event_type="voice",
                 public_key="another_user",
                 payment_proof=token.to_dict(),
             )
-            if result.accepted:
-                assert result.tier != "paid"
+            assert result.accepted
+            assert result.tier == "rate_limited"
 
     def test_each_token_has_unique_hash(self, issuer):
         """All tokens from the same issuer have distinct hashes."""

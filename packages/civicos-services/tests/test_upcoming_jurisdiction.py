@@ -89,13 +89,10 @@ def test_execute_upcoming_uses_request_jurisdiction():
     )
 
     # Results must be tiburon's meetings, not san-rafael's
-    assert len(response.results) >= 1
-    assert any("Tiburon Town Council" in r.title for r in response.results)
-    assert all("SR Bicycle" not in r.title for r in response.results)
-
-    # ref should use the correct jurisdiction
-    for r in response.results:
-        assert "city-tiburon" in r.ref
+    assert len(response.results) == 1
+    assert response.results[0].title == "Tiburon Town Council"
+    assert response.results[0].ref == "meeting:city-tiburon:city-tiburon-meeting-1"
+    assert response.results[0].type == "meeting"
 
 
 def test_execute_upcoming_falls_back_to_jurisdiction_param():
@@ -119,5 +116,7 @@ def test_execute_upcoming_falls_back_to_jurisdiction_param():
         execute_upcoming(request, civic, jurisdiction="city-belvedere")
     )
 
-    assert len(response.results) >= 1
-    assert any("Belvedere" in r.title for r in response.results)
+    assert len(response.results) == 1
+    assert response.results[0].title == "Belvedere City Council"
+    assert response.results[0].ref == "meeting:city-belvedere:city-belvedere-meeting-1"
+    assert response.results[0].type == "meeting"

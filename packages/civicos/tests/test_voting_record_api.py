@@ -144,19 +144,23 @@ class TestGetVotingRecord:
     def test_voting_record_date_filter(self, civic_with_mock, mock_storage):
         """Test voting record with date range filter."""
         # The since/until are passed to storage.get_decisions
-        civic_with_mock.get_voting_record(
+        record = civic_with_mock.get_voting_record(
             "Jane Smith",
             since="2024-11-01",
             until="2024-11-30"
         )
 
         # Verify get_decisions was called with date filters
-        # (jurisdiction gets normalized to city-san-rafael)
         mock_storage.get_decisions.assert_called_once()
         call_args = mock_storage.get_decisions.call_args
         assert call_args.kwargs["since"] == "2024-11-01"
         assert call_args.kwargs["until"] == "2024-11-30"
         assert call_args.kwargs["limit"] == 1000
+
+        # Also verify the returned record has correct aggregation
+        assert record.official_name == "Jane Smith"
+        assert record.total_votes == 4
+        assert record.yes_votes == 2
 
     def test_official_not_found_raises_error(self, civic_with_mock, mock_storage):
         """Test that ValueError is raised for unknown official."""
@@ -188,17 +192,17 @@ class TestGetVotingRecord:
         assert record.official_name == "Jane Smith"
 
     def test_decision_structure(self, civic_with_mock, mock_storage):
-        """Test structure of returned decisions."""
+        """Test structure and values of returned decisions."""
         record = civic_with_mock.get_voting_record("Jane Smith")
 
-        # Check first decision structure
+        # Check first decision has correct values from mock data
         d = record.decisions[0]
-        assert "decision_id" in d
-        assert "title" in d
-        assert "date" in d
-        assert "vote" in d
-        assert "outcome" in d
-        assert "topics" in d
+        assert d["decision_id"] == "decision-1"
+        assert d["title"] == "Housing Development Approval"
+        assert d["date"] == "2024-11-15"
+        assert d["vote"] == "yes"
+        assert d["outcome"] == "approved"
+        assert d["topics"] == ["housing", "development"]
 
     def test_empty_vote_json_skipped(self, civic_with_mock, mock_storage):
         """Test that decisions without vote_json are skipped."""

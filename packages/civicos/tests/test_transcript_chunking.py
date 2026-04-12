@@ -622,11 +622,20 @@ class TestConvenienceFunction:
         result = chunk_transcript(test_file)
 
         assert isinstance(result, list)
-        assert len(result) > 0
-        assert all(isinstance(c, dict) for c in result)
-        assert all("text" in c for c in result)
-        assert all("speaker" in c for c in result)
-        assert all("start_ms" in c for c in result)
+        assert len(result) > 10, f"Expected >10 chunks from real transcript, got {len(result)}"
+
+        # Verify actual chunk content, not just key existence
+        first = result[0]
+        assert len(first["text"]) > 10, "First chunk should have substantial text"
+        assert first["speaker"].isalpha() or first["speaker"] == "multiple"
+        assert first["start_ms"] >= 0
+        assert first["start_ms"] < first["end_ms"], "start_ms should precede end_ms"
+
+        # Verify chunks are chronologically ordered
+        for i in range(1, len(result)):
+            assert result[i]["start_ms"] >= result[i - 1]["start_ms"], (
+                f"Chunk {i} starts before chunk {i - 1}"
+            )
 
 
 class TestSpeakerInfo:
@@ -920,12 +929,18 @@ class TestSpeakerMetadataIntegration:
 
         chunks = chunker.chunk(utterances, detect_speaker_roles=True)
 
-        # Should have speakers_info in metadata
+        # Should have speakers_info in metadata with actual content
         chunk = chunks[0]
         assert "speakers_info" in chunk.metadata
 
         speakers_info = chunk.metadata["speakers_info"]
-        assert "A" in speakers_info or "B" in speakers_info
+        assert len(speakers_info) >= 1, "Should have info for at least one speaker"
+        # Verify speaker info contains required fields with real values
+        for speaker_id, info in speakers_info.items():
+            assert info["role"] in ("council", "staff", "public", "unknown"), (
+                f"Invalid role for {speaker_id}: {info['role']}"
+            )
+            assert isinstance(info.get("confidence", 0), (int, float))
 
     def test_detect_speaker_roles_disabled(self):
         """Test that speaker role detection can be disabled."""
@@ -960,18 +975,20 @@ class TestSpeakerMetadataIntegration:
 
         chunks = chunker.chunk(utterances, detect_speaker_roles=True)
 
-        # Find chunk with multiple speakers
-        multi_chunk = None
-        for chunk in chunks:
-            if len(chunk.speakers) > 1:
-                multi_chunk = chunk
-                break
+        # Find chunk with multiple speakers — must exist given min_chunk_size=500
+        # exceeds total text length, forcing all utterances into one chunk
+        multi_chunks = [c for c in chunks if len(c.speakers) > 1]
+        assert len(multi_chunks) > 0, "Expected at least one chunk with multiple speakers"
+        multi_chunk = multi_chunks[0]
 
-        if multi_chunk:
-            # Should have speakers_info for all speakers
-            speakers_info = multi_chunk.metadata.get("speakers_info", {})
-            # Check that we have info for at least some speakers
-            assert len(speakers_info) >= 1
+        # Verify speakers_info has entries for the speakers in this chunk
+        speakers_info = multi_chunk.metadata.get("speakers_info", {})
+        assert len(speakers_info) >= 2, (
+            f"Multi-speaker chunk should have info for multiple speakers, got {len(speakers_info)}"
+        )
+        for speaker_id, info in speakers_info.items():
+            assert "role" in info, f"Missing role for speaker {speaker_id}"
+            assert info["role"] in ("council", "staff", "public", "unknown")
 
 
 @pytest.mark.requires_real_data

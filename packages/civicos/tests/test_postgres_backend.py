@@ -140,13 +140,15 @@ class TestPostgresBackendProtocol:
 
     def test_implements_storage_backend_protocol(self, backend):
         """PostgresBackend should implement StorageBackend protocol."""
-        # Check all required methods exist
-        assert hasattr(backend, "backend_type")
-        assert hasattr(backend, "validate")
-        assert hasattr(backend, "store_meetings")
-        assert hasattr(backend, "get_meetings")
-        assert hasattr(backend, "get_stats")
-        assert hasattr(backend, "delete_meetings")
+        # Verify required methods are callable
+        assert callable(backend.validate)
+        assert callable(backend.store_meetings)
+        assert callable(backend.get_meetings)
+        assert callable(backend.get_stats)
+        assert callable(backend.delete_meetings)
+        # backend_type should return a non-empty string
+        assert isinstance(backend.backend_type, str)
+        assert len(backend.backend_type) > 0
 
     def test_isinstance_storage_backend(self, backend):
         """PostgresBackend should pass isinstance check for StorageBackend."""
@@ -174,9 +176,9 @@ class TestPostgresBackendValidation:
         assert len(result.errors) == 0
 
     def test_validate_includes_duration(self, backend):
-        """Validation should track check duration."""
+        """Validation should track non-zero check duration."""
         result = backend.validate()
-        assert result.check_duration_ms >= 0
+        assert result.check_duration_ms > 0  # Real DB validation takes measurable time
 
 
 class TestPostgresBackendStoreMeetings:
@@ -273,11 +275,14 @@ class TestPostgresBackendGetMeetings:
     """Tests for get_meetings() method."""
 
     def test_get_meetings_returns_list(self, backend, sample_meetings):
-        """get_meetings should return list of dictionaries."""
+        """get_meetings should return list of meeting dicts with expected content."""
         backend.store_meetings("city-test", sample_meetings)
         result = backend.get_meetings("city-test")
-        assert isinstance(result, list)
-        assert all(isinstance(m, dict) for m in result)
+        assert len(result) == 3
+        titles = [m["title"] for m in result]
+        assert "City Council Meeting" in titles
+        assert "Planning Commission" in titles
+        assert "Budget Workshop" in titles
 
     def test_get_meetings_empty_jurisdiction(self, backend):
         """get_meetings for non-existent jurisdiction returns empty list."""
@@ -319,10 +324,12 @@ class TestPostgresBackendGetStats:
     """Tests for get_stats() method."""
 
     def test_get_stats_returns_storage_stats(self, backend, sample_meetings):
-        """get_stats should return StorageStats instance."""
+        """get_stats should return StorageStats with correct jurisdiction."""
         backend.store_meetings("city-test", sample_meetings)
         stats = backend.get_stats("city-test")
         assert isinstance(stats, StorageStats)
+        assert stats.jurisdiction_id == "city-test"
+        assert stats.meeting_count >= 1
 
     def test_get_stats_meeting_count(self, backend, sample_meetings):
         """get_stats should report correct meeting count."""
@@ -331,12 +338,15 @@ class TestPostgresBackendGetStats:
         assert stats.meeting_count == 3
 
     def test_get_stats_date_range(self, backend, sample_meetings):
-        """get_stats should report date range of meetings."""
+        """get_stats should report correct date range matching stored meetings."""
         backend.store_meetings("city-test", sample_meetings)
         stats = backend.get_stats("city-test")
+        # Sample meetings span Dec 1 to Dec 20, 2025
         assert stats.earliest_meeting is not None
         assert stats.latest_meeting is not None
-        assert stats.earliest_meeting <= stats.latest_meeting
+        assert "2025-12-01" in str(stats.earliest_meeting)
+        assert "2025-12-20" in str(stats.latest_meeting)
+        assert stats.earliest_meeting < stats.latest_meeting
 
     def test_get_stats_empty_jurisdiction(self, backend):
         """get_stats for empty jurisdiction should return zero counts."""

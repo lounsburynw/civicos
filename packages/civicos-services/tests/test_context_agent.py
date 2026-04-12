@@ -346,8 +346,10 @@ class TestReasoningTransparency:
             ctx, "search_events",
             parameters={"query": "housing meetings"}
         )
-        # Should mention multiple factors
-        assert len(reasoning) > 50  # Non-trivial reasoning
+        # Should mention all three context factors
+        assert "housing" in reasoning.lower()  # Interest match
+        assert "Terra Linda" in reasoning  # Location
+        assert "development" in reasoning.lower()  # Filtering instruction
 
 
 # ============================================================================

@@ -62,17 +62,18 @@ class TestLiveEnrollment:
             try:
                 with open(config_file) as f:
                     config = json.load(f)
-                jid = config.get("jurisdiction_id")
-                if not jid:
-                    continue
-                if config.get("election_sources"):
-                    j = get_active_jurisdictions()
-                    if jid not in j:
-                        missing.append(jid)
-                    elif not j[jid].get("election_sources"):
-                        missing.append(f"{jid} (election_sources lost in merge)")
-            except Exception:
-                pass
+            except json.JSONDecodeError:
+                continue  # Skip malformed JSON files
+
+            jid = config.get("jurisdiction_id")
+            if not jid:
+                continue
+            if config.get("election_sources"):
+                j = get_active_jurisdictions()
+                if jid not in j:
+                    missing.append(jid)
+                elif not j[jid].get("election_sources"):
+                    missing.append(f"{jid} (election_sources lost in merge)")
 
         assert not missing, f"Jurisdictions with election_sources not enrolled: {missing}"
 

@@ -26,8 +26,11 @@ def determine_refresh_cadence(
     election_sources: dict,
     daily_threshold: int = 7,
     weekly_threshold: int = 90,
+    today: date | None = None,
 ) -> tuple:
     """Replicate cadence logic from scheduled_election_refresh()."""
+    if today is None:
+        today = date.today()
     nearest_days = None
     nearest_date_str = None
 
@@ -39,7 +42,7 @@ def determine_refresh_cadence(
             continue
         try:
             election_date = date.fromisoformat(election_date_str)
-            days_until = (election_date - date.today()).days
+            days_until = (election_date - today).days
             if days_until >= 0 and (nearest_days is None or days_until < nearest_days):
                 nearest_days = days_until
                 nearest_date_str = election_date_str
@@ -188,13 +191,14 @@ class TestDetermineRefreshCadence:
         assert cadence == "monthly"
 
     def test_real_2026_primary(self):
-        """Real config: 2026-06-02 primary."""
-        cadence, days, _ = determine_refresh_cadence(_make_config("2026-06-02"))
-        # 63 days away as of 2026-03-31 → weekly
-        # Test is date-dependent so just verify it returns a valid cadence
-        assert cadence in ("daily", "weekly", "monthly")
-        if days is not None:
-            assert days >= 0
+        """Real config: 2026-06-02 primary, tested from a fixed reference date."""
+        cadence, days, nearest = determine_refresh_cadence(
+            _make_config("2026-06-02"), today=date(2026, 3, 31),
+        )
+        # 63 days away from 2026-03-31 → weekly
+        assert cadence == "weekly"
+        assert days == 63
+        assert nearest == "2026-06-02"
 
 
 class TestShouldRunToday:

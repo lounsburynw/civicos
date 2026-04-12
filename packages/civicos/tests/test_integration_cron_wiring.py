@@ -271,7 +271,7 @@ class TestIssueCronWiring:
         result = runner.refresh_corpus(provider, force=True, reindex_vectors=False)
 
         assert result.status == "updated"
-        assert result.sections_added >= 1
+        assert result.sections_added == 1
 
 
 # ---------------------------------------------------------------------------

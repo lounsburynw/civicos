@@ -93,7 +93,7 @@ class TestEventFilter:
         filter = EventFilter.from_dict(data)
 
         # Only #d should be captured (single char after #)
-        assert "d" in filter.tag_filters
+        assert filter.tag_filters["d"] == ["valid"]
         assert "xy" not in filter.tag_filters
         assert "notag" not in filter.tag_filters
 
@@ -198,7 +198,7 @@ class TestEventFilterQueries:
     def test_filter_by_author(self):
         """Filter can select by author pubkey."""
         filter = EventFilter(authors=["a" * 64, "b" * 64])
-        assert len(filter.authors) == 2
+        assert filter.authors == ["a" * 64, "b" * 64]
 
     def test_filter_by_time_range(self):
         """Filter can select by time range."""

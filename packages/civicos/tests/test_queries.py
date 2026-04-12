@@ -11,35 +11,40 @@ from datetime import datetime, timedelta
 class TestContextModule:
     """Test context.py (what_applies)."""
 
-    def test_get_regulatory_context_import(self):
-        """Can import get_regulatory_context."""
-        from civicos.context import get_regulatory_context, RegulatoryStack
-        assert callable(get_regulatory_context)
-
     def test_get_regulatory_context_returns_stack(self):
-        """get_regulatory_context returns RegulatoryStack."""
+        """get_regulatory_context returns RegulatoryStack with correct fields."""
         from civicos.context import get_regulatory_context
         result = get_regulatory_context("san-rafael-ca", "housing")
         assert result.topic == "housing"
         assert result.jurisdiction == "san-rafael-ca"
+        # "san-rafael-ca" is not a recognized jurisdiction format, so state
+        # extraction fails and each layer returns a diagnostic note
+        assert len(result.federal) == 1
+        assert "Unknown" in result.federal[0]["note"]
+        assert len(result.state) == 1
+        assert "Unknown" in result.state[0]["note"]
+        assert len(result.local) == 1
+        assert "not yet supported" in result.local[0]["note"]
 
 
 class TestHistoryModule:
     """Test history.py (what_happened)."""
 
-    def test_search_decisions_import(self):
-        """Can import search_decisions."""
-        from civicos.history import search_decisions, Decision
-        assert callable(search_decisions)
+    def test_search_decisions_empty_state(self, tmp_path):
+        """search_decisions returns empty list when no data exists."""
+        from civicos.history import search_decisions
+        from civicos._internal.state.manager import StateManager
+        sm = StateManager(db_path=str(tmp_path / "test.db"))
+        result = search_decisions(sm, "city-nonexistent", "housing")
+        assert result == []
 
-    def test_search_decisions_with_context_import(self):
-        """Can import search_decisions_with_context and related types."""
-        from civicos.history import (
-            search_decisions_with_context,
-            DecisionWithContext,
-            TranscriptLink,
-        )
-        assert callable(search_decisions_with_context)
+    def test_search_decisions_with_context_empty_state(self, tmp_path):
+        """search_decisions_with_context returns empty list when no data exists."""
+        from civicos.history import search_decisions_with_context
+        from civicos._internal.state.manager import StateManager
+        sm = StateManager(db_path=str(tmp_path / "test.db"))
+        result = search_decisions_with_context(sm, "city-nonexistent", "housing")
+        assert result == []
 
     def test_decision_with_context_dataclass(self):
         """DecisionWithContext has expected fields and properties."""
@@ -149,9 +154,12 @@ class TestHistoryModule:
 class TestCalendarModule:
     """Test calendar.py (whats_next)."""
 
-    def test_get_upcoming_meetings_import(self):
-        """Can import get_upcoming_meetings."""
-        from civicos.calendar import get_upcoming_meetings, Meeting
-        assert callable(get_upcoming_meetings)
+    def test_get_upcoming_meetings_empty_state(self, tmp_path):
+        """get_upcoming_meetings returns empty list when no data exists."""
+        from civicos.calendar import get_upcoming_meetings
+        from civicos._internal.state.manager import StateManager
+        sm = StateManager(db_path=str(tmp_path / "test.db"))
+        result = get_upcoming_meetings(sm, "city-nonexistent")
+        assert result == []
 
 

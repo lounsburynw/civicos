@@ -342,9 +342,9 @@ class TestSyncEndpointsPostgres:
         response = client.get("/api/coordination/sync/voices")
         assert response.status_code == 200
         data = response.json()
-        assert "voices" in data
-        assert "relay_id" in data
-        assert "relay_signature" in data
+        assert isinstance(data["voices"], list)
+        assert len(data["relay_id"]) > 0
+        assert len(data["relay_signature"]) > 0
 
     def test_import_postgres(self, client, keypair):
         """Import endpoint works with PostgreSQL."""
@@ -384,7 +384,7 @@ class TestSyncEndpointsPostgres:
         voice = sign_voice(keypair, entity, Stance.OPPOSE)
 
         # Import
-        client.post(
+        import_response = client.post(
             "/api/coordination/sync/voices",
             json={
                 "voices": [
@@ -401,6 +401,8 @@ class TestSyncEndpointsPostgres:
                 "signature": "test",
             }
         )
+        assert import_response.status_code == 200
+        assert import_response.json()["accepted"] == 1
 
         # Export and verify
         since = (datetime.utcnow() - timedelta(minutes=1)).isoformat()
@@ -412,4 +414,5 @@ class TestSyncEndpointsPostgres:
         assert export_response.status_code == 200
         voices = export_response.json()["voices"]
         matching = [v for v in voices if v["entity"] == entity]
-        assert len(matching) >= 1
+        assert len(matching) == 1
+        assert matching[0]["stance"] == "oppose"

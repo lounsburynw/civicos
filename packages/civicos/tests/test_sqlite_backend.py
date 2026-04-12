@@ -78,19 +78,9 @@ class TestSQLiteBackendProtocol:
 
     def test_implements_storage_backend_protocol(self, backend):
         """SQLiteBackend should implement StorageBackend protocol."""
-        # Check all required methods exist
-        assert hasattr(backend, "backend_type")
-        assert hasattr(backend, "validate")
-        assert hasattr(backend, "store_meetings")
-        assert hasattr(backend, "get_meetings")
-        assert hasattr(backend, "get_stats")
-        assert hasattr(backend, "delete_meetings")
-        # Operation tracking methods
-        assert hasattr(backend, "create_operation")
-        assert hasattr(backend, "update_operation_status")
-        assert hasattr(backend, "complete_operation")
-        assert hasattr(backend, "get_operation")
-        assert hasattr(backend, "get_operations")
+        # StorageBackend is @runtime_checkable — use isinstance
+        assert isinstance(backend, StorageBackend)
+        assert isinstance(backend.backend_type, str)
 
 
 class TestSQLiteBackendValidation:
@@ -116,7 +106,8 @@ class TestSQLiteBackendValidation:
     def test_validate_includes_duration(self, backend):
         """Validation should track check duration."""
         result = backend.validate()
-        assert result.check_duration_ms >= 0
+        assert isinstance(result.check_duration_ms, float)
+        assert 0 <= result.check_duration_ms < 5000  # Bounded, not tautological
 
 
 class TestSQLiteBackendStoreMeetings:
@@ -172,11 +163,12 @@ class TestSQLiteBackendGetMeetings:
     """Tests for get_meetings() method."""
 
     def test_get_meetings_returns_list(self, backend, sample_meetings):
-        """get_meetings should return list of dictionaries."""
+        """get_meetings should return list of dictionaries with correct content."""
         backend.store_meetings("city-test", sample_meetings)
         result = backend.get_meetings("city-test")
-        assert isinstance(result, list)
-        assert all(isinstance(m, dict) for m in result)
+        assert len(result) == 3
+        ids = {m["id"] for m in result}
+        assert ids == {"mtg-001", "mtg-002", "mtg-003"}
 
     def test_get_meetings_empty_jurisdiction(self, backend):
         """get_meetings for non-existent jurisdiction returns empty list."""
@@ -218,10 +210,11 @@ class TestSQLiteBackendGetStats:
     """Tests for get_stats() method."""
 
     def test_get_stats_returns_storage_stats(self, backend, sample_meetings):
-        """get_stats should return StorageStats instance."""
+        """get_stats should return StorageStats with correct jurisdiction."""
         backend.store_meetings("city-test", sample_meetings)
         stats = backend.get_stats("city-test")
         assert isinstance(stats, StorageStats)
+        assert stats.jurisdiction_id == "city-test"
 
     def test_get_stats_meeting_count(self, backend, sample_meetings):
         """get_stats should report correct meeting count."""
@@ -230,12 +223,16 @@ class TestSQLiteBackendGetStats:
         assert stats.meeting_count == 3
 
     def test_get_stats_date_range(self, backend, sample_meetings):
-        """get_stats should report date range of meetings."""
+        """get_stats should report date range matching stored meetings."""
         backend.store_meetings("city-test", sample_meetings)
         stats = backend.get_stats("city-test")
-        assert stats.earliest_meeting is not None
-        assert stats.latest_meeting is not None
-        assert stats.earliest_meeting <= stats.latest_meeting
+        # Sample meetings: Dec 1, Dec 15, Dec 20
+        assert stats.earliest_meeting.year == 2025
+        assert stats.earliest_meeting.month == 12
+        assert stats.earliest_meeting.day == 1
+        assert stats.latest_meeting.year == 2025
+        assert stats.latest_meeting.month == 12
+        assert stats.latest_meeting.day == 20
 
     def test_get_stats_empty_jurisdiction(self, backend):
         """get_stats for empty jurisdiction should return zero counts."""

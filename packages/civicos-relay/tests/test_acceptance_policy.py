@@ -711,20 +711,25 @@ class TestAcceptancePolicyToDict:
 class TestAcceptanceLogging:
     def test_log_acceptance_noop_without_db(self):
         """_log_acceptance is a no-op when DB is not available (in-memory mode)."""
+        from unittest.mock import Mock
         policy = AcceptancePolicy()
+        assert not policy._db_available
+        spy = Mock()
+        policy._conn_factory = spy
         result = PolicyResult(accepted=True, tier="rate_limited", reason="ok")
-        # Should not raise
         policy._log_acceptance("voice", "a" * 64, result)
+        spy.assert_not_called()  # early-return guard prevents DB access
 
     def test_log_acceptance_fire_and_forget_on_db_error(self):
         """_log_acceptance swallows exceptions (fire-and-forget pattern)."""
+        from unittest.mock import Mock
         policy = AcceptancePolicy()
-        # Force db_available but with a broken connection factory
         policy._db_available = True
-        policy._conn_factory = lambda: (_ for _ in ()).throw(Exception("connection failed"))
+        spy = Mock(side_effect=Exception("connection failed"))
+        policy._conn_factory = spy
         result = PolicyResult(accepted=True, tier="pow", reason="Valid PoW")
-        # Should not raise despite DB error
         policy._log_acceptance("voice", "a" * 64, result)
+        spy.assert_called_once()  # error path was exercised and swallowed
 
     def test_get_acceptance_stats_without_db(self):
         """get_acceptance_stats returns empty structure when DB is not available."""
@@ -743,17 +748,23 @@ class TestAcceptanceLogging:
 
     def test_cleanup_old_logs_noop_without_db(self):
         """cleanup_old_logs is a no-op when DB is not available."""
+        from unittest.mock import Mock
         policy = AcceptancePolicy()
-        # Should not raise
+        assert not policy._db_available
+        spy = Mock()
+        policy._conn_factory = spy
         policy.cleanup_old_logs()
+        spy.assert_not_called()  # early-return guard prevents DB access
 
     def test_cleanup_old_logs_fire_and_forget_on_db_error(self):
         """cleanup_old_logs swallows exceptions."""
+        from unittest.mock import Mock
         policy = AcceptancePolicy()
         policy._db_available = True
-        policy._conn_factory = lambda: (_ for _ in ()).throw(Exception("connection failed"))
-        # Should not raise
+        spy = Mock(side_effect=Exception("connection failed"))
+        policy._conn_factory = spy
         policy.cleanup_old_logs()
+        spy.assert_called_once()  # error path was exercised and swallowed
 
 
 class TestLoadPolicy:

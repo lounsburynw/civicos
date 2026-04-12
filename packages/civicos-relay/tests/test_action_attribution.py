@@ -212,7 +212,7 @@ class TestActivityAttribution:
         assert "2 of 5" in user2_attrs[0].message
 
     def test_no_activity_attribution_without_storage(self):
-        """Completing action without attribution storage doesn't error."""
+        """Completing action without attribution storage succeeds but stores no attributions."""
         service = CivicActionService(
             action_storage=InMemoryCivicActionEventStorage(),
             commitment_storage=InMemoryCivicCommitmentStorage(),
@@ -225,11 +225,14 @@ class TestActivityAttribution:
             public_key=CREATOR_KEY,
             signature=CREATOR_SIG,
         )
-        # Should not raise
-        service.complete_action(
+        completion = service.complete_action(
             action.id, USER1_KEY, USER1_SIG,
             EvidenceType.SELF_REPORT, None
         )
+        assert completion.public_key == USER1_KEY
+        assert completion.evidence_type == EvidenceType.SELF_REPORT
+        # No attribution storage → graceful degradation, not error
+        assert service.get_attributions_for_user(USER1_KEY) == []
 
     def test_activity_attribution_upsert_on_recomplete(self, service):
         """Re-completing an action updates the activity attribution, not duplicates."""
@@ -382,8 +385,8 @@ class TestOutcomeAttribution:
 
         user1_attrs = service.get_attributions_for_user(USER1_KEY)
         outcome_attrs = [a for a in user1_attrs if not a.is_activity_based]
-        assert len(outcome_attrs) >= 1
-        assert all(a.contribution_type == ContributionType.COMPLETION for a in outcome_attrs)
+        assert len(outcome_attrs) == 1
+        assert outcome_attrs[0].contribution_type == ContributionType.COMPLETION
 
     def test_commitment_only_gets_outcome_attribution(self, populated_service):
         """Users who committed but didn't complete get commitment attribution."""
@@ -479,7 +482,7 @@ class TestAttributionMessages:
 
         user1_attrs = service.get_attributions_for_user(USER1_KEY)
         outcome_attrs = [a for a in user1_attrs if not a.is_activity_based]
-        assert len(outcome_attrs) >= 1
+        assert len(outcome_attrs) == 1
         msg = outcome_attrs[0].message
         assert "contributed to outcome" in msg
         assert "passed" in msg

@@ -12,7 +12,6 @@ we test the integration invariants by replicating the control flow logic.
 from __future__ import annotations
 
 from datetime import date, timedelta
-from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -258,13 +257,12 @@ class TestOfficialsDerivedAfterElection:
                 },
             },
         }
-        # Day after election: no future elections → monthly → skipped unless 1st
+        # Day after election (June 3): no future elections → monthly → skipped (not 1st)
         day_after = election_date + timedelta(days=1)
+        assert day_after == date(2026, 6, 3), "Sanity: day_after is June 3"
         results = simulate_election_refresh_officials(jurisdictions, day_after)
-        if day_after.day == 1:
-            assert results["city-i"]["status"] == "processed"
-        else:
-            assert results["city-i"]["status"] == "skipped"
+        assert results["city-i"]["status"] == "skipped"
+        assert results["city-i"]["cadence"] == "monthly"
 
 
 class TestLiveOfficialsCronConfig:
@@ -300,16 +298,31 @@ class TestLiveOfficialsCronConfig:
         assert "modal run" in content
 
     def test_all_live_jurisdictions_have_state(self):
-        """Jurisdictions need a state code for Congress.gov lookups."""
+        """Jurisdictions with election_sources have valid state codes for Congress.gov lookups.
+
+        Production defaults to 'CA' when state is unset (all current jurisdictions are CA).
+        This test validates that explicit state codes are well-formed 2-letter codes.
+        """
         from civicos_extraction.config import get_active_jurisdictions
 
         jurisdictions = get_active_jurisdictions()
-        # Jurisdictions with election_sources should have state info available
-        # (either in config or derivable from jurisdiction_id prefix)
+        assert len(jurisdictions) > 0, "Expected at least one active jurisdiction"
+
+        with_elections = 0
+        with_explicit_state = 0
         for jid, config in jurisdictions.items():
-            if config.get("election_sources"):
-                state = config.get("state")
-                # If no explicit state, it should be derivable from parent jurisdictions
-                # or the jurisdiction YAML. For now, just check CA jurisdictions.
-                if state:
-                    assert len(state) == 2, f"{jid}: state should be 2-letter code, got {state}"
+            if not config.get("election_sources"):
+                continue
+            with_elections += 1
+            state = config.get("state")
+            if state:
+                assert len(state) == 2, f"{jid}: state should be 2-letter code, got {state}"
+                assert state.isalpha() and state.isupper(), (
+                    f"{jid}: state should be uppercase letters, got {state}"
+                )
+                with_explicit_state += 1
+
+        assert with_elections > 0, "Expected at least one jurisdiction with election_sources"
+        assert with_explicit_state > 0, (
+            "Expected at least one jurisdiction with an explicit state code"
+        )

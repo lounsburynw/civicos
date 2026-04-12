@@ -126,7 +126,7 @@ class TestSearchLegislation:
             mock_search.query.return_value = []
             mock_search_cls.return_value = mock_search
 
-            run_async(handlers["call_tool"]("search_legislation", {
+            result = run_async(handlers["call_tool"]("search_legislation", {
                 "query": "housing policy",
                 "top_k": 3,
                 "session": "2023-2024",
@@ -137,6 +137,9 @@ class TestSearchLegislation:
             top_k=3,
             filter={"session": "2023-2024"},
         )
+        assert len(result) == 1
+        assert "0 results" in result[0].text
+        assert "housing policy" in result[0].text
 
     def test_returns_unavailable_when_search_fails_to_init(self, mock_mcp_deps):
         _, handlers, _ = mock_mcp_deps

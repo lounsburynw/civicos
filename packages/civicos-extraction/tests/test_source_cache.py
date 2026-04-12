@@ -196,9 +196,11 @@ class TestCachedResponse:
             url="https://example.com",
         )
 
-        # Should not raise, uses errors='replace'
         text = response.text
-        assert isinstance(text, str)
+        # Invalid bytes should produce replacement characters (errors='replace')
+        assert "\ufffd" in text
+        # Valid portion should be preserved
+        assert "invalid" in text
 
 
 class TestCachedSession:

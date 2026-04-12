@@ -201,16 +201,17 @@ class TestCAVoterGuideClient:
         mock_fetch.return_value = SAMPLE_LAO_HTML
         client = CAVoterGuideClient(election_year=2024, request_delay=0)
         result = client.get_lao_analysis(36)
-        assert result.get("fiscal_impact")
-        mock_fetch.assert_called_once()
+        assert "tens of millions" in result["fiscal_impact"]
+        assert result["source"] == "lao"
 
     @patch.object(CAVoterGuideClient, "_fetch")
     def test_get_vig_content(self, mock_fetch):
         mock_fetch.return_value = SAMPLE_VIG_HTML
         client = CAVoterGuideClient(election_year=2024, request_delay=0)
         result = client.get_vig_content(36)
-        assert result.get("full_text")
-        assert result.get("arguments_for")
+        assert "Homelessness" in result["full_text"] or "larceny" in result["full_text"]
+        assert len(result["arguments_for"]) == 1
+        assert "accountability" in result["arguments_for"][0]
 
     @patch.object(CAVoterGuideClient, "_fetch")
     def test_get_proposition_content_merges_sources(self, mock_fetch):
@@ -221,11 +222,11 @@ class TestCAVoterGuideClient:
 
         assert result["prop_number"] == 36
         assert result["election_year"] == 2024
-        assert result["fiscal_impact"]  # from LAO
-        assert result["full_text"]  # from VIG
-        assert result["arguments_for"]  # from VIG
-        assert result["arguments_against"]  # from VIG
-        assert result["full_text_url"]
+        assert "tens of millions" in result["fiscal_impact"]  # from LAO
+        assert "Homelessness" in result["full_text"] or "larceny" in result["full_text"]  # from VIG
+        assert len(result["arguments_for"]) == 1  # from VIG
+        assert len(result["arguments_against"]) == 1  # from VIG
+        assert "proposition-36" in result["full_text_url"]
         assert "lao" in result["sources"]
         assert "ca_vig" in result["sources"]
 
@@ -236,7 +237,7 @@ class TestCAVoterGuideClient:
         client = CAVoterGuideClient(election_year=2024, request_delay=0)
         result = client.get_proposition_content(36)
 
-        assert result["fiscal_impact"]
+        assert "tens of millions" in result["fiscal_impact"]
         assert result["full_text"] is None
         assert "lao" in result["sources"]
         assert "ca_vig" not in result["sources"]

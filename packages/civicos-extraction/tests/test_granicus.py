@@ -121,7 +121,7 @@ class TestGranicusClient:
         assert events[0]["packet_url"] == "https://marin.granicus.com/docs/packet-2026-03-04.pdf"
 
         # Second row has agenda but no packet
-        assert events[1]["agenda_url"] is not None
+        assert events[1]["agenda_url"] == "https://marin.granicus.com/AgendaViewer.php?view_id=33&event_id=1002"
         assert events[1]["packet_url"] is None
 
         # Third row has neither
@@ -230,7 +230,8 @@ class TestGranicusClient:
             events = client.get_events(days_ahead=90, days_past=365)
 
         # All 3 events from sample HTML should be returned (within date range)
-        assert len(events) >= 1
+        assert len(events) == 3
+        assert events[0]["title"] == "BOS Meeting"
 
     def test_get_meetings_dedup_across_views(self):
         """get_meetings deduplicates same meeting across different view_ids."""

@@ -96,6 +96,8 @@ class TestUnifiedSearchInit:
             jurisdiction_id="city-san-rafael",
             persist_directory="/custom/path",
         )
+        assert search.jurisdiction_id == "city-san-rafael"
+        assert search._embeddings is mock_embeddings
 
 
 class TestUnifiedSearchGetAvailableCorpora:
@@ -348,11 +350,12 @@ class TestUnifiedSearchSearchAll:
         mock_client.get_collection.return_value = mock_collection
         mock_embeddings._client = mock_client
 
-        mock_embeddings.search_decisions.return_value = []
+        mock_result = Mock(document_id="d1", text="Housing plan", score=0.85, metadata={"title": "Res"})
+        mock_embeddings.search_decisions.return_value = [mock_result]
         mock_embeddings_cls.return_value = mock_embeddings
 
         search = UnifiedSearch("city-san-rafael")
-        search.search_all("housing", corpus_types=["decision"])
+        results = search.search_all("housing", corpus_types=["decision"])
 
         # Should only call decision search
         mock_embeddings.search_decisions.assert_called_once()
@@ -361,6 +364,11 @@ class TestUnifiedSearchSearchAll:
         mock_embeddings.search_issues.assert_not_called()
         mock_embeddings.search_municipal_code.assert_not_called()
         mock_embeddings.search_legislation.assert_not_called()
+
+        # Verify result was transformed correctly
+        assert len(results) == 1
+        assert results[0].source_type == "decision"
+        assert results[0].score == 0.85
 
     @patch("civicos._internal.search.unified.CivicEmbeddings")
     def test_search_all_sorts_by_score(self, mock_embeddings_cls):
@@ -539,11 +547,12 @@ class TestUnifiedSearchSearchCorpus:
         mock_client.get_collection.side_effect = get_collection_side_effect
         mock_embeddings._client = mock_client
 
-        mock_embeddings.search_decisions.return_value = []
+        mock_result = Mock(document_id="d1", text="Housing resolution", score=0.9, metadata={"title": "Res 456"})
+        mock_embeddings.search_decisions.return_value = [mock_result]
         mock_embeddings_cls.return_value = mock_embeddings
 
         search = UnifiedSearch("city-san-rafael")
-        search.search_corpus(
+        results = search.search_corpus(
             "decision",
             "housing",
             top_k=5,
@@ -558,6 +567,9 @@ class TestUnifiedSearchSearchCorpus:
             since_ts=1700000000,
             until_ts=1800000000,
         )
+        assert len(results) == 1
+        assert results[0].source_type == "decision"
+        assert results[0].score == 0.9
 
     @patch("civicos._internal.search.unified.CivicEmbeddings")
     def test_search_corpus_transcript_with_filters(self, mock_embeddings_cls):
@@ -581,11 +593,12 @@ class TestUnifiedSearchSearchCorpus:
         mock_client.get_collection.side_effect = get_collection_side_effect
         mock_embeddings._client = mock_client
 
-        mock_embeddings.search_transcripts.return_value = []
+        mock_result = Mock(document_id="t1", text="Public comment on homeless", score=0.75, metadata={"speaker": "Jane"})
+        mock_embeddings.search_transcripts.return_value = [mock_result]
         mock_embeddings_cls.return_value = mock_embeddings
 
         search = UnifiedSearch("city-san-rafael")
-        search.search_corpus(
+        results = search.search_corpus(
             "transcript",
             "homeless",
             speaker_role="public",
@@ -599,6 +612,9 @@ class TestUnifiedSearchSearchCorpus:
             speaker_role="public",
             public_comment_only=True,
         )
+        assert len(results) == 1
+        assert results[0].source_type == "transcript"
+        assert results[0].score == 0.75
 
     @patch("civicos._internal.search.unified.CivicEmbeddings")
     def test_search_corpus_legislation_with_filters(self, mock_embeddings_cls):
@@ -624,12 +640,13 @@ class TestUnifiedSearchSearchCorpus:
         mock_client.get_collection.side_effect = get_collection_side_effect
         mock_embeddings._client = mock_client
 
-        mock_embeddings.search_legislation.return_value = []
+        mock_result = Mock(document_id="leg1", text="AB 1234 housing bill", score=0.82, metadata={"source_type": "state_legislation"})
+        mock_embeddings.search_legislation.return_value = [mock_result]
         mock_embeddings.has_legislation.return_value = True
         mock_embeddings_cls.return_value = mock_embeddings
 
         search = UnifiedSearch("city-san-rafael")
-        search.search_corpus(
+        results = search.search_corpus(
             "legislation",
             "housing bills",
             topic="housing",
@@ -641,6 +658,9 @@ class TestUnifiedSearchSearchCorpus:
             where=None,
             topic="housing",
         )
+        assert len(results) == 1
+        assert results[0].source_type == "state_legislation"
+        assert results[0].score == 0.82
 
 
 class TestUnifiedSearchGetStats:

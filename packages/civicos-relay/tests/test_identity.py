@@ -14,15 +14,18 @@ class TestRelayIdentity:
         """Can generate a new relay identity."""
         identity = RelayIdentity.generate("relay.test.org/test")
         assert identity.relay_id == "relay.test.org/test"
-        assert identity.public_key is not None
-        assert identity.private_key is not None
+        # Verify keys form a valid signing pair (not just existence)
+        sig = identity.sign(b"keygen-check")
+        assert RelayIdentity.verify(b"keygen-check", sig, identity.public_key_hex)
 
     def test_public_key_hex(self):
         """Public key can be serialized to hex."""
         identity = RelayIdentity.generate("relay.test.org/test")
         hex_key = identity.public_key_hex
-        assert isinstance(hex_key, str)
-        assert len(hex_key) > 0
+        # Compressed SECP256R1 key: 1-byte prefix (02/03) + 32-byte x-coord = 66 hex chars
+        assert len(hex_key) == 66
+        assert hex_key[:2] in ("02", "03")
+        bytes.fromhex(hex_key)  # Validates it's valid hex
 
     def test_sign_and_verify(self):
         """Can sign and verify messages."""
@@ -80,6 +83,8 @@ class TestRelayConfig:
             sync_interval=300,
         )
         assert peer.url == "https://relay.example.org"
+        assert peer.namespaces == ["city-san-rafael:*"]
+        assert peer.sync_interval == 300
         assert peer.enabled is True
 
     def test_relay_config(self):
@@ -95,4 +100,7 @@ class TestRelayConfig:
             ],
         )
         assert config.relay_id == "relay.test.org/test"
+        assert config.namespaces == ["city-san-rafael:*"]
         assert len(config.peers) == 1
+        assert config.peers[0].url == "https://peer.example.org"
+        assert config.peers[0].namespaces == ["county-marin:*"]
