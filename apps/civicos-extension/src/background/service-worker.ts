@@ -220,6 +220,34 @@ async function handleMessage(message: ExtensionRequest): Promise<ExtensionRespon
         return { success: true, data: token };
       }
 
+      case 'CREATE_TOKEN_CHECKOUT': {
+        const apiUrl = await registry.getRelayUrl();
+        const checkoutRes = await fetch(`${apiUrl}/api/tokens/checkout`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ count: message.count }),
+        });
+        if (!checkoutRes.ok) {
+          const detail = await checkoutRes.text();
+          return { success: false, error: `Checkout failed: ${detail}` };
+        }
+        const checkoutData = await checkoutRes.json();
+        return { success: true, data: checkoutData };
+      }
+
+      case 'CHECK_TOKEN_CHECKOUT': {
+        const statusApiUrl = await registry.getRelayUrl();
+        const statusRes = await fetch(
+          `${statusApiUrl}/api/tokens/status/${message.session_id}`
+        );
+        if (!statusRes.ok) {
+          const detail = await statusRes.text();
+          return { success: false, error: `Status check failed: ${detail}` };
+        }
+        const statusData = await statusRes.json();
+        return { success: true, data: statusData };
+      }
+
       default:
         return { success: false, error: `Unknown message type: ${(message as { type: string }).type}` };
     }
