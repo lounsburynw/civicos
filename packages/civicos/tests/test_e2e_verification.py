@@ -186,9 +186,12 @@ class TestPythonApiE2E:
             meetings = c.whats_next(days=30)
 
             assert isinstance(meetings, list)
-            # If any meetings returned, they should be Meeting objects
+            # If any meetings returned, they should be Meeting objects with expected fields
             for m in meetings:
                 assert isinstance(m, Meeting)
+                assert m.id is not None, "Meeting should have an id"
+                assert m.title is not None, "Meeting should have a title"
+                assert len(m.title) > 0, "Meeting title should not be empty"
 
     # -------------------------------------------------------------------------
     # query_what_applies: "what_applies('housing') returns context"
@@ -233,6 +236,7 @@ class TestPythonApiE2E:
         - Returns a list of decisions
         """
         from civicos import CivicOS
+        from civicos.civicos import Decision
 
         c = CivicOS("san-rafael")
 
@@ -240,8 +244,11 @@ class TestPythonApiE2E:
         history = c.what_happened("traffic")
 
         assert isinstance(history, list)
-        # Note: Phase 1 implementation returns empty list
-        # Future: should return Decision objects
+        # If decisions are returned, they should be Decision objects with expected fields
+        for d in history:
+            assert isinstance(d, Decision), f"Each result should be a Decision, got {type(d)}"
+            assert d.id is not None, "Decision should have an id"
+            assert d.title is not None and len(d.title) > 0, "Decision should have a non-empty title"
 
 
 
@@ -1517,7 +1524,8 @@ class TestEdgeCasesInvalidInput:
             context = c.what_applies("housing")
             assert isinstance(context, RegulatoryStack)
             # Should have note about unknown jurisdiction
-            assert any("Unknown" in str(f) for f in context.federal) or len(context.federal) >= 0
+            assert any("Unknown" in str(f) or "note" in str(f).lower() for f in context.federal), \
+                "Federal context for unknown jurisdiction should contain a note or 'Unknown' marker"
 
     # -------------------------------------------------------------------------
     # empty_topic: "what_applies('') returns meaningful error"
@@ -1559,6 +1567,10 @@ class TestEdgeCasesInvalidInput:
         context = c.what_applies("   ")
 
         assert isinstance(context, RegulatoryStack)
+        assert context.topic == "   "
+        assert isinstance(context.federal, list)
+        assert isinstance(context.state, list)
+        assert isinstance(context.local, list)
 
 
 
@@ -1675,6 +1687,7 @@ class TestErrorHandlingDatabaseErrors:
                 c = CivicOS("san-rafael", db_path=db_path)
                 # Try to actually use it (schema creation should fail)
                 c.whats_next()
+                pytest.fail("Expected sqlite3.DatabaseError for corrupted database file")
             except sqlite3.DatabaseError as e:
                 # Expected - SQLite detects corrupted file
                 assert "not a database" in str(e).lower() or "malformed" in str(e).lower() or "corrupt" in str(e).lower(), \
@@ -1776,11 +1789,8 @@ class TestErrorHandlingApiErrors:
 
             # If 401 (auth required), test JSON parsing of empty string
             if response.status == 401:
-                try:
+                with pytest.raises(json.JSONDecodeError):
                     json.loads('')
-                    assert False, "Should have raised JSON decode error"
-                except json.JSONDecodeError:
-                    pass  # Expected
                 return
 
             # Should return 400 or similar error (not 500)
@@ -1788,11 +1798,8 @@ class TestErrorHandlingApiErrors:
 
         except (ConnectionRefusedError, OSError):
             # Server not running - test JSON parsing directly
-            try:
+            with pytest.raises(json.JSONDecodeError):
                 json.loads('')
-                assert False, "Should have raised JSON decode error"
-            except json.JSONDecodeError:
-                pass  # Expected
 
     def test_malformed_json_wrong_content_type(self):
         """
@@ -1817,11 +1824,8 @@ class TestErrorHandlingApiErrors:
 
             # If 401 (auth required), test that XML isn't valid JSON
             if response.status == 401:
-                try:
+                with pytest.raises(json.JSONDecodeError):
                     json.loads('<xml>not json</xml>')
-                    assert False, "Should have raised JSON decode error"
-                except json.JSONDecodeError:
-                    pass  # Expected - XML is not valid JSON
                 return
 
             # Should return error (400 or 415 Unsupported Media Type)
@@ -1829,11 +1833,8 @@ class TestErrorHandlingApiErrors:
 
         except (ConnectionRefusedError, OSError):
             # Server not running - verify XML isn't valid JSON
-            try:
+            with pytest.raises(json.JSONDecodeError):
                 json.loads('<xml>not json</xml>')
-                assert False, "XML should not be valid JSON"
-            except json.JSONDecodeError:
-                pass  # Expected
 
     # -------------------------------------------------------------------------
     # missing_params: "Missing required params return 400 with message"
@@ -1874,9 +1875,10 @@ class TestErrorHandlingApiErrors:
             assert response.status == 400, f"Expected 400, got {response.status}"
 
         except (ConnectionRefusedError, OSError):
-            # Server not running - verify JSON validation works
+            # Server not running - verify required fields are identifiable
             incomplete = {"description": "Missing title field"}
-            assert "title" not in incomplete or "user_id" not in incomplete
+            assert "title" not in incomplete, "Incomplete payload should be missing 'title'"
+            assert "user_id" not in incomplete, "Incomplete payload should be missing 'user_id'"
 
 
 
@@ -1919,9 +1921,15 @@ class TestErrorHandlingMcpErrors:
                 "whats_next",
             ]
 
-            # Get registered tools (implementation depends on FastMCP internals)
-            # For now, verify the server was created successfully
+            # Verify the server has tools registered
             assert mcp is not None, "MCP server should be created"
+            assert mcp.name == "civic", "MCP server should be named 'civic'"
+            # Verify expected tools are registered
+            import asyncio
+            tools = asyncio.get_event_loop().run_until_complete(mcp.list_tools())
+            tool_names = [t.name for t in tools]
+            for expected in expected_tools:
+                assert expected in tool_names, f"Expected tool '{expected}' not registered"
         else:
             # MCP not installed - test that graceful fallback works
             assert server._mcp is None, "Server should handle missing MCP gracefully"
@@ -1963,13 +1971,12 @@ class TestErrorHandlingMcpErrors:
             db_path = os.path.join(tmpdir, "test.db")
             c = CivicOS("san-rafael", db_path=db_path)
 
-            # Test passing wrong type to whats_next (days should be int)
-            try:
-                # This should work - Python is duck-typed
-                result = c.whats_next(days=30)
-                assert isinstance(result, list)
-            except TypeError:
-                pass  # Also acceptable if strict typing
+            # whats_next with valid int days should work and return Meeting objects
+            from civicos.civicos import Meeting
+            result = c.whats_next(days=30)
+            assert isinstance(result, list)
+            for m in result:
+                assert isinstance(m, Meeting), f"Expected Meeting, got {type(m)}"
 
 
 
@@ -4176,11 +4183,9 @@ class TestSecurityErrorMessagesSafe:
 
         server = CivicServer()
 
-        # If MCP is available, test error handling
+        # If MCP is available, verify tools are registered and named correctly
         if server._mcp is not None:
-            # The MCP server should handle errors gracefully
-            # without exposing paths
-            pass
+            assert server._mcp.name == "civic", "MCP server should be named 'civic'"
 
         # Static check: verify MCP module doesn't expose paths in errors
         mcp_path = str(PROJECT_ROOT / 'packages/civicos/src/civicos/mcp.py')
@@ -4346,23 +4351,24 @@ class TestCodeAuditArchitecture:
         """
         from civicos import CivicOS
 
-        # Query methods (Learn)
-        assert hasattr(CivicOS, 'what_applies'), "Missing what_applies query method"
-        assert hasattr(CivicOS, 'what_happened'), "Missing what_happened query method"
-        assert hasattr(CivicOS, 'whats_next'), "Missing whats_next query method"
+        # Query methods (Learn) should exist and be callable
+        for method_name in ['what_applies', 'what_happened', 'whats_next']:
+            assert hasattr(CivicOS, method_name), f"Missing {method_name} query method"
+            assert callable(getattr(CivicOS, method_name)), f"{method_name} should be callable"
 
     def test_result_types_defined(self):
         """
         Architecture specifies these result types.
         """
+        import inspect
         from civicos.civicos import (
             RegulatoryStack, Decision, Meeting,
         )
 
-        # Query result types
-        assert RegulatoryStack is not None
-        assert Decision is not None
-        assert Meeting is not None
+        # Query result types should be classes
+        assert inspect.isclass(RegulatoryStack), "RegulatoryStack should be a class"
+        assert inspect.isclass(Decision), "Decision should be a class"
+        assert inspect.isclass(Meeting), "Meeting should be a class"
 
     def test_package_structure_matches_architecture(self):
         """

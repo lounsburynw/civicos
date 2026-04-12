@@ -35,11 +35,11 @@ class TestColorize:
 
     def test_colorize_applies_color_when_tty(self):
         """Test that color codes are applied when stdout is a tty."""
-        # When running in pytest, stdout.isatty() returns False
-        # So colorize won't apply colors. Test the logic directly:
-        # With no_color=False and a TTY, colors should be applied
-        # Since we can't easily mock isatty, we test that no_color=True disables
-        pass  # See test_colorize_no_color
+        from unittest.mock import patch
+        with patch("sys.stdout") as mock_stdout:
+            mock_stdout.isatty.return_value = True
+            result = colorize("test", Colors.GREEN, no_color=False)
+            assert result == f"{Colors.GREEN}test{Colors.RESET}"
 
     def test_colorize_no_color(self):
         """Test that no_color flag disables colors."""
@@ -47,10 +47,11 @@ class TestColorize:
         assert result == "test"
         assert Colors.GREEN not in result
 
-    def test_colorize_returns_text(self):
-        """Test that colorize always returns the text."""
+    def test_colorize_non_tty_returns_plain_text(self):
+        """Test that colorize returns plain text when not a tty."""
+        # pytest stdout is not a tty, so color codes are stripped
         result = colorize("hello world", Colors.RED, no_color=False)
-        assert "hello world" in result
+        assert result == "hello world"
 
 
 class TestFormatRelativeTime:
@@ -160,22 +161,19 @@ class TestFormatBytes:
 
     def test_bytes(self):
         """Test bytes formatting."""
-        assert "B" in format_bytes(500)
+        assert format_bytes(500) == "500.0 B"
 
     def test_kilobytes(self):
         """Test kilobytes formatting."""
-        result = format_bytes(1500)
-        assert "KB" in result
+        assert format_bytes(1500) == "1.5 KB"
 
     def test_megabytes(self):
         """Test megabytes formatting."""
-        result = format_bytes(1500000)
-        assert "MB" in result
+        assert format_bytes(1500000) == "1.4 MB"
 
     def test_gigabytes(self):
         """Test gigabytes formatting."""
-        result = format_bytes(1500000000)
-        assert "GB" in result
+        assert format_bytes(1500000000) == "1.4 GB"
 
 
 class TestGetStateDbStats:
@@ -289,7 +287,7 @@ class TestPrintStatus:
     """Tests for print_status function."""
 
     def test_json_only_returns_dict(self):
-        """Test that json_only mode returns dict without printing."""
+        """Test that json_only mode returns dict with correct values."""
         with tempfile.TemporaryDirectory() as tmpdir:
             status = print_status(
                 jurisdiction_id="city-test",
@@ -298,10 +296,9 @@ class TestPrintStatus:
                 json_only=True,
             )
 
-            assert isinstance(status, dict)
-            assert "jurisdiction_id" in status
-            assert "timestamp" in status
-            assert "overall_status" in status
+            assert status["jurisdiction_id"] == "city-test"
+            assert status["timestamp"] is not None
+            assert status["overall_status"] == "EMPTY"
 
     def test_overall_status_empty_when_no_collections(self):
         """Test that overall status is EMPTY when no collections exist."""
@@ -315,8 +312,8 @@ class TestPrintStatus:
 
             assert status["overall_status"] == "EMPTY"
 
-    def test_status_includes_all_sections(self):
-        """Test that status dict includes all required sections."""
+    def test_status_sections_have_expected_shape(self):
+        """Test that status dict sections have correct structure and values."""
         with tempfile.TemporaryDirectory() as tmpdir:
             status = print_status(
                 jurisdiction_id="city-test",
@@ -325,10 +322,14 @@ class TestPrintStatus:
                 json_only=True,
             )
 
-            assert "state_db" in status
-            assert "chroma_db" in status
-            assert "files" in status
-            assert "overall_status" in status
+            # state_db should report zero counts for nonexistent db
+            assert status["state_db"]["meetings"]["count"] == 0
+            assert status["state_db"]["agenda_items"]["count"] == 0
+            # chroma_db should be empty
+            assert status["chroma_db"]["total_documents"] == 0
+            assert status["chroma_db"]["collections"] == {}
+            # overall should be EMPTY for no data
+            assert status["overall_status"] == "EMPTY"
 
 
 class TestIntegration:
@@ -361,12 +362,10 @@ class TestIntegration:
         # Verify structure
         assert status["jurisdiction_id"] == "city-san-rafael"
         assert "timestamp" in status
-        assert status["overall_status"] in ["HEALTHY", "OK", "DEGRADED", "EMPTY"]
+        assert status["overall_status"] in ["HEALTHY", "OK", "DEGRADED"]
 
-        # Verify collections are reported
-        collections = status["chroma_db"]["collections"]
-        # At least some collections should exist
-        assert len([c for c in collections.values() if c is not None]) >= 0
+        # San Rafael should not be EMPTY
+        assert status["overall_status"] != "EMPTY"
 
     @pytest.mark.integration
     def test_status_json_serializable(self, civic_paths):
@@ -477,26 +476,25 @@ class TestCalculateGaps:
 class TestGetSourceCounts:
     """Tests for get_source_counts function."""
 
-    def test_returns_structure(self):
-        """Test that get_source_counts returns expected structure."""
-        # This test doesn't hit external APIs, just verifies structure
+    def test_returns_structure_with_values(self):
+        """Test that get_source_counts returns expected structure with valid defaults."""
         result = get_source_counts("unknown-jurisdiction")
 
-        assert "meetings" in result
-        assert "issues" in result
-        assert "queried_at" in result
-
-        assert "count" in result["meetings"]
-        assert "source" in result["meetings"]
-        assert "error" in result["meetings"]
+        # Unknown jurisdiction should have zero counts
+        assert result["meetings"]["count"] == 0
+        assert result["issues"]["count"] == 0
+        # Sources should be named
+        assert result["meetings"]["source"] == "proudcity"
+        assert result["issues"]["source"] == "seeclickfix"
+        # queried_at should be recent
+        assert (datetime.now() - result["queried_at"]).total_seconds() < 60
 
     def test_unknown_jurisdiction_graceful(self):
-        """Test that unknown jurisdiction returns gracefully."""
-        # For unknown jurisdictions, meetings should show error or 0
+        """Test that unknown jurisdiction returns zero counts."""
         result = get_source_counts("city-unknown")
 
-        # Should not raise, just return structure with error or 0 count
-        assert isinstance(result["meetings"]["count"], int)
+        assert result["meetings"]["count"] == 0
+        assert result["issues"]["count"] == 0
 
 
 class TestPrintStatusWithGaps:

@@ -506,3 +506,145 @@ class TestGetUpcomingMeetingsWithRegionScope:
         assert resolve_requested_scope(
             locked, {"scope": "region"}
         ) == Scope.PRIMARY
+
+
+# ---------------------------------------------------------------------------
+# Region-level primaries
+#
+# When a server's primary jurisdiction is ``region-marin`` (rather than
+# a city like ``city-san-rafael``), the scope walker must recognize
+# that the primary IS the "marin" region and expand accordingly.
+# ---------------------------------------------------------------------------
+
+
+class TestRegionLevelPrimary:
+    """Tests for deploying with ``CIVICOS_JURISDICTION=region-marin``."""
+
+    def test_find_region_for_region_primary(self):
+        """``find_region_for_jurisdiction('region-marin')`` returns ``'marin'``."""
+        result = civicos_registry.find_region_for_jurisdiction("region-marin")
+        assert result == "marin"
+
+    def test_find_region_for_unknown_region_returns_none(self):
+        """An unknown region-* ID returns None, not a crash."""
+        result = civicos_registry.find_region_for_jurisdiction("region-nonexistent")
+        assert result is None
+
+    def test_region_scope_resolves_all_marin_cities(self):
+        """``Scope.REGION`` with primary ``region-marin`` returns all 11 cities."""
+        targets = resolve_scope_to_jurisdictions(Scope.REGION, "region-marin")
+        assert "city-san-rafael" in targets
+        assert "city-mill-valley" in targets
+        assert len(targets) == 11
+
+    def test_primary_plus_region_includes_primary_and_cities(self):
+        """``Scope.PRIMARY_PLUS_REGION`` includes ``region-marin`` + 11 cities."""
+        targets = resolve_scope_to_jurisdictions(
+            Scope.PRIMARY_PLUS_REGION, "region-marin"
+        )
+        assert targets[0] == "region-marin"
+        assert "city-san-rafael" in targets
+        assert len(targets) == 12  # region-marin + 11 cities
+
+    def test_primary_plus_siblings_walks_county_parent(self):
+        """``Scope.PRIMARY_PLUS_SIBLINGS`` still works for region-marin.
+
+        The registry entry for region-marin has county-marin as a parent,
+        so siblings are all cities sharing that parent."""
+        targets = resolve_scope_to_jurisdictions(
+            Scope.PRIMARY_PLUS_SIBLINGS, "region-marin"
+        )
+        assert "region-marin" in targets
+        assert "city-san-rafael" in targets
+        assert len(targets) >= 10  # region-marin + siblings
+
+    def test_primary_plus_all_parents_walks_full_chain(self):
+        """``Scope.PRIMARY_PLUS_ALL_PARENTS`` returns region + county + state + federal."""
+        targets = resolve_scope_to_jurisdictions(
+            Scope.PRIMARY_PLUS_ALL_PARENTS, "region-marin"
+        )
+        assert targets[0] == "region-marin"
+        assert "county-marin" in targets
+        assert "state-california" in targets
+        assert "country-united-states" in targets
+
+    def test_walk_scope_fans_out_region_primary(self):
+        """``walk_scope`` with REGION scope calls storage for each member city."""
+        queried_jurisdictions = []
+
+        def fake_storage(jid):
+            queried_jurisdictions.append(jid)
+            return [{"title": f"Item from {jid}"}]
+
+        policy = ScopePolicy(
+            default_scope=Scope.REGION,
+            expandable_scope=None,
+            max_scope=Scope.REGION,
+            kind="read",
+        )
+        results = walk_scope(policy, "region-marin", fake_storage)
+
+        # All 11 Marin cities should have been queried
+        assert len(queried_jurisdictions) == 11
+        assert "city-san-rafael" in queried_jurisdictions
+        assert "city-mill-valley" in queried_jurisdictions
+
+        # Results carry jurisdiction labels
+        assert all("jurisdiction" in r for r in results)
+
+
+class TestRegionLevelLoaderConfig:
+    """Tests for loader.py handling of region-level jurisdictions."""
+
+    def test_infer_level_region(self):
+        """_infer_level returns 'region' for region-* IDs."""
+        from handlers.loader import _infer_level
+        assert _infer_level("region-marin") == "region"
+
+    def test_region_gets_city_level_tools(self):
+        """Region level gets the same tool set as city level."""
+        from handlers.loader import TOOL_LEVELS
+        assert TOOL_LEVELS["region"] == TOOL_LEVELS["city"]
+
+    def test_format_display_name_region(self):
+        """_format_display_name strips the region- prefix."""
+        from handlers.loader import _format_display_name
+        assert _format_display_name("region-marin") == "Marin"
+
+    def test_load_jurisdiction_config_region(self):
+        """load_jurisdiction_config returns a config with level='region'."""
+        from handlers.loader import load_jurisdiction_config
+        config = load_jurisdiction_config("region-marin")
+        assert config.level == "region"
+        assert config.jurisdiction_id == "region-marin"
+
+
+class TestRegionRegistryEntry:
+    """Tests for the region-marin entry in config/registry.json."""
+
+    def test_region_marin_exists_in_jurisdictions(self):
+        """region-marin is a registered jurisdiction."""
+        reg = civicos_registry.get_registry()
+        assert "region-marin" in reg["jurisdictions"]
+
+    def test_region_marin_has_correct_domain(self):
+        entry = civicos_registry.get_registry()["jurisdictions"]["region-marin"]
+        assert entry["domain"] == "marin.civicosproject.org"
+
+    def test_region_marin_has_correct_app_name(self):
+        entry = civicos_registry.get_registry()["jurisdictions"]["region-marin"]
+        assert entry["modal_app_name"] == "civicos-marin"
+
+    def test_region_marin_has_county_parent(self):
+        """region-marin's parent chain includes county-marin for sibling resolution."""
+        entry = civicos_registry.get_registry()["jurisdictions"]["region-marin"]
+        assert "county-marin" in entry["parent_jurisdictions"]
+
+    def test_get_modal_app_name_for_region(self):
+        """get_modal_app_name returns the registry value for region-marin."""
+        assert civicos_registry.get_modal_app_name("region-marin") == "civicos-marin"
+
+    def test_get_jurisdiction_url_for_region(self):
+        """get_jurisdiction_url returns the Cloudflare domain."""
+        url = civicos_registry.get_jurisdiction_url("region-marin")
+        assert url == "https://marin.civicosproject.org"

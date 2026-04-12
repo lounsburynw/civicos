@@ -315,6 +315,16 @@
         "state-california",
         "country-united-states"
       ]
+    },
+    "region-marin": {
+      "domain": "marin.civicosproject.org",
+      "display_name": "Marin Cities",
+      "modal_app_name": "civicos-marin",
+      "parent_jurisdictions": [
+        "county-marin",
+        "state-california",
+        "country-united-states"
+      ]
     }
   },
   "regions": {

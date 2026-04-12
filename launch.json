@@ -811,8 +811,8 @@
       {
         "name": "regional_server_deployment",
         "description": "Deploy bay-area.civicosproject.org/mcp (or marin.civicosproject.org/mcp) as an operational boundary separate from the per-city servers. It's literally the same codebase with CIVICOS_JURISDICTION and CIVICOS_REGION env vars pointing at the region, and a different Modal app name / Cloudflare subdomain. Users install ONE connector for regional coverage instead of N per-city connectors.",
-        "status": "not_started",
-        "priority": 0,
+        "status": "done",
+        "priority": 3,
         "files": [
           "apps/civicos-mcp/modal_mcp.py",
           "config/registry.json",
@@ -1426,9 +1426,10 @@
       },
       {
         "name": "implement_captions_transcription_mode",
+        "_p0_note": "Promoted P1 → P0 on 2026-04-11 after regional_server_deployment completed.",
         "description": "Implement free YouTube auto-captions as an alternative transcription path to AssemblyAI. Currently onboard.py has TRANSCRIPT_CAPTIONS as a cost-estimate category and --captions-only flag, but extract_transcripts in modal_ingest.py only calls AssemblyAI \u2014 captions mode is unimplemented. Adding it enables filling transcript gaps across all jurisdictions at ~$0 instead of ~$570-820 at AssemblyAI rates. Implementation: (1) add caption extraction via youtube-transcript-api or yt-dlp --write-auto-subs, (2) convert VTT/SRT to transcript JSON schema, (3) branch in extract_transcripts when transcript_mode=captions, (4) tag processing_service='youtube_captions' for provenance. Tradeoffs: no speaker diarization, lower accuracy on crosstalk/noise, no word-level timestamps, dependent on YouTube auto-generation quality. Good for breadth coverage where AssemblyAI is prohibitive; AssemblyAI remains the choice for flagship cities and deep semantic search.",
         "status": "not_started",
-        "priority": 1,
+        "priority": 0,
         "source": "Transcript gap analysis 2026-04-10 \u2014 452 AssemblyAI transcripts exist, ~227 meetings still need coverage since Jan 2026, captions mode unblocks cheap breadth",
         "files": [
           "scripts/modal_ingest.py",

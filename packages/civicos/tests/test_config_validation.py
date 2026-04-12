@@ -376,7 +376,7 @@ class TestValidateConfigFunction:
     """Tests for the validate_config convenience function."""
 
     def test_returns_validation_result(self):
-        """validate_config should return a ValidationResult."""
+        """validate_config should return a passing ValidationResult for valid dev config."""
         with patch.dict(
             os.environ, {"CIVICOS_ENV": "development", "CIVICOS_DEV_MODE": "true"}, clear=True
         ):
@@ -387,6 +387,9 @@ class TestValidateConfigFunction:
             result = validate_config()
 
         assert isinstance(result, ValidationResult)
+        assert result.environment == "development"
+        assert result.passed
+        assert result.errors == []
 
 
 class TestDataPathValidation:

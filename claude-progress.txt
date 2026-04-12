@@ -1,3 +1,34 @@
+## Session — 2026-04-11: Ship regional_server_deployment (step 5 of 5)
+
+**Item:** regional_server_deployment (P0, distribution)
+**Status:** DONE
+
+Completed the 5-step scope work sequence with the deployment capstone.
+Added `region-marin` as a first-class jurisdiction in config/registry.json
+with domain marin.civicosproject.org and modal app name civicos-marin.
+Updated registry.py so find_region_for_jurisdiction() recognizes region-*
+primaries as self-referencing regions. Updated modal_mcp.py get_secrets()
+and get_min_containers() for region tier. Added "region" level to
+loader.py TOOL_LEVELS (same tools as city — scope walker handles
+fan-out). Fixed loader.py to not inherit wrong level from config files
+belonging to different jurisdictions. Added 17 new tests covering
+region-level primary behavior across scope resolution, registry, and
+loader. All 413 MCP tests pass (6 pre-existing failures unchanged).
+
+### launch.json
+- regional_server_deployment: done, P3
+- implement_captions_transcription_mode: promoted P1 → P0 (next session)
+
+### Next session
+P0 is `implement_captions_transcription_mode` — free YouTube auto-captions
+as alternative transcription path. Enables filling transcript gaps across
+all jurisdictions at ~$0 vs ~$570-820 AssemblyAI rates.
+
+### Deployment note
+Code changes are ready. Actual deployment requires:
+1. `CIVICOS_JURISDICTION=region-marin modal deploy apps/civicos-mcp/modal_mcp.py`
+2. Cloudflare CNAME: marin.civicosproject.org → civicos--civicos-marin-mcpserver-mcp-endpoint.modal.run
+
 ## Session — 2026-04-04: Production Onboard Sausalito + Fairfax + School Districts
 
 **Item:** Production expansion — first cities beyond San Rafael

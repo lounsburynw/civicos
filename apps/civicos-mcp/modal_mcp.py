@@ -2,12 +2,15 @@
 Unified Modal deployment for CivicOS MCP Servers.
 
 Single parameterized deployment that works for any jurisdiction level
-(federal, state, city). The jurisdiction is determined by environment
-variable, allowing the same code to deploy multiple servers.
+(federal, state, county, city, region). The jurisdiction is determined
+by environment variable, allowing the same code to deploy multiple servers.
 
 Usage:
     # Deploy San Rafael (city) - default
     modal deploy apps/civicos-mcp/modal_mcp.py
+
+    # Deploy Marin regional server
+    CIVICOS_JURISDICTION=region-marin modal deploy apps/civicos-mcp/modal_mcp.py
 
     # Deploy Federal
     CIVICOS_JURISDICTION=country-united-states modal deploy apps/civicos-mcp/modal_mcp.py
@@ -19,12 +22,14 @@ Usage:
     CIVICOS_JURISDICTION=city-berkeley modal deploy apps/civicos-mcp/modal_mcp.py
 
 Naming convention:
-    Jurisdiction: city-san-rafael -> App: civicos-san-rafael, Secret: civicos-san-rafael-env
-    Jurisdiction: state-california -> App: civicos-california, Secret: civicos-california-env
-    Jurisdiction: country-united-states -> App: civicos-federal, Secret: civicos-federal-env
+    Jurisdiction: city-san-rafael -> App: civicos-san-rafael
+    Jurisdiction: region-marin   -> App: civicos-marin
+    Jurisdiction: state-california -> App: civicos-california
+    Jurisdiction: country-united-states -> App: civicos-federal
 
 Endpoints (via Cloudflare proxy):
     san-rafael.civicosproject.org/mcp
+    marin.civicosproject.org/mcp
     california.civicosproject.org/mcp
     federal.civicosproject.org/mcp
 """
@@ -54,8 +59,8 @@ def get_secrets(jurisdiction: str) -> list[str]:
     secrets.append("civicos-attestation")  # CIVICOS_ATTESTATION_PRIVATE_KEY
     secrets.append("civicos-platform")  # PLATFORM_DATABASE_URL
 
-    # City-level servers may need additional secrets for geocoding
-    if jurisdiction.startswith("city-"):
+    # City and region servers may need additional secrets for geocoding
+    if jurisdiction.startswith("city-") or jurisdiction.startswith("region-"):
         secrets.append("civic-google")  # GOOGLE_MAPS_API_KEY for geocoding
 
     # Primary secret LAST so its DATABASE_URL takes precedence
@@ -66,15 +71,15 @@ def get_secrets(jurisdiction: str) -> list[str]:
     elif jurisdiction == "county-marin":
         secrets.append("civicos-marin-county-env")
     else:
-        # Default: use civicos-env (shared secret for cities)
+        # Default: use civicos-env (shared secret for cities and regions)
         secrets.append("civicos-env")
 
     return secrets
 
 def get_min_containers(jurisdiction: str) -> int:
-    """Primary city servers stay warm, reference implementations don't."""
-    if jurisdiction == "city-san-rafael":
-        return 1  # Primary pilot city - keep warm
+    """Primary deployments stay warm, reference implementations don't."""
+    if jurisdiction in ("city-san-rafael", "region-marin"):
+        return 1  # Primary deployments - keep warm
     return 0  # Reference implementations - cold start OK
 
 APP_NAME = get_app_name(JURISDICTION)

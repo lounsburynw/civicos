@@ -401,6 +401,11 @@ class TestLocalDataSourceDelegation:
         assert call["kwargs"]["fiscal_year"] == "2025-2026"
         assert call["kwargs"]["department"] == "Police"
 
+        # Check return value passed through
+        assert len(result) == 1
+        assert result[0]["department"] == "Police"
+        assert result[0]["budgeted_cents"] == 1000000
+
     def test_get_stats_delegates(self):
         """get_stats() should delegate correctly."""
         mock_storage = MockStorageBackend()
@@ -453,6 +458,7 @@ class TestGetDataSourceFactory:
 
                 mock_factory.assert_called_once_with(None)
                 assert isinstance(data_source, LocalDataSource)
+                assert data_source.source_type == "local"
 
 
 class TestCivicOSDataSourceIntegration:
@@ -487,6 +493,7 @@ def test_imports():
     """Verify all DataSource exports are importable."""
     from civicos.storage import DataSource, LocalDataSource, get_data_source
 
-    assert DataSource is not None
-    assert LocalDataSource is not None
-    assert get_data_source is not None
+    # Verify correct symbols imported, not just non-None
+    assert DataSource.__name__ == "DataSource"
+    assert LocalDataSource.__name__ == "LocalDataSource"
+    assert callable(get_data_source)

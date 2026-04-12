@@ -518,6 +518,7 @@ class TestVerifyBackup:
         is_valid, messages = verify_backup(backup_path)
 
         # Should still be valid (integrity check passes) but with warning
+        assert is_valid is True
         assert any("no checksum" in m.lower() for m in messages)
 
 
