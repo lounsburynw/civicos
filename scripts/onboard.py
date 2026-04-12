@@ -650,13 +650,15 @@ def _run_cleanup(jid: str) -> None:
 
 
 def _run_modal_ingestion(jid: str, days_past: int, dry_run: bool = False,
-                         stages: str = "all", detach: bool = False) -> int:
+                         stages: str = "all", detach: bool = False,
+                         transcript_mode: str = "") -> int:
     """Run Modal ingestion and return exit code.
 
     Args:
         detach: If True, adds --detach so the Modal job runs remotely and
                 this process doesn't need to stay connected. Use for full
                 backfills; avoid for validation samples that need exit codes.
+        transcript_mode: "assemblyai" or "captions". Passed to --transcript-mode.
     """
     modal_cmd = ["modal", "run"]
     if detach:
@@ -673,6 +675,8 @@ def _run_modal_ingestion(jid: str, days_past: int, dry_run: bool = False,
             modal_cmd.append(f"--{stage.strip()}")
 
     modal_cmd.extend(["--jurisdiction", jid, "--meetings-days-past", str(days_past)])
+    if transcript_mode:
+        modal_cmd.extend(["--transcript-mode", transcript_mode])
     if dry_run:
         modal_cmd.append("--dry-run")
 
@@ -1310,6 +1314,27 @@ def main():
             else:
                 print(f"  --force-continue: proceeding despite probe failure.")
 
+    # Determine transcript mode from YAML + env + CLI flags (used by Phase 2.5 and Phase 3)
+    _transcript_mode = TRANSCRIPT_NONE
+    _has_diarization = False
+    _has_youtube = False
+    _yaml_check = PROJECT_ROOT / "data" / "jurisdictions" / f"{jid}.yaml"
+    if _yaml_check.exists():
+        import yaml as _yaml_mode
+        with open(_yaml_check) as _yf:
+            _ycfg_mode = _yaml_mode.safe_load(_yf) or {}
+        _ds_mode = _ycfg_mode.get("data_sources", {})
+        _ing_mode = _ycfg_mode.get("ingestion", {}) if isinstance(_ycfg_mode.get("ingestion"), dict) else {}
+        _has_youtube = bool(_ds_mode.get("transcripts", {}).get("channel_id"))
+        if _has_youtube:
+            if args.captions_only:
+                _transcript_mode = TRANSCRIPT_CAPTIONS
+            elif os.environ.get("ASSEMBLYAI_API_KEY"):
+                _transcript_mode = TRANSCRIPT_ASSEMBLYAI
+                _has_diarization = _ing_mode.get("diarization", True)
+            else:
+                _transcript_mode = TRANSCRIPT_CAPTIONS
+
     # -------------------------------------------------------------------
     # Phase 2.5: Validation gate (sample before full backfill)
     # -------------------------------------------------------------------
@@ -1317,7 +1342,8 @@ def main():
         print(f"\n[Phase 2.5] Validation gate ({args.sample_days}-day sample)...")
         print(f"  Running sample ingestion to check data quality before full backfill.")
 
-        rc = _run_modal_ingestion(jid, args.sample_days, args.dry_run)
+        rc = _run_modal_ingestion(jid, args.sample_days, args.dry_run,
+                                  transcript_mode=_transcript_mode)
         if rc != 0:
             print(f"\nERROR: Sample ingestion failed (exit code {rc})")
             sys.exit(rc)
@@ -1349,29 +1375,12 @@ def main():
                 else:
                     print(f"\n  Sample looks good.")
 
-                # Determine transcript mode from YAML + env + flags
-                _transcript_mode = TRANSCRIPT_NONE
-                _has_diarization = False
                 _has_legislation = False
-                _has_youtube = False
-                _yaml_check = PROJECT_ROOT / "data" / "jurisdictions" / f"{jid}.yaml"
                 if _yaml_check.exists():
                     import yaml as _yaml_cost
                     with open(_yaml_check) as _yf:
                         _ycfg = _yaml_cost.safe_load(_yf) or {}
-                    _ds = _ycfg.get("data_sources", {})
-                    _ing_cfg = _ycfg.get("ingestion", {}) if isinstance(_ycfg.get("ingestion"), dict) else {}
-                    _has_youtube = bool(_ds.get("transcripts", {}).get("channel_id"))
-                    if _has_youtube:
-                        if args.captions_only:
-                            _transcript_mode = TRANSCRIPT_CAPTIONS
-                        elif os.environ.get("ASSEMBLYAI_API_KEY"):
-                            _transcript_mode = TRANSCRIPT_ASSEMBLYAI
-                            _has_diarization = _ing_cfg.get("diarization", True)
-                        else:
-                            # YouTube channel found but no AssemblyAI key — default to captions
-                            _transcript_mode = TRANSCRIPT_CAPTIONS
-                    _has_legislation = bool(_ds.get("legislation"))
+                    _has_legislation = bool(_ycfg.get("data_sources", {}).get("legislation"))
 
                 # Cost estimate based on sample
                 est = _estimate_cost(
@@ -1438,7 +1447,8 @@ def main():
         print(f"\n[Phase 3] Running Modal ingestion pipeline (detached)...")
         print(f"  Stages: meetings → chunks → agenda → decisions → vectors")
         print(f"  Days: {args.days_past}")
-        rc = _run_modal_ingestion(jid, args.days_past, args.dry_run, detach=True)
+        rc = _run_modal_ingestion(jid, args.days_past, args.dry_run, detach=True,
+                                  transcript_mode=_transcript_mode)
 
     if rc != 0:
         print(f"\nERROR: Ingestion failed (exit code {rc})")

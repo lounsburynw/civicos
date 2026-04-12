@@ -6457,15 +6457,13 @@ def extract_transcripts(
     since_days: int = 0,
     since_date: str = "",
     cost_cap_usd: float = 50.0,
+    transcript_mode: str = "assemblyai",
 ) -> dict:
-    """Extract transcripts from meeting audio using AssemblyAI.
+    """Extract transcripts from meeting videos.
 
-    This function:
-    1. Reads meetings with youtube_url from Postgres
-    2. Downloads audio files to R2 (if not already present)
-    3. Transcribes with AssemblyAI + speaker diarization
-    4. Validates transcript duration vs YouTube source
-    5. Stores transcripts to Postgres
+    Supports two modes:
+    - "assemblyai" (default): Downloads audio → transcribes with AssemblyAI + speaker diarization
+    - "captions": Fetches free YouTube auto-captions (no audio download, no cost)
 
     Pipeline Integration:
         Runs in scheduled_high_velocity_refresh AFTER fetch_meetings (which
@@ -6476,7 +6474,7 @@ def extract_transcripts(
         - Tier 1 (recent): Full transcription for meetings since since_date
         - Tier 2 (older): Covered by agenda chunks, no transcription needed
         - Default since_date: 6 months ago (rolling window)
-        - cost_cap_usd prevents runaway spending per invocation
+        - cost_cap_usd prevents runaway spending per invocation (assemblyai only)
 
     Args:
         jurisdiction: Target jurisdiction (e.g., "city-san-rafael")
@@ -6490,8 +6488,9 @@ def extract_transcripts(
                     Default: 6 months ago. Implements Tier 1 transcription window.
         cost_cap_usd: Maximum AssemblyAI spend per invocation (default $50).
                       Stops processing when cap is reached.
+        transcript_mode: "assemblyai" (paid, speaker diarization) or "captions" (free, no speakers)
 
-    Cost: ~$0.65/hr audio (~$1.60 per 2.5-hour meeting)
+    Cost: ~$0.65/hr audio for assemblyai, $0 for captions
     """
     import logging
     import os
@@ -6505,9 +6504,11 @@ def extract_transcripts(
     if not database_url:
         raise ValueError("DATABASE_URL not set")
 
-    assemblyai_key = os.environ.get("ASSEMBLYAI_API_KEY")
-    if not assemblyai_key and not dry_run:
-        raise ValueError("ASSEMBLYAI_API_KEY not set. Create Modal secret: modal secret create civic-assemblyai ASSEMBLYAI_API_KEY='...'")
+    # AssemblyAI key only required for assemblyai mode
+    if transcript_mode != "captions":
+        assemblyai_key = os.environ.get("ASSEMBLYAI_API_KEY")
+        if not assemblyai_key and not dry_run:
+            raise ValueError("ASSEMBLYAI_API_KEY not set. Create Modal secret: modal secret create civic-assemblyai ASSEMBLYAI_API_KEY='...'")
 
     from datetime import datetime, timedelta
 
@@ -6526,7 +6527,60 @@ def extract_transcripts(
         since_days_filter = 180
         logger.info(f"[TRANSCRIPTS] No date filter specified — defaulting to Tier 1 window: since {since_date}")
 
-    logger.info(f"[TRANSCRIPTS] Starting extraction: jurisdiction={jurisdiction}, limit={limit}, batch={batch}, meeting_type={meeting_type_filter}, since_days={since_days_filter}, cost_cap=${cost_cap_usd:.0f}")
+    logger.info(f"[TRANSCRIPTS] Starting extraction: jurisdiction={jurisdiction}, mode={transcript_mode}, limit={limit}, batch={batch}, meeting_type={meeting_type_filter}, since_days={since_days_filter}, cost_cap=${cost_cap_usd:.0f}")
+
+    # ---- CAPTIONS MODE: Skip audio download, fetch YouTube captions directly ----
+    if transcript_mode == "captions":
+        logger.info("[TRANSCRIPTS] Using YouTube captions mode (free, no speaker diarization)")
+        from civicos_extraction.cli.transcribe import extract_captions
+
+        caption_results = extract_captions(
+            jurisdiction_id=jurisdiction,
+            limit=limit,
+            dry_run=dry_run,
+            since_days=since_days_filter,
+            meeting_type=meeting_type_filter,
+        )
+
+        transcripts_extracted = sum(1 for r in caption_results if r.status == "success")
+        transcripts_failed = sum(1 for r in caption_results if r.status == "error")
+
+        # Auto-index vectors if requested and transcripts were extracted
+        vector_result = None
+        if auto_index and transcripts_extracted > 0 and not dry_run:
+            logger.info(f"[TRANSCRIPTS] Auto-indexing vectors for {jurisdiction}...")
+            vector_result = index_vectors.remote(
+                jurisdiction=jurisdiction,
+                corpus="transcripts",
+                reindex=False,
+            )
+            logger.info(f"  Vectors indexed: {vector_result.get('total_indexed', 0)}")
+
+        elapsed = time.time() - start_time
+        logger.info(f"[TRANSCRIPTS] Captions complete in {elapsed:.1f}s. Cost: $0.00")
+
+        result = {
+            "task": "transcripts",
+            "jurisdiction": jurisdiction,
+            "transcript_mode": "captions",
+            "audio_downloaded": 0,
+            "audio_skipped": 0,
+            "transcripts_extracted": transcripts_extracted,
+            "transcripts_skipped": 0,
+            "transcripts_failed": transcripts_failed,
+            "duration_validation_issues": 0,
+            "dry_run": dry_run,
+            "batch_mode": False,
+            "auto_index": auto_index,
+            "elapsed_seconds": elapsed,
+            "transcription_cost_usd": 0.0,
+            "cost_usd": 8 * elapsed * 0.000463,  # Modal compute only, no AssemblyAI
+        }
+        if vector_result:
+            result["vector_result"] = vector_result
+        return result
+
+    # ---- ASSEMBLYAI MODE: Full audio download + transcription pipeline ----
 
     # Decode YouTube cookies from Modal secret (base64-encoded)
     # Bypasses YouTube bot detection from datacenter IPs.
@@ -8403,6 +8457,7 @@ def main(
     transcripts_limit: int = 0,
     transcripts_since: str = "",
     transcripts_cost_cap: float = 50.0,
+    transcript_mode: str = "assemblyai",
     chunks_limit: int = 0,
     agenda_limit: int = 0,
     decisions_limit: int = 0,
@@ -8450,6 +8505,7 @@ def main(
         # Extract transcripts (audio download + transcription with AssemblyAI)
         modal run scripts/modal_ingest.py --transcripts
         modal run scripts/modal_ingest.py --transcripts --transcripts-limit 5  # Limit to 5 meetings
+        modal run scripts/modal_ingest.py --transcripts --transcript-mode captions  # Free YouTube captions
 
         # Extract chunks (incremental by default - skips already-chunked meetings)
         modal run scripts/modal_ingest.py --chunks
@@ -9002,8 +9058,10 @@ def main(
     # Extract transcripts after meetings are fetched (audio download + transcription)
     transcripts_result = None
     if run_transcripts:
-        print(f"\nRunning transcript extraction (audio + transcription)...")
-        print(f"  Cost cap: ${transcripts_cost_cap:.0f} | Since: {transcripts_since or 'default (6 months)'}")
+        mode_label = "captions (free)" if transcript_mode == "captions" else "audio + AssemblyAI"
+        print(f"\nRunning transcript extraction ({mode_label})...")
+        if transcript_mode != "captions":
+            print(f"  Cost cap: ${transcripts_cost_cap:.0f} | Since: {transcripts_since or 'default (6 months)'}")
         transcripts_result = extract_transcripts.remote(
             jurisdiction=jurisdiction,
             limit=transcripts_limit,
@@ -9012,6 +9070,7 @@ def main(
             auto_index=auto_index,
             since_date=transcripts_since,
             cost_cap_usd=transcripts_cost_cap,
+            transcript_mode=transcript_mode,
         )
         print(f"  transcripts: {transcripts_result.get('elapsed_seconds', 0):.1f}s, cost: ${transcripts_result.get('cost_usd', 0):.4f}")
         if transcripts_result.get("duration_validation_issues", 0) > 0:
