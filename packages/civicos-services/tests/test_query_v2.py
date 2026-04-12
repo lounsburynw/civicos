@@ -472,7 +472,7 @@ class TestSearchIntegration:
         )
 
         with adapter_patches():
-            resp = asyncio.get_event_loop().run_until_complete(
+            resp = asyncio.run(
                 _run_search(req, civic)
             )
 
@@ -490,7 +490,7 @@ class TestSearchIntegration:
         civic = make_mock_civic()
         req = SearchRequest(query="housing", corpus=["decisions"])
         with adapter_patches():
-            resp = asyncio.get_event_loop().run_until_complete(
+            resp = asyncio.run(
                 _run_search(req, civic)
             )
         assert len(resp.results) >= 1
@@ -503,7 +503,7 @@ class TestSearchIntegration:
 
         req = SearchRequest(query="test", corpus=["decisions", "issues"])
         with adapter_patches():
-            resp = asyncio.get_event_loop().run_until_complete(
+            resp = asyncio.run(
                 _run_search(req, civic)
             )
 
@@ -518,7 +518,7 @@ class TestUpcomingIntegration:
     def test_upcoming_meetings(self):
         civic = make_mock_civic()
         req = UpcomingRequest(types=["meetings"], days=30)
-        resp = asyncio.get_event_loop().run_until_complete(
+        resp = asyncio.run(
             _run_upcoming(req, civic)
         )
         assert len(resp.results) >= 1
@@ -530,7 +530,7 @@ class TestExploreIntegration:
     def test_explore_schema_version(self):
         civic = make_mock_civic()
         req = ExploreRequest(what="schema_version")
-        resp = asyncio.get_event_loop().run_until_complete(
+        resp = asyncio.run(
             _run_explore(req, civic)
         )
         assert resp.data["schema_version"] == SCHEMA_VERSION
@@ -538,7 +538,7 @@ class TestExploreIntegration:
     def test_explore_capabilities(self):
         civic = make_mock_civic()
         req = ExploreRequest(what="capabilities")
-        resp = asyncio.get_event_loop().run_until_complete(
+        resp = asyncio.run(
             _run_explore(req, civic)
         )
         assert "verbs" in resp.data
@@ -549,7 +549,7 @@ class TestExploreIntegration:
     def test_explore_corpus_schema(self):
         civic = make_mock_civic()
         req = ExploreRequest(what="corpus_schema:decisions")
-        resp = asyncio.get_event_loop().run_until_complete(
+        resp = asyncio.run(
             _run_explore(req, civic)
         )
         assert resp.data["corpus"] == "decisions"
@@ -559,7 +559,7 @@ class TestExploreIntegration:
     def test_explore_actions(self):
         civic = make_mock_civic()
         req = ExploreRequest(what="actions")
-        resp = asyncio.get_event_loop().run_until_complete(
+        resp = asyncio.run(
             _run_explore(req, civic)
         )
         action_names = [a["name"] for a in resp.data["actions"]]
@@ -580,7 +580,7 @@ class TestExploreIntegration:
             },
         ]
         req = ExploreRequest(what="representatives")
-        resp = asyncio.get_event_loop().run_until_complete(
+        resp = asyncio.run(
             _run_explore(req, civic)
         )
         assert resp.data["jurisdiction"] == "city-san-rafael"
@@ -594,7 +594,7 @@ class TestExploreIntegration:
         civic = make_mock_civic()
         civic.storage.get_elected_officials.return_value = []
         req = ExploreRequest(what="representatives")
-        resp = asyncio.get_event_loop().run_until_complete(
+        resp = asyncio.run(
             _run_explore(req, civic)
         )
         assert resp.data["jurisdiction"] == "city-san-rafael"
@@ -604,7 +604,7 @@ class TestExploreIntegration:
     def test_explore_unknown(self):
         civic = make_mock_civic()
         req = ExploreRequest(what="nonexistent")
-        resp = asyncio.get_event_loop().run_until_complete(
+        resp = asyncio.run(
             _run_explore(req, civic)
         )
         assert "error" in resp.data
@@ -616,7 +616,7 @@ class TestContextIntegration:
     def test_context_with_decision_ref(self):
         civic = make_mock_civic()
         req = ContextRequest(ref="decision:city-san-rafael:dec-123")
-        resp = asyncio.get_event_loop().run_until_complete(
+        resp = asyncio.run(
             _run_context(req, civic)
         )
         assert resp.meta.schema_version == SCHEMA_VERSION
@@ -628,7 +628,7 @@ class TestContextIntegration:
     def test_context_with_meeting_ref(self):
         civic = make_mock_civic()
         req = ContextRequest(ref="meeting:city-san-rafael:mtg-1")
-        resp = asyncio.get_event_loop().run_until_complete(
+        resp = asyncio.run(
             _run_context(req, civic)
         )
         assert resp.context is not None
@@ -641,7 +641,7 @@ class TestContextIntegration:
             depth="deep",
             sections=["history", "testimony"],
         )
-        resp = asyncio.get_event_loop().run_until_complete(
+        resp = asyncio.run(
             _run_context(req, civic)
         )
         assert resp.context is not None
@@ -649,7 +649,7 @@ class TestContextIntegration:
     def test_context_invalid_ref(self):
         civic = make_mock_civic()
         req = ContextRequest(ref="invalid")
-        resp = asyncio.get_event_loop().run_until_complete(
+        resp = asyncio.run(
             _run_context(req, civic)
         )
         assert "error" in resp.context
@@ -682,7 +682,7 @@ class TestActIntegration:
             ref="decision:city-san-rafael:dec-1",
             params={"stance": "support"},
         )
-        resp = asyncio.get_event_loop().run_until_complete(
+        resp = asyncio.run(
             _run_act(req, civic, mock_handler)
         )
         assert resp.meta.schema_version == SCHEMA_VERSION
@@ -694,7 +694,7 @@ class TestActIntegration:
         mock_handler = MagicMock(return_value='{"template": "Dear Council..."}')
         civic = make_mock_civic()
         req = ActRequest(action="comment_template", params={"topic": "housing"})
-        resp = asyncio.get_event_loop().run_until_complete(
+        resp = asyncio.run(
             _run_act(req, civic, mock_handler)
         )
         mock_handler.assert_called_once_with("get_comment_template", {"topic": "housing"})
@@ -708,7 +708,7 @@ class TestActIntegration:
             ref="meeting:city-san-rafael:housing-topic",
             params={"email": "test@example.com"},
         )
-        resp = asyncio.get_event_loop().run_until_complete(
+        resp = asyncio.run(
             _run_act(req, civic, mock_handler)
         )
         mock_handler.assert_called_once()
@@ -720,7 +720,7 @@ class TestActIntegration:
         mock_handler = MagicMock()
         civic = make_mock_civic()
         req = ActRequest(action="nonexistent_action")
-        resp = asyncio.get_event_loop().run_until_complete(
+        resp = asyncio.run(
             _run_act(req, civic, mock_handler)
         )
         assert "error" in resp.result
@@ -731,7 +731,7 @@ class TestActIntegration:
         mock_handler = MagicMock(side_effect=Exception("Handler failed"))
         civic = make_mock_civic()
         req = ActRequest(action="prepare_comment", params={"topic": "housing"})
-        resp = asyncio.get_event_loop().run_until_complete(
+        resp = asyncio.run(
             _run_act(req, civic, mock_handler)
         )
         assert "error" in resp.result
@@ -744,7 +744,7 @@ class TestActIntegration:
             action="prepare_comment",
             ref="decision:city-san-rafael:ADU-ordinance-update",
         )
-        resp = asyncio.get_event_loop().run_until_complete(
+        resp = asyncio.run(
             _run_act(req, civic, mock_handler)
         )
         call_args = mock_handler.call_args[0][1]
@@ -844,7 +844,7 @@ class TestCorpusSchemas:
     def test_explore_corpus_schema_packets(self):
         civic = make_mock_civic()
         req = ExploreRequest(what="corpus_schema:packets")
-        resp = asyncio.get_event_loop().run_until_complete(
+        resp = asyncio.run(
             _run_explore(req, civic)
         )
         assert resp.data["corpus"] == "packets"
@@ -854,7 +854,7 @@ class TestCorpusSchemas:
     def test_explore_corpus_schema_orders(self):
         civic = make_mock_civic()
         req = ExploreRequest(what="corpus_schema:orders")
-        resp = asyncio.get_event_loop().run_until_complete(
+        resp = asyncio.run(
             _run_explore(req, civic)
         )
         assert resp.data["corpus"] == "orders"
@@ -863,7 +863,7 @@ class TestCorpusSchemas:
     def test_explore_corpus_schema_rules(self):
         civic = make_mock_civic()
         req = ExploreRequest(what="corpus_schema:rules")
-        resp = asyncio.get_event_loop().run_until_complete(
+        resp = asyncio.run(
             _run_explore(req, civic)
         )
         assert resp.data["corpus"] == "rules"
@@ -1186,7 +1186,7 @@ class TestPagination:
 
         req = SearchRequest(query="housing", corpus=["decisions"], limit=5)
         with adapter_patches(decisions=many_decisions):
-            resp = asyncio.get_event_loop().run_until_complete(
+            resp = asyncio.run(
                 _run_search(req, civic)
             )
         # With limit=5 and 1 corpus, per_corpus = max(3, ceil(5/1)) = 5
@@ -1199,7 +1199,7 @@ class TestPagination:
 
         req = SearchRequest(query="housing", corpus=["decisions"], limit=10)
         with adapter_patches(decisions=[MockDecision()]):
-            resp = asyncio.get_event_loop().run_until_complete(
+            resp = asyncio.run(
                 _run_search(req, civic)
             )
         assert resp.meta.cursor is None
@@ -1217,7 +1217,7 @@ class TestPagination:
         cursor = encode_cursor({"decisions": 5})
         req = SearchRequest(query="housing", corpus=["decisions"], limit=5, cursor=cursor)
         with adapter_patches(decisions=all_decisions):
-            resp = asyncio.get_event_loop().run_until_complete(
+            resp = asyncio.run(
                 _run_search(req, civic)
             )
         # Results should start from offset 5
@@ -1236,7 +1236,7 @@ class TestAggregateMode:
             mode=SearchMode.aggregate,
         )
         with adapter_patches():
-            resp = asyncio.get_event_loop().run_until_complete(
+            resp = asyncio.run(
                 _run_search(req, civic)
             )
         assert resp.results == []
@@ -1259,7 +1259,7 @@ class TestAggregateMode:
             MockDecision(id="dec-1", date=datetime(2025, 1, 15)),
             MockDecision(id="dec-2", date=datetime(2025, 6, 15)),
         ]):
-            resp = asyncio.get_event_loop().run_until_complete(
+            resp = asyncio.run(
                 _run_search(req, civic)
             )
         agg = resp.aggregates[0]
@@ -1276,7 +1276,7 @@ class TestAggregateMode:
             mode=SearchMode.aggregate,
         )
         with adapter_patches(decisions=[]):
-            resp = asyncio.get_event_loop().run_until_complete(
+            resp = asyncio.run(
                 _run_search(req, civic)
             )
         assert resp.aggregates[0].count == 0
@@ -1299,7 +1299,7 @@ class TestTrendMode:
             MockDecision(id="dec-2", date=datetime(2025, 1, 20)),
             MockDecision(id="dec-3", date=datetime(2025, 3, 5)),
         ]):
-            resp = asyncio.get_event_loop().run_until_complete(
+            resp = asyncio.run(
                 _run_search(req, civic)
             )
         assert resp.results == []
@@ -1327,7 +1327,7 @@ class TestTrendMode:
         with adapter_patches(decisions=[
             MockDecision(id="dec-1", date=datetime(2025, 2, 1)),
         ]):
-            resp = asyncio.get_event_loop().run_until_complete(
+            resp = asyncio.run(
                 _run_search(req, civic)
             )
         assert resp.trends is not None
@@ -1353,7 +1353,7 @@ class TestTrendMode:
             mode=SearchMode.trend,
         )
         with adapter_patches(decisions=[NoDatedDecision()]):
-            resp = asyncio.get_event_loop().run_until_complete(
+            resp = asyncio.run(
                 _run_search(req, civic)
             )
         # date=None should produce "unknown" period
@@ -1390,7 +1390,7 @@ class TestDiffMode:
             mode="diff",
         )
         with adapter_patches():
-            resp = asyncio.get_event_loop().run_until_complete(
+            resp = asyncio.run(
                 _run_search(req, civic)
             )
         assert len(resp.results) == 0
@@ -1409,7 +1409,7 @@ class TestDiffMode:
             snapshot_date="2025-06-01",
         )
         with adapter_patches(decisions=[old_dec, new_dec]):
-            resp = asyncio.get_event_loop().run_until_complete(
+            resp = asyncio.run(
                 _run_search(req, civic)
             )
         # Only dec-new (2025-08-01) is after snapshot (2025-06-01)
@@ -1429,7 +1429,7 @@ class TestDiffMode:
             snapshot_date="2025-06-01",
         )
         with adapter_patches(decisions=[on_date, after_date]):
-            resp = asyncio.get_event_loop().run_until_complete(
+            resp = asyncio.run(
                 _run_search(req, civic)
             )
         assert len(resp.results) == 1
@@ -1448,7 +1448,7 @@ class TestDiffMode:
             snapshot_date="2025-01-01",
         )
         with adapter_patches(decisions=[undated]):
-            resp = asyncio.get_event_loop().run_until_complete(
+            resp = asyncio.run(
                 _run_search(req, civic)
             )
         assert len(resp.results) == 0
@@ -1465,7 +1465,7 @@ class TestDiffMode:
             snapshot_date="2025-06-01T12:00:00",
         )
         with adapter_patches(decisions=[new_dec]):
-            resp = asyncio.get_event_loop().run_until_complete(
+            resp = asyncio.run(
                 _run_search(req, civic)
             )
         assert len(resp.results) == 1
@@ -1484,7 +1484,7 @@ class TestDiffMode:
             snapshot_date="2025-06-01",
         )
         with adapter_patches(decisions=[old_dec, new_dec]):
-            resp = asyncio.get_event_loop().run_until_complete(
+            resp = asyncio.run(
                 _run_search(req, civic)
             )
         assert len(resp.results) == 1
@@ -1504,7 +1504,7 @@ class TestIntersectMode:
             mode="intersect",
         )
         with adapter_patches():
-            resp = asyncio.get_event_loop().run_until_complete(
+            resp = asyncio.run(
                 _run_search(req, civic)
             )
         assert len(resp.results) == 0
@@ -1523,7 +1523,7 @@ class TestIntersectMode:
             intersect_corpus=["testimony"],
         )
         with adapter_patches(decisions=[dec], transcripts=[testimony]):
-            resp = asyncio.get_event_loop().run_until_complete(
+            resp = asyncio.run(
                 _run_search(req, civic)
             )
         # The decision date matches testimony date, so it should be included
@@ -1542,7 +1542,7 @@ class TestIntersectMode:
             intersect_corpus=["testimony"],
         )
         with adapter_patches(decisions=[dec], transcripts=[testimony]):
-            resp = asyncio.get_event_loop().run_until_complete(
+            resp = asyncio.run(
                 _run_search(req, civic)
             )
         # "development" (11 chars) and "rezoning" (8 chars) are significant words — should match
@@ -1565,7 +1565,7 @@ class TestIntersectMode:
             intersect_corpus=["issues"],
         )
         with adapter_patches(decisions=[dec]):
-            resp = asyncio.get_event_loop().run_until_complete(
+            resp = asyncio.run(
                 _run_search(req, civic)
             )
         assert len(resp.results) == 0
@@ -1583,7 +1583,7 @@ class TestIntersectMode:
             intersect_corpus=["testimony"],
         )
         with adapter_patches(decisions=[dec], transcripts=[testimony]):
-            resp = asyncio.get_event_loop().run_until_complete(
+            resp = asyncio.run(
                 _run_search(req, civic)
             )
         # "city" (4), "plan" (4), "code" (4) are all < 6 chars — no match
@@ -1612,7 +1612,7 @@ class TestConceptLookup:
         civic = make_mock_civic()
         req = ContextRequest(concept="conditional use permit")
         with adapter_patches():
-            resp = asyncio.get_event_loop().run_until_complete(
+            resp = asyncio.run(
                 _run_context(req, civic)
             )
         assert resp.context is not None
@@ -1628,7 +1628,7 @@ class TestConceptLookup:
 
         req = ContextRequest(concept="xyzzy nonexistent term")
         with adapter_patches(regulatory=MockRegulatoryStack(local=[])):
-            resp = asyncio.get_event_loop().run_until_complete(
+            resp = asyncio.run(
                 _run_context(req, civic)
             )
         assert resp.context["concept"] == "xyzzy nonexistent term"
@@ -1639,7 +1639,7 @@ class TestConceptLookup:
         civic = make_mock_civic()
         req = ContextRequest(concept="ADU regulations")
         with adapter_patches():
-            resp = asyncio.get_event_loop().run_until_complete(
+            resp = asyncio.run(
                 _run_context(req, civic)
             )
         if resp.context.get("found") and resp.context.get("sections"):
