@@ -357,11 +357,16 @@ _READ_POLICIES: dict[str, ScopePolicy] = {
         notes="Assembled context for one item",
     ),
     "get_leverage_points": ScopePolicy(
-        default_scope=Scope.PRIMARY_PLUS_PARENT,
+        default_scope=Scope.PRIMARY_PLUS_ALL_PARENTS,
         expandable_scope=None,
-        max_scope=Scope.STATE,
+        max_scope=Scope.FEDERAL,
         kind="read",
-        notes="Where the user can influence an issue",
+        notes=(
+            "Leverage points live wherever a bill is legislated — state "
+            "and federal both count. Matches search_legislation scope; "
+            "narrower scopes degenerate to empty because cities/counties "
+            "do not hold legislation rows."
+        ),
     ),
     "get_bill_detail": ScopePolicy(
         default_scope=Scope.FEDERAL,
@@ -455,11 +460,15 @@ _WRITE_POLICIES: dict[str, ScopePolicy] = {
         notes="Read operation in disguise — safe to expand",
     ),
     "list_relays": ScopePolicy(
-        default_scope=Scope.PRIMARY_PLUS_SIBLINGS,
+        default_scope=Scope.PRIMARY,
         expandable_scope=None,
-        max_scope=Scope.PRIMARY_PLUS_SIBLINGS,
+        max_scope=Scope.PRIMARY,
         kind="write",
-        notes="Read operation in disguise — safe to expand",
+        notes=(
+            "Relays are not jurisdictional — the handler returns the "
+            "same static KNOWN_RELAYS list regardless of scope. Declared "
+            "as PRIMARY to reflect reality; fan-out would be a no-op."
+        ),
     ),
     "get_voice_counts": ScopePolicy(
         default_scope=Scope.PRIMARY,

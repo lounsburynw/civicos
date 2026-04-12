@@ -155,8 +155,8 @@ class TestActiveUsersCollector:
 
         assert isinstance(users['authenticated'], set)
         assert isinstance(users['anonymous'], set)
-        assert "user-001" in users['authenticated']
-        assert "10.0.0.1" in users['anonymous']
+        assert users['authenticated'] == {"user-001"}
+        assert users['anonymous'] == {"10.0.0.1"}
 
     def test_processes_request_complete_events_too(self, tmp_path):
         """Test that both request_start and request_complete events are processed."""
@@ -216,10 +216,11 @@ class TestActiveUsersManager:
         metrics = manager.get_active_users()
 
         assert isinstance(metrics, dict)
-        assert "unique_users" in metrics
-        assert "active_users_per_hour" in metrics
-        assert "window_minutes" in metrics
+        assert metrics["unique_users"] == 0
+        assert metrics["active_users_per_hour"] == 0.0
         assert metrics["window_minutes"] == 5
+        assert metrics["authenticated_users"] == 0
+        assert metrics["anonymous_users"] == 0
 
     def test_get_unique_users_count(self, tmp_path):
         """Test get_unique_users_count convenience method."""
@@ -283,11 +284,12 @@ class TestHealthEndpointIntegration:
         manager = ActiveUsersManager(log_file=str(tmp_path / "test.log"))
         metrics = manager.get_active_users()
 
-        # Verify all expected fields are present
-        assert "unique_users" in metrics
-        assert "active_users_per_hour" in metrics
-        assert "authenticated_users" in metrics
-        assert "anonymous_users" in metrics
-        assert "daily_active_users" in metrics
-        assert "window_minutes" in metrics
-        assert "timestamp" in metrics
+        # Verify fields have expected values (no log file → all zeros)
+        assert metrics["unique_users"] == 0
+        assert metrics["active_users_per_hour"] == 0.0
+        assert metrics["authenticated_users"] == 0
+        assert metrics["anonymous_users"] == 0
+        assert metrics["daily_active_users"] == 0
+        assert metrics["window_minutes"] == 5
+        assert isinstance(metrics["timestamp"], str)
+        assert len(metrics["timestamp"]) > 0

@@ -190,7 +190,12 @@ class TestScopePolicyInvariants:
 # Write-side exceptions that the ADR explicitly flags as "read in disguise"
 # and therefore allowed to expand to siblings. All other write tools must
 # be strictly primary or federal.
-WRITE_SIBLING_EXEMPT = {"list_initiatives", "list_relays"}
+#
+# ``list_relays`` used to be in this set but was demoted to PRIMARY when
+# ``widen_remaining_handlers_through_scope_walk`` shipped: the handler
+# returns a static KNOWN_RELAYS list regardless of jurisdiction, so the
+# sibling fan-out would be a no-op. See ADR and scope.py for the rationale.
+WRITE_SIBLING_EXEMPT = {"list_initiatives"}
 
 # Write-side tools that target the federal regulations.gov portal instead
 # of a local clerk/relay.

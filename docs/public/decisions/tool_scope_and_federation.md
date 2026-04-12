@@ -207,9 +207,9 @@ added to the server must declare its scope row before it's bound.
 | `search_agenda_packets` | primary | — | primary | Packets are meeting-scoped |
 | `get_public_testimony` | primary | — | primary | Testimony is attached to specific meetings |
 | `search_budget` | primary | — | primary | Budgets don't compose across levels |
-| `get_funding_flow` | primary + direct parent | +all parents | federal | Intergov transfers are inherently cross-level |
+| `get_funding_flow` | primary + direct parent | +all parents | federal | Intergov transfers are inherently cross-level — **wiring blocked** on `cross_jurisdiction_civic_api_methods`; scope is declared but currently degenerates to primary-only |
 | `get_federal_expenditures` | federal | — | federal | Always federal |
-| `get_intergovernmental_revenue` | primary + direct parent | — | state | Revenue flows from parents |
+| `get_intergovernmental_revenue` | primary + direct parent | — | state | Revenue flows from parents — **wiring blocked** on `cross_jurisdiction_civic_api_methods`; scope is declared but currently degenerates to primary-only |
 | `query_issue_data` | primary | — | primary | 311 is scoped to the responding jurisdiction |
 | `get_issue_analytics` | primary | — | primary | Analytics don't aggregate meaningfully across jurisdictions |
 | `get_issue_trends` | primary | — | primary | Trend timeseries tied to one 311 system |
@@ -228,7 +228,7 @@ added to the server must declare its scope row before it's bound.
 | `get_decision_context` | primary | — | primary | Context for a specific decision |
 | `decision_detail` | primary | — | primary | Detail for a specific decision |
 | `get_item_context` | primary | — | primary | Assembled context for one item |
-| `get_leverage_points` | primary + direct parent | — | state | Where the user can influence an issue |
+| `get_leverage_points` | primary + all parents | — | federal | Leverage points live wherever a bill is legislated; matches `search_legislation` |
 | `get_bill_detail` | federal | — | federal | Bill detail (federal congress); state/local have their own |
 | `get_started` | primary + all parents | — | federal | Onboarding overview should show the full stack |
 
@@ -245,7 +245,7 @@ added to the server must declare its scope row before it's bound.
 | `prepare_initiative` | primary only | Initiatives are jurisdiction-scoped |
 | `broadcast_initiative` | primary only | Initiatives routed to the authoritative relay |
 | `list_initiatives` | primary + siblings | *Read* operation in disguise — safe to expand |
-| `list_relays` | primary + siblings | *Read* operation in disguise — safe to expand |
+| `list_relays` | primary only | Relays are not jurisdictional — fan-out is a no-op |
 | `get_voice_counts` | primary | Counts are per-jurisdiction |
 | `subscribe_to_topic` | primary only | Subscription routes to specific relay |
 | `draft_federal_comment` | federal only | Routes to regulations.gov, not a local portal |
@@ -265,6 +265,35 @@ added to the server must declare its scope row before it's bound.
 Admin tools stay strictly scoped — an operator of the San Rafael
 instance should not be able to inspect or mutate the state of another
 operator's instance through their own admin tools.
+
+### Implementation status (as of 2026-04-11)
+
+The scope policy table above is the authoritative declaration. Actual
+handler wiring ships in stages — this sub-section tracks how much of
+the declared scope is actually enforced at runtime.
+
+**Wired through `walk_scope`** (scope is load-bearing):
+
+- `search_legislation` — vertical walk to state + federal
+- `search_regulatory_stack` — vertical walk to state + federal
+- `get_started` — vertical walk (Governance Stack section)
+- `get_upcoming_meetings` — horizontal walk to siblings (+ optional region via `args["scope"]`)
+- `find_similar_issues` — horizontal walk to siblings (+ optional region)
+- `get_leverage_points` — vertical walk to state + federal (scope widened from `primary+direct parent` to `primary+all parents` when the handler was wired, because the legacy code path already pulled both CA and US bills and the narrower scope would have degenerated to empty)
+- `list_initiatives` — horizontal walk to siblings (per-jurisdiction relay calls against the same relay URL)
+
+**Declared scope is a no-op** (handler data source is jurisdiction-agnostic):
+
+- `list_relays` — returns the static `KNOWN_RELAYS` list regardless of jurisdiction. Policy demoted to `primary only` to match reality.
+- All 10 federal-default handlers (`search_executive_orders`, `search_federal_rules`, `get_recent_executive_orders`, `get_congressional_votes`, `get_congressional_hearings`, `get_open_comment_periods`, `get_federal_expenditures`, `get_bill_detail`, `draft_federal_comment`, `prepare_federal_comment`) — their storage methods pull federal data directly; walk_scope would only re-visit `country-united-states` once.
+
+**Wiring blocked on core API refactor:**
+
+- `get_funding_flow` and `get_intergovernmental_revenue` — the backing methods `civic.funding_flow()` and `civic.intergovernmental_revenue()` do not accept a jurisdiction kwarg. Until the core API is refactored (tracked as `cross_jurisdiction_civic_api_methods` in `launch.json`), both handlers run primary-only even though their declared default is `primary + direct parent`. The scope rows above are flagged accordingly.
+
+**Naturally strict** (default scope is `primary`):
+
+All remaining read and write tools declare `primary only` and need no wiring — the handler's own jurisdiction-bound data path already honors the scope by construction.
 
 ## Consequences
 

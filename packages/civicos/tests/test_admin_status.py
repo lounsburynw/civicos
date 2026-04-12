@@ -39,16 +39,16 @@ class TestAdminStatusEndpoint:
         """Test that /api/admin/status returns valid JSON response."""
         response = test_client.get("/api/admin/status", headers=auth_headers)
 
-        # Should either succeed or fail gracefully
-        assert response.status_code in [200, 401, 500]
+        assert response.status_code == 200
 
-        if response.status_code == 200:
-            data = response.json()
+        data = response.json()
 
-            # Check required top-level keys
-            assert 'timestamp' in data
-            assert 'components' in data
-            assert 'overall' in data
+        # Check required top-level keys exist with expected types
+        assert 'timestamp' in data
+        assert 'components' in data
+        assert isinstance(data['components'], dict)
+        assert len(data['components']) > 0
+        assert data['overall'] in ['healthy', 'degraded']
 
     def test_admin_status_includes_storage_status(self, test_client, auth_headers):
         """Test that response includes storage backend status."""
@@ -187,6 +187,8 @@ class TestOperationsEndpoint:
         assert 'count' in data
         assert isinstance(data['operations'], list)
         assert isinstance(data['count'], int)
+        assert data['count'] == len(data['operations'])
+        assert data['count'] >= 0
 
     def test_get_operation_not_found(self, test_client_with_auth):
         """Test that non-existent operation returns 404."""
@@ -415,8 +417,8 @@ class TestCostDashboardEndpoint:
             headers=auth_headers
         )
 
-        # Should not error (401 expected in CI without auth keys)
-        assert response.status_code in [200, 401, 500]
+        # Should succeed or reject auth — never 500
+        assert response.status_code in [200, 401]
 
     def test_cost_dashboard_timestamp_format(self, test_client, auth_headers):
         """Test that timestamp is in ISO format with Z suffix."""
@@ -453,7 +455,7 @@ class TestCostDashboardEndpoint:
         assert response.status_code in [401, 403, 422]
 
     def test_cost_dashboard_numeric_values(self, test_client, auth_headers):
-        """Test that cost values are numeric types."""
+        """Test that cost values are numeric and non-negative."""
         response = test_client.get("/api/admin/cost-dashboard", headers=auth_headers)
 
         if response.status_code == 200:
@@ -461,12 +463,16 @@ class TestCostDashboardEndpoint:
             summary = data['summary']
 
             assert isinstance(summary['total_cost_usd'], (int, float))
+            assert summary['total_cost_usd'] >= 0
             assert isinstance(summary['record_count'], int)
+            assert summary['record_count'] >= 0
 
-            for value in summary['by_service'].values():
+            for service, value in summary['by_service'].items():
                 assert isinstance(value, (int, float))
-            for value in summary['by_category'].values():
+                assert value >= 0, f"by_service[{service}] should be non-negative"
+            for category, value in summary['by_category'].items():
                 assert isinstance(value, (int, float))
+                assert value >= 0, f"by_category[{category}] should be non-negative"
 
 
 class TestDailyCostDigest:
@@ -483,14 +489,20 @@ class TestDailyCostDigest:
         digest = DailyCostDigest(jurisdiction_id="city-san-rafael")
         data = digest.collect_data()
 
-        # Check required fields
+        # Check required fields with value constraints
         assert data.date is not None
+        assert len(data.date) >= 8  # at least YYYY-MM-DD
         assert isinstance(data.total_cost_usd, float)
+        assert data.total_cost_usd >= 0
         assert isinstance(data.by_service, dict)
         assert isinstance(data.by_category, dict)
         assert isinstance(data.record_count, int)
+        assert data.record_count >= 0
         assert isinstance(data.daily_budget, float)
+        assert data.daily_budget > 0
         assert isinstance(data.monthly_budget, float)
+        assert data.monthly_budget > 0
+        assert data.monthly_budget >= data.daily_budget
         assert data.budget_status in ["healthy", "warning", "critical"]
         assert data.trend in ["up", "down", "flat"]
 
@@ -525,7 +537,7 @@ class TestDailyCostDigest:
         assert data.date in html
 
     def test_digest_preview(self):
-        """Test preview function returns expected structure."""
+        """Test preview function returns expected structure with content."""
         from civicos_services.monitoring.daily_cost_digest import DailyCostDigest
 
         digest = DailyCostDigest(jurisdiction_id="city-san-rafael")
@@ -536,6 +548,13 @@ class TestDailyCostDigest:
         assert "html" in preview
         assert "date" in preview["data"]
         assert "budget_status" in preview["data"]
+        # Verify content is non-empty and well-formed
+        assert isinstance(preview["plaintext"], str)
+        assert len(preview["plaintext"]) > 0
+        assert "Daily Cost Digest" in preview["plaintext"]
+        assert isinstance(preview["html"], str)
+        assert "<html>" in preview["html"]
+        assert preview["data"]["budget_status"] in ["healthy", "warning", "critical"]
 
     def test_digest_disabled_mode(self):
         """Test that digest respects disabled flag."""

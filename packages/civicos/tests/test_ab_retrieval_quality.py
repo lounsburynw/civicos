@@ -192,6 +192,8 @@ class TestPgVectorRetrievalQuality:
         for r in results:
             assert r.result_count > 0, f"No results for '{r.query}'"
             assert r.score_range_valid, f"Invalid scores for '{r.query}'"
+            if r.top_score:
+                assert r.top_score > 0.4, f"Low top score {r.top_score:.3f} for '{r.query}'"
 
     def test_transcripts_quality(self, pgvector_backend):
         """Transcript queries return relevant results."""
@@ -214,6 +216,8 @@ class TestPgVectorRetrievalQuality:
         for r in results:
             assert r.result_count > 0, f"No results for '{r.query}'"
             assert r.score_range_valid, f"Invalid scores for '{r.query}'"
+            if r.top_score:
+                assert r.top_score > 0.4, f"Low top score {r.top_score:.3f} for '{r.query}'"
 
     def test_issues_quality(self, pgvector_backend):
         """Issue queries return relevant results."""
@@ -236,6 +240,8 @@ class TestPgVectorRetrievalQuality:
         for r in results:
             assert r.result_count > 0, f"No results for '{r.query}'"
             assert r.score_range_valid, f"Invalid scores for '{r.query}'"
+            if r.top_score:
+                assert r.top_score > 0.5, f"Low top score {r.top_score:.3f} for '{r.query}'"
 
     def test_decisions_quality(self, pgvector_backend):
         """Decision queries return relevant results."""
@@ -258,6 +264,8 @@ class TestPgVectorRetrievalQuality:
         for r in results:
             assert r.result_count > 0, f"No results for '{r.query}'"
             assert r.score_range_valid, f"Invalid scores for '{r.query}'"
+            if r.top_score:
+                assert r.top_score > 0.4, f"Low top score {r.top_score:.3f} for '{r.query}'"
 
 
 class TestScoreDistribution:
@@ -490,3 +498,4 @@ class TestQualityReport:
         # Assertions
         assert all_queries_with_results == total_queries, "Some queries returned no results"
         assert avg_top_score > 0.5, f"Average top score {avg_top_score:.3f} too low"
+        assert avg_term_relevance > 0.1, f"Average term relevance {avg_term_relevance:.1%} too low"
