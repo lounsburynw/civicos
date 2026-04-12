@@ -29,7 +29,9 @@ export type MessageType =
   | 'NIP07_GET_RELAYS'
   | 'GET_TOKEN_COUNT'
   | 'REQUEST_TOKENS'
-  | 'SPEND_TOKEN';
+  | 'SPEND_TOKEN'
+  | 'CREATE_TOKEN_CHECKOUT'
+  | 'CHECK_TOKEN_CHECKOUT';
 
 // ============================================================================
 // Request types
@@ -110,6 +112,16 @@ export interface SpendTokenRequest {
   type: 'SPEND_TOKEN';
 }
 
+export interface CreateTokenCheckoutRequest {
+  type: 'CREATE_TOKEN_CHECKOUT';
+  count?: number;
+}
+
+export interface CheckTokenCheckoutRequest {
+  type: 'CHECK_TOKEN_CHECKOUT';
+  session_id: string;
+}
+
 export type ExtensionRequest =
   | GetIdentityRequest
   | GetPublicKeyRequest
@@ -126,7 +138,9 @@ export type ExtensionRequest =
   | Nip07GetRelaysRequest
   | GetTokenCountRequest
   | RequestTokensRequest
-  | SpendTokenRequest;
+  | SpendTokenRequest
+  | CreateTokenCheckoutRequest
+  | CheckTokenCheckoutRequest;
 
 // ============================================================================
 // Response types
@@ -159,6 +173,16 @@ export type Nip07GetRelaysResponse = ExtensionResponse<Record<string, { read: bo
 export type GetTokenCountResponse = ExtensionResponse<number>;
 export type RequestTokensResponse = ExtensionResponse<number>;
 export type SpendTokenResponse = ExtensionResponse<SpendableToken | null>;
+export type CreateTokenCheckoutResponse = ExtensionResponse<{
+  checkout_url: string;
+  session_id: string;
+  token_count: number;
+}>;
+export type CheckTokenCheckoutResponse = ExtensionResponse<{
+  status: string;
+  token_count: number;
+  claimed: boolean;
+}>;
 
 // ============================================================================
 // Helper to send typed messages

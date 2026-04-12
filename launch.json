@@ -696,7 +696,7 @@
       {
         "name": "token_purchase_ui",
         "description": "Token purchase flow in extension: Stripe checkout -> blinded tokens, and (future) Lightning -> blinded tokens.",
-        "status": "not_started",
+        "status": "done",
         "priority": 0,
         "source": "docs/internal/relay-acceptance-policy-spec.md (Phase 4)",
         "files": [
@@ -1229,7 +1229,7 @@
         "name": "federation_adr",
         "description": "Write Architecture Decision Record documenting federation boundaries: which protocols change, which stay, execution model for cross-jurisdiction queries, and trust chain design.",
         "status": "not_started",
-        "priority": 3,
+        "priority": 0,
         "phase": "B",
         "source": "architectural review \u2014 documentation",
         "files": [

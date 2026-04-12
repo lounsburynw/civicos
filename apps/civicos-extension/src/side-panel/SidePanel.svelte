@@ -22,6 +22,7 @@
   import CivicReadOnlyPulse from '@civicos/components/src/components/CivicReadOnlyPulse.svelte';
   import CivicChatBar from '@civicos/components/src/components/CivicChatBar.svelte';
   import CivicFeedbackForm from '@civicos/components/src/components/CivicFeedbackForm.svelte';
+  import TokenBalance from './TokenBalance.svelte';
 
 
   // High-level orchestration session (stateless — recreated when AI config changes)
@@ -1035,6 +1036,9 @@
     }}
     onopenoptions={openOptions}
   />
+
+  <!-- Token balance + purchase -->
+  <TokenBalance {identity} />
 
   <!-- AI Chat Bar (tool-backed search) -->
   <CivicChatBar

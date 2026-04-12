@@ -23,6 +23,7 @@ from .registry import router as registry_router
 from .context import router as context_router
 from .ai_proxy import router as ai_proxy_router
 from .billing import router as billing_router
+from .token_purchase import router as token_purchase_router
 
 __all__ = [
     "core_router",
@@ -41,4 +42,5 @@ __all__ = [
     "context_router",
     "ai_proxy_router",
     "billing_router",
+    "token_purchase_router",
 ]

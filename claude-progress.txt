@@ -26981,3 +26981,45 @@ Thread real platform source IDs through the extraction pipeline for ground-truth
 ### launch.json
 - cross_jurisdiction_civic_api_methods: done (was P0)
 - token_purchase_ui: promoted to P0 (was P2; note: deprioritized per roadmap pivot memo, next session has discretion)
+
+## Session — 2026-04-12: token_purchase_ui (P0)
+
+### Summary
+Implemented the token purchase UI: Stripe checkout -> blinded token acquisition flow.
+This connects the existing Stripe billing infrastructure to the blind signing token protocol.
+
+### Completed
+- Created `token_checkout.py` core module: Stripe one-time payment session creation, status checking, double-claim guard
+- Created `token_purchase.py` router: public (no auth) FastAPI endpoints `POST /api/tokens/checkout` and `GET /api/tokens/status/{session_id}`
+- Wired router into services API (`__init__.py`, `api.py`)
+- Added extension messaging types: `CREATE_TOKEN_CHECKOUT`, `CHECK_TOKEN_CHECKOUT`
+- Added service worker handlers for checkout creation and status polling
+- Created `TokenBalance.svelte` component: shows token count, "Buy tokens" button, Stripe checkout flow with polling, pending purchase resumption
+- Integrated TokenBalance into SidePanel below identity chip
+- 20 new tests for token_checkout.py (all passing)
+- 64 total Stripe-related tests passing (44 existing + 20 new)
+- Extension builds cleanly
+
+### Architecture decision
+- Stripe Session as source of truth (no new DB tables)
+- Token issuance endpoints remain ungated for MVP (UI is the gate)
+- In-memory double-claim prevention (replace with DB for production scale)
+- One-time `payment` mode (not subscription)
+- Env vars: STRIPE_PRICE_TOKENS, CIVICOS_TOKEN_BUNDLE_SIZE (default 50)
+
+### New files
+- packages/civicos-services/src/civicos_services/core/token_checkout.py
+- packages/civicos-services/src/civicos_services/servers/routers/token_purchase.py
+- packages/civicos-services/tests/test_token_checkout.py
+- apps/civicos-extension/src/side-panel/TokenBalance.svelte
+
+### Modified files
+- packages/civicos-services/src/civicos_services/servers/routers/__init__.py
+- packages/civicos-services/src/civicos_services/servers/api.py
+- apps/civicos-extension/src/lib/messaging.ts
+- apps/civicos-extension/src/background/service-worker.ts
+- apps/civicos-extension/src/side-panel/SidePanel.svelte
+
+### launch.json
+- token_purchase_ui: done (was P0)
+- federation_adr: promoted to P0 (was P3)

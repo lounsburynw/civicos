@@ -57,6 +57,7 @@ from .routers import (
     registry_router,
     context_router,
     ai_proxy_router,
+    token_purchase_router,
 )
 from .routers.billing import router as billing_router
 
@@ -130,6 +131,7 @@ def create_app() -> FastAPI:
     app.include_router(context_router, prefix="/api", tags=["Context"])
     app.include_router(ai_proxy_router, prefix="/api", tags=["AI Proxy"])
     app.include_router(billing_router, prefix="/api", tags=["Billing"])
+    app.include_router(token_purchase_router, prefix="/api", tags=["Tokens"])
 
     # v2 query interface — cross-jurisdiction search, upcoming, context, act, explore
     try:
