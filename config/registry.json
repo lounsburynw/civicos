@@ -8,6 +8,7 @@
       "domain": "san-rafael.civicosproject.org",
       "display_name": "San Rafael",
       "modal_app_name": "civicos-san-rafael",
+      "min_containers": 1,
       "parent_jurisdictions": [
         "county-marin",
         "state-california",
@@ -19,6 +20,7 @@
       "domain": "california.civicosproject.org",
       "display_name": "California",
       "modal_app_name": "civicos-california",
+      "modal_secret": "civicos-california-env",
       "parent_jurisdictions": [
         "country-united-states"
       ]
@@ -27,12 +29,14 @@
       "domain": "federal.civicosproject.org",
       "display_name": "Federal",
       "modal_app_name": "civicos-federal",
+      "modal_secret": "civicos-federal-env",
       "parent_jurisdictions": []
     },
     "county-marin": {
       "domain": "marin-county.civicosproject.org",
       "display_name": "Marin County",
       "modal_app_name": "civicos-marin-county",
+      "modal_secret": "civicos-marin-county-env",
       "parent_jurisdictions": [
         "state-california",
         "country-united-states"
@@ -320,6 +324,7 @@
       "domain": "marin.civicosproject.org",
       "display_name": "Marin Cities",
       "modal_app_name": "civicos-marin",
+      "min_containers": 1,
       "parent_jurisdictions": [
         "county-marin",
         "state-california",

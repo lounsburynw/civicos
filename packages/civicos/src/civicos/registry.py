@@ -334,6 +334,26 @@ def get_relay_url(jurisdiction: Optional[str] = None) -> str:
     return "https://san-rafael.civicosproject.org/relay"
 
 
+def get_deployment_config(jurisdiction: str) -> dict:
+    """Get deployment config for a jurisdiction from registry.
+
+    Returns a dict with:
+        - ``modal_secret``: Modal secret name for DATABASE_URL (default: ``"civicos-env"``)
+        - ``min_containers``: containers to keep warm (default: ``0``)
+
+    Values come from the jurisdiction's registry entry, falling back to
+    sensible defaults. This replaces hardcoded if/elif chains in
+    ``modal_mcp.py`` — adding a new jurisdiction with custom deployment
+    config only requires editing ``config/registry.json``.
+    """
+    reg = _load_registry()
+    entry = reg.get("jurisdictions", {}).get(jurisdiction, {})
+    return {
+        "modal_secret": entry.get("modal_secret", "civicos-env"),
+        "min_containers": entry.get("min_containers", 0),
+    }
+
+
 def get_modal_workspace() -> str:
     """Get the Modal workspace name."""
     env = os.environ.get("MODAL_WORKSPACE")
