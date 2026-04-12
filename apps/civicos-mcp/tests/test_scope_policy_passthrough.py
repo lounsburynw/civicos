@@ -1006,3 +1006,230 @@ class TestListRelaysScope:
         assert policy.default_scope == Scope.PRIMARY
         assert policy.max_scope == Scope.PRIMARY
         assert policy.expandable_scope is None
+
+
+# ---------------------------------------------------------------------------
+# get_funding_flow — vertical expansion through walk_scope
+# ---------------------------------------------------------------------------
+
+
+class _FakeFundingFlow:
+    """Minimal stand-in for a FundingFlow dataclass."""
+
+    def __init__(self, budget_description, department, budget_dollars, federal_program_name=None):
+        self.budget_description = budget_description
+        self.department = department
+        self.budget_dollars = budget_dollars
+        self.federal_program_name = federal_program_name
+
+
+class TestGetFundingFlowPassthrough:
+    def test_vertical_expansion_fans_out_to_parent(
+        self, logger, reset_scope_contextvar
+    ):
+        """With PRIMARY_PLUS_PARENT default, the handler must call
+        funding_flow for both the primary and its direct parent,
+        and the output must contain labeled sections for each."""
+        calls: list[str] = []
+
+        def _mock_funding_flow(program=None, cfda_number=None, jurisdiction_id=None, **kw):
+            calls.append(jurisdiction_id)
+            if jurisdiction_id == "city-san-rafael":
+                return [
+                    _FakeFundingFlow("CDBG Housing", "Community Dev", 500_000, "CDBG")
+                ]
+            elif jurisdiction_id == "county-marin":
+                return [
+                    _FakeFundingFlow("County Transit Grant", "Public Works", 200_000, "FTA")
+                ]
+            return []
+
+        civic = SimpleNamespace(
+            storage=_MockStorage(bills_by_state={}),
+            vectors=None,
+            funding_flow=_mock_funding_flow,
+        )
+
+        _mcp_request_scope.set(SCOPE_POLICIES["get_funding_flow"])
+
+        output = handlers.get_funding_flow(
+            civic,
+            "city-san-rafael",
+            _noop_validate,
+            logger,
+            {},
+        )
+
+        # Both jurisdictions must be queried (exactly 2 calls).
+        assert len(calls) == 2
+        assert "city-san-rafael" in calls
+        assert "county-marin" in calls
+
+        # Output must contain labeled sections.
+        assert "## city-san-rafael" in output
+        assert "## county-marin" in output
+
+        # Content must appear under the correct section.
+        sr_idx = output.index("## city-san-rafael")
+        cm_idx = output.index("## county-marin")
+        if sr_idx < cm_idx:
+            sr_section = output[sr_idx:cm_idx]
+            cm_section = output[cm_idx:]
+        else:
+            cm_section = output[cm_idx:sr_idx]
+            sr_section = output[sr_idx:]
+
+        assert "CDBG Housing" in sr_section
+        assert "County Transit Grant" in cm_section
+        assert "County Transit Grant" not in sr_section
+        assert "CDBG Housing" not in cm_section
+
+    def test_legacy_path_without_scope_policy(self, logger, reset_scope_contextvar):
+        """When no scope policy is set, the handler must fall through
+        to the legacy path calling civic.funding_flow() without
+        jurisdiction_id."""
+        def _mock_funding_flow(program=None, cfda_number=None, **kw):
+            return [_FakeFundingFlow("Legacy Grant", "Admin", 100_000)]
+
+        civic = SimpleNamespace(
+            storage=_MockStorage(bills_by_state={}),
+            vectors=None,
+            funding_flow=_mock_funding_flow,
+        )
+
+        # No scope set — contextvar is None from reset fixture.
+        output = handlers.get_funding_flow(
+            civic,
+            "city-san-rafael",
+            _noop_validate,
+            logger,
+            {"program": "test"},
+        )
+
+        assert "Legacy Grant" in output
+        # No jurisdiction sections in legacy mode.
+        assert "## city-san-rafael" not in output
+
+
+# ---------------------------------------------------------------------------
+# get_intergovernmental_revenue — vertical expansion through walk_scope
+# ---------------------------------------------------------------------------
+
+
+class _FakeRevenueSummary:
+    """Minimal stand-in for IntergovernmentalRevenueSummary."""
+
+    def __init__(self, entity_name, fiscal_year, total, federal, state, county, undetermined=0, details=None):
+        self.entity_name = entity_name
+        self.fiscal_year = fiscal_year
+        self.total_dollars = total
+        self.federal_total_dollars = federal
+        self.state_total_dollars = state
+        self.county_total_dollars = county
+        self.undetermined_total_dollars = undetermined
+        self.details = details or []
+
+
+class _FakeRevenueDetail:
+    """Minimal stand-in for IntergovernmentalRevenue."""
+
+    def __init__(self, line_description, amount_dollars, source, category=None):
+        self.line_description = line_description
+        self.amount_dollars = amount_dollars
+        self.source = source
+        self.category = category
+
+
+class TestGetIntergovernmentalRevenuePassthrough:
+    def test_vertical_expansion_fans_out_to_parent(
+        self, logger, reset_scope_contextvar
+    ):
+        """With PRIMARY_PLUS_PARENT default, the handler must call
+        intergovernmental_revenue for both the primary and its direct
+        parent, and the output must contain labeled sections for each."""
+        calls: list[str] = []
+
+        def _mock_revenue(fiscal_year=None, source=None, jurisdiction_id=None):
+            calls.append(jurisdiction_id)
+            if jurisdiction_id == "city-san-rafael":
+                return _FakeRevenueSummary(
+                    "San Rafael", 2024, 8_000_000, 171_000, 7_000_000, 829_000,
+                    details=[_FakeRevenueDetail("Gas Tax", 3_000_000, "state")],
+                )
+            elif jurisdiction_id == "county-marin":
+                return _FakeRevenueSummary(
+                    "Marin County", 2024, 50_000_000, 5_000_000, 40_000_000, 5_000_000,
+                    details=[_FakeRevenueDetail("Realignment", 10_000_000, "state")],
+                )
+            return _FakeRevenueSummary("Unknown", 2024, 0, 0, 0, 0)
+
+        civic = SimpleNamespace(
+            storage=_MockStorage(bills_by_state={}),
+            vectors=None,
+            intergovernmental_revenue=_mock_revenue,
+        )
+
+        _mcp_request_scope.set(SCOPE_POLICIES["get_intergovernmental_revenue"])
+
+        output = handlers.get_intergovernmental_revenue(
+            civic,
+            "city-san-rafael",
+            _noop_validate,
+            logger,
+            {},
+        )
+
+        # Both jurisdictions must be queried (exactly 2 calls).
+        assert len(calls) == 2
+        assert "city-san-rafael" in calls
+        assert "county-marin" in calls
+
+        # Output must contain both entities.
+        assert "San Rafael" in output
+        assert "Marin County" in output
+
+        # Content must appear under the correct section.
+        assert "Gas Tax" in output
+        assert "Realignment" in output
+
+        # Structural check: Gas Tax is San Rafael's, Realignment is Marin's.
+        sr_idx = output.index("San Rafael")
+        mc_idx = output.index("Marin County")
+        if sr_idx < mc_idx:
+            sr_section = output[sr_idx:mc_idx]
+            mc_section = output[mc_idx:]
+        else:
+            mc_section = output[mc_idx:sr_idx]
+            sr_section = output[sr_idx:]
+
+        assert "Gas Tax" in sr_section
+        assert "Realignment" in mc_section
+        assert "Realignment" not in sr_section
+        assert "Gas Tax" not in mc_section
+
+    def test_legacy_path_without_scope_policy(self, logger, reset_scope_contextvar):
+        """When no scope policy is set, the handler must fall through
+        to the legacy path calling civic.intergovernmental_revenue()
+        without jurisdiction_id."""
+        def _mock_revenue(fiscal_year=None, source=None, **kw):
+            return _FakeRevenueSummary(
+                "San Rafael", 2024, 8_000_000, 171_000, 7_000_000, 829_000,
+            )
+
+        civic = SimpleNamespace(
+            storage=_MockStorage(bills_by_state={}),
+            vectors=None,
+            intergovernmental_revenue=_mock_revenue,
+        )
+
+        # No scope set — contextvar is None from reset fixture.
+        output = handlers.get_intergovernmental_revenue(
+            civic,
+            "city-san-rafael",
+            _noop_validate,
+            logger,
+            {"fiscal_year": 2024},
+        )
+
+        assert "San Rafael" in output
+        assert "$8,000,000" in output

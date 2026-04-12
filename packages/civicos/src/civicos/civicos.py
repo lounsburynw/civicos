@@ -1157,6 +1157,7 @@ class CivicOS:
         budget_item_id: Optional[str] = None,
         fiscal_year: Optional[str] = None,
         min_confidence: float = 0.5,
+        jurisdiction_id: Optional[str] = None,
     ) -> List["FundingFlow"]:
         """
         Trace intergovernmental funding flow from federal -> state -> city.
@@ -1202,16 +1203,18 @@ class CivicOS:
             ...     if flow.state_dollars:
             ...         print(f"  State ({flow.state_agency}): ${flow.state_dollars:,.0f}")
         """
+        jid = jurisdiction_id or self.jurisdiction
+
         # Get budget items
         budget_items = self._data_source.get_budget_items(
-            jurisdiction_id=self.jurisdiction,
+            jurisdiction_id=jid,
             fiscal_year=fiscal_year,
             limit=None,
         )
 
         # Get funding links (connections between budget & sources)
         funding_links = self._data_source.get_budget_funding_links(
-            jurisdiction_id=self.jurisdiction,
+            jurisdiction_id=jid,
             budget_item_id=budget_item_id,
             federal_cfda_number=cfda_number,
             fiscal_year=fiscal_year,
@@ -1219,13 +1222,13 @@ class CivicOS:
 
         # Get federal awards and state passthroughs
         federal_awards = self._data_source.get_federal_awards(
-            jurisdiction_id=self.jurisdiction,
+            jurisdiction_id=jid,
             cfda_number=cfda_number,
             limit=None,
         )
 
         passthroughs = self._data_source.get_state_passthrough_funds(
-            jurisdiction_id=self.jurisdiction,
+            jurisdiction_id=jid,
             limit=None,
         )
         # Filter by cfda_number client-side (StorageBackend uses federal_cfda_number param)
@@ -1510,6 +1513,7 @@ class CivicOS:
         self,
         fiscal_year: Optional[int] = None,
         source: Optional[str] = None,
+        jurisdiction_id: Optional[str] = None,
     ) -> IntergovernmentalRevenueSummary:
         """
         Get intergovernmental revenue from CA State Controller data.
@@ -1557,10 +1561,12 @@ class CivicOS:
             # Add other jurisdictions as needed
         }
 
-        entity_name = entity_name_map.get(self.jurisdiction)
+        jid = jurisdiction_id or self.jurisdiction
+
+        entity_name = entity_name_map.get(jid)
         if not entity_name:
             # Try extracting from jurisdiction ID (e.g., "city-san-rafael" -> "San Rafael")
-            parts = self.jurisdiction.replace("city-", "").replace("-", " ").title()
+            parts = jid.replace("city-", "").replace("-", " ").title()
             entity_name = parts
 
         # Default to most recent year
@@ -1569,7 +1575,7 @@ class CivicOS:
 
         # Create client and fetch data
         client = CAStateControllerClient(
-            jurisdiction_id=self.jurisdiction,
+            jurisdiction_id=jid,
             entity_name=entity_name,
         )
 

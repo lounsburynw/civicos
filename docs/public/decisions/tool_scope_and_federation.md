@@ -207,9 +207,9 @@ added to the server must declare its scope row before it's bound.
 | `search_agenda_packets` | primary | — | primary | Packets are meeting-scoped |
 | `get_public_testimony` | primary | — | primary | Testimony is attached to specific meetings |
 | `search_budget` | primary | — | primary | Budgets don't compose across levels |
-| `get_funding_flow` | primary + direct parent | +all parents | federal | Intergov transfers are inherently cross-level — **wiring blocked** on `cross_jurisdiction_civic_api_methods`; scope is declared but currently degenerates to primary-only |
+| `get_funding_flow` | primary + direct parent | +all parents | federal | Intergov transfers are inherently cross-level |
 | `get_federal_expenditures` | federal | — | federal | Always federal |
-| `get_intergovernmental_revenue` | primary + direct parent | — | state | Revenue flows from parents — **wiring blocked** on `cross_jurisdiction_civic_api_methods`; scope is declared but currently degenerates to primary-only |
+| `get_intergovernmental_revenue` | primary + direct parent | — | state | Revenue flows from parents |
 | `query_issue_data` | primary | — | primary | 311 is scoped to the responding jurisdiction |
 | `get_issue_analytics` | primary | — | primary | Analytics don't aggregate meaningfully across jurisdictions |
 | `get_issue_trends` | primary | — | primary | Trend timeseries tied to one 311 system |
@@ -286,10 +286,6 @@ the declared scope is actually enforced at runtime.
 
 - `list_relays` — returns the static `KNOWN_RELAYS` list regardless of jurisdiction. Policy demoted to `primary only` to match reality.
 - All 10 federal-default handlers (`search_executive_orders`, `search_federal_rules`, `get_recent_executive_orders`, `get_congressional_votes`, `get_congressional_hearings`, `get_open_comment_periods`, `get_federal_expenditures`, `get_bill_detail`, `draft_federal_comment`, `prepare_federal_comment`) — their storage methods pull federal data directly; walk_scope would only re-visit `country-united-states` once.
-
-**Wiring blocked on core API refactor:**
-
-- `get_funding_flow` and `get_intergovernmental_revenue` — the backing methods `civic.funding_flow()` and `civic.intergovernmental_revenue()` do not accept a jurisdiction kwarg. Until the core API is refactored (tracked as `cross_jurisdiction_civic_api_methods` in `launch.json`), both handlers run primary-only even though their declared default is `primary + direct parent`. The scope rows above are flagged accordingly.
 
 **Naturally strict** (default scope is `primary`):
 
