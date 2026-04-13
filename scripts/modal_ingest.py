@@ -7240,7 +7240,16 @@ def scheduled_high_velocity_refresh():
             ext_config = ExtractionConfig.from_jurisdiction(jid)
             src_type = ext_config.source_type
 
-            if src_type == "proudcity":
+            # Check if this source type is a meeting source at all.
+            # Election-only sources (ca_sos, civera_election_stats, etc.) and
+            # unimplemented platforms (diligent) skip meetings — but continue
+            # to issues/elections stages below.
+            from civicos_extraction.clients import SUPPORTED_MEETING_SOURCES
+            if src_type not in SUPPORTED_MEETING_SOURCES:
+                logger.info(f"  [{jid}] source_type '{src_type}' is not a meeting source — skipping meetings stage")
+                client = None
+                meetings_result = {"skipped": True, "reason": f"'{src_type}' is not a meeting source"}
+            elif src_type == "proudcity":
                 from civicos_extraction.clients.proudcity import ProudCityClient
                 client = ProudCityClient(base_url=ext_config.base_url, jurisdiction_id=jid, archives=ext_config.archives or None)
             elif src_type == "granicus":
@@ -7278,13 +7287,6 @@ def scheduled_high_velocity_refresh():
                             f"{bd_result.get('chunks_stored', 0)} chunks, "
                             f"{bd_result.get('agenda_items_stored', 0)} agenda items")
                 client = None  # Signal to skip MeetingCorpusProvider path below
-            else:
-                from civicos_extraction.clients import SUPPORTED_MEETING_SOURCES
-                logger.warning(f"  [{jid}] source_type '{src_type}' not supported in refresh "
-                               f"(supported: {', '.join(sorted(SUPPORTED_MEETING_SOURCES))}) — skipping")
-                results[jid]["meetings"] = {"skipped": True, "reason": f"source_type '{src_type}' not supported in refresh"}
-                continue
-
             # BoardDocs sets client=None (already handled meetings+chunks+agendas above)
             if client is not None:
                 meeting_provider = MeetingCorpusProvider(

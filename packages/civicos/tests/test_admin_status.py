@@ -22,8 +22,9 @@ class TestAdminStatusEndpoint:
     """Tests for /api/admin/status endpoint (FastAPI)."""
 
     @pytest.fixture
-    def test_client(self):
-        """Create a FastAPI test client."""
+    def test_client(self, monkeypatch):
+        """Create a FastAPI test client with dev auth configured."""
+        monkeypatch.setenv("CIVICOS_WEB_KEY", "dev_key_local")
         from fastapi.testclient import TestClient
         from civicos_services.servers.api import app
 
@@ -32,7 +33,7 @@ class TestAdminStatusEndpoint:
     @pytest.fixture
     def auth_headers(self):
         """Headers for authenticated requests."""
-        # Use dev key for testing
+        # Matches CIVICOS_WEB_KEY set in test_client fixture
         return {"Authorization": "Bearer dev_key_local"}
 
     def test_admin_status_returns_valid_json(self, test_client, auth_headers):
