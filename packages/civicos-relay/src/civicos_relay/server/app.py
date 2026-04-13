@@ -26,6 +26,7 @@ from civicos_relay.attestation.service import AttestationService
 from civicos_relay.server.acceptance import AcceptancePolicy
 from civicos_relay.server.ip_rate_limit import IPRateLimitMiddleware, DEFAULT_IP_RATE_LIMIT, DEFAULT_IP_RATE_WINDOW
 from civicos_relay.server.token_issuer import TokenIssuer, TooManyConcurrentSessions, InvalidSession
+from civicos_relay.server.voucher import verify_voucher as _verify_voucher, VoucherTracker
 
 logger = logging.getLogger(__name__)
 
@@ -190,8 +191,6 @@ async def lifespan(app: FastAPI):
     # Initialize voucher gate if shared secret is configured
     voucher_secret = os.environ.get("VOUCHER_HMAC_SECRET")
     if voucher_secret:
-        from civicos_relay.server.voucher import VoucherTracker
-
         _relay_state["voucher_hmac_secret"] = voucher_secret.encode()
         _relay_state["voucher_tracker"] = VoucherTracker()
         logger.info("Voucher gate enabled — token issuance requires valid voucher")
@@ -283,15 +282,13 @@ def create_app() -> FastAPI:
         # Voucher gate: if VOUCHER_HMAC_SECRET is configured, require valid voucher
         hmac_secret = _relay_state.get("voucher_hmac_secret")
         if hmac_secret:
-            from civicos_relay.server.voucher import verify_voucher
-
             if not authorization or not authorization.startswith("Bearer "):
                 raise HTTPException(status_code=401, detail="Voucher required for token issuance")
             voucher_token = authorization[7:]
             try:
-                claims = verify_voucher(voucher_token, hmac_secret)
-            except ValueError as e:
-                raise HTTPException(status_code=401, detail=str(e))
+                claims = _verify_voucher(voucher_token, hmac_secret)
+            except ValueError:
+                raise HTTPException(status_code=401, detail="Invalid or expired voucher")
 
             tracker = _relay_state.get("voucher_tracker")
             if not tracker or not tracker.try_decrement(claims.session_id, claims.token_count):

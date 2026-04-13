@@ -22,6 +22,8 @@ from typing import Optional
 
 import stripe
 
+from .voucher import generate_voucher
+
 logger = logging.getLogger(__name__)
 
 
@@ -168,11 +170,14 @@ def check_token_checkout_status(session_id: str, claim_secret: str) -> dict:
     claimed = metadata.get("claimed") == "true"
     if status == "paid" and not claimed:
         try:
-            from .voucher import generate_voucher
-
             voucher = generate_voucher(session_id, token_count)
         except RuntimeError:
-            pass  # VOUCHER_HMAC_SECRET not configured — no voucher
+            logger.warning(
+                "VOUCHER_HMAC_SECRET not configured — paid session %s "
+                "will not receive a voucher. Token acquisition will fail "
+                "if the relay requires voucher auth.",
+                session_id,
+            )
 
     return {
         "status": status,
