@@ -1,22 +1,35 @@
-# Recommended: Federation ADR (`federation_adr`)
+# Recommended: Verify Ingestion Fixes + Federation ADR (`federation_adr`)
 
 **Priority:** P0
 **Area:** federation_testbed
-**Date:** 2026-04-12
+**Date:** 2026-04-13
 
 > Recommended context from prior session. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
 
-## Context
+## First: Verify Ingestion Fixes
 
-Prior session completed `token_purchase_ui` — the full Stripe checkout -> blinded token acquisition flow across 4 commits:
-1. `dda0190a` — Base implementation: Stripe checkout, TokenBalance UI, blind signing integration
-2. `8c6b8aa9` — Hardened: claim_secret auth, Stripe-backed claims, env var URLs (14 critic fixes)
-3. `4ef6ec46` — Voucher gate: HMAC-signed vouchers gate relay token issuance behind payment proof
-4. `e6bf958e` — Documented VOUCHER_HMAC_SECRET in deployment.md and handoff
+Prior session deployed 8 ingestion fixes. The next high-velocity cron (~2:20 PM UTC / 7:20 AM Pacific on Apr 13) is the first run with all fixes. **Check ntfy or cron logs before starting main work:**
 
-The launch checklist now has 3 items remaining. The distribution pivot memo (2026-04-10) set the roadmap as "Ops hardening -> SF onboard -> federation queries." This ADR documents the federation architecture to unblock that final step.
+```bash
+# Check latest cron run
+gh run list --workflow=cron-high-velocity.yml --limit 3
 
-## What's Needed
+# Check for city-sausalito (was missing from cron)
+gh run view <run_id> --log | grep -i "sausalito"
+
+# Check school-san-rafael (93 days stale, now simbli)
+gh run view <run_id> --log | grep -i "school-san-rafael"
+
+# Check simbli routing (7 school districts, previously skipped)
+gh run view <run_id> --log | grep -i "simbli"
+
+# Check issues refresh (10 Marin cities, previously "No issues source configured")
+gh run view <run_id> --log | grep "issues" | head -20
+```
+
+If anything failed, fix it before proceeding.
+
+## Then: Federation ADR
 
 Write an Architecture Decision Record for federation boundaries. This is a documentation/design task, not implementation. The ADR should cover:
 
@@ -36,49 +49,32 @@ Write an Architecture Decision Record for federation boundaries. This is a docum
 
 ## Success Criteria
 
+- [ ] Ingestion cron verified: city-sausalito, school-san-rafael, simbli schools, issues all refreshing
 - [ ] ADR written at `docs/public/decisions/federation_boundaries.md`
 - [ ] Documents protocol boundaries (shared vs. per-jurisdiction)
 - [ ] Documents cross-jurisdiction query execution model
 - [ ] Documents trust chain for multi-relay federation
-- [ ] References existing ADRs where relevant
 - [ ] A new P0 assigned before session end
 
-## Pre-deploy: VOUCHER_HMAC_SECRET
+## Backlog Items (not P0, but noted for context)
 
-Before deploying the token purchase flow, generate a shared secret and add it to Modal:
+These were identified during the ingestion audit:
+- **Municipal code** expansion: only 6/24 jurisdictions have it
+- **Transcript backfill**: 10 jurisdictions at 0% coverage, free captions mode available (`--transcript-mode captions`)
+- **Budget data**: San Rafael only
+- **Diligent platform**: 2 school districts (school-ross-valley, school-marin-county-oe) — no extraction client
 
-```bash
-# Generate a random secret
-python3 -c "import secrets; print(secrets.token_hex(32))"
+## Pre-existing Test Failures
 
-# Add to Modal secrets (same value for both services)
-modal secret create civicos-secrets VOUCHER_HMAC_SECRET=<generated_hex> --force
-```
+**CI is green.** All smoke, unit (4 groups), and integration (5 groups) pass.
 
-Both the services API and relay read this secret. Without it:
-- Services API: returns `voucher: null` in status response (warning logged)
-- Relay: allows ungated token issuance (current dev behavior)
-
-The gate is only enforced when the secret is set on **both** services.
-
-Also needed (if not already set): `STRIPE_PRICE_TOKENS` (Stripe price ID for the token bundle product).
-
-All new env vars are documented in `docs/internal/deployment.md`.
-
-## Remaining Launch Items After This
+## Remaining Launch Items
 
 | Priority | Item | Category |
 |----------|------|----------|
+| P0 | `federation_adr` | federation_testbed |
 | P3 | `operator_relay_dockerfile` | operator_readiness |
 | P3 | `direct_city_submission` | federation_testbed |
-
-## Pre-existing test failures (NOT regressions)
-
-- `test_coordination_tools.py`: 5 failures (broadcast_voice schema drift, registry count drift)
-- `test_initiative_tools.py::test_connection_error_handled`: relay is reachable, premise broken
-
-These are separate cleanup items — 6 pre-existing failures total, stable across sessions.
-
-## Open PRs
-
-None.
+| P3 (deferred) | `billing_endpoint_deployment` | billing_payments |
+| P3 (deferred) | `stripe_key_delivery_automation` | billing_payments |
+| P3 (deferred) | `stripe_secrets_deployment` | billing_payments |
