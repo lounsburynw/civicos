@@ -349,7 +349,7 @@ class TestCLIFlow:
         tmp_path, jid = temp_project
         modal_calls = []
 
-        def track_modal(jid, days_past, dry_run=False, stages="all", detach=False):
+        def track_modal(jid, days_past, dry_run=False, stages="all", detach=False, transcript_mode=""):
             modal_calls.append({"jid": jid, "days": days_past})
             return 0
 
@@ -377,7 +377,7 @@ class TestCLIFlow:
         tmp_path, jid = temp_project
 
         # Sample ingestion succeeds but returns bad data
-        def mock_modal(jid, days_past, dry_run=False, stages="all", detach=False):
+        def mock_modal(jid, days_past, dry_run=False, stages="all", detach=False, transcript_mode=""):
             return 0
 
         with patch.object(onboard, "PROJECT_ROOT", tmp_path), \
@@ -401,7 +401,7 @@ class TestCLIFlow:
 
         modal_calls = []
 
-        def track_modal(jid, days_past, dry_run=False, stages="all", detach=False):
+        def track_modal(jid, days_past, dry_run=False, stages="all", detach=False, transcript_mode=""):
             modal_calls.append(days_past)
             return 0
 
@@ -474,7 +474,7 @@ class TestCLIFlow:
 
         modal_calls = []
 
-        def track_modal(jid, days_past, dry_run=False, stages="all", detach=False):
+        def track_modal(jid, days_past, dry_run=False, stages="all", detach=False, transcript_mode=""):
             modal_calls.append(days_past)
             return 0
 
@@ -526,7 +526,7 @@ class TestCLIFlow:
 
         modal_calls = []
 
-        def track_modal(jid, days_past, dry_run=False, stages="all", detach=False):
+        def track_modal(jid, days_past, dry_run=False, stages="all", detach=False, transcript_mode=""):
             modal_calls.append(days_past)
             return 0
 
@@ -1027,7 +1027,7 @@ class TestConfigurableDefaults:
 
         modal_calls = []
 
-        def track_modal(jid, days_past, dry_run=False, stages="all", detach=False):
+        def track_modal(jid, days_past, dry_run=False, stages="all", detach=False, transcript_mode=""):
             modal_calls.append(days_past)
             return 0
 
@@ -1061,7 +1061,7 @@ class TestConfigurableDefaults:
 
         modal_calls = []
 
-        def track_modal(jid, days_past, dry_run=False, stages="all", detach=False):
+        def track_modal(jid, days_past, dry_run=False, stages="all", detach=False, transcript_mode=""):
             modal_calls.append(days_past)
             return 0
 
@@ -1094,7 +1094,7 @@ class TestConfigurableDefaults:
 
         modal_calls = []
 
-        def track_modal(jid, days_past, dry_run=False, stages="all", detach=False):
+        def track_modal(jid, days_past, dry_run=False, stages="all", detach=False, transcript_mode=""):
             modal_calls.append(days_past)
             return 0
 
@@ -1184,7 +1184,7 @@ class TestCostEstimatePrompt:
 
         modal_calls = []
 
-        def track_modal(jid, days_past, dry_run=False, stages="all", detach=False):
+        def track_modal(jid, days_past, dry_run=False, stages="all", detach=False, transcript_mode=""):
             modal_calls.append(days_past)
             return 0
 

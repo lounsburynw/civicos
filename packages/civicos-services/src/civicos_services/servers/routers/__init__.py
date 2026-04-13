@@ -17,7 +17,11 @@ from .conversations import router as conversations_router
 from .drafts import router as drafts_router
 # Coordination router lives in civicos_relay package (canonical location).
 # Re-exported here for backward compatibility with local dev server (api.py).
-from civicos_relay.server.coordination import router as coordination_router
+# Import is conditional — civicos_relay may not be installed in CI/test environments.
+try:
+    from civicos_relay.server.coordination import router as coordination_router
+except ImportError:
+    coordination_router = None  # type: ignore[assignment]
 from .nostr import router as nostr_router
 from .registry import router as registry_router
 from .context import router as context_router

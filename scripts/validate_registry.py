@@ -50,7 +50,7 @@ LEVEL_PREFIXES = _rules["level_prefixes"]
 VALID_SOURCE_TYPES = set(_rules["source_types"])
 
 # Jurisdiction ID pattern: prefix-slug (lowercase alphanumeric + hyphens)
-JURISDICTION_ID_RE = re.compile(r"^(city|county|state|country|school|college|board|bart)-[a-z0-9]+(-[a-z0-9]+)*$")
+JURISDICTION_ID_RE = re.compile(r"^(city|county|state|country|school|college|board|bart|region)-[a-z0-9]+(-[a-z0-9]+)*$")
 
 # Registry entry required fields
 REGISTRY_REQUIRED_FIELDS = {"domain", "display_name", "modal_app_name", "parent_jurisdictions"}
