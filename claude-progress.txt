@@ -27023,3 +27023,27 @@ This connects the existing Stripe billing infrastructure to the blind signing to
 ### launch.json
 - token_purchase_ui: done (was P0)
 - federation_adr: promoted to P0 (was P3)
+
+### Hardening & Voucher Gate (same session continuation)
+
+After initial commit, ran 3 rounds of critics. Fixed all findings:
+
+**Round 1 (14 issues):** commit 8c6b8aa9
+- Security: module-level stripe import, Stripe-backed claim tracking (replaced in-memory set), claim_secret auth (SHA-256 hash in metadata, X-Claim-Secret header), specific exception types, _get_session_attr helper
+- Configuration: env var URLs (CIVICOS_TOKEN_SUCCESS_URL, CIVICOS_TOKEN_CANCEL_URL)
+- Session: rewrote handoff for federation_adr P0
+- Mutation: return value assertions on all tests
+- Docs: fixed broken path in handoff
+
+**Round 2 (2 issues):** fixed mark_claimed test assertions + broken path in handoff
+
+**Round 3 — Voucher Gate (5 issues + fundamental design fix):** commits 4ef6ec46, e6bf958e
+- Identified that ungated token issuance made payment meaningless
+- Implemented HMAC-SHA256 voucher system: services API generates voucher on payment, relay verifies before issuing tokens
+- New files: voucher.py (services + relay), test_voucher.py, test_voucher_verify.py
+- Gated /coordination/tokens/session behind Authorization: Bearer <voucher> when VOUCHER_HMAC_SECRET set
+- Backward compatible: ungated when env var not set
+- Security critic fixes: module-level imports, generic error messages, documented tracker design
+- Documented VOUCHER_HMAC_SECRET in deployment.md
+
+**Final test counts:** 61 tests (44 services + 17 relay), extension builds clean, all 11 critics pass
