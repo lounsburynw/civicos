@@ -905,3 +905,347 @@ class TestStubMethods:
         result = backend.store_transcripts("city-test", [{"id": "t-1"}])
         assert result == 0
 
+
+class TestStoreElections:
+    """Tests for store_elections + get_elections."""
+
+    @pytest.fixture
+    def sample_elections(self):
+        return [
+            {
+                "id": "election-2026-general",
+                "name": "2026 General Election",
+                "election_date": "2026-11-03",
+                "election_type": "general",
+                "source": "registrar",
+            },
+            {
+                "id": "election-2026-primary",
+                "name": "2026 Primary Election",
+                "election_date": "2026-06-02",
+                "election_type": "primary",
+                "source": "registrar",
+            },
+        ]
+
+    def test_store_returns_count(self, backend, sample_elections):
+        count = backend.store_elections("city-test", sample_elections)
+        assert count == 2
+
+    def test_store_and_retrieve(self, backend, sample_elections):
+        backend.store_elections("city-test", sample_elections)
+        results = backend.get_elections("city-test", include_past=True)
+        assert len(results) == 2
+
+    def test_election_fields_preserved(self, backend, sample_elections):
+        backend.store_elections("city-test", sample_elections)
+        results = backend.get_elections("city-test", include_past=True)
+        general = next(e for e in results if e["election_type"] == "general")
+        assert general["name"] == "2026 General Election"
+        assert general["election_date"] == "2026-11-03"
+        assert general["source"] == "registrar"
+
+    def test_filter_by_election_type(self, backend, sample_elections):
+        backend.store_elections("city-test", sample_elections)
+        primaries = backend.get_elections("city-test", election_type="primary", include_past=True)
+        assert len(primaries) == 1
+        assert primaries[0]["election_type"] == "primary"
+
+    def test_jurisdiction_isolation(self, backend, sample_elections):
+        backend.store_elections("city-a", sample_elections)
+        backend.store_elections("city-b", [sample_elections[0]])
+        assert len(backend.get_elections("city-a", include_past=True)) == 2
+        assert len(backend.get_elections("city-b", include_past=True)) == 1
+
+    def test_empty_list(self, backend):
+        count = backend.store_elections("city-test", [])
+        assert count == 0
+
+
+class TestStoreElectionContests:
+    """Tests for store_election_contests."""
+
+    def test_store_returns_count(self, backend):
+        backend.store_elections("city-test", [{
+            "id": "election-2026",
+            "name": "2026 General",
+            "election_date": "2026-11-03",
+            "election_type": "general",
+        }])
+        contests = [
+            {
+                "id": "contest-house-2",
+                "office_type": "us_house",
+                "contest_type": "federal_house",
+                "title": "US House District 2",
+                "district": 2,
+            },
+            {
+                "id": "contest-governor",
+                "office_type": "state_governor",
+                "contest_type": "state_governor",
+                "title": "Governor",
+            },
+        ]
+        count = backend.store_election_contests("election-2026", contests)
+        assert count == 2
+
+
+class TestStoreElectedOfficials:
+    """Tests for store_elected_officials + get_elected_officials + get_official_by_name."""
+
+    @pytest.fixture
+    def sample_officials(self):
+        return [
+            {
+                "id": "official-001",
+                "name": "Kate Colin",
+                "seat": "Mayor",
+                "term_start": "2023-01-01",
+                "term_end": "2026-12-31",
+                "name_variations": '["Kate Colin", "K. Colin"]',
+            },
+            {
+                "id": "official-002",
+                "name": "Maribeth Bushey",
+                "seat": "Council Member",
+                "term_start": "2023-01-01",
+                "term_end": "2026-12-31",
+            },
+        ]
+
+    def test_store_returns_count(self, backend, sample_officials):
+        count = backend.store_elected_officials("city-test", sample_officials)
+        assert count == 2
+
+    def test_store_and_retrieve(self, backend, sample_officials):
+        backend.store_elected_officials("city-test", sample_officials)
+        results = backend.get_elected_officials("city-test", current_only=False)
+        assert len(results) == 2
+
+    def test_official_fields_preserved(self, backend, sample_officials):
+        backend.store_elected_officials("city-test", sample_officials)
+        results = backend.get_elected_officials("city-test", current_only=False)
+        mayor = next(o for o in results if o["seat"] == "Mayor")
+        assert mayor["name"] == "Kate Colin"
+        assert mayor["term_start"] == "2023-01-01"
+
+    def test_get_official_by_name(self, backend, sample_officials):
+        backend.store_elected_officials("city-test", sample_officials)
+        result = backend.get_official_by_name("city-test", "Kate Colin")
+        assert result is not None
+        assert result["seat"] == "Mayor"
+
+    def test_get_official_by_name_not_found(self, backend, sample_officials):
+        backend.store_elected_officials("city-test", sample_officials)
+        result = backend.get_official_by_name("city-test", "Nonexistent Person")
+        assert result is None
+
+    def test_jurisdiction_isolation(self, backend, sample_officials):
+        backend.store_elected_officials("city-a", sample_officials)
+        # current_only=True filters by term_end IS NULL, so use current_only=False
+        assert len(backend.get_elected_officials("city-a", current_only=False)) == 2
+        assert len(backend.get_elected_officials("city-b", current_only=False)) == 0
+
+    def test_current_only_filters_by_term_end(self, backend):
+        officials = [
+            {"id": "o-current", "name": "Current Official", "seat": "Mayor", "term_start": "2023-01-01"},
+            {"id": "o-past", "name": "Past Official", "seat": "Mayor", "term_start": "2020-01-01", "term_end": "2024-12-31"},
+        ]
+        backend.store_elected_officials("city-test", officials)
+        current = backend.get_elected_officials("city-test", current_only=True)
+        all_officials = backend.get_elected_officials("city-test", current_only=False)
+        assert len(current) == 1
+        assert current[0]["name"] == "Current Official"
+        assert len(all_officials) == 2
+
+
+class TestStoreFederalAwards:
+    """Tests for store_federal_awards + get_federal_awards."""
+
+    @pytest.fixture
+    def sample_awards(self):
+        return [
+            {
+                "award_id": "award-001",
+                "cfda_number": "14.218",
+                "recipient_name": "City of San Rafael",
+                "recipient_uei": "UEI123",
+                "amount_cents": 500_000_00,
+                "period_start": "2025-07-01",
+                "period_end": "2026-06-30",
+                "program_name": "CDBG",
+                "awarding_agency": "HUD",
+                "funding_agency": "HUD",
+                "award_type": "grant",
+            },
+            {
+                "award_id": "award-002",
+                "cfda_number": "20.205",
+                "recipient_name": "City of San Rafael",
+                "amount_cents": 200_000_00,
+                "period_start": "2025-10-01",
+                "period_end": "2026-09-30",
+                "program_name": "Highway Planning",
+                "awarding_agency": "DOT",
+                "award_type": "grant",
+            },
+        ]
+
+    def test_store_returns_count(self, backend, sample_awards):
+        count = backend.store_federal_awards("city-test", sample_awards)
+        assert count == 2
+
+    def test_store_and_retrieve(self, backend, sample_awards):
+        backend.store_federal_awards("city-test", sample_awards)
+        results = backend.get_federal_awards("city-test")
+        assert len(results) == 2
+
+    def test_award_fields_preserved(self, backend, sample_awards):
+        backend.store_federal_awards("city-test", sample_awards)
+        results = backend.get_federal_awards("city-test")
+        cdbg = next(a for a in results if a["cfda_number"] == "14.218")
+        assert cdbg["program_name"] == "CDBG"
+        assert cdbg["amount_cents"] == 500_000_00
+        assert cdbg["awarding_agency"] == "HUD"
+
+    def test_filter_by_cfda_number(self, backend, sample_awards):
+        backend.store_federal_awards("city-test", sample_awards)
+        results = backend.get_federal_awards("city-test", cfda_number="14.218")
+        assert len(results) == 1
+        assert results[0]["program_name"] == "CDBG"
+
+    def test_jurisdiction_isolation(self, backend, sample_awards):
+        backend.store_federal_awards("city-a", sample_awards)
+        assert len(backend.get_federal_awards("city-a")) == 2
+        assert len(backend.get_federal_awards("city-b")) == 0
+
+    def test_empty_list(self, backend):
+        count = backend.store_federal_awards("city-test", [])
+        assert count == 0
+
+
+class TestStoreBudgetFundingLinks:
+    """Tests for store_budget_funding_links + get_budget_funding_links."""
+
+    @pytest.fixture
+    def sample_links(self):
+        return [
+            {
+                "link_id": "link-001",
+                "budget_item_id": "budget-housing",
+                "federal_cfda_number": "14.218",
+                "fiscal_year": "FY2026",
+                "match_type": "confirmed",
+                "confidence": 0.95,
+                "budget_amount_cents": 500_000_00,
+                "federal_amount_cents": 450_000_00,
+            },
+            {
+                "link_id": "link-002",
+                "budget_item_id": "budget-transport",
+                "federal_cfda_number": "20.205",
+                "fiscal_year": "FY2026",
+                "match_type": "inferred",
+                "confidence": 0.7,
+            },
+        ]
+
+    def test_store_returns_count(self, backend, sample_links):
+        count = backend.store_budget_funding_links("city-test", sample_links)
+        assert count == 2
+
+    def test_store_and_retrieve(self, backend, sample_links):
+        backend.store_budget_funding_links("city-test", sample_links)
+        results = backend.get_budget_funding_links("city-test")
+        assert len(results) == 2
+
+    def test_link_fields_preserved(self, backend, sample_links):
+        backend.store_budget_funding_links("city-test", sample_links)
+        results = backend.get_budget_funding_links("city-test")
+        confirmed = next(l for l in results if l.get("match_type") == "confirmed")
+        assert confirmed["federal_cfda_number"] == "14.218"
+        assert confirmed["budget_item_id"] == "budget-housing"
+        assert confirmed["link_id"] == "link-001"
+
+    def test_filter_by_cfda(self, backend, sample_links):
+        backend.store_budget_funding_links("city-test", sample_links)
+        results = backend.get_budget_funding_links("city-test", federal_cfda_number="14.218")
+        assert len(results) == 1
+
+    def test_filter_confirmed_only(self, backend, sample_links):
+        backend.store_budget_funding_links("city-test", sample_links)
+        results = backend.get_budget_funding_links("city-test", confirmed_only=True)
+        assert all(r.get("match_type") == "confirmed" for r in results)
+
+
+class TestStoreStatePassthroughFunds:
+    """Tests for store_state_passthrough_funds + get_state_passthrough_funds."""
+
+    @pytest.fixture
+    def sample_passthroughs(self):
+        return [
+            {
+                "passthrough_id": "pt-001",
+                "state_agency": "Caltrans",
+                "federal_cfda_number": "20.205",
+                "federal_award_id": "award-002",
+                "amount_cents": 150_000_00,
+                "federal_fiscal_year": 2026,
+                "program_name": "Highway Planning (State Pass-Through)",
+            },
+        ]
+
+    def test_store_returns_count(self, backend, sample_passthroughs):
+        count = backend.store_state_passthrough_funds("city-test", sample_passthroughs)
+        assert count == 1
+
+    def test_store_and_retrieve(self, backend, sample_passthroughs):
+        backend.store_state_passthrough_funds("city-test", sample_passthroughs)
+        results = backend.get_state_passthrough_funds("city-test")
+        assert len(results) == 1
+
+    def test_fields_preserved(self, backend, sample_passthroughs):
+        backend.store_state_passthrough_funds("city-test", sample_passthroughs)
+        results = backend.get_state_passthrough_funds("city-test")
+        assert results[0]["state_agency"] == "Caltrans"
+        assert results[0]["federal_cfda_number"] == "20.205"
+        assert results[0]["passthrough_id"] == "pt-001"
+
+    def test_filter_by_state_agency(self, backend, sample_passthroughs):
+        backend.store_state_passthrough_funds("city-test", sample_passthroughs)
+        results = backend.get_state_passthrough_funds("city-test", state_agency="Caltrans")
+        assert len(results) == 1
+        results = backend.get_state_passthrough_funds("city-test", state_agency="Nonexistent")
+        assert len(results) == 0
+
+
+class TestUpdateMeeting:
+    """Tests for update_meeting."""
+
+    def test_update_returns_true(self, backend, sample_meetings):
+        backend.store_meetings("city-test", sample_meetings)
+        result = backend.update_meeting("city-test", "mtg-001", {"status": "completed"})
+        assert result is True
+
+    def test_update_changes_field(self, backend, sample_meetings):
+        backend.store_meetings("city-test", sample_meetings)
+        backend.update_meeting("city-test", "mtg-001", {"status": "completed"})
+        meetings = backend.get_meetings("city-test")
+        updated = next(m for m in meetings if m["id"] == "mtg-001")
+        assert updated["status"] == "completed"
+
+    def test_update_nonexistent_returns_false(self, backend, sample_meetings):
+        # Store something first to ensure schema exists
+        backend.store_meetings("city-test", sample_meetings)
+        result = backend.update_meeting("city-test", "nonexistent-id", {"status": "x"})
+        assert result is False
+
+    def test_update_preserves_other_fields(self, backend, sample_meetings):
+        backend.store_meetings("city-test", sample_meetings)
+        backend.update_meeting("city-test", "mtg-001", {"status": "completed"})
+        meetings = backend.get_meetings("city-test")
+        updated = next(m for m in meetings if m["id"] == "mtg-001")
+        assert updated["title"] == "City Council Meeting"  # Unchanged
+        assert updated["status"] == "completed"  # Changed
+
