@@ -126,7 +126,8 @@ def create_app() -> FastAPI:
     app.include_router(legislative_router, prefix="/api", tags=["Legislative"])
     app.include_router(conversations_router, prefix="/api", tags=["Conversations"])
     app.include_router(drafts_router, prefix="/api", tags=["Drafts"])
-    app.include_router(coordination_router, prefix="/api", tags=["Coordination"])
+    if coordination_router is not None:
+        app.include_router(coordination_router, prefix="/api", tags=["Coordination"])
     app.include_router(registry_router, prefix="/api", tags=["Registry"])
     app.include_router(context_router, prefix="/api", tags=["Context"])
     app.include_router(ai_proxy_router, prefix="/api", tags=["AI Proxy"])

@@ -164,37 +164,29 @@ class StateManager:
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_agenda_items_temporal ON agenda_items(valid_from, valid_to)")
 
         # Issues table (SeeClickFix complaints)
+        # Schema must match SQLiteBackend's issues table — both share the same db file
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS issues (
-                id TEXT PRIMARY KEY,
+                id TEXT NOT NULL,
                 jurisdiction_id TEXT NOT NULL,
-                source TEXT NOT NULL,  -- seeclickfix, native
-                source_id TEXT,
+                provider TEXT NOT NULL,
+                external_id TEXT NOT NULL,
                 title TEXT NOT NULL,
                 description TEXT,
                 issue_type TEXT,
+                status TEXT DEFAULT 'open',
                 address TEXT,
                 latitude REAL,
                 longitude REAL,
-                status TEXT DEFAULT 'open',
-                closed_reason TEXT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-
-                -- Matching to agenda items
-                matched_meetings TEXT,  -- JSON array
-                matched_agenda_items TEXT,  -- JSON array
-                match_score REAL,
-                match_reason TEXT,
-
-                -- Community metrics
-                follower_count INTEGER DEFAULT 0,
-                coordination_thread_id TEXT,
-
-                -- Temporal versioning
+                closed_at TIMESTAMP,
+                reporter_name TEXT,
+                images TEXT,
+                stored_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 valid_from TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 valid_to TIMESTAMP,
-
+                PRIMARY KEY (id, valid_from),
                 FOREIGN KEY (jurisdiction_id) REFERENCES city_states(jurisdiction_id)
             )
         """)
@@ -690,7 +682,7 @@ class StateManager:
             try:
                 cursor.execute("""
                     INSERT OR REPLACE INTO issues (
-                        id, jurisdiction_id, source, source_id, title,
+                        id, jurisdiction_id, provider, external_id, title,
                         description, issue_type, address, latitude, longitude,
                         status, created_at, valid_from
                     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
