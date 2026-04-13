@@ -99,6 +99,11 @@ class VoucherTracker:
         """Attempt to claim one token from a session's allowance.
 
         On first call for a session_id, initializes the counter to token_count.
+        Subsequent calls with a different token_count are ignored — the first
+        call's count is authoritative. This is intentional: the voucher's
+        token_count is signed by the services API and cannot be tampered with,
+        so the first call always carries the correct value.
+
         Returns True if a token can be issued, False if the allowance is exhausted.
         """
         if session_id not in self._remaining:
