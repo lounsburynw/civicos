@@ -299,7 +299,7 @@
       {
         "name": "consolidated_onboard_command",
         "description": "Single modal run --onboard command that runs full pipeline per jurisdiction: discover videos, show cost estimate, fetch meetings/issues/code, download audio (Tier 1 window), transcribe (with cost cap), extract decisions, index vectors. Replaces fragmented --batch-audio + --batch-transcribe-flag + per-corpus commands.",
-        "priority": 0,
+        "priority": 1,
         "status": "done",
         "test_file": "packages/civicos/tests/test_civicos.py",
         "depends_on": []
@@ -697,7 +697,7 @@
         "name": "token_purchase_ui",
         "description": "Token purchase flow in extension: Stripe checkout -> blinded tokens, and (future) Lightning -> blinded tokens.",
         "status": "done",
-        "priority": 0,
+        "priority": 1,
         "source": "docs/internal/relay-acceptance-policy-spec.md (Phase 4)",
         "files": [
           "apps/civicos-extension/src/"
@@ -896,7 +896,7 @@
         "name": "operator_relay_dockerfile",
         "description": "Dockerfile for self-hosted relay deployment. Operator guide currently documents uvicorn command only.",
         "status": "not_started",
-        "priority": 3,
+        "priority": 0,
         "files": [],
         "test_file": null
       },
@@ -1228,8 +1228,8 @@
       {
         "name": "federation_adr",
         "description": "Write Architecture Decision Record documenting federation boundaries: which protocols change, which stay, execution model for cross-jurisdiction queries, and trust chain design.",
-        "status": "not_started",
-        "priority": 0,
+        "status": "done",
+        "priority": 1,
         "phase": "B",
         "source": "architectural review \u2014 documentation",
         "files": [
@@ -1364,7 +1364,7 @@
         "name": "upcoming_verb_ignores_jurisdiction",
         "description": "execute_upcoming() at packages/civicos-services/src/civicos_services/query/verbs.py line ~640 calls civic.whats_next(days=...) which uses civic.jurisdiction (the CivicOS instance attribute set at construction) rather than the explicit jurisdiction parameter passed into the verb. Same pattern repeats for the hearings and comment_periods event types in the same function. Effect: cross-jurisdiction fan-out routes upcoming queries to the wrong jurisdiction whenever a single CivicOS instance is reused across multiple jurisdiction calls. Discovered during mass-ingest validation pass on 2026-04-07: a shared-instance validation script returned san-rafael's upcoming events for tiburon, county-marin, county-alameda, and city-belvedere queries (all reported the same 'Bicycle & Pedestrian Advisory Committee' top result).",
         "status": "done",
-        "priority": 0,
+        "priority": 1,
         "source": "validate_mass_ingest_jurisdictions 2026-04-07",
         "files": [
           "packages/civicos-services/src/civicos_services/query/verbs.py"
@@ -1376,7 +1376,7 @@
         "name": "decisions_adapter_crashes_on_empty_vectors",
         "description": "DecisionsAdapter.search() at packages/civicos-services/src/civicos_services/query/adapters.py:57 calls civicos.history.search_decisions(state_manager=None, ...). When the explicit vector_backend returns no results AND _jurisdiction_has_embeddings(jurisdiction) is True for some other corpus but the per-corpus auto-detect ALSO returns empty for decisions, search_decisions falls through to line 1207 (`city_state = state_manager.get_city_state(jurisdiction)`) and crashes with `AttributeError: 'NoneType' object has no attribute 'get_city_state'`. The verbs layer catches it per-corpus and emits a `Corpus decisions error` log line at WARN, but does NOT propagate the error to the response \u2014 the user just sees fewer results with no indication anything failed. Reproduced on city-tiburon (no vectors at all) and county-marin (105 decisions but 0 decision vectors) during the mass-ingest validation pass. Re-confirmed firing twice on 2026-04-07 evening validation run AFTER tiburon ingest \u2014 the bug is still active even with tiburon now having 8 decisions, so the trigger is some empty-vector path other than tiburon.",
         "status": "done",
-        "priority": 0,
+        "priority": 1,
         "source": "validate_mass_ingest_jurisdictions 2026-04-07",
         "files": [
           "packages/civicos-services/src/civicos_services/query/adapters.py",
@@ -1403,7 +1403,7 @@
         "name": "complete_alameda_ingest_or_scope",
         "description": "county-alameda has 264 meetings and ~709 decisions (post-dedup-cleanup) but zero transcripts, chunks, issues, agenda_items, municipal_code, and elected_officials. Users can search for an Alameda decision but can't drill down to the meeting transcript, agenda packet, or officials who voted. It's metadata floating without context. Either complete the full ingest (transcripts, chunks, issues, officials) to match Marin cities, or explicitly scope down by disabling drill-down UI for alameda and labeling it 'decisions preview' in the extension.",
         "status": "done",
-        "priority": 0,
+        "priority": 1,
         "source": "mass ingest data-status audit 2026-04-07",
         "files": [
           "data/extraction/county-alameda.json",
@@ -1416,7 +1416,7 @@
         "name": "index_county_marin_decision_vectors",
         "description": "county-marin has 105 decisions in the storage table but 0 decision vectors indexed. Semantic search on county-marin decisions returns nothing, which is bad because county-marin is the heaviest-content jurisdiction in the mass-ingest scope (49,505 chunks, 2,976 muni_code entries). Fix: run vector indexing for decisions corpus on county-marin via modal run scripts/modal_ingest.py.",
         "status": "done",
-        "priority": 0,
+        "priority": 1,
         "source": "mass ingest data-status audit 2026-04-07",
         "files": [
           "scripts/modal_ingest.py"
@@ -1426,10 +1426,10 @@
       },
       {
         "name": "implement_captions_transcription_mode",
-        "_p0_note": "Promoted P1 → P0 on 2026-04-11 after regional_server_deployment completed.",
+        "_p0_note": "Promoted P1 \u2192 P0 on 2026-04-11 after regional_server_deployment completed.",
         "description": "Implement free YouTube auto-captions as an alternative transcription path to AssemblyAI. Currently onboard.py has TRANSCRIPT_CAPTIONS as a cost-estimate category and --captions-only flag, but extract_transcripts in modal_ingest.py only calls AssemblyAI \u2014 captions mode is unimplemented. Adding it enables filling transcript gaps across all jurisdictions at ~$0 instead of ~$570-820 at AssemblyAI rates. Implementation: (1) add caption extraction via youtube-transcript-api or yt-dlp --write-auto-subs, (2) convert VTT/SRT to transcript JSON schema, (3) branch in extract_transcripts when transcript_mode=captions, (4) tag processing_service='youtube_captions' for provenance. Tradeoffs: no speaker diarization, lower accuracy on crosstalk/noise, no word-level timestamps, dependent on YouTube auto-generation quality. Good for breadth coverage where AssemblyAI is prohibitive; AssemblyAI remains the choice for flagship cities and deep semantic search.",
         "status": "done",
-        "priority": 0,
+        "priority": 1,
         "source": "Transcript gap analysis 2026-04-10 \u2014 452 AssemblyAI transcripts exist, ~227 meetings still need coverage since Jan 2026, captions mode unblocks cheap breadth",
         "files": [
           "scripts/modal_ingest.py",

@@ -1,3 +1,27 @@
+## Session — 2026-04-12: Federation Boundaries ADR
+
+**Item:** federation_adr (P0, federation_testbed)
+**Status:** DONE
+
+### Completed
+- Wrote `docs/public/decisions/federation_boundaries.md` — comprehensive ADR covering:
+  - Protocol boundaries (what every operator must share vs. configure independently)
+  - Data boundaries (authoritative civic data vs. peer-to-peer coordination data vs. local subscriptions)
+  - Trust boundaries (per-operator issuer registries, attestation rollup, token issuance)
+  - Cross-jurisdiction query execution model (scope walking, fan-out, failure modes)
+  - Concrete steps for first third-party operator to join federation
+- Verified ingestion cron status: simbli school districts still skipping (contradictory warning — says "not supported" but lists simbli in supported types), issues refresh still "No issues source configured" for all cities. Fixes from prior session not yet picked up by cron.
+
+### Launch Checklist Status
+- 155/160 done, 2 not started (P3), 3 deferred (P3 billing)
+- Next P0: `operator_relay_dockerfile` (operator_readiness)
+
+### Observations
+- Simbli cron warning is likely a bug worth investigating: log says `source_type 'simbli' not supported` but then lists simbli in the supported types. May be a case sensitivity or config format issue.
+- city-sausalito and school-san-rafael not in the 31 configured jurisdictions list despite extraction configs being added.
+
+---
+
 ## Session — 2026-04-11: Ship regional_server_deployment (step 5 of 5)
 
 **Item:** regional_server_deployment (P0, distribution)
