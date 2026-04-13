@@ -7252,7 +7252,7 @@ def scheduled_high_velocity_refresh():
             elif src_type == "universal":
                 from civicos_extraction.clients.universal import UniversalSource
                 client = UniversalSource(ext_config)
-            elif src_type in ("legistar", "civicclerk", "escribe"):
+            elif src_type in ("legistar", "civicclerk", "escribe", "simbli", "playwright_llm"):
                 from civicos_extraction.clients.factory import create_source
                 client = create_source(ext_config)
             elif src_type == "boarddocs":
