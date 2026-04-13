@@ -24,7 +24,7 @@ data_sources:
     base_url: https://townoffairfaxca.gov
     archives:
       meetings: _wp_api
-  issues: null
+  issues: seeclickfix
   budget: null
   municipal_code: null
   transcripts:

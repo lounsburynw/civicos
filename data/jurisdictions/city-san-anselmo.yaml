@@ -1,129 +1,100 @@
-# San Anselmo Town Configuration
-#
-# Unified configuration for Town of San Anselmo, California.
-# Second federation test jurisdiction (same county as San Rafael and Mill Valley).
-
-# =============================================================================
-# Identity
-# =============================================================================
-
 jurisdiction_id: city-san-anselmo
-level: town
+level: city
 display_name: San Anselmo
-
-# =============================================================================
-# Hierarchy
-# =============================================================================
-
 parent_jurisdictions:
-  - county-marin
-  - state-california
-  - country-united-states
-
-# =============================================================================
-# Contact Information
-# =============================================================================
-
+- county-marin
+- state-california
+- country-united-states
 contact_info:
-  clerk_email: townclerk@townofsananselmo.org
-  city_hall_address: "525 San Anselmo Avenue, San Anselmo CA 94960"
-  phone: "(415) 258-4600"
-  website: "https://www.townofsananselmo.org"
-  public_comment_deadline: null
-  in_person_time_limit: null
-  public_comment_subject: null
-
-# =============================================================================
-# Governing Body
-# =============================================================================
-
+  clerk_email: null
+  website: https://webapi.legistar.com/v1/sananselmo-ca
+  city_hall_address: null
+  phone: null
+  public_comment_deadline: 5:00 PM day of meeting
+  in_person_time_limit: 3 minutes
+  public_comment_subject: Public Comment - [Agenda Item Title]
 governing_body:
-  name: San Anselmo Town Council
+  name: San Anselmo City Council
   members_title: Mayor and Council Members
-  meeting_schedule: "Second and fourth Tuesday, 7:00 PM"
-  meeting_location: "Council Chambers, 525 San Anselmo Avenue"
-
-# =============================================================================
-# Data Sources
-# =============================================================================
-
+  meeting_schedule: null
+  meeting_location: null
 data_sources:
-  # Meeting extraction (Granicus platform)
   meetings:
-    source_type: granicus
-    base_url: https://sananselmo-ca.granicus.com
+    source_type: legistar
+    base_url: https://webapi.legistar.com/v1/sananselmo-ca
     archives:
-      all_bodies: "8"
+      town_council: '138'
+      planning_commission: '139'
+      test: '184'
+      economic_development_committee: '185'
+      parks_and_recreation_commission: '187'
+      open_space_committee: '188'
+      financial_advisory_committee: '189'
+      capital_programs_monitoring_committee: '190'
+      tax_equity_board: '191'
+      arts_commission: '192'
+      flood_committee: '193'
+      climate_action_committee: '194'
+      library_parcel_tax_oversight_committee: '195'
+      library_advisory_board: '196'
+      historical_commission: '197'
+      racial_equity_committee: '198'
+      bicycle_and_pedestrian_advisory_committee: '199'
+      housing_element_advisory_committee: '200'
+      reimagine_creek_park_community_advisory_committee: '201'
+      robson_harrington_community_steering_committee: '205'
+      infrastructure_and_fiscal_monitoring_committee: '207'
     metadata:
-      granicus_domain: sananselmo-ca
-      default_view_id: "8"
-      notes: "View 8 is main publisher with all bodies. Also has Legistar API (21 bodies)."
-
-  # Issue tracking
-  issues: null
-
-  # Municipal code
+      client_name: sananselmo-ca
+      body_count: 21
+  issues: seeclickfix
+  budget: null
   municipal_code: null
-
-# =============================================================================
-# Financial Context
-# =============================================================================
-
+  transcripts:
+    source: youtube
+    playlist_id: null
+    channel_id: UCaQDlHi5fD6sByZUw5FOg9A
+    channel_title: City of San Rafael
 financial:
   state: CA
   county: Marin
-
-federal_programs:
-  hud_grantee: Marin County
-  hud_relationship: consortium
-  notes: "San Anselmo receives HUD funds via Marin County Urban County Program"
-
-# =============================================================================
-# Geography
-# =============================================================================
-
 zip_codes:
-  - "94960"
-
-neighborhoods:
-  - Downtown San Anselmo
-  - Sleepy Hollow
-  - San Anselmo Hub
-  - Red Hill
-  - Brookside
-
-# =============================================================================
-# Ingestion Tiers
-# =============================================================================
-
+- '94960'
 ingestion:
-  # Tier 1: Free
   meetings: true
   pdf_chunks: true
-  issues: false
-  municipal_code: false
-  # Tier 2: Low cost (LLM)
+  issues: true
+  municipal_code: true
   agenda_items: true
   decisions: true
   legislation: true
-  # Tier 3: Higher cost (audio)
   transcription: false
   diarization: false
-  # Tier 4: GPU
   vector_indexing: true
-
-# =============================================================================
-# Tool Configuration
-# =============================================================================
-
+refresh:
+  meetings:
+    interval: 1d
+    strategy: incremental
+  issues:
+    interval: 1d
+    strategy: incremental
+  municipal_code:
+    interval: 90d
+    strategy: content_hash
+  legislation:
+    interval: 7d
+    strategy: incremental
 tools_enabled: null
 tool_overrides: {}
-
-# =============================================================================
-# Metadata
-# =============================================================================
-
+modal:
+  min_containers: 0
+  secrets:
+  - civicos-env
 metadata:
-  created: "2026-03-11"
-  updated: "2026-03-11"
-  notes: "Second federation test jurisdiction. Same county and platform (Granicus) as Mill Valley."
+  created: '2026-03-27'
+  updated: '2026-03-27'
+  notes: Auto-generated by onboard_jurisdiction().
+federal_programs:
+  hud_grantee: Marin County
+  hud_relationship: consortium
+  notes: Receives HUD funds via Marin County

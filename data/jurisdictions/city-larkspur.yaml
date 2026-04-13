@@ -28,7 +28,7 @@ data_sources:
       minutes_archives: {}
       discovered_amids:
       - '49'
-  issues: null
+  issues: seeclickfix
   budget: null
   municipal_code: null
   transcripts:

@@ -106,6 +106,7 @@ export interface GetTokenCountRequest {
 export interface RequestTokensRequest {
   type: 'REQUEST_TOKENS';
   count: number;
+  voucher?: string;
 }
 
 export interface SpendTokenRequest {
@@ -184,6 +185,7 @@ export type CheckTokenCheckoutResponse = ExtensionResponse<{
   status: string;
   token_count: number;
   claimed: boolean;
+  voucher?: string;
 }>;
 
 // ============================================================================

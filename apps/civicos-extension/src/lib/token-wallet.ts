@@ -61,6 +61,8 @@ export interface TokenIssuerConfig {
   issuerUrl: string;
   /** Issuer's compressed public key, 66-char hex */
   issuerPubkey: string;
+  /** Issuance voucher (HMAC-signed proof of payment). If provided, sent as Bearer token. */
+  voucher?: string;
 }
 
 interface NonceSessionResponse {
@@ -94,9 +96,13 @@ export async function requestTokens(
   for (let i = 0; i < count; i++) {
     try {
       // Step 1: Request nonce session
+      const sessionHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (config.voucher) {
+        sessionHeaders['Authorization'] = `Bearer ${config.voucher}`;
+      }
       const sessionRes = await fetch(`${config.issuerUrl}/coordination/tokens/session`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: sessionHeaders,
         body: JSON.stringify({ count: 1 }),
       });
       if (!sessionRes.ok) break;

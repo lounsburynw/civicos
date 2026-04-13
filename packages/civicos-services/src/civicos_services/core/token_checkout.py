@@ -163,10 +163,22 @@ def check_token_checkout_status(session_id: str, claim_secret: str) -> dict:
     else:
         status = "pending"
 
+    # Generate voucher for paid, unclaimed sessions
+    voucher = None
+    claimed = metadata.get("claimed") == "true"
+    if status == "paid" and not claimed:
+        try:
+            from .voucher import generate_voucher
+
+            voucher = generate_voucher(session_id, token_count)
+        except RuntimeError:
+            pass  # VOUCHER_HMAC_SECRET not configured — no voucher
+
     return {
         "status": status,
         "token_count": token_count,
-        "claimed": metadata.get("claimed") == "true",
+        "claimed": claimed,
+        "voucher": voucher,
     }
 
 

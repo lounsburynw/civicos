@@ -38,7 +38,7 @@ data_sources:
         agenda: 3
         minutes: 4
         video: 5
-  issues: null
+  issues: seeclickfix
   budget: null
   municipal_code: null
   transcripts:

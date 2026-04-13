@@ -46,6 +46,7 @@ civic_image = (
         "beautifulsoup4>=4.12.0",
         "httpx>=0.24.0",
         "langgraph>=0.2.0",
+        "google-api-python-client>=2.0.0",
     )
     .env({
         "CIVICOS_EXTRACTION_DIR": "/config/extraction",
