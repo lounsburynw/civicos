@@ -238,7 +238,8 @@ async function handleMessage(message: ExtensionRequest): Promise<ExtensionRespon
       case 'CHECK_TOKEN_CHECKOUT': {
         const statusApiUrl = await registry.getRelayUrl();
         const statusRes = await fetch(
-          `${statusApiUrl}/api/tokens/status/${message.session_id}`
+          `${statusApiUrl}/api/tokens/status/${message.session_id}`,
+          { headers: { 'X-Claim-Secret': message.claim_secret } },
         );
         if (!statusRes.ok) {
           const detail = await statusRes.text();

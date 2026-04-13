@@ -4,11 +4,15 @@ Token purchase router: public endpoints for buying blinded tokens via Stripe.
 Endpoints:
 - POST /tokens/checkout - Create a Stripe Checkout session for token purchase
 - GET /tokens/status/{session_id} - Check payment status of a checkout session
+
+Security: the checkout endpoint returns a claim_secret that the extension
+must present on all subsequent status checks. This proves session ownership
+without requiring full identity auth.
 """
 
 import logging
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Header
 from pydantic import BaseModel
 from typing import Optional
 
@@ -21,8 +25,8 @@ class TokenCheckoutRequest(BaseModel):
     """Request to create a token purchase checkout session."""
 
     count: Optional[int] = None  # Defaults to CIVICOS_TOKEN_BUNDLE_SIZE
-    success_url: str = "https://civicos.org/tokens/success"
-    cancel_url: str = "https://civicos.org/tokens/cancel"
+    success_url: Optional[str] = None  # Defaults to CIVICOS_TOKEN_SUCCESS_URL
+    cancel_url: Optional[str] = None  # Defaults to CIVICOS_TOKEN_CANCEL_URL
 
 
 class TokenCheckoutResponse(BaseModel):
@@ -31,6 +35,7 @@ class TokenCheckoutResponse(BaseModel):
     checkout_url: str
     session_id: str
     token_count: int
+    claim_secret: str
 
 
 class TokenStatusResponse(BaseModel):
@@ -45,8 +50,8 @@ class TokenStatusResponse(BaseModel):
 async def create_token_checkout(request: TokenCheckoutRequest):
     """Create a Stripe Checkout session for a one-time token purchase.
 
-    Public endpoint — no authentication required.
-    Returns a checkout URL to redirect the user to Stripe.
+    Public endpoint — no identity auth required.
+    Returns a claim_secret that must be presented on status checks.
     """
     try:
         from ...core.token_checkout import create_token_checkout as _create
@@ -69,10 +74,13 @@ async def create_token_checkout(request: TokenCheckoutRequest):
 
 
 @router.get("/tokens/status/{session_id}", response_model=TokenStatusResponse)
-async def check_token_status(session_id: str):
+async def check_token_status(
+    session_id: str,
+    x_claim_secret: str = Header(..., alias="X-Claim-Secret"),
+):
     """Check payment status of a token checkout session.
 
-    Public endpoint — no authentication required.
+    Requires X-Claim-Secret header (returned at checkout creation).
     The extension polls this after redirecting the user to Stripe.
     """
     try:
@@ -81,7 +89,7 @@ async def check_token_status(session_id: str):
             mark_claimed,
         )
 
-        result = check_token_checkout_status(session_id)
+        result = check_token_checkout_status(session_id, x_claim_secret)
 
         # Auto-mark as claimed when status is paid and not yet claimed
         if result["status"] == "paid" and not result["claimed"]:
