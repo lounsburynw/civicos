@@ -57,6 +57,11 @@ Modal secrets are stored in the `civicos-secrets` (or jurisdiction-specific) sec
 - `TOKEN_ISSUER_MAX_SESSIONS` — Max concurrent nonce sessions per issuer (default: `5`, in `civicos-token-issuer` secret)
 - `TOKEN_ISSUER_SESSION_TTL` — Nonce session expiry in seconds (default: `300`, in `civicos-token-issuer` secret)
 - `TOKEN_ISSUER_PUBKEYS` — Comma-separated hex pubkeys of trusted token issuers for acceptance policy verification (in `civicos-env` secret)
+- `VOUCHER_HMAC_SECRET` — Shared HMAC-SHA256 secret for token purchase vouchers. **Must be set on both services API and relay.** Without it, services returns no voucher and relay allows ungated issuance. Generate with `python3 -c "import secrets; print(secrets.token_hex(32))"`
+- `STRIPE_PRICE_TOKENS` — Stripe price ID for token bundle product (services API only)
+- `CIVICOS_TOKEN_BUNDLE_SIZE` — Tokens per purchase (default: `50`, services API only)
+- `CIVICOS_TOKEN_SUCCESS_URL` — Stripe checkout success redirect (default: `https://civicos.org/tokens/success`)
+- `CIVICOS_TOKEN_CANCEL_URL` — Stripe checkout cancel redirect (default: `https://civicos.org/tokens/cancel`)
 
 Check secrets: `modal secret list`
 

@@ -37,6 +37,26 @@ Write an Architecture Decision Record for federation boundaries. This is a docum
 - [ ] References existing ADRs where relevant
 - [ ] A new P0 assigned before session end
 
+## Pre-deploy: VOUCHER_HMAC_SECRET
+
+The token purchase flow (commits `dda0190a`, `8c6b8aa9`, `4ef6ec46`) added an HMAC voucher gate. Before deploying, generate a shared secret and add it to Modal:
+
+```bash
+# Generate a random secret
+python3 -c "import secrets; print(secrets.token_hex(32))"
+
+# Add to Modal secrets (same value for both services)
+modal secret create civicos-secrets VOUCHER_HMAC_SECRET=<generated_hex> --force
+```
+
+Both the services API (`civicos-services`) and relay (`civicos-relay`) read this secret. Without it:
+- Services API: returns `voucher: null` in status response (warning logged)
+- Relay: allows ungated token issuance (current dev behavior)
+
+The gate is only enforced when the secret is set on **both** services.
+
+Also needed (if not already set): `STRIPE_PRICE_TOKENS` (Stripe price ID for the token bundle product).
+
 ## Remaining Launch Items After This
 
 | Priority | Item | Category |
