@@ -1497,5 +1497,255 @@ class TestFederalAwardFieldRoundTrip:
         backend.store_federal_awards("city-test", awards)
         results = backend.get_federal_awards("city-test", period_start="2025-01-01")
         assert len(results) == 1
-        assert results[0]["cfda_number"] == "14.218"
+
+
+# ========== Temporal Versioning ==========
+
+
+class TestTemporalVersioning:
+    """Test that store methods correctly close old versions and open new ones."""
+
+    def test_decisions_temporal_close_and_reopen(self, backend):
+        """Storing decisions twice should close old versions."""
+        v1 = [{"title": "Original", "meeting_date": "2025-12-01", "agenda_item": "item-1",
+               "outcome": "tabled"}]
+        v2 = [{"title": "Updated", "meeting_date": "2025-12-01", "agenda_item": "item-1",
+               "outcome": "approved"}]
+
+        as_of_1 = datetime(2025, 12, 1, 12, 0)
+        as_of_2 = datetime(2025, 12, 2, 12, 0)
+
+        backend.store_decisions("city-test", v1, as_of=as_of_1)
+        results_v1 = backend.get_decisions("city-test")
+        assert len(results_v1) == 1
+        assert results_v1[0]["outcome"] == "tabled"
+        assert results_v1[0]["valid_from"] == "2025-12-01T12:00:00"
+        assert results_v1[0]["valid_to"] is None
+
+        backend.store_decisions("city-test", v2, as_of=as_of_2)
+        results_v2 = backend.get_decisions("city-test")
+        assert len(results_v2) == 1
+        assert results_v2[0]["outcome"] == "approved"
+        assert results_v2[0]["valid_from"] == "2025-12-02T12:00:00"
+
+    def test_issues_temporal_versioning(self, backend):
+        v1 = [{"id": "i1", "title": "Pothole", "status": "open",
+               "provider": "seeclickfix", "external_id": "e1"}]
+        v2 = [{"id": "i1", "title": "Pothole", "status": "closed",
+               "provider": "seeclickfix", "external_id": "e1"}]
+
+        backend.store_issues("city-test", v1, as_of=datetime(2025, 11, 1))
+        backend.store_issues("city-test", v2, as_of=datetime(2025, 11, 15))
+        results = backend.get_issues("city-test")
+        assert len(results) == 1
+        assert results[0]["status"] == "closed"
+
+    def test_chunks_temporal_versioning(self, backend):
+        v1 = [{"meeting_id": "m1", "text": "Version 1 text", "agenda_item": "1"}]
+        v2 = [{"meeting_id": "m1", "text": "Version 2 text", "agenda_item": "1"}]
+
+        backend.store_chunks("city-test", v1, as_of=datetime(2025, 11, 1))
+        backend.store_chunks("city-test", v2, as_of=datetime(2025, 11, 15))
+        results = backend.get_chunks("city-test")
+        # V2 should be current — check text
+        texts = [c["text"] for c in results]
+        assert "Version 2 text" in texts
+
+    def test_elections_temporal_versioning(self, backend):
+        v1 = [{"id": "e1", "name": "Original Name", "election_date": "2026-11-03",
+               "election_type": "general"}]
+        v2 = [{"id": "e1", "name": "Updated Name", "election_date": "2026-11-03",
+               "election_type": "general"}]
+
+        backend.store_elections("city-test", v1, as_of=datetime(2025, 10, 1))
+        backend.store_elections("city-test", v2, as_of=datetime(2025, 11, 1))
+        results = backend.get_elections("city-test", include_past=True)
+        assert len(results) == 1
+        assert results[0]["name"] == "Updated Name"
+
+
+# ========== ID Generation ==========
+
+
+class TestDecisionIDGeneration:
+    """Test that decision IDs are generated correctly from fields."""
+
+    def test_id_format(self, backend):
+        backend.store_decisions("city-san-rafael", [{
+            "title": "Test", "meeting_date": "2025-12-01", "agenda_item": "item-6.a",
+        }])
+        results = backend.get_decisions("city-san-rafael")
+        # ID format: decision:{jurisdiction}:{date}:{normalized_item}
+        assert results[0]["id"].startswith("decision:city-san-rafael:")
+        assert "2025-12-01" in results[0]["id"]
+
+    def test_id_normalizes_dots(self, backend):
+        backend.store_decisions("city-test", [{
+            "title": "Test", "meeting_date": "2025-12-01", "agenda_item": "6.a",
+        }])
+        results = backend.get_decisions("city-test")
+        # Dots should be replaced with hyphens
+        assert "." not in results[0]["id"].split(":")[-1]
+
+    def test_different_items_get_different_ids(self, backend):
+        decisions = [
+            {"title": "A", "meeting_date": "2025-12-01", "agenda_item": "item-1"},
+            {"title": "B", "meeting_date": "2025-12-01", "agenda_item": "item-2"},
+        ]
+        backend.store_decisions("city-test", decisions)
+        results = backend.get_decisions("city-test")
+        ids = [d["id"] for d in results]
+        assert len(set(ids)) == 2  # All unique
+
+
+# ========== Remaining Untested Methods ==========
+
+
+class TestGetElectionContests:
+    """Tests for get_election_contests."""
+
+    def test_retrieve_stored_contests(self, backend):
+        backend.store_elections("city-test", [{
+            "id": "e-2026", "name": "2026 General", "election_date": "2026-11-03",
+            "election_type": "general",
+        }])
+        backend.store_election_contests("e-2026", [
+            {"id": "c-house", "office_type": "us_house", "contest_type": "federal_house",
+             "title": "US House District 2", "district": 2},
+            {"id": "c-gov", "office_type": "state_governor", "contest_type": "state_governor",
+             "title": "Governor"},
+        ])
+        results = backend.get_election_contests("e-2026")
+        assert len(results) == 2
+        titles = [c["title"] for c in results]
+        assert "US House District 2" in titles
+        assert "Governor" in titles
+
+    def test_contest_fields_preserved(self, backend):
+        backend.store_elections("city-test", [{
+            "id": "e-2026", "name": "2026", "election_date": "2026-11-03",
+            "election_type": "general",
+        }])
+        backend.store_election_contests("e-2026", [{
+            "id": "c-house", "office_type": "us_house", "contest_type": "federal_house",
+            "title": "US House District 2", "district": 2,
+        }])
+        results = backend.get_election_contests("e-2026")
+        c = results[0]
+        assert c["contest_type"] == "federal_house"
+        assert c["title"] == "US House District 2"
+
+    def test_filter_by_contest_type(self, backend):
+        backend.store_elections("city-test", [{
+            "id": "e-2026", "name": "2026", "election_date": "2026-11-03",
+            "election_type": "general",
+        }])
+        backend.store_election_contests("e-2026", [
+            {"id": "c1", "office_type": "us_house", "contest_type": "federal_house", "title": "House"},
+            {"id": "c2", "office_type": "state_governor", "contest_type": "state_governor", "title": "Gov"},
+        ])
+        results = backend.get_election_contests("e-2026", contest_type="federal_house")
+        assert len(results) == 1
+        assert results[0]["title"] == "House"
+
+    def test_empty_election_returns_empty(self, backend):
+        results = backend.get_election_contests("nonexistent")
+        assert results == []
+
+
+class TestStoreElectionDeadlines:
+    """Tests for store_election_deadlines."""
+
+    def test_store_returns_count(self, backend):
+        backend.store_elections("city-test", [{
+            "id": "e-2026", "name": "2026 General", "election_date": "2026-11-03",
+            "election_type": "general",
+        }])
+        deadlines = [
+            {"deadline_type": "voter_registration", "deadline_date": "2026-10-19",
+             "description": "Last day to register"},
+            {"deadline_type": "vbm_ballots_mailed", "deadline_date": "2026-10-05",
+             "description": "VBM ballots mailed"},
+        ]
+        count = backend.store_election_deadlines("e-2026", deadlines)
+        assert count == 2
+
+    def test_empty_list_returns_zero(self, backend):
+        count = backend.store_election_deadlines("e-2026", [])
+        assert count == 0
+
+
+# ========== Get Methods with Filters ==========
+
+
+class TestGetMethodFilters:
+    """Test filter parameters on get methods."""
+
+    def test_get_federal_awards_cfda_filter(self, backend):
+        awards = [
+            {"award_id": "a1", "cfda_number": "14.218", "recipient_name": "C", "amount_cents": 100},
+            {"award_id": "a2", "cfda_number": "20.205", "recipient_name": "C", "amount_cents": 200},
+            {"award_id": "a3", "cfda_number": "14.218", "recipient_name": "C", "amount_cents": 300},
+        ]
+        backend.store_federal_awards("city-test", awards)
+        results = backend.get_federal_awards("city-test", cfda_number="14.218")
+        assert len(results) == 2
+        assert all(r["cfda_number"] == "14.218" for r in results)
+
+    def test_get_budget_links_by_budget_item(self, backend):
+        links = [
+            {"link_id": "l1", "budget_item_id": "b1", "match_type": "confirmed", "federal_cfda_number": "14.218"},
+            {"link_id": "l2", "budget_item_id": "b2", "match_type": "inferred", "federal_cfda_number": "20.205"},
+        ]
+        backend.store_budget_funding_links("city-test", links)
+        results = backend.get_budget_funding_links("city-test", budget_item_id="b1")
+        all_links = backend.get_budget_funding_links("city-test")
+        assert len(results) == 1
+        assert len(all_links) == 2
+        assert results[0]["budget_item_id"] == "b1"
+
+    def test_get_passthrough_agency_filter(self, backend):
+        pts = [
+            {"passthrough_id": "p1", "state_agency": "Caltrans", "federal_cfda_number": "20.205"},
+            {"passthrough_id": "p2", "state_agency": "HCD", "federal_cfda_number": "14.218"},
+        ]
+        backend.store_state_passthrough_funds("city-test", pts)
+        results = backend.get_state_passthrough_funds("city-test", state_agency="Caltrans")
+        assert len(results) == 1
+        assert results[0]["state_agency"] == "Caltrans"
+
+    def test_get_passthrough_cfda_filter(self, backend):
+        pts = [
+            {"passthrough_id": "p1", "state_agency": "A", "federal_cfda_number": "20.205"},
+            {"passthrough_id": "p2", "state_agency": "B", "federal_cfda_number": "14.218"},
+        ]
+        backend.store_state_passthrough_funds("city-test", pts)
+        results = backend.get_state_passthrough_funds("city-test", federal_cfda_number="14.218")
+        assert len(results) == 1
+
+    def test_get_decisions_with_limit_and_offset(self, backend):
+        decisions = [
+            {"title": f"D{i}", "meeting_date": "2025-12-01", "agenda_item": f"item-{i}"}
+            for i in range(10)
+        ]
+        backend.store_decisions("city-test", decisions)
+        page1 = backend.get_decisions("city-test", limit=3, offset=0)
+        page2 = backend.get_decisions("city-test", limit=3, offset=3)
+        assert len(page1) == 3
+        assert len(page2) == 3
+        # Pages should not overlap
+        ids1 = {d["id"] for d in page1}
+        ids2 = {d["id"] for d in page2}
+        assert ids1.isdisjoint(ids2)
+
+    def test_get_issues_with_limit(self, backend):
+        issues = [
+            {"id": f"i{i}", "title": f"Issue {i}", "provider": "test", "external_id": f"e{i}"}
+            for i in range(10)
+        ]
+        backend.store_issues("city-test", issues)
+        limited = backend.get_issues("city-test", limit=5)
+        all_issues = backend.get_issues("city-test")
+        assert len(limited) == 5
+        assert len(all_issues) == 10
 
