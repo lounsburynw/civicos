@@ -90,31 +90,29 @@ def test_db(tmp_path):
         )
     """)
 
-    # Create issues table
+    # Create issues table (schema matches SQLiteBackend)
     conn.execute("""
         CREATE TABLE issues (
-            id TEXT PRIMARY KEY,
+            id TEXT NOT NULL,
             jurisdiction_id TEXT NOT NULL,
-            source TEXT NOT NULL,
-            source_id TEXT,
+            provider TEXT NOT NULL,
+            external_id TEXT NOT NULL,
             title TEXT NOT NULL,
             description TEXT,
             issue_type TEXT,
+            status TEXT DEFAULT 'open',
             address TEXT,
             latitude REAL,
             longitude REAL,
-            status TEXT DEFAULT 'open',
-            closed_reason TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            matched_meetings TEXT,
-            matched_agenda_items TEXT,
-            match_score REAL,
-            match_reason TEXT,
-            follower_count INTEGER DEFAULT 0,
-            coordination_thread_id TEXT,
+            closed_at TIMESTAMP,
+            reporter_name TEXT,
+            images TEXT,
+            stored_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
             valid_from TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
             valid_to TIMESTAMP,
+            PRIMARY KEY (id, valid_from),
             FOREIGN KEY (jurisdiction_id) REFERENCES city_states(jurisdiction_id)
         )
     """)
