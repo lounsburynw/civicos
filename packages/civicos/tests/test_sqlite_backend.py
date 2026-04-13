@@ -1249,3 +1249,253 @@ class TestUpdateMeeting:
         assert updated["title"] == "City Council Meeting"  # Unchanged
         assert updated["status"] == "completed"  # Changed
 
+
+# ========== Field-Level Round-Trip Assertions ==========
+# Kill mutants that alter individual column values in INSERT statements
+
+
+class TestMeetingFieldRoundTrip:
+    """Assert every field survives store → get round-trip."""
+
+    def test_all_meeting_fields(self, backend):
+        meeting = {
+            "id": "mtg-full",
+            "title": "Full Field Test Meeting",
+            "meeting_datetime": "2025-12-01T18:30:00",
+            "meeting_type": "city_council",
+            "status": "completed",
+            "location": "City Hall, 1400 Fifth Ave",
+            "source_platform": "legistar",
+            "source_url": "https://legistar.example.com/mtg/123",
+            "video_url": "https://youtube.com/watch?v=abc",
+            "agenda_url": "https://example.com/agenda.pdf",
+            "minutes_url": "https://example.com/minutes.pdf",
+        }
+        backend.store_meetings("city-test", [meeting])
+        results = backend.get_meetings("city-test")
+        assert len(results) == 1
+        m = results[0]
+        assert m["id"] == "mtg-full"
+        assert m["title"] == "Full Field Test Meeting"
+        assert m["meeting_datetime"] == "2025-12-01T18:30:00"
+        assert m["meeting_type"] == "city_council"
+        assert m["status"] == "completed"
+        assert m["location"] == "City Hall, 1400 Fifth Ave"
+        assert m["source_platform"] == "legistar"
+
+    def test_meeting_valid_from_set(self, backend, sample_meetings):
+        as_of = datetime(2025, 11, 15, 12, 0, 0)
+        backend.store_meetings("city-test", sample_meetings, as_of=as_of)
+        results = backend.get_meetings("city-test")
+        for m in results:
+            assert m.get("valid_from") == "2025-11-15T12:00:00"
+
+    def test_meeting_valid_to_null_for_current(self, backend, sample_meetings):
+        backend.store_meetings("city-test", sample_meetings)
+        results = backend.get_meetings("city-test")
+        for m in results:
+            assert m.get("valid_to") is None
+
+
+class TestDecisionFieldRoundTrip:
+    """Assert decision fields survive store → get round-trip."""
+
+    def test_all_decision_fields(self, backend):
+        decision = {
+            "title": "Approve Zoning Amendment ZA-2025-001",
+            "meeting_date": "2025-12-01",
+            "agenda_item": "item-8a",
+            "outcome": "approved",
+            "vote_summary": "4-1",
+            "summary": "Council approved the zoning amendment for mixed-use.",
+        }
+        backend.store_decisions("city-test", [decision])
+        results = backend.get_decisions("city-test")
+        assert len(results) == 1
+        d = results[0]
+        assert d["title"] == "Approve Zoning Amendment ZA-2025-001"
+        assert d["meeting_date"] == "2025-12-01"
+        assert d["agenda_item"] == "item-8a"
+        assert d["outcome"] == "approved"
+
+    def test_decision_valid_from_set(self, backend):
+        as_of = datetime(2025, 11, 15, 12, 0, 0)
+        backend.store_decisions("city-test", [{
+            "title": "Test", "meeting_date": "2025-12-01", "agenda_item": "item-1",
+        }], as_of=as_of)
+        results = backend.get_decisions("city-test")
+        assert results[0]["valid_from"] == "2025-11-15T12:00:00"
+
+    def test_decisions_multiple_in_batch(self, backend):
+        decisions = [
+            {"title": f"Decision {i}", "meeting_date": "2025-12-01",
+             "agenda_item": f"item-{i}", "outcome": "approved"}
+            for i in range(5)
+        ]
+        count = backend.store_decisions("city-test", decisions)
+        assert count == 5
+        results = backend.get_decisions("city-test")
+        assert len(results) == 5
+        titles = {d["title"] for d in results}
+        assert titles == {f"Decision {i}" for i in range(5)}
+
+
+class TestIssueFieldRoundTrip:
+    """Assert issue fields survive store → get round-trip."""
+
+    def test_all_issue_fields(self, backend):
+        issue = {
+            "id": "issue-full",
+            "title": "Broken sidewalk near school",
+            "issue_type": "Sidewalk",
+            "address": "456 Oak Ave",
+            "status": "acknowledged",
+            "provider": "seeclickfix",
+            "external_id": "scf-99999",
+            "latitude": 37.97,
+            "longitude": -122.53,
+            "created_at": "2025-11-20T14:30:00",
+        }
+        backend.store_issues("city-test", [issue])
+        results = backend.get_issues("city-test")
+        assert len(results) == 1
+        i = results[0]
+        assert i["title"] == "Broken sidewalk near school"
+        assert i["issue_type"] == "Sidewalk"
+        assert i["address"] == "456 Oak Ave"
+        assert i["status"] == "acknowledged"
+        assert i["external_id"] == "scf-99999"
+
+    def test_issue_provider_count_filter(self, backend):
+        issues = [
+            {"id": "i1", "title": "A", "provider": "seeclickfix", "external_id": "e1"},
+            {"id": "i2", "title": "B", "provider": "native", "external_id": "e2"},
+        ]
+        backend.store_issues("city-test", issues)
+        total = backend.get_issue_count("city-test")
+        scf = backend.get_issue_count("city-test", provider="seeclickfix")
+        assert total == 2
+        assert scf == 1
+
+
+class TestAgendaItemFieldRoundTrip:
+    """Assert agenda item fields survive store → get round-trip."""
+
+    def test_all_agenda_item_fields(self, backend):
+        backend.store_meetings("city-test", [{
+            "id": "mtg-x", "title": "Test", "meeting_datetime": "2025-12-01",
+            "source_platform": "test",
+        }])
+        items = [{
+            "id": "ai-full",
+            "item_number": "9.c",
+            "title": "Wildfire Preparedness Plan",
+            "description": "Review and adopt the updated wildfire preparedness plan",
+            "project_type": "public_safety",
+            "actionability": "high",
+            "impact_level": "significant",
+        }]
+        backend.store_agenda_items("mtg-x", items)
+        results = backend.get_agenda_items("mtg-x")
+        assert len(results) == 1
+        a = results[0]
+        assert a["title"] == "Wildfire Preparedness Plan"
+        assert a["item_number"] == "9.c"
+        assert a["project_type"] == "public_safety"
+
+    def test_agenda_items_multiple_per_meeting(self, backend):
+        backend.store_meetings("city-test", [{
+            "id": "mtg-x", "title": "Test", "meeting_datetime": "2025-12-01",
+            "source_platform": "test",
+        }])
+        items = [
+            {"id": f"ai-{i}", "item_number": f"{i}.a", "title": f"Item {i}"}
+            for i in range(10)
+        ]
+        count = backend.store_agenda_items("mtg-x", items)
+        assert count == 10
+        results = backend.get_agenda_items("mtg-x")
+        assert len(results) == 10
+
+
+class TestChunkFieldRoundTrip:
+    """Assert chunk fields survive store → get round-trip."""
+
+    def test_all_chunk_fields(self, backend):
+        chunks = [{
+            "meeting_id": "mtg-x",
+            "agenda_item": "6.a",
+            "agenda_title": "Housing Element Update",
+            "text": "The planning commission recommends approval of the housing element.",
+            "page_start": 15,
+            "page_end": 22,
+            "chunk_index": 3,
+            "total_chunks": 8,
+            "source_file": "agenda_packet_2025-12-01.pdf",
+            "source_type": "agenda_packet",
+        }]
+        backend.store_chunks("city-test", chunks)
+        results = backend.get_chunks("city-test")
+        assert len(results) == 1
+        c = results[0]
+        assert c["text"] == "The planning commission recommends approval of the housing element."
+        assert c["agenda_item"] == "6.a"
+        assert c["agenda_title"] == "Housing Element Update"
+        assert c["page_start"] == 15
+        assert c["page_end"] == 22
+        assert c["chunk_index"] == 3
+        assert c["total_chunks"] == 8
+        assert c["source_file"] == "agenda_packet_2025-12-01.pdf"
+
+    def test_chunks_valid_from_set(self, backend):
+        as_of = datetime(2025, 11, 15, 12, 0, 0)
+        backend.store_chunks("city-test", [{
+            "meeting_id": "mtg-x", "text": "Test chunk", "agenda_item": "1",
+        }], as_of=as_of)
+        results = backend.get_chunks("city-test")
+        assert results[0]["valid_from"] == "2025-11-15T12:00:00"
+
+
+class TestFederalAwardFieldRoundTrip:
+    """Assert federal award fields survive store → get round-trip."""
+
+    def test_all_award_fields(self, backend):
+        awards = [{
+            "award_id": "award-full",
+            "cfda_number": "14.218",
+            "recipient_name": "City of San Rafael",
+            "recipient_uei": "UEI-ABC-123",
+            "amount_cents": 750_000_00,
+            "period_start": "2025-07-01",
+            "period_end": "2026-06-30",
+            "program_name": "Community Development Block Grant",
+            "awarding_agency": "Department of Housing and Urban Development",
+            "funding_agency": "HUD",
+            "award_type": "grant",
+        }]
+        backend.store_federal_awards("city-test", awards)
+        results = backend.get_federal_awards("city-test")
+        assert len(results) == 1
+        a = results[0]
+        assert a["cfda_number"] == "14.218"
+        assert a["recipient_name"] == "City of San Rafael"
+        assert a["recipient_uei"] == "UEI-ABC-123"
+        assert a["amount_cents"] == 750_000_00
+        assert a["period_start"] == "2025-07-01"
+        assert a["period_end"] == "2026-06-30"
+        assert a["program_name"] == "Community Development Block Grant"
+        assert a["awarding_agency"] == "Department of Housing and Urban Development"
+        assert a["award_type"] == "grant"
+
+    def test_award_period_filter(self, backend):
+        awards = [
+            {"award_id": "a1", "cfda_number": "14.218", "period_start": "2025-07-01", "period_end": "2026-06-30",
+             "recipient_name": "City", "amount_cents": 100},
+            {"award_id": "a2", "cfda_number": "20.205", "period_start": "2024-01-01", "period_end": "2024-12-31",
+             "recipient_name": "City", "amount_cents": 200},
+        ]
+        backend.store_federal_awards("city-test", awards)
+        results = backend.get_federal_awards("city-test", period_start="2025-01-01")
+        assert len(results) == 1
+        assert results[0]["cfda_number"] == "14.218"
+
