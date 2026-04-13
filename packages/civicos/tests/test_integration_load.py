@@ -581,9 +581,9 @@ class TestIndexEffectiveness:
         cursor = conn.cursor()
         for i in range(10):
             cursor.execute("""
-                INSERT INTO issues (id, jurisdiction_id, source, title, issue_type, address, status, valid_from)
-                VALUES (?, ?, 'seeclickfix', ?, ?, ?, 'open', CURRENT_TIMESTAMP)
-            """, (f"issue_{i:03d}", "san-rafael-ca", f"Issue {i}",
+                INSERT INTO issues (id, jurisdiction_id, provider, external_id, title, issue_type, address, status, valid_from)
+                VALUES (?, ?, 'seeclickfix', ?, ?, ?, ?, 'open', CURRENT_TIMESTAMP)
+            """, (f"issue_{i:03d}", "san-rafael-ca", str(i), f"Issue {i}",
                   ["pothole", "graffiti", "streetlight"][i % 3],
                   f"{i * 100} Main Street"))
 
