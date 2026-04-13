@@ -209,7 +209,7 @@ async function handleMessage(message: ExtensionRequest): Promise<ExtensionRespon
           return { success: false, error: 'Token issuance not enabled on this relay' };
         }
         const acquired = await requestTokens(
-          { issuerUrl: relayUrl, issuerPubkey: info.issuer_pubkey },
+          { issuerUrl: relayUrl, issuerPubkey: info.issuer_pubkey, voucher: message.voucher },
           message.count,
         );
         return { success: true, data: acquired };

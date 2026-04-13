@@ -296,6 +296,9 @@ def get_config_dir() -> Path:
     """Get the unified config directory path."""
     if config_dir := os.environ.get("CIVICOS_JURISDICTION_CONFIG_DIR"):
         return Path(config_dir)
+    # Also check CIVICOS_JURISDICTIONS_DIR (used by civicos_config.paths / Modal)
+    if config_dir := os.environ.get("CIVICOS_JURISDICTIONS_DIR"):
+        return Path(config_dir)
     return _find_project_root() / DEFAULT_CONFIG_DIR
 
 

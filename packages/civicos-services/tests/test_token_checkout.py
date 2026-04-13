@@ -261,6 +261,44 @@ class TestCheckTokenCheckoutStatus:
         assert result["status"] == "pending"
         assert result["token_count"] == 50
         assert result["claimed"] is False
+        assert result["voucher"] is None  # No voucher for pending
+
+    def test_returns_paid_with_voucher_when_configured(self, monkeypatch, fake_stripe):
+        monkeypatch.setenv("STRIPE_SECRET_KEY", "sk_test")
+        monkeypatch.setenv("VOUCHER_HMAC_SECRET", "test_hmac_secret")
+        fake_stripe.checkout.Session.retrieve.return_value = self._make_session(
+            payment_status="paid", status="complete"
+        )
+        result = check_token_checkout_status("cs_test_voucher", VALID_SECRET)
+        assert result["status"] == "paid"
+        assert result["voucher"] is not None
+        assert "." in result["voucher"]  # payload.signature format
+
+    def test_returns_paid_without_voucher_when_not_configured(self, monkeypatch, fake_stripe):
+        monkeypatch.setenv("STRIPE_SECRET_KEY", "sk_test")
+        monkeypatch.delenv("VOUCHER_HMAC_SECRET", raising=False)
+        fake_stripe.checkout.Session.retrieve.return_value = self._make_session(
+            payment_status="paid", status="complete"
+        )
+        result = check_token_checkout_status("cs_test_no_voucher", VALID_SECRET)
+        assert result["status"] == "paid"
+        assert result["voucher"] is None
+
+    def test_no_voucher_for_already_claimed(self, monkeypatch, fake_stripe):
+        monkeypatch.setenv("STRIPE_SECRET_KEY", "sk_test")
+        monkeypatch.setenv("VOUCHER_HMAC_SECRET", "test_hmac_secret")
+        fake_stripe.checkout.Session.retrieve.return_value = self._make_session(
+            payment_status="paid", status="complete",
+            metadata={
+                "type": "token_purchase",
+                "token_count": "50",
+                "claim_secret_hash": VALID_SECRET_HASH,
+                "claimed": "true",
+            },
+        )
+        result = check_token_checkout_status("cs_claimed", VALID_SECRET)
+        assert result["claimed"] is True
+        assert result["voucher"] is None
 
     def test_returns_paid_when_payment_status_paid(self, monkeypatch, fake_stripe):
         monkeypatch.setenv("STRIPE_SECRET_KEY", "sk_test")

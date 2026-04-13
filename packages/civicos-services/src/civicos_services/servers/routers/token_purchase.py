@@ -44,6 +44,7 @@ class TokenStatusResponse(BaseModel):
     status: str  # pending, paid, expired
     token_count: int
     claimed: bool
+    voucher: Optional[str] = None
 
 
 @router.post("/tokens/checkout", response_model=TokenCheckoutResponse)

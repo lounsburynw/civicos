@@ -94,6 +94,7 @@
       status: string;
       token_count: number;
       claimed: boolean;
+      voucher?: string;
     }>({
       type: 'CHECK_TOKEN_CHECKOUT',
       session_id: pendingSessionId,
@@ -102,16 +103,17 @@
 
     if (!res.success) return; // Retry on next poll
 
-    const { status, token_count } = res.data;
+    const { status, token_count, voucher } = res.data;
 
     if (status === 'paid') {
       stopPolling();
       statusMessage = 'Payment received, acquiring tokens...';
 
-      // Request tokens from relay via blind signing protocol
+      // Request tokens from relay via blind signing protocol (with voucher auth)
       const tokenRes = await sendMessage<number>({
         type: 'REQUEST_TOKENS',
         count: token_count,
+        voucher: voucher,
       });
 
       // Clear pending purchase

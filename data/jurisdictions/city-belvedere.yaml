@@ -28,7 +28,7 @@ data_sources:
     base_url: https://www.cityofbelvedere.org
     archives:
       meetings: _wp_api
-  issues: null
+  issues: seeclickfix
   budget: null
   municipal_code: null
   transcripts:

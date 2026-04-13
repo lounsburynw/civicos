@@ -6763,7 +6763,7 @@ def extract_transcripts(
         modal.Secret.from_name("civic-notify"),  # Push notifications (ntfy or legacy Slack)
     ],
     memory=4096,
-    timeout=14400,  # 4 hours
+    timeout=21600,  # 6 hours (raised from 4h: school board BoardDocs backfill is slow)
     # Schedule moved to GitHub Actions: .github/workflows/cron-low-velocity-refresh.yml
 )
 def scheduled_low_velocity_refresh():
@@ -7749,7 +7749,10 @@ def determine_refresh_cadence(
     elif nearest_days is not None and nearest_days <= weekly_threshold:
         return ("weekly", nearest_days, nearest_date_str)
     else:
-        return ("monthly", nearest_days, nearest_date_str)
+        # Default to weekly, not monthly — election data (officials, contests,
+        # deadlines) should stay reasonably fresh even between election cycles.
+        # Monthly caused 6-32 day staleness across all jurisdictions.
+        return ("weekly", nearest_days, nearest_date_str)
 
 
 def should_run_today(cadence: str) -> bool:

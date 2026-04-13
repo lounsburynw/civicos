@@ -80,7 +80,7 @@ data_sources:
       - '77'
       - '78'
       - '79'
-  issues: null
+  issues: seeclickfix
   budget: null
   municipal_code: null
   transcripts:

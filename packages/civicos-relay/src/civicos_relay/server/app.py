@@ -9,7 +9,7 @@ import os
 from contextlib import asynccontextmanager
 from typing import Optional
 
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
@@ -187,6 +187,15 @@ async def lifespan(app: FastAPI):
         _relay_state["token_issuer"] = issuer
         logger.info("Token issuer enabled (pubkey=%s)", issuer.public_key_hex[:16] + "...")
 
+    # Initialize voucher gate if shared secret is configured
+    voucher_secret = os.environ.get("VOUCHER_HMAC_SECRET")
+    if voucher_secret:
+        from civicos_relay.server.voucher import VoucherTracker
+
+        _relay_state["voucher_hmac_secret"] = voucher_secret.encode()
+        _relay_state["voucher_tracker"] = VoucherTracker()
+        logger.info("Voucher gate enabled — token issuance requires valid voucher")
+
     if config.sync_enabled:
         await _relay_state["sync_service"].start()
 
@@ -263,10 +272,31 @@ def create_app() -> FastAPI:
         return TokenInfoResponse(enabled=True, issuer_pubkey=issuer.public_key_hex)
 
     @app.post("/coordination/tokens/session", response_model=NonceSessionResponse)
-    async def token_session(req: NonceSessionRequest):
+    async def token_session(
+        req: NonceSessionRequest,
+        authorization: Optional[str] = Header(None),
+    ):
         issuer = get_token_issuer()
         if not issuer:
             raise HTTPException(status_code=503, detail="Token issuance not enabled")
+
+        # Voucher gate: if VOUCHER_HMAC_SECRET is configured, require valid voucher
+        hmac_secret = _relay_state.get("voucher_hmac_secret")
+        if hmac_secret:
+            from civicos_relay.server.voucher import verify_voucher
+
+            if not authorization or not authorization.startswith("Bearer "):
+                raise HTTPException(status_code=401, detail="Voucher required for token issuance")
+            voucher_token = authorization[7:]
+            try:
+                claims = verify_voucher(voucher_token, hmac_secret)
+            except ValueError as e:
+                raise HTTPException(status_code=401, detail=str(e))
+
+            tracker = _relay_state.get("voucher_tracker")
+            if not tracker or not tracker.try_decrement(claims.session_id, claims.token_count):
+                raise HTTPException(status_code=403, detail="Token allowance exhausted")
+
         try:
             session_id, nonce_point = issuer.create_nonce_session()
             return NonceSessionResponse(

@@ -19,7 +19,7 @@ data_sources:
     metadata:
       granicus_domain: berkeley
       default_view_id: '2'
-  issues: null
+  issues: seeclickfix
   municipal_code: null
 financial:
   state: CA
