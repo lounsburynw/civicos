@@ -10,6 +10,7 @@
   let tokenCount = $state(0);
   let purchasing = $state(false);
   let pendingSessionId: string | null = $state(null);
+  let pendingClaimSecret: string | null = $state(null);
   let pendingTokenCount = $state(0);
   let pollTimer: ReturnType<typeof setInterval> | null = null;
   let statusMessage: string | null = $state(null);
@@ -26,8 +27,9 @@
   async function loadPendingPurchase() {
     const stored = await chrome.storage.local.get(PURCHASE_STORAGE_KEY);
     const pending = stored[PURCHASE_STORAGE_KEY];
-    if (pending?.session_id) {
+    if (pending?.session_id && pending?.claim_secret) {
       pendingSessionId = pending.session_id;
+      pendingClaimSecret = pending.claim_secret;
       pendingTokenCount = pending.token_count || 50;
       startPolling();
     }
@@ -42,6 +44,7 @@
       checkout_url: string;
       session_id: string;
       token_count: number;
+      claim_secret: string;
     }>({ type: 'CREATE_TOKEN_CHECKOUT' });
 
     if (!res.success) {
@@ -50,13 +53,14 @@
       return;
     }
 
-    const { checkout_url, session_id, token_count } = res.data;
+    const { checkout_url, session_id, token_count, claim_secret } = res.data;
 
-    // Store pending purchase for resumption
+    // Store pending purchase (including claim_secret) for resumption
     await chrome.storage.local.set({
-      [PURCHASE_STORAGE_KEY]: { session_id, token_count },
+      [PURCHASE_STORAGE_KEY]: { session_id, token_count, claim_secret },
     });
     pendingSessionId = session_id;
+    pendingClaimSecret = claim_secret;
     pendingTokenCount = token_count;
 
     // Open Stripe checkout in new tab
@@ -81,7 +85,7 @@
   }
 
   async function pollCheckoutStatus() {
-    if (!pendingSessionId) {
+    if (!pendingSessionId || !pendingClaimSecret) {
       stopPolling();
       return;
     }
@@ -90,7 +94,11 @@
       status: string;
       token_count: number;
       claimed: boolean;
-    }>({ type: 'CHECK_TOKEN_CHECKOUT', session_id: pendingSessionId });
+    }>({
+      type: 'CHECK_TOKEN_CHECKOUT',
+      session_id: pendingSessionId,
+      claim_secret: pendingClaimSecret,
+    });
 
     if (!res.success) return; // Retry on next poll
 
@@ -109,6 +117,7 @@
       // Clear pending purchase
       await chrome.storage.local.remove(PURCHASE_STORAGE_KEY);
       pendingSessionId = null;
+      pendingClaimSecret = null;
 
       if (tokenRes.success && tokenRes.data > 0) {
         statusMessage = `${tokenRes.data} tokens added`;
@@ -122,6 +131,7 @@
       stopPolling();
       await chrome.storage.local.remove(PURCHASE_STORAGE_KEY);
       pendingSessionId = null;
+      pendingClaimSecret = null;
       statusMessage = 'Checkout expired';
       setTimeout(() => { statusMessage = null; }, 4000);
     }

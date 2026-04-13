@@ -120,6 +120,7 @@ export interface CreateTokenCheckoutRequest {
 export interface CheckTokenCheckoutRequest {
   type: 'CHECK_TOKEN_CHECKOUT';
   session_id: string;
+  claim_secret: string;
 }
 
 export type ExtensionRequest =
@@ -177,6 +178,7 @@ export type CreateTokenCheckoutResponse = ExtensionResponse<{
   checkout_url: string;
   session_id: string;
   token_count: number;
+  claim_secret: string;
 }>;
 export type CheckTokenCheckoutResponse = ExtensionResponse<{
   status: string;
