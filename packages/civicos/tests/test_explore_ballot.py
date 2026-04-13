@@ -12,11 +12,19 @@ Run: pytest packages/civicos/tests/test_explore_ballot.py -v --override-ini="add
 """
 
 import asyncio
+import os
 
 import pytest
 from dotenv import load_dotenv
 
 load_dotenv()
+
+# These tests require PostgreSQL with seeded election data.
+# Skip on SQLite (CI environments without DATABASE_URL).
+pytestmark = pytest.mark.skipif(
+    not os.environ.get("DATABASE_URL"),
+    reason="Ballot tests require PostgreSQL with election data",
+)
 
 from civicos import CivicOS
 from civicos_services.query.models import ExploreRequest

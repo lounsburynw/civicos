@@ -312,9 +312,9 @@
       ]
     },
     "county-san-francisco": {
-      "domain": "san-francisco.civicosproject.org",
+      "domain": "county-san-francisco.civicosproject.org",
       "display_name": "San Francisco County",
-      "modal_app_name": "civicos-san-francisco",
+      "modal_app_name": "civicos-county-san-francisco",
       "parent_jurisdictions": [
         "state-california",
         "country-united-states"

@@ -219,11 +219,11 @@ class MinutesExtractor:
     }
 
     def __init__(self, jurisdiction_id: Optional[str] = None):
-        if fitz is None:
-            raise ImportError("PyMuPDF (fitz) is required for PDF extraction")
         self.jurisdiction_id = jurisdiction_id
 
     def extract(self, pdf_path: str | Path) -> MeetingMinutes:
+        if fitz is None:
+            raise ImportError("PyMuPDF (fitz) is required for PDF extraction")
         """
         Extract meeting minutes from a PDF.
 
