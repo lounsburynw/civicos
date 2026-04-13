@@ -27125,3 +27125,20 @@ Started from ntfy pipeline notifications. Audited full ingestion pipeline, fixed
 
 ### launch.json
 - federation_adr: P0 (unchanged)
+
+### Session (2026-04-13) — operator_relay_dockerfile (P0)
+
+**Completed:** Operator relay Dockerfile for self-hosted deployment.
+
+**Changes:**
+- **`apps/civicos-relay/Dockerfile`**: Improved with non-root user, health check, OCI labels, curl for health probes
+- **`apps/civicos-relay/docker-compose.yml`**: New — bundles relay + PostgreSQL for one-command operator setup
+- **`apps/civicos-relay/.dockerignore`**: New — keeps image lean
+- **`apps/civicos-relay/.env.relay.example`**: New — template env file for operators
+- **`docs/public/operator-guide.md`**: Added "Option C: Docker" deployment section
+- **`launch.json`**: operator_relay_dockerfile → done, direct_city_submission → P0
+
+**Launch progress:** 157/160 items done (3 deferred billing items + 1 P0 remaining)
+
+### Next P0: direct_city_submission
+Authenticated endpoint for city clerks to submit meeting data directly.

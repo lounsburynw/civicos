@@ -141,6 +141,56 @@ civicos-signer serve  # Reads .env.signer by default
 
 Then register the signer with your relay — see [civicos-signer docs](packages/civicos-signer.md).
 
+### Option C: Docker
+
+For containerized self-hosted deployments. Includes a Dockerfile and docker-compose.yml that bundles the relay with PostgreSQL.
+
+**Quick start with Docker Compose** (recommended):
+
+```bash
+cd apps/civicos-relay
+
+# Create your .env from the template
+cp .env.relay.example .env
+# Edit .env — set RELAY_ID, RELAY_JURISDICTION, and POSTGRES_PASSWORD
+
+# Start relay + database
+docker compose up -d
+
+# Apply the relay database schema (first run only)
+docker compose exec relay-db psql -U relay -d relay -f /schema/schema.sql
+
+# Verify
+curl http://localhost:8003/health
+```
+
+The relay auto-generates a keypair on first start. Keys persist in a Docker volume across restarts.
+
+**Build and run standalone** (bring your own PostgreSQL):
+
+```bash
+# Build from the repo root
+docker build -t civicos-relay:latest -f apps/civicos-relay/Dockerfile .
+
+# Apply schema to your database
+psql $RELAY_DATABASE_URL -f packages/civicos-relay/schema.sql
+
+# Run
+docker run -d \
+  -p 8003:8003 \
+  -e RELAY_DATABASE_URL="postgresql://user:pass@host:5432/relay" \
+  -e RELAY_ID="relay.civicos.org/city-berkeley" \
+  -e RELAY_ACCEPTANCE_POLICY=true \
+  -e RELAY_JURISDICTION=city-berkeley \
+  -v relay-keys:/secrets \
+  civicos-relay:latest
+```
+
+**Key operational notes:**
+- **Key persistence:** The relay generates a keypair at `RELAY_PRIVATE_KEY_PATH` (default: `/secrets/relay.key`) on first start. Mount `/secrets` as a persistent volume so the same identity survives container restarts.
+- **Database required:** Without `RELAY_DATABASE_URL`, the relay uses in-memory storage — all data is lost on restart.
+- **Health check:** Built-in Docker `HEALTHCHECK` pings `GET /health` every 30 seconds.
+
 ## Verify
 
 After deployment, check that each service is healthy:

@@ -895,8 +895,8 @@
       {
         "name": "operator_relay_dockerfile",
         "description": "Dockerfile for self-hosted relay deployment. Operator guide currently documents uvicorn command only.",
-        "status": "not_started",
-        "priority": 0,
+        "status": "done",
+        "priority": 1,
         "files": [],
         "test_file": null
       },
@@ -1270,7 +1270,7 @@
         "name": "direct_city_submission",
         "description": "Authenticated endpoint for city clerks to submit meeting data directly (PDF upload + metadata). Bypasses scraping entirely. Extension UI for drag-and-drop upload.",
         "status": "not_started",
-        "priority": 3,
+        "priority": 0,
         "phase": "B",
         "source": "onboarding friction \u2014 scraping is fragile, cities already have the data",
         "files": [
