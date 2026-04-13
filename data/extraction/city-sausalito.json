@@ -1,0 +1,137 @@
+{
+  "source_id": "granicus-city-sausalito",
+  "source_type": "granicus",
+  "jurisdiction_id": "city-sausalito",
+  "base_url": "https://sausalito.granicus.com",
+  "archives": {
+    "city_council": "6",
+    "planning_commission": "7",
+    "pedestrian_bicycle_advisory_committee": "8"
+  },
+  "metadata": {
+    "granicus_domain": "sausalito",
+    "default_view_id": "6",
+    "column_map": {
+      "name": 0,
+      "date": 1,
+      "duration": 2,
+      "agenda": 3,
+      "minutes": 4,
+      "video": 5
+    },
+    "column_map_provenance": {
+      "input": {
+        "view_id": "6",
+        "sample_html": "<table>\n<tr>\n<td class=\"Name listHeader\" scope=\"col\">\u00a0</td>\n<td class=\"Date listHeader\" scope=\"col\">\u00a0</td>\n<td class=\"Duration listHeader\" scope=\"col\">\u00a0</td>\n<td class=\"Agenda listHeader\" scope=\"col\">\u00a0</td>\n<td class=\"Minutes listHeader\" scope=\"col\">\u00a0</td>\n<td class=\"Video listHeader\" scope=\"col\">\u00a0</td>\n</tr>\n<tr class=\"listingRow\">\n<td class=\"listItem\" headers=\"Name\" id=\"City-Council\" scope=\"row\">\n                                                                        City Council\n                                  </td>\n<td class=\"listItem\" headers=\"Date City-Council\">\n                                                                          Dec\u00a0 7,\u00a02021\n                                                                                                              -\n                                                                               5:51\u00a0PM\n                                                                                                            </td>\n<td class=\"listItem\" headers=\"Duration City-Council\">02h\u00a017m</td>\n<td class=\"listItem\">\n<a href=\"//sausalito.granicus.com/AgendaViewer.php?view_id=6&amp;clip_id=1303\" target=\"_blank\">Agenda</a>\n</td>\n<td class=\"listItem\">\n<a href=\"//sausalito.granicus.com/MinutesViewer.php?view_id=6&amp;clip_id=1303&amp;doc_id=41b89a29-7a4a-11ec-b1e1-0050569183fa\" target=\"_blank\">Minutes</a>\n</td>\n<td class=\"listItem\" headers=\"VideoLink City-Council\">\n<a href=\"javascript:void(0);\" onclick=\"window.open('//sausalito.granicus.com/MediaPlayer.php?view_id=6&amp;clip_id=1303','player','toolbar=no,directories=no,status=yes,scrollbars=yes,resizable=yes,menubar=no')\">\n                                                                                  Video\n                                                                              </a>\n</td>\n</tr>\n<tr class=\"listingRow\">\n<td class=\"listItem\" headers=\"Name\" id=\"City-Council\" scope=\"row\">\n                                                                        City Council\n                                  </td>\n<td class=\"listItem\" headers=\"Date City-Council\">\n                                                                          Dec\u00a0 2,\u00a02021\n                                                                                                              -\n                                                                               1:51\u00a0PM\n                                                                                                            </td>\n<td class=\"listItem\" headers=\"Duration City-Council\">00h\u00a002m</td>\n<td class=\"listItem\">\n<a href=\"//sausalito.granicus.com/AgendaViewer.php?view_id=6&amp;clip_id=1298\" target=\"_blank\">Agenda</a>\n</td>\n<td class=\"listItem\">\n<a href=\"//sausalito.granicus.com/MinutesViewer.php?view_id=6&amp;clip_id=1298&amp;doc_id=c8b46d3b-5946-11ec-85e3-0050569183fa\" target=\"_blank\">Minutes</a>\n</td>\n<td class=\"listItem\" headers=\"VideoLink City-Council\">\n<a href=\"javascript:void(0);\" onclick=\"window.open('//sausalito.granicus.com/MediaPlayer.php?view_id=6&amp;clip_id=1298','player','toolbar=no,directories=no,status=yes,scrollbars=yes,resizable=yes,menubar=no')\">\n                                                                                  Video\n                                                                              </a>\n</td>\n</tr>\n<tr class=\"listingRow\">\n<td class=\"listItem\" headers=\"Name\" id=\"Special-City-Council\" scope=\"row\">\n                                                                        Special City Council\n                                  </td>\n<td class=\"listItem\" headers=\"Date Special-City-Council\">\n                                                                          Nov\u00a024,\u00a02021\n                                                                                                              -\n                                                                              12:53\u00a0PM\n                                                                                                            </td>\n<td class=\"listItem\" headers=\"Duration Special-City-Council\">00h\u00a002m</td>\n<td class=\"listItem\">\n<a href=\"//sausalito.granicus.com/AgendaViewer.php?view_id=6&amp;clip_id=1297\" target=\"_blank\">Agenda</a>\n</td>\n<td class=\"listItem\">\n<a href=\"//sausalito.granicus.com/MinutesViewer.php?view_id=6&amp;clip_id=1297&amp;doc_id=96810b37-5946-11ec-85e3-0050569183fa\" target=\"_blank\">Minutes</a>\n</td>\n<td class=\"listItem\" headers=\"VideoLink Special-City-Council\">\n<a href=\"javascript:void(0);\" onclick=\"window.open('//sausalito.granicus.com/MediaPlayer.php?view_id=6&amp;clip_id=1297','player','toolbar=no,directories=no,status=yes,scrollbars=yes,resizable=yes,menubar=no')\">\n                                                                                  Video\n                                                                              </a>\n</td>\n</tr>\n<tr class=\"listingRow\">\n<td class=\"listItem\" headers=\"Name\" id=\"Special-City-Council\" scope=\"row\">\n                                                                        Special City Council\n                                  </td>\n<td class=\"listItem\" headers=\"Date Special-City-Council\">\n                                                                          Nov\u00a017,\u00a02021\n                                                                                                              -\n                                                                               5:00\u00a0PM\n                                                                                                            </td>\n<td class=\"listItem\" headers=\"Duration Special-City-Council\">01h\u00a041m</td>\n<td class=\"listItem\">\n<a href=\"//sausalito.granicus.com/AgendaViewer.php?view_id=6&amp;clip_id=1292\" target=\"_blank\">Agenda</a>\n</td>\n<td class=\"listItem\">\n<a href=\"//sausalito.granicus.com/MinutesViewer.php?view_id=6&amp;clip_id=1292&amp;doc_id=789f2d55-5946-11ec-85e3-0050569183fa\" target=\"_blank\">Minutes</a>\n</td>\n<td class=\"listItem\" headers=\"VideoLink Special-City-Council\">\n<a href=\"javascript:void(0);\" onclick=\"window.open('//sausalito.granicus.com/MediaPlayer.php?view_id=6&amp;clip_id=1292','player','toolbar=no,directories=no,status=yes,scrollbars=yes,resizable=yes,menubar=no')\">\n                                                                                  Video\n                                                                              </a>\n</td>\n</tr>\n<tr class=\"listingRow\">\n<td class=\"listItem\" headers=\"Name\" id=\"City-Council\" scope=\"row\">\n                                                                        City Council\n                                  </td>\n<td class=\"listItem\" headers=\"Date City-Council\">\n                                                                          Nov\u00a016,\u00a02021\n                                                                                                              -\n                                                                               5:51\u00a0PM\n                                                                                                            </td>\n<td class=\"listItem\" headers=\"Duration City-Council\">03h\u00a015m</td>\n<td class=\"listItem\">\n<a href=\"//sausalito.granicus.com/AgendaViewer.php?view_id=6&amp;clip_id=1291\" target=\"_blank\">Agenda</a>\n</td>\n<td class=\"listItem\">\n<a href=\"//sausalito.granicus.com/MinutesViewer.php?view_id=6&amp;clip_id=1291&amp;doc_id=b4f18fe1-5946-11ec-85e3-0050569183fa\" target=\"_blank\">Minutes</a>\n</td>\n<td class=\"listItem\" headers=\"VideoLink City-Council\">\n<a href=\"javascript:void(0);\" onclick=\"window.open('//sausalito.granicus.com/MediaPlayer.php?view_id=6&amp;clip_id=1291','player','toolbar=no,directories=no,status=yes,scrollbars=yes,resizable=yes,menubar=no')\">\n                                                                                  Video\n                                                                              </a>\n</td>\n</tr>\n<tr class=\"listingRow\">\n<td class=\"listItem\" headers=\"Name\" id=\"City-Council\" scope=\"row\">\n                                                                        City Council\n                                  </td>\n<td class=\"listItem\" headers=\"Date City-Council\">\n                                                                          Nov\u00a0 9,\u00a02021\n                                                                                                              -\n                                                                               5:55\u00a0PM\n                                                                                                            </td>\n<td class=\"listItem\" headers=\"Duration City-Council\">03h\u00a006m</td>\n<td class=\"listItem\">\n<a href=\"//sausalito.granicus.com/AgendaViewer.php?view_id=6&amp;clip_id=1285\" target=\"_blank\">Agenda</a>\n</td>\n<td class=\"listItem\">\n<a href=\"//sausalito.granicus.com/MinutesViewer.php?view_id=6&amp;clip_id=1285&amp;doc_id=db4dface-48ca-11ec-a798-0050569183fa\" target=\"_blank\">Minutes</a>\n</td>\n<td class=\"listItem\" headers=\"VideoLink City-Council\">\n<a href=\"javascript:void(0);\" onclick=\"window.open('//sausalito.granicus.com/MediaPlayer.php?view_id=6&amp;clip_id=1285','player','toolbar=no,directories=no,status=yes,scrollbars=yes,resizable=yes,menubar=no')\">\n                                                                                  Video\n                                                                              </a>\n</td>\n</tr>\n<tr class=\"listingRow\">\n<td class=\"listItem\" headers=\"Name\" id=\"Special-City-Council\" scope=\"row\">\n                                                                        Special City Council\n                                  </td>\n<td class=\"listItem\" headers=\"Date Special-City-Council\">\n                                                                          Nov\u00a0 4,\u00a02021\n                                                                                                              -\n                                                                               1:55\u00a0PM\n                                                                                                            </td>\n<td class=\"listItem\" headers=\"Duration Special-City-Council\">00h\u00a002m</td>\n<td class=\"listItem\">\n<a href=\"//sausalito.granicus.com/AgendaViewer.php?view_id=6&amp;clip_id=1283\" target=\"_blank\">Agenda</a>\n</td>\n<td class=\"listItem\">\n<a href=\"//sausalito.granicus.com/MinutesViewer.php?view_id=6&amp;clip_id=1283&amp;doc_id=9fadbf76-48cb-11ec-a798-0050569183fa\" target=\"_blank\">Minutes</a>\n</td>\n<td class=\"listItem\" headers=\"VideoLink Special-City-Council\">\n<a href=\"javascript:void(0);\" onclick=\"window.open('//sausalito.granicus.com/MediaPlayer.php?view_id=6&amp;clip_id=1283','player','toolbar=no,directories=no,status=yes,scrollbars=yes,resizable=yes,menubar=no')\">\n                                                                                  Video\n                                                                              </a>\n</td>\n</tr>\n</table>",
+        "num_columns": 6
+      },
+      "prompt_template": "generate_column_map/v1",
+      "raw_response": "```json\n{\"name\": 0, \"date\": 1, \"duration\": 2, \"agenda\": 3, \"minutes\": 4, \"video\": 5}\n```",
+      "parsed_map": {
+        "name": 0,
+        "date": 1,
+        "duration": 2,
+        "agenda": 3,
+        "minutes": 4,
+        "video": 5
+      }
+    },
+    "body_name_provenance": {
+      "input": {
+        "2": {
+          "page_title": "Sausalito's View Page",
+          "h1": "",
+          "sample_titles": [
+            "City Council",
+            "City Council",
+            "City Council",
+            "City Council",
+            "Economic Development Advisory Committee",
+            "City Council",
+            "Planning Commission",
+            "City Council"
+          ],
+          "event_count": 669
+        },
+        "6": {
+          "page_title": "City Council - Granicus Content",
+          "h1": "",
+          "sample_titles": [
+            "City Council",
+            "City Council",
+            "City Council",
+            "City Council",
+            "City Council",
+            "City Council",
+            "City Council",
+            "City Council"
+          ],
+          "event_count": 467
+        },
+        "7": {
+          "page_title": "Planning Commission - Granicus Content",
+          "h1": "",
+          "sample_titles": [
+            "Planning Commission",
+            "Planning Commission",
+            "Planning Commission",
+            "Planning Commission",
+            "Planning Commission",
+            "Planning Commission",
+            "Planning Commission",
+            "Planning Commission"
+          ],
+          "event_count": 244
+        },
+        "8": {
+          "page_title": "PBAC - Granicus Content",
+          "h1": "",
+          "sample_titles": [
+            "Pedestrian & Bicycle Advisory Committee",
+            "Pedestrian & Bicycle Advisory Committee",
+            "Pedestrian & Bicycle Advisory Committee",
+            "Pedestrian & Bicycle Advisory Committee",
+            "Pedestrian & Bicycle Advisory Committee",
+            "Pedestrian & Bicycle Advisory Committee",
+            "Pedestrian & Bicycle Advisory Committee",
+            "Pedestrian & Bicycle Advisory Committee"
+          ],
+          "event_count": 71
+        }
+      },
+      "prompt_template": "generate_body_names/v1",
+      "raw_response": "```json\n{\n\"2\": \"City Council\",\n\"6\": \"City Council\",\n\"7\": \"Planning Commission\",\n\"8\": \"Pedestrian & Bicycle Advisory Committee\"\n}\n```",
+      "parsed_map": {
+        "2": "City Council",
+        "6": "City Council",
+        "7": "Planning Commission",
+        "8": "Pedestrian & Bicycle Advisory Committee"
+      }
+    }
+  },
+  "issue_source": "seeclickfix",
+  "election_sources": {
+    "civera_election_stats": {
+      "county_slug": "marin",
+      "graphql_url": "https://pastelections.marincounty.gov/api/graphql_pr",
+      "from_year": 2010,
+      "division_filter": "Sausalito"
+    },
+    "ca_sos_results": {
+      "county": "marin",
+      "county_breakdown": false,
+      "districts": {
+        "us-rep": [
+          2
+        ],
+        "state-senate": [
+          2
+        ],
+        "state-assembly": [
+          12
+        ]
+      }
+    }
+  },
+  "state": "CA"
+}
