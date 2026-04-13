@@ -1,0 +1,19 @@
+__pycache__
+*.pyc
+.git
+.github
+.claude
+.critics
+.serena
+apps/
+data/
+docs/
+results/
+tmp.md
+*.sqlite
+*.db
+civicos-env/
+node_modules/
+
+# Include only the relay package (COPY is relative to build context)
+# Everything else is excluded

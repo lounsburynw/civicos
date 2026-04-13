@@ -1,0 +1,54 @@
+## CivicOS Relay — Docker Compose for self-hosted operators
+##
+## Quick start:
+##   1. Copy .env.relay.example to .env and fill in values
+##   2. docker compose up -d
+##   3. docker compose exec relay-db psql -U relay -d relay -f /schema/schema.sql
+##   4. curl http://localhost:8003/health
+##
+## The relay auto-generates a keypair on first start.
+## Keys are stored in the relay-keys volume for persistence across restarts.
+
+services:
+  relay:
+    build:
+      context: ../..
+      dockerfile: apps/civicos-relay/Dockerfile
+    ports:
+      - "${RELAY_PORT:-8003}:8003"
+    environment:
+      - RELAY_DATABASE_URL=postgresql://relay:${POSTGRES_PASSWORD:-relay}@relay-db:5432/relay
+      - RELAY_ID=${RELAY_ID:-relay.local}
+      - RELAY_PRIVATE_KEY_PATH=/secrets/relay.key
+      - RELAY_ACCEPTANCE_POLICY=${RELAY_ACCEPTANCE_POLICY:-true}
+      - RELAY_JURISDICTION=${RELAY_JURISDICTION:-}
+      - RELAY_SYNC_ENABLED=${RELAY_SYNC_ENABLED:-true}
+      - RELAY_PEERS=${RELAY_PEERS:-}
+      - TOKEN_ISSUER_SECRET=${TOKEN_ISSUER_SECRET:-}
+      - VOUCHER_HMAC_SECRET=${VOUCHER_HMAC_SECRET:-}
+    volumes:
+      - relay-keys:/secrets
+    depends_on:
+      relay-db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  relay-db:
+    image: postgres:16-alpine
+    environment:
+      - POSTGRES_USER=relay
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-relay}
+      - POSTGRES_DB=relay
+    volumes:
+      - relay-data:/var/lib/postgresql/data
+      - ../../packages/civicos-relay/schema.sql:/schema/schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U relay -d relay"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  relay-keys:
+  relay-data:
