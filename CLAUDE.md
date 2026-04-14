@@ -255,6 +255,7 @@ Historical docs from completed phases. Recoverable if needed.
 | `/nextsesh` | Prepare handoff notes (requires P0 set) | No |
 | `/deploy [service]` | Deploy services to Modal (api/mcp/relay/all/status) | No |
 | `/health [target]` | Health check all deployed services + DBs | No |
+| `/audit [options]` | Cross-jurisdiction ingestion audit (DB vs configs, cron, freshness) | No |
 | `/onboard [jurisdiction]` | Onboard a new city (full pipeline: meetings→audio→transcripts→decisions→vectors) | No |
 | `/ingest-audio [jurisdiction] [limit]` | Download YouTube audio locally, upload to R2 | No |
 | `/db-backup [action]` | PostgreSQL backup (selective/full) | No |
