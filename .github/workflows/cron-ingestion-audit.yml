@@ -1,0 +1,244 @@
+# Weekly Ingestion Audit (Claude Code headless)
+#
+# Runs Claude Code in headless mode to perform a full cross-jurisdiction
+# data ingestion audit. Queries Postgres for corpus counts, cross-references
+# with extraction configs, checks cron health, spot-checks live sources,
+# and writes a dated report to reports/ingestion-audits/.
+#
+# Schedule: Monday 5:17 AM UTC (Sunday 10:17 PM Pacific)
+#   - Runs after Sunday low-velocity refresh has completed
+#
+# Requires GH secrets:
+#   - CLAUDE_TOKEN: from `claude setup-token` (Claude subscription required)
+#   - DATABASE_URL: Supabase connection string (already exists)
+
+name: "Cron: Ingestion Audit"
+
+on:
+  schedule:
+    - cron: '17 5 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  issues: write
+
+jobs:
+  audit:
+    name: Ingestion Audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Python packages
+        run: |
+          pip install -e packages/civicos-config
+          pip install -e packages/civicos
+          pip install -e packages/civicos-extraction
+          pip install psycopg2-binary python-dotenv
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Claude Code
+        run: npm install -g @anthropic-ai/claude-code
+
+      - name: Run ingestion audit
+        env:
+          CLAUDE_TOKEN: ${{ secrets.CLAUDE_TOKEN }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          AUDIT_DATE=$(date -u +%Y-%m-%d)
+
+          claude -p \
+            --model claude-sonnet-4-6 \
+            --max-turns 30 \
+            --dangerously-skip-permissions \
+            "$(cat <<PROMPT
+          You are running the weekly CivicOS ingestion audit. Today is ${AUDIT_DATE}.
+
+          Your goal: assess data completeness across all jurisdictions and write a dated report.
+
+          ## Step 1: Read the previous report
+
+          Check reports/ingestion-audits/ for the most recent report. Read it — you will compare
+          against it for regressions at the end.
+
+          ## Step 2: Cron health
+
+          Run these commands and record which are passing/failing, last success date, and failure cause:
+
+            gh run list --workflow=cron-high-velocity-refresh.yml --limit=3
+            gh run list --workflow=cron-low-velocity-refresh.yml --limit=3
+            gh run list --workflow=cron-election-refresh.yml --limit=3
+            gh run list --workflow=cron-california-legislation.yml --limit=3
+            gh run list --workflow=cron-civera-discovery.yml --limit=3
+            gh run list --workflow=cron-meetings-poll.yml --limit=3
+
+          For any failed run, check: gh run view <id> --log-failed | tail -40
+
+          ## Step 3: Database inventory
+
+          DATABASE_URL is set in the environment. Query all jurisdictions using this pattern:
+
+            python3 -c "
+            import os, json, glob
+            from civicos import CivicOS
+            from civicos.diagnostics import DataStatus
+
+            skip = {'city-test', 'city-ghost', 'city-warn'}
+            for f in sorted(glob.glob('data/extraction/*.json')):
+                bn = os.path.basename(f)
+                if bn.startswith('.') or 'instances' in bn or bn in ('san-rafael.json', 'san-anselmo.json'):
+                    continue
+                cfg = json.load(open(f))
+                jid = cfg.get('jurisdiction_id', bn.replace('.json',''))
+                if jid in skip:
+                    continue
+                try:
+                    c = CivicOS(jid)
+                    status = DataStatus(c.storage, c.vectors, jid)
+                    report = status.summary()
+                    parts = []
+                    for ct, cc in sorted(report.corpus_counts.items()):
+                        if cc.storage_count > 0 or cc.vector_count > 0:
+                            parts.append(f'{ct}:{cc.storage_count}(v{cc.vector_count})')
+                    print(f'{jid} | {\" | \".join(parts)}' if parts else f'{jid} | EMPTY')
+                except Exception as e:
+                    print(f'{jid} | ERROR: {e}')
+            "
+
+          ## Step 4: Data freshness
+
+          Query Postgres for latest meeting and transcript dates:
+
+            python3 -c "
+            import os, psycopg2
+            conn = psycopg2.connect(os.environ['DATABASE_URL'])
+            cur = conn.cursor()
+            cur.execute('SELECT jurisdiction_id, COUNT(*), MAX(meeting_datetime) FROM meetings GROUP BY jurisdiction_id ORDER BY jurisdiction_id')
+            print('=== MEETINGS ===')
+            for r in cur.fetchall(): print(f'{r[0]}: {r[1]} meetings, latest={r[2]}')
+            cur.execute('SELECT jurisdiction_id, COUNT(*), MAX(created_at) FROM transcripts GROUP BY jurisdiction_id ORDER BY jurisdiction_id')
+            print('=== TRANSCRIPTS ===')
+            for r in cur.fetchall(): print(f'{r[0]}: {r[1]} transcripts, latest={r[2]}')
+            conn.close()
+            "
+
+          ## Step 5: Cross-reference extraction configs
+
+          For each extraction config in data/extraction/*.json, check:
+          - source_type (platform)
+          - Whether issue_source is configured (but DB has <5 issues)
+          - Whether YouTube/transcription is configured (but DB has 0 transcripts)
+          - Whether election_sources exist (but DB has 0 elections)
+          - Meetings exist but 0 decisions
+          - Jurisdiction completely empty despite config
+
+          ## Step 6: Live source spot-checks
+
+          curl a few representative endpoints to verify they're reachable:
+          - SeeClickFix: curl -s 'https://seeclickfix.com/api/v2/issues?place_url=san-rafael&per_page=1' | head -c 200
+          - Granicus: curl -s 'https://marin.granicus.com/ViewPublisher.php?view_id=33' | head -c 200
+          - Simbli: curl -s 'https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030406' | head -c 200
+
+          ## Step 7: Write the report
+
+          Write the report to reports/ingestion-audits/${AUDIT_DATE}.md following the exact format
+          of the previous report (if one exists). Include all sections:
+          - Cron Health (table)
+          - Live Source Health (table)
+          - Per-Jurisdiction Data Inventory (Fully Operational / Partial Gaps / Empty / Election-Only)
+          - Data Freshness
+          - Regressions Since Last Audit (compare with previous report)
+          - Action Items (numbered, with severity and effort)
+          - Totals
+
+          ## Step 8: Commit and push
+
+          git add reports/ingestion-audits/${AUDIT_DATE}.md
+          git commit -m "Add weekly ingestion audit report ${AUDIT_DATE}
+
+          Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>"
+          git push
+          PROMPT
+          )"
+
+      - name: Verify report was created
+        run: |
+          AUDIT_DATE=$(date -u +%Y-%m-%d)
+          if [ -f "reports/ingestion-audits/${AUDIT_DATE}.md" ]; then
+            echo "Audit report created successfully"
+            head -20 "reports/ingestion-audits/${AUDIT_DATE}.md"
+          else
+            echo "WARNING: Audit report was not created"
+            exit 1
+          fi
+
+  notify-failure:
+    name: Create Alert Issue
+    runs-on: ubuntu-latest
+    needs: audit
+    if: failure()
+
+    steps:
+      - name: Create or Update Issue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const today = new Date().toISOString().split('T')[0];
+            const title = `Cron failure: ingestion-audit - ${today}`;
+            const body = `## Cron Failure Alert
+
+            **Workflow:** Ingestion Audit
+            **Time:** ${new Date().toISOString()}
+            **Schedule:** Monday 5:17 AM UTC (Sunday 10:17 PM Pacific)
+
+            The weekly ingestion audit failed.
+
+            **Manual retry:**
+            \`\`\`bash
+            gh workflow run cron-ingestion-audit.yml
+            \`\`\`
+
+            **Workflow Run:** [View logs](${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID})
+            `;
+
+            // Find existing open issue
+            const issues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'cron-failure',
+            });
+
+            const existing = issues.data.find(i => i.title.startsWith('Cron failure: ingestion-audit'));
+
+            if (existing) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: existing.number,
+                body: body,
+              });
+            } else {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: title,
+                body: body,
+                labels: ['cron-failure'],
+              });
+            }
