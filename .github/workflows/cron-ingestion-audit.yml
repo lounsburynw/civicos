@@ -9,7 +9,7 @@
 #   - Runs after Sunday low-velocity refresh has completed
 #
 # Requires GH secrets:
-#   - CLAUDE_TOKEN: from `claude setup-token` (Claude subscription required)
+#   - CLAUDE_CODE_OAUTH_TOKEN: from `claude setup-token` (Claude subscription required)
 #   - DATABASE_URL: Supabase connection string (already exists)
 
 name: "Cron: Ingestion Audit"
@@ -56,7 +56,7 @@ jobs:
 
       - name: Run ingestion audit
         env:
-          CLAUDE_TOKEN: ${{ secrets.CLAUDE_TOKEN }}
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
