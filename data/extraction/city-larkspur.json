@@ -4,12 +4,15 @@
   "jurisdiction_id": "city-larkspur",
   "base_url": "https://www.cityoflarkspur.org",
   "archives": {
-    "city_council": "49"
+    "city_council": "49",
+    "planning_commission": "43",
+    "design_review_board": "38",
+    "heritage_preservation_board": "40"
   },
   "metadata": {
     "minutes_archives": {},
     "discovered_amids": [
-      "49"
+      "38", "40", "43", "49"
     ],
     "youtube_playlist": "PLkVEI8fF85Tr3iAgahkDpWRLVysQoUzTP",
     "youtube_channel": "UCn93I9hPfvEivHnwDo32XbA"

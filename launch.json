@@ -1808,7 +1808,7 @@
       {
         "name": "multi_source_advisory_body_coverage",
         "description": "Many cities split meetings across platforms: major bodies (City Council, Planning) on Granicus, advisory bodies (Arts, Library, Emergency Prep) on CivicWeb/CivicPlus AgendaCenter. Current extraction only scrapes one platform per jurisdiction. Build dual-source config support so onboarding discovers and ingests from both. Mill Valley is the reference case: Granicus view_id=2,3 covers Council+Planning, but 8+ advisory bodies are only on cityofmillvalley.gov/AgendaCenter (CivicPlus).",
-        "priority": 2,
+        "priority": 1,
         "status": "not_started",
         "files": [
           "packages/civicos-extraction/src/civicos_extraction/clients/base.py",
