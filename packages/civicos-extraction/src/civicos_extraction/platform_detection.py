@@ -1460,9 +1460,9 @@ def discover_platform(
             )
 
             if is_civicplus_site:
-                # If no AMIDs found on homepage, probe a few common AMIDs directly.
-                # CivicPlus Archive.aspx root is a form page, not an index —
-                # we need to probe specific AMIDs to confirm meeting content exists.
+                # If no AMIDs found on homepage, probe a few common AMIDs to
+                # confirm this is a real CivicPlus meeting site (not just CMS).
+                confirmed_civicplus = bool(civicplus_amids)
                 if not civicplus_amids:
                     for test_amid in ["37", "41", "49", "1", "2", "3"]:
                         try:
@@ -1472,17 +1472,21 @@ def discover_platform(
                                 allow_redirects=True,
                             )
                             if probe.status_code == 200 and "ADID=" in probe.text:
-                                civicplus_amids.add(test_amid)
-                                break  # One hit is enough for detection
+                                confirmed_civicplus = True
+                                break  # One hit confirms the platform
                         except Exception:
                             pass
 
-                # Only return CivicPlus if we found actual archive content.
+                # Only return CivicPlus if we confirmed archive content exists.
                 # Many cities use CivicPlus as a CMS but store meetings elsewhere
                 # (Legistar, Granicus, etc.). Returning "civicplus" without AMIDs
                 # would block the universal adapter fallback.
-                if civicplus_amids:
-                    logger.info(f"CivicPlus detected on {city_url} (AMIDs: {sorted(civicplus_amids)})")
+                #
+                # Pass discovered_amids from homepage links. If empty, the onboard
+                # pipeline's _discover_civicplus() does a full AMID 1-80 probe.
+                # Don't pass the single confirmation AMID — let the full scan run.
+                if confirmed_civicplus:
+                    logger.info(f"CivicPlus detected on {city_url} (homepage AMIDs: {sorted(civicplus_amids)})")
                     return {
                         "platform": "civicplus",
                         "confidence": 0.85,
