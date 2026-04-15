@@ -1782,6 +1782,30 @@
         "notes": "Complete. 6 extraction configs created, 6 registry entries added, simbli added to SUPPORTED_MEETING_SOURCES, fetch_simbli_meetings() Modal function with Playwright image, simbli dispatch in fetch_meetings(). Novato+Tamalpais use simbli.eboardsolutions.com (S= codes), other 4 use agendaonline.net. All configs load + factory dispatch verified."
       },
       {
+        "name": "simbli_incapsula_bypass",
+        "description": "Simbli (eboardsolutions.com) added Incapsula/Imperva WAF that blocks automated requests. 5 Marin school districts are empty (kentfield, mill-valley-sd, miller-creek, reed-union) and 3 have stale data (novato, tamalpais, san-rafael). Research: check for JSON API endpoints, RSS feeds, or API access before committing to headed Playwright.",
+        "priority": 2,
+        "status": "not_started",
+        "files": [
+          "packages/civicos-extraction/src/civicos_extraction/clients/simbli.py"
+        ],
+        "test_file": null,
+        "notes": "Discovered in 2026-04-14 ingestion audit. Simbli curl returns Incapsula challenge page. Affects 8 school districts. Options: (1) headed Playwright, (2) Simbli JSON API probe, (3) RSS bypass, (4) contact eboardsolutions for API access."
+      },
+      {
+        "name": "diligent_client",
+        "description": "Build extraction client for Diligent/OneProperty platform. school-ross-valley (stale since Nov 2025) and school-marin-county-oe (stale since Feb 2026) migrated from BoardDocs to Diligent. No extraction client exists. Historical BoardDocs data is present but no new meetings can be fetched.",
+        "priority": 2,
+        "status": "not_started",
+        "files": [
+          "packages/civicos-extraction/src/civicos_extraction/clients/diligent.py",
+          "data/extraction/school-ross-valley.json",
+          "data/extraction/school-marin-county-oe.json"
+        ],
+        "test_file": null,
+        "notes": "Discovered in 2026-04-14 ingestion audit. Both configs have source_type 'diligent' with 'no_client' status. Research Diligent/OneProperty API or web scraping approach. ~1-2 sessions."
+      },
+      {
         "name": "ca_sos_results_client",
         "description": "Wire CA Secretary of State Results API (api.sos.ca.gov) for state-level race results with Marin County breakdowns. No auth required, JSON responses. Covers governor, legislature, US Congress, state propositions.",
         "priority": 2,
