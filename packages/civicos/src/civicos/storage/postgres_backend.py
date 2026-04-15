@@ -1920,18 +1920,36 @@ class PostgresBackend:
                     (ex_title, ex_dt, ex_agenda, ex_minutes,
                      ex_status, ex_location, ex_virtual, ex_video) = existing
 
-                    # Normalize datetime for comparison
+                    # Normalize datetime for comparison — strip timezone info
+                    # to avoid phantom changes from tz-aware vs naive mismatch
+                    # (e.g., "2026-04-07T00:00:00+00:00" vs "2026-04-07T00:00:00")
+                    def _strip_tz(dt_str):
+                        """Remove timezone suffix for comparison."""
+                        if not dt_str:
+                            return dt_str
+                        # Strip +00:00, Z, or any tz offset
+                        for suffix in ('+00:00', 'Z', '+0000'):
+                            if dt_str.endswith(suffix):
+                                dt_str = dt_str[:-len(suffix)]
+                        return dt_str
+
                     ex_dt_str = ex_dt.isoformat() if isinstance(ex_dt, datetime) else str(ex_dt) if ex_dt else None
+                    new_dt_str = _strip_tz(meeting_dt)
+                    ex_dt_str = _strip_tz(ex_dt_str)
+
+                    # Normalize None vs empty string for URL fields
+                    def _norm(val):
+                        return val if val else None
 
                     has_changes = (
                         meeting_dict.get('title') != ex_title or
-                        meeting_dt != ex_dt_str or
-                        meeting_dict.get('agenda_url') != ex_agenda or
-                        meeting_dict.get('minutes_url') != ex_minutes or
+                        new_dt_str != ex_dt_str or
+                        _norm(meeting_dict.get('agenda_url')) != _norm(ex_agenda) or
+                        _norm(meeting_dict.get('minutes_url')) != _norm(ex_minutes) or
                         meeting_dict.get('status') != ex_status or
-                        meeting_dict.get('location') != ex_location or
-                        meeting_dict.get('virtual_url') != ex_virtual or
-                        meeting_dict.get('video_url') != ex_video
+                        _norm(meeting_dict.get('location')) != _norm(ex_location) or
+                        _norm(meeting_dict.get('virtual_url')) != _norm(ex_virtual) or
+                        _norm(meeting_dict.get('video_url')) != _norm(ex_video)
                     )
 
                     if not has_changes:
