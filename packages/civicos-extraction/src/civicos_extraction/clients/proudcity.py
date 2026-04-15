@@ -932,15 +932,16 @@ class ProudCityClient(BaseExtractor):
                     except ValueError:
                         pass
 
-        # Extract time (e.g., "6:00 pm", "6:00pm", "18:00")
-        time_pattern = r'\b(\d{1,2}):(\d{2})\s*(am|pm|AM|PM)?\b'
-        time_matches = re.findall(time_pattern, text_content)
+        # Extract time (e.g., "6:00 pm", "6:00pm", "6:00 P.M.", "18:00")
+        time_pattern = r'\b(\d{1,2}):(\d{2})\s*(a\.?m\.?|p\.?m\.?|AM|PM)?\b'
+        time_matches = re.findall(time_pattern, text_content, re.IGNORECASE)
         for hour, minute, ampm in time_matches:
             hour = int(hour)
             minute = int(minute)
-            if ampm and ampm.lower() == 'pm' and hour != 12:
+            ampm_clean = ampm.replace('.', '').lower() if ampm else ''
+            if ampm_clean == 'pm' and hour != 12:
                 hour += 12
-            elif ampm and ampm.lower() == 'am' and hour == 12:
+            elif ampm_clean == 'am' and hour == 12:
                 hour = 0
             # Skip times that look like page metadata (very early morning)
             if 6 <= hour <= 22:  # Reasonable meeting hours
