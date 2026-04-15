@@ -1920,22 +1920,27 @@ class PostgresBackend:
                     (ex_title, ex_dt, ex_agenda, ex_minutes,
                      ex_status, ex_location, ex_virtual, ex_video) = existing
 
-                    # Normalize datetime for comparison — strip timezone info
+                    # Normalize datetime for comparison — parse to naive datetime
                     # to avoid phantom changes from tz-aware vs naive mismatch
                     # (e.g., "2026-04-07T00:00:00+00:00" vs "2026-04-07T00:00:00")
-                    def _strip_tz(dt_str):
-                        """Remove timezone suffix for comparison."""
-                        if not dt_str:
-                            return dt_str
-                        # Strip +00:00, Z, or any tz offset
-                        for suffix in ('+00:00', 'Z', '+0000'):
-                            if dt_str.endswith(suffix):
-                                dt_str = dt_str[:-len(suffix)]
-                        return dt_str
+                    def _parse_naive_dt(val):
+                        """Parse datetime string or object to naive datetime for comparison."""
+                        if val is None:
+                            return None
+                        if isinstance(val, datetime):
+                            return val.replace(tzinfo=None)
+                        if isinstance(val, date) and not isinstance(val, datetime):
+                            return datetime(val.year, val.month, val.day)
+                        if isinstance(val, str):
+                            try:
+                                parsed = datetime.fromisoformat(val.replace('Z', '+00:00'))
+                                return parsed.replace(tzinfo=None)
+                            except ValueError:
+                                return val  # Fall back to string comparison
+                        return val
 
-                    ex_dt_str = ex_dt.isoformat() if isinstance(ex_dt, datetime) else str(ex_dt) if ex_dt else None
-                    new_dt_str = _strip_tz(meeting_dt)
-                    ex_dt_str = _strip_tz(ex_dt_str)
+                    new_dt_naive = _parse_naive_dt(meeting_dt)
+                    ex_dt_naive = _parse_naive_dt(ex_dt)
 
                     # Normalize None vs empty string for URL fields
                     def _norm(val):
@@ -1943,7 +1948,7 @@ class PostgresBackend:
 
                     has_changes = (
                         meeting_dict.get('title') != ex_title or
-                        new_dt_str != ex_dt_str or
+                        new_dt_naive != ex_dt_naive or
                         _norm(meeting_dict.get('agenda_url')) != _norm(ex_agenda) or
                         _norm(meeting_dict.get('minutes_url')) != _norm(ex_minutes) or
                         meeting_dict.get('status') != ex_status or
