@@ -3302,6 +3302,7 @@ def fetch_meetings(
                 jurisdiction=jurisdiction,
                 committee_id=config.metadata.get("committee_id", ""),
                 dry_run=dry_run,
+                days_past=days_past,
             )
             return result
         elif source_type == "civicplus":
@@ -4773,6 +4774,7 @@ def fetch_boarddocs_meetings(
     jurisdiction: str = "",
     committee_id: str = "",
     dry_run: bool = False,
+    days_past: int = 0,
 ) -> dict:
     """Fetch school board meetings and extract structured content from BoardDocs.
 
@@ -4785,10 +4787,13 @@ def fetch_boarddocs_meetings(
         jurisdiction: Target jurisdiction ID. If empty, inferred from app_path.
         committee_id: BoardDocs committee ID. If empty, auto-discovered from main page.
         dry_run: If True, fetch but don't store
+        days_past: Days to look back for meetings (0 = no limit, fetches all).
+                   The daily cron passes 90; use 0 for initial onboarding.
     """
     import logging
     import os
     import time
+    from datetime import date, timedelta
 
     logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
     logger = logging.getLogger(__name__)
@@ -4808,9 +4813,12 @@ def fetch_boarddocs_meetings(
     if not jurisdiction:
         jurisdiction = f"school-{app_path.replace('/', '-')}"
 
+    since_date = date.today() - timedelta(days=days_past) if days_past > 0 else None
+
     logger.info(
         f"[BOARDDOCS] Starting fetch: app_path={app_path}, "
-        f"jurisdiction={jurisdiction}, committee_id={committee_id or 'auto-discover'}"
+        f"jurisdiction={jurisdiction}, committee_id={committee_id or 'auto-discover'}, "
+        f"since={since_date or 'all'}"
     )
 
     # Create client
@@ -4825,8 +4833,8 @@ def fetch_boarddocs_meetings(
     if not validation.is_valid:
         raise RuntimeError(f"BoardDocs validation failed: {validation.errors}")
 
-    meetings = client.get_meetings()
-    logger.info(f"[BOARDDOCS] Fetched {len(meetings)} meetings")
+    meetings = client.get_meetings(since=since_date)
+    logger.info(f"[BOARDDOCS] Fetched {len(meetings)} meetings (since={since_date or 'all'})")
 
     if dry_run:
         elapsed = time.time() - start_time
@@ -4847,6 +4855,7 @@ def fetch_boarddocs_meetings(
         client=client,
         storage=backend,
         jurisdiction_id=jurisdiction,
+        since=since_date,
     )
 
     # Fetch agendas and extract chunks + agenda items directly.
@@ -7273,6 +7282,7 @@ def scheduled_high_velocity_refresh():
                     jurisdiction=jid,
                     committee_id=ext_config.metadata.get("committee_id", ""),
                     dry_run=False,
+                    days_past=90,
                 )
                 meetings_result = {
                     "task": "meetings",
