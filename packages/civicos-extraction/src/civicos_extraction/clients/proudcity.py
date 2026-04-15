@@ -932,21 +932,49 @@ class ProudCityClient(BaseExtractor):
                     except ValueError:
                         pass
 
-        # Extract time (e.g., "6:00 pm", "6:00pm", "6:00 P.M.", "18:00")
-        time_pattern = r'\b(\d{1,2}):(\d{2})\s*(a\.?m\.?|p\.?m\.?|AM|PM)?\b'
-        time_matches = re.findall(time_pattern, text_content, re.IGNORECASE)
-        for hour, minute, ampm in time_matches:
-            hour = int(hour)
-            minute = int(minute)
-            ampm_clean = ampm.replace('.', '').lower() if ampm else ''
-            if ampm_clean == 'pm' and hour != 12:
+        # Extract meeting start time from page.
+        # Pages have multiple times (closed session, comment deadline, office hours).
+        # Strategy: prefer contextual match ("regular meeting at TIME"), then header time.
+        time_pattern = r'(\d{1,2}):(\d{2})\s*(a\.?m\.?|p\.?m\.?)'
+
+        def _parse_time(hour_s, min_s, ampm_s):
+            hour = int(hour_s)
+            ampm = ampm_s.replace('.', '').lower() if ampm_s else ''
+            if ampm == 'pm' and hour != 12:
                 hour += 12
-            elif ampm_clean == 'am' and hour == 12:
+            elif ampm == 'am' and hour == 12:
                 hour = 0
-            # Skip times that look like page metadata (very early morning)
-            if 6 <= hour <= 22:  # Reasonable meeting hours
-                parsed_time = f"{hour:02d}:{minute:02d}"
-                break
+            if 6 <= hour <= 22:
+                return f"{hour:02d}:{min_s}"
+            return None
+
+        # Pass 1: look for time near "regular meeting", "call to order", "meeting at/begins"
+        context_patterns = [
+            r'(?:regular\s+meeting|call(?:ed)?\s+to\s+order|meeting\s+(?:at|begins?)|public\s+meeting)\s+(?:at\s+)?(\d{1,2}):(\d{2})\s*(a\.?m\.?|p\.?m\.?)',
+        ]
+        for cp in context_patterns:
+            m = re.search(cp, text_content, re.IGNORECASE)
+            if m:
+                t = _parse_time(m.group(1), m.group(2), m.group(3))
+                if t:
+                    parsed_time = t
+                    break
+
+        # Pass 2: fall back to first valid time not in a skip context
+        if not parsed_time:
+            skip_contexts = ('closed session', 'adjour', 'no later than', 'deadline',
+                             'cutoff', 'office hour', 'hours:', 'monday', 'tuesday',
+                             'wednesday', 'thursday', 'friday', 'a.m.-', 'am-')
+            for line in text_content.split('\n'):
+                line_lower = line.strip().lower()
+                if any(ctx in line_lower for ctx in skip_contexts):
+                    continue
+                m = re.search(time_pattern, line, re.IGNORECASE)
+                if m:
+                    t = _parse_time(m.group(1), m.group(2), m.group(3))
+                    if t:
+                        parsed_time = t
+                        break
 
         # Use fallback if page parsing failed
         if not parsed_date:

@@ -259,6 +259,89 @@ class TestPostgresBackendStoreMeetings:
 
         assert total_rows == 1, f"Expected 1 row, got {total_rows} (idempotency failed)"
 
+    def test_store_meetings_idempotent_timezone_mismatch(self, backend):
+        """Timezone-aware and naive datetimes should be treated as identical.
+
+        Regression test: CivicPlus sends "2026-04-07T00:00:00+00:00" but Postgres
+        stores as naive "2026-04-07T00:00:00". Without normalization, every cron run
+        detected a phantom change and created a new version. See commit 7e42ca84.
+        """
+        meeting_naive = {
+            "id": "mtg-tz-test",
+            "title": "TZ Test",
+            "meeting_datetime": "2026-04-07T00:00:00",
+            "status": "scheduled",
+            "agenda_url": "https://example.com/agenda",
+            "minutes_url": None,
+            "video_url": None,
+            "virtual_url": None,
+            "location": None,
+            "source_platform": "test",
+        }
+        meeting_tz_aware = {
+            **meeting_naive,
+            "meeting_datetime": "2026-04-07T00:00:00+00:00",
+        }
+        meeting_z_suffix = {
+            **meeting_naive,
+            "meeting_datetime": "2026-04-07T00:00:00Z",
+        }
+
+        # Store naive, then re-store with +00:00, then with Z
+        backend.store_meetings("city-tz-test", [meeting_naive])
+        backend.store_meetings("city-tz-test", [meeting_tz_aware])
+        backend.store_meetings("city-tz-test", [meeting_z_suffix])
+
+        # Should still be exactly 1 row — no phantom versions
+        conn = psycopg2.connect(POSTGRES_URL)
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT COUNT(*) FROM meetings WHERE id = 'mtg-tz-test'"
+        )
+        total_rows = cursor.fetchone()[0]
+        conn.close()
+
+        assert total_rows == 1, (
+            f"Expected 1 row, got {total_rows} "
+            "(timezone normalization failed — phantom versions created)"
+        )
+
+    def test_store_meetings_idempotent_none_vs_empty_string(self, backend):
+        """None and empty string URL fields should be treated as identical."""
+        meeting_none = {
+            "id": "mtg-norm-test",
+            "title": "Norm Test",
+            "meeting_datetime": "2026-05-01T18:00:00",
+            "status": "scheduled",
+            "agenda_url": None,
+            "minutes_url": None,
+            "video_url": None,
+            "virtual_url": None,
+            "location": None,
+            "source_platform": "test",
+        }
+        meeting_empty = {
+            **meeting_none,
+            "agenda_url": "",
+            "location": "",
+        }
+
+        backend.store_meetings("city-norm-test", [meeting_none])
+        backend.store_meetings("city-norm-test", [meeting_empty])
+
+        conn = psycopg2.connect(POSTGRES_URL)
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT COUNT(*) FROM meetings WHERE id = 'mtg-norm-test'"
+        )
+        total_rows = cursor.fetchone()[0]
+        conn.close()
+
+        assert total_rows == 1, (
+            f"Expected 1 row, got {total_rows} "
+            "(None vs empty string normalization failed)"
+        )
+
     def test_store_meetings_multiple_jurisdictions(self, backend, sample_meetings):
         """Meetings should be stored separately per jurisdiction."""
         backend.store_meetings("city-a", sample_meetings[:1])
