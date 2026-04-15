@@ -1806,6 +1806,19 @@
         "notes": "Discovered in 2026-04-14 ingestion audit. Both configs have source_type 'diligent' with 'no_client' status. Research Diligent/OneProperty API or web scraping approach. ~1-2 sessions."
       },
       {
+        "name": "multi_source_advisory_body_coverage",
+        "description": "Many cities split meetings across platforms: major bodies (City Council, Planning) on Granicus, advisory bodies (Arts, Library, Emergency Prep) on CivicWeb/CivicPlus AgendaCenter. Current extraction only scrapes one platform per jurisdiction. Build dual-source config support so onboarding discovers and ingests from both. Mill Valley is the reference case: Granicus view_id=2,3 covers Council+Planning, but 8+ advisory bodies are only on cityofmillvalley.gov/AgendaCenter (CivicPlus).",
+        "priority": 2,
+        "status": "not_started",
+        "files": [
+          "packages/civicos-extraction/src/civicos_extraction/clients/base.py",
+          "packages/civicos-extraction/src/civicos_extraction/onboard.py",
+          "data/extraction/city-mill-valley.json"
+        ],
+        "test_file": null,
+        "notes": "Discovered in 2026-04-15 QC audit. Affects Mill Valley (confirmed: Arts Commission, Emergency Preparedness, Library Board, Design Advisory, Transportation Advisory, Zoning Admin all missing). Likely affects other Granicus cities too. Design: extraction config should support multiple source entries per jurisdiction, onboard.py should probe both Granicus and CivicPlus/CivicWeb for each city. ~2 sessions."
+      },
+      {
         "name": "ca_sos_results_client",
         "description": "Wire CA Secretary of State Results API (api.sos.ca.gov) for state-level race results with Marin County breakdowns. No auth required, JSON responses. Covers governor, legislature, US Congress, state propositions.",
         "priority": 2,
