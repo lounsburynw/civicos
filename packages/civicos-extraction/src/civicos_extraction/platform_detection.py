@@ -1464,7 +1464,7 @@ def discover_platform(
                 # confirm this is a real CivicPlus meeting site (not just CMS).
                 confirmed_civicplus = bool(civicplus_amids)
                 if not civicplus_amids:
-                    for test_amid in ["37", "41", "49", "1", "2", "3"]:
+                    for test_amid in [str(i) for i in range(1, 60)]:
                         try:
                             probe = requests.get(
                                 f"{resolved_base}/Archive.aspx?AMID={test_amid}",
