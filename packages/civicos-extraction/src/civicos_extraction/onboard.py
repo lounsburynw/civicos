@@ -2808,6 +2808,55 @@ def onboard_jurisdiction(
         except Exception as e:
             errors.append(f"Registry generation error: {e}")
 
+    # Step 5.5: Advisory body gap detection
+    # Many cities publish major bodies (Council, Planning) on Granicus but advisory
+    # bodies (Arts, Library, Finance, etc.) on a CivicPlus/CivicWeb AgendaCenter.
+    # Probe the city website for a secondary meeting source to surface this gap.
+    secondary_source_warning = None
+    source_type = config.get("source_type", "")
+    if source_type in ("granicus", "legistar", "civicclerk"):
+        try:
+            _progress("advisory_check", "Checking for secondary meeting sources on city website...")
+            city_website = None
+            # Try common city URL patterns
+            if city_name and state:
+                slug = re.sub(r"\s+", "", city_name.lower())
+                candidates = [
+                    f"https://www.{slug}.gov",
+                    f"https://www.cityof{slug}.gov",
+                    f"https://www.cityof{slug}.org",
+                    f"https://www.townof{slug}.org",
+                    f"https://www.townof{slug}.gov",
+                    f"https://www.{slug}.org",
+                ]
+                for c in [u for u in candidates if u]:
+                    try:
+                        resp = requests.head(c, timeout=5, allow_redirects=True)
+                        if resp.status_code < 400:
+                            city_website = resp.url
+                            break
+                    except Exception:
+                        continue
+
+            if city_website:
+                # Check for CivicPlus AgendaCenter
+                agenda_url = city_website.rstrip('/') + '/AgendaCenter'
+                try:
+                    resp = requests.get(agenda_url, timeout=8, allow_redirects=True,
+                                        headers={"User-Agent": "CivicOS-Extraction/1.0"})
+                    if resp.status_code == 200 and ('AgendaCenter' in resp.text or 'Archive.aspx' in resp.text):
+                        secondary_source_warning = (
+                            f"City website has a CivicPlus/CivicWeb AgendaCenter at {agenda_url} "
+                            f"which may host advisory body meetings not on {source_type.capitalize()}. "
+                            f"See multi_source_advisory_body_coverage roadmap item."
+                        )
+                        warnings.append(secondary_source_warning)
+                        logger.warning(secondary_source_warning)
+                except Exception:
+                    pass  # City website blocked or no AgendaCenter — that's fine
+        except Exception as e:
+            logger.debug(f"Advisory body gap check failed: {e}")
+
     # Step 6: Build next steps
     next_steps = [
         f"Review config at {config_path}",
@@ -2826,6 +2875,9 @@ def onboard_jurisdiction(
         f"Run pipeline: civic-extract onboard --url <url> -j {jurisdiction_id} --run-pipeline",
         f"Index vectors: civic-extract onboard --url <url> -j {jurisdiction_id} --run-pipeline --index-vectors",
     ])
+
+    if secondary_source_warning:
+        next_steps.append(f"WARNING: {secondary_source_warning}")
 
     # Universal/playwright_llm adapters don't use archives — skip this check
     source_type = config.get("source_type", "")
