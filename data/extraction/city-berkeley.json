@@ -4,8 +4,8 @@
   "jurisdiction_id": "city-berkeley",
   "base_url": "https://berkeley.granicus.com",
   "archives": {
-    "view_2": "2",
-    "view_5": "5"
+    "zoning_adjustments_board": "2",
+    "city_council": "5"
   },
   "metadata": {
     "granicus_domain": "berkeley",

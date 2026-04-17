@@ -342,6 +342,48 @@ class TestPostgresBackendStoreMeetings:
             "(None vs empty string normalization failed)"
         )
 
+    def test_store_meetings_updates_meeting_type_on_change(self, backend):
+        """meeting_type change should create a new version with the updated value.
+
+        Regression: when archive config keys are renamed (e.g., city-berkeley
+        view_2 -> zoning_adjustments_board), existing rows must pick up the new
+        meeting_type. has_changes previously omitted meeting_type, so renames
+        only took effect for brand-new meeting_ids.
+        """
+        base = {
+            "id": "mtg-type-test",
+            "title": "Type Test",
+            "meeting_datetime": "2026-05-01T18:00:00",
+            "status": "scheduled",
+            "agenda_url": None,
+            "minutes_url": None,
+            "video_url": None,
+            "virtual_url": None,
+            "location": None,
+            "source_platform": "test",
+        }
+        v1 = {**base, "meeting_type": "view_2"}
+        v2 = {**base, "meeting_type": "zoning_adjustments_board"}
+
+        backend.store_meetings("city-type-test", [v1])
+        backend.store_meetings("city-type-test", [v2])
+
+        current = backend.get_meetings("city-type-test")
+        assert len(current) == 1
+        assert current[0]["meeting_type"] == "zoning_adjustments_board"
+
+        conn = psycopg2.connect(POSTGRES_URL)
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT COUNT(*) FROM meetings WHERE id = 'mtg-type-test'"
+        )
+        total_rows = cursor.fetchone()[0]
+        conn.close()
+
+        assert total_rows == 2, (
+            f"Expected 2 rows (v1 closed, v2 current), got {total_rows}"
+        )
+
     def test_store_meetings_multiple_jurisdictions(self, backend, sample_meetings):
         """Meetings should be stored separately per jurisdiction."""
         backend.store_meetings("city-a", sample_meetings[:1])
