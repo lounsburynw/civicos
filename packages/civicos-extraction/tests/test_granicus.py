@@ -170,6 +170,32 @@ class TestGranicusClient:
         finally:
             g._learned_date_formats.remove("%d %b %Y")
 
+    def test_parse_date_preserves_time_from_upcoming_row(self, client):
+        """Granicus upcoming views emit 'MM/DD/YY - HH:MM AM/PM'. Previous
+        implementation stripped the time as 'trailing suffix', forcing every
+        meeting to midnight. Time must be preserved when the source has it."""
+        # Direct format (Unix-stripped upstream)
+        dt = client._parse_date("04/20/26 - 01:00 PM")
+        assert dt == datetime(2026, 4, 20, 13, 0)
+
+        # With Unix prefix as it actually appears in ViewPublisher HTML
+        dt = client._parse_date("177671520004/20/26 - 01:00\xa0PM")
+        assert dt == datetime(2026, 4, 20, 13, 0)
+
+        # 4-digit year variant
+        dt = client._parse_date("04/20/2026 - 01:00 PM")
+        assert dt == datetime(2026, 4, 20, 13, 0)
+
+    def test_parse_date_date_only_still_midnight(self, client):
+        """Date-only strings (archive rows without a time column) continue
+        to return midnight — the date-only fallback path still works."""
+        dt = client._parse_date("04/14/26")
+        assert dt == datetime(2026, 4, 14, 0, 0)
+        dt = client._parse_date("March 4, 2026")
+        assert dt == datetime(2026, 3, 4, 0, 0)
+        dt = client._parse_date("03/10/26 -")  # trailing bare dash
+        assert dt == datetime(2026, 3, 10, 0, 0)
+
     def test_parse_date_unix_timestamp_prefix(self, client):
         """Unix timestamp prefix is stripped before parsing."""
         events = client._parse_table(SAMPLE_GRANICUS_HTML_UNIX_TS, "1")
@@ -236,17 +262,78 @@ class TestGranicusClient:
         assert meeting.video_url == "https://marin.granicus.com/player/clip/2042"
 
     def test_get_events_with_mock(self, client):
-        """get_events iterates view_ids and applies date filter."""
+        """get_events iterates configured views AND the default/upcoming
+        view. Fixture has archive view_id=33 and default_view_id=36, so the
+        same mocked HTML is parsed twice (6 events) — once tagged with the
+        archive's body and once with meeting_type=None (from default view)."""
         mock_response = MagicMock()
         mock_response.text = SAMPLE_GRANICUS_HTML
         mock_response.status_code = 200
 
-        with patch.object(client, "_fetch_view", return_value=mock_response):
+        fetched_view_ids = []
+        def record_fetch(view_id):
+            fetched_view_ids.append(view_id)
+            return mock_response
+        with patch.object(client, "_fetch_view", side_effect=record_fetch):
             events = client.get_events(days_ahead=90, days_past=365)
 
-        # All 3 events from sample HTML should be returned (within date range)
-        assert len(events) == 3
+        assert set(fetched_view_ids) == {"33", "36"}
+        assert len(events) == 6
+        archive_events = [e for e in events if e["meeting_type"] == "board_of_supervisors"]
+        default_events = [e for e in events if e["meeting_type"] is None]
+        assert len(archive_events) == 3
+        assert len(default_events) == 3
         assert events[0]["title"] == "BOS Meeting"
+
+    def test_get_events_fetches_default_view_alongside_archives(self):
+        """Configured per-body archives don't surface upcoming meetings or
+        bodies without a dedicated archive. The default view — the site's
+        combined 'all upcoming' feed — must be fetched too, tagged with
+        meeting_type=None so downstream can infer the body per-row."""
+        c = GranicusClient(
+            granicus_domain="marin",
+            jurisdiction_id="county-marin",
+            view_ids={"board_of_supervisors": "33", "planning_commission": "3"},
+            default_view_id="36",
+        )
+        c._last_request_time = 999999999.0
+
+        mock_response = MagicMock()
+        mock_response.text = SAMPLE_GRANICUS_HTML
+        mock_response.status_code = 200
+
+        fetched = []
+        def record_fetch(view_id):
+            fetched.append(view_id)
+            return mock_response
+        with patch.object(c, "_fetch_view", side_effect=record_fetch):
+            c.get_events(days_ahead=90, days_past=365)
+
+        assert set(fetched) == {"33", "3", "36"}
+
+    def test_get_events_does_not_double_fetch_default_when_in_archives(self):
+        """When default_view_id also appears as an archive value, it should
+        only be fetched once — no redundant HTTP call."""
+        c = GranicusClient(
+            granicus_domain="mill-valley",
+            jurisdiction_id="city-mill-valley",
+            view_ids={"city_council": "2"},
+            default_view_id="2",  # same as the archive
+        )
+        c._last_request_time = 999999999.0
+
+        mock_response = MagicMock()
+        mock_response.text = SAMPLE_GRANICUS_HTML
+        mock_response.status_code = 200
+
+        fetched = []
+        def record_fetch(view_id):
+            fetched.append(view_id)
+            return mock_response
+        with patch.object(c, "_fetch_view", side_effect=record_fetch):
+            c.get_events(days_ahead=90, days_past=365)
+
+        assert fetched == ["2"]
 
     def test_get_meetings_dedup_across_views(self):
         """get_meetings deduplicates same meeting across different view_ids."""

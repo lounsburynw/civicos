@@ -56,6 +56,11 @@ _AUXILIARY_AUDIO_TITLES = frozenset({
     "spanish audio files",
 })
 
+# Sentinel body_name for rows fetched from the default/combined view.
+# Distinguishes them from configured per-body archives so meeting_type
+# is left unset (the combined view mixes bodies).
+_DEFAULT_VIEW_BODY = "__default_view__"
+
 
 def _get_llm_provider():
     """Lazy-load the LLM provider. Returns None if unavailable."""
@@ -471,16 +476,18 @@ HTML:
         2. Previously-learned formats (from LLM, cached in-process)
         3. LLM fallback (gpt-4o-mini) that also learns new format strings
 
+        Preserves time when present in the source string; falls back to
+        midnight only when the source is date-only.
+
         Handles:
         - "March 4, 2026", "Feb 25, 2026" (full/abbreviated month)
         - "10/7/2025", "03/10/26" (MM/DD/YYYY or MM/DD/YY)
         - "2025-10-07" (ISO)
         - "1773156600 03/10/26" (Unix timestamp prefix)
-        - "03/10/26 - 08:30 AM" (with time suffix)
+        - "03/10/26 - 08:30 AM" (date + time, produces 08:30 not midnight)
         - Unknown formats (via LLM fallback)
         """
         # Normalize whitespace first (Granicus HTML has \r\n, \xa0, and extra spaces)
-        raw_text = date_text
         date_text = re.sub(r"\s+", " ", date_text).strip()
         # Normalize spaces around slashes (e.g., "03 / 24 / 2026" → "03/24/2026")
         date_text = re.sub(r"\s*/\s*", "/", date_text)
@@ -492,31 +499,48 @@ HTML:
         # e.g., "1758006000Sep 16, 2025" → "Sep 16, 2025"
         unix_match = re.match(r"^(\d{10})(.+)$", date_text)
         if unix_match:
-            date_text = unix_match.group(2)
-        # Strip trailing time/whitespace (e.g., "03/10/26 - 08:30 AM" or "03/10/26 -")
-        date_text = re.sub(r"\s*-\s*$", "", date_text)  # trailing " -"
-        date_text = re.sub(r"\s+-\s+\d{1,2}:\d{2}\s*(AM|PM)?.*$", "", date_text, flags=re.I)
-        date_text = date_text.strip()
+            date_text = unix_match.group(2).strip()
+        # Strip trailing bare dash (e.g., "03/10/26 -" with no time after)
+        date_text = re.sub(r"\s*-\s*$", "", date_text).strip()
 
-        # Tier 1: Hardcoded formats (zero cost, covers ~99% of Granicus sites)
+        # Tier 1a: Try date+time formats first, so explicit times are preserved
+        # (Granicus upcoming views emit "04/20/26 - 01:00 PM"; archived rows
+        # occasionally include times too). Missing this tier drops the time
+        # and every row falls back to midnight.
+        datetime_formats = [
+            "%m/%d/%y - %I:%M %p",
+            "%m/%d/%Y - %I:%M %p",
+            "%B %d, %Y - %I:%M %p",
+            "%b %d, %Y - %I:%M %p",
+            "%B %d, %Y %I:%M %p",
+            "%b %d, %Y %I:%M %p",
+            "%Y-%m-%d %I:%M %p",
+        ]
+        for fmt in datetime_formats:
+            try:
+                return datetime.strptime(date_text, fmt)
+            except ValueError:
+                continue
+
+        # Tier 1b: Strip any residual time suffix, then try date-only formats
+        date_only = re.sub(
+            r"\s+-\s+\d{1,2}:\d{2}\s*(AM|PM)?.*$", "", date_text, flags=re.I
+        ).strip()
         date_formats = [
             "%B %d, %Y",
             "%b %d, %Y",
             "%m/%d/%Y",
             "%m/%d/%y",
             "%Y-%m-%d",
-            "%B %d, %Y %I:%M %p",
-            "%b %d, %Y %I:%M %p",
         ]
-
         for fmt in date_formats:
             try:
-                return datetime.strptime(date_text.strip(), fmt)
+                return datetime.strptime(date_only, fmt)
             except ValueError:
                 continue
 
         # Try extracting date substring
-        date_match = re.search(r"(\w+ \d+, \d{4})", date_text)
+        date_match = re.search(r"(\w+ \d+, \d{4})", date_only)
         if date_match:
             for fmt in ["%B %d, %Y", "%b %d, %Y"]:
                 try:
@@ -574,15 +598,28 @@ HTML:
 
         all_events = []
 
-        # If no view_ids configured, use default_view_id
-        views_to_fetch = self.view_ids if self.view_ids else {"default": self.default_view_id}
+        # Always fetch the combined/default view alongside any configured
+        # per-body archives. On Granicus, archive views are historical and
+        # per-body, while the default view is the site's "all upcoming"
+        # feed — it's the only place that surfaces future meetings and
+        # bodies with no dedicated archive (e.g., TAM, Deputy Zoning
+        # Administrator for county-marin). Without this, upcoming meetings
+        # and un-archived bodies never land in the DB.
+        views_to_fetch = dict(self.view_ids)
+        if self.default_view_id and self.default_view_id not in views_to_fetch.values():
+            # meeting_type=None for rows from the combined view — we don't
+            # know the body a priori and downstream dedup uses (date, title).
+            views_to_fetch[_DEFAULT_VIEW_BODY] = self.default_view_id
 
         for body_name, view_id in views_to_fetch.items():
             response = self._fetch_view(view_id)
             if not response:
                 continue
 
-            events = self._parse_table(response.text, view_id, meeting_type=body_name)
+            # Rows from the default/combined view carry no pre-assigned body;
+            # leave meeting_type None so downstream can infer per-row.
+            meeting_type = None if body_name == _DEFAULT_VIEW_BODY else body_name
+            events = self._parse_table(response.text, view_id, meeting_type=meeting_type)
 
             # Apply temporal filter
             for event in events:
