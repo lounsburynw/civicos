@@ -1270,7 +1270,7 @@
         "name": "direct_city_submission",
         "description": "Authenticated endpoint for city clerks to submit meeting data directly (PDF upload + metadata). Bypasses scraping entirely. Extension UI for drag-and-drop upload.",
         "status": "not_started",
-        "priority": 0,
+        "priority": 1,
         "phase": "B",
         "source": "onboarding friction \u2014 scraping is fragile, cities already have the data",
         "files": [
@@ -1817,6 +1817,19 @@
         ],
         "test_file": null,
         "notes": "Discovered in 2026-04-15 QC audit. Affects Mill Valley (confirmed: Arts Commission, Emergency Preparedness, Library Board, Design Advisory, Transportation Advisory, Zoning Admin all missing). Likely affects other Granicus cities too. Design: extraction config should support multiple source entries per jurisdiction, onboard.py should probe both Granicus and CivicPlus/CivicWeb for each city. ~2 sessions."
+      },
+      {
+        "name": "jurisdiction_qc_walkthrough",
+        "description": "Continue manual jurisdiction-by-jurisdiction QC audit against live municipal websites. Completed 10/~18 so far (San Rafael, Mill Valley, San Anselmo, Sausalito, Fairfax, Corte Madera, Novato, Belvedere, Tiburon, Larkspur). Uncovered and fixed 4 bugs: ProudCity P.M. regex, phantom version bloat from tz mismatch, CivicPlus AMID discovery, BoardDocs no date guard. Remaining: city-ross, county-marin, SF, Berkeley, Alameda, 11 school districts, college-marin, sonoma/state-california.",
+        "priority": 0,
+        "status": "in_progress",
+        "files": [
+          "reports/ingestion-audits/",
+          "packages/civicos-extraction/src/civicos_extraction/clients/proudcity.py",
+          "packages/civicos/src/civicos/storage/postgres_backend.py"
+        ],
+        "test_file": "packages/civicos-extraction/tests/test_proudcity.py",
+        "notes": "Started 2026-04-15. Next jurisdiction: city-ross. Pattern: query DB, cross-reference with live website via WebFetch, flag config gaps and data quality issues. Each session should tackle 3-5 jurisdictions and fix any bugs surfaced."
       },
       {
         "name": "ca_sos_results_client",
