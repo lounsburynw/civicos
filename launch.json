@@ -1819,6 +1819,18 @@
         "notes": "Discovered in 2026-04-15 QC audit. Affects Mill Valley (confirmed: Arts Commission, Emergency Preparedness, Library Board, Design Advisory, Transportation Advisory, Zoning Admin all missing). Likely affects other Granicus cities too. Design: extraction config should support multiple source entries per jurisdiction, onboard.py should probe both Granicus and CivicPlus/CivicWeb for each city. ~2 sessions."
       },
       {
+        "name": "expand_granicus_discovery",
+        "description": "Extend Granicus view_id discovery to catch advisory bodies beyond the top-level committees. SF cross-reference (2026-04-17) found 14+ bodies published on sfbos.org/meetings that are not configured as archives in data/extraction/city-san-francisco.json: Assessment Appeals Board No. 1/2/3, Youth Commission (+ Transformative Justice Committee), Sunshine Ordinance Task Force - Complaint Committee, LAFCO, SF Transportation Authority, Civic Engagement and Immigration Committee, Joint City/School Select Committee, Joint City & School District, Neighborhood Services & Safety, Public Safety Committee, RBOC, Special Joint Meeting, Youth/Young Adult/Families. Same class of gap likely affects other large Granicus jurisdictions (Berkeley, Oakland, etc.).",
+        "priority": 2,
+        "status": "not_started",
+        "files": [
+          "packages/civicos-extraction/src/civicos_extraction/clients/granicus.py",
+          "data/extraction/city-san-francisco.json"
+        ],
+        "test_file": "packages/civicos-extraction/tests/test_granicus.py",
+        "notes": "Existing infra: GranicusClient.discover_view_ids() at granicus.py:774 probes view_ids 1-50 with 5-consecutive-empty stop. generate_body_names() LLM-names discovered views. Scope: (1) bump probe range to 1-200 or convert to sequential-scan-until-N-empty like CivicPlus AMID fix (df4656e9), (2) run against sanfrancisco.granicus.com, (3) diff discovered views against currently-configured archives, (4) LLM-name new views, (5) append to archives in SF extraction config, (6) re-run fetch_meetings for SF (today's always-fetch-default fix ensures upcoming meetings captured). Some bodies (Assessment Appeals) may not be on Granicus — separate discovery needed (playwright_llm fallback). Apply same pass to city-berkeley and county-alameda during their QC. ~1-2 hours."
+      },
+      {
         "name": "jurisdiction_qc_walkthrough",
         "description": "Continue manual jurisdiction-by-jurisdiction QC audit against live municipal websites. Completed 13/~18 so far (San Rafael, Mill Valley, San Anselmo, Sausalito, Fairfax, Corte Madera, Novato, Belvedere, Tiburon, Larkspur, Ross, Marin County, San Francisco). Uncovered and fixed 7 bugs: ProudCity P.M. regex, phantom version bloat from tz mismatch, CivicPlus AMID discovery, BoardDocs no date guard, Ross mixed-client stale rows + domain migration, Granicus Spanish Audio Files phantom rows, Granicus default_view_id skipped when archives configured (missed upcoming meetings + un-archived bodies like TAM). Remaining: Berkeley, Alameda, 11 school districts, college-marin, sonoma/state-california.",
         "priority": 0,
