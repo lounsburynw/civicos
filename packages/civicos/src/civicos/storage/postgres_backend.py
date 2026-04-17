@@ -1909,7 +1909,7 @@ class PostgresBackend:
                 # Check if meeting exists (current version)
                 cursor.execute("""
                     SELECT title, meeting_datetime, agenda_url, minutes_url,
-                           status, location, virtual_url, video_url
+                           status, location, virtual_url, video_url, meeting_type
                     FROM meetings
                     WHERE id = %s AND jurisdiction_id = %s AND valid_to IS NULL
                 """, (meeting_id, jurisdiction_id))
@@ -1918,7 +1918,7 @@ class PostgresBackend:
                 if existing:
                     # Compare key fields to detect changes
                     (ex_title, ex_dt, ex_agenda, ex_minutes,
-                     ex_status, ex_location, ex_virtual, ex_video) = existing
+                     ex_status, ex_location, ex_virtual, ex_video, ex_type) = existing
 
                     # Normalize datetime for comparison — parse to naive datetime
                     # to avoid phantom changes from tz-aware vs naive mismatch
@@ -1954,7 +1954,8 @@ class PostgresBackend:
                         meeting_dict.get('status') != ex_status or
                         _norm(meeting_dict.get('location')) != _norm(ex_location) or
                         _norm(meeting_dict.get('virtual_url')) != _norm(ex_virtual) or
-                        _norm(meeting_dict.get('video_url')) != _norm(ex_video)
+                        _norm(meeting_dict.get('video_url')) != _norm(ex_video) or
+                        _norm(meeting_dict.get('meeting_type')) != _norm(ex_type)
                     )
 
                     if not has_changes:

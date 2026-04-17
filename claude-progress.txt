@@ -27203,3 +27203,23 @@ Next jurisdiction per handoff: city-san-francisco (known meeting_type variant du
 
 ### Next P0: continue QC walkthrough
 Next jurisdiction per handoff: city-berkeley, then county-alameda, 11 school districts, college-marin, sonoma/state-california.
+
+### Session (2026-04-17 continued) — jurisdiction QC: city-berkeley
+
+**Completed:** Berkeley QC + two forward fixes + Postgres upsert fix.
+
+**Config bug fixed:** `data/extraction/city-berkeley.json` archives used meaningless keys (`view_2`, `view_5`) as body names. These flow through as `meeting_type` on every stored row, so all 83 Berkeley meetings had `meeting_type='view_2'` or `'view_5'`. Renamed to `zoning_adjustments_board` and `city_council`. Safe: meeting_id uses view_id not body_name, so IDs are stable.
+
+**Upsert bug fixed:** `PostgresBackend.store_meetings()` has_changes comparison omitted `meeting_type`. Result: config renames (or any upstream change to meeting_type from inference fixes) never propagated to existing rows; only brand-new meeting_ids picked up the new value. Added `meeting_type` to the SELECT, tuple unpack, and has_changes boolean. Regression test added: `test_store_meetings_updates_meeting_type_on_change`. Runs in CI (needs CIVICOS_TEST_POSTGRES_URL).
+
+**Tests:** Granicus 45/45 pass. SQLite backend 138/138 pass. New Postgres test skipped locally (no test DB), matches existing pattern.
+
+**Berkeley findings (documented in launch.json, not launch blockers):**
+- Rent Stabilization Board (view_9) actively publishes through Apr 2026 but is NOT configured — covered by expand_granicus_discovery P2 item. Also deprecated views: view_6 Housing Authority (last 2007), view_7 Redevelopment Agency (last 2016), view_10 Library/BOLT (last 2019); skip.
+- Upcoming-vs-past dedup gap: same meeting has two rows — one titled "City Council Meeting" (from default view's upcoming feed) and one titled "Regular City Council Meeting - 6:00 p.m." (from view_5 archive after recording posts). Title slugs differ → different meeting_ids → never dedup. Likely affects every Granicus jurisdiction where default_view_id overlaps per-body archives. Logged as follow-up #7 for a dedicated fix pass.
+- All meeting_datetime at midnight is CORRECT for Berkeley: the Granicus date column is date-only (verified against raw HTML at berkeley.granicus.com). Meeting time is embedded in title ("... - 6:00 p.m."). Extracting times from titles would be a separate enhancement pass.
+
+**Migration of existing Berkeley rows:** Once the next refresh runs, the has_changes fix + renamed archive keys will close all 83 old meeting_type='view_2/5' versions and insert new versions with `zoning_adjustments_board`/`city_council`. No manual migration needed.
+
+### Next P0: continue QC walkthrough
+Next jurisdiction: county-alameda. DB state already scoped: 286 meetings, two meeting_types (`board_of_supervisors`, `community_development`), but config has only `"board": "1"` as an archive — the existing types don't correspond to the archive key. Worth investigating what source populated those meetings before extending the walkthrough. Then: 11 school districts (most Simbli-blocked per roadmap), college-marin, county-sonoma, state-california.
