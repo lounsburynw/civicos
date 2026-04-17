@@ -7,7 +7,7 @@ parent_jurisdictions:
 - country-united-states
 contact_info:
   clerk_email: null
-  website: https://www.townofross.org/meetings
+  website: https://www.townofrossca.gov/meetings
   city_hall_address: null
   phone: null
   public_comment_deadline: 5:00 PM day of meeting
@@ -20,56 +20,12 @@ governing_body:
   meeting_location: null
 data_sources:
   meetings:
-    source_type: universal
-    base_url: https://www.townofross.org/meetings
+    source_type: playwright_llm
+    base_url: https://www.townofrossca.gov/meetings
     metadata:
-      adapter:
-        page_type: table
-        listing:
-          container: .view-content > table > tbody
-          row: tr
-          fields:
-            title:
-              selector: .views-field-title
-              extract: text
-            date:
-              selector: .views-field-field-calendar-date-1 > span
-              extract: text
-              date_format: '%m/%d/%Y - %I:%M%p'
-            agenda_url:
-              selector: .views-field-field-agendas a
-              extract: href
-            minutes_url:
-              selector: .views-field-field-minutes a
-              extract: href
-            video_url:
-              selector: .views-field-field-video-link a
-              extract: href
-          url_template: https://www.townofross.org/meetings
-        pagination:
-          type: none
-          next_selector: null
-          max_pages: 5
-        requires_javascript: false
-        provenance:
-          sample_url: https://www.townofross.org/meetings
-          sample_html_hash: sha256:850da637ed610285cdbf07fbd78634e3cca39c61f93f36aa07209d991df8cefb
-          generated_at: '2026-04-03T13:01:59.299925+00:00'
-          prompt_version: universal_adapter/v2
-          raw_response: "```json\n{\n  \"page_type\": \"table\",\n  \"listing\": {\n\
-            \    \"container\": \".view-content > table > tbody\",\n    \"row\": \"\
-            tr\",\n    \"fields\": {\n      \"title\": {\n        \"selector\": \"\
-            .views-field-title\",\n        \"extract\": \"text\"\n      },\n     \
-            \ \"date\": {\n        \"selector\": \".views-field-field-calendar-date-1\
-            \ > span\",\n        \"extract\": \"text\",\n        \"date_format\":\
-            \ \"%m/%d/%Y - %I:%M%p\"\n      },\n      \"agenda_url\": {\n        \"\
-            selector\": \".views-field-field-agendas a\",\n        \"extract\": \"\
-            href\"\n      },\n      \"minutes_url\": {\n        \"selector\": \".views-field-field-minutes\
-            \ a\",\n        \"extract\": \"href\"\n      },\n      \"video_url\":\
-            \ {\n        \"selector\": \".views-field-field-video-link a\",\n    \
-            \    \"extract\": \"href\"\n      }\n    }\n  },\n  \"pagination\": {\n\
-            \    \"type\": \"none\",\n    \"next_selector\": null,\n    \"max_pages\"\
-            : 5\n  },\n  \"requires_javascript\": false\n}\n```"
+      extraction_mode: playwright_llm
+      meeting_page_url: https://www.townofrossca.gov/meetings
+      initial_meeting_count: 17
   issues: null
   budget: null
   municipal_code: null
@@ -84,11 +40,11 @@ financial:
 federal_programs:
   usaspending:
     search_names:
-    - CITY OF LA CROSSE
-    - LA CROSSE, CITY OF
+    - TOWN OF ROSS
+    - ROSS, TOWN OF
     allowed_names:
-    - CITY OF LA CROSSE
-    - LA CROSSE, CITY OF
+    - TOWN OF ROSS
+    - ROSS, TOWN OF
 ingestion:
   meetings: true
   pdf_chunks: true
