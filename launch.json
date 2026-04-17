@@ -1820,16 +1820,16 @@
       },
       {
         "name": "jurisdiction_qc_walkthrough",
-        "description": "Continue manual jurisdiction-by-jurisdiction QC audit against live municipal websites. Completed 10/~18 so far (San Rafael, Mill Valley, San Anselmo, Sausalito, Fairfax, Corte Madera, Novato, Belvedere, Tiburon, Larkspur). Uncovered and fixed 4 bugs: ProudCity P.M. regex, phantom version bloat from tz mismatch, CivicPlus AMID discovery, BoardDocs no date guard. Remaining: city-ross, county-marin, SF, Berkeley, Alameda, 11 school districts, college-marin, sonoma/state-california.",
+        "description": "Continue manual jurisdiction-by-jurisdiction QC audit against live municipal websites. Completed 11/~18 so far (San Rafael, Mill Valley, San Anselmo, Sausalito, Fairfax, Corte Madera, Novato, Belvedere, Tiburon, Larkspur, Ross). Uncovered and fixed 5 bugs: ProudCity P.M. regex, phantom version bloat from tz mismatch, CivicPlus AMID discovery, BoardDocs no date guard, Ross mixed-client stale rows + domain migration. Remaining: county-marin, SF, Berkeley, Alameda, 11 school districts, college-marin, sonoma/state-california.",
         "priority": 0,
-        "status": "in_progress",
+        "status": "not_started",
         "files": [
           "reports/ingestion-audits/",
           "packages/civicos-extraction/src/civicos_extraction/clients/proudcity.py",
           "packages/civicos/src/civicos/storage/postgres_backend.py"
         ],
         "test_file": "packages/civicos-extraction/tests/test_proudcity.py",
-        "notes": "Started 2026-04-15. Next jurisdiction: city-ross. Pattern: query DB, cross-reference with live website via WebFetch, flag config gaps and data quality issues. Each session should tackle 3-5 jurisdictions and fix any bugs surfaced."
+        "notes": "Started 2026-04-15. Next jurisdiction: county-marin (then SF has known meeting_type variant duplicates to clean up). Pattern: query DB, cross-reference with live website via WebFetch, flag config gaps and data quality issues. Each session should tackle 3-5 jurisdictions and fix any bugs surfaced. Document follow-ups: universal.py:461-474 meeting_type inference is broken (produces null or title-cased snake_case), meeting disappearance detection not wired into refresh pipeline."
       },
       {
         "name": "ca_sos_results_client",
