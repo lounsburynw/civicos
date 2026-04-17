@@ -1,80 +1,71 @@
-# Recommended: Verify Ingestion Fixes + Federation ADR (`federation_adr`)
+# Recommended: Continue Jurisdiction QC Walkthrough
 
 **Priority:** P0
-**Area:** federation_testbed
-**Date:** 2026-04-13
+**Area:** data quality / ingestion audit
+**Date:** 2026-04-15
 
 > Recommended context from prior session. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
 
-## First: Verify Ingestion Fixes
+## Context
 
-Prior session deployed 8 ingestion fixes. The next high-velocity cron (~2:20 PM UTC / 7:20 AM Pacific on Apr 13) is the first run with all fixes. **Check ntfy or cron logs before starting main work:**
+Manual QC walkthrough of 24 ingested jurisdictions against live municipal websites. Goal: verify ingested data is accurate, up-to-date, and complete before launch. Completed **10/~18 so far** and uncovered **4 significant data quality bugs**, all fixed and tested:
+
+1. **ProudCity P.M. regex** (`9c0c12c0`) — "6:00 P.M." with dots not matched → meetings stored at 06:00 instead of 18:00 → time flip-flopping on every cron run. San Rafael had 59 phantom duplicates.
+2. **Phantom version bloat from tz mismatch** (`7e42ca84`) — CivicPlus sends `2026-04-07T00:00:00+00:00`, stored as naive `2026-04-07T00:00:00`. String comparison triggered "change" every cron run. Corte Madera had 80 phantom versions across 19 meetings. Deleted 221 phantom versions globally.
+3. **CivicPlus AMID discovery** (`35d91023` + `df4656e9`) — Platform detection passed single confirmation AMID as authoritative list, so full 1-80 scan was skipped. Larkspur missed Planning Commission, Design Review, Heritage Preservation boards.
+4. **BoardDocs unbounded fetch** — Daily cron re-fetched all 367 college-marin meetings back to 2014 every run. Added `days_past=90` guard.
+
+Plus contextual time extraction in ProudCity (closed session vs regular meeting) with 23 new tests, and an advisory body gap probe added to the onboarding pipeline.
+
+## Recommended Task
+
+Continue the jurisdiction-by-jurisdiction walkthrough. **Next jurisdiction: city-ross** (playwright_llm source, 20 meetings, 0 transcripts). Then work through the remaining list.
+
+### Completed (10)
+san-rafael, mill-valley, san-anselmo, sausalito, fairfax, corte-madera, novato, belvedere, tiburon, larkspur
+
+### Remaining (~18)
+- **Cities:** city-ross (next), county-marin, city-san-francisco, city-berkeley, county-alameda
+- **Schools (11):** school-kentfield, school-larkspur-corte-madera, school-marin-county-oe, school-mill-valley-sd, school-miller-creek, school-novato, school-reed-union, school-ross-valley, school-san-rafael, school-sausalito-marin-city, school-tamalpais
+- **Other:** college-marin, county-sonoma, state-california
+
+## Key Files
+
+- `reports/ingestion-audits/2026-04-14.md` — latest automated audit (run weekly via GH Actions)
+- `.claude/commands/audit.md` — `/audit` slash command for full automated audit
+- `.github/workflows/cron-ingestion-audit.yml` — weekly headless Claude audit
+- `packages/civicos-extraction/src/civicos_extraction/clients/proudcity.py:935` — time extraction (contextual)
+- `packages/civicos/src/civicos/storage/postgres_backend.py:1923` — meeting change detection (tz-normalized)
+- `packages/civicos-extraction/tests/test_proudcity.py` — 23 new regression tests
+- `packages/civicos/tests/test_postgres_backend.py:262` — 2 new regression tests
+
+## Suggested Approach (per jurisdiction)
+
+1. Query DB: meeting counts by type, recent meetings, decisions, transcripts, version bloat
+2. Compare against live municipal website via `WebFetch`
+3. Check extraction config for missing archives (common pattern: only one body configured, others missing)
+4. Flag and investigate discrepancies
+5. If a pattern bug is found, fix it + add tests + clean up data for all affected jurisdictions
+6. Annotate YAML with known gaps if any
+7. Move to next jurisdiction
+
+Expect 3-5 jurisdictions per session. Schools will go fast (many are Simbli-blocked — verify and move on).
+
+## Tests to Run
 
 ```bash
-# Check latest cron run
-gh run list --workflow=cron-high-velocity.yml --limit 3
-
-# Check for city-sausalito (was missing from cron)
-gh run view <run_id> --log | grep -i "sausalito"
-
-# Check school-san-rafael (93 days stale, now simbli)
-gh run view <run_id> --log | grep -i "school-san-rafael"
-
-# Check simbli routing (7 school districts, previously skipped)
-gh run view <run_id> --log | grep -i "simbli"
-
-# Check issues refresh (10 Marin cities, previously "No issues source configured")
-gh run view <run_id> --log | grep "issues" | head -20
+civicos-env/bin/python3 -m pytest packages/civicos-extraction/tests/test_proudcity.py -v --override-ini="addopts="
+civicos-env/bin/python3 -m pytest packages/civicos/tests/test_postgres_backend.py -k "timezone_mismatch or none_vs_empty" -v --override-ini="addopts="
 ```
 
-If anything failed, fix it before proceeding.
-
-## Then: Federation ADR
-
-Write an Architecture Decision Record for federation boundaries. This is a documentation/design task, not implementation. The ADR should cover:
-
-1. **Which protocols change vs. stay** — What's shared across jurisdictions (token issuance, voice, identity) vs. what's per-jurisdiction (data, relay endpoints, sync)
-2. **Execution model for cross-jurisdiction queries** — How `walk_scope` fans out to parent/sibling jurisdictions, latency implications, failure modes
-3. **Trust chain design** — How relays verify each other's attestations, how token issuers from different jurisdictions interoperate
-4. **Federation vs. replication** — Where data lives vs. where it's queried, caching strategy
-
-## Existing Context to Read
-
-- `docs/public/decisions/` — Existing ADRs (vector storage, entity IDs, federation, tool scope)
-- `docs/public/relay/overview.md` — Relay architecture, trust model
-- `packages/civicos-relay/src/civicos_relay/server/acceptance.py` — Acceptance policy tiers
-- `packages/civicos-relay/src/civicos_relay/voice/` — Voice + crypto modules
-- `apps/civicos-mcp/tools/scope_walk.py` — `walk_scope` implementation
-- `docs/public/decisions/tool_scope_and_federation.md` — Current scope/federation decision
-
 ## Success Criteria
+- [ ] All remaining jurisdictions audited
+- [ ] Config gaps fixed (add missing archives)
+- [ ] Any bugs found → fixed with tests + data cleanup
+- [ ] Roadmap items added for unfixable issues
+- [ ] Each audit: update `/audit` report or note findings in jurisdiction YAML
 
-- [ ] Ingestion cron verified: city-sausalito, school-san-rafael, simbli schools, issues all refreshing
-- [ ] ADR written at `docs/public/decisions/federation_boundaries.md`
-- [ ] Documents protocol boundaries (shared vs. per-jurisdiction)
-- [ ] Documents cross-jurisdiction query execution model
-- [ ] Documents trust chain for multi-relay federation
-- [ ] A new P0 assigned before session end
-
-## Backlog Items (not P0, but noted for context)
-
-These were identified during the ingestion audit:
-- **Municipal code** expansion: only 6/24 jurisdictions have it
-- **Transcript backfill**: 10 jurisdictions at 0% coverage, free captions mode available (`--transcript-mode captions`)
-- **Budget data**: San Rafael only
-- **Diligent platform**: 2 school districts (school-ross-valley, school-marin-county-oe) — no extraction client
-
-## Pre-existing Test Failures
-
-**CI is green.** All smoke, unit (4 groups), and integration (5 groups) pass.
-
-## Remaining Launch Items
-
-| Priority | Item | Category |
-|----------|------|----------|
-| P0 | `federation_adr` | federation_testbed |
-| P3 | `operator_relay_dockerfile` | operator_readiness |
-| P3 | `direct_city_submission` | federation_testbed |
-| P3 (deferred) | `billing_endpoint_deployment` | billing_payments |
-| P3 (deferred) | `stripe_key_delivery_automation` | billing_payments |
-| P3 (deferred) | `stripe_secrets_deployment` | billing_payments |
+## Known Pending Issues (from roadmap, do not re-discover)
+- `simbli_incapsula_bypass` (P2) — 8 school districts bot-blocked
+- `diligent_client` (P2) — school-ross-valley, school-marin-county-oe migrated from BoardDocs
+- `multi_source_advisory_body_coverage` (P1) — Granicus cities with advisory bodies on CivicPlus (Mill Valley, Novato confirmed)
