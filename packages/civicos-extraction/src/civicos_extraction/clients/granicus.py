@@ -50,6 +50,12 @@ logger = logging.getLogger(__name__)
 # benefits all others in the same process.
 _learned_date_formats: List[str] = []
 
+# Granicus section-header titles that mirror other rows rather than
+# representing distinct meetings. Compared case-insensitively after strip().
+_AUXILIARY_AUDIO_TITLES = frozenset({
+    "spanish audio files",
+})
+
 
 def _get_llm_provider():
     """Lazy-load the LLM provider. Returns None if unavailable."""
@@ -386,6 +392,14 @@ HTML:
                         if date_idx is not None
                         else ""
                     )
+
+                    # Skip Granicus auxiliary audio section rows. Marin County
+                    # (and similar multilingual deployments) publish a
+                    # "Spanish Audio Files" section where each row mirrors a
+                    # separately-listed English meeting on the same date. These
+                    # are translation artifacts, not distinct meetings.
+                    if title.strip().lower() in _AUXILIARY_AUDIO_TITLES:
+                        continue
 
                     parsed_date = self._parse_date(date_text)
                     if not parsed_date:

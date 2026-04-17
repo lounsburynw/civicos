@@ -186,6 +186,21 @@ class TestGranicusClient:
         events = client._parse_table(SAMPLE_NO_TABLE_HTML, "1")
         assert events == []
 
+    def test_parse_table_skips_spanish_audio_files(self, client):
+        """Rows titled 'Spanish Audio Files' are translation artifacts that
+        mirror same-date English meetings; they must not become meetings."""
+        html = """
+        <html><body><table>
+        <tr><th>Name</th><th>Date</th><th>Agenda</th></tr>
+        <tr><td>Spanish Audio Files</td><td>05/06/25</td><td></td></tr>
+        <tr><td>SPANISH AUDIO FILES</td><td>05/13/25</td><td></td></tr>
+        <tr><td>Board of Supervisors 2025</td><td>05/06/25</td><td></td></tr>
+        </table></body></html>
+        """
+        events = client._parse_table(html, "33")
+        titles = [e["title"] for e in events]
+        assert titles == ["Board of Supervisors 2025"]
+
     def test_normalize_event(self, client):
         """Raw event dict normalizes to Meeting dataclass."""
         event = {

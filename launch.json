@@ -1,7 +1,7 @@
 {
   "version": "1.0",
   "phase": "launch",
-  "last_updated": "2026-04-11",
+  "last_updated": "2026-04-17",
   "summary": "Distribution pivot: MCP OAuth + free tier (P0) before billing. 143/151 items done (95%). Ingestion complete (23 jurisdictions, 10 platforms). Remaining: distribution (2), billing (3), token UI (1), operator dockerfile (1), federation refinements (3).",
   "category_order": [
     "multi_state_portability",
@@ -1820,16 +1820,17 @@
       },
       {
         "name": "jurisdiction_qc_walkthrough",
-        "description": "Continue manual jurisdiction-by-jurisdiction QC audit against live municipal websites. Completed 11/~18 so far (San Rafael, Mill Valley, San Anselmo, Sausalito, Fairfax, Corte Madera, Novato, Belvedere, Tiburon, Larkspur, Ross). Uncovered and fixed 5 bugs: ProudCity P.M. regex, phantom version bloat from tz mismatch, CivicPlus AMID discovery, BoardDocs no date guard, Ross mixed-client stale rows + domain migration. Remaining: county-marin, SF, Berkeley, Alameda, 11 school districts, college-marin, sonoma/state-california.",
+        "description": "Continue manual jurisdiction-by-jurisdiction QC audit against live municipal websites. Completed 12/~18 so far (San Rafael, Mill Valley, San Anselmo, Sausalito, Fairfax, Corte Madera, Novato, Belvedere, Tiburon, Larkspur, Ross, Marin County). Uncovered and fixed 6 bugs: ProudCity P.M. regex, phantom version bloat from tz mismatch, CivicPlus AMID discovery, BoardDocs no date guard, Ross mixed-client stale rows + domain migration, Granicus Spanish Audio Files phantom rows. Remaining: SF, Berkeley, Alameda, 11 school districts, college-marin, sonoma/state-california.",
         "priority": 0,
         "status": "not_started",
         "files": [
           "reports/ingestion-audits/",
           "packages/civicos-extraction/src/civicos_extraction/clients/proudcity.py",
+          "packages/civicos-extraction/src/civicos_extraction/clients/granicus.py",
           "packages/civicos/src/civicos/storage/postgres_backend.py"
         ],
-        "test_file": "packages/civicos-extraction/tests/test_proudcity.py",
-        "notes": "Started 2026-04-15. Next jurisdiction: county-marin (then SF has known meeting_type variant duplicates to clean up). Pattern: query DB, cross-reference with live website via WebFetch, flag config gaps and data quality issues. Each session should tackle 3-5 jurisdictions and fix any bugs surfaced. Document follow-ups: universal.py:461-474 meeting_type inference is broken (produces null or title-cased snake_case), meeting disappearance detection not wired into refresh pipeline."
+        "test_file": "packages/civicos-extraction/tests/test_granicus.py",
+        "notes": "Started 2026-04-15. Next jurisdiction: city-san-francisco (has known meeting_type variant duplicates like budget_and_finance vs budget_and_finance_committee). Pattern: query DB, cross-reference with live website via WebFetch, flag config gaps and data quality issues. Each session should tackle 3-5 jurisdictions and fix any bugs surfaced. Document follow-ups: (1) universal.py:461-474 meeting_type inference is broken (produces null or title-cased snake_case), (2) meeting disappearance detection not wired into refresh pipeline, (3) county-marin has 30 stale granicus-playwright-v1 rows with 11.8k chunks that duplicate active granicus.py rows \u2014 migration decision pending (keep better-quality playwright data or continue with active old client), (4) county-marin BOS meeting titles are yearly folder labels like 'Board of Supervisors 2025' with midnight timestamps because Marin's Granicus archive table uses year folders as Name column; fixing requires drilling into AgendaViewer pages."
       },
       {
         "name": "ca_sos_results_client",

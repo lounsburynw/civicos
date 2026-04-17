@@ -27142,3 +27142,43 @@ Started from ntfy pipeline notifications. Audited full ingestion pipeline, fixed
 
 ### Next P0: direct_city_submission
 Authenticated endpoint for city clerks to submit meeting data directly.
+
+### Session (2026-04-16) — jurisdiction QC: city-ross
+
+**Completed:** Ross data QC + playwright_llm migration commit.
+
+**Root cause found:** Ross had 20 meetings split across two extraction clients — 15 playwright_llm rows (stale since 2026-04-06) + 5 universal rows (active). Previous session migrated yaml→playwright_llm but never committed; cron kept running universal adapter against HEAD, producing duplicate rows with different ID prefixes and buggy meeting_type inference (null, or title-cased like `ross_town_council_meeting`).
+
+**Changes:**
+- **`data/jurisdictions/city-ross.yaml`**: Committed playwright_llm migration (was uncommitted); updated website + base_url + meeting_page_url from `townofross.org` → `townofrossca.gov` (follow 301); fixed federal_programs search_names from hallucinated `CITY OF LA CROSSE` → `TOWN OF ROSS`.
+- **`data/extraction/city-ross.json`**: Matching playwright_llm + URL updates; added `state: "CA"`.
+- **DB cleanup**: Soft-deleted 5 stale universal-* rows (bad meeting_types) so next playwright_llm cron run owns them.
+
+**Verified:** No other jurisdictions have mixed universal+playwright_llm rows. Ross-specific issue.
+
+**Documented for follow-up:**
+- Universal adapter's meeting_type inference at `packages/civicos-extraction/src/civicos_extraction/clients/universal.py:461-474` is broken: produces null when title has no `-`/`:` separator, and title-cased snake_case when it does. Should be replaced by a body-name→canonical-type normalizer. Low priority (only jurisdiction still on universal may hit this; most have moved to platform-specific clients).
+- Meeting disappearance detection not wired into refresh pipeline. When source_platform changes (as for Ross), old rows linger unless manually soft-deleted. Document as roadmap item.
+
+### Next P0: continue QC walkthrough
+Next jurisdiction per handoff: county-marin, then city-san-francisco (which has meeting_type duplicate variants like `budget_and_finance` vs `budget_and_finance_committee`), city-berkeley, county-alameda.
+
+### Session (2026-04-17) — jurisdiction QC: county-marin
+
+**Completed:** Marin County data QC + Granicus Spanish Audio Files filter.
+
+**Root cause found:** Marin's Granicus ViewPublisher page has a "Spanish Audio Files" section — every row is Spanish-language translation audio for a same-date English meeting. The granicus.py client ingested each as a distinct meeting (11 phantom rows with title="Spanish Audio Files", midnight timestamps, 2338 duplicate agenda chunks, 42 duplicate decisions).
+
+**Changes:**
+- **`packages/civicos-extraction/src/civicos_extraction/clients/granicus.py`**: Added module-level `_AUXILIARY_AUDIO_TITLES` frozenset and case-insensitive filter in `_parse_table()` to skip Spanish Audio Files rows. Generic enough to cover any similar multilingual Granicus deployments.
+- **`packages/civicos-extraction/tests/test_granicus.py`**: Added `test_parse_table_skips_spanish_audio_files` regression test (covers both title casings, confirms real meeting rows still parsed).
+- **DB cleanup**: Soft-deleted 11 `title='Spanish Audio Files'` meeting rows for county-marin. Their 2338 chunks are duplicates of English meeting chunks (verified via content_hash), so no data loss — just cleaner user-visible meeting list.
+
+**Verified:** All 41 granicus tests pass. No other jurisdictions have "Spanish Audio Files" rows (Marin-specific but filter is safe to apply globally).
+
+**Documented follow-ups (added to launch.json QC notes):**
+- County-marin has 30 stale `granicus-playwright-v1` rows (last_verified 2026-02-20) with 11.8k chunks that duplicate active granicus.py rows across 23 overlapping dates. Need migration decision: switch to better-quality playwright client (proper titles + times) or continue with active granicus.py client. Not touched this session.
+- County-marin BOS meeting titles are yearly folder labels like "Board of Supervisors 2025" with midnight timestamps because Marin's Granicus archive table uses year folders as the Name column. Fixing requires drilling into each AgendaViewer.php page for the real meeting title + time.
+
+### Next P0: continue QC walkthrough
+Next jurisdiction per handoff: city-san-francisco (known meeting_type variant duplicates like budget_and_finance vs budget_and_finance_committee), then city-berkeley, county-alameda, 11 school districts, college-marin, sonoma/state-california.
