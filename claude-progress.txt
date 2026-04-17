@@ -27182,3 +27182,24 @@ Next jurisdiction per handoff: county-marin, then city-san-francisco (which has 
 
 ### Next P0: continue QC walkthrough
 Next jurisdiction per handoff: city-san-francisco (known meeting_type variant duplicates like budget_and_finance vs budget_and_finance_committee), then city-berkeley, county-alameda, 11 school districts, college-marin, sonoma/state-california.
+
+### Session (2026-04-17 continued) — jurisdiction QC: city-san-francisco
+
+**Completed:** SF data QC (documentation-only; no code changes this commit).
+
+**Root cause found — meeting_type variant duplicates:** playwright_llm extraction client (used for SF onboarding 2026-04-06 when Legistar events API was broken) produces inconsistent meeting_type values. Same bodies appear under both canonical names (`budget_and_finance_committee`) and short variants (`budget_and_finance`, `government_audit_oversight` missing "and", etc.). This is the same inference bug documented for `universal.py:461-474` — the stripped-`_committee` and missing-`_and_` patterns show up here identically.
+
+**Current SF state:**
+- 62 active granicus-* rows (ingestion refreshed daily, last 2026-04-17) — canonical `_committee` meeting_types
+- 44 stale playwright-llm-* rows (last refresh 2026-04-10, 1 week stale) — has both canonical and variant meeting_types mixed
+- 992 chunks + 222 decisions attached to playwright_llm meeting_ids
+- content_hash analysis: 0% of playwright_llm chunks have a granicus twin (granicus has NOT re-extracted those chunks), 177/222 decisions are unique to playwright_llm
+
+**Cleanup blocked:** Cannot safely soft-delete the 44 playwright_llm rows — 992 chunks and 177 decisions are unique content from onboarding that granicus has not re-extracted. Proper fix requires re-running chunk + decision extraction under granicus meeting_ids first, then retiring playwright_llm rows. That's a bigger migration than a single QC session.
+
+**Additional SF finding — missing bodies:** Live SF BOS meetings page (sfbos.org/meetings) lists 14+ additional advisory bodies not configured in `data/extraction/city-san-francisco.json`: Assessment Appeals Board No. 1/2/3, Youth Commission (+ Transformative Justice Committee), Sunshine Ordinance Task Force — Complaint Committee, LAFCO, SF Transportation Authority, Civic Engagement and Immigration Committee, Joint City/School Select Committee, Joint City & School District, Neighborhood Services & Safety, Public Safety Committee (separate from Public_Safety_and_Neighborhood_Services), RBOC, Special Joint Meeting, Youth/Young Adult/Families. Each would need a Granicus view_id discovery pass.
+
+**No code changes needed from this session for SF** — the active granicus extraction works correctly. Both issues are data-migration problems, not bugs in current extraction logic. Documented in launch.json as follow-ups #5 and #6.
+
+### Next P0: continue QC walkthrough
+Next jurisdiction per handoff: city-berkeley, then county-alameda, 11 school districts, college-marin, sonoma/state-california.
