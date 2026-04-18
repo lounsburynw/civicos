@@ -227,6 +227,21 @@ class TestGranicusClient:
         titles = [e["title"] for e in events]
         assert titles == ["Board of Supervisors 2025"]
 
+    def test_parse_table_skips_system_test(self, client):
+        """Rows titled 'System Test' are Granicus streaming health checks
+        (observed on alamedacounty.granicus.com view_id=2), not real meetings."""
+        html = """
+        <html><body><table>
+        <tr><th>Name</th><th>Date</th><th>Agenda</th></tr>
+        <tr><td>System Test</td><td>04/14/26</td><td></td></tr>
+        <tr><td>SYSTEM TEST</td><td>04/16/26</td><td></td></tr>
+        <tr><td>Regular Meeting</td><td>04/07/26</td><td></td></tr>
+        </table></body></html>
+        """
+        events = client._parse_table(html, "2")
+        titles = [e["title"] for e in events]
+        assert titles == ["Regular Meeting"]
+
     def test_normalize_event(self, client):
         """Raw event dict normalizes to Meeting dataclass."""
         event = {

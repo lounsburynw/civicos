@@ -50,10 +50,14 @@ logger = logging.getLogger(__name__)
 # benefits all others in the same process.
 _learned_date_formats: List[str] = []
 
-# Granicus section-header titles that mirror other rows rather than
-# representing distinct meetings. Compared case-insensitively after strip().
+# Granicus rows that should be skipped — either section headers that mirror
+# other rows (Marin's "Spanish Audio Files" translation section), or streaming
+# infrastructure artifacts (Alameda County's periodic "System Test" broadcasts
+# which show up in view_id=2 as if they were real meetings). Compared
+# case-insensitively after strip().
 _AUXILIARY_AUDIO_TITLES = frozenset({
     "spanish audio files",
+    "system test",
 })
 
 # Sentinel body_name for rows fetched from the default/combined view.
@@ -398,11 +402,10 @@ HTML:
                         else ""
                     )
 
-                    # Skip Granicus auxiliary audio section rows. Marin County
-                    # (and similar multilingual deployments) publish a
-                    # "Spanish Audio Files" section where each row mirrors a
-                    # separately-listed English meeting on the same date. These
-                    # are translation artifacts, not distinct meetings.
+                    # Skip rows that are not real meetings: Marin's "Spanish
+                    # Audio Files" translation mirror rows, Alameda County's
+                    # "System Test" streaming health checks, etc. See
+                    # _AUXILIARY_AUDIO_TITLES comment.
                     if title.strip().lower() in _AUXILIARY_AUDIO_TITLES:
                         continue
 

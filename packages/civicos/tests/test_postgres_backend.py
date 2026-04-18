@@ -666,6 +666,41 @@ class TestExtractionVersioning:
         assert result is not None
         assert result[0] == "0.3.0"
 
+    def test_store_decisions_preserves_large_financial_impact(self, backend):
+        """financial_impact_cents above INT32_MAX must not be clamped.
+
+        Regression: column was INTEGER and insert path silently clamped via
+        min(cents, 2_147_483_647), losing true values for 486 decisions
+        (19.3% of those with financial data). Column is now BIGINT and the
+        clamp is removed.
+        """
+        huge_cents = 50_000_000_000  # $500M — plausible for large county contracts
+        decisions = [
+            {
+                "id": "dec-bigint-001",
+                "meeting_date": "2026-04-07",
+                "agenda_item": "1",
+                "title": "Very Large Contract",
+                "outcome": "approved",
+                "financial_impact_cents": huge_cents,
+            }
+        ]
+        backend.store_decisions("city-bigint-test", decisions)
+
+        conn = backend._get_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT financial_impact_cents FROM decisions
+            WHERE id = %s AND jurisdiction_id = %s AND valid_to IS NULL
+        """, ("dec-bigint-001", "city-bigint-test"))
+        result = cursor.fetchone()
+        conn.close()
+
+        assert result is not None
+        assert result[0] == huge_cents, (
+            f"Expected {huge_cents}, got {result[0]} — value was clamped"
+        )
+
     def test_store_issues_with_extraction_version(self, backend):
         """Issues with extraction_version should persist the value."""
         issues = [
