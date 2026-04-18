@@ -27241,3 +27241,18 @@ Initial read of `MAX(extracted_at) = 2026-04-06` for Berkeley suggested Berkeley
 **Tests:** `test_integration_cron_wiring.py` 9/9 pass.
 
 ### Next P0 unchanged: county-alameda QC
+
+### Session continued — county-alameda QC (parity check)
+
+**Parity:** DB has 43 BoS + 18 CDA = 61 Mar-Apr 2026 rows vs 36 on live view_2 BoS archive. DB has ~7 extras that are cancelled-then-removed rows (System Test, Health Committee Cancelled, Eden Area MAC, Sunol Citizens, Elections Commission) — same pattern as Berkeley Mar 26 ZAB; explained by known follow-ups (no disappearance detection). Regular BoS meetings Mar 3/17/24, Apr 7 all present with agenda+video, chunks (42-51 per Regular Meeting), and decisions (9-12 per Regular Meeting). Decision extraction last ran 2026-04-12 07:58 — on schedule. Apr 12 cron reached Alameda before timing out (alphabetically early).
+
+**Two phantom patterns filed as launch.json follow-ups #10, #11:**
+- Granicus 'System Test' streams ingested as meetings. Add to _AUXILIARY_AUDIO_TITLES-style skip list.
+- Cancelled meetings removed from live site remain in DB (Eden Area MAC, Health Committee - Cancelled, etc.) — needs disappearance detection (known follow-up #2).
+
+**Multi-body archive flattening filed as #9:** CDA view_id=3 is a multi-body archive (Planning Commission, zoning boards, MACs, commissions, etc.) all stored with meeting_type='community_development'. Losing per-body distinction is a search-quality problem. Candidate fix: parse body from title OR split into per-body view_ids via expand_granicus_discovery.
+
+**Landmine cleaned up (#12):** data/extraction/county-alameda.json had been reverted in working tree to stale 'board: 1' config with stripped election_sources. Prod unaffected (Modal deploys from HEAD) but would have broken any local ingest. Restored from HEAD this session. Suggests need for CI validation of extraction JSONs against live Granicus view_id existence.
+
+### Next P0: continue QC walkthrough
+Next: 11 school districts (8 known-Simbli-blocked per simbli_incapsula_bypass follow-up), college-marin, county-sonoma, state-california.
