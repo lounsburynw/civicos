@@ -264,6 +264,62 @@ class TestParse:
         item_numbers = [s.item_number for s in sections]
         assert any("6" in n for n in item_numbers)
 
+    def test_pattern_parser_handles_numbered_bullet_format(self, parser):
+        """Alameda / SF / Berkeley style agendas use "N. Title" bullets with
+        no 'Agenda Item No.' prefix. Before the secondary pattern was added,
+        these agendas produced zero matches and the entire document fell
+        into the misleading 'closing' fallback."""
+        mock_doc = MagicMock()
+        mock_doc.get_toc.return_value = []  # No TOC
+        mock_doc.__len__ = lambda self: 3
+
+        pages = [
+            MagicMock(get_text=lambda: "Board of Supervisors Regular Meeting header"),
+            MagicMock(get_text=lambda: "1. CONSENT CALENDAR\nItems 60-63"),
+            MagicMock(get_text=lambda: "2. Social Services Agency - Approve the following"),
+        ]
+        mock_doc.__getitem__ = lambda self, i: pages[i]
+
+        with patch("civicos._internal.meetings.pdf_parser.fitz") as mock_fitz:
+            mock_fitz.open.return_value = mock_doc
+            p = AgendaPacketParser()
+
+            with patch.object(Path, "exists", return_value=True):
+                sections = p.parse("test.pdf")
+
+        item_numbers = [s.item_number for s in sections]
+        assert "1" in item_numbers, f"Expected '1' in {item_numbers}"
+        assert "2" in item_numbers, f"Expected '2' in {item_numbers}"
+        # No section should fall into the misleading 'closing' label
+        assert "closing" not in item_numbers
+
+    def test_pattern_parser_labels_unparsed_when_no_matches(self, parser):
+        """If neither regex matches anywhere, the fallback label should be
+        'unparsed' (honest about the gap) rather than 'closing' (which
+        misleadingly claims the content is the closing section)."""
+        mock_doc = MagicMock()
+        mock_doc.get_toc.return_value = []
+        mock_doc.__len__ = lambda self: 2
+
+        pages = [
+            MagicMock(get_text=lambda: "Generic preamble with no agenda markers"),
+            MagicMock(get_text=lambda: "Free-form narrative text with no structure"),
+        ]
+        mock_doc.__getitem__ = lambda self, i: pages[i]
+
+        with patch("civicos._internal.meetings.pdf_parser.fitz") as mock_fitz:
+            mock_fitz.open.return_value = mock_doc
+            p = AgendaPacketParser()
+
+            with patch.object(Path, "exists", return_value=True):
+                sections = p.parse("test.pdf")
+
+        item_numbers = [s.item_number for s in sections]
+        titles = [s.title for s in sections]
+        assert "unparsed" in item_numbers
+        assert "Unparsed Section" in titles
+        assert "closing" not in item_numbers
+
 
 # ---------- AgendaPacketParser.parse_to_chunks ----------
 

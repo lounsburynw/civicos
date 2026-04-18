@@ -62,10 +62,24 @@ class AgendaPacketParser:
     or pattern matching as fallback.
     """
 
-    # Pattern for agenda item markers in text
+    # Pattern for agenda item markers in text.
+    # Matches the San Rafael / ProudCity format "Agenda Item No. 6.a".
     AGENDA_ITEM_PATTERN = re.compile(
         r'Agenda\s+Item\s+No[.:]\s*(\d+[a-z.]*)',
         re.IGNORECASE
+    )
+
+    # Secondary pattern for numbered-bullet agendas used by Alameda County,
+    # San Francisco, Berkeley, and many other jurisdictions where items look
+    # like "1. CONSENT CALENDAR" or "2. Social Services Agency - Approve...".
+    # Requires at start of line, 1-3 digits followed by "." and whitespace,
+    # then a capital letter starting a 4-80 char title. The \d{1,3} bound
+    # prevents matching contract numbers ("25668") or addresses ("1221 Oak").
+    # Validated on Alameda Apr 7 2026 agenda: 79 matches across 24 pages
+    # where the primary pattern finds 0.
+    AGENDA_ITEM_NUMBERED_PATTERN = re.compile(
+        r'(?:^|\n)[ \t]*(\d{1,3})\.\s+(?:\*)?([A-Z][A-Za-z0-9 ,.\-&/\'\"]{4,80})',
+        re.MULTILINE
     )
 
     def __init__(
@@ -191,8 +205,18 @@ class AgendaPacketParser:
             page = doc[page_num]
             text = page.get_text()
 
-            # Look for agenda item markers
-            match = self.AGENDA_ITEM_PATTERN.search(text)
+            # Look for agenda item markers.
+            # Try the San Rafael / ProudCity format first; fall back to the
+            # numbered-bullet format used by Alameda / SF / Berkeley / many
+            # other jurisdictions. Take the earliest match on the page so a
+            # page containing e.g. "5. Item Title" and then a reference to
+            # "Agenda Item No. 3" later picks up the structural header first.
+            primary = self.AGENDA_ITEM_PATTERN.search(text)
+            secondary = self.AGENDA_ITEM_NUMBERED_PATTERN.search(text)
+            if primary and secondary:
+                match = primary if primary.start() <= secondary.start() else secondary
+            else:
+                match = primary or secondary
             if match:
                 # Save previous section
                 if current_item or current_text:
@@ -212,11 +236,15 @@ class AgendaPacketParser:
             else:
                 current_text.append(text)
 
-        # Don't forget last section
+        # Don't forget the trailing section.
+        # If no marker matched anywhere, item_number stays None — label as
+        # "unparsed" rather than the misleading "closing", which historically
+        # led to ~30K chunks across the DB being tagged as if they were in
+        # the closing section when they were actually the entire packet.
         if current_text:
             sections.append(AgendaSection(
-                item_number=current_item or "closing",
-                title=current_title or "Closing Materials",
+                item_number=current_item or "unparsed",
+                title=current_title or "Unparsed Section",
                 page_start=current_start,
                 page_end=len(doc),
                 text="\n".join(current_text),
