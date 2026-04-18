@@ -27256,3 +27256,35 @@ Initial read of `MAX(extracted_at) = 2026-04-06` for Berkeley suggested Berkeley
 
 ### Next P0: continue QC walkthrough
 Next: 11 school districts (8 known-Simbli-blocked per simbli_incapsula_bypass follow-up), college-marin, county-sonoma, state-california.
+
+### Session continued — Alameda content-quality deep-dive
+
+Did proper content QC on Apr 7 Regular Meeting. Verified each of the 8 stored decisions against the actual agenda PDF (readable via Read tool). **Decisions are real, not hallucinated** — all 8 map to real items in the agenda (Item #2 Social Services, Item #3 Behavioral Health, Item #11 Health Services grant, Item #19 Epic EHR, Item #37 Real Property Coliseum, plus three addendum items).
+
+**Two systemic bugs surfaced by this content QC pass, logged as launch.json #13 and #14:**
+
+**#13: chunk `agenda_item='closing'` is dominant across ALL jurisdictions.**
+- county-marin: 27,448 chunks tagged 'closing'
+- city-berkeley: 1,209
+- city-san-rafael: 1,035
+- city-san-francisco: 676
+- county-alameda: 2,723
+Root cause: packages/civicos/src/civicos/_internal/meetings/pdf_parser.py:218-223 in `_parse_with_patterns` uses 'closing'/'Closing Materials' as a fallback when AGENDA_ITEM_PATTERN regex doesn't match. For Alameda's Apr 7 agenda (numbered items like "1. CONSENT CALENDAR", "2. Social Services Agency"), the regex never matches and every chunk falls into 'closing'. This breaks per-item semantic filtering across the entire project.
+
+**#14: `financial_impact_cents` INT32 overflow affects 474 decisions (19.3%).**
+Column type is INTEGER (INT32_MAX = 2,147,483,647 cents = $21,474,836.47). Any agenda item above this amount silently overflows to the max value. county-alameda alone has 213 INT32_MAX sentinel rows out of ~725 decisions. Also city-san-francisco (142), school-ross-valley (29), city-berkeley (22), county-marin (16), etc. Fix: migrate column to BIGINT, re-extract affected rows. Also consider LLM output capping at $1B to guard against hallucinations.
+
+**#15: Multi-sub-item collapse (not launch blocker):** "Meal Service Contracts" stored as ONE decision but has 7 distinct sub-contract amendments in the agenda. Closed-session litigation with 5 named cases not captured. Information loss but not a blocker.
+
+**Other QC check results (no issues found):**
+- Decisions correctly reference agenda_url + meeting_id
+- extraction_method correctly labeled (`retrospective_analyzer_gemini_agenda`)
+- vote_json is NULL as expected (extraction from agenda, not minutes)
+- municipal_code for Alameda: 2,997 sections, 13 titles, fresh (2026-04-10)
+- Issues count (1,498), elected_officials (5), elections (1) all plausible
+
+### Next P0 options
+- Continue QC walkthrough (11 schools / college-marin / sonoma / state-california)
+- OR fix #14 BIGINT migration (small SQL migration + column alter, high-value ~20% of financial data is bogus)
+- OR fix #13 pdf_parser.py:218 (needs regex work + test cases)
+- OR fix P1 low_velocity_cron_timeout (larger refactor)
