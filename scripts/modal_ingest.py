@@ -7054,17 +7054,31 @@ def scheduled_low_velocity_refresh():
             logger.info(f"Processing jurisdiction: {jid}")
             results[jid] = {}
 
-            # Municipal code (always full refresh - no incremental API support, auto-index vectors)
+            # Municipal code (always full refresh - no incremental API support, auto-index vectors).
+            # Only attempt when the jurisdiction's YAML declares a municipal_code source.
+            # Without this gate, non-configured jurisdictions (e.g., city-berkeley, whose
+            # code is not on Municode) fail every weekly run with a noisy ValueError.
             try:
-                logger.info(f"  [{jid}] Fetching municipal code...")
-                result = fetch_municipal_code.local(jurisdiction=jid, dry_run=False, auto_index=True)
-                results[jid]["municipal_code"] = result
-                stored = result.get('sections_stored', 0)
-                indexed = result.get('vector_result', {}).get('total_indexed', 0) if result.get('auto_index') else 0
-                logger.info(f"    Municipal code: {stored} sections stored, {indexed} vectors indexed")
-            except Exception as e:
-                logger.exception(f"  [{jid}] Municipal code fetch failed")
-                results[jid]["municipal_code"] = {"status": "failed", "error": str(e)}
+                from civicos.jurisdiction_config import load_jurisdiction_config
+                mc_source = load_jurisdiction_config(jid).data_sources.municipal_code
+            except Exception as _cfg_e:
+                logger.warning(f"  [{jid}] Could not load jurisdiction config: {_cfg_e}")
+                mc_source = None
+
+            if mc_source:
+                try:
+                    logger.info(f"  [{jid}] Fetching municipal code (source={mc_source})...")
+                    result = fetch_municipal_code.local(jurisdiction=jid, dry_run=False, auto_index=True)
+                    results[jid]["municipal_code"] = result
+                    stored = result.get('sections_stored', 0)
+                    indexed = result.get('vector_result', {}).get('total_indexed', 0) if result.get('auto_index') else 0
+                    logger.info(f"    Municipal code: {stored} sections stored, {indexed} vectors indexed")
+                except Exception as e:
+                    logger.exception(f"  [{jid}] Municipal code fetch failed")
+                    results[jid]["municipal_code"] = {"status": "failed", "error": str(e)}
+            else:
+                logger.info(f"  [{jid}] Skipping municipal code (no source configured)")
+                results[jid]["municipal_code"] = {"status": "skipped", "reason": "not_configured"}
 
             # Agenda items extraction (LLM-powered, after meetings are available, auto-index vectors)
             try:

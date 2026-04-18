@@ -27223,3 +27223,21 @@ Next jurisdiction per handoff: city-berkeley, then county-alameda, 11 school dis
 
 ### Next P0: continue QC walkthrough
 Next jurisdiction: county-alameda. DB state already scoped: 286 meetings, two meeting_types (`board_of_supervisors`, `community_development`), but config has only `"board": "1"` as an archive — the existing types don't correspond to the archive key. Worth investigating what source populated those meetings before extending the walkthrough. Then: 11 school districts (most Simbli-blocked per roadmap), college-marin, county-sonoma, state-california.
+
+### Session continued — Berkeley parity deep-dive
+
+**Part 1: data parity (new, done)**
+Compared Berkeley DB vs live Granicus for all 2026 meetings. Council view_5 matches 100% (17 archived + 2 upcoming). ZAB view_2: Apr 9 DB row has no video/agenda despite live site showing both; Mar 26 in DB but not on live site. Both trace to known follow-ups (rolling incremental days_past window + missing disappearance detection) — not new bugs.
+
+**Part 2: decision extraction "6 day gap" — WRONG claim, retracted**
+Initial read of `MAX(extracted_at) = 2026-04-06` for Berkeley suggested Berkeley got skipped on Apr 12. Wrong. `gh run view 24298312361 --log` confirms Berkeley's extract_decisions ran successfully on Apr 12 and returned `0 decisions from 7 meetings`. Stale timestamp just means no new high-stakes decisions to store. Apr 14/15 decisions will land on Apr 19 Sunday cron.
+
+**Part 3: real findings from the log dig — fixed + logged**
+
+1. **city-berkeley municipal_code failed every week** — `ValueError: Client not found in Municode: Berkeley, CA`. Root cause: `scheduled_low_velocity_refresh` called `fetch_municipal_code` for every jurisdiction unconditionally, even for those whose YAML declares `data_sources.municipal_code: null` (Berkeley, Belvedere, Corte Madera, Fairfax, Larkspur, Mill Valley, Novato, Ross, San Anselmo, Sausalito, Tiburon — 11 of 14 cities). **Fix:** gated `fetch_municipal_code` on `load_jurisdiction_config(jid).data_sources.municipal_code` truthiness in the orchestrator. Verified across 5 representative jurisdictions.
+
+2. **Weekly cron 4h timeout is chronic** — 3 of last 5 runs (Apr 12, Mar 29, Mar 22) crashed at 14400s. Apr 12 log shows last completed stage was `school-marin-county-oe` meeting [73/84], meaning late-alphabet jurisdictions (miller-creek through tamalpais, state-california) were entirely skipped. Summary: "56/73 passed, 17 stages failed". Logged as new P1 launch item `low_velocity_cron_timeout` with structural-fix options (spawn fan-out / cron sharding / time-budget checkpointing).
+
+**Tests:** `test_integration_cron_wiring.py` 9/9 pass.
+
+### Next P0 unchanged: county-alameda QC
