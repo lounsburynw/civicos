@@ -33,14 +33,19 @@
 
 BEGIN;
 
--- 1. Clear the clamped sentinel values so re-extraction replaces them
+-- 1. Clear the clamped sentinel values so re-extraction replaces them.
+--    Only current rows (valid_to IS NULL) are cleared; historical versions
+--    keep their sentinel as an accurate audit record of what the DB claimed
+--    at that point in time, even though it was a clamped lie.
 UPDATE decisions
    SET financial_impact_cents = NULL
- WHERE financial_impact_cents = 2147483647;
+ WHERE financial_impact_cents = 2147483647
+   AND valid_to IS NULL;
 
 UPDATE agenda_items
    SET financial_impact_cents = NULL
- WHERE financial_impact_cents = 2147483647;
+ WHERE financial_impact_cents = 2147483647
+   AND valid_to IS NULL;
 
 -- 2. Widen both columns to BIGINT
 ALTER TABLE decisions
