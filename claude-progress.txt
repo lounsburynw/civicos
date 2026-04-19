@@ -27288,3 +27288,29 @@ Column type is INTEGER (INT32_MAX = 2,147,483,647 cents = $21,474,836.47). Any a
 - OR fix #14 BIGINT migration (small SQL migration + column alter, high-value ~20% of financial data is bogus)
 - OR fix #13 pdf_parser.py:218 (needs regex work + test cases)
 - OR fix P1 low_velocity_cron_timeout (larger refactor)
+
+### Session continued — QC walkthrough completed (remaining 14 jurisdictions)
+
+Audited all remaining jurisdictions. Full results:
+
+**Fresh and healthy (6):** college-marin, school-larkspur-corte-madera, school-sausalito-marin-city, county-sonoma (elections-only config, working as designed), state-california (legislation-only, fresh today — 4,261 bills), and the 15 cities/counties from earlier sessions.
+
+**Stale due to known P1 cron timeout (2):** school-marin-county-oe and school-ross-valley. Both BoardDocs. last_verified=2026-04-09 (cron crashed at school-marin-county-oe meeting 73/84 on 2026-04-12).
+
+**Simbli-blocked empty (4):** school-kentfield, school-mill-valley-sd, school-miller-creek, school-reed-union. 0 meetings, 0 everything. Tracked by simbli_incapsula_bypass.
+
+**NEW FINDING — Simbli partial (3):** school-novato (42 mtgs, 0 chunks, 0 decisions), school-tamalpais (38 mtgs, 0 chunks, 0 decisions), school-san-rafael (72 mtgs, 788 chunks, 0 decisions). Root cause: Simbli extraction populates 0% of agenda_urls on Simbli-source meetings (only school-san-rafael at 62%, unclear why it's partial). Without agenda_url the chunks pipeline cannot fetch PDFs. The schools that DO have chunks (sausalito-marin-city 5,401; larkspur-corte-madera 3,119) rely on legacy `boarddocs_app_path` fallback, NOT the Simbli source directly. This is a bigger problem than "stale" — it's a total pipeline break for 3 active jurisdictions. Scope refined in simbli_incapsula_bypass follow-up and priority raised from P2 to P1.
+
+**Priority reshuffle:**
+- jurisdiction_qc_walkthrough -> priority 2 (status=done). All 29 jurisdictions audited.
+- low_velocity_cron_timeout -> priority 0 (P0). Now the biggest launch blocker: keeps stale schools stale AND keeps the 474 BIGINT-cleared decision values at NULL until next successful weekly cron.
+- simbli_incapsula_bypass -> priority 1 (was 2). 3 active-but-empty schools and 4 WAF-blocked schools.
+
+### Session totals (10 commits so far)
+Bugs fixed: 12 (listed in jurisdiction_qc_walkthrough description).
+Prod migrations applied: 2 (BIGINT columns widened + closing->unparsed chunk relabel).
+New launch items logged: low_velocity_cron_timeout, plus follow-ups #13, #14 (BIGINT recovery via cron), Simbli agenda_url gap refinement.
+Tests added: 6 new regression tests across test_granicus.py, test_postgres_backend.py, test_pdf_parser.py.
+
+### Next P0: low_velocity_cron_timeout
+Approach options documented in the item. Recommended: Modal .spawn() fan-out per jurisdiction (existing pattern elsewhere in modal_ingest.py at line 6352).

@@ -1783,14 +1783,14 @@
       },
       {
         "name": "simbli_incapsula_bypass",
-        "description": "Simbli (eboardsolutions.com) added Incapsula/Imperva WAF that blocks automated requests. 5 Marin school districts are empty (kentfield, mill-valley-sd, miller-creek, reed-union) and 3 have stale data (novato, tamalpais, san-rafael). Research: check for JSON API endpoints, RSS feeds, or API access before committing to headed Playwright.",
-        "priority": 2,
+        "description": "Simbli (eboardsolutions.com) added Incapsula/Imperva WAF that blocks automated requests. 2026-04-19 QC walkthrough confirmed the precise DB state: 4 schools are fully empty (school-kentfield, school-mill-valley-sd, school-miller-creek, school-reed-union — 0 meetings). 3 schools have meetings but no agenda content (school-novato 42 mtgs/0 chunks/0 decisions; school-tamalpais 38 mtgs/0 chunks/0 decisions; school-san-rafael 72 mtgs/788 chunks from fallback path/0 decisions). 2 schools have working pipelines because they retain BoardDocs fallback (school-sausalito-marin-city via boarddocs_app_path=ca/smcsd; school-larkspur-corte-madera via boarddocs_app_path=ca/lcmsd — both populate chunks via the deprecated BoardDocs path even though Simbli meetings have agenda_url=None). Root issue: Simbli meetings extraction does NOT populate agenda_url on the meeting row for ANY Simbli school (0% coverage across all active Simbli sources, with the exception of school-san-rafael at 62% — unclear why SR is partial). Without agenda_url, the chunks pipeline has nothing to fetch. Options: (1) headed Playwright to scrape detail pages and populate agenda_url, (2) probe for Simbli JSON API or RSS endpoints, (3) contact eboardsolutions for API access, (4) for migrated-from-boarddocs schools keep the BoardDocs legacy fallback working as a bridge.",
+        "priority": 1,
         "status": "not_started",
         "files": [
           "packages/civicos-extraction/src/civicos_extraction/clients/simbli.py"
         ],
         "test_file": null,
-        "notes": "Discovered in 2026-04-14 ingestion audit. Simbli curl returns Incapsula challenge page. Affects 8 school districts. Options: (1) headed Playwright, (2) Simbli JSON API probe, (3) RSS bypass, (4) contact eboardsolutions for API access."
+        "notes": "Originally filed 2026-04-14. Scope refined during 2026-04-19 QC walkthrough: the 'stale' cases are actually a different failure mode — meetings extraction works (returns listing rows) but agenda_url is never populated, so chunks/decisions can never be extracted. The 4 empty schools are a harder case (Simbli source request itself blocked by WAF). Options rank ordered: (a) verify agenda_url can be scraped from detail pages via headed Playwright, (b) probe for undocumented Simbli JSON/RSS endpoints (cheaper), (c) enumerate which migrated-from-boarddocs schools still have working boarddocs_app_path as a temporary bridge. Priority raised from 2 to 1 because 3 active-but-empty jurisdictions are a visible launch gap."
       },
       {
         "name": "diligent_client",
@@ -1832,8 +1832,9 @@
       },
       {
         "name": "low_velocity_cron_timeout",
+        "priority_note_2026_04_19": "Promoted from P1 to P0. Blocks re-extraction of the 474 decisions cleared by the BIGINT migration (those sit at NULL until next weekly cron completes). Also blocks freshness for school-marin-county-oe and school-ross-valley (both BoardDocs, last_verified 2026-04-09, cron crashed at school-marin-county-oe meeting 73/84). Priority raised to 0 as jurisdiction_qc_walkthrough completes.",
         "description": "Weekly scheduled_low_velocity_refresh cron on Modal is unreliable: 3 of the last 5 runs (2026-04-12, 2026-03-29, 2026-03-22) hit the 4h (14400s) Modal function timeout. Last failure crashed mid-way through school-marin-county-oe decision extraction at meeting [73/84], leaving all alphabetically-later jurisdictions (school-miller-creek through tamalpais, state-california) completely unprocessed for municipal code, agenda items, decisions, and legislation text population. The pipeline already wraps per-stage per-jurisdiction calls in try/except so soft failures are logged, but the hard Modal timeout kills the process entirely. Serial iteration over 31 jurisdictions is the core issue. Candidate fixes: (1) fan-out per-jurisdiction work via Modal .spawn() (existing pattern in this file, e.g. extract_decisions.spawn at line 6352) and collect with .get(), (2) shard the cron into multiple workflows by jurisdiction type (cities, schools, states) each with their own time slot, (3) add a time-budget checkpoint that skips jurisdictions already processed in the last N days so a failed run picks up where it left off on retry.",
-        "priority": 1,
+        "priority": 0,
         "status": "not_started",
         "files": [
           "scripts/modal_ingest.py",
@@ -1844,9 +1845,9 @@
       },
       {
         "name": "jurisdiction_qc_walkthrough",
-        "description": "Continue manual jurisdiction-by-jurisdiction QC audit against live municipal websites. Completed 15/~18 so far (San Rafael, Mill Valley, San Anselmo, Sausalito, Fairfax, Corte Madera, Novato, Belvedere, Tiburon, Larkspur, Ross, Marin County, San Francisco, Berkeley, Alameda). Uncovered and fixed 10 bugs: ProudCity P.M. regex, phantom version bloat from tz mismatch, CivicPlus AMID discovery, BoardDocs no date guard, Ross mixed-client stale rows + domain migration, Granicus Spanish Audio Files phantom rows, Granicus default_view_id skipped when archives configured (missed upcoming meetings + un-archived bodies like TAM), Berkeley Granicus archive keys non-semantic (view_2/view_5 stored as meeting_type), Postgres meeting upsert has_changes omitted meeting_type (config renames didn't propagate to existing rows), scheduled_low_velocity_refresh called fetch_municipal_code unconditionally — now gated on data_sources.municipal_code. Remaining: 11 school districts, college-marin, sonoma/state-california.",
-        "priority": 0,
-        "status": "not_started",
+        "description": "Manual jurisdiction-by-jurisdiction QC audit against live municipal websites. COMPLETED 2026-04-19. All 29 configured jurisdictions audited (15 cities/counties with content + 11 school districts + college-marin + county-sonoma + state-california). Uncovered and fixed 12 bugs: ProudCity P.M. regex, phantom version bloat from tz mismatch, CivicPlus AMID discovery, BoardDocs no date guard, Ross mixed-client stale rows + domain migration, Granicus Spanish Audio Files phantom rows, Granicus default_view_id skipped when archives configured, Berkeley Granicus archive keys non-semantic (view_2/view_5 stored as meeting_type), Postgres meeting upsert has_changes omitted meeting_type, scheduled_low_velocity_refresh called fetch_municipal_code unconditionally (now gated on data_sources.municipal_code), Granicus System Test streaming health-checks ingested as meetings (now skipped via _AUXILIARY_AUDIO_TITLES), pdf_parser.py 'closing' catch-all label misapplied to 36K chunks project-wide (now falls back to 'unparsed' + secondary numbered-bullet regex added for Alameda/SF/Berkeley-style agendas). Plus two systemic-data bug fixes applied to prod: BIGINT migration on decisions.financial_impact_cents (474 bogus INT32_MAX sentinel values cleared) and chunks.agenda_item closing->unparsed rename (36,611 rows).",
+        "priority": 2,
+        "status": "done",
         "files": [
           "reports/ingestion-audits/",
           "packages/civicos-extraction/src/civicos_extraction/clients/proudcity.py",
