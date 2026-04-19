@@ -27314,3 +27314,19 @@ Tests added: 6 new regression tests across test_granicus.py, test_postgres_backe
 
 ### Next P0: low_velocity_cron_timeout
 Approach options documented in the item. Recommended: Modal .spawn() fan-out per jurisdiction (existing pattern elsewhere in modal_ingest.py at line 6352).
+
+### 2026-04-19 Session — low_velocity_cron_timeout DONE
+
+Landed spawn fan-out fix for scheduled_low_velocity_refresh:
+- New `_refresh_jurisdiction_low_velocity` @app.function (one container per jurisdiction)
+- Top-level cron spawns N in parallel, collects via `.get()` — mirrors onboard_jurisdiction/batch_onboard pattern
+- 3 new tests in TestLowVelocityCronFanOut (happy path, per-stage failure isolation, municipal_code skip gating)
+- Critics: pipeline/architecture/refresh/session pass; config warning false positive (no code reads ingestion.agenda_items); mutation warnings addressed
+
+**Key gotcha caught mid-session:** First verification run (24635788298) reported success but ran against origin/main HEAD = 8ce9eb9553 (April 16) — local main was 17 commits ahead. GH Actions `modal run` uses the workflow-triggering commit from origin, not Modal's deployed app. Pushed, re-triggered, verified properly on run 24637784320 — "Spawned 30 per-jurisdiction low-velocity refreshes in parallel" log confirms fan-out live, completed in 41 min (vs 1h 35m serial, vs 4h+ timeouts). Pipeline summary 94/95 passed.
+
+Saved memory: `project_cron_runs_against_origin.md` so future sessions check `git log origin/main..HEAD` before trusting cron fix verification.
+
+**Commits this session:** 9fdb337a (fan-out), 0531e911 (progress note), 2289cb7d (false-positive correction), 87a5ff8b (verified done + new P0).
+
+**New P0:** simbli_incapsula_bypass (promoted from P1). 3 active Simbli schools (novato/tamalpais/san-rafael) have meetings but 0% agenda_url → chunks pipeline broken. 4 more (kentfield/mill-valley-sd/miller-creek/reed-union) are WAF-blocked entirely.
