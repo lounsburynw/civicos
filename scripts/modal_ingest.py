@@ -6767,6 +6767,96 @@ def extract_transcripts(
     image=civic_image,
     secrets=[
         modal.Secret.from_name("civic-db"),
+        modal.Secret.from_name("civic-openai"),  # For LLM extraction (agenda, decisions)
+    ],
+    memory=8192,  # Matches the heaviest underlying stage (extract_decisions/extract_agenda_items)
+    timeout=21600,  # 6h ceiling; actual budget is ~3 * 2h stage timeouts
+    retries=modal.Retries(max_retries=1, backoff_coefficient=2.0, initial_delay=60.0),
+)
+def _refresh_jurisdiction_low_velocity(jurisdiction: str) -> dict:
+    """Run a single jurisdiction's low-velocity stages in one spawned container.
+
+    Designed to be spawned in parallel for all active jurisdictions from
+    scheduled_low_velocity_refresh(), avoiding the serial-loop timeout that
+    killed the cron whenever a slow jurisdiction landed mid-alphabet.
+
+    Stages (all .local() — same container, sequential, no external fan-out):
+      1. municipal_code (gated by data_sources.municipal_code)
+      2. agenda_items
+      3. decisions
+
+    Returns the per-jurisdiction results dict that the caller splats into its
+    aggregate results, keyed by stage name (matches the pre-fan-out shape that
+    pipeline_run_summary consumes).
+    """
+    import logging
+    import time
+
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+    logger = logging.getLogger(__name__)
+    start_time = time.time()
+    results: dict = {}
+
+    # Municipal code (gated by config — skip jurisdictions without a Municode source)
+    try:
+        from civicos.jurisdiction_config import load_jurisdiction_config
+        mc_source = load_jurisdiction_config(jurisdiction).data_sources.municipal_code
+    except Exception as _cfg_e:
+        logger.warning(f"  [{jurisdiction}] Could not load jurisdiction config: {_cfg_e}")
+        mc_source = None
+
+    if mc_source:
+        try:
+            logger.info(f"  [{jurisdiction}] Fetching municipal code (source={mc_source})...")
+            result = fetch_municipal_code.local(jurisdiction=jurisdiction, dry_run=False, auto_index=True)
+            results["municipal_code"] = result
+            stored = result.get("sections_stored", 0)
+            indexed = result.get("vector_result", {}).get("total_indexed", 0) if result.get("auto_index") else 0
+            logger.info(f"    Municipal code: {stored} sections stored, {indexed} vectors indexed")
+        except Exception as e:
+            logger.exception(f"  [{jurisdiction}] Municipal code fetch failed")
+            results["municipal_code"] = {"status": "failed", "error": str(e)}
+    else:
+        logger.info(f"  [{jurisdiction}] Skipping municipal code (no source configured)")
+        results["municipal_code"] = {"status": "skipped", "reason": "not_configured"}
+
+    # Agenda items (LLM-powered, auto-index vectors)
+    try:
+        logger.info(f"  [{jurisdiction}] Extracting agenda items...")
+        result = extract_agenda_items.local(jurisdiction=jurisdiction, dry_run=False, auto_index=True)
+        results["agenda_items"] = result
+        extracted = result.get("items_extracted", 0)
+        indexed = result.get("vector_result", {}).get("total_indexed", 0) if result.get("auto_index") else 0
+        logger.info(f"    Agenda items: {extracted} items ({result.get('actionable_items', 0)} actionable), {indexed} vectors indexed")
+    except Exception as e:
+        logger.exception(f"  [{jurisdiction}] Agenda items extraction failed")
+        results["agenda_items"] = {"status": "failed", "error": str(e)}
+
+    # Decisions (LLM-powered, auto-index vectors)
+    try:
+        logger.info(f"  [{jurisdiction}] Extracting decisions...")
+        result = extract_decisions.local(jurisdiction=jurisdiction, dry_run=False, auto_index=True)
+        results["decisions"] = result
+        extracted = result.get("decisions_extracted", 0)
+        indexed = result.get("vector_result", {}).get("total_indexed", 0) if result.get("auto_index") else 0
+        logger.info(f"    Decisions: {extracted} decisions from {result.get('meetings_extracted', 0)} meetings, {indexed} vectors indexed")
+    except Exception as e:
+        logger.exception(f"  [{jurisdiction}] Decision extraction failed")
+        results["decisions"] = {"status": "failed", "error": str(e)}
+
+    elapsed = time.time() - start_time
+    logger.info(f"[{jurisdiction}] low-velocity refresh complete in {elapsed:.0f}s")
+    return {
+        "jurisdiction": jurisdiction,
+        "results": results,
+        "elapsed_seconds": round(elapsed, 1),
+    }
+
+
+@app.function(
+    image=civic_image,
+    secrets=[
+        modal.Secret.from_name("civic-db"),
         modal.Secret.from_name("civic-legiscan"),
         modal.Secret.from_name("civic-openai"),  # For LLM extraction (agenda, decisions)
         modal.Secret.from_name("civic-notify"),  # Push notifications (ntfy or legacy Slack)
@@ -7040,73 +7130,41 @@ def scheduled_low_velocity_refresh():
             logger.info(f"  Congressional hearings: {total} stored")
 
         # =========================================================================
-        # Per-jurisdiction operations
+        # Per-jurisdiction operations (fan-out via Modal .spawn)
         # =========================================================================
+        # Serial iteration over ~30 jurisdictions blew past the 4h/6h Modal
+        # function timeout once any single jurisdiction's decision extraction
+        # ran long (school-marin-county-oe at meeting [73/84] on 2026-04-12
+        # killed every alphabetically-later jurisdiction that week). Spawn each
+        # jurisdiction as its own container so total wall-clock is bounded by
+        # the slowest single jurisdiction, not the sum.
 
+        handles: list[tuple[str, object]] = []
         for jid, config in jurisdictions.items():
-            # Skip jurisdictions without per-jurisdiction low-velocity data sources
-            # (e.g., county-marin is financial context only, no municipal code/meetings/minutes)
             source_type = config.get("source_type", "")
             if source_type in ("county", "financial"):
                 logger.info(f"Skipping {jid} (source_type={source_type}, no per-jurisdiction low-velocity data)")
                 continue
+            handle = _refresh_jurisdiction_low_velocity.spawn(jurisdiction=jid)
+            handles.append((jid, handle))
 
-            logger.info(f"Processing jurisdiction: {jid}")
-            results[jid] = {}
+        logger.info(f"Spawned {len(handles)} per-jurisdiction low-velocity refreshes in parallel")
 
-            # Municipal code (always full refresh - no incremental API support, auto-index vectors).
-            # Only attempt when the jurisdiction's YAML declares a municipal_code source.
-            # Without this gate, non-configured jurisdictions (e.g., city-berkeley, whose
-            # code is not on Municode) fail every weekly run with a noisy ValueError.
+        for jid, handle in handles:
             try:
-                from civicos.jurisdiction_config import load_jurisdiction_config
-                mc_source = load_jurisdiction_config(jid).data_sources.municipal_code
-            except Exception as _cfg_e:
-                logger.warning(f"  [{jid}] Could not load jurisdiction config: {_cfg_e}")
-                mc_source = None
-
-            if mc_source:
-                try:
-                    logger.info(f"  [{jid}] Fetching municipal code (source={mc_source})...")
-                    result = fetch_municipal_code.local(jurisdiction=jid, dry_run=False, auto_index=True)
-                    results[jid]["municipal_code"] = result
-                    stored = result.get('sections_stored', 0)
-                    indexed = result.get('vector_result', {}).get('total_indexed', 0) if result.get('auto_index') else 0
-                    logger.info(f"    Municipal code: {stored} sections stored, {indexed} vectors indexed")
-                except Exception as e:
-                    logger.exception(f"  [{jid}] Municipal code fetch failed")
-                    results[jid]["municipal_code"] = {"status": "failed", "error": str(e)}
-            else:
-                logger.info(f"  [{jid}] Skipping municipal code (no source configured)")
-                results[jid]["municipal_code"] = {"status": "skipped", "reason": "not_configured"}
-
-            # Agenda items extraction (LLM-powered, after meetings are available, auto-index vectors)
-            try:
-                logger.info(f"  [{jid}] Extracting agenda items...")
-                result = extract_agenda_items.local(jurisdiction=jid, dry_run=False, auto_index=True)
-                results[jid]["agenda_items"] = result
-                extracted = result.get('items_extracted', 0)
-                indexed = result.get('vector_result', {}).get('total_indexed', 0) if result.get('auto_index') else 0
-                logger.info(f"    Agenda items: {extracted} items ({result.get('actionable_items', 0)} actionable), {indexed} vectors indexed")
+                jresult = handle.get()
+                results[jid] = jresult.get("results", {})
+                elapsed_j = jresult.get("elapsed_seconds", 0)
+                logger.info(f"  [{jid}] complete ({elapsed_j:.0f}s)")
             except Exception as e:
-                logger.exception(f"  [{jid}] Agenda items extraction failed")
-                results[jid]["agenda_items"] = {"status": "failed", "error": str(e)}
+                # Container crashed entirely (timeout/OOM/unhandled). Record so
+                # pipeline_run_summary shows the failure instead of silently
+                # omitting the jurisdiction from the results dict.
+                logger.exception(f"  [{jid}] jurisdiction container failed")
+                results[jid] = {"_jurisdiction_error": {"status": "failed", "error": str(e)}}
 
-            # Decision extraction (LLM-powered, weekly because minutes PDFs lag behind meetings, auto-index vectors)
-            try:
-                logger.info(f"  [{jid}] Extracting decisions...")
-                result = extract_decisions.local(jurisdiction=jid, dry_run=False, auto_index=True)
-                results[jid]["decisions"] = result
-                extracted = result.get('decisions_extracted', 0)
-                indexed = result.get('vector_result', {}).get('total_indexed', 0) if result.get('auto_index') else 0
-                logger.info(f"    Decisions: {extracted} decisions from {result.get('meetings_extracted', 0)} meetings, {indexed} vectors indexed")
-            except Exception as e:
-                logger.exception(f"  [{jid}] Decision extraction failed")
-                results[jid]["decisions"] = {"status": "failed", "error": str(e)}
-
-                # NOTE: Vector indexing now handled by auto_index=True on each fetch/extract call above.
-                # This ensures vectors are indexed immediately after data is stored, closing the
-                # staleness gap where data could exist in storage but not be searchable.
+            # NOTE: Vector indexing is handled by auto_index=True on each
+            # fetch/extract call inside _refresh_jurisdiction_low_velocity.
 
     except Exception as e:
         logger.exception(f"Pipeline crashed with unhandled exception: {e}")

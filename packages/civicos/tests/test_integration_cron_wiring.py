@@ -354,3 +354,129 @@ class TestRefreshMetadata:
         assert meta["status"] == "completed"
         assert meta["items_stored"] == 1
         assert meta["last_fetch_at"] is not None
+
+
+# ---------------------------------------------------------------------------
+# Low-velocity cron fan-out (scripts/modal_ingest.py)
+# ---------------------------------------------------------------------------
+
+
+class TestLowVelocityCronFanOut:
+    """Per-jurisdiction helper behavior for `scheduled_low_velocity_refresh`.
+
+    Guards against regressions in `_refresh_jurisdiction_low_velocity` — the
+    container that the top-level cron spawns once per jurisdiction. The spawn
+    fan-out in the caller follows the same pattern as `batch_onboard` /
+    `onboard_jurisdiction` (proven in production); what is novel here is the
+    per-jurisdiction aggregation, stage skip gating, and failure isolation.
+    """
+
+    @pytest.fixture(scope="class")
+    def modal_ingest(self):
+        import sys
+        from pathlib import Path
+
+        project_root = Path(__file__).resolve().parents[3]
+        scripts_dir = project_root / "scripts"
+        if str(scripts_dir) not in sys.path:
+            sys.path.insert(0, str(scripts_dir))
+        import modal_ingest
+        return modal_ingest
+
+    def _stage_patches(self, modal_ingest, *, mc=None, agenda=None, decisions=None):
+        """Context manager producing patches for the three .local() stage calls."""
+        from contextlib import ExitStack
+        from unittest.mock import patch
+
+        stack = ExitStack()
+        mc_mock = stack.enter_context(patch.object(modal_ingest.fetch_municipal_code, "local"))
+        agenda_mock = stack.enter_context(patch.object(modal_ingest.extract_agenda_items, "local"))
+        decisions_mock = stack.enter_context(patch.object(modal_ingest.extract_decisions, "local"))
+
+        if mc is not None:
+            mc_mock.return_value = mc if not isinstance(mc, Exception) else None
+            if isinstance(mc, Exception):
+                mc_mock.side_effect = mc
+        if agenda is not None:
+            agenda_mock.return_value = agenda if not isinstance(agenda, Exception) else None
+            if isinstance(agenda, Exception):
+                agenda_mock.side_effect = agenda
+        if decisions is not None:
+            decisions_mock.return_value = decisions if not isinstance(decisions, Exception) else None
+            if isinstance(decisions, Exception):
+                decisions_mock.side_effect = decisions
+        return stack, (mc_mock, agenda_mock, decisions_mock)
+
+    def _patch_jurisdiction_config(self, municipal_code_source):
+        from unittest.mock import MagicMock, patch
+
+        cfg = MagicMock()
+        cfg.data_sources.municipal_code = municipal_code_source
+        return patch("civicos.jurisdiction_config.load_jurisdiction_config", return_value=cfg)
+
+    def test_all_three_stages_aggregated_in_order(self, modal_ingest):
+        """Happy path: municipal_code + agenda_items + decisions all succeed and land in results."""
+        mc_return = {"sections_stored": 42, "auto_index": True, "vector_result": {"total_indexed": 10}}
+        agenda_return = {"items_extracted": 7, "actionable_items": 4, "auto_index": True, "vector_result": {"total_indexed": 5}}
+        decisions_return = {"decisions_extracted": 3, "meetings_extracted": 5, "auto_index": True, "vector_result": {"total_indexed": 2}}
+
+        stack, (mc_mock, agenda_mock, decisions_mock) = self._stage_patches(
+            modal_ingest, mc=mc_return, agenda=agenda_return, decisions=decisions_return,
+        )
+        with stack, self._patch_jurisdiction_config("municode"):
+            out = modal_ingest._refresh_jurisdiction_low_velocity.local(jurisdiction="city-test-fanout")
+
+        assert out["jurisdiction"] == "city-test-fanout"
+        assert out["results"]["municipal_code"] == mc_return
+        assert out["results"]["agenda_items"] == agenda_return
+        assert out["results"]["decisions"] == decisions_return
+        mc_mock.assert_called_once_with(jurisdiction="city-test-fanout", dry_run=False, auto_index=True)
+        agenda_mock.assert_called_once_with(jurisdiction="city-test-fanout", dry_run=False, auto_index=True)
+        decisions_mock.assert_called_once_with(jurisdiction="city-test-fanout", dry_run=False, auto_index=True)
+
+    def test_per_stage_failure_does_not_block_other_stages(self, modal_ingest):
+        """A single stage raising must not stop the subsequent stages from running."""
+        decisions_return = {"decisions_extracted": 1, "meetings_extracted": 1, "auto_index": False}
+
+        stack, (_, agenda_mock, decisions_mock) = self._stage_patches(
+            modal_ingest,
+            mc=RuntimeError("municode 500"),
+            agenda=ValueError("agenda PDF unreachable"),
+            decisions=decisions_return,
+        )
+        with stack, self._patch_jurisdiction_config("municode"):
+            out = modal_ingest._refresh_jurisdiction_low_velocity.local(jurisdiction="city-test-partial")
+
+        assert out["results"]["municipal_code"]["status"] == "failed"
+        assert "municode 500" in out["results"]["municipal_code"]["error"]
+        assert out["results"]["agenda_items"]["status"] == "failed"
+        assert "agenda PDF unreachable" in out["results"]["agenda_items"]["error"]
+        # Decisions ran even though upstream stages failed AND was called with the
+        # full jurisdiction kwargs — the downstream stage must see the same invocation
+        # shape regardless of earlier failures.
+        assert out["results"]["decisions"] == decisions_return
+        agenda_mock.assert_called_once_with(jurisdiction="city-test-partial", dry_run=False, auto_index=True)
+        decisions_mock.assert_called_once_with(jurisdiction="city-test-partial", dry_run=False, auto_index=True)
+
+    def test_municipal_code_skipped_when_not_configured(self, modal_ingest):
+        """Jurisdictions without a Municode source record a `skipped` status, no fetch call.
+
+        Also verifies the skip doesn't leak into downstream stages — agenda_items and
+        decisions must still run and their return values land in the aggregate.
+        """
+        agenda_return = {"items_extracted": 0, "actionable_items": 0, "auto_index": False}
+        decisions_return = {"decisions_extracted": 0, "meetings_extracted": 0, "auto_index": False}
+        stack, (mc_mock, agenda_mock, decisions_mock) = self._stage_patches(
+            modal_ingest,
+            agenda=agenda_return,
+            decisions=decisions_return,
+        )
+        with stack, self._patch_jurisdiction_config(None):
+            out = modal_ingest._refresh_jurisdiction_low_velocity.local(jurisdiction="city-test-nomc")
+
+        assert out["results"]["municipal_code"] == {"status": "skipped", "reason": "not_configured"}
+        assert out["results"]["agenda_items"] == agenda_return
+        assert out["results"]["decisions"] == decisions_return
+        mc_mock.assert_not_called()
+        agenda_mock.assert_called_once_with(jurisdiction="city-test-nomc", dry_run=False, auto_index=True)
+        decisions_mock.assert_called_once_with(jurisdiction="city-test-nomc", dry_run=False, auto_index=True)
