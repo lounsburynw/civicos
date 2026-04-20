@@ -529,9 +529,9 @@ class SimbliClient(BaseExtractor):
             )
 
         except Exception as e:
-            logger.error(
-                "Failed to get meetings from Simbli",
-                extra={"error": str(e), "platform": self.platform_name},
+            logger.exception(
+                f"Failed to get meetings from Simbli "
+                f"(platform={self.platform_name}, error={type(e).__name__}: {e})"
             )
         finally:
             self._close_browser()
