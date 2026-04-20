@@ -250,6 +250,20 @@ Use San Rafael as the baseline for what good ingestion looks like. After onboard
 | Granicus (HTML) | **0** | 0.0-0.1 | No PDFs, thin HTML minutes |
 | Legistar | 20-50 | 0.3-0.5 | API-accessible attachments |
 | CivicClerk | 10-40 | 0.2-0.4 | OData API |
+| Simbli (full) | 30-70 | 0.2-0.4 | Works when `boarddocs_app_path` fallback resolves |
+| Simbli (partial) | **0** | **0** | Simbli source populates meetings with 0% `agenda_url` → chunks/decisions pipelines fail. Known for school-novato, school-tamalpais, school-san-rafael. Run `run_onboard_qc()` to detect. |
+
+## Known Gotchas (April 2026 QC Walkthrough)
+
+Run `run_onboard_qc(storage, jurisdiction_id)` after first ingest to catch these automatically. Patterns documented here so you recognize them on sight:
+
+1. **Simbli `agenda_url=0%` gap.** Simbli extraction populates meetings but not agenda_urls, so chunks never fetch. Check: `SELECT COUNT(*) FILTER (WHERE agenda_url IS NOT NULL) / COUNT(*)` — should be ≥ 80%.
+2. **Legacy `view_N` archive keys.** Pre-LLM manual configs used `view_2`/`view_5` as archive keys, which leaked into `meeting_type` on every row. New onboards use `generate_body_names()` and are safe, but verify no meeting has `meeting_type` matching `^view_\d+$` or `NULL`.
+3. **Phantom Granicus rows.** Spanish Audio Files (multilingual archives) and System Test streams are filtered by `granicus.py` now. If a new platform surfaces, watch for: obviously-non-meeting titles, midnight timestamps with no agenda_url, duplicate content_hashes across same-date rows.
+4. **Title-variant dedup gap.** Same meeting appears twice when default_view surfaces it as "City Council Meeting" (upcoming) and the per-body archive surfaces it as "Regular City Council Meeting - 6:00 p.m." (after recording). Different title slug → different meeting_id → no dedup. Watch for same-date pairs with ≥70% title overlap.
+5. **`agenda_item='closing'` dominance.** `pdf_parser.py` had a silent fallback that labeled every chunk `'closing'` when the regex missed numbered-bullet formats. Fixed (`1cc27a5b`), but verify no more than ~50% of chunks carry this label. Relabel with "unparsed" if detected.
+6. **`playwright_llm` meeting_type variants.** When Legistar/Granicus is broken and playwright_llm is the fallback, it produces short forms (`budget_and_finance`) alongside canonical `_committee` versions (`budget_and_finance_committee`). Surfaces as duplicate records. Plan to retire playwright_llm rows once the real source backfills; don't delete them while they hold unique chunks/decisions.
+7. **Cancelled meetings linger.** No disappearance detection yet. If live source removes a cancelled meeting, DB keeps the row. Manual soft-delete or wait for a global fix (launch.json follow-up #2).
 
 ## School District Onboarding
 

@@ -67,6 +67,13 @@ from civicos.diagnostics import (
     SCHEMA_REFERENCE,
 )
 
+# Onboard quality gates (post-ingest checks from April 2026 QC walkthrough)
+from civicos.onboard_qc import (
+    run_onboard_qc,
+    OnboardQCReport,
+    QCCheck,
+)
+
 # Jurisdiction registry (centralized config)
 from civicos.jurisdiction import JurisdictionRegistry, JurisdictionConfig, CITY_CONFIGS
 
@@ -161,6 +168,10 @@ __all__ = [
     "format_data_status",
     "format_vector_coverage",
     "SCHEMA_REFERENCE",
+    # Onboard quality gates
+    "run_onboard_qc",
+    "OnboardQCReport",
+    "QCCheck",
     # Jurisdiction registry
     "JurisdictionRegistry",
     "JurisdictionConfig",
