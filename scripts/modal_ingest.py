@@ -5019,9 +5019,12 @@ browser_image = (
 
 @app.function(
     image=browser_image,
-    secrets=[modal.Secret.from_name("civic-db")],
+    secrets=[
+        modal.Secret.from_name("civic-db"),
+        modal.Secret.from_name("civic-r2"),
+    ],
     memory=4096,
-    timeout=600,
+    timeout=1800,
     retries=modal.Retries(max_retries=1, backoff_coefficient=2.0, initial_delay=10.0),
 )
 def fetch_simbli_meetings(
@@ -5100,12 +5103,34 @@ def fetch_simbli_meetings(
             "cost_usd": 2 * elapsed * 0.000463,
         }
 
+    # Blob storage is required for Simbli agenda URL population: Simbli's
+    # PrintAgenda.aspx is a Playwright-only landing page, so we must materialise
+    # the PDF behind a stable R2 URL that the chunks pipeline can fetch. If R2
+    # is unavailable, we fall back to storing meetings without agenda_url
+    # (same behaviour as before) rather than failing the whole refresh.
+    blob_storage = None
+    try:
+        from civicos.storage.blob import get_blob_storage
+        blob_storage = get_blob_storage()
+        validation = blob_storage.validate()
+        if not validation.is_valid:
+            logger.warning(
+                f"[SIMBLI] Blob storage validation failed, skipping agenda_url population: {validation.errors}"
+            )
+            blob_storage = None
+        else:
+            logger.info(f"[SIMBLI] Blob storage ready: {blob_storage.backend_type}")
+    except Exception as e:
+        logger.warning(f"[SIMBLI] Could not initialize blob storage: {e}")
+        blob_storage = None
+
     # Store
     backend = PostgresBackend(database_url)
     count = extract_simbli_meetings_to_storage(
         client=client,
         storage=backend,
         jurisdiction_id=jurisdiction,
+        blob_storage=blob_storage,
     )
 
     # Update refresh metadata

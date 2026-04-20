@@ -27330,3 +27330,25 @@ Saved memory: `project_cron_runs_against_origin.md` so future sessions check `gi
 **Commits this session:** 9fdb337a (fan-out), 0531e911 (progress note), 2289cb7d (false-positive correction), 87a5ff8b (verified done + new P0).
 
 **New P0:** simbli_incapsula_bypass (promoted from P1). 3 active Simbli schools (novato/tamalpais/san-rafael) have meetings but 0% agenda_url → chunks pipeline broken. 4 more (kentfield/mill-valley-sd/miller-creek/reed-union) are WAF-blocked entirely.
+
+### 2026-04-20 Session — simbli_incapsula_bypass IN PROGRESS (code landed, awaiting deploy + cron verification)
+
+Rescoped the P0 after investigation reframed the problem twice:
+
+**Reframe #1 (root cause, not WAF):** Simbli's SimbliClient already bypasses Incapsula via Playwright stealth (simbli.py:189-242). The real gap: `_find_pdf_link()` searches the listing row HTML for PDF anchors, but SB_MeetingListing.aspx exposes zero PDF links. The only route to an agenda PDF is the Playwright-only PrintAgenda.aspx landing page — click Print, wait for the PrintAgenda API response, parse `FileUrl`, download. No stable static URL exists. Chunks pipeline uses plain `requests.get()` (chunks.py:1009), so it can't fetch that — we must eagerly materialise the PDF to R2 and store the R2 URL as `agenda_url`.
+
+**Reframe #2 (4 "WAF-blocked" schools were misclassified):** kentfield/mill-valley-sd/miller-creek/reed-union point at *.agendaonline.net/public/* — a different platform, not Incapsula-protected. Returns 917KB of plain HTML. SimbliClient silently fails to match that DOM. Moved to a new P2 launch.json item (`agendaonline_net_client`).
+
+**Implementation landed:**
+- `SimbliClient.upload_agenda_to_r2(meeting, jurisdiction_id, blob_storage) -> Optional[str]`: MID → PDF bytes → R2 upload at `{jurisdiction_id}/agendas/{meeting_id}.pdf`, returns R2 URL or None.
+- `SimbliClient.populate_agenda_urls(meetings, jurisdiction_id, blob_storage, *, skip_existing=True) -> Dict[str,int]`: bulk, mutates meetings in place, returns populated/skipped_existing/skipped_no_mid/failed counts. Idempotent when `skip_existing=True`.
+- `extract_simbli_meetings_to_storage()` gains optional `blob_storage` arg. If provided, populate agenda_urls before storage mapping.
+- `fetch_simbli_meetings()` in modal_ingest.py: added `civic-r2` secret, bumped timeout 600→1800s (per-meeting PDF fetches add ~5-15s), lazy blob_storage init with graceful degradation (missing R2 creds → same behaviour as before).
+- 10 new unit tests in `TestSimbliAgendaUrlPopulation`: single upload success/MID-missing/PDF-fail/R2-fail, bulk populated/skipped-existing/failure-counts/MID-missing-counts, and the extract_simbli_meetings_to_storage integration path (with + without blob_storage).
+- Split out `agendaonline_net_client` (P2) in launch.json so the real WAF-free-but-different-platform problem has its own scope.
+
+**Why "in progress" not "done":** the fix is code-complete but needs a live verification pass — push, redeploy modal_ingest, trigger cron-low-velocity-refresh, confirm school-novato and school-tamalpais rows get agenda_url populated with R2 URLs, and that the chunks cron subsequently fetches them. That's the next session's first action; failure there could mean the Playwright flow inside Modal's `browser_image` container hits something `scripts/ingest_srcs.py`'s local runs don't.
+
+**Regression to re-check post-deploy:** school-sausalito-marin-city and school-larkspur-corte-madera still have `boarddocs_app_path` fallback in their configs. Their chunks come from that path, independent of Simbli agenda_url. Confirm those chunks counts don't drop after Simbli refresh runs with the new blob_storage path.
+
+**Unrelated finding:** `TestSimbliClientIntegration::test_get_meetings` (marked `@integration @slow`, hits live Simbli) fails on main and my branch identically — meeting IDs no longer start with `srcs-`. Pre-existing test drift, not caused by this work. Not fixing this session.

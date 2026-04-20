@@ -27,6 +27,19 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+@runtime_checkable
+class _BlobStorageProtocol(Protocol):
+    """Subset of civicos.storage.blob.BlobStorage used by SimbliClient."""
+
+    def upload(
+        self,
+        key: str,
+        data: bytes,
+        content_type: Optional[str] = None,
+        metadata: Optional[Dict[str, str]] = None,
+    ) -> str: ...
+
+
 @dataclass
 class SimbliMeeting:
     """
@@ -1016,6 +1029,109 @@ class SimbliClient(BaseExtractor):
             )
             return None
 
+    def upload_agenda_to_r2(
+        self,
+        meeting: SimbliMeeting,
+        jurisdiction_id: str,
+        blob_storage: _BlobStorageProtocol,
+    ) -> Optional[str]:
+        """Download the agenda PDF for a meeting via its Simbli MID and upload to R2.
+
+        Simbli's PrintAgenda.aspx landing page cannot be fetched by the standard
+        chunks pipeline (plain HTTP through Incapsula returns a challenge page),
+        so we must eagerly materialise the PDF behind a stable R2 URL that the
+        chunks pipeline can fetch with requests.get().
+
+        Args:
+            meeting: Meeting with simbli_mid populated by _discover_meeting_mids.
+            jurisdiction_id: Used to namespace the R2 key.
+            blob_storage: Target blob store (typically Cloudflare R2).
+
+        Returns:
+            R2 URL on success, None if the MID is missing, the PDF download
+            fails, or the upload fails.
+        """
+        if not meeting.simbli_mid:
+            return None
+
+        pdf_bytes = self.download_agenda_pdf_via_mid(meeting.simbli_mid)
+        if not pdf_bytes:
+            return None
+
+        r2_key = f"{jurisdiction_id}/agendas/{meeting.id}.pdf"
+        try:
+            url = blob_storage.upload(
+                key=r2_key,
+                data=pdf_bytes,
+                content_type="application/pdf",
+                metadata={
+                    "meeting_id": meeting.id,
+                    "meeting_title": meeting.title,
+                    "source": "simbli",
+                    "simbli_mid": meeting.simbli_mid,
+                },
+            )
+        except Exception as e:
+            logger.error(
+                "R2 upload failed for Simbli agenda",
+                extra={
+                    "meeting_id": meeting.id,
+                    "simbli_mid": meeting.simbli_mid,
+                    "r2_key": r2_key,
+                    "error": str(e),
+                },
+            )
+            return None
+
+        return url
+
+    def populate_agenda_urls(
+        self,
+        meetings: List[SimbliMeeting],
+        jurisdiction_id: str,
+        blob_storage: _BlobStorageProtocol,
+        *,
+        skip_existing: bool = True,
+    ) -> Dict[str, int]:
+        """Populate agenda_url on each meeting by downloading the PDF via MID
+        and uploading to R2.
+
+        Mutates meetings in place. Idempotent when skip_existing=True: meetings
+        that already have agenda_url set (e.g. from an earlier run or a direct
+        link found in the listing HTML) are left alone.
+
+        Returns a stats dict with keys: populated, skipped_existing,
+        skipped_no_mid, failed.
+        """
+        stats = {
+            "populated": 0,
+            "skipped_existing": 0,
+            "skipped_no_mid": 0,
+            "failed": 0,
+        }
+        for meeting in meetings:
+            if skip_existing and meeting.agenda_url:
+                stats["skipped_existing"] += 1
+                continue
+            if not meeting.simbli_mid:
+                stats["skipped_no_mid"] += 1
+                continue
+
+            url = self.upload_agenda_to_r2(meeting, jurisdiction_id, blob_storage)
+            if url:
+                meeting.agenda_url = url
+                stats["populated"] += 1
+            else:
+                stats["failed"] += 1
+
+        logger.info(
+            f"populate_agenda_urls: {stats['populated']} populated, "
+            f"{stats['skipped_existing']} already had URL, "
+            f"{stats['skipped_no_mid']} missing MID, "
+            f"{stats['failed']} failed"
+        )
+        return stats
+
     def _download_pdf_from_url(self, file_url: str) -> Optional[bytes]:
         """
         Download PDF from a FileUrl.
@@ -1175,6 +1291,7 @@ def extract_simbli_meetings_to_storage(
     storage: MeetingStorageProtocol,
     jurisdiction_id: str,
     since: Optional[date] = None,
+    blob_storage: Optional[_BlobStorageProtocol] = None,
 ) -> int:
     """
     Extract meetings from Simbli and store them.
@@ -1184,6 +1301,11 @@ def extract_simbli_meetings_to_storage(
         storage: StorageBackend instance with store_meetings method
         jurisdiction_id: Target jurisdiction
         since: Only extract meetings after this date
+        blob_storage: If provided, download each meeting's agenda PDF via its
+            Simbli MID and upload it to blob storage, populating agenda_url
+            with the resulting URL. Required for novato/tamalpais/san-rafael
+            style Simbli instances where the listing HTML does not expose
+            direct PDF links.
 
     Returns:
         Number of meetings stored
@@ -1192,6 +1314,9 @@ def extract_simbli_meetings_to_storage(
     if not meetings:
         logger.info("No meetings returned from Simbli")
         return 0
+
+    if blob_storage is not None:
+        client.populate_agenda_urls(meetings, jurisdiction_id, blob_storage)
 
     mapped = [simbli_meeting_to_storage(m, jurisdiction_id) for m in meetings]
     result = storage.store_meetings(jurisdiction_id, mapped)

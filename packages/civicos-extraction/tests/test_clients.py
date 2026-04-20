@@ -2097,6 +2097,250 @@ class TestSimbliStorageMappers:
         assert result["raw_data"] is None
 
 
+class TestSimbliAgendaUrlPopulation:
+    """Test MID-based agenda PDF download + R2 upload flow.
+
+    These tests exist because Simbli's PrintAgenda.aspx is a Playwright-only
+    landing page (no stable PDF URL), so we must materialise each meeting's
+    agenda PDF in R2 and store that URL. Regression guard for novato/tamalpais
+    agenda_url coverage, where the listing HTML exposes zero PDF links.
+    """
+
+    def _make_client(self):
+        from civicos_extraction.clients.simbli import SimbliClient
+        return SimbliClient(
+            board_url="https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030351",
+            jurisdiction_id="school-novato",
+            headless=True,
+        )
+
+    def _make_meeting(self, meeting_id: str, simbli_mid=None, agenda_url=None):
+        from civicos_extraction.clients.simbli import SimbliMeeting
+        from datetime import datetime
+        return SimbliMeeting(
+            id=meeting_id,
+            title="Regular Board Meeting",
+            meeting_datetime=datetime(2026, 1, 15, 18, 0),
+            meeting_type="regular",
+            simbli_mid=simbli_mid,
+            agenda_url=agenda_url,
+        )
+
+    class _StubBlobStorage:
+        """Minimal in-memory stand-in for civicos.storage.blob.BlobStorage."""
+
+        def __init__(self):
+            self.uploads = []
+            self.fail_next = False
+
+        def upload(self, key, data, content_type=None, metadata=None):
+            if self.fail_next:
+                self.fail_next = False
+                raise RuntimeError("simulated R2 failure")
+            self.uploads.append({
+                "key": key,
+                "size": len(data),
+                "content_type": content_type,
+                "metadata": metadata,
+            })
+            return f"https://r2.example.com/{key}"
+
+    def test_upload_agenda_to_r2_returns_url_on_success(self, monkeypatch):
+        client = self._make_client()
+        meeting = self._make_meeting("school-novato-2026-01-15", simbli_mid="45989")
+        blob = self._StubBlobStorage()
+
+        monkeypatch.setattr(client, "download_agenda_pdf_via_mid", lambda mid: b"%PDF-1.4 fake")
+
+        url = client.upload_agenda_to_r2(meeting, "school-novato", blob)
+
+        assert url == "https://r2.example.com/school-novato/agendas/school-novato-2026-01-15.pdf"
+        assert len(blob.uploads) == 1
+        upload = blob.uploads[0]
+        assert upload["key"] == "school-novato/agendas/school-novato-2026-01-15.pdf"
+        assert upload["content_type"] == "application/pdf"
+        assert upload["metadata"]["simbli_mid"] == "45989"
+        assert upload["metadata"]["source"] == "simbli"
+
+    def test_upload_agenda_to_r2_returns_none_without_mid(self):
+        client = self._make_client()
+        meeting = self._make_meeting("school-novato-2026-01-15", simbli_mid=None)
+        blob = self._StubBlobStorage()
+
+        url = client.upload_agenda_to_r2(meeting, "school-novato", blob)
+
+        assert url is None
+        assert blob.uploads == []
+
+    def test_upload_agenda_to_r2_returns_none_when_pdf_download_fails(self, monkeypatch):
+        client = self._make_client()
+        meeting = self._make_meeting("school-novato-2026-01-15", simbli_mid="45989")
+        blob = self._StubBlobStorage()
+
+        monkeypatch.setattr(client, "download_agenda_pdf_via_mid", lambda mid: None)
+
+        url = client.upload_agenda_to_r2(meeting, "school-novato", blob)
+
+        assert url is None
+        assert blob.uploads == []
+
+    def test_upload_agenda_to_r2_returns_none_when_r2_upload_raises(self, monkeypatch):
+        client = self._make_client()
+        meeting = self._make_meeting("school-novato-2026-01-15", simbli_mid="45989")
+        blob = self._StubBlobStorage()
+        blob.fail_next = True
+
+        monkeypatch.setattr(client, "download_agenda_pdf_via_mid", lambda mid: b"%PDF-1.4 fake")
+
+        url = client.upload_agenda_to_r2(meeting, "school-novato", blob)
+
+        assert url is None
+        # Guard against the R2 failure being swallowed then silently double-recorded:
+        # the exception handler must not reach the success bookkeeping.
+        assert blob.uploads == []
+
+    def test_populate_agenda_urls_sets_url_and_mutates_meeting(self, monkeypatch):
+        client = self._make_client()
+        m1 = self._make_meeting("school-novato-2026-01-15", simbli_mid="45989")
+        m2 = self._make_meeting("school-novato-2026-02-12", simbli_mid="45990")
+        blob = self._StubBlobStorage()
+
+        monkeypatch.setattr(client, "download_agenda_pdf_via_mid", lambda mid: b"%PDF-1.4 fake")
+
+        stats = client.populate_agenda_urls([m1, m2], "school-novato", blob)
+
+        assert stats == {"populated": 2, "skipped_existing": 0, "skipped_no_mid": 0, "failed": 0}
+        assert m1.agenda_url == "https://r2.example.com/school-novato/agendas/school-novato-2026-01-15.pdf"
+        assert m2.agenda_url == "https://r2.example.com/school-novato/agendas/school-novato-2026-02-12.pdf"
+        assert len(blob.uploads) == 2
+
+    def test_populate_agenda_urls_skips_meetings_with_existing_url(self, monkeypatch):
+        client = self._make_client()
+        m_existing = self._make_meeting(
+            "school-novato-2026-01-15",
+            simbli_mid="45989",
+            agenda_url="https://already.example.com/agenda.pdf",
+        )
+        m_missing = self._make_meeting("school-novato-2026-02-12", simbli_mid="45990")
+        blob = self._StubBlobStorage()
+
+        monkeypatch.setattr(client, "download_agenda_pdf_via_mid", lambda mid: b"%PDF-1.4 fake")
+
+        stats = client.populate_agenda_urls([m_existing, m_missing], "school-novato", blob)
+
+        assert stats["populated"] == 1
+        assert stats["skipped_existing"] == 1
+        assert m_existing.agenda_url == "https://already.example.com/agenda.pdf"  # unchanged
+        assert m_missing.agenda_url == "https://r2.example.com/school-novato/agendas/school-novato-2026-02-12.pdf"
+
+    def test_populate_agenda_urls_counts_failures_without_mutating_meeting(self, monkeypatch):
+        client = self._make_client()
+        meeting = self._make_meeting("school-novato-2026-01-15", simbli_mid="45989")
+        blob = self._StubBlobStorage()
+
+        monkeypatch.setattr(client, "download_agenda_pdf_via_mid", lambda mid: None)
+
+        stats = client.populate_agenda_urls([meeting], "school-novato", blob)
+
+        assert stats == {"populated": 0, "skipped_existing": 0, "skipped_no_mid": 0, "failed": 1}
+        assert meeting.agenda_url is None
+
+    def test_populate_agenda_urls_counts_missing_mid_separately(self, monkeypatch):
+        client = self._make_client()
+        meeting = self._make_meeting("school-novato-2026-01-15", simbli_mid=None)
+        blob = self._StubBlobStorage()
+
+        stats = client.populate_agenda_urls([meeting], "school-novato", blob)
+
+        assert stats == {"populated": 0, "skipped_existing": 0, "skipped_no_mid": 1, "failed": 0}
+
+    def test_extract_simbli_meetings_to_storage_uses_blob_when_provided(self, monkeypatch):
+        """Integration-ish: meetings extracted from SimbliClient are enriched
+        with agenda_url via MID→R2 before being passed to storage."""
+        from civicos_extraction.clients.simbli import (
+            SimbliMeeting,
+            extract_simbli_meetings_to_storage,
+        )
+        from datetime import datetime
+
+        client = self._make_client()
+        blob = self._StubBlobStorage()
+
+        scraped = [
+            SimbliMeeting(
+                id="school-novato-2026-01-15",
+                title="Regular Board Meeting",
+                meeting_datetime=datetime(2026, 1, 15, 18, 0),
+                meeting_type="regular",
+                simbli_mid="45989",
+            ),
+        ]
+        monkeypatch.setattr(client, "get_meetings", lambda since=None: scraped)
+        monkeypatch.setattr(client, "download_agenda_pdf_via_mid", lambda mid: b"%PDF-1.4 fake")
+
+        stored = []
+
+        class _StubStorage:
+            def store_meetings(self, jurisdiction_id, meetings):
+                stored.extend(meetings)
+                return len(meetings)
+
+        count = extract_simbli_meetings_to_storage(
+            client=client,
+            storage=_StubStorage(),
+            jurisdiction_id="school-novato",
+            blob_storage=blob,
+        )
+
+        assert count == 1
+        assert stored[0]["agenda_url"] == "https://r2.example.com/school-novato/agendas/school-novato-2026-01-15.pdf"
+
+    def test_extract_simbli_meetings_to_storage_skips_blob_when_not_provided(self, monkeypatch):
+        """Without blob_storage, agenda_url remains None — preserves prior
+        behaviour so misconfigured envs do not fail, they just ingest without
+        agenda URLs (same as today)."""
+        from civicos_extraction.clients.simbli import (
+            SimbliMeeting,
+            extract_simbli_meetings_to_storage,
+        )
+        from datetime import datetime
+
+        client = self._make_client()
+        scraped = [
+            SimbliMeeting(
+                id="school-novato-2026-01-15",
+                title="Regular Board Meeting",
+                meeting_datetime=datetime(2026, 1, 15, 18, 0),
+                meeting_type="regular",
+                simbli_mid="45989",
+            ),
+        ]
+        monkeypatch.setattr(client, "get_meetings", lambda since=None: scraped)
+
+        download_calls = []
+        monkeypatch.setattr(
+            client,
+            "download_agenda_pdf_via_mid",
+            lambda mid: download_calls.append(mid) or b"ignored",
+        )
+
+        stored = []
+
+        class _StubStorage:
+            def store_meetings(self, jurisdiction_id, meetings):
+                stored.extend(meetings)
+                return len(meetings)
+
+        extract_simbli_meetings_to_storage(
+            client=client,
+            storage=_StubStorage(),
+            jurisdiction_id="school-novato",
+        )
+
+        assert stored[0]["agenda_url"] is None
+        assert download_calls == []
+
+
 class TestCreateSrcsSimbliClient:
     """Test SRCS Simbli client factory."""
 
