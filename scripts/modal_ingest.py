@@ -5004,6 +5004,7 @@ browser_image = (
         "python-dotenv>=1.0.0",
         "openai>=1.0.0",
         "google-generativeai>=0.8.0",
+        "boto3>=1.28.0",
     )
     .run_commands("playwright install --with-deps chromium")
     .env({
