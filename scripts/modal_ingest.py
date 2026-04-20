@@ -5022,6 +5022,7 @@ browser_image = (
     secrets=[
         modal.Secret.from_name("civic-db"),
         modal.Secret.from_name("civic-r2"),
+        modal.Secret.from_name("civic-blob"),
     ],
     memory=4096,
     timeout=1800,
