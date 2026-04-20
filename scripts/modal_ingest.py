@@ -5077,84 +5077,91 @@ def fetch_simbli_meetings(
 
     logger.info(f"[SIMBLI] Starting fetch: jurisdiction={jurisdiction}, board_url={board_url}")
 
-    # Create client
-    client = SimbliClient(
-        board_url=board_url,
-        jurisdiction_id=jurisdiction,
-        headless=True,
-    )
-
     from datetime import timedelta
     since_date = date.today().replace(year=date.today().year - 1) if days_past >= 365 else (
         date.today() - timedelta(days=days_past)
     )
 
-    meetings = client.get_meetings(since=since_date)
-    logger.info(f"[SIMBLI] Fetched {len(meetings)} meetings")
+    # sync_playwright refuses to run if the current thread has an active asyncio
+    # loop. Modal's container_io_manager keeps one alive between warm-reused
+    # invocations, so the second call in a given container would fail with
+    # "Playwright Sync API inside the asyncio loop". Running the Playwright
+    # work in a fresh worker thread (which has no loop) sidesteps that.
+    def _playwright_body() -> dict:
+        client = SimbliClient(
+            board_url=board_url,
+            jurisdiction_id=jurisdiction,
+            headless=True,
+        )
 
-    if dry_run:
-        elapsed = time.time() - start_time
+        meetings = client.get_meetings(since=since_date)
+        logger.info(f"[SIMBLI] Fetched {len(meetings)} meetings")
+
+        if dry_run:
+            elapsed_dry = time.time() - start_time
+            return {
+                "task": "simbli_meetings",
+                "jurisdiction": jurisdiction,
+                "board_url": board_url,
+                "meetings_found": len(meetings),
+                "meetings_stored": 0,
+                "dry_run": True,
+                "elapsed_seconds": elapsed_dry,
+                "cost_usd": 2 * elapsed_dry * 0.000463,
+            }
+
+        # Blob storage is required for Simbli agenda URL population: Simbli's
+        # PrintAgenda.aspx is a Playwright-only landing page, so we must materialise
+        # the PDF behind a stable R2 URL that the chunks pipeline can fetch. If R2
+        # is unavailable, we fall back to storing meetings without agenda_url
+        # (same behaviour as before) rather than failing the whole refresh.
+        blob_storage = None
+        try:
+            from civicos.storage.blob import get_blob_storage
+            blob_storage = get_blob_storage()
+            validation = blob_storage.validate()
+            if not validation.is_valid:
+                logger.warning(
+                    f"[SIMBLI] Blob storage validation failed, skipping agenda_url population: {validation.errors}"
+                )
+                blob_storage = None
+            else:
+                logger.info(f"[SIMBLI] Blob storage ready: {blob_storage.backend_type}")
+        except Exception as e:
+            logger.warning(f"[SIMBLI] Could not initialize blob storage: {e}")
+            blob_storage = None
+
+        backend = PostgresBackend(database_url)
+        count = extract_simbli_meetings_to_storage(
+            client=client,
+            storage=backend,
+            jurisdiction_id=jurisdiction,
+            blob_storage=blob_storage,
+        )
+
+        backend.update_refresh_metadata(
+            jurisdiction, "meetings", "simbli",
+            items_fetched=len(meetings),
+            items_stored=count,
+            status="completed",
+            fetch_window_days=days_past,
+        )
+
+        elapsed_inner = time.time() - start_time
         return {
             "task": "simbli_meetings",
             "jurisdiction": jurisdiction,
             "board_url": board_url,
             "meetings_found": len(meetings),
-            "meetings_stored": 0,
-            "dry_run": True,
-            "elapsed_seconds": elapsed,
-            "cost_usd": 2 * elapsed * 0.000463,
+            "meetings_stored": count,
+            "dry_run": False,
+            "elapsed_seconds": elapsed_inner,
+            "cost_usd": 2 * elapsed_inner * 0.000463,
         }
 
-    # Blob storage is required for Simbli agenda URL population: Simbli's
-    # PrintAgenda.aspx is a Playwright-only landing page, so we must materialise
-    # the PDF behind a stable R2 URL that the chunks pipeline can fetch. If R2
-    # is unavailable, we fall back to storing meetings without agenda_url
-    # (same behaviour as before) rather than failing the whole refresh.
-    blob_storage = None
-    try:
-        from civicos.storage.blob import get_blob_storage
-        blob_storage = get_blob_storage()
-        validation = blob_storage.validate()
-        if not validation.is_valid:
-            logger.warning(
-                f"[SIMBLI] Blob storage validation failed, skipping agenda_url population: {validation.errors}"
-            )
-            blob_storage = None
-        else:
-            logger.info(f"[SIMBLI] Blob storage ready: {blob_storage.backend_type}")
-    except Exception as e:
-        logger.warning(f"[SIMBLI] Could not initialize blob storage: {e}")
-        blob_storage = None
-
-    # Store
-    backend = PostgresBackend(database_url)
-    count = extract_simbli_meetings_to_storage(
-        client=client,
-        storage=backend,
-        jurisdiction_id=jurisdiction,
-        blob_storage=blob_storage,
-    )
-
-    # Update refresh metadata
-    backend.update_refresh_metadata(
-        jurisdiction, "meetings", "simbli",
-        items_fetched=len(meetings),
-        items_stored=count,
-        status="completed",
-        fetch_window_days=days_past,
-    )
-
-    elapsed = time.time() - start_time
-    return {
-        "task": "simbli_meetings",
-        "jurisdiction": jurisdiction,
-        "board_url": board_url,
-        "meetings_found": len(meetings),
-        "meetings_stored": count,
-        "dry_run": False,
-        "elapsed_seconds": elapsed,
-        "cost_usd": 2 * elapsed * 0.000463,
-    }
+    import concurrent.futures
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+        return executor.submit(_playwright_body).result()
 
 
 @app.function(
