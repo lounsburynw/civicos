@@ -27352,3 +27352,42 @@ Rescoped the P0 after investigation reframed the problem twice:
 **Regression to re-check post-deploy:** school-sausalito-marin-city and school-larkspur-corte-madera still have `boarddocs_app_path` fallback in their configs. Their chunks come from that path, independent of Simbli agenda_url. Confirm those chunks counts don't drop after Simbli refresh runs with the new blob_storage path.
 
 **Unrelated finding:** `TestSimbliClientIntegration::test_get_meetings` (marked `@integration @slow`, hits live Simbli) fails on main and my branch identically — meeting IDs no longer start with `srcs-`. Pre-existing test drift, not caused by this work. Not fixing this session.
+
+---
+
+## 2026-04-20 (evening) — simbli_incapsula_bypass CLOSED
+
+Verification pass surfaced three latent production bugs beyond the original scope. All fixed, deployed, and verified end-to-end via cron-meetings-poll run 24693328283.
+
+**Final DB state (meetings with R2 agenda_url, was 0 for 4 of these at session start):**
+- school-novato: 42/42
+- school-tamalpais: 38/38
+- school-san-rafael: 72/72 (was 45 via scripts/ingest_srcs.py; now all 72 via cron)
+- school-sausalito-marin-city: 19/19
+- school-larkspur-corte-madera: 7/7 new (plus 5 stale local from an intermediate broken run)
+
+**Regression-clean:** larkspur 15,595 / sausalito 48,609 / san-rafael 878 chunks counts unchanged.
+
+**Three bugs surfaced + fixed this session:**
+
+(A) fetch_simbli_meetings attached `civic-r2` (R2 credentials) but not `civic-blob` (BLOB_STORAGE_URL), so get_blob_storage() fell back to LocalBlobBackend silently and wrote agenda PDFs to the ephemeral container filesystem. Commit e65457fa attached civic-blob; 1b8c74af added boto3 to browser_image (required by R2Backend).
+
+(B) SimbliClient.get_meetings except block used `logger.error(..., extra={"error": str(e)})` — default log format drops `extra=`, hiding the real exception for 42 minutes. Commit e65457fa switched to `logger.exception` with type + message inline.
+
+(C) Modal's container_io_manager keeps an asyncio loop alive on the main thread between warm-reused invocations. sync_playwright refuses to start when the current thread has an active loop, so every Simbli jurisdiction after the first in a given container fast-failed with "Playwright Sync API inside the asyncio loop". Commit 86442064 wrapped the Playwright-touching body of fetch_simbli_meetings in a ThreadPoolExecutor worker thread (no event loop in a fresh thread).
+
+**Handoff error noted:** previous session's handoff incorrectly recommended triggering `cron-low-velocity-refresh` to verify the fix. Simbli dispatch is actually in `fetch_meetings` -> `cron-meetings-poll`. Cost ~40 min to discover.
+
+**Meta-learnings filed as new launch.json items:**
+- `modal_deploy_smoke_tests` (observability, P0) — post-deploy smoke call per critical Modal function would have caught (A) and (B) in seconds. Promoted to P0 as next session's focus.
+- `silent_error_pattern_critic` (observability, P2) — ban `extra={"error": str(e)}` pattern via critic.
+- `cron_dispatch_ownership_doc` (turnkey_onboarding, P2) — source_type -> cron mapping table in docs/internal/ingestion.md.
+- `playwright_llm_threading_port` (election_integration, P2) — apply the same ThreadPoolExecutor fix to fetch_playwright_llm_meetings prophylactically.
+
+**Commits (all on origin/main):**
+- 72023636 — initial Simbli agenda_url code (from previous session)
+- e65457fa — civic-blob secret + logger.exception
+- 1b8c74af — boto3 in browser_image
+- 86442064 — ThreadPoolExecutor wrapper for sync_playwright
+
+**Next session's recommended P0:** `modal_deploy_smoke_tests`. Start with the 3-4 Playwright/R2-touching Modal functions where environment-level bugs are hardest to catch with unit tests.

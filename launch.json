@@ -330,6 +330,17 @@
         ],
         "test_file": null,
         "notes": "2026-04-09 progress: Video URLs discovered via Granicus ViewPublisher (6\u219246/57 meetings). View-to-committee map stored in extraction config: view 10=BoS, 7=B&F, 11=GovAudit, 13=Rules, 20=PubSafety, 21=B&A, 45=LandUse. MP3 resolution verified (archive-video.granicus.com). 33 meetings ready for transcription (~$43 estimated AssemblyAI cost, ~66 audio hours). 12 meetings still missing video_url (mostly Land Use, videos not yet posted to Granicus). Next: run modal transcription (audio download + AssemblyAI) with $50 cost cap."
+      },
+      {
+        "name": "cron_dispatch_ownership_doc",
+        "description": "Add a short reference table to docs/internal/ingestion.md mapping each meeting source_type (granicus, legistar, proudcity, civicplus, civicclerk, boarddocs, simbli, playwright_llm, universal) and each refresh stage (municipal_code, agenda_items, decisions, chunks) to the cron workflow that drives it. 2026-04-20 session's handoff recommended triggering cron-low-velocity-refresh to verify a Simbli fix, but Simbli dispatch actually lives in fetch_meetings -> cron-meetings-poll. Discovering this took ~40 min. A one-page table prevents that class of handoff error.",
+        "priority": 2,
+        "status": "not_started",
+        "files": [
+          "docs/internal/ingestion.md"
+        ],
+        "test_file": null,
+        "notes": "Filed 2026-04-20. ~15 min of work. Cheap preventative doc. Also useful for future /nextsesh handoffs: when recommending a cron to verify a fix, cite this table."
       }
     ]
   },
@@ -459,6 +470,30 @@
         ],
         "test_file": null,
         "notes": "LegiScan key issue is likely env var quoting in Modal secrets. city-national-city may need adding to jurisdiction registry or removing from extraction configs. Vector timeout needs longer GH Actions timeout or chunked parallelism. Meetings poll IndexError is opaque \u2014 check Modal logs."
+      },
+      {
+        "name": "modal_deploy_smoke_tests",
+        "description": "Add post-deploy smoke tests that run one cheap invocation per critical Modal function after `modal deploy`, verifying expected output shape (blob_storage backend_type, meetings_found > 0 for a known-good jurisdiction, etc.). Motivated by 2026-04-20 simbli_incapsula_bypass session where we burned 4 deploy/cron/verify cycles (~2 hours total) to surface three latent production bugs that a single post-deploy smoke call would have caught immediately. Pattern: wire into /deploy skill, add --smoke flag to modal_ingest that runs fetch_simbli_meetings(jurisdiction=school-larkspur-corte-madera, dry_run=True) etc. and asserts on the returned dict.",
+        "priority": 0,
+        "status": "not_started",
+        "files": [
+          ".claude/commands/deploy.md",
+          "scripts/modal_ingest.py"
+        ],
+        "test_file": null,
+        "notes": "Filed 2026-04-20 after simbli_incapsula_bypass verification hunt. Bugs the smoke test would have caught in seconds: (A) civic-blob secret missing -> blob_storage: local in returned dict. (B) boto3 ImportError -> 'Could not initialize blob storage' in logs. (C) asyncio/Playwright loop error on second invocation (needs warm-container reuse to reproduce, so smoke could call fetch_simbli_meetings twice back-to-back with different jurisdictions). Scope: ~1 session. Start with the 3-4 Playwright/R2-touching functions (fetch_simbli_meetings, fetch_playwright_llm_meetings, fetch_boarddocs_meetings, download_audio_for_jurisdiction) where environment-level bugs are hardest to catch with unit tests.",
+        "priority_note_2026_04_20": "Promoted to P0 on 2026-04-20 right after simbli_incapsula_bypass closed. The three latent bugs that session surfaced are the exact class this item prevents. Doing it now before the next batch of onboarding/ingestion work means all subsequent deploys get the safety net."
+      },
+      {
+        "name": "silent_error_pattern_critic",
+        "description": "Add critic check that flags the logger.error(..., extra={'error': str(e)}) pattern (and siblings). When the root logger uses the default format, extra= fields are dropped silently, so the real exception message is invisible. SimbliClient.get_meetings used this pattern and hid 'Playwright Sync API inside the asyncio loop' for 42 minutes until we switched to logger.exception. Grep the codebase for other instances and either update or at least document the ban. Easiest home: .critics/silent-failure.critic.md or a new .critics/logging.critic.md.",
+        "priority": 2,
+        "status": "not_started",
+        "files": [
+          ".critics/"
+        ],
+        "test_file": null,
+        "notes": "Filed 2026-04-20. Preventative: turns a latent 42-min discovery into a commit-time flag. One of three meta-learnings from simbli_incapsula_bypass. ~30 min to write the critic rule + grep for existing instances."
       }
     ]
   },
@@ -1784,8 +1819,8 @@
       {
         "name": "simbli_incapsula_bypass",
         "description": "Simbli (simbli.eboardsolutions.com) meetings extraction does NOT populate agenda_url on meeting rows \u2014 the listing page (SB_MeetingListing.aspx) exposes zero PDF links, and the only path to an agenda PDF is the Playwright-only PrintAgenda.aspx landing page that renders via a click-driven API (no stable URL). 2026-04-19 QC: school-novato 42 mtgs / 0 chunks / 0 decisions; school-tamalpais 38 / 0 / 0; school-san-rafael 72 / 788 / 0 (SR's 788 chunks come from scripts/ingest_srcs.py which already implements MID\u2192R2). Fix 2026-04-20: added SimbliClient.upload_agenda_to_r2() / populate_agenda_urls(), extract_simbli_meetings_to_storage() now takes an optional blob_storage arg, and fetch_simbli_meetings() in modal_ingest.py initialises R2 and passes it through. On the next scheduled_low_velocity_refresh run, novato + tamalpais meetings should get agenda_url populated with R2 URLs and the standard chunks pipeline will pick them up. NOTE: the 4 formerly-grouped-here agendaonline.net schools (kentfield, mill-valley-sd, miller-creek, reed-union) are a DIFFERENT PROBLEM \u2014 they return 917KB of plain HTML, no Incapsula, on a different platform layout \u2014 moved to agendaonline_net_client.",
-        "priority": 0,
-        "status": "not_started",
+        "priority": 4,
+        "status": "done",
         "files": [
           "packages/civicos-extraction/src/civicos_extraction/clients/simbli.py",
           "scripts/modal_ingest.py",
@@ -1990,6 +2025,17 @@
         ],
         "test_file": "packages/civicos-extraction/tests/test_ca_sos_ballot_preview.py",
         "notes": "Phase 1 complete: CA SOS PDF parser. Phase 2 (future): Marin Registrar candidate filings + local ballot measures. Phase 3 (future): deadline scraping from registrar. See docs/internal/election-data-research.md."
+      },
+      {
+        "name": "playwright_llm_threading_port",
+        "description": "fetch_playwright_llm_meetings in scripts/modal_ingest.py uses the same sync_playwright().start() pattern that broke fetch_simbli_meetings on Modal warm-container reuse. Apply the same 4-line ThreadPoolExecutor wrapper prophylactically so the bug does not surface on SF / other playwright_llm jurisdictions when they happen to share a warm container with a successful call. Same fix, different function. Low risk.",
+        "priority": 2,
+        "status": "not_started",
+        "files": [
+          "scripts/modal_ingest.py"
+        ],
+        "test_file": null,
+        "notes": "Filed 2026-04-20 during simbli_incapsula_bypass close-out. Preventative port of the threading fix applied in commit 86442064 to fetch_simbli_meetings. ~15 min of work."
       }
     ]
   },
