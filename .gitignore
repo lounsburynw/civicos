@@ -191,3 +191,10 @@ apps/civicos-mcp/config/
 
 # Package-level vector data (local dev, large binary)
 packages/civicos/data/
+
+# Local SQLite databases and ChromaDB vector stores
+# Regenerated at runtime; production uses Postgres + pgvector. Never ship in repo.
+*.sqlite
+*.sqlite3
+**/data/*.db
+**/data/**/*.db

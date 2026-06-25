@@ -203,7 +203,7 @@ Adding a new city is configuration, not code. If your city uses a supported plat
 
 ```bash
 # 1. Clone and install
-git clone https://github.com/civicos-project/civicos.git
+git clone https://github.com/lounsburynw/civicos.git
 cd civicos
 python3 -m venv civicos-env && source civicos-env/bin/activate
 pip install -r requirements.txt
