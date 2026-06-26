@@ -8,6 +8,8 @@
 
 Open civic infrastructure for AI agents. Query meetings, decisions, budgets, and municipal code. Express stances on agenda items. Coordinate across city, county, and state. No app, no lock-in.
 
+> **Status:** Stable; not actively maintained since ~March 2026. Published as a reference / portfolio project.
+
 ## Contents
 
 - [Try It Now](#try-it-now)
